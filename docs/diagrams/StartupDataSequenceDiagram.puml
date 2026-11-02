@@ -1,0 +1,42 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+participant ":MainApp" as App UI_COLOR
+participant ":StorageManager" as Storage STORAGE_COLOR
+participant ":JsonAddressBookStorage" as Json STORAGE_COLOR
+participant "JsonUtil" as JsonUtil STORAGE_COLOR
+
+[-> App : initModelManager()
+activate App
+App -> Storage : readAddressBook()
+activate Storage
+Storage -> Json : readAddressBook()
+activate Json
+Json -> Json : inspect path without following final link
+alt file genuinely absent
+    Json --> Storage : Optional.empty()
+else existing file
+    Json -> JsonUtil : readJsonFile(path)
+    activate JsonUtil
+    note over JsonUtil : Reject malformed JSON, null document\nand duplicate keys.
+    alt JSON read and parsing succeeds
+        JsonUtil --> Json : parsed data
+        deactivate JsonUtil
+        Json -> Json : convert values to model
+        note over Json : Reject values caught by adapters\nand model validators, not every JSON type.
+        Json --> Storage : model data or load failure
+    else JSON read or parsing fails
+        JsonUtil --> Json : DataLoadingException
+        deactivate JsonUtil
+        Json --> Storage : load failure; no conversion
+    end
+else unreadable path or dangling link
+    Json --> Storage : load failure
+end
+deactivate Json
+Storage --> App : data, empty, or load failure
+deactivate Storage
+[<-- App
+deactivate App
+@enduml

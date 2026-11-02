@@ -10,6 +10,10 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -45,22 +49,27 @@ task coverage(type: JacocoReport) {
     }
 }
 
+// Keep host-compatible libraries for development; packaging replaces Mac natives.
+def nativeMacPlatform = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')
+        && System.getProperty('os.arch') in ['aarch64', 'arm64'] ? 'mac-aarch64' : 'mac'
+def javafxMacPlatform = providers.gradleProperty('javafxMacPlatform').getOrElse(nativeMacPlatform)
+if (!(javafxMacPlatform in ['mac', 'mac-aarch64'])) {
+    throw new GradleException('javafxMacPlatform must be mac or mac-aarch64')
+}
+
 dependencies {
     String jUnitVersion = '5.14.4'
     String javaFxVersion = '17.0.7'
 
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:linux"
+    ['base', 'controls', 'fxml', 'graphics'].each { module ->
+        ['win', 'linux', javafxMacPlatform].each { platform ->
+            implementation("org.openjfx:javafx-${module}:${javaFxVersion}:${platform}") {
+                // All four modules are explicit; host-selected transitive classifiers
+                // could otherwise reintroduce the wrong macOS architecture.
+                transitive = false
+            }
+        }
+    }
 
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.7.0'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.7.4'
@@ -76,3 +85,7 @@ shadowJar {
 }
 
 defaultTasks 'clean', 'test'
+
+ext.javafxMacPlatform = javafxMacPlatform
+apply from: 'gradle/universal-natives.gradle'
+apply from: 'gradle/native-verification.gradle'

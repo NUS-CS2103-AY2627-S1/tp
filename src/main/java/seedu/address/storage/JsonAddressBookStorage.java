@@ -3,14 +3,17 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.commons.util.FileUtil;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.ReadOnlyAddressBook;
 
@@ -21,10 +24,17 @@ public class JsonAddressBookStorage {
 
     private static final Logger logger = LogsCenter.getLogger(JsonAddressBookStorage.class);
 
-    private Path filePath;
+    private final Path filePath;
+    private final AtomicFileWriter fileWriter;
 
     public JsonAddressBookStorage(Path filePath) {
-        this.filePath = filePath;
+        this(filePath, new AtomicFileWriter());
+    }
+
+    /** Creates storage with an injectable write boundary; the public read contract is unchanged. */
+    JsonAddressBookStorage(Path filePath, AtomicFileWriter fileWriter) {
+        this.filePath = requireNonNull(filePath);
+        this.fileWriter = requireNonNull(fileWriter);
     }
 
     public Path getAddressBookFilePath() {
@@ -50,17 +60,40 @@ public class JsonAddressBookStorage {
     public Optional<ReadOnlyAddressBook> readAddressBook(Path filePath) throws DataLoadingException {
         requireNonNull(filePath);
 
-        Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFile(
-                filePath, JsonSerializableAddressBook.class);
-        if (!jsonAddressBook.isPresent()) {
+        if (!dataPathExists(filePath)) {
             return Optional.empty();
+        }
+        Optional<JsonSerializableAddressBook> jsonAddressBook;
+        try {
+            jsonAddressBook = JsonUtil.readJsonFile(filePath, JsonSerializableAddressBook.class);
+        } catch (SecurityException e) {
+            logger.warning("Participant data could not be read from " + filePath);
+            throw new DataLoadingException(e);
+        }
+        if (jsonAddressBook.isEmpty()) {
+            throw new DataLoadingException(new IOException("Existing participant data could not be read."));
         }
 
         try {
             return Optional.of(jsonAddressBook.get().toModelType());
-        } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
-            throw new DataLoadingException(ive);
+        } catch (IllegalValueException e) {
+            logger.warning("Invalid participant data found in " + filePath);
+            throw new DataLoadingException(e);
+        }
+    }
+
+    /**
+     * Distinguishes an absent first-run file from an existing path that cannot be loaded.
+     */
+    private boolean dataPathExists(Path filePath) throws DataLoadingException {
+        try {
+            Files.readAttributes(filePath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            return true;
+        } catch (NoSuchFileException e) {
+            return false;
+        } catch (IOException | SecurityException e) {
+            logger.warning("Could not inspect participant data path " + filePath);
+            throw new DataLoadingException(e);
         }
     }
 
@@ -82,8 +115,14 @@ public class JsonAddressBookStorage {
         requireNonNull(addressBook);
         requireNonNull(filePath);
 
-        FileUtil.createIfMissing(filePath);
-        JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
+        String content;
+        try {
+            content = JsonUtil.toJsonString(new JsonSerializableAddressBook(addressBook));
+        } catch (IOException | RuntimeException exception) {
+            logger.warning("Could not serialize participant data; no file replacement attempted.");
+            throw new IOException("Could not serialize participant data. The saved file was not replaced.", exception);
+        }
+        fileWriter.write(filePath, content);
     }
 
 }

@@ -5,12 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GROUP_LOGISTICS;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -88,12 +91,79 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // different role -> returns false
+        editedAlice = new PersonBuilder(ALICE).withRole("Facilitator").build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different group -> returns false
+        editedAlice = new PersonBuilder(ALICE).withGroup(VALID_GROUP_LOGISTICS).build();
+        assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags()
+                + ", role=null, activity=" + ALICE.getActivity() + ", group=null, remark=}";
         assertEquals(expected, ALICE.toString());
+    }
+
+    @Test
+    public void equals_differentActivity_sameIdentityButDifferentData() {
+        Person assignedAlice = new PersonBuilder(ALICE).withActivity("Campfire").build();
+        assertTrue(ALICE.getActivity().isEmpty());
+        assertTrue(ALICE.isSamePerson(assignedAlice));
+        assertFalse(ALICE.equals(assignedAlice));
+        Person copy = new PersonBuilder(assignedAlice).build();
+        assertEquals(assignedAlice, copy);
+        assertEquals(assignedAlice.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void equals_bothAssignments_comparesRoleAndActivityIndependently() {
+        Person assigned = new PersonBuilder(ALICE).withRole("Facilitator").withActivity("Campfire").build();
+        Person copy = new PersonBuilder(assigned).build();
+        assertEquals(assigned, copy);
+        assertEquals(assigned.hashCode(), copy.hashCode());
+        assertTrue(ALICE.isSamePerson(assigned));
+        assertFalse(assigned.equals(new PersonBuilder(assigned).withRole("Logistics Lead").build()));
+        assertFalse(assigned.equals(new PersonBuilder(assigned).withActivity("Hiking").build()));
+        assertTrue(assigned.toString().contains("role=Facilitator"));
+        assertTrue(assigned.toString().contains("activity=Optional[Campfire]"));
+    }
+
+    @Test
+    public void equals_differentRemark_sameIdentityButDifferentData() {
+        Person noted = new PersonBuilder(ALICE).withRemark("Needs a vegetarian meal").build();
+        Person copy = new PersonBuilder(noted).build();
+        assertEquals(new Remark(""), ALICE.getRemark());
+        assertTrue(ALICE.isSamePerson(noted));
+        assertFalse(ALICE.equals(noted));
+        assertEquals(noted, copy);
+        assertEquals(noted.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void constructor_nullRemark_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags(), ALICE.getRole(), ALICE.getActivity(),
+                ALICE.getGroup(), null));
+    }
+
+    @Test
+    public void constructor_legacySignatures_defaultToEmptyRemark() {
+        for (Person person : List.of(
+                new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags()),
+                new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags(),
+                        new Role("Helper")),
+                new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags(),
+                        ALICE.getRole()),
+                new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags(),
+                        ALICE.getRole(), ALICE.getActivity()),
+                new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(), ALICE.getTags(),
+                        ALICE.getRole(), ALICE.getActivity(), ALICE.getGroup()))) {
+            assertEquals(new Remark(""), person.getRemark());
+        }
     }
 }

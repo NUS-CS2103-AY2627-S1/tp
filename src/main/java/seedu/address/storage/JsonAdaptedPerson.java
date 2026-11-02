@@ -3,18 +3,24 @@ package seedu.address.storage;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.model.group.Group;
+import seedu.address.model.person.Activity;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -28,22 +34,66 @@ class JsonAdaptedPerson {
     private final String phone;
     private final String email;
     private final String address;
+    private final String role;
+    private final String activity;
+    private final String group;
+    private final String remark;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
+     * Missing or JSON null remarks become empty text without coercing other JSON types.
+     *
+     * @throws IllegalArgumentException if the remark is neither a JSON string nor null.
      */
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("tags") List<JsonAdaptedTag> tags, @JsonProperty("role") String role,
+            @JsonProperty("activity") String activity, @JsonProperty("group") String group,
+            @JsonProperty("remark") JsonNode remark) {
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.role = role;
+        this.activity = activity;
+        this.group = group;
+        this.remark = readRemarkText(remark);
         if (tags != null) {
             this.tags.addAll(tags);
         }
+    }
+
+    /**
+     * Constructs an adapted participant without a remark for backward compatibility.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            List<JsonAdaptedTag> tags, String role, String activity, String group) {
+        this(name, phone, email, address, tags, role, activity, group, null);
+    }
+
+    /**
+     * Constructs an adapted person without a group for backward compatibility.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            List<JsonAdaptedTag> tags, String role, String activity) {
+        this(name, phone, email, address, tags, role, activity, null);
+    }
+
+    /**
+     * Constructs an adapted person without an activity for backward compatibility.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            List<JsonAdaptedTag> tags, String role) {
+        this(name, phone, email, address, tags, role, null);
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} without a role for backward compatibility.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, tags, null);
     }
 
     /**
@@ -54,6 +104,10 @@ class JsonAdaptedPerson {
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        role = source.getRole().map(assignedRole -> assignedRole.value).orElse(null);
+        activity = source.getActivity().map(assignedActivity -> assignedActivity.value).orElse(null);
+        group = source.getGroup().map(Object::toString).orElse(null);
+        remark = source.getRemark().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -67,6 +121,9 @@ class JsonAdaptedPerson {
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException("Person's tags field contains a null tag.");
+            }
             personTags.add(tag.toModelType());
         }
 
@@ -102,8 +159,38 @@ class JsonAdaptedPerson {
         }
         final Address modelAddress = new Address(address);
 
+        Role modelRole = null;
+        if (role != null) {
+            if (!Role.isValidRole(role)) {
+                throw new IllegalValueException(Role.MESSAGE_CONSTRAINTS);
+            }
+            modelRole = new Role(role);
+        }
+
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        if (activity != null && !Activity.isValidActivity(activity)) {
+            throw new IllegalValueException(Activity.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Activity> modelActivity = Optional.ofNullable(activity).map(Activity::new);
+        if (group != null && !Group.isValidGroupName(group)) {
+            throw new IllegalValueException(Group.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Group> modelGroup = Optional.ofNullable(group).map(Group::new);
+        final Remark modelRemark = new Remark(remark);
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags,
+                Optional.ofNullable(modelRole), modelActivity, modelGroup, modelRemark);
     }
 
+    /**
+     * Returns exact remark text, defaulting missing or JSON null values to empty text.
+     */
+    private static String readRemarkText(JsonNode remark) {
+        if (remark == null || remark.isNull()) {
+            return "";
+        }
+        if (!remark.isTextual()) {
+            throw new IllegalArgumentException("Remark must be a JSON string or null.");
+        }
+        return remark.textValue();
+    }
 }

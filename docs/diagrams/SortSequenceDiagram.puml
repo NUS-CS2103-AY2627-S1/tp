@@ -1,0 +1,47 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "command:SortCommand" as SortCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:ModelManager" as ModelManager MODEL_COLOR
+participant "sortedPersons:SortedList<Person>" as SortedList MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant "storage:Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("sort name")
+activate LogicManager
+note over LogicManager : Parser creates SortCommand\n(omitted for clarity)
+
+LogicManager -> SortCommand : execute(model)
+activate SortCommand
+SortCommand -> ModelManager : updateSortedPersonList(NAME_COMPARATOR)
+activate ModelManager
+ModelManager -> SortedList : setComparator(NAME_COMPARATOR)
+activate SortedList
+SortedList --> ModelManager
+deactivate SortedList
+ModelManager --> SortCommand
+deactivate ModelManager
+SortCommand --> LogicManager : result
+deactivate SortCommand
+
+LogicManager -> ModelManager : getAddressBook()
+activate ModelManager
+ModelManager --> LogicManager : addressBook
+deactivate ModelManager
+LogicManager -> Storage : saveAddressBook(addressBook)
+activate Storage
+Storage --> LogicManager
+deactivate Storage
+
+[<-- LogicManager : result
+deactivate LogicManager
+@enduml

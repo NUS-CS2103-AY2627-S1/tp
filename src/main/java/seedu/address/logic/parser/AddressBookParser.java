@@ -3,20 +3,29 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AssignActivityCommand;
+import seedu.address.logic.commands.AssignGroupCommand;
+import seedu.address.logic.commands.AssignRoleCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterAllCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindContactCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.UnassignCommand;
+import seedu.address.logic.commands.UnassignedCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -28,7 +37,6 @@ public class AddressBookParser {
      * Used for initial separation of command word and args.
      */
     private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
-    private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
 
     /**
      * Parses user input into command for execution.
@@ -46,22 +54,31 @@ public class AddressBookParser {
         final String commandWord = matcher.group("commandWord");
         final String arguments = matcher.group("arguments");
 
-        // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
-        // log messages such as the one below.
-        // Lower level log messages are used sparingly to minimize noise in the code.
-        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
-
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case AssignActivityCommand.COMMAND_WORD -> new AssignActivityCommandParser().parse(arguments);
+            case AssignGroupCommand.COMMAND_WORD -> new AssignGroupCommandParser().parse(arguments);
+            case AssignRoleCommand.COMMAND_WORD -> new AssignRoleCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ClearCommand.COMMAND_WORD -> new NoArgumentsCommandParser<>(
+                    ClearCommand::new, ClearCommand.MESSAGE_USAGE).parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case FindContactCommand.COMMAND_WORD -> new FindContactCommandParser().parse(arguments);
+            case FilterAllCommand.COMMAND_WORD -> new FilterAllCommandParser().parse(arguments);
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> new NoArgumentsCommandParser<>(
+                    ListCommand::new, ListCommand.MESSAGE_USAGE).parse(arguments);
+            case RemarkCommand.COMMAND_WORD -> new RemarkCommandParser().parse(arguments);
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
+            case UnassignCommand.COMMAND_WORD -> new UnassignCommandParser().parse(arguments);
+            case UnassignedCommand.COMMAND_WORD -> new UnassignedCommandParser().parse(arguments);
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
+            case ExitCommand.COMMAND_WORD -> new NoArgumentsCommandParser<>(
+                    ExitCommand::new, ExitCommand.MESSAGE_USAGE).parse(arguments);
+            case HelpCommand.COMMAND_WORD -> new NoArgumentsCommandParser<>(
+                    HelpCommand::new, HelpCommand.MESSAGE_USAGE).parse(arguments);
             default -> {
-                logger.finer("This user input caused a ParseException: " + userInput);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };

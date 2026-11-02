@@ -39,6 +39,14 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label activity;
+    @FXML
+    private Label role;
+    @FXML
+    private Label group;
+    @FXML
+    private Label remark;
+    @FXML
     private FlowPane tags;
 
     /**
@@ -52,6 +60,20 @@ public class PersonCard extends UiPart<Region> {
         phone.setText(person.getPhone().value);
         address.setText(person.getAddress().value);
         email.setText(person.getEmail().value);
+        activity.setText(person.getActivity().map(value -> "Activity: " + value).orElse(""));
+        activity.setVisible(person.getActivity().isPresent());
+        activity.setManaged(person.getActivity().isPresent());
+        if (person.getRole().isPresent()) {
+            role.setText("Role: " + person.getRole().get().value);
+        } else {
+            role.setManaged(false);
+            role.setVisible(false);
+        }
+        group.setText("Group: " + person.getGroup().map(Object::toString).orElse("Unassigned"));
+        String remarkText = person.getRemark().value;
+        remark.setText(remarkText.isEmpty() ? "" : "Remark: " + remarkText);
+        remark.setVisible(!remarkText.isEmpty());
+        remark.setManaged(!remarkText.isEmpty());
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));

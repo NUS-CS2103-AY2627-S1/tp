@@ -1,13 +1,18 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
+import seedu.address.model.group.Group;
+import seedu.address.model.person.Activity;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -26,6 +31,10 @@ public class PersonBuilder {
     private Email email;
     private Address address;
     private Set<Tag> tags;
+    private Optional<Role> role;
+    private Optional<Activity> activity = Optional.empty();
+    private Optional<Group> group = Optional.empty();
+    private Remark remark = new Remark("");
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -36,6 +45,7 @@ public class PersonBuilder {
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        role = Optional.empty();
     }
 
     /**
@@ -47,6 +57,10 @@ public class PersonBuilder {
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
         tags = new HashSet<>(personToCopy.getTags());
+        role = personToCopy.getRole();
+        activity = personToCopy.getActivity();
+        group = personToCopy.getGroup();
+        remark = personToCopy.getRemark();
     }
 
     /**
@@ -89,8 +103,40 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Role} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRole(String role) {
+        this.role = Optional.of(new Role(role));
+        return this;
+    }
+
+    /**
+     * Sets the activity of the person being built.
+     */
+    public PersonBuilder withActivity(String activity) {
+        this.activity = Optional.of(new Activity(activity));
+        return this;
+    }
+
+    /**
+     * Sets the group of the person being built.
+     */
+    public PersonBuilder withGroup(String group) {
+        this.group = Optional.of(new Group(group));
+        return this;
+    }
+
+    /**
+     * Sets the remark text without changing other participant fields.
+     */
+    public PersonBuilder withRemark(String remark) {
+        this.remark = new Remark(remark);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, tags, role, activity, group, remark);
     }
 
 }

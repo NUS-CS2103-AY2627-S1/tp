@@ -5,9 +5,11 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.group.Group;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -24,17 +26,64 @@ public class Person {
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Optional<Role> role;
+    private final Optional<Activity> activity;
+    private final Optional<Group> group;
+    private final Remark remark;
 
     /**
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(name, phone, email, address, tags, Optional.empty());
+    }
+
+    /**
+     * Creates a person with an assigned role.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Role role) {
+        this(name, phone, email, address, tags, Optional.of(role));
+    }
+
+    /**
+     * Creates a person with an optional assigned role.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Optional<Role> role) {
+        this(name, phone, email, address, tags, role, Optional.empty());
+    }
+
+    /**
+     * Creates a person with independent optional role and activity assignments.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags,
+            Optional<Role> role, Optional<Activity> activity) {
+        this(name, phone, email, address, tags, role, activity, Optional.empty());
+    }
+
+    /**
+     * Creates a person with independent optional role, activity, and group assignments.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags,
+            Optional<Role> role, Optional<Activity> activity, Optional<Group> group) {
+        this(name, phone, email, address, tags, role, activity, group, new Remark(""));
+    }
+
+    /**
+     * Creates a participant with independent assignments and a non-null remark.
+     * Empty remark text represents no note. All arguments must be non-null.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags,
+            Optional<Role> role, Optional<Activity> activity, Optional<Group> group, Remark remark) {
+        requireAllNonNull(name, phone, email, address, tags, role, activity, group, remark);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
         this.tags.addAll(tags);
+        this.role = role;
+        this.activity = activity;
+        this.group = group;
+        this.remark = remark;
     }
 
     public Name getName() {
@@ -59,6 +108,22 @@ public class Person {
      */
     public Set<Tag> getTags() {
         return Collections.unmodifiableSet(tags);
+    }
+
+    public Optional<Activity> getActivity() {
+        return activity;
+    }
+
+    public Optional<Group> getGroup() {
+        return group;
+    }
+
+    public Optional<Role> getRole() {
+        return role;
+    }
+
+    public Remark getRemark() {
+        return remark;
     }
 
     /**
@@ -93,13 +158,17 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && role.equals(otherPerson.role)
+                && activity.equals(otherPerson.activity)
+                && group.equals(otherPerson.group)
+                && remark.equals(otherPerson.remark);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, role, activity, group, remark);
     }
 
     @Override
@@ -110,6 +179,10 @@ public class Person {
                 .add("email", email)
                 .add("address", address)
                 .add("tags", tags)
+                .add("role", role.orElse(null))
+                .add("activity", activity)
+                .add("group", group.orElse(null))
+                .add("remark", remark)
                 .toString();
     }
 

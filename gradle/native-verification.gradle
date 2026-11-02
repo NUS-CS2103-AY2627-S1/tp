@@ -1,0 +1,167 @@
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.security.MessageDigest
+import java.util.zip.ZipFile
+
+// Keep an explicit minimum set as well as comparing every native resource from
+// the selected dependencies, including their bundled Windows runtime DLLs.
+def requiredNatives = [
+    'libdecora_sse.dylib', 'libglass.dylib', 'libjavafx_font.dylib',
+    'libjavafx_iio.dylib', 'libprism_common.dylib', 'libprism_es2.dylib', 'libprism_sw.dylib',
+    'decora_sse.dll', 'glass.dll', 'javafx_font.dll', 'javafx_iio.dll',
+    'prism_common.dll', 'prism_d3d.dll', 'prism_sw.dll',
+    'libdecora_sse.so', 'libglass.so', 'libglassgtk2.so', 'libglassgtk3.so',
+    'libjavafx_font.so', 'libjavafx_font_freetype.so', 'libjavafx_font_pango.so',
+    'libjavafx_iio.so', 'libprism_common.so', 'libprism_es2.so', 'libprism_sw.so'
+]
+def isNative = { String name -> name ==~ /.*\.(dylib|dll|so)/ }
+def fingerprint = { byte[] bytes -> MessageDigest.getInstance('SHA-256').digest(bytes) }
+
+// Apple lipo emits a big-endian FAT_MAGIC header for these small dylibs.
+// Validate slices against upstream bytes, not just the advertised CPU labels.
+ext.verifyUniversalNative = { String name, byte[] bytes, Map slices ->
+    if (bytes.length < 48) {
+        throw new GradleException("Truncated native library: ${name}")
+    }
+    def header = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
+    if (header.getInt() != (int) 0xcafebabe || header.getInt() != 2) {
+        throw new GradleException("Wrong native architecture in ${name}: expected Intel and ARM universal binary")
+    }
+    def seen = [] as Set
+    def ranges = []
+    2.times {
+        int cpu = header.getInt()
+        int subtype = header.getInt()
+        long offset = Integer.toUnsignedLong(header.getInt())
+        long size = Integer.toUnsignedLong(header.getInt())
+        int alignment = header.getInt()
+        if (!slices.containsKey(cpu) || !seen.add(cpu)) {
+            throw new GradleException("Wrong native architecture in ${name}: missing or duplicate CPU slice")
+        }
+        if (alignment < 0 || alignment > 30 || offset < 48 || size < 32
+                || offset + size > bytes.length || offset % (1L << alignment) != 0
+                || ranges.any { offset < it[1] && offset + size > it[0] }) {
+            throw new GradleException("Malformed universal slice in ${name}")
+        }
+        byte[] payload = Arrays.copyOfRange(bytes, (int) offset, (int) (offset + size))
+        def thin = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN)
+        if (thin.getInt() != (int) 0xfeedfacf || thin.getInt() != cpu || thin.getInt() != subtype) {
+            throw new GradleException("Wrong native architecture in ${name}: slice header mismatch")
+        }
+        if (!Arrays.equals(fingerprint(payload), fingerprint(slices[cpu]))) {
+            throw new GradleException("Payload mismatch in native library: ${name}")
+        }
+        ranges << [offset, offset + size]
+    }
+    if (ranges.collect { it[1] }.max() != bytes.length) {
+        throw new GradleException("Payload mismatch in native library: ${name} (trailing bytes)")
+    }
+}
+def referenceNatives = null
+def loadReferenceNatives = {
+    if (referenceNatives == null) {
+        def references = [:]
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.findAll {
+            it.moduleVersion.id.group == 'org.openjfx'
+        }.each { dependency ->
+            new ZipFile(dependency.file).withCloseable { zip ->
+                zip.entries().toList().findAll { isNative(it.name) }.each { entry ->
+                    if (references.containsKey(entry.name)) {
+                        throw new GradleException("Duplicated dependency native: ${entry.name}")
+                    }
+                    byte[] bytes = zip.getInputStream(entry).withCloseable { it.readAllBytes() }
+                    references[entry.name] = [size: bytes.length, digest: fingerprint(bytes)]
+                }
+            }
+        }
+        def missing = requiredNatives - references.keySet()
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing native dependencies: ${missing}")
+        }
+        referenceNatives = references
+    }
+    referenceNatives
+}
+
+def verifyNativeArchive = { File artifact, String target ->
+    if (!artifact.isFile()) {
+        def cause = new FileNotFoundException(artifact.toString())
+        throw new GradleException("Native archive does not exist or is not a regular file: ${artifact}", cause)
+    }
+    def references = loadReferenceNatives()
+    def macReferences = project.ext.macNativePayloads()
+    if (artifact.length() > 100_000_000L) {
+        throw new GradleException('Packaged JAR exceeds the 100 MB product limit')
+    }
+    try {
+        new ZipFile(artifact).withCloseable { zip ->
+            def natives = zip.entries().toList().findAll { isNative(it.name) }
+            def names = natives.collect { it.name }
+            def missing = references.keySet() - names
+            if (!missing.isEmpty()) {
+                throw new GradleException("Missing native libraries: ${missing}")
+            }
+            if (names.size() != names.toSet().size()) {
+                throw new GradleException('Duplicated native libraries')
+            }
+            def unexpected = names - references.keySet()
+            if (!unexpected.isEmpty()) {
+                throw new GradleException("Unexpected native libraries: ${unexpected}")
+            }
+            natives.each { entry ->
+                byte[] bytes = zip.getInputStream(entry).withCloseable { it.readAllBytes() }
+                if (bytes.length < 32 || (!entry.name.endsWith('.dylib')
+                        && bytes.length < references[entry.name].size)) {
+                    throw new GradleException("Truncated native library: ${entry.name}")
+                }
+                if (entry.name.endsWith('.dylib')) {
+                    project.ext.verifyUniversalNative(entry.name, bytes, macReferences[entry.name])
+                } else if (!Arrays.equals(fingerprint(bytes), references[entry.name].digest)) {
+                    throw new GradleException("Payload mismatch in native library: ${entry.name}")
+                }
+            }
+        }
+    } catch (IOException exception) {
+        throw new GradleException("Native archive is unreadable or malformed: ${artifact} "
+                + "(${exception.class.simpleName})", exception)
+    }
+}
+
+tasks.register('verifyMacNatives') {
+    dependsOn shadowJar
+    doLast {
+        if (providers.gradleProperty('javafxVerificationJar').isPresent()) {
+            throw new GradleException('verifyMacNatives always checks shadowJar; '
+                    + 'use verifyExternalMacNatives separately for javafxVerificationJar')
+        }
+        def artifact = shadowJar.archiveFile.get().asFile
+        verifyNativeArchive(artifact, project.ext.javafxMacPlatform)
+        logger.lifecycle("Verified all native payloads (macOS, Windows, Linux) in ${artifact.name}")
+    }
+}
+
+tasks.register('verifyExternalMacNatives') {
+    doLast {
+        def path = providers.gradleProperty('javafxVerificationJar')
+        if (!path.isPresent()) {
+            throw new GradleException('verifyExternalMacNatives requires -PjavafxVerificationJar=/path/to/candidate.jar')
+        }
+        verifyNativeArchive(file(path.get()), project.ext.javafxMacPlatform)
+        logger.lifecycle("Verified external native payloads in ${file(path.get()).name}")
+    }
+}
+
+project.ext.verifyNativeArchive = verifyNativeArchive
+apply from: 'gradle/native-verification-tests.gradle'
+
+// Ordinary check/coverage runs should remain available on Windows and Linux
+// without downloading the CI-produced universal Mac native bundle. Packaging
+// CI invokes these verification tasks explicitly, and platform matrix jobs opt
+// in by providing the prepared bundle. On Mac, local checks can build it with lipo.
+def isMacHost = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')
+if (isMacHost || providers.gradleProperty('universalNativesDir').isPresent()) {
+    check.dependsOn tasks.named('verifyMacNatives')
+    check.dependsOn tasks.named('testNativeVerifier')
+}
