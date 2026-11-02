@@ -5,55 +5,51 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Aw Guangyang Amos
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/somawa.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
+[[github](https://github.com/somawa)]
+
+* Role: Developer, Head of Documentation
+* Responsibilities: UI, In Charge of Remark Command
+
+### Sakthi
+
+<img src="images/sakthi-dev-tech.png" width="200px">
+
+[[github](http://github.com/Sakthi-dev-tech)]
+
+* Role: Developer, Head of Code Quality
+* Responsibilities: Backend, In Charge of Find Command
+
+### Lin Bo-Ruei
+
+<img src="images/spoinornus.png" width="200px">
+
+[[github](http://github.com/spoinornus)]
+
+* Role: Developer, Yapper, Head of Deliverables and Deadlines
+* Responsibilities: Yapping, Organising, In Charge of Add Command
+
+### Edmund Tan
+
+<img src="images/edmundtan37.png" width="200px">
+
+[[github](https://github.com/EdmundTan37)]
 [[portfolio](team/johndoe.md)]
 
-* Role: Project Advisor
+* Role: Developer, Head of Scheduling and Tracking
+* Responsibilities: Dev Ops, Threading, In Charge of Sort Command
 
-### Jane Doe
+### Koh Yu Jun
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yjenexd.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/yjenexd)]
+[[portfolio](team/yjenexd.md)]
 
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+* Role: Celery Worker, Testing/QCE Specialist
+* Responsibilities: Full Stack, In Charge of Delete Command

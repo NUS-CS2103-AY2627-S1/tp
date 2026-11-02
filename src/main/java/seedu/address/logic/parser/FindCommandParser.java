@@ -1,12 +1,14 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
 import java.util.List;
 
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.NameOrTagContainsKeywordsPredicate;
 
 /**
  * Parses input arguments and creates a new FindCommand object
@@ -19,15 +21,30 @@ public class FindCommandParser implements Parser<FindCommand> {
      * @throws ParseException if the user input does not conform to the expected format
      */
     public FindCommand parse(String args) throws ParseException {
+        assert args != null : "Find command arguments must not be null";
         String trimmedArgs = args.trim();
         if (trimmedArgs.isEmpty()) {
             throw new ParseException(
-                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+                    String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            FindCommand.MESSAGE_MISSING_SEARCH_TERMS + "\n" + FindCommand.MESSAGE_USAGE));
         }
 
-        String[] nameKeywords = trimmedArgs.split("\\s+");
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(" " + trimmedArgs.replaceAll("\\s+", " "), PREFIX_TAG);
+        String nameArgs = arguments.getPreamble();
+        List<String> nameKeywords = nameArgs.isEmpty() ? List.of() : List.of(nameArgs.split("\\s+"));
+        List<String> tagKeywords = arguments.getAllValues(PREFIX_TAG);
+        for (String tagKeyword : tagKeywords) {
+            if (tagKeyword.isEmpty()) {
+                throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                        FindCommand.MESSAGE_MISSING_TAG + "\n" + FindCommand.MESSAGE_USAGE));
+            }
+            ParserUtil.parseTag(tagKeyword);
+        }
 
-        return new FindCommand(new NameContainsKeywordsPredicate(List.of(nameKeywords)));
+        if (tagKeywords.isEmpty()) {
+            return new FindCommand(new NameContainsKeywordsPredicate(nameKeywords));
+        }
+        return new FindCommand(new NameOrTagContainsKeywordsPredicate(nameKeywords, tagKeywords));
     }
 
 }

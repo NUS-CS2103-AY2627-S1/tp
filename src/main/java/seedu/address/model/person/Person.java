@@ -1,11 +1,13 @@
 package seedu.address.model.person;
 
+import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
@@ -16,7 +18,14 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
+    /** Number of leading UUID characters shown on a person's card and used to identify them in commands. */
+    public static final int SHORT_UUID_LENGTH = 7;
+
+    /** Number of hexadecimal digits in a full UUID, not counting its dashes. */
+    public static final int UUID_HEX_LENGTH = 32;
+
     // Identity fields
+    private final UUID uuid;
     private final Name name;
     private final Phone phone;
     private final Email email;
@@ -24,17 +33,50 @@ public class Person {
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Remark remark;
 
     /**
-     * Every field must be present and not null.
+     * Every field must be present and not null. A fresh UUID is generated for this person.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Remark remark, Set<Tag> tags) {
+        this(UUID.randomUUID(), name, phone, email, address, remark, tags);
+    }
+
+    /**
+     * Every field must be present and not null. Used when the UUID is already known,
+     * e.g. when reconstructing a person loaded from storage.
+     */
+    public Person(UUID uuid, Name name, Phone phone, Email email, Address address, Remark remark, Set<Tag> tags) {
+        requireAllNonNull(uuid, name, phone, email, address, remark, tags);
+        this.uuid = uuid;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
         this.tags.addAll(tags);
+        this.remark = remark;
+    }
+
+    public UUID getUuid() {
+        return uuid;
+    }
+
+    /**
+     * Returns the first {@value #SHORT_UUID_LENGTH} characters of this person's UUID, for compact display.
+     */
+    public String getShortUuid() {
+        return uuid.toString().substring(0, SHORT_UUID_LENGTH);
+    }
+
+    /**
+     * Returns true if this person's UUID, written without dashes, starts with {@code uuidPrefix}.
+     * {@code uuidPrefix} must already be lowercase and contain no dashes.
+     */
+    public boolean hasUuidPrefix(String uuidPrefix) {
+        requireNonNull(uuidPrefix);
+        assert uuidPrefix.equals(uuidPrefix.toLowerCase()) && !uuidPrefix.contains("-")
+                : "UUID prefix must be normalised before matching: " + uuidPrefix;
+        return uuid.toString().replace("-", "").startsWith(uuidPrefix);
     }
 
     public Name getName() {
@@ -53,6 +95,10 @@ public class Person {
         return address;
     }
 
+    public Remark getRemark() {
+        return remark;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,7 +108,7 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same name, ignoring letter case.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +117,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().fullName.equalsIgnoreCase(getName().fullName);
     }
 
     /**
@@ -93,13 +139,14 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
+                && remark.equals(otherPerson.remark)
                 && tags.equals(otherPerson.tags);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, remark, tags);
     }
 
     @Override
@@ -109,6 +156,7 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("remark", remark)
                 .add("tags", tags)
                 .toString();
     }

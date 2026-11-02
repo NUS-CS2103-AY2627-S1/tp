@@ -1,5 +1,7 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -48,6 +50,13 @@ public interface Model {
     void deletePerson(Person target);
 
     /**
+     * Returns an unmodifiable list of all persons whose UUID, written without dashes, starts with
+     * {@code uuidPrefix}. Searches the entire address book rather than only the filtered list.
+     * {@code uuidPrefix} must already be lowercase and contain no dashes.
+     */
+    List<Person> getPersonsByUuidPrefix(String uuidPrefix);
+
+    /**
      * Adds the given person.
      * {@code person} must not already exist in the address book.
      */
@@ -68,4 +77,29 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the displayed person order using {@code comparator}.
+     * A null comparator restores the underlying address book order.
+     */
+    void updatePersonListComparator(Comparator<Person> comparator);
+
+    /**
+     * Returns true if a person removed with {@link #deletePerson(Person)} this session can still be restored.
+     */
+    boolean hasDeletedPersons();
+
+    /**
+     * Returns the most recently deleted person that has not been restored, without restoring them.
+     * @throws java.util.NoSuchElementException if there are no deleted persons to restore.
+     */
+    Person getLastDeletedPerson();
+
+    /**
+     * Restores the most recently deleted person to the position they were deleted from,
+     * and resets the filtered person list to show all persons.
+     * That person must not already exist in the address book.
+     * @throws java.util.NoSuchElementException if there are no deleted persons to restore.
+     */
+    void restoreLastDeletedPerson();
 }

@@ -2,6 +2,7 @@ package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
@@ -12,6 +13,8 @@ import static seedu.address.testutil.TypicalPersons.BOB;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import seedu.address.model.person.exceptions.DuplicatePersonException;
 import seedu.address.model.person.exceptions.PersonNotFoundException;
@@ -57,6 +60,47 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void add_duplicateUnknownName_allowsPerson() {
+        Person firstUnknownPerson = new PersonBuilder().withName("UNKNOWN").withPhone("11111111").build();
+        Person secondUnknownPerson = new PersonBuilder().withName("UNKNOWN").withPhone("22222222").build();
+
+        uniquePersonList.add(firstUnknownPerson);
+        uniquePersonList.add(secondUnknownPerson);
+
+        assertEquals(List.of(firstUnknownPerson, secondUnknownPerson), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void addAtIndex_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.add(0, null));
+    }
+
+    @Test
+    public void addAtIndex_duplicatePerson_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(0, ALICE));
+    }
+
+    @Test
+    public void addAtIndex_indexPastEndOfList_throwsIndexOutOfBoundsException() {
+        assertThrows(IndexOutOfBoundsException.class, () -> uniquePersonList.add(1, ALICE));
+    }
+
+    @Test
+    public void addAtIndex_validIndex_insertsPersonAtIndex() {
+        uniquePersonList.add(BOB);
+        uniquePersonList.add(0, ALICE);
+        assertEquals(List.of(ALICE, BOB), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_personWithNameDifferingInCase_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        Person personWithSameName = new PersonBuilder(ALICE).withName(ALICE.getName().fullName.toLowerCase()).build();
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(personWithSameName));
+    }
+
+    @Test
     public void setPerson_nullTargetPerson_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> uniquePersonList.setPerson(null, ALICE));
     }
@@ -69,6 +113,30 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_targetPersonNotInList_throwsPersonNotFoundException() {
         assertThrows(PersonNotFoundException.class, () -> uniquePersonList.setPerson(ALICE, ALICE));
+    }
+
+    @Test
+    public void setPerson_equalDetailsWithDifferentUuid_replacesOnlyTarget() {
+        Person firstPerson = new PersonBuilder().withName("UNKNOWN").build();
+        Person secondPerson = new PersonBuilder().withName("UNKNOWN").build();
+        uniquePersonList.add(firstPerson);
+        uniquePersonList.add(secondPerson);
+        Person editedPerson = new PersonBuilder(secondPerson).withRemark("Second contact").build();
+
+        uniquePersonList.setPerson(secondPerson, editedPerson);
+
+        assertSame(firstPerson, uniquePersonList.asUnmodifiableObservableList().get(0));
+        assertSame(editedPerson, uniquePersonList.asUnmodifiableObservableList().get(1));
+    }
+
+    @Test
+    public void setPerson_equalDetailsWithAbsentUuid_throwsPersonNotFoundException() {
+        Person existingPerson = new PersonBuilder().build();
+        Person absentPerson = new PersonBuilder().build();
+        uniquePersonList.add(existingPerson);
+
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.setPerson(absentPerson, BOB));
+        assertSame(existingPerson, uniquePersonList.asUnmodifiableObservableList().get(0));
     }
 
     @Test
@@ -126,6 +194,29 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void remove_equalDetailsWithDifferentUuid_removesOnlyTarget() {
+        Person firstPerson = new PersonBuilder().withName("UNKNOWN").build();
+        Person secondPerson = new PersonBuilder().withName("UNKNOWN").build();
+        uniquePersonList.add(firstPerson);
+        uniquePersonList.add(secondPerson);
+
+        uniquePersonList.remove(secondPerson);
+
+        assertEquals(1, uniquePersonList.asUnmodifiableObservableList().size());
+        assertSame(firstPerson, uniquePersonList.asUnmodifiableObservableList().get(0));
+    }
+
+    @Test
+    public void remove_equalDetailsWithAbsentUuid_throwsPersonNotFoundException() {
+        Person existingPerson = new PersonBuilder().build();
+        Person absentPerson = new PersonBuilder().build();
+        uniquePersonList.add(existingPerson);
+
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.remove(absentPerson));
+        assertSame(existingPerson, uniquePersonList.asUnmodifiableObservableList().get(0));
+    }
+
+    @Test
     public void setPersons_nullUniquePersonList_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((UniquePersonList) null));
     }
@@ -158,6 +249,30 @@ public class UniquePersonListTest {
     public void setPersons_listWithDuplicatePersons_throwsDuplicatePersonException() {
         List<Person> listWithDuplicatePersons = List.of(ALICE, ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(listWithDuplicatePersons));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"UNKNOWN, UNKNOWN", "unknown, UNKNOWN"})
+    public void setPersons_listWithUnknownPlaceholder_preservesPersons(String firstName, String secondName) {
+        Person firstPerson = new PersonBuilder().withName(firstName).build();
+        Person secondPerson = new PersonBuilder().withName(secondName).build();
+        List<Person> persons = List.of(firstPerson, ALICE, secondPerson);
+
+        uniquePersonList.setPersons(persons);
+
+        assertEquals(persons, uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"UNKNOWN, unknown", "unknown, unknown", "UNKNOWN, UnKnOwN", "Alice, alice"})
+    public void setPersons_listWithDuplicateOrdinaryName_throwsDuplicatePersonException(
+            String firstName, String secondName) {
+        uniquePersonList.add(BOB);
+        List<Person> persons = List.of(new PersonBuilder().withName(firstName).build(),
+                new PersonBuilder().withName(secondName).build());
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(persons));
+        assertEquals(List.of(BOB), uniquePersonList.asUnmodifiableObservableList());
     }
 
     @Test

@@ -41,13 +41,13 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
-        String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
-        editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
+        // punctuation changes the name, all other attributes same -> returns false
+        String nameWithPunctuation = VALID_NAME_BOB + "!";
+        editedBob = new PersonBuilder(BOB).withName(nameWithPunctuation).build();
         assertFalse(BOB.isSamePerson(editedBob));
     }
 
@@ -85,15 +85,53 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different remark -> returns false
+        editedAlice = new PersonBuilder(ALICE).withRemark("A different remark").build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
+    public void hashCode_sameValues_returnsSameHashCode() {
+        Person aliceCopy = new PersonBuilder(ALICE).build();
+        assertEquals(ALICE.hashCode(), aliceCopy.hashCode());
+    }
+
+    @Test
+    public void getShortUuid_returnsFirstSevenCharactersOfUuid() {
+        // ALICE's UUID is "aaaaaaaa-0000-0000-0000-000000000000"
+        assertEquals("aaaaaaa", ALICE.getShortUuid());
+        assertEquals(ALICE.getUuid().toString().substring(0, Person.SHORT_UUID_LENGTH), ALICE.getShortUuid());
+    }
+
+    @Test
+    public void hasUuidPrefix() {
+        // ALICE's UUID is "aaaaaaaa-0000-0000-0000-000000000000"
+
+        // short UUID -> returns true
+        assertTrue(ALICE.hasUuidPrefix("aaaaaaa"));
+
+        // prefix that crosses a dash in the UUID -> returns true
+        assertTrue(ALICE.hasUuidPrefix("aaaaaaaa0000"));
+
+        // full UUID without dashes -> returns true
+        assertTrue(ALICE.hasUuidPrefix("aaaaaaaa" + "0".repeat(24)));
+
+        // different prefix -> returns false
+        assertFalse(ALICE.hasUuidPrefix("bbbbbbb"));
+
+        // null -> throws NullPointerException
+        assertThrows(NullPointerException.class, () -> ALICE.hasUuidPrefix(null));
+    }
+
+    @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress()
+                + ", remark=" + ALICE.getRemark() + ", tags=" + ALICE.getTags() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

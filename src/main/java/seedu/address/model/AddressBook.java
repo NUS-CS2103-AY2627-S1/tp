@@ -11,7 +11,7 @@ import seedu.address.model.person.UniquePersonList;
 
 /**
  * Wraps all data at the address-book level.
- * Duplicates are not allowed (by .isSamePerson comparison).
+ * Duplicates are not allowed (by .isSamePerson comparison), except for the exact placeholder name {@code UNKNOWN}.
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
@@ -31,7 +31,7 @@ public class AddressBook implements ReadOnlyAddressBook {
 
     /**
      * Replaces the contents of the person list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
+     * Duplicate names are allowed only when the later person's name is exactly {@code UNKNOWN}, as when adding persons.
      */
     public void setPersons(List<Person> persons) {
         this.persons.setPersons(persons);
@@ -58,15 +58,24 @@ public class AddressBook implements ReadOnlyAddressBook {
 
     /**
      * Adds a person to the address book.
-     * The person must not already exist in the address book.
+     * The person must not already exist in the address book unless the person's name is exactly {@code UNKNOWN}.
      */
     public void addPerson(Person p) {
         persons.add(p);
     }
 
     /**
-     * Replaces the given person {@code target} in the list with {@code editedPerson}.
-     * {@code target} must exist in the address book.
+     * Inserts a person into the address book at {@code index}.
+     * The person must not already exist in the address book unless the person's name is exactly {@code UNKNOWN},
+     * and {@code index} must be from 0 to the number of persons.
+     */
+    public void addPerson(int index, Person p) {
+        persons.add(index, p);
+    }
+
+    /**
+     * Replaces the person with {@code target}'s UUID in the list with {@code editedPerson}.
+     * A person with that UUID must exist in the address book.
      * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
      */
     public void setPerson(Person target, Person editedPerson) {
@@ -76,8 +85,8 @@ public class AddressBook implements ReadOnlyAddressBook {
     }
 
     /**
-     * Removes {@code key} from this {@code AddressBook}.
-     * {@code key} must exist in the address book.
+     * Removes the person with {@code key}'s UUID from this {@code AddressBook}.
+     * A person with that UUID must exist in the address book.
      */
     public void removePerson(Person key) {
         persons.remove(key);

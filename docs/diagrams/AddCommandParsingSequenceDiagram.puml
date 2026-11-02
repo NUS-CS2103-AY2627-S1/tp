@@ -1,0 +1,53 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontSize 22
+skinparam SequenceMessageFontSize 20
+skinparam SequenceBoxFontSize 21
+skinparam ParticipantPadding 2
+skinparam Padding 0
+skinparam Participant {
+    Padding 8
+}
+
+title Within AddressBookParser.parseCommand(...)
+
+box Logic LOGIC_COLOR_T1
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":AddCommandParser" as AddCommandParser LOGIC_COLOR
+participant "a:AddCommand" as AddCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "p:Person" as Person MODEL_COLOR
+end box
+
+activate AddressBookParser
+create AddCommandParser
+AddressBookParser -> AddCommandParser : AddCommandParser()
+activate AddCommandParser
+AddCommandParser --> AddressBookParser
+deactivate AddCommandParser
+
+alt invalid command format or field value
+    AddressBookParser -> AddCommandParser : parse(arguments)
+    activate AddCommandParser
+    AddCommandParser --> AddressBookParser : throws ParseException
+    deactivate AddCommandParser
+else valid input
+    AddressBookParser -> AddCommandParser : parse(arguments)
+    activate AddCommandParser
+    create Person
+    AddCommandParser -> Person : Person(name, phone, email, address, remark, tags)
+    activate Person
+    Person --> AddCommandParser
+    deactivate Person
+    create AddCommand
+    AddCommandParser -> AddCommand : AddCommand(p)
+    activate AddCommand
+    AddCommand --> AddCommandParser
+    deactivate AddCommand
+    AddCommandParser --> AddressBookParser : a
+    deactivate AddCommandParser
+end
+@enduml

@@ -1,7 +1,8 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
@@ -13,13 +14,18 @@ import static seedu.address.testutil.TypicalPersons.AMY;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -60,14 +66,82 @@ public class LogicManagerTest {
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteCommand = "delete 9999999";
+        assertCommandException(deleteCommand, String.format(DeleteCommand.MESSAGE_NO_PERSON_WITH_UUID, "9999999"));
     }
 
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
         assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+    }
+
+    @Test
+    public void execute_duplicateUnknownNames_surviveReloadAndNextCommand() throws Exception {
+        String addCommand = "add n/UNKNOWN p/UNKNOWN e/UNKNOWN a/UNKNOWN";
+        logic.execute(addCommand);
+        logic.execute(addCommand);
+        List<Person> originalPersons = new ArrayList<>(model.getAddressBook().getPersonList());
+        assertEquals(2, originalPersons.size());
+
+        // Reopen storage and reconstruct the model as on application startup.
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        Model reloadedModel = new ModelManager(addressBookStorage.readAddressBook().orElseThrow(), new UserPrefs());
+        assertEquals(originalPersons, reloadedModel.getAddressBook().getPersonList());
+        assertEquals(originalPersons.stream().map(Person::getUuid).toList(),
+                reloadedModel.getAddressBook().getPersonList().stream().map(Person::getUuid).toList());
+
+        // A successful command saves again; both entries must remain in the file.
+        StorageManager reloadedStorage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        Logic reloadedLogic = new LogicManager(reloadedModel, reloadedStorage);
+        reloadedLogic.execute(ListCommand.COMMAND_WORD);
+        ReadOnlyAddressBook savedAgain = addressBookStorage.readAddressBook().orElseThrow();
+        assertEquals(originalPersons, savedAgain.getPersonList());
+        assertEquals(originalPersons.stream().map(Person::getUuid).toList(),
+                savedAgain.getPersonList().stream().map(Person::getUuid).toList());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"remark, r/Second contact", "edit, p/12345678"})
+    public void execute_modifySecondIdenticalContact_changesOnlyTarget(String command, String fields) throws Exception {
+        logic.execute("add n/UNKNOWN p/UNKNOWN e/UNKNOWN a/UNKNOWN");
+        logic.execute("add n/UNKNOWN p/UNKNOWN e/UNKNOWN a/UNKNOWN");
+        Person firstPerson = model.getAddressBook().getPersonList().get(0);
+        Person secondPerson = model.getAddressBook().getPersonList().get(1);
+        assertNotEquals(firstPerson.getUuid(), secondPerson.getUuid());
+
+        logic.execute(command + " " + secondPerson.getUuid() + " " + fields);
+
+        List<Person> updatedPersons = model.getAddressBook().getPersonList();
+        assertEquals(2, updatedPersons.size());
+        assertSame(firstPerson, updatedPersons.get(0));
+        assertEquals(List.of(firstPerson.getUuid(), secondPerson.getUuid()),
+                updatedPersons.stream().map(Person::getUuid).toList());
+        assertNotEquals(secondPerson, updatedPersons.get(1));
+        ReadOnlyAddressBook saved = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(updatedPersons, saved.getPersonList());
+        assertEquals(List.of(firstPerson.getUuid(), secondPerson.getUuid()),
+                saved.getPersonList().stream().map(Person::getUuid).toList());
+    }
+
+    @Test
+    public void execute_deleteSecondIdenticalContact_preservesFirstContact() throws Exception {
+        logic.execute("add n/UNKNOWN p/UNKNOWN e/UNKNOWN a/UNKNOWN");
+        logic.execute("add n/UNKNOWN p/UNKNOWN e/UNKNOWN a/UNKNOWN");
+        Person firstPerson = model.getAddressBook().getPersonList().get(0);
+        Person secondPerson = model.getAddressBook().getPersonList().get(1);
+
+        logic.execute("delete " + secondPerson.getUuid());
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertSame(firstPerson, model.getAddressBook().getPersonList().get(0));
+        assertEquals(secondPerson.getUuid(), model.getLastDeletedPerson().getUuid());
+        ReadOnlyAddressBook saved = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(List.of(firstPerson.getUuid()), saved.getPersonList().stream().map(Person::getUuid).toList());
     }
 
     @Test

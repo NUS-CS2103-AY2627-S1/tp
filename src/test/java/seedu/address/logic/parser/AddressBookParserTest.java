@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +20,9 @@ import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.UndeleteCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
@@ -31,6 +33,16 @@ import seedu.address.testutil.PersonUtil;
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
+
+    @Test
+    public void parseCommand_sort() throws Exception {
+        // EP: supported sort directions are routed to the sort parser.
+        assertEquals(new SortCommand(SortCommand.SortOrder.ASCENDING), parser.parseCommand("sort asc"));
+        assertEquals(new SortCommand(SortCommand.SortOrder.DESCENDING), parser.parseCommand("sort desc"));
+        // EPs: missing direction and unsupported direction are rejected.
+        assertThrows(ParseException.class, () -> parser.parseCommand("sort"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("sort extra"));
+    }
 
     @Test
     public void parseCommand_add() throws Exception {
@@ -48,8 +60,15 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_delete() throws Exception {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
-                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
-        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+                DeleteCommand.COMMAND_WORD + " 1a2b3c4");
+        assertEquals(new DeleteCommand("1a2b3c4"), command);
+    }
+
+    @Test
+    public void parseCommand_undelete() throws Exception {
+        assertEquals(new UndeleteCommand(), parser.parseCommand(UndeleteCommand.COMMAND_WORD));
+        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                UndeleteCommand.MESSAGE_USAGE), () -> parser.parseCommand(UndeleteCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
@@ -57,8 +76,8 @@ public class AddressBookParserTest {
         Person person = new PersonBuilder().build();
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
         EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
-                + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
-        assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+                + "aaaaaaa " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
+        assertEquals(new EditCommand("aaaaaaa", descriptor), command);
     }
 
     @Test
@@ -85,6 +104,11 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_remark() throws Exception {
+        assertTrue(parser.parseCommand(RemarkCommand.COMMAND_WORD + " aaaaaaa r/remark") instanceof RemarkCommand);
     }
 
     @Test

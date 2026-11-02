@@ -4,17 +4,21 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,24 +27,37 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String MESSAGE_INVALID_UUID =
+            "Person's uuid field must be 32 hexadecimal digits in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
 
+    /** {@code UUID.fromString} accepts shortened groups such as "1-1-1-1-1", so the canonical form is checked first. */
+    private static final String UUID_VALIDATION_REGEX =
+            "\\p{XDigit}{8}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{12}";
+
+    private static final Logger logger = LogsCenter.getLogger(JsonAdaptedPerson.class);
+
+    private final String uuid;
     private final String name;
     private final String phone;
     private final String email;
     private final String address;
+    private final String remark;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
+    public JsonAdaptedPerson(@JsonProperty("uuid") String uuid, @JsonProperty("name") String name,
+            @JsonProperty("phone") String phone, @JsonProperty("email") String email,
+            @JsonProperty("address") String address, @JsonProperty("remark") String remark,
             @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+        this.uuid = uuid;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.remark = remark;
         if (tags != null) {
             this.tags.addAll(tags);
         }
@@ -50,10 +67,12 @@ class JsonAdaptedPerson {
      * Converts a given {@code Person} into this class for Jackson use.
      */
     public JsonAdaptedPerson(Person source) {
+        uuid = source.getUuid().toString();
         name = source.getName().fullName;
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        remark = source.getRemark().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -69,6 +88,8 @@ class JsonAdaptedPerson {
         for (JsonAdaptedTag tag : tags) {
             personTags.add(tag.toModelType());
         }
+
+        final UUID modelUuid = toModelUuid();
 
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
@@ -102,8 +123,34 @@ class JsonAdaptedPerson {
         }
         final Address modelAddress = new Address(address);
 
+        if (remark == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Remark.class.getSimpleName()));
+        }
+        final Remark modelRemark = new Remark(remark);
+
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+
+        return new Person(modelUuid, modelName, modelPhone, modelEmail, modelAddress, modelRemark, modelTags);
+    }
+
+    /**
+     * Converts the stored uuid into a {@code UUID}, generating a new one for a legacy save with no uuid field.
+     *
+     * @throws IllegalValueException if the stored uuid is not in canonical UUID form.
+     */
+    private UUID toModelUuid() throws IllegalValueException {
+        if (uuid == null || uuid.isEmpty()) {
+            logger.info("Person " + name + " has no saved uuid; generating a new one");
+            return UUID.randomUUID();
+        }
+        if (!isValidUuid(uuid)) {
+            throw new IllegalValueException(MESSAGE_INVALID_UUID);
+        }
+        return UUID.fromString(uuid);
+    }
+
+    private static boolean isValidUuid(String test) {
+        return test.matches(UUID_VALIDATION_REGEX);
     }
 
 }

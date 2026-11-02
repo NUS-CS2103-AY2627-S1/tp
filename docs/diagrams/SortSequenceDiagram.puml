@@ -1,0 +1,46 @@
+@startuml
+!include style.puml
+
+skinparam ArrowFontStyle plain
+skinparam sequenceArrowFontSize 20
+skinparam sequenceParticipantFontSize 20
+skinparam sequenceBoxFontSize 20
+skinparam TitleFontSize 22
+skinparam sequenceMessageAlign center
+hide footbox
+
+title Sort command: parsing
+
+box Logic LOGIC_COLOR_T1
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":SortCommandParser" as SortCommandParser LOGIC_COLOR
+participant "s:SortCommand" as SortCommand LOGIC_COLOR
+end box
+
+[-> AddressBookParser : parseCommand("sort asc")
+activate AddressBookParser
+
+create SortCommandParser
+AddressBookParser -> SortCommandParser : SortCommandParser()
+activate SortCommandParser
+SortCommandParser --> AddressBookParser
+deactivate SortCommandParser
+
+AddressBookParser -> SortCommandParser : parse(" asc")
+activate SortCommandParser
+
+create SortCommand
+SortCommandParser -> SortCommand : SortCommand(ASCENDING)
+activate SortCommand
+SortCommand --> SortCommandParser
+deactivate SortCommand
+
+SortCommandParser --> AddressBookParser : s
+deactivate SortCommandParser
+'The temporary parser is no longer referenced after parsing.
+destroy SortCommandParser
+
+[<-- AddressBookParser : s
+deactivate AddressBookParser
+
+@enduml
