@@ -1,8 +1,11 @@
 package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,15 +30,16 @@ public class PhoneTest {
         // invalid phone numbers
         assertFalse(Phone.isValidPhone("")); // empty string
         assertFalse(Phone.isValidPhone(" ")); // spaces only
-        assertFalse(Phone.isValidPhone("91")); // less than 3 numbers
-        assertFalse(Phone.isValidPhone("phone")); // non-numeric
-        assertFalse(Phone.isValidPhone("9011p041")); // alphabets within digits
-        assertFalse(Phone.isValidPhone("9312 1534")); // spaces within digits
+        assertFalse(Phone.isValidPhone("\t ")); // whitespace only
+        assertFalse(Phone.isValidPhone("1234\n5678")); // line breaks
+        assertFalse(Phone.isValidPhone("1234\u007F5678")); // control characters
 
         // valid phone numbers
-        assertTrue(Phone.isValidPhone("911")); // exactly 3 numbers
+        assertTrue(Phone.isValidPhone("911"));
         assertTrue(Phone.isValidPhone("93121534"));
-        assertTrue(Phone.isValidPhone("124293842033123")); // long phone numbers
+        assertTrue(Phone.isValidPhone("+65 9123 4567"));
+        assertTrue(Phone.isValidPhone("9123-4567"));
+        assertTrue(Phone.isValidPhone("1234 5678 (HP) 1111-3333 (Office)"));
     }
 
     @Test
@@ -56,5 +60,32 @@ public class PhoneTest {
 
         // different values -> returns false
         assertFalse(phone.equals(new Phone("995")));
+    }
+
+    @Test
+    public void isValidPhone_unicodeWhitespaceOnly_returnsFalse() {
+        String[] blankValues = {"\u2002", "\u2003", "\u00A0", "\u2007", "\u202F", "\u3000", " \u2003\u00A0\u3000 "};
+        for (String value : blankValues) {
+            assertFalse(Phone.isValidPhone(value));
+            assertThrows(IllegalArgumentException.class, () -> new Phone(value));
+        }
+    }
+
+    @Test
+    public void constructor_unicodeWhitespaceOnly_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> new Phone("\u2003"));
+    }
+
+    @Test
+    public void isValidPhone_longInputWithTrailingControlCharacter_returnsFalsePromptly() {
+        String invalidPhone = "1".repeat(100_000) + "\u007F";
+
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () ->
+                assertFalse(Phone.isValidPhone(invalidPhone)));
+    }
+
+    @Test
+    public void isValidPhone_unicodeSpaceWithinText_returnsTrue() {
+        assertTrue(Phone.isValidPhone("+65\u00A09123\u202F4567 (HP)"));
     }
 }

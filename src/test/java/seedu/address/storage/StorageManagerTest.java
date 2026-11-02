@@ -1,9 +1,14 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
@@ -43,7 +50,9 @@ public class StorageManagerTest {
         UserPrefs original = new UserPrefs();
         original.setGuiSettings(new GuiSettings(300, 600, 4, 6));
         storageManager.saveUserPrefs(original);
-        UserPrefs retrieved = storageManager.readUserPrefs().get();
+        UserPrefs retrieved = storageManager
+            .readUserPrefs()
+            .get();
         assertEquals(original, retrieved);
     }
 
@@ -56,8 +65,59 @@ public class StorageManagerTest {
          */
         AddressBook original = getTypicalAddressBook();
         storageManager.saveAddressBook(original);
-        ReadOnlyAddressBook retrieved = storageManager.readAddressBook().get();
+        ReadOnlyAddressBook retrieved = storageManager
+            .readAddressBook()
+            .get();
         assertEquals(original, new AddressBook(retrieved));
+        assertFalse(storageManager.isAddressBookSavingBlocked());
+        storageManager.saveAddressBook(original);
+    }
+
+    @Test
+    public void readAddressBook_missingFile_allowsSaving() throws Exception {
+        assertTrue(storageManager
+            .readAddressBook()
+            .isEmpty());
+        assertFalse(storageManager.isAddressBookSavingBlocked());
+
+        storageManager.saveAddressBook(getTypicalAddressBook());
+        assertEquals(getTypicalAddressBook(), storageManager
+            .readAddressBook()
+            .get());
+    }
+
+    @Test
+    public void readAddressBook_loadingFailure_blocksSavingAndPreservesFile() throws Exception {
+        Path filePath = storageManager.getAddressBookFilePath();
+        String invalidJson = "{ invalid JSON";
+        Files.writeString(filePath, invalidJson);
+
+        assertThrows(DataLoadingException.class, () -> storageManager.readAddressBook());
+        assertTrue(storageManager.isAddressBookSavingBlocked());
+        assertThrows(IOException.class, () -> storageManager.saveAddressBook(new AddressBook()));
+        assertEquals(invalidJson, Files.readString(filePath));
+
+        UserPrefs userPrefs = new UserPrefs();
+        storageManager.saveUserPrefs(userPrefs);
+        assertEquals(userPrefs, storageManager
+            .readUserPrefs()
+            .get());
+    }
+
+    @Test
+    public void readAddressBook_successfulRetry_savingRemainsBlocked() throws Exception {
+        Path filePath = storageManager.getAddressBookFilePath();
+        Files.writeString(filePath, "{ invalid JSON");
+        assertThrows(DataLoadingException.class, () -> storageManager.readAddressBook());
+
+        new JsonAddressBookStorage(filePath).saveAddressBook(getTypicalAddressBook());
+        String repairedJson = Files.readString(filePath);
+        assertEquals(getTypicalAddressBook(), storageManager
+            .readAddressBook()
+            .get());
+        assertTrue(storageManager.isAddressBookSavingBlocked());
+        assertThrows(IOException.class, () -> storageManager.saveAddressBook(new AddressBook()));
+        assertEquals(repairedJson, Files.readString(filePath));
     }
 
     @Test
@@ -65,4 +125,62 @@ public class StorageManagerTest {
         assertNotNull(storageManager.getAddressBookFilePath());
     }
 
+    @Test
+    public void readAddressBook_nullJsonValues_blocksSavingAndPreservesFile() throws Exception {
+        String nullTagJson = """
+            {"persons":[{"name":"Alex","phone":"123","email":"alex@example.com",
+            "address":"Block 1","tags":[null]}]}
+            """;
+        String[] invalidJsonValues = {
+            "null",
+            "{\"persons\":[null]}",
+            "{\"projects\":[null]}",
+            "{\"memberships\":[null]}",
+            nullTagJson
+        };
+
+        for (int index = 0; index < invalidJsonValues.length; index++) {
+            String json = invalidJsonValues[index];
+            Path filePath = testFolder.resolve("null-case-" + index + ".json");
+            Files.writeString(filePath, json);
+            StorageManager storage = new StorageManager(new JsonAddressBookStorage(filePath),
+                new JsonUserPrefsStorage(testFolder.resolve("preferences.json")));
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook);
+            assertTrue(storage.isAddressBookSavingBlocked());
+            assertThrows(IOException.class, () -> storage.saveAddressBook(new AddressBook()));
+            assertEquals(json, Files.readString(filePath));
+        }
+    }
+
+    @Test
+    public void readAddressBook_trailingContent_blocksSavingAndPreservesFile() throws Exception {
+        String validJson = JsonUtil.toJsonString(new JsonSerializableAddressBook(getTypicalAddressBook()));
+        String[] trailingValues = {"garbage", "{}", "[]", "null"};
+        for (int index = 0; index < trailingValues.length; index++) {
+            String json = validJson + "\n" + trailingValues[index];
+            Path filePath = testFolder.resolve("trailing-content-" + index + ".json");
+            Files.writeString(filePath, json);
+            StorageManager storage = new StorageManager(new JsonAddressBookStorage(filePath),
+                new JsonUserPrefsStorage(testFolder.resolve("preferences.json")));
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook);
+            assertTrue(storage.isAddressBookSavingBlocked());
+            assertThrows(IOException.class, () -> storage.saveAddressBook(new AddressBook()));
+            assertEquals(json, Files.readString(filePath));
+        }
+    }
+
+    @Test
+    public void readAddressBook_duplicateKeys_blocksSavingAndPreservesFile() throws Exception {
+        String validJson = JsonUtil.toJsonString(new JsonSerializableAddressBook(getTypicalAddressBook()));
+        String json = validJson.substring(0, validJson.lastIndexOf('}')) + ",\"persons\":[]}";
+        Path filePath = storageManager.getAddressBookFilePath();
+        Files.writeString(filePath, json);
+
+        assertThrows(DataLoadingException.class, storageManager::readAddressBook);
+        assertTrue(storageManager.isAddressBookSavingBlocked());
+        assertThrows(IOException.class, () -> storageManager.saveAddressBook(new AddressBook()));
+        assertEquals(json, Files.readString(filePath));
+    }
 }

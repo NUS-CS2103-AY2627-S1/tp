@@ -20,6 +20,7 @@ public class Person {
     private final Name name;
     private final Phone phone;
     private final Email email;
+    private final PersonId personId;
 
     // Data fields
     private final Address address;
@@ -29,12 +30,29 @@ public class Person {
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(PersonId.generate(), name, phone, email, address, tags);
+    }
+
+    /**
+     * Constructs a person with the given identifier and details.
+     * Every argument must be present and not null.
+     */
+    public Person(PersonId personId, Name name, Phone phone, Email email,
+                  Address address, Set<Tag> tags) {
+        requireAllNonNull(personId, name, phone, email, address, tags);
+        this.personId = personId;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        for (Tag tag : tags) {
+            Objects.requireNonNull(tag);
+        }
         this.tags.addAll(tags);
+    }
+
+    public PersonId getPersonId() {
+        return personId;
     }
 
     public Name getName() {
@@ -62,21 +80,14 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have matching contact details, ignoring their IDs.
      */
     public boolean isSamePerson(Person otherPerson) {
-        if (otherPerson == this) {
-            return true;
-        }
-
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        return equals(otherPerson);
     }
 
     /**
-     * Returns true if both persons have the same identity and data fields.
-     * This defines a stronger notion of equality between two persons.
+     * Returns true if both persons have matching contact details, ignoring their IDs.
      */
     @Override
     public boolean equals(Object other) {
@@ -90,10 +101,10 @@ public class Person {
         }
 
         return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+            && phone.equals(otherPerson.phone)
+            && email.equals(otherPerson.email)
+            && address.equals(otherPerson.address)
+            && tags.equals(otherPerson.tags);
     }
 
     @Override
@@ -105,12 +116,12 @@ public class Person {
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("name", name)
-                .add("phone", phone)
-                .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
-                .toString();
+            .add("name", name)
+            .add("phone", phone)
+            .add("email", email)
+            .add("address", address)
+            .add("tags", tags)
+            .toString();
     }
 
 }

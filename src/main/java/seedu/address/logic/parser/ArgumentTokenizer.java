@@ -2,28 +2,34 @@ package seedu.address.logic.parser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
- *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
+ * e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
  * 1. An argument's value can be an empty string e.g. the value of {@code k/} in the above example.<br>
  * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
  * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
- *    in the above example.<br>
+ * in the above example.<br>
  */
 public class ArgumentTokenizer {
 
+    public static final String MESSAGE_UNCLOSED_QUOTE = "Quoted field values must have a closing double quote.";
+    public static final String MESSAGE_INVALID_QUOTED_VALUE =
+            "A quoted field value must be followed by another argument prefix or the end of the command.";
+
     /**
-     * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
-     * respective argument values. Only the given prefixes will be recognized in the arguments string.
+     * Tokenizes arguments and maps the recognized prefixes to their values.
      *
-     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
-     * @param prefixes   Prefixes to tokenize the arguments string with
-     * @return           ArgumentMultimap object that maps prefixes to their arguments
+     * @param argsString arguments containing optional quoted field values
+     * @param prefixes   prefixes recognized by this command
+     * @return the prefixes and their argument values
+     * @throws ParseException if a quoted field value is not correctly delimited
      */
-    public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
+    public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) throws ParseException {
         List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
         return extractArguments(argsString, positions);
     }
@@ -33,12 +39,31 @@ public class ArgumentTokenizer {
      *
      * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
      * @param prefixes   Prefixes to find in the arguments string
-     * @return           List of zero-based prefix positions in the given arguments string
+     * @return List of zero-based prefix positions in the given arguments string
      */
-    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes) {
-        return Arrays.stream(prefixes)
+    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes)
+            throws ParseException {
+        List<PrefixPosition> positions = Arrays
+                .stream(prefixes)
                 .flatMap(prefix -> findPrefixPositions(argsString, prefix).stream())
-                .collect(Collectors.toList());
+                .sorted(Comparator.comparingInt(PrefixPosition::getStartPosition))
+                .toList();
+        List<PrefixPosition> result = new ArrayList<>();
+        int quotedEnd = -1;
+        for (PrefixPosition position : positions) {
+            if (position.getStartPosition() < quotedEnd) {
+                continue;
+            }
+            result.add(position);
+            int valueStart = position.getStartPosition() + position.getPrefix().getPrefix().length();
+            while (valueStart < argsString.length() && argsString.charAt(valueStart) <= ' ') {
+                valueStart++;
+            }
+            if (valueStart < argsString.length() && argsString.charAt(valueStart) == '"') {
+                quotedEnd = readQuotedValue(argsString, valueStart).endIndex();
+            }
+        }
+        return result;
     }
 
     /**
@@ -51,7 +76,7 @@ public class ArgumentTokenizer {
         while (prefixPosition != -1) {
             PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
             positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition + 1);
         }
 
         return positions;
@@ -62,7 +87,7 @@ public class ArgumentTokenizer {
      * {@code argsString} starting from index {@code fromIndex}. An occurrence
      * is valid if there is a whitespace before {@code prefix}. Returns -1 if no
      * such occurrence can be found.
-     *
+     * <p>
      * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
      * {@code fromIndex} = 0, this method returns -1 as there are no valid
      * occurrences of "p/" with whitespace before it. However, if
@@ -70,9 +95,21 @@ public class ArgumentTokenizer {
      * {@code fromIndex} = 0, this method returns 5.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        int prefixIndex = argsString.indexOf(prefix, fromIndex);
+        while (prefixIndex != -1) {
+            if (prefixIndex > 0 && isHorizontalWhitespace(argsString.charAt(prefixIndex - 1))) {
+                return prefixIndex;
+            }
+            prefixIndex = argsString.indexOf(prefix, prefixIndex + 1);
+        }
+        return -1;
+    }
+
+    /**
+     * Returns whether {@code character} is a supported horizontal argument separator.
+     */
+    private static boolean isHorizontalWhitespace(char character) {
+        return character == ' ' || character == '\t';
     }
 
     /**
@@ -82,9 +119,10 @@ public class ArgumentTokenizer {
      *
      * @param argsString      Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
      * @param prefixPositions Zero-based positions of all prefixes in {@code argsString}
-     * @return                ArgumentMultimap object that maps prefixes to their arguments
+     * @return ArgumentMultimap object that maps prefixes to their arguments
      */
-    private static ArgumentMultimap extractArguments(String argsString, List<PrefixPosition> prefixPositions) {
+    private static ArgumentMultimap extractArguments(String argsString, List<PrefixPosition> prefixPositions)
+            throws ParseException {
 
         // Sort by start position
         prefixPositions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
@@ -101,7 +139,9 @@ public class ArgumentTokenizer {
         ArgumentMultimap argMultimap = new ArgumentMultimap();
         for (int i = 0; i < prefixPositions.size() - 1; i++) {
             // Extract and store prefixes and their arguments
-            Prefix argPrefix = prefixPositions.get(i).getPrefix();
+            Prefix argPrefix = prefixPositions
+                .get(i)
+                .getPrefix();
             String argValue = extractArgumentValue(argsString, prefixPositions.get(i), prefixPositions.get(i + 1));
             argMultimap.put(argPrefix, argValue);
         }
@@ -114,21 +154,56 @@ public class ArgumentTokenizer {
      * The end position of the value is determined by {@code nextPrefixPosition}.
      */
     private static String extractArgumentValue(String argsString,
-                                        PrefixPosition currentPrefixPosition,
-                                        PrefixPosition nextPrefixPosition) {
+                                               PrefixPosition currentPrefixPosition,
+                                               PrefixPosition nextPrefixPosition) throws ParseException {
         Prefix prefix = currentPrefixPosition.getPrefix();
 
-        int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
-        String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
+        int valueStartPos = currentPrefixPosition.getStartPosition() + prefix
+            .getPrefix()
+            .length();
+        String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition()).trim();
 
-        return value.trim();
+        if (prefix.getPrefix().isEmpty() || !value.startsWith("\"")) {
+            return value;
+        }
+        QuotedValue quotedValue = readQuotedValue(value, 0);
+        if (quotedValue.endIndex() != value.length()) {
+            throw new ParseException(MESSAGE_INVALID_QUOTED_VALUE);
+        }
+        return quotedValue.value().trim();
+    }
+
+    /**
+     * Reads a double-quoted value, decoding escaped double quotes and backslashes.
+     */
+    private static QuotedValue readQuotedValue(String text, int openingQuote) throws ParseException {
+        StringBuilder value = new StringBuilder();
+        for (int index = openingQuote + 1; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (character == '"') {
+                return new QuotedValue(value.toString(), index + 1);
+            }
+            if (character == '\\' && index + 1 < text.length()
+                    && (text.charAt(index + 1) == '"' || text.charAt(index + 1) == '\\')) {
+                value.append(text.charAt(++index));
+            } else {
+                value.append(character);
+            }
+        }
+        throw new ParseException(MESSAGE_UNCLOSED_QUOTE);
+    }
+
+    /**
+     * A decoded value and the index immediately after its closing quote.
+     */
+    private record QuotedValue(String value, int endIndex) {
     }
 
     /**
      * Represents a prefix's position in an arguments string.
      */
     private static class PrefixPosition {
-        private int startPosition;
+        private final int startPosition;
         private final Prefix prefix;
 
         PrefixPosition(Prefix prefix, int startPosition) {

@@ -1,14 +1,37 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T08-2/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-T08-2/tp/actions)
+[![codecov](https://codecov.io/github/AY2627S1-CS2103T-T08-2/tp/graph/badge.svg?token=QIEYLHBIW3)](https://codecov.io/github/AY2627S1-CS2103T-T08-2/tp)
 
 ![Ui](docs/images/Ui.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# UniTeam
+
+UniTeam is a lightweight, local address book designed for university students who frequently collaborate on projects across different modules. It helps users store contact details, organise contacts by project, and quickly view everyone involved in a project. UniTeam provides a dedicated place to manage academic contacts separate from personal phone contacts through typed commands.
+
+## Features
+
+* **Add contacts** — Add contacts with the details you need for university work.
+* **View contacts at a glance** — List saved contacts and retrieve their information quickly.
+* **Organise projects** — Create projects and view all your existing projects in one place.
+* **Assign people to projects** — Assign contacts to projects to keep track of everyone involved.
+* **View project teams** — Display all contacts associated with a selected project.
+* **Keep your data between sessions** — Contacts, projects, and their associations are saved locally.
+
+## Quick start
+
+1. Ensure that you have java `25` or above installed.
+2. Download the latest `uniteam.jar` from the [releases page](https://github.com/AY2627S1-CS2103T-T08-2/tp/releases).
+3. Copy the file into the folder you want to use as the home for UniTeam.
+4. Open a terminal in that folder and run `java -jar uniteam.jar`.
+5. Type a command in the command box and press Enter.
+
+## Documentation
+
+* For project documentation, see:
+  * [User Guide](docs/UserGuide.md) for using UniTeam and its commands.
+  * [Developer Guide](docs/DeveloperGuide.md) for the design and implementation.
+  * [Setting Up](docs/SettingUp.md) for installing the development environment.
+  * [Testing](docs/Testing.md) for running the tests.
+  * [UniTeam Product Website](https://ay2627s1-cs2103t-t08-2.github.io/tp/) for the published documentation.
+
+## Acknowledgements
+This project is based on [AddressBook-Level3](https://github.com/se-edu/addressbook-level3), created by the [SE-EDU initiative](https://se-education.org).

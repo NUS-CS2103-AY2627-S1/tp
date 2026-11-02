@@ -1,0 +1,45 @@
+@startuml
+title Task Assignment
+
+class AssociateCommand {
+  +execute(Model)
+}
+
+class SetRoleCommand {
+  +execute(Model)
+}
+
+interface Model {
+  +hasProjectMembership(ProjectMembership)
+  +addProjectMembership(ProjectMembership)
+  +setProjectMembership(ProjectMembership)
+}
+
+class ProjectMembership {
+  -personId: PersonId
+  -projectId: ProjectId
+  -role: Role
+  +withRole(Role): ProjectMembership
+}
+
+class Role {
+  -description: String
+}
+
+AssociateCommand ..> Model : creates membership
+SetRoleCommand ..> Model : updates existing role
+Model ..> ProjectMembership : uses
+ProjectMembership --> "1" Role : Role
+
+note right of AssociateCommand
+  Resolves contact and project indices,
+  rejects duplicate associations, then adds
+  a membership with an empty role.
+end note
+
+note right of SetRoleCommand
+  Requires an existing membership;
+  replaces it with a copy containing the new
+  role, or an empty role when clearing it.
+end note
+@enduml

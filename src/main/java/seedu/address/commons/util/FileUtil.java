@@ -13,6 +13,7 @@ public class FileUtil {
 
     /**
      * Creates a file if it does not exist along with its missing parent directories.
+     *
      * @throws IOException if the file or directory cannot be created.
      */
     public static void createIfMissing(Path file) throws IOException {
@@ -40,7 +41,7 @@ public class FileUtil {
      * Assumes file exists
      */
     public static String readFromFile(Path file) throws IOException {
-        return new String(Files.readAllBytes(file), CHARSET);
+        return Files.readString(file);
     }
 
     /**

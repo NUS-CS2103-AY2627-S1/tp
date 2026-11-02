@@ -1,59 +1,51 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 ## Project team
 
-### John Doe
+### Achin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/aaachinnn.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/aaachinnn)]
 
 * Role: Developer
-* Responsibilities: Data
 
-### Jean Doe
+### Justen Chong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/alrightokguy.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/alrightokguy)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Joshua Eu Guang En
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/honeybee1011.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/honeybee1011)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Features
+
+### Joshua Tan Jek Chee
+
+<img src="images/smilesocute.png" width="200px">
+
+[[github](http://github.com/smilesocute)]
+
+* Role: Developer
+
+### Zhou Zheng
+
+<img src="images/zhouzheng152.png" width="200px">
+
+[[github](https://github.com/ZhouZheng152)]
+
+* Role: Developer

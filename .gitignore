@@ -2,6 +2,7 @@
 /.gradle/
 /build/
 src/main/resources/docs/
+/bin/
 
 # IDEA files
 /.idea/
@@ -16,6 +17,7 @@ hs_err_pid[0-9]*.log
 
 # Test sandbox files
 src/test/data/sandbox/
+/config/checkstyle/checkstyle - Copy.xml
 
 # MacOS custom attributes files created by Finder
 .DS_Store
@@ -29,3 +31,4 @@ CLAUDE.md
 
 # Temp files
 _temp/
+docs/_markbind/logs/

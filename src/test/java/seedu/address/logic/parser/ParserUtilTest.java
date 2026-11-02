@@ -6,21 +6,26 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.membership.Role;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.project.Deadline;
+import seedu.address.model.project.Description;
+import seedu.address.model.project.ProjectName;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = " \t ";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
@@ -56,7 +61,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseName_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseName(null));
     }
 
     @Test
@@ -79,7 +84,7 @@ public class ParserUtilTest {
 
     @Test
     public void parsePhone_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone(null));
     }
 
     @Test
@@ -94,6 +99,12 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parsePhone_validFormattedValue_preservesDisplayText() throws Exception {
+        String phoneDisplayText = "+65 9123 4567 / 9123-4567 (Office)";
+        assertEquals(new Phone(phoneDisplayText), ParserUtil.parsePhone(phoneDisplayText));
+    }
+
+    @Test
     public void parsePhone_validValueWithWhitespace_returnsTrimmedPhone() throws Exception {
         String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
         Phone expectedPhone = new Phone(VALID_PHONE);
@@ -102,7 +113,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress(null));
     }
 
     @Test
@@ -125,7 +136,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseEmail_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail(null));
     }
 
     @Test
@@ -181,7 +192,9 @@ public class ParserUtilTest {
 
     @Test
     public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
-        assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
+        assertTrue(ParserUtil
+            .parseTags(List.of())
+            .isEmpty());
     }
 
     @Test
@@ -190,5 +203,190 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseProjectName_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseProjectName(null));
+    }
+
+    @Test
+    public void parseProjectName_invalidValue_throwsParseException() {
+        String[] invalidNames = {"", "   ", "---", "Project@", "a".repeat(51)};
+
+        for (String name : invalidNames) {
+            assertThrows(ParseException.class, () -> ParserUtil.parseProjectName(name));
+        }
+    }
+
+    @Test
+    public void parseProjectName_validValue_returnsNormalisedName() throws Exception {
+        ProjectName result = ParserUtil.parseProjectName("  CS2103T   Team Project  ");
+
+        // Check the display value because equals() ignores case and spacing.
+        assertEquals("CS2103T Team Project", result.toString());
+    }
+
+    @Test
+    public void parseProjectName_maximumLength_success() throws Exception {
+        String name = "a".repeat(50);
+
+        assertEquals(new ProjectName(name), ParserUtil.parseProjectName(name));
+    }
+
+    @Test
+    public void parseDeadline_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDeadline(null));
+    }
+
+    @Test
+    public void parseDeadline_invalidValue_throwsParseException() {
+        String[] invalidDeadlines = {
+            "",
+            "   ",
+            "2026-02-29",
+            "2026-04-31",
+            "2026-13-01",
+            "2026-11-00",
+            "13/11/2026",
+            "2026-1-01",
+            "2026-11-13T12:00",
+            "tomorrow"
+        };
+
+        for (String deadline : invalidDeadlines) {
+            assertThrows(ParseException.class, () -> ParserUtil.parseDeadline(deadline));
+        }
+    }
+
+    @Test
+    public void parseDeadline_validValue_returnsDeadline() throws Exception {
+        assertEquals(
+            new Deadline(LocalDate.of(2026, 11, 13)),
+            ParserUtil.parseDeadline("  2026-11-13  "));
+    }
+
+    @Test
+    public void parseDeadline_validLeapDay_returnsDeadline() throws Exception {
+        assertEquals(
+            new Deadline(LocalDate.of(2028, 2, 29)),
+            ParserUtil.parseDeadline("2028-02-29"));
+    }
+
+    @Test
+    public void parseDeadline_pastDate_returnsDeadline() throws Exception {
+        assertEquals(
+            new Deadline(LocalDate.of(2000, 1, 1)),
+            ParserUtil.parseDeadline("2000-01-01"));
+    }
+
+    @Test
+    public void parseDescription_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDescription(null));
+    }
+
+    @Test
+    public void parseDescription_blank_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseDescription(""));
+        assertThrows(ParseException.class, () -> ParserUtil.parseDescription("   "));
+    }
+
+    @Test
+    public void parseDescription_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseDescription("a".repeat(201)));
+    }
+
+    @Test
+    public void parseDescription_lineBreaks_throwsParseException() {
+        String[] lineBreaks = {"\r", "\n", String.valueOf((char) 11), "\f", "\u0085", "\u2028", "\u2029"};
+
+        for (String lineBreak : lineBreaks) {
+            assertThrows(ParseException.class, () -> ParserUtil.parseDescription("First" + lineBreak + "Second"));
+
+            assertThrows(ParseException.class, () -> ParserUtil.parseDescription(lineBreak + "Description"));
+
+            assertThrows(ParseException.class, () -> ParserUtil.parseDescription("Description" + lineBreak));
+        }
+    }
+
+    @Test
+    public void parseDescription_validValue_preservesInternalSpacingAndCase() throws Exception {
+        assertEquals(
+            new Description("Build  a Contact Manager!"),
+            ParserUtil.parseDescription("  Build  a Contact Manager!  "));
+    }
+
+    @Test
+    public void parseDescription_lengthBoundaries_success() throws Exception {
+        assertEquals(new Description("a"), ParserUtil.parseDescription("a"));
+
+        String description = "a".repeat(200);
+        assertEquals(
+            new Description(description),
+            ParserUtil.parseDescription("  " + description + "  "));
+    }
+
+    @Test
+    public void parseRole_emptyOrWhitespace_returnsEmptyRole() throws ParseException {
+        assertEquals(Role.EMPTY, ParserUtil.parseRole(""));
+        assertEquals(Role.EMPTY, ParserUtil.parseRole(" \t "));
+        assertEquals(Role.EMPTY, ParserUtil.parseRole("\u2003"));
+    }
+
+    @Test
+    public void parseRole_nonEmptyValue_preservesValidation() throws ParseException {
+        assertEquals(new Role("Review PRs"), ParserUtil.parseRole("  Review PRs  "));
+        assertEquals(new Role("a".repeat(200)), ParserUtil.parseRole("a".repeat(200)));
+
+        assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> {
+            ParserUtil.parseRole("a".repeat(201));
+        });
+    }
+
+    @Test
+    public void parseRole_lineBreaks_throwsParseException() {
+        String[] lineBreaks = {"\r", "\n", String.valueOf((char) 11), "\f", "\u0085", "\u2028", "\u2029"};
+        for (String lineBreak : lineBreaks) {
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseRole(lineBreak));
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> {
+                ParserUtil.parseRole("First" + lineBreak + "Second");
+            });
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> {
+                ParserUtil.parseRole(lineBreak + "Role");
+            });
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> {
+                ParserUtil.parseRole("Role" + lineBreak);
+            });
+        }
+    }
+
+    @Test
+    public void parseRole_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseRole(null));
+    }
+
+    @Test
+    public void parseContactFields_unicodeWhitespaceOnly_throwsParseException() {
+        String[] blankValues = {"\u2002", "\u2003", "\u00A0", "\u2007", "\u202F", "\u3000", " \u2003\u00A0\u3000 "};
+        for (String value : blankValues) {
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAddress(value));
+            assertThrows(ParseException.class, Phone.MESSAGE_CONSTRAINTS, () -> ParserUtil.parsePhone(value));
+        }
+    }
+
+    @Test
+    public void parseDescription_unicodeWhitespaceOnly_throwsParseException() {
+        String[] blankValues = {"\u2003", "\u00A0", "\u2007", "\u202F", "\u3000", " \u2003\u00A0 "};
+        for (String value : blankValues) {
+            assertThrows(ParseException.class, ParserUtil.MESSAGE_EMPTY_DESCRIPTION, () ->
+                    ParserUtil.parseDescription(value));
+        }
+    }
+
+    @Test
+    public void parseDescription_nonBreakingSpacesWithinText_preservesSpacing() throws Exception {
+        String value = "Build\u00A0a\u202Fcontact manager";
+
+        assertEquals(new Description(value), ParserUtil.parseDescription(value));
     }
 }

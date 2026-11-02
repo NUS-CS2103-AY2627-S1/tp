@@ -6,19 +6,21 @@ import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import seedu.address.model.Model;
 
 /**
- * Lists all persons in the address book to the user.
+ * Lists all contacts in UniTeam to the user.
  */
 public class ListCommand extends Command {
 
     public static final String COMMAND_WORD = "list";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Lists all contacts in UniTeam.\n"
+        + "Example: " + COMMAND_WORD;
 
-    public static final String MESSAGE_SUCCESS = "Listed all persons.";
+    public static final String MESSAGE_SUCCESS = "Listed all contacts.";
 
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(MESSAGE_SUCCESS);
+        return new CommandResult(MESSAGE_SUCCESS, CommandResult.ListViewTarget.CONTACTS);
     }
 }

@@ -1,7 +1,9 @@
 package seedu.address.storage;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -11,7 +13,12 @@ import com.fasterxml.jackson.annotation.JsonRootName;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.membership.ProjectMembership;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.project.Project;
+import seedu.address.model.project.ProjectId;
+import seedu.address.model.project.ProjectName;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -20,15 +27,40 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_DUPLICATE_PERSON_ID = "Persons list contains duplicate person ID(s).";
+    public static final String MESSAGE_DUPLICATE_PROJECT = "Projects list contains duplicate project(s).";
+    public static final String MESSAGE_DUPLICATE_PROJECT_ID = "Projects list contains duplicate project ID(s).";
+    public static final String MESSAGE_DUPLICATE_PROJECT_MEMBERSHIP =
+        "Project memberships list contains duplicate membership(s).";
+    public static final String MESSAGE_MEMBERSHIP_PERSON_NOT_FOUND =
+        "Project membership references a person that does not exist.";
+    public static final String MESSAGE_MEMBERSHIP_PROJECT_NOT_FOUND =
+        "Project membership references a project that does not exist.";
+    public static final String MESSAGE_NULL_PERSON = "Persons list contains a null entry.";
+    public static final String MESSAGE_NULL_PROJECT = "Projects list contains a null entry.";
+    public static final String MESSAGE_NULL_PROJECT_MEMBERSHIP =
+        "Project memberships list contains a null entry.";
 
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final List<JsonAdaptedProject> projects = new ArrayList<>();
+    private final List<JsonAdaptedProjectMembership> memberships = new ArrayList<>();
 
     /**
-     * Constructs a {@code JsonSerializableAddressBook} with the given persons.
+     * Constructs a {@code JsonSerializableAddressBook} with the given persons, projects, and memberships.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons,
+                                       @JsonProperty("projects") List<JsonAdaptedProject> projects,
+                                       @JsonProperty("memberships") List<JsonAdaptedProjectMembership> memberships) {
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
+        if (projects != null) {
+            this.projects.addAll(projects);
+        }
+        if (memberships != null) {
+            this.memberships.addAll(memberships);
+        }
     }
 
     /**
@@ -37,7 +69,21 @@ class JsonSerializableAddressBook {
      * @param source future changes to this will not affect the created {@code JsonSerializableAddressBook}.
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
-        persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        persons.addAll(source
+            .getPersonList()
+            .stream()
+            .map(JsonAdaptedPerson::new)
+            .collect(Collectors.toList()));
+        projects.addAll(source
+            .getProjectList()
+            .stream()
+            .map(JsonAdaptedProject::new)
+            .collect(Collectors.toList()));
+        memberships.addAll(source
+            .getProjectMembershipList()
+            .stream()
+            .map(JsonAdaptedProjectMembership::new)
+            .collect(Collectors.toList()));
     }
 
     /**
@@ -47,12 +93,55 @@ class JsonSerializableAddressBook {
      */
     public AddressBook toModelType() throws IllegalValueException {
         AddressBook addressBook = new AddressBook();
+        Set<PersonId> personIds = new HashSet<>();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PERSON);
+            }
+
             Person person = jsonAdaptedPerson.toModelType();
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
             }
+            if (!personIds.add(person.getPersonId())) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON_ID);
+            }
             addressBook.addPerson(person);
+        }
+
+        Set<ProjectId> projectIds = new HashSet<>();
+        Set<ProjectName> projectNames = new HashSet<>();
+        for (JsonAdaptedProject jsonAdaptedProject : projects) {
+            if (jsonAdaptedProject == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PROJECT);
+            }
+
+            Project project = jsonAdaptedProject.toModelType();
+            if (!projectIds.add(project.getProjectId())) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_PROJECT_ID);
+            }
+            if (!projectNames.add(project.getName())) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_PROJECT);
+            }
+            addressBook.addProject(project);
+        }
+
+        for (JsonAdaptedProjectMembership jsonAdaptedMembership : memberships) {
+            if (jsonAdaptedMembership == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PROJECT_MEMBERSHIP);
+            }
+
+            ProjectMembership membership = jsonAdaptedMembership.toModelType();
+            if (!personIds.contains(membership.getPersonId())) {
+                throw new IllegalValueException(MESSAGE_MEMBERSHIP_PERSON_NOT_FOUND);
+            }
+            if (!projectIds.contains(membership.getProjectId())) {
+                throw new IllegalValueException(MESSAGE_MEMBERSHIP_PROJECT_NOT_FOUND);
+            }
+            if (addressBook.hasProjectMembership(membership)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_PROJECT_MEMBERSHIP);
+            }
+            addressBook.addProjectMembership(membership);
         }
         return addressBook;
     }

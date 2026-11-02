@@ -4,21 +4,21 @@ import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
- * Represents a Person's phone number in the address book.
- * Guarantees: immutable; is valid as declared in {@link #isValidPhone(String)}
+ * Represents a Person's phone display text in the address book.
+ * Guarantees: immutable; contains non-blank text without ISO control characters
+ * as declared in {@link #isValidPhone(String)}.
  */
 public class Phone {
 
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+            "Phone display text must not be blank or contain control characters";
     public final String value;
 
     /**
      * Constructs a {@code Phone}.
      *
-     * @param phone A valid phone number.
+     * @param phone Valid phone display text.
      */
     public Phone(String phone) {
         requireNonNull(phone);
@@ -27,10 +27,12 @@ public class Phone {
     }
 
     /**
-     * Returns true if a given string is a valid phone number.
+     * Returns true if the given string is non-blank and contains no ISO control characters.
      */
     public static boolean isValidPhone(String test) {
-        return test.matches(VALIDATION_REGEX);
+        boolean hasContent = test.codePoints().anyMatch(codePoint ->
+                !Character.isWhitespace(codePoint) && !Character.isSpaceChar(codePoint));
+        return hasContent && test.codePoints().noneMatch(Character::isISOControl);
     }
 
     @Override
@@ -56,5 +58,4 @@ public class Phone {
     public int hashCode() {
         return value.hashCode();
     }
-
 }

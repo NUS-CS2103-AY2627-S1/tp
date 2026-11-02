@@ -14,8 +14,8 @@ import java.util.logging.SimpleFormatter;
  * Configures and manages loggers and handlers, including their logging level.
  * Named {@link Logger}s can be obtained from this class.<br>
  * These loggers have been configured to output messages to the console and a {@code .log} file by default,
- *   at the {@code INFO} level. A new {@code .log} file with a new numbering will be created after the log
- *   file reaches 5MB in size, up to a maximum of 5 files.<br>
+ * at the {@code INFO} level. A new {@code .log} file with a new numbering will be created after the log
+ * file reaches 5MB in size, up to a maximum of 5 files.<br>
  */
 public class LogsCenter {
     // Change this to a lower level (e.g., Level.FINE) to enable more detailed log messages
@@ -23,15 +23,8 @@ public class LogsCenter {
 
     private static final int MAX_FILE_COUNT = 5;
     private static final int MAX_FILE_SIZE_IN_BYTES = (int) (Math.pow(2, 20) * 5); // 5MB
-    private static final String LOG_FILE = "addressbook.log";
-    private static final Logger logger; // logger for this class
+    private static final String LOG_FILE = "uniteam.log";
     private static Logger baseLogger; // to be used as the parent of all other loggers created by this class.
-
-    // This static block ensures essential loggers are created early
-    static {
-        setBaseLogger();
-        logger = LogsCenter.getLogger(LogsCenter.class);
-    }
 
     /**
      * Creates a logger with the given name prefixed by the {@code baseLogger}'s name so that the created logger
@@ -61,16 +54,17 @@ public class LogsCenter {
      * Removes all handlers from the {@code logger}.
      */
     private static void removeHandlers(Logger logger) {
-        Arrays.stream(logger.getHandlers())
-                .forEach(logger::removeHandler);
+        Arrays
+            .stream(logger.getHandlers())
+            .forEach(logger::removeHandler);
     }
 
     /**
-     * Creates a logger named 'ab3', containing a {@code ConsoleHandler} and a {@code FileHandler}.
+     * Creates a logger named 'uniteam', containing a {@code ConsoleHandler} and a {@code FileHandler}.
      * Sets it as the {@code baseLogger}, to be used as the parent logger of all other loggers.
      */
     private static void setBaseLogger() {
-        baseLogger = Logger.getLogger("ab3");
+        baseLogger = Logger.getLogger("uniteam");
         baseLogger.setUseParentHandlers(false);
         removeHandlers(baseLogger);
         // set the level of the baseLogger, which will be inherited by other loggers
@@ -91,9 +85,12 @@ public class LogsCenter {
             fileHandler.setLevel(Level.ALL);
             baseLogger.addHandler(fileHandler);
         } catch (IOException e) {
-            logger.warning("Error adding file handler for logger.");
+            baseLogger.warning("Error adding file handler for logger: " + e.getMessage());
         }
     }
 
-
+    // This static block ensures essential loggers are created early
+    static {
+        setBaseLogger();
+    }
 }

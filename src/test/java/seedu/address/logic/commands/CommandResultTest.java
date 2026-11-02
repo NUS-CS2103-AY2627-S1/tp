@@ -56,8 +56,20 @@ public class CommandResultTest {
     public void toStringMethod() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
-                + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+            + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
+            + ", exit=" + commandResult.isExit() + ", listViewTarget=" + commandResult.getListViewTarget() + "}";
         assertEquals(expected, commandResult.toString());
+    }
+
+    @Test
+    public void listViewTarget_participatesInEqualityAndHashCode() {
+        CommandResult contacts = new CommandResult("feedback", CommandResult.ListViewTarget.CONTACTS);
+        CommandResult projects = new CommandResult("feedback", CommandResult.ListViewTarget.PROJECTS);
+
+        assertEquals(CommandResult.ListViewTarget.CONTACTS, contacts.getListViewTarget());
+        assertEquals(contacts, new CommandResult("feedback", false, false, CommandResult.ListViewTarget.CONTACTS));
+        assertNotEquals(contacts, projects);
+        assertNotEquals(contacts, new CommandResult("feedback"));
+        assertNotEquals(contacts.hashCode(), projects.hashCode());
     }
 }
