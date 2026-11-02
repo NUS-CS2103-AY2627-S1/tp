@@ -3,7 +3,9 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+ClubLogistics is a **command-line application for student club logistics coordinators** to track the club's reusable
+equipment and see who each item is currently issued to. Every action is performed by typing a command, so if you type
+quickly, ClubLogistics lets you record loans and returns faster than a spreadsheet or a paper log.
 
 * Table of Contents
 {:toc}
@@ -15,28 +17,44 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-F11-2/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for ClubLogistics.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar clublogistics.jar`.<br>
+   The application window opens in a few seconds. On the first run, it contains three sample equipment items:
+   `CAM001`, `MIC001`, and `PROJ001`.
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
+1. Type a command in the command box and press Enter to execute it. Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all equipment and shows whether each item is available or issued.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add TRI001 Manfrotto Tripod` : Adds a tripod with the ID `TRI001`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `issue CAM001 John Tan` : Records that `CAM001` is now held by John Tan.
 
-   * `clear` : Deletes all contacts.
+   * `return CAM001` : Records that `CAM001` has been returned.
+
+   * `remove TRI001` : Removes the tripod from the equipment register.
 
    * `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
+
+--------------------------------------------------------------------------------------------------------------------
+
+## Equipment records
+
+Each equipment record contains:
+
+* **Equipment ID**: the unique identifier of the item, such as `CAM001`.
+* **Equipment name**: a human-readable name, such as `Sony Camera`.
+* **Issued to**: the person currently holding the item. This is empty when the item is available.
+
+Every item has one of two statuses:
+
+* **Available**: the item is not issued to anyone. Newly added items start as available.
+* **Issued**: the item is held by the person recorded in its _Issued to_ field.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -46,105 +64,298 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 **:information_source: Notes about the command format:**<br>
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+* Words in angle brackets are parameters to be supplied by you.<br>
+  For example, in `return <equipment-id>`, replace `<equipment-id>` with a value such as `CAM001`.
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+* Command words are case-sensitive and must be typed in lowercase, such as `filter`, `list`, and `issue`.
+  The status value for `filter` is case-insensitive.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Parameters must be given in the order shown in the command format.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
-
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Every parameter is required. A missing or extra parameter is rejected with an error showing the correct usage,
+  such as `Error: Invalid command format. Usage: return <equipment-id>`.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
-### Viewing help: `help`
+<div markdown="block" class="alert alert-info">
 
-Shows a message explaining how to access the help page.
+**:information_source: Equipment ID rules (shared by all commands):**<br>
 
-![help message](images/helpMessage.png)
-
-Format: `help`
-
-
-### Adding a person: `add`
-
-Adds a person to the address book.
-
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
-
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+* An equipment ID has 1–20 characters, consisting only of letters (A–Z, a–z) and digits (0–9).
+  Spaces and special characters are not allowed.
+* Leading and trailing spaces are ignored.
+* IDs are matched without regard to capitalization, so `CAM001` and `cam001` refer to the same item.
+* An invalid ID is rejected with
+  `Error: Equipment ID must be 1 to 20 characters long and contain only letters and numbers, with no spaces.`
 </div>
 
+### Adding equipment: `add`
+
+Adds a new item to the equipment register. The new item is available and is not issued to anyone.
+
+Format: `add <equipment-id> <equipment-name>`
+
+* The equipment ID must follow the [equipment ID rules](#features) and must not already be in use.
+* The equipment name has 1–50 characters. Only letters, digits, spaces, and the symbols
+  `-` `/` `'` `.` `,` `&` `(` `)` `#` `+` `:` are allowed. All text after the ID is treated as the name.
+  Existing equipment names saved by v1.4 remain loadable, including symbols that are no longer accepted for new items.
+* Leading and trailing spaces are removed from the name, and consecutive spaces are combined into one.
+  The name is displayed with the capitalization you entered.
+* Several items may share a name as long as their IDs differ, since the club may own several identical items.
+
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add CAM001 Sony Camera`
+* `add MIC001 Wireless Microphone`
+* `add PROJ001 Epson Projector`
 
-### Listing all persons: `list`
+Successful output:
 
-Shows a list of all persons in the address book.
+```text
+Equipment CAM001 added successfully.
+```
+
+Possible errors:
+
+Situation | Error message
+----------|--------------
+The ID is already in use (ignoring capitalization); the message shows the ID as it appears in the list | `Error: Equipment with ID CAM001 already exists.`
+The ID is invalid | `Error: Equipment ID must be 1 to 20 characters long and contain only letters and numbers, with no spaces.`
+The name is empty, too long, or contains other symbols | `Error: Equipment name must be 1 to 50 characters long and contain only letters, numbers, spaces and these symbols: - / ' . , & ( ) # + :`
+A parameter is missing | `Error: Invalid command format. Usage: add <equipment-id> <equipment-name>`
+
+### Correcting an equipment name: `rename`
+
+Format: `rename <equipment-id> <equipment-name>`
+
+Example: `rename cam001 Sony Camera Mark II`
+
+Corrects the name using the same validation and whitespace normalization as `add` (1–50 characters).
+ID lookup ignores case. The stored ID, availability, and current borrower are preserved, including for
+issued equipment or records hidden by a filter. The card and saved register update together through the
+normal save pipeline. If saving fails, the previous name and loan are restored.
+
+Success: `Equipment CAM001 renamed to Sony Camera Mark II.`
+
+A missing record reports `Error: Equipment with ID cam001 does not exist.`. Missing arguments report
+`Error: Invalid command format. Usage: rename <equipment-id> <equipment-name>`. Invalid IDs or names
+use the same constraint messages as `add`. `remove` continues to reject issued equipment.
+
+### Removing equipment: `remove`
+
+Removes an item from the equipment register. Use this to correct an item that was added by mistake, or to stop
+tracking an item the club no longer owns.
+
+Format: `remove <equipment-id>`
+
+* The equipment ID must follow the [equipment ID rules](#features).
+* The item must exist and be available. An issued item cannot be removed, so that its current holder is not lost.
+  [Return](#returning-equipment-return) the item first.
+
+Example: `remove CAM001`
+
+Successful output:
+
+```text
+Equipment CAM001 removed successfully.
+```
+
+Possible errors:
+
+Situation | Error message
+----------|--------------
+No item has this ID | `Error: Equipment with ID CAM001 does not exist.`
+The item is currently issued | `Error: Equipment CAM001 is issued to John Tan and cannot be removed.`
+A parameter is missing or extra | `Error: Invalid command format. Usage: remove <equipment-id>`
+
+### Listing all equipment: `list`
+
+Shows every item in the equipment register and whether it is available or issued. For an issued item, the person
+currently holding it is shown.
+
+The equipment panel in the application window always shows each item as `Available` or `Issued to: <person-name>`,
+and updates immediately after an item is added, removed, issued, or returned.
 
 Format: `list`
 
-### Editing a person: `edit`
+Example output:
 
-Edits an existing person in the address book.
+ID | Name | Status
+---|------|-------
+CAM001 | Sony Camera | Available
+MIC001 | Wireless Microphone | Issued to: John Tan
+PROJ001 | Epson Projector | Available
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Possible errors:
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+Situation | Message
+----------|--------
+The register is empty | `No equipment found.`
+A parameter is supplied | `Error: Invalid command format. Usage: list`
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+### Issuing equipment: `issue`
 
-### Locating persons by name: `find`
+Records that an item has been issued to a person. The item is no longer available, and the person is recorded as
+its current holder.
 
-Finds persons whose names contain any of the given keywords.
+Format: `issue <equipment-id> <person-name>`
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
-
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
-
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* The equipment ID must follow the [equipment ID rules](#features).
+* All text after the ID is treated as the person's name, including spaces.
+* The person's name has 1–50 characters and contains only the English letters `A–Z` and `a–z`, spaces, and
+  apostrophes (`'`) or hyphens (`-`) that join two letters, as in `O'Brien` or `Mary-Jane Tan`. Digits, other
+  punctuation, and accented or non-English letters such as `é` are rejected.
+  Leading and trailing spaces are removed, and consecutive spaces are combined into one.
+* The item must exist and be available. Each item can have only one holder at a time, so issuing an item that is
+  already issued is rejected and its current holder is kept.
+* Different items can be issued to the same person.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `issue CAM001 John Tan`
+* `issue PROJ001 Alice Lim`
 
-### Clearing all entries: `clear`
+Successful output:
 
-Clears all entries from the address book.
+```text
+Equipment CAM001 issued to John Tan.
+CAM001 | Sony Camera | Issued to: John Tan
+```
 
-Format: `clear`
+Possible errors:
+
+Situation | Error message
+----------|--------------
+No item has this ID | `Error: Equipment with ID CAM001 does not exist.`
+The item is already issued | `Error: Equipment CAM001 is already issued to John Tan.`
+The person's name is invalid | `Error: Person name must be 1 to 50 characters long and contain only letters (A-Z, a-z), spaces, and apostrophes (') and hyphens (-) between letters.`
+A parameter is missing | `Error: Invalid command format. Usage: issue <equipment-id> <person-name>`
+
+### Returning equipment: `return`
+
+Records that an issued item has been returned. The item becomes available and is no longer associated with any
+person.
+
+Format: `return <equipment-id>`
+
+* The equipment ID must follow the [equipment ID rules](#features).
+* The item must exist and be currently issued.
+
+Example: `return CAM001`
+
+Successful output:
+
+```text
+Equipment CAM001 returned successfully.
+CAM001 | Sony Camera | Available
+```
+
+Possible errors:
+
+Situation | Error message
+----------|--------------
+No item has this ID | `Error: Equipment with ID CAM001 does not exist.`
+The item is already available | `Error: Equipment CAM001 is not currently issued.`
+A parameter is missing or extra | `Error: Invalid command format. Usage: return <equipment-id>`
+
+### Filtering equipment: `filter`
+
+Shows only equipment with the selected status. Type the command word `filter` in lowercase; `FILTER AVAILABLE`
+returns the error `Unknown command.` The status argument, `available` or `issued`, is case-insensitive.
+
+Format: `filter <available|issued>`
+
+Examples:
+* `filter available` shows equipment that can be issued.
+* `filter issued` shows equipment currently held by borrowers.
+* `filter AVAILABLE` has the same effect as `filter available`.
+
+The first feedback line reports one of the following results; a second line shows
+`Showing X of Y equipment records.` as described under [Inventory counts](#inventory-counts):
+
+Selected status | Matching equipment exists | No equipment matches
+----------------|---------------------------|---------------------
+`available` | `Showing available equipment.` | `No available equipment found.`
+`issued` | `Showing issued equipment.` | `No issued equipment found.`
+
+An empty result means no equipment matches the selected status; it does not necessarily mean
+that the whole register is empty. Filtering changes only the displayed list, not the equipment records.
+
+A persistent label above the equipment cards identifies the selected status even after other command feedback.
+The selected filter remains active as equipment is added, issued, returned, or removed, and the
+visible list updates to reflect each item's current status. Run `list` to clear the filter and
+show all equipment again. The filter is not saved between application sessions.
+
+Possible errors:
+
+Situation | Error message
+----------|--------------
+Status is missing, e.g., `filter` | `Error: Invalid command format. Usage: filter <available|issued>`
+Extra arguments, e.g., `filter available extra` | `Error: Invalid command format. Usage: filter <available|issued>`
+Unsupported status, e.g., `filter damaged` | `Error: Invalid command format. Usage: filter <available|issued>`
+
+### Inventory counts
+
+`list` and `filter` append `Showing X of Y equipment records.` to their feedback, including zero matches.
+`X` is the number of matching cards and `Y` is the complete register size. For example, three available
+items in a register of four produce `Showing 3 of 4 equipment records.` after `filter available`.
+
+The view label above the cards also shows these counts. It updates after add, remove, issue, return,
+and clear, even when a command replaces the feedback. `list` resets the view and shows equal counts.
+Counts describe the current register; they do not count past loans.
+
+### Finding a borrower's equipment: `find`
+
+Shows equipment whose current borrower's name contains the supplied name or name fragment.
+
+Format: `find <borrower-name>`
+
+Examples: `find Alice`, `find alice lim`.
+
+* Matching ignores capitalization and uses a contiguous substring, so `find Alice` can show loans to both
+  Alice Lim and Alice Tan. Only currently issued equipment can match.
+* All text after `find` is one search phrase. Leading/trailing spaces are removed and repeated spaces are combined.
+  The phrase has 1–50 characters made up of English letters, spaces, apostrophes (`'`) and hyphens (`-`), and
+  must contain at least one letter. Because it can be part of a name, it may start or end with `'` or `-`, so
+  `find O'` and `find Mary-` match `O'Brien` and `Mary-Jane`. Digits and other punctuation are rejected.
+* The search replaces the previous status filter or borrower search. It stays active when equipment is changed;
+  returning a matching item removes it from the results, and issuing another matching item adds it.
+* The equipment panel always shows the selected view above the cards. Run `list` to clear any search or filter.
+  This selection is not saved between sessions.
+* Feedback reports the number of matches or `No equipment found for borrower: <name>.` Missing input shows
+  `Error: Invalid command format. Usage: find <borrower-name>`; invalid characters show the borrower-name error.
+
+### Recalling recent commands
+
+With the command box focused, press **Up** to recall older successful commands and **Down** to move forward.
+After the newest command, Down restores the draft you were typing before browsing. Recalling a command does not
+execute it: edit it if needed and press Enter. Only the last 100 successful commands are retained for the current
+session; failed commands are not added, and history is cleared when the app closes. Modified arrow shortcuts
+(such as Ctrl+Up) retain their normal text-editing behavior.
+
+### Clearing the register: `clear`
+
+Removes all equipment records and saves the empty register.
+
+Format: `clear [force]`
+
+* If any item is still issued, `clear` is refused and lists each issued item with its holder, so that loan
+  records are not lost by accident. Return those items first, or use `clear force` to delete all records anyway.
+* `clear force` removes every record, including issued items and their borrowers. This cannot be undone.
+* `force` is not case-sensitive. Any other text after `clear` is rejected.
+
+Examples:
+* `clear` when nothing is issued: removes all records.
+* `clear` when `CAM001` is issued to John Tan: refused with
+  `Error: Some equipment is still issued: CAM001 (John Tan).`
+* `clear force`: removes all records, including `CAM001`.
+
+### Viewing help: `help`
+
+Opens a local command quick reference, including command formats and history shortcuts, that works without
+an Internet connection. The window also contains the ClubLogistics User Guide link and a Copy URL button for
+detailed online instructions. F1 opens the same help window.
+
+Format: `help`
 
 ### Exiting the program: `exit`
 
@@ -152,36 +363,138 @@ Exits the program.
 
 Format: `exit`
 
+### Upgrading from v1.3
+
+v1.3 stores equipment in `data/addressbook.json`; newer releases use `data/clublogistics.json` in the
+application home folder. If only the old file exists, startup shows migration instructions and closes
+before creating samples or saving preferences. It leaves both register paths untouched.
+
+1. Close ClubLogistics and back up the **entire data folder** to a separate location.
+2. Copy `data/addressbook.json` to `data/clublogistics.json`. Keep the original file.
+   The old equipment entries and borrower assignments are accepted; absent status is inferred from the borrower.
+3. Restart and compare equipment IDs, names, and current borrowers with your backup before changing records.
+4. Retain the backup and old file until you are satisfied that the register is correct.
+
+If `clublogistics.json` already exists, it takes precedence and the upgrade notice is not shown. If it
+contains samples from an earlier upgrade attempt, close the app and back up **both** files first. Compare
+both registers before choosing which equipment records to keep; copying the old file over the new one
+would discard changes made in the new register. ClubLogistics does not merge the two files automatically.
+
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+Only one ClubLogistics instance can use the same home folder at a time. If a "ClubLogistics cannot start" dialog
+reports that ClubLogistics is already running, use the existing window or close it before launching again. The app
+keeps a small `.clublogistics.lock` file in its home folder; do not delete it while the app is running.
+
+ClubLogistics must be able to create files in the folder containing `clublogistics.jar`. If that folder is read-only
+(e.g. a protected system folder), the same dialog explains this instead of opening the app; move the JAR to a folder
+you can write to, such as Documents, and start it again.
+
+ClubLogistics saves the equipment register automatically after successful `add`, `remove`, `rename`, `issue`, `return`,
+or `clear` commands. Read-only commands (`list`, `filter`, `find`, `help` and `exit`) do not save equipment data. You do not need to save manually, and saved data is retained when
+you restart the application. If saving fails, the command reports an error and the previous equipment register
+is restored in memory. Resolve the reported file or folder problem before retrying; Read-only commands remain available.
+
+Saving writes a complete replacement before replacing the previous file. If your folder cannot support this
+safe replacement, saving reports an error and keeps the previous file. Use a writable local folder for the app.
+Keep separate backups for recovery from device failures; the app does not keep backup versions automatically.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+The equipment register is saved as `data/clublogistics.json` inside the folder containing the JAR file, even if
+you launch it from another directory. Window preferences and log files also stay inside that home folder.
+Advanced users are welcome to update the equipment data directly by editing that file.
+UTF-8 files saved with or without a leading byte-order mark (BOM) are accepted. The file must contain one
+JSON document with no duplicate property names or trailing content except whitespace. Ambiguous files
+trigger the same warning and recovery-copy handling as other invalid files. If an older version
+saved your data in a different launch folder, close the app, back up that file, and copy it into the new home
+folder's `data` directory before starting the updated version.
+
+Equipment is stored in the top-level `equipment` array. Each item has an `id`, a `name`, a `status`, and an
+`issuedTo` value:
+
+```json
+{
+  "equipment": [
+    { "id": "CAM001", "name": "Sony Camera", "status": "AVAILABLE", "issuedTo": null },
+    { "id": "MIC001", "name": "Wireless Microphone", "status": "ISSUED", "issuedTo": "John Tan" }
+  ]
+}
+```
+
+The `status` and `issuedTo` values must agree with each other. The only valid combinations are:
+
+* `"status": "AVAILABLE"` with a null or empty `issuedTo` — the item is available.
+* `"status": "ISSUED"` with a valid person's name in `issuedTo` — the item is issued to that person.
+
+When you change whether an item is available, update **both** fields together. For example, to mark `MIC001` as
+returned, change `"status": "ISSUED"` to `"status": "AVAILABLE"` **and** `"issuedTo": "John Tan"` to
+`"issuedTo": null`. Changing only one of them makes the whole data file invalid.
+
+If a record has no `status` field, ClubLogistics works out the status from `issuedTo`. This is only for
+compatibility with older data files; ClubLogistics always writes `status` when it saves.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If your changes make the data file invalid, ClubLogistics warns you at the next run, saves a copy of the invalid file as `data/clublogistics.invalid.json`, and starts with an empty equipment register. Read-only commands leave the equipment file untouched. A successful add, remove, rename, issue, return or clear replaces it with the in-memory register. Back up the file before editing it or changing equipment records.<br>
+Furthermore, certain edits can cause ClubLogistics to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
 
-### Archiving data files `[coming in v2.0]`
+ClubLogistics reads the data file only when it starts, and does not notice changes made while it is running. If you
+edit the file while ClubLogistics is open, the next successful `add`, `remove`, `rename`, `issue`, `return` or `clear` saves the register in memory over your
+changes, and your edits are lost. To edit the data file safely:
 
-_Details coming soon ..._
+1. Back up `data/clublogistics.json` by copying it somewhere else.
+2. Close every running ClubLogistics window.
+3. Edit the data file, then save it.
+4. Start ClubLogistics again to load your changes.
+
+#### Recovering from an invalid data file
+
+ClubLogistics does not repair an invalid data file automatically. At startup it shows a warning, saves a copy of the
+invalid file as `data/clublogistics.invalid.json`, and starts with an empty register. Read-only commands leave the
+equipment file untouched; successful equipment-changing commands replace it with the in-memory register, but the copy
+is kept. Existing copies are never replaced: later failures use numbered names such as
+`data/clublogistics.invalid-1.json`. The warning names the actual copy, or reports if no copy could be saved.
+To recover your records:
+
+1. Close ClubLogistics, then move the recovery copy named in the warning somewhere safe (if the warning said no copy
+   could be saved, copy the invalid `data/clublogistics.json` instead).
+2. Choose one of the following:
+   * **Restore a backup:** replace `data/clublogistics.json` with a valid backup copy.
+   * **Repair the file:** if there is no backup, edit a copy of the saved file so it follows the format described
+     above, then use it to replace `data/clublogistics.json`. Each item needs
+     a valid `id` and `name`, and a `status` that is `AVAILABLE` with an empty `issuedTo`, or `ISSUED` with a valid
+     borrower name in `issuedTo`. Equipment IDs must be unique.
+3. Start ClubLogistics and run `list` to check that your records loaded. Do not run `add`, `remove`, `rename`, `issue`,
+   `return` or `clear` until you have confirmed recovery, because a successful equipment-changing command overwrites the file.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer, launch it once, then close it. Then:
+
+1. Back up the data files on both computers, if present.
+2. Close ClubLogistics on both computers.
+3. In the new app's home folder, create a `data` subfolder if it does not exist. Copy the old
+   `data/clublogistics.json` into it, replacing the new computer's file if present.
+4. Start ClubLogistics and run `list` to verify the transferred records.
+
+A fresh app creates its equipment file only after a successful equipment-changing command, so running `list`
+does not create that file. If the app is still running when you replace the file, its next successful
+`add`, `remove`, `rename`, `issue`, `return` or `clear` saves its in-memory register over the transferred records.
+
+**Q**: Do I need to register a person before issuing equipment to them?<br>
+**A**: No. ClubLogistics only records the name of the person currently holding each item, so you can issue equipment to anyone by name.
 
 --------------------------------------------------------------------------------------------------------------------
 
-## Known issues
+## Window settings
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+ClubLogistics restores saved window settings when they fit the current displays. Invalid sizes use defaults,
+and positions outside all current displays are ignored. If you need to reset the window settings manually,
+close ClubLogistics and delete `preferences.json` before starting it again; equipment data is stored separately.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +502,24 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
+**Add equipment** | `add <equipment-id> <equipment-name>`<br> e.g., `add CAM001 Sony Camera`
+**Rename equipment** | `rename <equipment-id> <equipment-name>`<br> e.g., `rename CAM001 Sony Camera Mark II`
+**Remove equipment** | `remove <equipment-id>`<br> e.g., `remove CAM001`
+**Issue equipment** | `issue <equipment-id> <person-name>`<br> e.g., `issue CAM001 John Tan`
+**Return equipment** | `return <equipment-id>`<br> e.g., `return CAM001`
+**List all equipment** | `list`
+**Find by borrower** | `find <borrower-name>`<br> e.g., `find Alice`
+**Filter by status** | `filter available` or `filter issued`
+**Clear the register** | `clear [force]`<br> e.g., `clear`, `clear force`
 **Help** | `help`
+**Exit** | `exit`
+
+### Diagnostic logs and borrower privacy
+
+Command diagnostics record command types and completion/error categories. They omit command arguments
+and feedback because these can contain borrower names, including in repeat-issue or removal errors.
+This applies to borrower search as well as issue/return. The on-screen feedback and active loan record
+still show the borrower. No sensitive command logging mode is provided.
+
+Existing log files from older versions can retain names. Review and remove those files before sharing
+an application folder or diagnostic logs. Closing a loan does not erase older log files or backups.

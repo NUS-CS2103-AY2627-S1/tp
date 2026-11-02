@@ -2,249 +2,665 @@
 layout: page
 title: Developer Guide
 ---
+
 * Table of Contents
 {:toc}
 
---------------------------------------------------------------------------------------------------------------------
-
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
-
---------------------------------------------------------------------------------------------------------------------
+ClubLogistics builds on the [SE-EDU AddressBook Level 3](https://github.com/se-edu/addressbook-level3)
+application framework. It uses JavaFX for the desktop interface, Jackson for JSON storage, JUnit 5 for tests,
+and Gradle for builds.
 
 ## **Setting up, getting started**
 
-Refer to the guide [_Setting up and getting started_](SettingUp.md).
-
---------------------------------------------------------------------------------------------------------------------
+Refer to [Setting up and getting started](SettingUp.md). Build and run the project with Java 25.
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+**Main components**
 
-The ***Architecture Diagram*** given above explains the high-level design of the App.
+`Main` acquires an OS file lock on `.clublogistics.lock` in the application home before launching `MainApp`.
+It holds the lock until the JavaFX application exits, preventing concurrent sessions from replacing the same
+register with stale data. A second instance reports a startup error without loading equipment or preferences.
+If the lock cannot be obtained, either because another session holds it or because the home folder does not allow
+creating the lock file, `Main.launchOrReport` launches `StartupProblemApp` instead, which shows the reason in an
+error dialog and exits. A log message alone would go unseen when the JAR is started without a console.
+The lock file remains after shutdown; closing the channel, or process termination, releases the OS lock.
 
-The following provides a quick overview of the main components and their interactions.
+`MainApp` manages application startup and shutdown:
 
-**Main components of the architecture**
+* On startup, it creates and connects the storage, model, logic, and UI components and loads preferences
+  and equipment data. Missing equipment data uses sample data; invalid equipment data uses an empty register.
+* On shutdown, it saves the user preferences, including window settings.
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
-* At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
-* At shut down, it shuts down the other components and invokes cleanup methods where necessary.
+The four main components are:
 
-The bulk of the app's work is done by the following four components:
+* [**`UI`**](#ui-component): Displays equipment and handles user input.
+* [**`Logic`**](#logic-component): Parses and executes commands.
+* [**`Model`**](#model-component): Holds equipment data and user preferences in memory.
+* [**`Storage`**](#storage-component): Reads and writes equipment data and preferences.
 
-* [**`UI`**](#ui-component): The UI of the App.
-* [**`Logic`**](#logic-component): The command executor.
-* [**`Model`**](#model-component): Holds the data of the App in memory.
-* [**`Storage`**](#storage-component): Reads data from, and writes data to, the hard disk.
+[**`Commons`**](#common-classes) contains utilities shared by multiple components.
 
-[**`Commons`**](#common-classes) represents a collection of classes used by multiple other components.
+**Component interactions**
 
-**How the architecture components interact with each other**
+The sequence diagram below shows the interactions for a successful `remove CAM001` command, assuming
+`CAM001` is registered and available. Parsing, equipment lookup, and availability checks are omitted.
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+![Successful remove CAM001 interactions between UI, Logic, Model, and Storage](images/ArchitectureSequenceDiagram.png)
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+Each component exposes its API through an interface (`Ui`, `Logic`, `Model`, or `Storage`) and implements it
+in a corresponding manager class (`UiManager`, `LogicManager`, `ModelManager`, or `StorageManager`).
 
-Each of the four main components (also shown in the diagram above),
+For example, `Logic.java` declares the command API and `LogicManager.java` implements it. Components depend
+on these interfaces rather than specific implementations. The partial class diagram below shows this
+relationship for `LogicManager`, `Model`, and `Storage`.
 
-* defines its *API* in an `interface` with the same name as the Component.
-* provides its functionality through a concrete `{Component Name}Manager` class that implements the corresponding API interface.
-
-For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
-
-<img src="images/ComponentManagers.png" width="300" />
-
-The sections below give more details of each component.
+![Component interfaces and their manager implementations](images/ComponentManagers.png)
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+`UiManager` creates `MainWindow`. The window contains `CommandBox`, `ResultDisplay`, `EquipmentListPanel`,
+and `StatusBarFooter`. `EquipmentListPanel` displays `EquipmentCard` instances bound to the model's filtered
+observable equipment list. Cards show each item's ID, name, and availability or borrower. `HelpWindow`
+displays the ClubLogistics User Guide link. Visible components inherit from `UiPart` and use matching FXML layouts.
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<img src="images/UiClassDiagram.png" width="1000" alt="UI class diagram showing equipment panels and cards, UiPart inheritance, and Logic dependencies" />
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+*Equipment UI classes and their relationships. Solid arrows represent stored references,
+dashed arrows represent dependencies, and hollow triangles represent inheritance or interface realization.*
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+`UiManager` holds a `Logic` reference and creates `MainWindow` during `start`. Its window reference
+is initially absent. Every successfully constructed `MainWindow` creates one `HelpWindow`, whether
+or not that help window is visible. `fillInnerParts()` initializes the equipment panel and result
+display, which are stored in fields; both are absent before that method runs.
 
-The `UI` component,
+`MainWindow` passes `logic.getFilteredEquipmentList()` to
+`EquipmentListPanel(ObservableList<Equipment>)`. The panel observes the list and creates an
+`EquipmentCard` for each non-empty cell. Cards read equipment data, including the borrower and status;
+they do not mutate the model. `CommandBox` receives the window's command-execution callback.
 
-* executes user commands using the `Logic` component.
-* listens for changes to `Model` data so that the UI can be updated with the modified data.
-* keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+The window attaches the root nodes of `CommandBox`, `ResultDisplay`, `EquipmentListPanel`, and
+`StatusBarFooter` to its JavaFX placeholders. This scene-graph containment is distinct from Java
+object fields: `CommandBox` and `StatusBarFooter` are local variables in `fillInnerParts()`, so the
+diagram shows creation dependencies rather than stored associations for these two wrappers.
+All seven UI part classes inherit from `UiPart`; `UiManager` implements `Ui`.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+`LogicManager.execute` passes input to `ClubLogisticsParser`, executes the resulting command against `Model`,
+and saves the register only after successful equipment-changing commands. Read-only commands do not write equipment data.
+Parse and command errors are reported to the user. If saving throws an `IOException`, Logic restores the
+pre-command equipment register and reports a command error, with a separate message for permission failures.
+This restores in-memory records; it does not guarantee that a failed file write left the file intact.
 
-Here's a (partial) class diagram of the `Logic` component:
+The supported commands are `add`, `remove`, `rename`, `list`, `filter`, `find`, `issue`, `return`, `clear`, `help`, and `exit`.
+Each equipment command parser validates its own positional arguments. For example, `issue CAM001 John Tan`
+creates an `IssueCommand` containing an `EquipmentId` and a `BorrowerName`.
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<img src="images/LogicClassDiagram.png" width="600"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+*Structure of the Logic component. `LogicManager` owns one `ClubLogisticsParser` (solid arrow), which creates command
+parsers (`XYZCommandParser`, such as `FilterCommandParser`), which in turn create concrete `Command` objects
+(dashed `<<create>>` arrows). `LogicManager` calls the resulting `Command`, which uses the `Model` and returns a
+`CommandResult`. The commands shown are a representative subset.*
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+#### Positional command parsers
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+The following classes are used for parsing user commands:
 
-How the `Logic` component works:
-
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
-   Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
-1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
-
-Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
-
-<img src="images/ParserClasses.png" width="600"/>
+![Parser structure using XYZ placeholders for the concrete parser and command pairs](images/ParserClasses.png)
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+
+* `ClubLogisticsParser` creates the matching `XYZCommandParser`, which parses the arguments and creates an
+  `XYZCommand`. The resulting command is returned to `LogicManager` for execution.
+* All `XYZCommandParser` classes implement `Parser<T extends Command>`.
+
+`XYZCommandParser` and `XYZCommand` are placeholders for the following concrete classes:
+
+| Command word | `XYZCommandParser` represents | `XYZCommand` represents |
+| --- | --- | --- |
+| `add` | `AddEquipmentCommandParser` | `AddEquipmentCommand` |
+| `remove` | `RemoveCommandParser` | `RemoveCommand` |
+| `rename` | `RenameCommandParser` | `RenameCommand` |
+| `list` | `ListCommandParser` | `ListCommand` |
+| `filter` | `FilterCommandParser` | `FilterCommand` |
+| `find` | `FindCommandParser` | `FindCommand` |
+| `issue` | `IssueCommandParser` | `IssueCommand` |
+| `return` | `ReturnCommandParser` | `ReturnCommand` |
+| `clear` | `ClearCommandParser` | `ClearCommand` |
+| `help` | `HelpCommandParser` | `HelpCommand` |
+| `exit` | `ExitCommandParser` | `ExitCommand` |
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+`ModelManager` owns a copy of `ClubLogisticsData`, user preferences, and a `FilteredList<Equipment>`.
+`ClubLogisticsData` uses `UniqueEquipmentList` to enforce case-insensitive ID uniqueness and exposes an
+unmodifiable observable equipment list. Replacing the register validates all records before changing the live list.
 
+`Equipment` is immutable. Its `EquipmentId`, `EquipmentName`, and optional `BorrowerName` describe one physical
+item. Equipment is available when no borrower is recorded and issued otherwise. Issuing and returning replace
+the item, so observers receive the updated record without losing the selected filter.
 
-The `Model` component,
+<img src="images/ModelClassDiagram.png" width="700" />
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
-* stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
-* does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
-
-<img src="images/BetterModelClassDiagram.png" width="450" />
-
-</div>
-
+*Structure of the Model component. `ModelManager` owns the register (`ClubLogisticsData`) and a filtered view of its
+equipment. `ClubLogisticsData` stores uniquely identified `Equipment` records. An `AVAILABLE` record has no borrower;
+an `ISSUED` record has exactly one `BorrowerName`.*
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+<img src="images/StorageClassDiagram.png" width="390" alt="Storage class diagram" />
 
-<img src="images/StorageClassDiagram.png" width="550" />
+*Structure of the Storage component*
 
-The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
-* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
-* depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+`StorageManager` delegates to `JsonUserPrefsStorage` and `JsonClubLogisticsStorage`. The latter reads and writes
+`JsonSerializableClubLogisticsData`, whose top-level `equipment` array contains `JsonAdaptedEquipment` records.
+Each record stores `id`, `name`, `status`, and `issuedTo`. `status` must be `AVAILABLE` with a null or empty
+`issuedTo`, or `ISSUED` with a valid borrower; any other combination causes loading to fail. A record without
+`status` is accepted for compatibility with older files, and its status is inferred from the borrower. Saving always
+writes `status`. Invalid IDs, names, borrowers, statuses, duplicate IDs, and null records also cause loading to fail.
+No contact register is stored.
+
+The application uses `data/clublogistics.json` for active storage. Before initializing components,
+`MainApp` detects an existing sibling `addressbook.json` when the new file is absent. It displays manual
+backup/copy instructions and exits without loading samples or writing preferences. An existing new file
+takes precedence. No automatic migration or merge is performed.
 
 ### Common classes
 
-Classes used by multiple components are in the `seedu.address.commons` package.
-
---------------------------------------------------------------------------------------------------------------------
+The `commons` package provides logging, file and JSON utilities, argument checks, and window settings.
+`LogsCenter` writes `clublogistics.log` files and uses the `clublogistics` logger hierarchy.
 
 ## **Implementation**
 
-This section describes some noteworthy details on how certain features are implemented.
+### Shared command and observation pipeline
 
-### \[Proposed\] Undo/redo feature
+The walkthroughs below use positional commands dispatched by `ClubLogisticsParser`. Each parser constructs a
+command or throws `ParseException`; commands report failed preconditions with `CommandException` before
+mutating the register. Such failures do not reach the save step. Equipment lookup uses the full register,
+so an item can be issued, returned, or removed even when the active filter hides it.
 
-#### Proposed Implementation
+`ModelManager` retains one `ClubLogisticsData` and one `FilteredList<Equipment>` over its unmodifiable
+observable list. Register methods delegate to `UniqueEquipmentList`, whose internal observable list is
+changed with `add`, `remove`, `set`, or `setAll`. These changes propagate through the existing filtered view
+to `EquipmentListPanel` and its `EquipmentCard` cells. Commands do not recreate the UI or replace its list
+binding. The selected predicate remains active after record changes and register resets.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+For successful equipment-changing commands, `LogicManager` saves the complete register before returning `CommandResult`.
+`MainWindow.executeCommand` sends its feedback to `ResultDisplay`; equipment cards come from the observable
+list, rather than being parsed from that feedback. The feature diagrams focus on command collaborators;
+the [architecture interaction diagram](#architecture) supplies the surrounding UI/Logic/save interaction.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+### Registering equipment
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+For `add CAM001 Sony Camera`:
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+1. `ClubLogisticsParser` delegates the arguments to `AddEquipmentCommandParser`. The parser trims them
+   and splits on whitespace at most once: `CAM001` is the ID and the remaining text is the equipment name.
+2. `EquipmentId` accepts 1–20 ASCII letters or digits and preserves spelling for display. Equality and
+   lookup ignore letter case. `EquipmentName` trims and collapses whitespace, then requires 1–50 characters
+   made up of Unicode letters, digits, spaces and the symbols `- / ' . , & ( ) # + :`.
+   For example, `add CAM001 Sony   Camera` creates the name `Sony Camera`. When loading existing records,
+   `EquipmentName.fromStoredName` retains v1.4's nonempty, 50-character rule, including previously accepted
+   symbols. This preserves existing names and loans across upgrades while restricting new entries.
+3. The parser creates an available `Equipment` with no borrower and passes it to `AddEquipmentCommand`.
+   The command calls `model.hasEquipment`; an existing `cam001` therefore rejects `CAM001` as a duplicate.
+4. On success, `ModelManager.addEquipment` delegates through `ClubLogisticsData.addEquipment` to
+   `UniqueEquipmentList.add`. That list also enforces ID uniqueness. Observers update and Logic saves.
+   Feedback is `Equipment CAM001 added successfully.`.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+![Registration interaction and duplicate rejection](images/AddEquipmentSequence.png)
 
-![UndoRedoState0](images/UndoRedoState0.png)
+The duplicate branch reports `Error: Equipment with ID CAM001 already exists.` before adding or saving.
+It looks up the existing item with `model.findEquipment` and reports that item's ID as stored, so
+`add cam001 Tripod` against a stored `CAM001` names `CAM001`, matching what the equipment list shows.
+Missing ID/name tokens produce usage feedback; invalid values produce the corresponding value-type
+constraint message. Names are descriptive rather than unique: `add CAM002 Sony Camera` is valid alongside
+`CAM001`, because each physical item has its own ID. Starting new equipment as available avoids inventing
+a borrower during registration. Central value types and the unique list protect the same invariants for
+both commands and loaded data, at the cost of validating some inputs at more than one layer.
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+An active `filter issued` still hides a newly added available item; registration does not reset the view.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+#### Registration validation and verification
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+Validation happens before the live register changes. The parser constructs value objects, the command
+checks the ID against the model, and the unique list protects the invariant for callers that bypass commands.
+This deliberate repetition keeps JSON loading and direct model calls safe without making the UI responsible
+for validation. A unique name would reject legitimate copies of the same camera model; a unique ID identifies
+the individual asset instead.
 
-![UndoRedoState2](images/UndoRedoState2.png)
+| Input, starting with CAM001 registered | Outcome | Register change |
+| --- | --- | --- |
+| `add cam001 Replacement Camera` | Duplicate-ID error | None; original CAM001 is retained |
+| `add CAM002 Sony   Camera` | Available CAM002 named Sony Camera | Add one record, retaining CAM001 |
+| `add CAM003` | Usage error | None |
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
-
-</div>
-
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
-
-![UndoRedoState3](images/UndoRedoState3.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
-
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
-
-#### Design considerations:
-
-**Aspect: How undo & redo execute:**
-
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
-
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
-
-### \[Proposed\] Data archiving
-
-_{Explain here how the data archiving feature will be implemented}_
+`AddEquipmentCommandParserTest` checks splitting, whitespace and constraints. `AddEquipmentCommandTest`
+checks successful registration and duplicate IDs with different case. `LogicManagerTest` verifies the
+observable update and persisted record; `FilterCommandIntegrationTest` checks that adding an available
+item does not discard an issued filter. Together these cover the parser, invariant, UI source list and save
+boundary rather than treating feedback text alone as proof of registration.
 
 
---------------------------------------------------------------------------------------------------------------------
+### Removing equipment
+
+For `remove cam001`, `RemoveCommandParser` requires exactly one token and constructs an `EquipmentId`.
+Invalid IDs report the ID constraint; missing or extra tokens report
+`Error: Invalid command format. Usage: remove <equipment-id>`.
+`RemoveCommand` calls `model.findEquipment`, delegated through `ClubLogisticsData.findEquipment` to
+`UniqueEquipmentList.find`, which compares IDs without case sensitivity.
+
+If the stored record is available `CAM001`, the command calls `ModelManager.removeEquipment`, then
+`ClubLogisticsData.removeEquipment`, then `UniqueEquipmentList.remove`. The observable list and filtered
+view lose that record before Logic saves; feedback uses the stored spelling:
+`Equipment CAM001 removed successfully.`. Other records remain unchanged.
+
+The [architecture interaction diagram](#architecture) shows the successful removal and save pipeline.
+
+A missing ID produces `Error: Equipment with ID cam001 does not exist.`. If `CAM001` is issued to John Tan,
+the command instead reports `Error: Equipment CAM001 is issued to John Tan and cannot be removed.`.
+Both checks precede mutation and saving. The coordinator must return the equipment before removing it.
+This preserves the borrower assignment while equipment is outstanding. IDs target physical assets
+independently of their display order or filter; targeting a visible index would couple removal to view state.
+
+#### Removal sequence and verification
+
+![Available equipment removal with missing and issued rejection branches](images/RemoveEquipmentSequence.png)
+
+The diagram includes checks omitted from the architecture overview. The command retrieves the stored
+record before removing it, so its success message uses `CAM001` even when the user types `cam001`.
+No intermediate available copy is created to bypass the issued-state guard. A rejected removal leaves
+both the model and the saved borrower assignment intact; a successful removal saves the complete remaining
+register through the shared pipeline.
+
+`RemoveCommandParserTest` verifies the single-ID grammar. `RemoveCommandTest` checks successful removal,
+missing equipment, and the issued guard. `IssueCommandIntegrationTest.execute_removeIssuedItem_rejectsWithoutLosingBorrower`
+verifies the borrower survives a rejected removal in memory and storage. `FilterCommandIntegrationTest`
+checks removals while another status is selected, so lookup and deletion remain independent of visibility.
+
+
+### Listing equipment
+
+`ClubLogisticsParser` routes `list` to `ListCommandParser`, which accepts only blank arguments; `list extra`
+produces `Error: Invalid command format. Usage: list`. `ListCommand.execute` calls
+`ModelManager.updateFilteredEquipmentList(PREDICATE_SHOW_ALL_EQUIPMENT)`, which sets the predicate on the
+existing `FilteredList`. It does not copy or modify equipment records. The panel observes the changed view,
+and `ResultDisplay` receives `Listed all equipment.` followed by `Showing X of Y equipment records.`.
+After resetting the predicate, X and Y are equal. An empty view means the entire register is empty,
+so the first line becomes `No equipment found.` and the count line is `Showing 0 of 0 equipment records.`.
+
+For example, with available `CAM001` and issued `MIC001`, `filter issued` shows only `MIC001`; `list` then
+shows both. A previously empty filtered result is not evidence of an empty register: `list` can reveal
+records of the other status. Using a single view avoids maintaining separate result lists and lets later
+record changes update the same binding. Logic returns the result without saving the unchanged register after successful `list`.
+
+#### Listing sequence and verification
+
+![Listing resets the existing view without saving equipment data](images/ListEquipmentSequence.png)
+
+`list` is a read-only command: the default `Command.isDataMutating()` is false. A successful execution
+therefore reaches the UI without asking storage to write the unchanged register. This matters after a
+loading failure or when the data folder is unwritable: inspecting records must not replace the rejected
+file or turn a successful view change into a save error. Copying the register into a new result list would
+also disconnect future updates from the panel's existing observable binding.
+
+`ListCommandParserTest` checks extra-argument rejection. `ListCommandTest` verifies full-list restoration
+and the empty-register message. `FilterCommandIntegrationTest` covers both status filters followed by
+`list`, including an empty filtered result with records still in the register.
+`ReadOnlyCommandPersistenceTest` verifies that read-only commands leave rejected data untouched and never
+attempt an equipment save even when writing is impossible.
+
+
+### Filtering by status
+
+For `filter available`, `FilterCommandParser` requires exactly one token and converts it with
+`toUpperCase(Locale.ROOT)` to `EquipmentStatus`. `AVAILABLE` and `ISSUED` are accepted regardless of letter
+case; missing, unsupported, or extra tokens produce
+`Error: Invalid command format. Usage: filter <available|issued>`.
+`FilterCommand` installs a predicate comparing each record's `getStatus()` with the selected enum.
+`ModelManager.updateFilteredEquipmentList` calls `FilteredList.setPredicate`; the source register stays intact.
+
+| Selected filter | At least one match | No matches |
+| --- | --- | --- |
+| available | `Showing available equipment.` | `No available equipment found.` |
+| issued | `Showing issued equipment.` | `No issued equipment found.` |
+
+The table shows the first feedback line. Each result also appends `Showing X of Y equipment records.`,
+where X counts matches and Y counts the full register. The messages describe the result when the filter command executes. Subsequent record changes update the
+cards automatically, without rerunning the filter command or regenerating its feedback.
+
+![Available-filter membership changes during issue and return](images/FilterEquipmentActivity.png)
+
+In this worked example, `CAM001` starts available. `filter available` includes it; `issue CAM001 John Tan`
+replaces it with an issued record, so it disappears. `return CAM001` finds the hidden record in the full
+register and replaces it with an available one, so it reappears. Under `filter issued`, the same changes
+have the opposite effect. Adds, removals, replacements, and clear also update membership through the source
+list. Another `filter` replaces the predicate; `list` restores the show-all predicate.
+
+A derived observable view avoids synchronising a separate filtered collection after every command.
+The predicate is session state only: the JSON snapshot contains the complete register, and neither equipment
+storage nor preferences serialize the filter. A restart creates a new unfiltered view. Successful `filter`
+skips equipment saving because it changes only the view.
+
+#### Filter verification and persistence boundary
+
+Status filtering is a read-only view operation. `FilterCommand` inherits `isDataMutating() == false`,
+so applying or switching a filter does not write the equipment file. Later successful `issue`, `return`,
+`add`, `remove`, `rename`, or `clear` commands save the complete source register, including hidden records. The
+selected predicate remains only in memory; restarting rebuilds an unfiltered view from the saved records.
+
+`FilterCommandParserTest` verifies case handling and rejects extra/unsupported tokens. `FilterCommandTest`
+checks both matching and empty messages. `EquipmentFilterModelTest` exercises membership changes on the
+same filtered list. `FilterCommandIntegrationTest` covers issue/return, add/remove, filter switching, `list`
+reset and restart through the real command pipeline. `ReadOnlyCommandPersistenceTest` verifies that view
+commands skip writing even when the equipment file cannot be saved.
+
+
+### Issuing equipment
+
+For `issue CAM001 John Tan`, `IssueCommandParser` splits the trimmed arguments once into ID and complete
+borrower name. `BorrowerName` trims and collapses consecutive ordinary spaces and accepts 1–50 characters
+forming space-separated words of ASCII letters, where an apostrophe or hyphen may join two letters. Thus
+`John   Tan` becomes `John Tan`, and `O'Brien` and `Mary-Jane` are valid; digits, other punctuation, a leading,
+trailing or doubled `'`/`-`, and embedded tabs are invalid. Missing fields produce the issue usage message; invalid ID/name values produce their
+constraint messages. The parser creates `IssueCommand(EquipmentId, BorrowerName)`.
+
+`IssueCommand` looks up the item through `ModelManager.findEquipment` in the full register, ignoring ID case.
+For an available item, `Equipment.issueTo(borrower)` returns a new record with the same ID/name,
+`ISSUED` status, and the borrower. `ModelManager.setEquipment` delegates through `ClubLogisticsData` to
+`UniqueEquipmentList.set`, which replaces the item at its existing position. The observable and filtered
+views update, and Logic saves the replacement.
+
+![Issue interaction including a repeat-issue rejection](images/IssueEquipmentSequence.png)
+
+The successful feedback is:
+
+```text
+Equipment CAM001 issued to John Tan.
+CAM001 | Sony Camera | Issued to: John Tan
+```
+
+A missing item reports `Error: Equipment with ID CAM001 does not exist.`. Reissuing the example item reports
+`Error: Equipment CAM001 is already issued to John Tan.` before replacement or saving, preserving John Tan
+even if the attempted new borrower differs. `Equipment.issueTo` also rejects an issued record defensively.
+The `Equipment` constructor enforces that `ISSUED` has a borrower and `AVAILABLE` does not.
+
+Immutable replacement keeps status and borrower consistent as one record and generates an observable list
+change; mutable fields would need their own coordinated notifications. Borrowers are names attached to
+individual equipment records, so there is no separate person register or cross-record borrower uniqueness.
+John Tan may hold both `CAM001` and `MIC001`; this model stores current assignments without identifying
+people beyond their names.
+
+#### Loan state and verification
+
+| Prior record | Request | Resulting record |
+| --- | --- | --- |
+| CAM001, available, no borrower | `issue CAM001 John Tan` | Same ID/name, ISSUED, John Tan |
+| CAM001, issued to John Tan | `issue CAM001 Alice Lim` | Rejected; John Tan remains the borrower |
+| No CAM001 | `issue CAM001 John Tan` | Rejected; no record or loan is created |
+
+The check and immutable replacement concern one equipment record. A second item may independently be
+issued to John Tan; matching borrower strings do not establish a shared person identity or a single
+cross-equipment loan. Making borrowers unique would incorrectly prevent this ordinary borrowing workflow.
+
+`IssueCommandParserTest` verifies ID/borrower parsing and normalization. `IssueCommandTest` checks state
+preconditions and target-only changes. `IssueCommandIntegrationTest` verifies saved borrowers, rejected
+repeat issues, independent assignments to the same name, and add → issue → restart. `EquipmentTest` checks
+the immutable record's own state guards. A rejected precondition does not invoke replacement or saving;
+a later save failure instead uses Logic's register rollback, as described in the storage walkthrough.
+
+
+### Returning equipment
+
+`return CAM001` follows `ClubLogisticsParser` → `ReturnCommandParser` → `ReturnCommand`. The parser requires
+one valid equipment ID, rejecting missing/extra arguments with the return usage message. The command finds
+the item case-insensitively in the full register and checks `isIssued()` before calling `Equipment.markReturned`.
+That method returns a new available record retaining ID/name and clearing the borrower.
+`ModelManager.setEquipment` → `ClubLogisticsData.setEquipment` → `UniqueEquipmentList.set` replaces the record,
+updates observers under the active predicate, and hands the register back to Logic for saving.
+
+The dedicated return sequence below shows the issued-state check and `markReturned()` call, including
+the missing and already-available rejection paths.
+
+After returning the issued example above, feedback is:
+
+```text
+Equipment CAM001 returned successfully.
+CAM001 | Sony Camera | Available
+```
+
+A missing item reports `Error: Equipment with ID CAM001 does not exist.`. An already available item reports
+`Error: Equipment CAM001 is not currently issued.`; neither rejection changes records or reaches saving.
+`markReturned` also checks the state defensively. As with issue, immutable replacement gives observers a
+single consistent status/borrower update. Return makes later reissue or removal possible. It does not retain
+loan history, return dates, or return condition: only the latest availability and borrower are represented.
+
+#### Return sequence and verification
+
+![Returning issued equipment and rejecting missing or available records](images/ReturnEquipmentSequence.png)
+
+The replacement has the stored ID/name, `AVAILABLE` status and no borrower. The source list position is
+retained; visibility can change when the selected predicate is re-evaluated. For example, an issued-only
+view loses CAM001 immediately after return, while an available-only view gains it. The success feedback
+still describes the returned item even when its card disappears from the selected view.
+
+`ReturnCommandParserTest` verifies the single-ID grammar. `ReturnCommandTest` checks target-only changes,
+missing targets and available-item rejection. `ReturnCommandIntegrationTest.execute_repeatedReturn_preservesSavedData`
+checks that a second return leaves saved data intact; its round-trip tests verify borrower removal and
+that issue followed by return restores the original record. `EquipmentTest` checks that `markReturned`
+leaves the old issued instance intact and rejects an already available record.
+
+
+### Clearing the register
+
+`ClubLogisticsParser` dispatches `clear` through `ClearCommandParser`, which builds an unforced
+`ClearCommand` for blank arguments and a forced one for the case-insensitive keyword `force`. Any other
+argument is rejected with `Error: Invalid command format. Usage: clear [force]`. An unforced
+`ClearCommand.execute` first collects issued items from the register; if there are any, it throws a
+`CommandException` naming each item and holder, leaving the register and saved file untouched. Otherwise, or
+when forced, it supplies a new empty `ClubLogisticsData` to `ModelManager.setClubLogisticsData`. The manager calls `resetData` on its existing
+register; `ClubLogisticsData.setEquipments` delegates to `UniqueEquipmentList.setEquipment`. That method
+validates the replacement collection in a temporary unique list and uses `internalList.setAll` to replace
+contents, preserving the observable list and its observers. The existing filter predicate remains selected,
+with no matching records after clear.
+
+For example, with available `CAM001` and issued `MIC001`, `clear` is refused even if `filter available`
+previously hid `MIC001`, because the check covers the whole register rather than the visible list.
+`clear force` then empties it. Feedback is `ClubLogistics data has been cleared!`. Logic saves
+`{"equipment": []}`, so restarting loads an empty register rather than missing-file sample data.
+The issued-item check mirrors `remove`'s protection, while `force` keeps a deliberate full reset available
+without first returning every item. A stateless keyword is used instead of a two-step prompt, so no pending
+confirmation state has to survive between commands. Clear provides no undo or retained loan history.
+Resetting contents through the shared register API avoids replacing the model/list objects bound to the UI.
+
+#### Clear scope and verification
+
+With `filter available` selected, the visible cards are only a view of the reset target:
+
+| State | Full register | Visible available view | Saved equipment |
+| --- | --- | --- | --- |
+| Before `clear` | CAM001 available; MIC001 issued to Alice Lim | CAM001 | Both records |
+| After refused `clear` | CAM001 available; MIC001 issued to Alice Lim | CAM001, same selected predicate | Both records unchanged |
+| After `clear force` | Empty | Empty, same selected predicate | Empty array |
+| After restart | Empty | Empty, fresh show-all predicate | Empty array |
+
+A present empty register differs from a missing file: the former loads zero records, while the latter
+selects samples. Clearing does not delete the equipment file to request sample initialization. Unlike
+repeated per-item removal, a forced register reset also removes issued items; unlike replacing the model,
+`setAll` preserves the observable collection that existing UI controls observe.
+
+`ClearCommandParserTest` accepts blank arguments or case-insensitive `force` and rejects other arguments.
+`ClearCommandTest` covers empty and populated registers, including refusal while equipment is issued.
+`ClearCommandIntegrationTest` checks forced empty persistence and that refused clears or rejected arguments
+retain saved records.
+`EquipmentFilterModelTest` verifies predicate-preserving lifecycle changes, and `MainWindowTest` checks
+that the equipment panel empties when the register is cleared. There is no undo or stored loan history to recover
+borrower assignments after a successful clear; manual backups remain separate from this command.
+
+
+### Correcting equipment names
+
+`rename CAM001 Sony Camera Mark II` dispatches through `RenameCommandParser`, which splits the ID
+from the remaining name and delegates validation to `EquipmentId` and `EquipmentName`. `RenameCommand`
+finds the full-register record and calls `Equipment.withName`. Immutable replacement retains its ID,
+status, and borrower, so no return/reissue is fabricated and the existing predicate remains active.
+The command is data-mutating, so Logic saves the correction and restores the original register if saving
+fails. Cards observe the replacement through the same list as issue/return. Missing targets fail before
+mutation. The issued-item removal guard remains independent of descriptive name corrections.
+
+### Borrower search and view descriptions
+
+`FindCommandParser` normalizes spaces in the name fragment and checks it against the borrower-name characters and
+`BorrowerName.MAX_LENGTH`. It does not construct a `BorrowerName`, because a fragment such as `O'` may end at an
+apostrophe or hyphen, which a complete name may not; it must still contain a letter. `FindCommand` applies a
+case-insensitive substring predicate to the current borrower, excluding available equipment. This uses the same
+observable filtered equipment list as status filtering. A search replaces the previous predicate and is preserved
+across register changes until `list` or another search/filter replaces it; view state is not serialized.
+
+`ModelManager` publishes a read-only string property alongside the predicate. Status filters, borrower searches
+and `list` set an explicit view description. `LogicManager` exposes it to `EquipmentListPanel`, whose label binds
+to the property. Command feedback can change independently without hiding the selected view.
+
+### Inventory count presentation
+
+`ListCommand` and `FilterCommand` append a count snapshot from the filtered and full observable lists.
+`EquipmentListPanel` binds its view label to both lists and the view description, using
+`Messages.formatEquipmentCount` for the same wording. Source-list changes invalidate that binding, so
+counts remain current after hidden records change as well as visible additions and replacements.
+Feedback describes the moment a command executes; the label continues observing later commands.
+
+### Keyboard history and local Help
+
+`CommandBox` keeps the most recent 100 successful command strings in memory. Its key-event filter handles
+unmodified Up/Down, tracks the selected history index and preserves the draft typed before browsing. Recall does
+not execute a command; failed commands are not retained. The bounded history is never written to disk.
+
+`HelpWindow` renders an embedded, scrollable command quick reference and retains the online guide link and copy
+button. Opening Help does not fetch remote content, so the syntax reference works offline.
+
+### Saving and loading equipment data
+
+#### Startup and recovery
+
+`MainApp.init` first checks for a legacy-only register. If `addressbook.json` exists and the destination
+`clublogistics.json` does not, it shows backup/copy instructions and exits before creating preferences or
+selecting samples. The loading sequence below applies after this preflight allows startup to continue.
+
+`MainApp.init` then creates `JsonUserPrefsStorage`, loads preferences, and creates `JsonClubLogisticsStorage` and
+`StorageManager`. `initModelManager` calls `StorageManager.readClubLogisticsData`, delegated to the JSON
+storage. `JsonUtil.readJsonFile` deserializes with Jackson; `JsonSerializableClubLogisticsData.toModelType`
+adapts each `JsonAdaptedEquipment` and checks ID uniqueness while constructing a separate register.
+The file parser enables duplicate-property detection and checks for end-of-input after the first document.
+Repeated property names, another root document or trailing garbage therefore raise a loading error instead
+of silently discarding earlier or later records. Trailing whitespace and a UTF-8 BOM remain supported.
+`ModelManager` copies the resulting data and creates its filtered view before Logic and UI are connected.
+
+![Startup loading and recovery branches](images/LoadEquipmentSequence.png)
+
+A missing file yields `Optional.empty()` and `MainApp` selects `SampleDataUtil.getSampleClubLogisticsData`.
+Malformed JSON, unreadable data, a literal JSON `null` document, null equipment records, or invalid records
+raise `DataLoadingException`; `MainApp` logs the failure and starts with an empty register. A bad later record
+does not load a valid prefix of the file. An existing object with absent/null `equipment` is accepted as an
+empty register. Recovery selects in-memory startup data; it does not repair an invalid file. Instead,
+`MainApp` immediately copies it to `clublogistics.invalid.json` beside the data file and shows a warning over the
+main window naming both files. Copying at startup, rather than before the first save, keeps the user's records
+safe without coupling the save path to load history. Existing copies are retained: later failures use the next
+unused numbered name, such as `clublogistics.invalid-1.json`. A non-file source or failed copy leaves earlier
+recovery copies untouched and the warning asks the user to back up the source manually.
+
+#### Saving and the persisted schema
+
+After a successful equipment-changing command, `LogicManager` calls
+`StorageManager.saveClubLogisticsData`, which delegates to `JsonClubLogisticsStorage`.
+The latter constructs a `JsonSerializableClubLogisticsData` snapshot without creating an empty destination file.
+Each `JsonAdaptedEquipment` copies the record's scalar fields. `JsonUtil.saveJsonFile` serializes the snapshot
+with Jackson before asking `FileUtil` to save it. Read-only commands (`list`, `filter`, `find`, `help` and `exit`) skip this equipment save, so they remain usable when writes
+fail. Command success is returned only after the save succeeds. On `IOException`, Logic restores the
+pre-command register through `model.setClubLogisticsData` and reports the storage error; observers and the
+selected predicate survive that reset.
+
+`FileUtil.writeToFile` creates any missing parent folders and writes a temporary file in the destination
+directory. It flushes that file through `FileChannel.force(true)` and closes the channel before requesting
+`Files.move` with `ATOMIC_MOVE` and `REPLACE_EXISTING`. The live destination is never opened for truncation;
+readers see the complete old or new file. Read-only destinations are rejected before staging. A failed save
+removes its staging file when possible; cleanup failures are attached to the original exception.
+
+Windows refuses to replace a file while another process, such as antivirus or a sync client, has it open, and
+reports this as `AccessDeniedException`. The move is therefore retried up to 20 times, 25 ms apart (about half a
+second in total), before the save is reported as failed. A directory at the destination fails immediately
+because waiting cannot fix it. Other platforms replace open files directly, so the retry does not trigger there.
+
+The filesystem must support atomic replacement. An unsupported or failed move reports an error without a
+non-atomic fallback. Both equipment data and preferences use this writer. Abrupt process termination can leave
+an unused `.clublogistics-*.tmp` file; startup still reads only the normal JSON filenames. This is not a backup
+system or a guarantee against power loss and storage-device failure; no directory synchronisation is performed.
+
+![Successful command save pipeline](images/SaveEquipmentSequence.png)
+
+For `add CAM001 Sony Camera` → `issue CAM001 John Tan` → restart, the final saved equipment entry is:
+
+```json
+{
+  "equipment": [
+    { "id": "CAM001", "name": "Sony Camera", "status": "ISSUED", "issuedTo": "John Tan" }
+  ]
+}
+```
+
+The restarted model therefore contains `CAM001 | Sony Camera | Issued to: John Tan`. The schema contains
+no contact register, filter predicate, or loan history. Explicit status values are case-sensitive enum names:
+`AVAILABLE` requires null/empty `issuedTo`, while `ISSUED` requires a valid borrower. Missing/null `status`
+is accepted for compatibility and inferred from the borrower; saving always writes an explicit status.
+IDs and names are required and validated by the same value types as commands; duplicate IDs (ignoring case),
+invalid borrowers/statuses, inconsistent status/borrower pairs, and null records reject the load.
+
+For a packaged application, `AppPaths` resolves the home folder from its class code-source JAR location.
+Equipment uses `data/clublogistics.json`, preferences use `preferences.json`, and logging uses
+`clublogistics.log` files inside that folder, independently of the launch directory. Class-directory launches
+during development use the working directory. `MainApp.initPrefs` loads/defaults and saves preferences at
+startup, while `MainApp.stop` saves them on shutdown. Equipment is saved during command execution rather
+than waiting for shutdown. If file logging cannot start, console logging remains available. No migration from
+another filename is performed. External edits are read on the
+next startup only; a successful saving command in the running session writes its in-memory register to the file.
+Read-only commands do not save equipment data. `Command.isDataMutating()` defaults to false; `add`, `remove`,
+`rename`, `issue`, `return` and `clear` override it to request a transactional save.
+
+Storage adapters isolate Jackson's representation and compatibility rules from immutable domain objects.
+The copied serialization snapshot is independent of later changes to the model, but does not provide
+concurrent editing or a transaction spanning equipment and preferences. `JsonAdaptedEquipmentTest`,
+`JsonSerializableClubLogisticsDataTest`, and `JsonClubLogisticsStorageTest` exercise schema validation,
+null inputs, duplicates, and round trips. `IssueCommandIntegrationTest`, `ReturnCommandIntegrationTest`,
+`ClearCommandIntegrationTest`, and `FilterCommandIntegrationTest` verify persisted command outcomes and
+restart behavior; `LogicManagerTest` checks the save handoff and storage error reporting. `FileUtilTest` checks
+complete-file visibility, failed replacement cleanup, missing folders and read-only protection.
+
+#### Load/save boundary verification
+
+After the legacy-register preflight, startup selects in-memory data before any equipment-changing command. Missing-file sample selection
+itself does not write an equipment file; an initial `list` or `filter` also leaves it absent. Likewise,
+invalid-file fallback does not repair the rejected file. The first successful equipment-changing command
+saves the full in-memory register, so users must preserve a rejected file before changing records.
+
+| Boundary | Evidence to check |
+| --- | --- |
+| Missing versus invalid startup input | `MainAppTest` and the explicit branches in `initModelManager` |
+| Null documents and null records (#81/#82) | `JsonClubLogisticsStorageTest`, `JsonSerializableClubLogisticsDataTest`; loading fails with `DataLoadingException` |
+| Values, inferred status and status/borrower agreement | `JsonAdaptedEquipmentTest` |
+| Available/issued records and restart | `JsonClubLogisticsStorageTest`, `ClubLogisticsStorageRoundTripTest` |
+| Inspection without overwriting rejected data | `ReadOnlyCommandPersistenceTest` |
+| Restoration after save failure | `LogicManagerStorageFailureTest` |
+
+The null-input defects mentioned in the issue are fixed in this code: a JSON `null` document and a null
+equipment entry are rejected through the same loading-error path. An absent/null **equipment collection**
+still represents an empty register. These distinct inputs must not be conflated when extending compatibility.
+The tables and sequence diagrams describe the current code, including read-only save suppression and atomic
+file replacement, rather than assuming behavior from the earlier release.
 
 ## **Documentation, logging, testing, dev-ops**
 
@@ -253,130 +669,288 @@ _{Explain here how the data archiving feature will be implemented}_
 * [Logging guide](Logging.md)
 * [DevOps guide](DevOps.md)
 
---------------------------------------------------------------------------------------------------------------------
-
 ## **Appendix: Requirements**
+
 
 ### Product scope
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+ClubLogistics is intended for a **student-club logistics coordinator** who:
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+* is the single person responsible for maintaining the club's equipment register.
+* tracks individual reusable assets, such as speakers, microphones, cameras, projectors, and extension reels.
+* needs to know what equipment exists, where it is stored, whether it is usable and available, and who is responsible for borrowed equipment.
+* performs many short updates and retrieves records quickly, especially while preparing for events, issuing or receiving equipment, conducting stocktakes, and handing over the role.
+* can type quickly, prefers keyboard-driven workflows, and is comfortable entering text commands in a desktop application.
+
+ClubLogistics does not target the management of consumables or bulk stock. It also excludes member accounts, concurrent editing, cloud synchronisation, remote servers, and barcode or QR-code scanning as a required workflow.
+
+**Value proposition**: ClubLogistics keeps a student club's equipment records organised and quick to retrieve through a typing-first workflow, reducing misplaced equipment, missed returns, and uncertainty about availability and condition.
 
 
 ### User stories
 
-Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
+Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`.
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+The stories below describe the full product vision. They include deferred capabilities that might not be implemented in the final course release.
 
-*{More to be added}*
+| ID | Priority | As a …​ | I want to …​ | So that I can …​ |
+| -- | -------- | ------- | ------------- | ----------------- |
+| US01 | `* * *` | logistics coordinator | add a reusable asset with enough information to identify, locate, and assess it | record new equipment consistently |
+| US02 | `* * *` | logistics coordinator | view all recorded assets | understand what equipment the club owns |
+| US03 | `* *` | logistics coordinator | view the details of one asset | check its current state before acting on it |
+| US04 | `* * *` | logistics coordinator | find an asset by its ID or name | retrieve its record quickly during a handover or loan |
+| US05 | `* *` | logistics coordinator | filter assets by category | focus on the type of equipment needed for an event |
+| US06 | `* *` | logistics coordinator | filter assets by availability | see which equipment can be issued now |
+| US07 | `* *` | logistics coordinator | change an asset's storage location | keep the register accurate when equipment is moved |
+| US08 | `* *` | logistics coordinator | correct an asset's recorded details | prevent typing mistakes from remaining in the register |
+| US09 | `* * *` | logistics coordinator | remove an asset that was entered by mistake | prevent an incorrect record from cluttering the register |
+| US10 | `*` | logistics coordinator | archive an asset that has been disposed of | retain its history without showing it as usable |
+| US11 | `* * *` | logistics coordinator | record a loan with a borrower and due date | know who is responsible for an asset and when it should return |
+| US12 | `* * *` | logistics coordinator | view all active loans | monitor equipment that is outside storage |
+| US13 | `* * *` | logistics coordinator | record the return of a loaned asset | make the asset available again |
+| US14 | `* *` | logistics coordinator | view overdue loans | follow up on late returns first |
+| US15 | `* *` | logistics coordinator | find active loans by borrower name | handle a borrower's return without checking every loan |
+| US16 | `* *` | logistics coordinator | extend an active loan's due date | reflect an approved extension accurately |
+| US17 | `* *` | logistics coordinator | cancel a loan recorded by mistake | avoid making an available asset appear unavailable |
+| US18 | `*` | logistics coordinator | view an asset's previous loans | investigate repeated loss, damage, or late returns |
+| US19 | `*` | logistics coordinator | view a borrower's previous loans | understand their borrowing history before issuing valuable equipment |
+| US20 | `* *` | logistics coordinator | add a short purpose or event note to a loan | remember why the equipment was issued |
+| US21 | `* *` | logistics coordinator | record an asset's condition when adding it | establish the equipment's starting condition |
+| US22 | `* *` | logistics coordinator | record an asset's condition when it is returned | avoid overlooking damage discovered during return |
+| US23 | `* * *` | logistics coordinator | mark an asset as damaged | prevent unsafe or unusable equipment from being issued |
+| US24 | `* *` | logistics coordinator | list all damaged assets | plan repairs and replacements |
+| US25 | `* *` | logistics coordinator | add a note describing reported damage | make the repair issue clear to whoever handles it later |
+| US26 | `* *` | logistics coordinator | mark a damaged asset as usable after repair | return repaired equipment to the available pool |
+| US27 | `* *` | logistics coordinator | record that an asset is missing | avoid promising equipment that cannot be found |
+| US28 | `* *` | logistics coordinator | record a maintenance due date | arrange servicing before equipment fails during an event |
+| US29 | `* *` | logistics coordinator | view counts of available, loaned, damaged, and missing assets | assess equipment readiness quickly |
+| US30 | `* *` | logistics coordinator | sort assets by name, category, location, or condition | review a large register in a useful order |
+| US31 | `* *` | logistics coordinator | view assets stored at a particular location | prepare equipment without searching every storage area |
+| US32 | `*` | logistics coordinator | tag assets for an activity or event type | identify suitable equipment even when categories differ |
+| US33 | `* *` | logistics coordinator | add private handling or setup notes to an asset | keep important operational details with its record |
+| US34 | `*` | logistics coordinator | view recent changes to assets and loans | understand what happened since the last inventory check |
+| US35 | `*` | logistics coordinator | export a human-readable inventory list | conduct a physical stocktake or share a handover snapshot |
+| US36 | `* *` | logistics coordinator | export active and overdue loans | use the list for follow-up and committee handover |
+| US37 | `*` | logistics coordinator | back up the club's equipment records | avoid losing the register if the device or file is lost |
+| US38 | `*` | logistics coordinator | restore records from a backup | recover the register after data loss |
+| US39 | `* *` | new logistics coordinator | review unresolved loans, missing assets, and damaged assets | take over the role without overlooking existing problems |
+| US40 | `* *` | logistics coordinator | see when each asset record was last updated | identify information that may be stale |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `ClubLogistics` and the **Actor** is the logistics coordinator.)
 
-**Use case: Delete a person**
+The use cases below describe the product vision, not only the released commands. Each use case is labelled with
+its release status. The implemented release supports `add`, `remove`, `rename`, `list`, `filter`, `find`, `issue`, `return`,
+`clear`, `help`, and `exit`; refer to the [User Guide](UserGuide.md) for their exact command formats.
+
+#### Use case UC01: Register a new asset
+
+**Release status: Partially implemented.** The release supports registering an item with an equipment ID and name
+using `add`. It records the new item as available. Storage location and condition are planned capabilities.
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. Coordinator requests to add an asset and provides its identifying details, storage location, and condition.
+2. ClubLogistics validates the supplied details and checks that the equipment ID is unique.
+3. ClubLogistics records the asset as available.
+4. ClubLogistics displays the new asset record.
 
     Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 2a. The equipment ID or another required field is invalid.
+  * 2a1. ClubLogistics shows the invalid field and its requirements.
+  * 2a2. Coordinator corrects the details.
+  * Steps 2-4 are repeated.
+* 2b. An asset with the same equipment ID already exists.
+  * 2b1. ClubLogistics rejects the request and displays the existing asset.
 
-  Use case ends.
+    Use case ends.
 
-* 3a. The given index is invalid.
+#### Use case UC02: Issue an asset to a borrower
 
-    * 3a1. AddressBook shows an error message.
+**Release status: Partially implemented.** The release supports `issue <equipment-id> <borrower-name>` for an
+available item. Searching by name, due dates, purpose, and loan records are planned capabilities.
 
-      Use case resumes at step 2.
+**Preconditions**: The asset exists and is available and usable.
 
-*{More to be added}*
+**MSS**
+
+1. Coordinator searches for the asset by equipment ID or name.
+2. ClubLogistics displays matching assets and their availability and condition.
+3. Coordinator selects an asset and provides the borrower's details, due date, and an optional purpose.
+4. ClubLogistics validates the loan details.
+5. ClubLogistics creates an active loan and marks the asset as loaned.
+6. ClubLogistics displays the recorded borrower and due date.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. No matching asset exists.
+  * 2a1. ClubLogistics informs the coordinator that no asset was found.
+
+    Use case ends.
+* 4a. The asset is already loaned, damaged, missing, or archived.
+  * 4a1. ClubLogistics rejects the loan and displays why the asset cannot be issued.
+
+    Use case ends.
+* 4b. The borrower details or due date are invalid.
+  * 4b1. ClubLogistics shows the invalid field and its requirements.
+  * 4b2. Coordinator corrects the loan details.
+  * Steps 4-6 are repeated.
+
+#### Use case UC03: Receive an asset and record damage
+
+**Release status: Partially implemented.** The release supports `return <equipment-id>`, which clears the
+borrower and makes an issued item available. Recording damage, loan records, and condition are planned
+capabilities.
+
+**Preconditions**: The asset has an active loan.
+
+**MSS**
+
+1. Coordinator finds the active loan by equipment ID or borrower name.
+2. ClubLogistics displays the matching active loan.
+3. Coordinator records the return and the asset's condition.
+4. ClubLogistics closes the loan and marks the asset as available.
+5. ClubLogistics displays the updated asset and loan records.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. No active loan matches the search.
+  * 2a1. ClubLogistics informs the coordinator that no active loan was found.
+
+    Use case ends.
+* 3a. The asset is damaged.
+  * 3a1. Coordinator records a damage description.
+  * 3a2. ClubLogistics closes the loan, marks the asset as damaged and unavailable, and saves the description.
+  * Use case resumes at step 5.
+
+#### Use case UC04: Prepare equipment for an event
+
+**Release status: Planned.** The release can only filter the register by `available` or `issued` status. Category,
+event-tag, storage-location, condition, count, and detailed-record workflows are planned capabilities.
+
+**MSS**
+
+1. Coordinator requests assets for a category, event tag, or storage location.
+2. ClubLogistics displays the matching assets with their availability and condition.
+3. Coordinator filters the results to assets that are available and usable.
+4. ClubLogistics displays the suitable assets and a count of the results.
+5. Coordinator views a selected asset's details to confirm its location and handling notes.
+6. ClubLogistics displays the selected asset's full record.
+
+    Use case ends.
+
+**Extensions**
+
+* 4a. No suitable asset is available.
+  * 4a1. Coordinator requests matching assets that are loaned, damaged, or missing.
+  * 4a2. ClubLogistics displays their state and, where applicable, borrower and due-date information.
+
+    Use case ends.
+
+#### Use case UC05: Hand over the logistics role
+
+**Release status: Planned.** The release does not provide unresolved-loan summaries, asset history, exports, or
+backup commands. Equipment data is retained locally in `data/clublogistics.json` after successful commands.
+
+**MSS**
+
+1. Coordinator requests a summary of unresolved loans, damaged assets, and missing assets.
+2. ClubLogistics displays the outstanding items and recent changes.
+3. Coordinator requests exports of the inventory and active or overdue loans.
+4. ClubLogistics creates human-readable export files.
+5. Coordinator creates a backup of the equipment records.
+6. ClubLogistics confirms that the backup was created successfully.
+
+    Use case ends.
+
+**Extensions**
+
+* 4a. An export cannot be written to the selected location.
+  * 4a1. ClubLogistics reports the error without changing any records.
+  * 4a2. Coordinator selects another writable location.
+  * Steps 4-6 are repeated.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+These include goals for the broader product vision. References to condition tracking, search, loan history,
+and export apply to planned capabilities; they do not claim that those features exist in this release.
+The User Guide describes the implemented commands and current limitations.
 
-*{More to be added}*
+1. **NFR01 - Platform independence:** ClubLogistics should work on Windows, Linux, and macOS on a computer with Java `25` installed.
+2. **NFR02 - Portability:** ClubLogistics should run without an installer and should be distributed as a single JAR file no larger than 100 MB.
+3. **NFR03 - Single-user operation:** ClubLogistics should support one logistics coordinator and should not require user accounts, concurrent editing, or shared access to its live data file.
+4. **NFR04 - Local and durable storage:** ClubLogistics should store all operational data locally in a human-editable text file, should not require a DBMS or remote server, and should retain successful changes after the application is closed and restarted.
+5. **NFR05 - Offline availability:** All core asset, loan, condition, and search functions should remain usable without an Internet connection or third-party account.
+6. **NFR06 - Performance:** With up to 1,000 asset records and 5,000 loan-history records, ClubLogistics should complete common commands such as add, find, list, issue, and return within one second on a typical modern laptop, excluding application start-up and file export time.
+7. **NFR07 - Typing-first usability:** Every product function should be accessible using text commands. A user with above-average typing speed should be able to complete common workflows faster than with an equivalent mouse-only workflow.
+8. **NFR08 - Learnability and feedback:** Command formats and validation errors should state what input is required, and every command should provide a clear success or failure message without silently changing data.
+9. **NFR09 - Data integrity:** Equipment IDs should uniquely identify physical assets regardless of letter case. ClubLogistics should reject operations that would create contradictory records, such as issuing an unavailable asset, returning an available asset, or removing an asset with an active loan.
+10. **NFR10 - Screen compatibility:** The GUI should work well at resolutions of 1920x1080 and above at 100% and 125% scaling, and remain fully usable at resolutions of 1280x720 and above at 150% scaling.
+11. **NFR11 - Privacy:** Borrower details and private asset notes should remain on the user's device unless the user explicitly exports or copies them.
+12. **NFR12 - Recoverability:** A failed command, failed export, or interrupted save should not partially apply an operation or corrupt the last valid stored data.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Active loan**: A loan that has been issued and has not yet been returned or cancelled.
+* **Archived asset**: An asset retained for historical reference but excluded from the usable equipment register.
+* **Asset**: One individually tracked, reusable piece of club equipment. Each physical item is a separate asset even when several items have the same name.
+* **Available asset**: An asset that is usable, not archived, not missing, and not part of an active loan.
+* **Borrower**: The person currently responsible for an asset that has been issued.
+* **Category**: A broad classification of an asset by equipment type, such as audio, video, or power.
+* **CLI (Command Line Interface)**: A text-command interface through which the user invokes ClubLogistics functions.
+* **Condition**: The recorded physical or operational state of an asset, such as usable or damaged.
+* **Due date**: The date by which an active loan is expected to be returned.
+* **Equipment ID**: A case-insensitive, unique identifier assigned to one physical asset.
+* **Equipment register**: The complete collection of asset records maintained by ClubLogistics.
+* **Event tag**: A user-defined label that groups assets suitable for an activity or event type independently of category.
+* **Loan**: A record that an asset was issued to a borrower, including its issue status and expected return date.
+* **Logistics coordinator**: The single user responsible for maintaining the club's equipment register.
+* **Missing asset**: An asset whose current physical location is unknown and which cannot be issued.
+* **Overdue loan**: An active loan whose due date has passed.
+* **Private note**: Handling, setup, or other operational information intended only for the logistics coordinator.
+* **Stocktake**: A physical check of recorded assets against the equipment actually present.
+* **Storage location**: The place where an asset is normally kept when it is not on loan.
+* **Usable asset**: An asset whose recorded condition permits it to be issued; it may still be unavailable because it is currently on loan.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Appendix: Instructions for manual testing**
 
-Given below are instructions to test the app manually.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
-
-</div>
-
 ### Launch and shutdown
 
-1. Initial launch
+1. Build `clublogistics.jar` with `./gradlew shadowJar` using Java 25 and copy it into an empty folder.
+2. Run `java -jar clublogistics.jar`. Expect available sample equipment `CAM001`, `MIC001`, and `PROJ001`.
+3. Resize and move the window, exit, and relaunch. Expect the window size and position to be retained.
 
-   1. Download the JAR file and copy it into an empty folder.
+### Equipment lifecycle and filtering
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+1. Run `add TRI001 Tripod`, then `filter available`. Expect the tripod to appear as available.
+2. Run `issue TRI001 John Tan`. Expect it to disappear from the available view.
+3. Run `filter issued`. Expect the tripod to show `Issued to: John Tan`.
+4. Run `remove TRI001`. Expect an error and no changes because the item is issued.
+5. Run `return TRI001`, then `list`. Expect the tripod to be available.
+6. Run `remove tri001`. Expect only the tripod to be removed, regardless of ID capitalization.
+7. Run `add TRI002 Tripod`, `issue TRI002 John Tan`, then `clear`. Expect an error naming `TRI002 (John Tan)`
+   and no changes.
+8. Run `clear force`. Expect an empty equipment register.
 
-1. Saving window preferences
+### Saving data and reporting errors
 
-   1. Resize the window to an optimal size. Move the window to a different location. Close the window.
-
-   1. Relaunch the app by double-clicking the JAR file.<br>
-       Expected: The most recent window size and location are retained.
-
-1. _{ more test cases …​ }_
-
-### Deleting a person
-
-1. Deleting a person while all persons are being shown
-
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
-
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
-
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
-
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
-
-1. _{ more test cases …​ }_
-
-### Saving data
-
-1. Dealing with missing/corrupted data files
-
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
-
-1. _{ more test cases …​ }_
+1. Add equipment, issue it, exit, and relaunch. Expect the item and borrower to be retained.
+2. With the app closed, check `data/clublogistics.json`. Expect only an `equipment` array at the top level.
+3. In a disposable test folder, replace the data file with invalid JSON and launch the app. Expect a warning
+   naming the data file and `data/clublogistics.invalid.json`, then an empty register. Check that the copy matches
+   the invalid file. Read-only commands leave the equipment file untouched; successful equipment-changing commands
+   replace it when saving, while the copy remains.
+4. Run `help`. Expect the ClubLogistics User Guide link.
+5. Try an invalid equipment ID or an unknown command. Expect an error without changing any records.

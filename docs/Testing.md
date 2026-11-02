@@ -24,13 +24,41 @@ You can run tests in two ways.
 
 --------------------------------------------------------------------------------------------------------------------
 
+## JavaFX UI tests
+
+Run tests with Java 25. On macOS, select it with
+`sdk use java 25.0.3.fx-zulu` before running Gradle.
+
+To run only the UI tests:
+
+```sh
+./gradlew test --tests 'seedu.clublogistics.ui.*'
+```
+
+The UI tests require a graphical display. On Linux without a display,
+install Xvfb and run:
+
+```sh
+xvfb-run --auto-servernum ./gradlew check coverage
+```
+
+Linux CI uses this virtual display automatically. Tests initialise JavaFX
+once per test process and run UI operations on the JavaFX Application Thread.
+The window integration test closes its window after each run and saves data
+only in a JUnit temporary directory.
+
+The equipment tests check card labels, live list updates, cleanup of reused
+cells, and the main window's connection to the command and model layers.
+
+--------------------------------------------------------------------------------------------------------------------
+
 ## Types of tests
 
 This project has three types of tests:
 
 1. *Unit tests* target the lowest-level methods and classes.<br>
-   For example: `seedu.address.commons.StringUtilTest`
+   For example: `seedu.clublogistics.commons.util.StringUtilTest`
 1. *Integration tests* check how multiple code units work together; the individual units are assumed to work.<br>
-   For example: `seedu.address.storage.StorageManagerTest`
+   For example: `seedu.clublogistics.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
-   For example: `seedu.address.logic.LogicManagerTest`
+   For example: `seedu.clublogistics.logic.LogicManagerTest`

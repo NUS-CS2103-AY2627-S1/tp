@@ -5,55 +5,54 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us at the email `E1155502@u.nus.edu`
 
 ## Project team
 
-### John Doe
+### Jared See
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jaredseezw.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jaredseezw)]
+[[portfolio](team/jaredseezw.md)]
+
+* Role: Developer
+* Responsibilities: UI
+
+### Justin
+
+<img src="images/xdjanaut.png" width="200px">
+
+[[github](http://github.com/xdJanaut)]
+[[portfolio](team/xdjanaut.md)]
 
 * Role: Project Advisor
 
-### Jane Doe
+### Junius Lui
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/juniuslui.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/juniuslui)]
+[[portfolio](team/juniuslui.md)]
 
 * Role: Team Lead
 * Responsibilities: UI
 
-### Johnny Doe
+### Jason Loh
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/imgorf.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/imgorf)] [[portfolio](team/imgorf.md)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Zhang Yangchuan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zyangchuan.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/zyangchuan)]
+[[portfolio](team/zyangchuan.md)]
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
