@@ -1,14 +1,55 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# TutorLink
 
-![Ui](docs/images/Ui.png)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T13-4/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-T13-4/tp/actions)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+![TutorLink UI](docs/images/Ui.png)
+
+## Overview
+
+TutorLink is a desktop application for managing student rosters across tutorial groups.
+
+Tutors can add, edit, find, filter, sort, and delete student records through concise commands. The three-column workspace
+shows tutorial groups, student summaries, and the selected student's full details, including remarks and follow-ups.
+
+## Target Users
+
+TutorLink is intended for tutors who manage one or more tutorial groups and need a convenient way to organise student information.
+
+## Key Features
+
+* **Student rosters** — Add, edit, and delete students with unique matriculation numbers and tutorial groups.
+* **Group filtering** — Show all students or only those in a specified tutorial group with `list`.
+* **Group overview** — List tutorial groups and their student counts with `groups`.
+* **Student details** — Use `view INDEX` or select a summary to read full details in the details panel.
+* **Student remarks** — Add, replace, and clear one current free-text remark per student.
+* **Search** — Find students by name, matriculation number, or tag.
+* **Sorting** — Sort the displayed students by name or tutorial group.
+* **Follow-ups** — Mark students for follow-up, view the follow-up list, and mark follow-ups complete.
+* **Data persistence** — Save student record changes automatically.
+
+## Current release scope
+
+The v1.6 public release manages student rosters across tutorial groups. Tutors can filter students by group, view each
+group's student count, and move students between groups by editing their records. TutorLink does not provide standalone
+tutorial-group creation, editing, or deletion.
+
+v1.6 accepts names with accents and common punctuation and provides a scrollable, selectable full-remark reader.
+It includes email validation, optional-contact clearing, deletion previews, and protection against overwriting
+externally changed data. Attendance tracking and participation records are outside the current release scope.
+
+Download the architecture-appropriate JAR and `SHA256SUMS.txt` from the
+[v1.6 release](https://github.com/AY2627S1-CS2103T-T13-4/tp/releases/tag/v1.6). The User Guide explains Java 25 setup,
+package selection, and data migration.
+
+## Documentation
+
+For more information about TutorLink, visit our [Project Website](https://ay2627s1-cs2103t-t13-4.github.io/tp/).
+
+You can also refer to the:
+
+* [User Guide](https://ay2627s1-cs2103t-t13-4.github.io/tp/UserGuide.html)
+* [Developer Guide](https://ay2627s1-cs2103t-t13-4.github.io/tp/DeveloperGuide.html)
+
+## Acknowledgements
+
+This project is based on the [AddressBook-Level3](https://github.com/se-edu/addressbook-level3) project created by the [SE-EDU initiative](https://se-education.org).

@@ -1,22 +1,47 @@
 @startuml
+!pragma layout smetana
 !include style.puml
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+skinparam classAttributeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
 
 Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
+Class "<<interface>>\nReadOnlyStudentDirectory" as ReadOnlyStudentDirectory
 Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
+Class "<<interface>>\nModel" as Model {
+  +getFilteredStudentList() : ObservableList<Student>
+  +sortStudents(sortOrder : StudentSortOrder) : void
+}
+show Model methods
+Class StudentDirectory
 Class ModelManager
 Class UserPrefs
 
-Class UniquePersonList
-Class Person
+enum StudentSortOrder <<enumeration>> {
+  DIRECTORY
+  NAME_ASC
+  NAME_DESC
+  GROUP_ASC
+  GROUP_DESC
+  ~getComparator() : Comparator<Student>
+}
+show StudentSortOrder members
+
+Class UniqueStudentList
+Class Student {
+  -requiresFollowUp : boolean
+  +requiresFollowUp() : boolean
+  +withFollowUp(requiresFollowUp : boolean) : Student
+  +withRemark(remark : String) : Student
+}
+show Student members
 Class Address
 Class Email
 Class Name
+Class MatricNumber
+Class TutorialGroup
 Class Phone
 Class Tag
 
@@ -26,29 +51,53 @@ Class I #FFFFFF
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Model
 
-AddressBook .up.|> ReadOnlyAddressBook
+package "JavaFX collections" as JavaFxCollections <<Rectangle>> {
+Class "ObservableList" as ObservableStudentList <<interface>>
+Class "FilteredList" as FilteredStudents
+Class "SortedList" as SortedStudents
+}
+
+StudentDirectory .up.|> ReadOnlyStudentDirectory
 
 ModelManager .up.|> Model
 Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
+Model .left.> ReadOnlyStudentDirectory
+ModelManager -left-> "1" StudentDirectory
 ModelManager -right-> "1" UserPrefs
+ModelManager --> "1" StudentSortOrder : sortOrder
+Model ..> StudentSortOrder
 UserPrefs .up.|> ReadOnlyUserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+StudentDirectory *--> "1" UniqueStudentList
+UniqueStudentList --> "*" Student : all
+UniqueStudentList --> "1" ObservableStudentList : exposes unmodifiable view
+ModelManager *--> "1" FilteredStudents : filteredStudents
+ModelManager *--> "1" SortedStudents : sortedStudents
+FilteredStudents -left-> "1" ObservableStudentList : source
+SortedStudents -left-> "1" FilteredStudents : source
+Student *--> "1" Name
+Student *--> "1" MatricNumber
+Student *--> "1" TutorialGroup
+Student *--> "0..1" Phone
+Student *--> "0..1" Email
+Student *--> "0..1" Address
+Student *--> "*" Tag
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+Student -[hidden]up--> I
+UniqueStudentList -[hidden]right-> I
 
 Name -[hidden]right-> Phone
+MatricNumber -[hidden]right-> TutorialGroup
 Phone -[hidden]right-> Address
 Address -[hidden]right-> Email
 
-ModelManager --> "~* filtered" Person
+note as SortingNote
+  All collection elements are Student objects.
+  getFilteredStudentList() exposes this view.
+  Sorting preserves the filter and directory order.
+  DIRECTORY uses a null comparator to reset sorting.
+  Updating the filter also resets sorting.
+end note
+SortedStudents .. SortingNote
+ModelManager .. SortingNote
 @enduml
