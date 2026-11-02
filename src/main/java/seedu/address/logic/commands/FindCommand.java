@@ -1,28 +1,46 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GROUP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TELEGRAM_HANDLE;
+
+import java.util.function.Predicate;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists persons who match the supplied name, Telegram handle, subject, group, and tag criteria.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds students matching the supplied name, Telegram "
+            + "handle, subject, group, and tag criteria (case-insensitive).\n"
+            + "Parameters: [" + PREFIX_NAME + "NAME_TERM[,NAME_TERM]...] "
+            + "[" + PREFIX_TELEGRAM_HANDLE + "TELEGRAM_HANDLE] "
+            + "[" + PREFIX_SUBJECT + "SUBJECT] [" + PREFIX_GROUP + "GROUP] [" + PREFIX_TAG + "TAG_EXPRESSION]\n"
+            + "A name term is either a KEYWORD (one word without quotation marks) or a \"PHRASE\" "
+            + "(one or more words enclosed in quotation marks). Separate name terms with ','. "
+            + "Separate tags with ',' for OR or '&' for AND; do not mix the operators or repeat a prefix.\n"
+            + "Examples:\n"
+            + "  " + COMMAND_WORD + " " + PREFIX_NAME + "alice,bob\n"
+            + "  " + COMMAND_WORD + " " + PREFIX_NAME + "\"Alice Pauline\",bob\n"
+            + "  " + COMMAND_WORD + " " + PREFIX_TELEGRAM_HANDLE + "@alice_tan\n"
+            + "  " + COMMAND_WORD + " t/needsHelp,lowAttendance\n"
+            + "  " + COMMAND_WORD + " t/needsHelp&lowAttendance\n"
+            + "  " + COMMAND_WORD + " " + PREFIX_NAME
+            + "\"John\" s/Mathematics g/G01 t/highParticipation";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private final Predicate<Person> predicate;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    public FindCommand(Predicate<Person> predicate) {
         this.predicate = predicate;
     }
 

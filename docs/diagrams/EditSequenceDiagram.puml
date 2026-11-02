@@ -1,0 +1,70 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+hide footbox
+
+box Logic LOGIC_COLOR_T1
+participant "command:EditCommand" as EditCommand LOGIC_COLOR
+participant "target:IndexPersonTarget" as IndexPersonTarget LOGIC_COLOR
+participant "result:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:Model" as Model MODEL_COLOR
+end box
+
+[-> EditCommand : execute(model)
+activate EditCommand
+
+EditCommand -> IndexPersonTarget : resolve(model)
+activate IndexPersonTarget
+IndexPersonTarget -> Model : getFilteredPersonList()
+activate Model
+Model --> IndexPersonTarget : displayedPeople
+deactivate Model
+
+note right of IndexPersonTarget
+Copy the displayed list and validate
+all indexes before returning students.
+end note
+
+IndexPersonTarget --> EditCommand : peopleToEdit
+deactivate IndexPersonTarget
+
+note right of EditCommand
+Reject single-person-only fields
+even for commands constructed directly.
+end note
+
+loop prepare each edited student
+    EditCommand -> EditCommand : createEditedPerson(person, editPersonDescriptor)
+    activate EditCommand
+    note right of EditCommand
+    Apply tag operations in order.
+    A missing rename source aborts
+    before any model update.
+    end note
+    EditCommand --> EditCommand : editedPerson
+    deactivate EditCommand
+end
+
+create CommandResult
+EditCommand -> CommandResult : new CommandResult(message)
+activate CommandResult
+CommandResult --> EditCommand : result
+deactivate CommandResult
+
+EditCommand -> Model : setPersonsInBatch(peopleToEdit, editedPeople)
+activate Model
+Model --> EditCommand
+deactivate Model
+
+note over EditCommand, Model
+All replacements are prepared before this single update.
+The current filter stays active; students that no longer
+match disappear from the displayed list.
+end note
+
+[<-- EditCommand : result
+deactivate EditCommand
+@enduml

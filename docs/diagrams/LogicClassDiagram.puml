@@ -12,6 +12,14 @@ Class XYZCommand
 Class CommandResult
 Class "{abstract}\nCommand" as Command
 
+Class DeleteCommand
+Class "DeleteCommand.FieldsToDelete" as FieldsToDelete
+Class "<<interface>>\nPersonTarget" as PersonTarget
+Class IndexPersonTarget
+Class IndexRange
+
+Class EditCommand
+Class "EditCommand.EditPersonDescriptor" as EditPersonDescriptor
 
 Class "<<interface>>\nLogic" as Logic
 Class LogicManager
@@ -30,15 +38,48 @@ HiddenOutside ..> Logic
 LogicManager .right.|> Logic
 LogicManager -right->"1" ParserClasses
 ParserClasses ..> XYZCommand : <<create>>
+ParserClasses ..> DeleteCommand : <<create>>
+ParserClasses ..> EditCommand : <<create>>
 
 XYZCommand -up-|> Command
+DeleteCommand -up-|> Command
+EditCommand -up-|> Command
+
 LogicManager .left.> Command : <<call>>
+
+DeleteCommand --> "1" PersonTarget : target
+DeleteCommand --> "0..1" FieldsToDelete : fields
+note right of FieldsToDelete
+  Absent: delete student records.
+  Present: clear optional fields.
+  Clearing fields keeps the current filter.
+end note
+IndexPersonTarget .up.|> PersonTarget
+IndexPersonTarget --> "1..*" IndexRange : ranges
+
+EditCommand --> "0..1" PersonTarget : target
+EditCommand *--> "1" EditPersonDescriptor : defensive copy
+
+note right of EditCommand
+  Single selection: index, target = null.
+  Bulk selection: target, index = null.
+  The current filter remains active after editing.
+end note
+
+note right of EditPersonDescriptor
+  null field = unchanged.
+  Supplied phone and Telegram values must be non-empty.
+  Ordered TagEdit values add or rename tags.
+  Optional fields are cleared using DeleteCommand.
+end note
 
 LogicManager --> Model
 LogicManager --> Storage
 Storage --[hidden] Model
+
 Command .[hidden]up.> Storage
 Command .right.> Model
+PersonTarget ..> Model : <<use>>
 note right of XYZCommand: XYZCommand = AddCommand, \nFindCommand, etc
 
 Logic ..> CommandResult

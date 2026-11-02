@@ -3,16 +3,18 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TELEGRAM_HANDLE_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.ListChangeListener;
 import seedu.address.model.person.exceptions.DuplicatePersonException;
 import seedu.address.model.person.exceptions.PersonNotFoundException;
 import seedu.address.testutil.PersonBuilder;
@@ -40,9 +42,18 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withTelegramHandle(VALID_TELEGRAM_HANDLE_BOB)
+                .withTags(VALID_TAG_HUSBAND).build();
         assertTrue(uniquePersonList.contains(editedAlice));
+    }
+
+    @Test
+    public void contains_personWithNameDifferingOnlyByCase_returnsTrue() {
+        uniquePersonList.add(ALICE);
+        Person aliceWithUpperCaseName = new PersonBuilder(ALICE)
+                .withName(ALICE.getName().toString().toUpperCase()).build();
+
+        assertTrue(uniquePersonList.contains(aliceWithUpperCaseName));
     }
 
     @Test
@@ -54,6 +65,15 @@ public class UniquePersonListTest {
     public void add_duplicatePerson_throwsDuplicatePersonException() {
         uniquePersonList.add(ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(ALICE));
+    }
+
+    @Test
+    public void add_personWithNameDifferingOnlyByCase_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        Person aliceWithLowerCaseName = new PersonBuilder(ALICE)
+                .withName(ALICE.getName().toString().toLowerCase()).build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(aliceWithLowerCaseName));
     }
 
     @Test
@@ -83,12 +103,25 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withTelegramHandle(VALID_TELEGRAM_HANDLE_BOB)
+                .withTags(VALID_TAG_HUSBAND).build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
         expectedUniquePersonList.add(editedAlice);
         assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPerson_capitalizationOnlyNameEdit_success() {
+        uniquePersonList.add(ALICE);
+        Person aliceWithUpperCaseName = new PersonBuilder(ALICE)
+                .withName(ALICE.getName().toString().toUpperCase()).build();
+
+        uniquePersonList.setPerson(ALICE, aliceWithUpperCaseName);
+
+        assertEquals(List.of(aliceWithUpperCaseName), uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(ALICE.getName().toString().toUpperCase(),
+                uniquePersonList.asUnmodifiableObservableList().getFirst().getName().toString());
     }
 
     @Test
@@ -105,6 +138,16 @@ public class UniquePersonListTest {
         uniquePersonList.add(ALICE);
         uniquePersonList.add(BOB);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(ALICE, BOB));
+    }
+
+    @Test
+    public void setPerson_editedPersonHasNonUniqueNameDifferingOnlyByCase_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+        Person aliceWithLowerCaseName = new PersonBuilder(BOB)
+                .withName(ALICE.getName().toString().toLowerCase()).build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(BOB, aliceWithLowerCaseName));
     }
 
     @Test
@@ -164,6 +207,153 @@ public class UniquePersonListTest {
     public void asUnmodifiableObservableList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, ()
             -> uniquePersonList.asUnmodifiableObservableList().remove(0));
+    }
+
+    @Test
+    public void setPersonsInBatch_validReplacements_updatesOnce() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+
+        Person editedAlice = new PersonBuilder(ALICE)
+                .withTags("Batch")
+                .build();
+        Person editedBob = new PersonBuilder(BOB)
+                .withTags("Batch")
+                .build();
+
+        AtomicInteger changeCount = new AtomicInteger();
+        uniquePersonList.asUnmodifiableObservableList().addListener(
+                (ListChangeListener<Person>) change ->
+                        changeCount.incrementAndGet());
+
+        uniquePersonList.setPersonsInBatch(
+                List.of(ALICE, BOB),
+                List.of(editedAlice, editedBob));
+
+        assertEquals(
+                List.of(editedAlice, editedBob),
+                uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(1, changeCount.get());
+    }
+
+    @Test
+    public void removePersonsInBatch_multiplePersons_removesOnceAndPreservesOrder() {
+        Person charlie = new PersonBuilder()
+                .withName("Charlie")
+                .build();
+
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+        uniquePersonList.add(charlie);
+
+        AtomicInteger changeCount = new AtomicInteger();
+        uniquePersonList.asUnmodifiableObservableList().addListener(
+                (ListChangeListener<Person>) change -> changeCount.incrementAndGet());
+
+        uniquePersonList.removePersonsInBatch(
+                List.of(ALICE, charlie));
+
+        assertEquals(List.of(BOB), uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(1, changeCount.get());
+    }
+
+    @Test
+    public void removePersonsInBatch_oneTargetMissing_throwsWithoutChanges() {
+        uniquePersonList.add(ALICE);
+
+        AtomicInteger changeCount = new AtomicInteger();
+        uniquePersonList.asUnmodifiableObservableList().addListener(
+                (ListChangeListener<Person>) change -> changeCount.incrementAndGet());
+
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.removePersonsInBatch(List.of(ALICE, BOB)));
+
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(0, changeCount.get());
+    }
+
+    @Test
+    public void setPersonsInBatch_oneTargetMissing_throwsWithoutChanges() {
+        uniquePersonList.add(ALICE);
+
+        Person editedAlice = new PersonBuilder(ALICE)
+                .withTags("Batch")
+                .build();
+        Person editedBob = new PersonBuilder(BOB)
+                .withTags("Batch")
+                .build();
+
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.setPersonsInBatch(List.of(ALICE, BOB),
+                List.of(editedAlice, editedBob)));
+
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPersonsInBatch_differentListSizes_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> uniquePersonList.setPersonsInBatch(List.of(ALICE),
+                List.of()));
+    }
+
+    @Test
+    public void setPersonsInBatch_changedIdentity_throwsIllegalArgumentException() {
+        uniquePersonList.add(ALICE);
+
+        assertThrows(IllegalArgumentException.class, () -> uniquePersonList.setPersonsInBatch(List.of(ALICE),
+                List.of(BOB)));
+
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPersonsInBatch_duplicateTarget_throwsIllegalArgumentException() {
+        uniquePersonList.add(ALICE);
+
+        Person editedAlice = new PersonBuilder(ALICE)
+                .withTags("Batch")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> uniquePersonList.setPersonsInBatch(List.of(ALICE, ALICE),
+                List.of(editedAlice, editedAlice)));
+    }
+
+    @Test
+    public void setPersonsInBatch_nullLists_throwNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersonsInBatch(null, List.of()));
+
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersonsInBatch(List.of(), null));
+    }
+
+    @Test
+    public void removePersonsInBatch_nullTargets_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.removePersonsInBatch(null));
+    }
+
+    @Test
+    public void setPersonsInBatch_emptyLists_doesNotNotifyListeners() {
+        uniquePersonList.add(ALICE);
+
+        AtomicInteger changeCount = new AtomicInteger();
+        uniquePersonList.asUnmodifiableObservableList().addListener(
+                (ListChangeListener<Person>) change -> changeCount.incrementAndGet());
+
+        uniquePersonList.setPersonsInBatch(List.of(), List.of());
+
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(0, changeCount.get());
+    }
+
+    @Test
+    public void removePersonsInBatch_emptyList_doesNotNotifyListeners() {
+        uniquePersonList.add(ALICE);
+
+        AtomicInteger changeCount = new AtomicInteger();
+        uniquePersonList.asUnmodifiableObservableList().addListener(
+                (ListChangeListener<Person>) change -> changeCount.incrementAndGet());
+
+        uniquePersonList.removePersonsInBatch(List.of());
+
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+        assertEquals(0, changeCount.get());
     }
 
     @Test

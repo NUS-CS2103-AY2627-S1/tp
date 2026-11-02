@@ -1,0 +1,109 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+box UI UI_COLOR_T1
+participant ":CommandBox" as CommandBox UI_COLOR
+participant "h:CommandHistory" as CommandHistory UI_COLOR
+participant ":MainWindow" as MainWindow UI_COLOR
+end box
+
+== Submit a command ==
+
+[-> CommandBox : handleCommandEntered()
+activate CommandBox
+alt input is empty
+    note right of CommandBox : Return without recording or executing.
+else input is not empty
+CommandBox -> CommandHistory : add(commandText)
+activate CommandHistory
+note right of CommandHistory
+Stores the command unless it is a
+consecutive exact duplicate.
+At most 100 commands are retained.
+Navigation resets after the newest command.
+The saved draft is cleared.
+end note
+CommandHistory --> CommandBox
+deactivate CommandHistory
+
+CommandBox -> MainWindow : executeCommand(commandText)
+note right of MainWindow
+Invoked through CommandExecutor.execute(commandText).
+MainWindow calls Logic and displays the result or error.
+end note
+alt execution succeeds
+    MainWindow --> CommandBox : CommandResult
+    CommandBox -> CommandBox : commandTextField.setText("")
+    CommandBox -> CommandHistory : saveDraft("")
+else execution fails
+    MainWindow --> CommandBox : ParseException or CommandException
+    note right of CommandBox
+    Submitted text remains in the input.
+    Error styling is applied.
+    add() has already cleared the saved draft.
+    end note
+end
+end
+deactivate CommandBox
+
+== Preserve a user-edited draft ==
+
+[-> CommandBox : command text changed
+activate CommandBox
+
+alt not displaying a history entry
+    CommandBox -> CommandHistory : saveDraft(newText)
+    activate CommandHistory
+    CommandHistory --> CommandBox
+    deactivate CommandHistory
+else displaying a history entry
+    note right of CommandBox
+    isDisplayingHistoryEntry prevents
+    the draft from being overwritten.
+    end note
+end
+
+deactivate CommandBox
+
+== Navigate to an older command ==
+
+[-> CommandBox : handleHistoryNavigation(upEvent)
+activate CommandBox
+
+CommandBox -> CommandHistory : getPrevious()
+activate CommandHistory
+CommandHistory --> CommandBox : previousEntry: Optional<String>
+deactivate CommandHistory
+
+alt previousEntry is present
+CommandBox -> CommandBox ++ : displayHistoryEntry(previousCommand)
+deactivate CommandBox
+else already at oldest entry or history is empty
+note right of CommandBox : Leave input unchanged.
+end
+deactivate CommandBox
+
+== Navigate to a newer command ==
+
+[-> CommandBox : handleHistoryNavigation(downEvent)
+activate CommandBox
+
+CommandBox -> CommandHistory : getNext()
+activate CommandHistory
+CommandHistory --> CommandBox : nextEntry: Optional<String>
+deactivate CommandHistory
+
+alt a newer stored entry is available
+CommandBox -> CommandBox ++ : displayHistoryEntry(nextCommand)
+deactivate CommandBox
+else moving down past the newest entry
+CommandBox -> CommandBox ++ : displayHistoryEntry(draft)
+deactivate CommandBox
+
+note right of CommandBox : Restore the saved draft.
+else already at the draft position
+note right of CommandBox : Leave input unchanged.
+end
+
+deactivate CommandBox
+@enduml

@@ -12,25 +12,30 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
+import seedu.address.model.person.TelegramHandle;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_PHONE = "+65-";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_SUBJECT = "CS2103T!";
+    private static final String INVALID_GROUP = " ";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
-    private static final String VALID_ADDRESS = "123 Main Street #0505";
+    private static final String VALID_PHONE = "12345678";
+    private static final String VALID_TELEGRAM_HANDLE = "@rachel_walker";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_SUBJECT = "CS2103T";
+    private static final String VALID_GROUP = "T11";
 
     private static final String WHITESPACE = " \t\r\n";
 
@@ -78,6 +83,17 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_repeatedWhitespace_returnsNormalizedName() throws Exception {
+        assertEquals(new Name("Rachel Walker"), ParserUtil.parseName("Rachel   Walker"));
+        assertEquals(new Name("Tan Wei Ming"), ParserUtil.parseName("  Tan  Wei   Ming  "));
+    }
+
+    @Test
+    public void parseName_relationshipQualifier_returnsCompleteName() throws Exception {
+        assertEquals(new Name("Abdul Binte D/O Rahmud"), ParserUtil.parseName("Abdul Binte D/O Rahmud"));
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -101,26 +117,50 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
+    public void parsePhone_formattedValue_returnsCanonicalPhone() throws Exception {
+        assertEquals("9123 4567", ParserUtil.parsePhone("9123-4567").value);
     }
 
     @Test
-    public void parseAddress_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
+    public void parseTelegramHandle_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTelegramHandle((String) null));
     }
 
     @Test
-    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
+    public void parseTelegramHandle_emptyOrWhitespace_returnsEmptyTelegramHandle() throws Exception {
+        assertEquals(new TelegramHandle(""), ParserUtil.parseTelegramHandle(""));
+        assertEquals(new TelegramHandle(""), ParserUtil.parseTelegramHandle(WHITESPACE));
     }
 
     @Test
-    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
+    public void parseTelegramHandle_handleWithoutAt_throwsParseException() {
+        assertThrows(ParseException.class, TelegramHandle.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseTelegramHandle("rachel_walker"));
+    }
+
+    @Test
+    public void parseTelegramHandle_invalidFormat_throwsParseException() {
+        assertThrows(ParseException.class, TelegramHandle.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseTelegramHandle("@alice-tan"));
+    }
+
+    @Test
+    public void parsePhone_emptyOrWhitespace_returnsEmptyPhone() throws Exception {
+        assertEquals(new Phone(""), ParserUtil.parsePhone(""));
+        assertEquals(new Phone(""), ParserUtil.parsePhone(WHITESPACE));
+    }
+
+    @Test
+    public void parseTelegramHandle_validValueWithoutWhitespace_returnsTelegramHandle() throws Exception {
+        TelegramHandle expectedTelegramHandle = new TelegramHandle(VALID_TELEGRAM_HANDLE);
+        assertEquals(expectedTelegramHandle, ParserUtil.parseTelegramHandle(VALID_TELEGRAM_HANDLE));
+    }
+
+    @Test
+    public void parseTelegramHandle_validValueWithWhitespace_returnsTrimmedTelegramHandle() throws Exception {
+        String telegramHandleWithWhitespace = WHITESPACE + VALID_TELEGRAM_HANDLE + WHITESPACE;
+        TelegramHandle expectedTelegramHandle = new TelegramHandle(VALID_TELEGRAM_HANDLE);
+        assertEquals(expectedTelegramHandle, ParserUtil.parseTelegramHandle(telegramHandleWithWhitespace));
     }
 
     @Test
@@ -144,6 +184,44 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseSubject_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseSubject(INVALID_SUBJECT));
+    }
+
+    @Test
+    public void parseSubject_validValueWithWhitespace_returnsTrimmedSubject() throws Exception {
+        Subject expectedSubject = new Subject(VALID_SUBJECT);
+        assertEquals(expectedSubject, ParserUtil.parseSubject(WHITESPACE + VALID_SUBJECT + WHITESPACE));
+    }
+
+    @Test
+    public void parseGroup_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseGroup(INVALID_GROUP));
+    }
+
+    @Test
+    public void parseGroup_validValueWithWhitespace_returnsTrimmedGroup() throws Exception {
+        Group expectedGroup = new Group(VALID_GROUP);
+        assertEquals(expectedGroup, ParserUtil.parseGroup(WHITESPACE + VALID_GROUP + WHITESPACE));
+    }
+
+    @Test
+    public void parseSubjectAndGroup_repeatedInternalSpaces_collapsedToOneSpace() throws Exception {
+        assertEquals(new Subject("CS 2103T"), ParserUtil.parseSubject("  CS   2103T  "));
+        assertEquals(new Group("T 11"), ParserUtil.parseGroup(" T  11 "));
+        // Values that differ by more than spacing stay distinct.
+        assertEquals(new Group("T1 1"), ParserUtil.parseGroup("T1  1"));
+        assertEquals(new Group("T11"), ParserUtil.parseGroup("T11"));
+    }
+
+    @Test
+    public void parseSubjectAndGroup_internalTab_keepsPreviousBehaviour() throws Exception {
+        // Only ordinary spaces are collapsed: a tab is still rejected in a subject and kept as typed in a group.
+        assertThrows(ParseException.class, () -> ParserUtil.parseSubject("CS\t2103T"));
+        assertEquals(new Group("T\t11"), ParserUtil.parseGroup("T\t11"));
     }
 
     @Test
@@ -190,5 +268,32 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTagsForFind_commaSeparatedTags_returnsTagSet() throws Exception {
+        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+
+        assertEquals(expectedTagSet, ParserUtil.parseTagsForFind(VALID_TAG_1 + "," + VALID_TAG_2));
+    }
+
+    @Test
+    public void parseTagsForFind_ampersandSeparatedTags_returnsTagSet() throws Exception {
+        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+
+        assertEquals(expectedTagSet, ParserUtil.parseTagsForFind(VALID_TAG_1 + "&" + VALID_TAG_2));
+    }
+
+    @Test
+    public void parseTagsForFind_mixedOperators_throwsParseException() {
+        String mixedTagFilter = VALID_TAG_1 + "," + VALID_TAG_2 + "&consultation";
+
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_TAG_FILTER, () ->
+                ParserUtil.parseTagsForFind(mixedTagFilter));
+    }
+
+    @Test
+    public void parseTagsForFind_emptyTag_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTagsForFind(""));
     }
 }

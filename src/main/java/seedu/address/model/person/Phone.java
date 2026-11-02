@@ -8,11 +8,10 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  * Guarantees: immutable; is valid as declared in {@link #isValidPhone(String)}
  */
 public class Phone {
-
-
-    public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+    public static final String MESSAGE_CONSTRAINTS = "Phone numbers may be empty; otherwise, they must contain "
+            + "exactly 8 digits, with at most one space or hyphen between digit groups. "
+            + "They are stored as xxxx xxxx. Country codes and '+' are not allowed.";
+    public static final String VALIDATION_REGEX = "\\d(?:[ -]?\\d){7}";
     public final String value;
 
     /**
@@ -23,14 +22,22 @@ public class Phone {
     public Phone(String phone) {
         requireNonNull(phone);
         checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
-        value = phone;
+        String canonicalPhone = phone.replace(" ", "").replace("-", "");
+        value = canonicalPhone.isEmpty() ? "" : canonicalPhone.substring(0, 4) + " " + canonicalPhone.substring(4);
     }
 
     /**
      * Returns true if a given string is a valid phone number.
      */
     public static boolean isValidPhone(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.isEmpty() || test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns true if this phone number is absent.
+     */
+    public boolean isEmpty() {
+        return value.isEmpty();
     }
 
     @Override

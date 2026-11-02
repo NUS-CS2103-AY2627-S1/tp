@@ -3,13 +3,19 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -26,16 +32,22 @@ public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
 
+    private static final double MINIMUM_WINDOW_WIDTH = 800;
+    private static final double MINIMUM_WINDOW_HEIGHT = 430;
+
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
-
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandBox commandBox;
+
+    @FXML
+    private MenuBar menuBar;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -63,7 +75,6 @@ public class MainWindow extends UiPart<Stage> {
         this.primaryStage = primaryStage;
         this.logic = logic;
         this.dataFilePath = dataFilePath;
-
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
 
@@ -72,6 +83,7 @@ public class MainWindow extends UiPart<Stage> {
         helpWindow = new HelpWindow();
     }
 
+    /** Returns the stage that contains this window. */
     public Stage getPrimaryStage() {
         return primaryStage;
     }
@@ -123,20 +135,48 @@ public class MainWindow extends UiPart<Stage> {
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        helpWindow.setOnClose(this::focusCommandBox);
+
+        preventMenuHoverFromActivatingNavigation();
+    }
+
+    /**
+     * Prevents passive menu hovering from activating keyboard menu navigation
+     * while the user is typing a command.
+     */
+    private void preventMenuHoverFromActivatingNavigation() {
+        menuBar.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, event -> {
+            boolean isMenuOpen = menuBar.getMenus().stream()
+                    .anyMatch(Menu::isShowing);
+
+            if (commandBox.isInputFocused() && !isMenuOpen) {
+                event.consume();
+            }
+        });
     }
 
     /**
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
+        Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
+        primaryStage.setHeight(getWindowDimension(guiSettings.getWindowHeight(), visualBounds.getHeight(),
+                                MINIMUM_WINDOW_HEIGHT));
+        primaryStage.setWidth(getWindowDimension(guiSettings.getWindowWidth(), visualBounds.getWidth(),
+                                MINIMUM_WINDOW_WIDTH));
         if (guiSettings.getWindowCoordinates() != null) {
             primaryStage.setX(guiSettings.getWindowCoordinates().getX());
             primaryStage.setY(guiSettings.getWindowCoordinates().getY());
         }
+    }
+
+    /**
+     * Returns a saved dimension constrained to the visible screen area
+     */
+    private double getWindowDimension(double savedDimension, double availableDimension, double minimumDimension) {
+        return Math.max(minimumDimension, Math.min(savedDimension, availableDimension));
     }
 
     /**
@@ -148,6 +188,15 @@ public class MainWindow extends UiPart<Stage> {
             helpWindow.show();
         } else {
             helpWindow.focus();
+        }
+    }
+
+    /**
+     * Restores keyboard-first command entry after the help window closes.
+     */
+    private void focusCommandBox() {
+        if (commandBox != null && primaryStage.isShowing()) {
+            Platform.runLater(commandBox::focusInput);
         }
     }
 
@@ -167,6 +216,7 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
+    /** Returns the panel displaying the current contact list. */
     public PersonListPanel getPersonListPanel() {
         return personListPanel;
     }

@@ -1,11 +1,9 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.EMPTY_TELEGRAM_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
@@ -18,179 +16,360 @@ import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_NON_EMPTY;
 import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.TELEGRAM_HANDLE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.TELEGRAM_HANDLE_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GROUP;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TELEGRAM_HANDLE;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalPersons.AMY;
 import static seedu.address.testutil.TypicalPersons.BOB;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
+import seedu.address.model.person.TelegramHandle;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
-    private AddCommandParser parser = new AddCommandParser();
+    private static final String SUBJECT_DESC_CS2103T = " s/CS2103T";
+    private static final String GROUP_DESC_T11 = " g/T11";
+    private static final String SUBJECT_DESC_GENERAL = " s/General";
+    private static final String GROUP_DESC_GENERAL = " g/General";
+    private static final String REQUIRED_BOB_FIELDS =
+            NAME_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11;
+
+    private final AddCommandParser parser = new AddCommandParser();
 
     @Test
     public void parse_allFieldsPresent_success() {
         Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
 
-        // whitespace only preamble
         assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
+                + TELEGRAM_HANDLE_DESC_BOB + SUBJECT_DESC_GENERAL + GROUP_DESC_GENERAL + TAG_DESC_FRIEND,
+                new AddCommand(expectedPerson));
 
-
-        // multiple tags - all accepted
-        Person expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
-                .build();
-        assertParseSuccess(parser,
-                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
+        Person expectedPersonMultipleTags = new PersonBuilder(BOB)
+                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + TELEGRAM_HANDLE_DESC_BOB
+                + SUBJECT_DESC_GENERAL + GROUP_DESC_GENERAL + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 new AddCommand(expectedPersonMultipleTags));
     }
 
     @Test
-    public void parse_repeatedNonTagValue_failure() {
-        String validExpectedPersonString = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND;
+    public void parse_requiredFieldsPresent_success() {
+        Person expectedPerson = new PersonBuilder(BOB)
+                .withPhone("")
+                .withTelegramHandle("")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
 
-        // multiple names
-        assertParseFailure(parser, NAME_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // multiple phones
-        assertParseFailure(parser, PHONE_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple emails
-        assertParseFailure(parser, EMAIL_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // multiple addresses
-        assertParseFailure(parser, ADDRESS_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // multiple fields repeated
-        assertParseFailure(parser,
-                validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
-                        + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
-
-        // invalid value followed by valid value
-
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, INVALID_EMAIL_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, INVALID_PHONE_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, INVALID_ADDRESS_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // valid value followed by invalid value
-
-        // invalid name
-        assertParseFailure(parser, validExpectedPersonString + INVALID_NAME_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, validExpectedPersonString + INVALID_EMAIL_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, validExpectedPersonString + INVALID_PHONE_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, validExpectedPersonString + INVALID_ADDRESS_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
+        assertParseSuccess(parser, REQUIRED_BOB_FIELDS, new AddCommand(expectedPerson));
     }
 
     @Test
-    public void parse_optionalFieldsMissing_success() {
-        // zero tags
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
+    public void parse_nameWithRelationshipQualifier_success() {
+        Person expectedPerson = new PersonBuilder()
+                .withName("Abdul Binte D/O Rahmud")
+                .withPhone("")
+                .withEmail("abdul@example.com")
+                .withTelegramHandle("")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
+
+        assertParseSuccess(parser,
+                " n/Abdul Binte D/O Rahmud e/abdul@example.com s/CS2103T g/T11",
                 new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_nameWithSonOfQualifier_keepsSubjectSeparate() {
+        Person expectedPerson = new PersonBuilder()
+                .withName("Ravi S/O Kumar")
+                .withPhone("")
+                .withEmail("ravi@example.com")
+                .withTelegramHandle("")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
+
+        assertParseSuccess(parser, " n/Ravi S/O Kumar e/ravi@example.com s/CS2103T g/T11",
+                new AddCommand(expectedPerson));
+        assertParseSuccess(parser, " s/CS2103T g/T11 e/ravi@example.com n/Ravi S/O Kumar",
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_nameWithInitials_success() {
+        Person expectedPerson = new PersonBuilder(BOB)
+                .withName("A. R. Rahman")
+                .withPhone("")
+                .withTelegramHandle("")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
+
+        assertParseSuccess(parser, " n/A. R. Rahman" + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_relationshipQualifierOutsideName_failure() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+
+        assertParseFailure(parser, " n/Abdul Rahmud e/abdul@example.com s/CS2103T g/T11 D/O", expectedMessage);
+        assertParseFailure(parser, " n/Abdul D/ Rahmud e/abdul@example.com s/CS2103T g/T11", expectedMessage);
+        assertParseFailure(parser, " n/Ravi Kumar e/ravi@example.com s/CS2103T g/T11 S/O", expectedMessage);
+        assertParseFailure(parser, " n/Ravi S/Okay Kumar e/ravi@example.com s/CS2103T g/T11", expectedMessage);
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + " x/unknown", expectedMessage);
+    }
+
+    @Test
+    public void parse_miscasedRelationshipQualifierInName_failure() {
+        // Without this check, lowercase s/ would silently end the name and start the subject (#143).
+        for (String qualifier : List.of("s/o", "s/O", "S/o", "d/o", "D/o", "d/O")) {
+            assertParseFailure(parser, " n/Ali " + qualifier + " Abu e/ali@example.com s/CS2103T g/T11",
+                    Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+        }
+
+        // The qualifier message replaces the misleading duplicate-subject and generic format errors (#147).
+        assertParseFailure(parser, " e/ali@example.com s/CS2103T g/T11 n/Ali s/o Abu",
+                Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+        assertParseFailure(parser, " n/Ali  s/o  Abu e/ali@example.com s/CS2103T g/T11",
+                Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+        assertParseFailure(parser, " n/Ali\ts/o Abu e/ali@example.com s/CS2103T g/T11",
+                Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+    }
+
+    @Test
+    public void parse_miscasedQualifierAtEndOfName_failure() {
+        // Previously added the student with subject "o" when s/SUBJECT was omitted.
+        assertParseFailure(parser, " n/Ali s/o e/ali@example.com g/T11", Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+        assertParseFailure(parser, " n/Ali Abu s/O", Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+    }
+
+    @Test
+    public void parse_subjectWordOImmediatelyAfterName_failure() {
+        // Known syntax restriction: "n/Ali s/O Level" is indistinguishable from a miscased S/O, so it is rejected.
+        assertParseFailure(parser, " n/Ali Abu s/O Level e/ali@example.com g/T11",
+                Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+    }
+
+    @Test
+    public void parse_subjectStartingWithONotImmediatelyAfterName_success() {
+        PersonBuilder aliBuilder = new PersonBuilder().withName("Ali Abu").withPhone("").withEmail("ali@example.com")
+                .withTelegramHandle("").withGroup("T11").withTags();
+        AddCommand oLevelCommand = new AddCommand(aliBuilder.withSubject("O Level").build());
+
+        assertParseSuccess(parser, " s/O Level n/Ali Abu e/ali@example.com g/T11", oLevelCommand);
+        assertParseSuccess(parser, " n/Ali Abu e/ali@example.com s/O Level g/T11", oLevelCommand);
+        assertParseSuccess(parser, " n/Ali Abu e/ali@example.com g/T11 s/o",
+                new AddCommand(aliBuilder.withSubject("o").build()));
+        // Only the standalone word O is ambiguous; other subjects may follow the name directly.
+        assertParseSuccess(parser, " n/Ali Abu s/Oracle e/ali@example.com g/T11",
+                new AddCommand(aliBuilder.withSubject("Oracle").build()));
+    }
+
+    @Test
+    public void parse_uppercaseQualifierThenSubject_success() {
+        Person expectedPerson = new PersonBuilder().withName("Priya D/O Raman").withPhone("")
+                .withEmail("priya@example.com").withTelegramHandle("").withSubject("O Level").withGroup("T11")
+                .withTags().build();
+
+        assertParseSuccess(parser, " n/Priya D/O Raman e/priya@example.com s/O Level g/T11",
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_repeatedSpacesInSubjectAndGroup_collapsed() {
+        // #145: repeated spaces are stored as one so that exact-match find behaves predictably.
+        Person expectedPerson = new PersonBuilder(BOB).withPhone("").withTelegramHandle("")
+                .withSubject("CS 2103T").withGroup("T 11").withTags().build();
+
+        assertParseSuccess(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + " s/  CS   2103T  g/T  11 ",
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_nameWithMalformedPeriods_failure() {
+        assertParseFailure(parser, " n/John..Tan" + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                Name.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_emptyOptionalFields_success() {
+        Person expectedPerson = new PersonBuilder(BOB)
+                .withPhone("")
+                .withTelegramHandle("")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
+
+        assertParseSuccess(parser, NAME_DESC_BOB + " p/" + EMAIL_DESC_BOB
+                + SUBJECT_DESC_CS2103T + GROUP_DESC_T11 + EMPTY_TELEGRAM_DESC, new AddCommand(expectedPerson));
+        assertParseSuccess(parser, NAME_DESC_BOB + " p/    " + EMAIL_DESC_BOB
+                + SUBJECT_DESC_CS2103T + GROUP_DESC_T11 + " h/    ", new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_repeatedNonTagValue_failure() {
+        String validPerson = REQUIRED_BOB_FIELDS + PHONE_DESC_BOB + TELEGRAM_HANDLE_DESC_BOB + TAG_DESC_FRIEND;
+
+        assertParseFailure(parser, NAME_DESC_AMY + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
+        assertParseFailure(parser, PHONE_DESC_AMY + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, EMAIL_DESC_AMY + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
+        assertParseFailure(parser, TELEGRAM_HANDLE_DESC_AMY + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_TELEGRAM_HANDLE));
+        assertParseFailure(parser, validPerson + " s/CS2101",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_SUBJECT));
+        assertParseFailure(parser, validPerson + " g/T12",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_GROUP));
+
+        assertParseFailure(parser, validPerson + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY
+                        + TELEGRAM_HANDLE_DESC_AMY + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL,
+                        PREFIX_TELEGRAM_HANDLE, PREFIX_SUBJECT, PREFIX_GROUP));
+
+        assertParseFailure(parser, INVALID_NAME_DESC + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
+        assertParseFailure(parser, INVALID_EMAIL_DESC + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
+        assertParseFailure(parser, INVALID_PHONE_DESC + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, EMPTY_TELEGRAM_DESC + validPerson,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_TELEGRAM_HANDLE));
+        assertParseFailure(parser, validPerson + INVALID_NAME_DESC,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
+        assertParseFailure(parser, validPerson + INVALID_EMAIL_DESC,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
+        assertParseFailure(parser, validPerson + INVALID_PHONE_DESC,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, validPerson + EMPTY_TELEGRAM_DESC,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_TELEGRAM_HANDLE));
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + " p/ p/",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + EMPTY_TELEGRAM_DESC + EMPTY_TELEGRAM_DESC,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_TELEGRAM_HANDLE));
     }
 
     @Test
     public void parse_compulsoryFieldMissing_failure() {
         String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
 
-        // missing name prefix
-        assertParseFailure(parser, VALID_NAME_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
+        assertParseFailure(parser, VALID_NAME_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
                 expectedMessage);
+        assertParseFailure(parser, NAME_DESC_BOB + VALID_EMAIL_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                expectedMessage);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + GROUP_DESC_T11, expectedMessage);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T, expectedMessage);
+    }
 
-        // missing phone prefix
-        assertParseFailure(parser, NAME_DESC_BOB + VALID_PHONE_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing email prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
-
-        // all prefixes missing
-        assertParseFailure(parser, VALID_NAME_BOB + VALID_PHONE_BOB + VALID_EMAIL_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
+    @Test
+    public void parse_emptyRequiredValue_failure() {
+        assertParseFailure(parser, " n/" + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + " e/" + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + " s/" + GROUP_DESC_T11,
+                Subject.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + " g/",
+                Group.MESSAGE_CONSTRAINTS);
     }
 
     @Test
     public void parse_invalidValue_failure() {
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + TELEGRAM_HANDLE_DESC_BOB
+                + SUBJECT_DESC_CS2103T + GROUP_DESC_T11 + TAG_DESC_HUSBAND, Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + TELEGRAM_HANDLE_DESC_BOB
+                + SUBJECT_DESC_CS2103T + GROUP_DESC_T11 + TAG_DESC_HUSBAND, Phone.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + TELEGRAM_HANDLE_DESC_BOB
+                + SUBJECT_DESC_CS2103T + GROUP_DESC_T11 + TAG_DESC_HUSBAND, Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + " h/alice_tan", TelegramHandle.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + TELEGRAM_HANDLE_DESC_BOB
+                + INVALID_TAG_DESC + TAG_DESC_FRIEND, Tag.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + " s/CS2103T!" + GROUP_DESC_T11,
+                Subject.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + " g/",
+                Group.MESSAGE_CONSTRAINTS);
 
-        // invalid phone
-        assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Phone.MESSAGE_CONSTRAINTS);
-
-        // invalid email
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Email.MESSAGE_CONSTRAINTS);
-
-        // invalid address
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Address.MESSAGE_CONSTRAINTS);
-
-        // invalid tag
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + INVALID_TAG_DESC + VALID_TAG_FRIEND, Tag.MESSAGE_CONSTRAINTS);
-
-        // two invalid values, only first invalid value reported
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC,
-                Name.MESSAGE_CONSTRAINTS);
-
-        // non-empty preamble
-        assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
+        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T
+                + GROUP_DESC_T11 + EMPTY_TELEGRAM_DESC, Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, PREAMBLE_NON_EMPTY + REQUIRED_BOB_FIELDS,
                 String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_legacyAddressPrefix_failure() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + " a/Clementi", expectedMessage);
+        assertParseFailure(parser, REQUIRED_BOB_FIELDS + " a/", expectedMessage);
+    }
+
+    @Test
+    public void parse_unknownPrefix_failure() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        for (String input : List.of(REQUIRED_BOB_FIELDS + " x/typo",
+                NAME_DESC_BOB + " x/typo" + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + GROUP_DESC_T11,
+                REQUIRED_BOB_FIELDS + " typo/value",
+                REQUIRED_BOB_FIELDS + " X/typo",
+                REQUIRED_BOB_FIELDS + " x/",
+                REQUIRED_BOB_FIELDS + " x//typo",
+                REQUIRED_BOB_FIELDS + "\tx/typo")) {
+            assertParseFailure(parser, input, expectedMessage);
+        }
+    }
+
+    @Test
+    public void parse_groupContainingSlashes_success() {
+        for (String group : List.of("T11/T12", "T11 x / typo", "T11 https://example.com")) {
+            Person expectedPerson = new PersonBuilder(BOB)
+                    .withPhone("")
+                    .withTelegramHandle("")
+                    .withSubject("CS2103T")
+                    .withGroup(group)
+                    .withTags()
+                    .build();
+            assertParseSuccess(parser, NAME_DESC_BOB + EMAIL_DESC_BOB + SUBJECT_DESC_CS2103T + " g/" + group,
+                    new AddCommand(expectedPerson));
+        }
+    }
+
+    @Test
+    public void parse_telegramHandlePresent_success() {
+        Person expectedPerson = new PersonBuilder(BOB)
+                .withPhone("")
+                .withTelegramHandle("@alice_tan")
+                .withSubject("CS2103T")
+                .withGroup("T11")
+                .withTags()
+                .build();
+        assertParseSuccess(parser, REQUIRED_BOB_FIELDS + " h/@alice_tan", new AddCommand(expectedPerson));
     }
 }

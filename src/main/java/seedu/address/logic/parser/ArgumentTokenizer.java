@@ -1,8 +1,12 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -15,6 +19,11 @@ import java.util.stream.Collectors;
  */
 public class ArgumentTokenizer {
 
+    private static final Pattern PARAMETER_PREFIX = Pattern.compile("(?<!\\S)[A-Za-z][A-Za-z0-9_-]*/");
+    private static final List<String> NAME_RELATIONSHIP_QUALIFIERS = List.of("D/O", "S/O");
+    private static final int NAME_RELATIONSHIP_QUALIFIER_LENGTH = 3;
+    private static final Pattern MISCASED_NAME_RELATIONSHIP_QUALIFIER = Pattern.compile("[DdSs]/[Oo](?=\\s|$)");
+
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
      * respective argument values. Only the given prefixes will be recognized in the arguments string.
@@ -24,8 +33,87 @@ public class ArgumentTokenizer {
      * @return           ArgumentMultimap object that maps prefixes to their arguments
      */
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
-        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, false, prefixes);
         return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Tokenizes arguments while ignoring prefix-like text enclosed in quoted name phrases.
+     * Quotes in other fields are literal characters and do not hide subsequent prefixes.
+     */
+    public static ArgumentMultimap tokenizeIgnoringQuotedPrefixes(String argsString, Prefix... prefixes) {
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, true, prefixes);
+        return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Returns true if {@code argsString} contains a parameter-like token that is not one of {@code prefixes}.
+     * Embedded slashes and URLs are not treated as parameter prefixes. An exact {@code D/O} or {@code S/O} token is
+     * treated as name text only while the active parameter is {@code n/}.
+     */
+    public static boolean containsUnknownPrefix(String argsString, Prefix... prefixes) {
+        return containsUnknownPrefix(argsString, false, prefixes);
+    }
+
+    private static boolean containsUnknownPrefix(String argsString, boolean ignoreQuotedPrefixes,
+                                                 Prefix... prefixes) {
+        List<Prefix> recognizedPrefixes = List.of(prefixes);
+        Matcher matcher = PARAMETER_PREFIX.matcher(argsString);
+        Prefix activePrefix = null;
+        while (matcher.find()) {
+            if (ignoreQuotedPrefixes && isInsideNamePhrase(argsString, matcher.start())) {
+                continue;
+            }
+            Prefix matchedPrefix = new Prefix(matcher.group());
+            if (recognizedPrefixes.contains(matchedPrefix)) {
+                activePrefix = matchedPrefix;
+            } else if (!isNameRelationshipQualifier(argsString, matcher, activePrefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether an unknown parameter-like token occurs outside quoted name phrases.
+     */
+    public static boolean containsUnknownPrefixIgnoringQuotedPrefixes(String argsString, Prefix... prefixes) {
+        return containsUnknownPrefix(argsString, true, prefixes);
+    }
+
+    /**
+     * Returns true if a name value contains a relationship qualifier not written as {@code D/O} or {@code S/O},
+     * such as {@code s/o}. Lowercase {@code s/} would otherwise silently start the subject value.
+     */
+    public static boolean containsMiscasedNameRelationshipQualifier(String argsString, Prefix... prefixes) {
+        List<Prefix> recognizedPrefixes = List.of(prefixes);
+        Matcher matcher = PARAMETER_PREFIX.matcher(argsString);
+        Prefix activePrefix = null;
+        while (matcher.find()) {
+            if (PREFIX_NAME.equals(activePrefix) && !isNameRelationshipQualifier(argsString, matcher, activePrefix)
+                    && MISCASED_NAME_RELATIONSHIP_QUALIFIER.matcher(argsString)
+                            .region(matcher.start(), argsString.length()).lookingAt()) {
+                return true;
+            }
+            Prefix matchedPrefix = new Prefix(matcher.group());
+            if (recognizedPrefixes.contains(matchedPrefix)) {
+                activePrefix = matchedPrefix;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the token found by {@code matcher} is a complete {@code D/O} or {@code S/O} within a name.
+     */
+    private static boolean isNameRelationshipQualifier(String argsString, Matcher matcher, Prefix activePrefix) {
+        int qualifierStart = matcher.start();
+        int qualifierEnd = qualifierStart + NAME_RELATIONSHIP_QUALIFIER_LENGTH;
+        return PREFIX_NAME.equals(activePrefix)
+                && NAME_RELATIONSHIP_QUALIFIERS.stream()
+                        .anyMatch(qualifier -> argsString.startsWith(qualifier, qualifierStart))
+                && (qualifierEnd == argsString.length()
+                        || Character.isWhitespace(argsString.charAt(qualifierEnd)));
     }
 
     /**
@@ -35,23 +123,26 @@ public class ArgumentTokenizer {
      * @param prefixes   Prefixes to find in the arguments string
      * @return           List of zero-based prefix positions in the given arguments string
      */
-    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes) {
+    private static List<PrefixPosition> findAllPrefixPositions(String argsString, boolean ignoreQuotedPrefixes,
+                                                               Prefix... prefixes) {
         return Arrays.stream(prefixes)
-                .flatMap(prefix -> findPrefixPositions(argsString, prefix).stream())
+                .flatMap(prefix -> findPrefixPositions(argsString, prefix, ignoreQuotedPrefixes).stream())
                 .collect(Collectors.toList());
     }
 
     /**
      * @see #findAllPrefixPositions(String, Prefix...)
      */
-    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
+    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix,
+                                                            boolean ignoreQuotedPrefixes) {
         List<PrefixPosition> positions = new ArrayList<>();
 
-        int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
+        int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0, ignoreQuotedPrefixes);
         while (prefixPosition != -1) {
             PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
             positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition,
+                    ignoreQuotedPrefixes);
         }
 
         return positions;
@@ -69,10 +160,40 @@ public class ArgumentTokenizer {
      * {@code argsString} = "e/hi p/900", {@code prefix} = "p/" and
      * {@code fromIndex} = 0, this method returns 5.
      */
-    private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
+    private static int findPrefixPosition(String argsString, String prefix, int fromIndex,
+                                          boolean ignoreQuotedPrefixes) {
         int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        while (prefixIndex != -1) {
+            int prefixStart = prefixIndex + 1;
+            if (!ignoreQuotedPrefixes || !isInsideNamePhrase(argsString, prefixStart)) {
+                return prefixStart;
+            }
+            prefixIndex = argsString.indexOf(" " + prefix, prefixStart);
+        }
+        return -1;
+    }
+
+    /**
+     * Returns whether the position lies inside a quoted phrase belonging to n/.
+     * Other fields, including groups containing literal quotes, cannot open a phrase.
+     */
+    private static boolean isInsideNamePhrase(String text, int position) {
+        boolean insideQuotes = false;
+        Prefix activePrefix = null;
+        Matcher matcher = PARAMETER_PREFIX.matcher(text);
+        for (int i = 0; i < position; i++) {
+            if (PREFIX_NAME.equals(activePrefix) && text.charAt(i) == '"') {
+                insideQuotes = !insideQuotes;
+            }
+            if (insideQuotes || (i > 0 && !Character.isWhitespace(text.charAt(i - 1)))) {
+                continue;
+            }
+            matcher.region(i, text.length());
+            if (matcher.lookingAt() && !isNameRelationshipQualifier(text, matcher, activePrefix)) {
+                activePrefix = new Prefix(matcher.group());
+            }
+        }
+        return insideQuotes;
     }
 
     /**

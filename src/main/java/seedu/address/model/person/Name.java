@@ -9,14 +9,29 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Name {
 
+    public static final int MAX_LENGTH = 100;
+
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should contain at most " + MAX_LENGTH + " characters, using alphanumeric words separated by "
+                    + "single spaces, with hyphens or apostrophes "
+                    + "within words. Initials or short abbreviations of up to three letters may end in a period "
+                    + "when followed by another name, and D/O or S/O may appear between name parts";
+
+    public static final String MESSAGE_INVALID_RELATIONSHIP_QUALIFIER = "Write D/O or S/O in names in uppercase, "
+            + "for example n/Ravi S/O Kumar. To enter a subject starting with O, put s/SUBJECT before n/NAME.";
+
+    private static final String NAME_WORD = "[\\p{Alnum}]+(?:[-'][\\p{Alnum}]+)*";
+    private static final String INITIAL_OR_ABBREVIATION = "[\\p{Alpha}]{1,3}\\.";
+    private static final String NAME_PART = "(?:(?:" + NAME_WORD + "|" + INITIAL_OR_ABBREVIATION + ") )*"
+            + NAME_WORD;
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Hyphens and apostrophes must occur within an alphanumeric word. Periods are limited to initials and short
+     * abbreviations that precede another name word. This prevents leading, trailing, and repeated separators while
+     * allowing names such as {@code Jean-Luc}, {@code O'Connor}, {@code S. Jay}, and {@code Aisyah Bte. Ahmad}.
+     * An uppercase {@code D/O} or {@code S/O} may appear once between name parts.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = NAME_PART + "(?: [DS]/O " + NAME_PART + ")?";
 
     public final String fullName;
 
@@ -35,9 +50,8 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.length() <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
     }
-
 
     @Override
     public String toString() {

@@ -6,11 +6,13 @@ skinparam classBackgroundColor LOGIC_COLOR
 
 Class "{abstract}\nCommand" as Command
 Class XYZCommand
+Class IndexRange
 
 package "Parser classes"{
 Class "<<interface>>\nParser" as Parser
 Class AddressBookParser
 Class XYZCommandParser
+Class IndexRangeParser
 Class CliSyntax
 Class ParserUtil
 Class ArgumentMultimap
@@ -32,6 +34,23 @@ ArgumentTokenizer .left.> ArgumentMultimap
 XYZCommandParser ..> CliSyntax
 CliSyntax ..> Prefix
 XYZCommandParser ..> ParserUtil
+XYZCommandParser ..> IndexRangeParser : parse index expressions
+IndexRangeParser ..> ParserUtil : parse individual indexes
+IndexRangeParser ..> IndexRange : <<create>>
+
+note right of XYZCommandParser
+  EditCommandParser rejects unknown prefixes
+  and duplicate non-tag prefixes.
+  t/TAG creates an ordered tag addition.
+  t/OLD_TAG,NEW_TAG creates an ordered rename.
+  Empty tag values are rejected.
+end note
+
+note right of IndexRangeParser
+  Parses displayed indexes and inclusive ranges.
+  Sorts and merges overlapping or adjacent ranges.
+  Bounds are checked when the command executes.
+end note
 ParserUtil .down.> Prefix
 ArgumentTokenizer .down.> Prefix
 XYZCommand -up-|> Command

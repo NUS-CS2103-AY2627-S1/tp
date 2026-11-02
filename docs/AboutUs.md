@@ -1,59 +1,42 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Jessica Chen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jessclouds.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jessclouds)]
 
-* Role: Project Advisor
+### Zhang Jingze
 
-### Jane Doe
+<img src="images/ginger-zjz.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
+[[github](https://github.com/ginger-zjz.png)]]
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+### Foong Yue Ru (Chloe)
 
-* Role: Team Lead
-* Responsibilities: UI
+<img src="images/chloefoong.png" width="200px">
 
-### Johnny Doe
+[[github](http://github.com/ChloeFoong)]
 
-<img src="images/johndoe.png" width="200px">
+### Zhu Xinye
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+<img src="images/zhuxinye754.png" width="200px">
 
-* Role: Developer
-* Responsibilities: Data
+[[github](https://github.com/zhuxinye754)]
 
-### Jean Doe
+### avalidgitusername
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/avalidgitusername.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+[[github](http://github.com/avalidgitusername)]

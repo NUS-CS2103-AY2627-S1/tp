@@ -2,7 +2,10 @@ package seedu.address.ui;
 
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -18,8 +21,15 @@ public class CommandBox extends UiPart<Region> {
 
     private final CommandExecutor commandExecutor;
 
+    private final CommandHistory commandHistory = new CommandHistory();
+
+    private boolean isDisplayingHistoryEntry;
+
     @FXML
     private TextField commandTextField;
+
+    @FXML
+    private Label commandPosition;
 
     /**
      * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
@@ -28,7 +38,17 @@ public class CommandBox extends UiPart<Region> {
         super(FXML);
         this.commandExecutor = commandExecutor;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
-        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.textProperty().addListener((unused, oldText, newText) -> {
+            setStyleToDefault();
+            updateCommandPosition();
+
+            if (!isDisplayingHistoryEntry) {
+                commandHistory.saveDraft(newText);
+            }
+        });
+        commandTextField.caretPositionProperty()
+                .addListener((unused, oldPosition, newPosition) -> updateCommandPosition());
+        updateCommandPosition();
     }
 
     /**
@@ -41,11 +61,58 @@ public class CommandBox extends UiPart<Region> {
             return;
         }
 
+        commandHistory.add(commandText);
+
         try {
             commandExecutor.execute(commandText);
             commandTextField.setText("");
         } catch (CommandException | ParseException e) {
             setStyleToIndicateCommandFailure();
+        }
+    }
+
+    /**
+     * Handles keyboard navigation through previously entered commands.
+     *
+     * @param event key event raised by the command text field
+     */
+    @FXML
+    private void handleHistoryNavigation(KeyEvent event) {
+        if (event.getCode() == KeyCode.UP) {
+            showPreviousUserInput();
+            event.consume();
+        } else if (event.getCode() == KeyCode.DOWN) {
+            showNextUserInput();
+            event.consume();
+        }
+    }
+
+    /**
+     * Displays the previous command in the command text field.
+     */
+    private void showPreviousUserInput() {
+        commandHistory.getPrevious().ifPresent(this::displayHistoryEntry);
+    }
+
+    /**
+     * Displays the next command in the command text field.
+     */
+    private void showNextUserInput() {
+        commandHistory.getNext().ifPresent(this::displayHistoryEntry);
+    }
+
+    /**
+     * Displays the specified {@code commandText} and moves the caret to its end.
+     *
+     * @param commandText text to display
+     */
+    private void displayHistoryEntry(String commandText) {
+        isDisplayingHistoryEntry = true;
+        try {
+            commandTextField.setText(commandText);
+            commandTextField.positionCaret(commandTextField.getLength());
+        } finally {
+            isDisplayingHistoryEntry = false;
         }
     }
 
@@ -69,6 +136,10 @@ public class CommandBox extends UiPart<Region> {
         styleClass.add(ERROR_STYLE_CLASS);
     }
 
+    private void updateCommandPosition() {
+        commandPosition.setText(commandTextField.getCaretPosition() + " / " + commandTextField.getLength());
+    }
+
     /**
      * Represents a function that can execute commands.
      */
@@ -82,4 +153,19 @@ public class CommandBox extends UiPart<Region> {
         CommandResult execute(String commandText) throws CommandException, ParseException;
     }
 
+    /**
+     * Returns whether the command input currently owns keyboard focus.
+     *
+     * @return true if the command input is focused
+     */
+    boolean isInputFocused() {
+        return commandTextField.isFocused();
+    }
+
+    /**
+     * Gives keyboard focus to the command input.
+     */
+    void focusInput() {
+        commandTextField.requestFocus();
+    }
 }

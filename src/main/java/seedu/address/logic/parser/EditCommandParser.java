@@ -2,27 +2,39 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GROUP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEGACY_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TELEGRAM_HANDLE;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.IndexPersonTarget;
+import seedu.address.logic.commands.IndexRange;
+import seedu.address.logic.commands.TagEdit;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Name;
 
 /**
  * Parses input arguments and creates a new EditCommand object
  */
 public class EditCommandParser implements Parser<EditCommand> {
+
+    // Recognizes numeric selections even when an index is negative or outside the integer range.
+    private static final Pattern NUMERIC_INDEX_EXPRESSION_PATTERN =
+            Pattern.compile("[+-]?\\d+(?:-[+-]?\\d+)?(?:,[+-]?\\d+(?:-[+-]?\\d+)?)*");
+
+    private static final List<Prefix> EDIT_PREFIXES = List.of(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL,
+            PREFIX_TELEGRAM_HANDLE, PREFIX_SUBJECT, PREFIX_GROUP, PREFIX_TAG, PREFIX_LEGACY_ADDRESS);
 
     /**
      * Parses the given {@code String} of arguments in the context of the EditCommand
@@ -32,17 +44,33 @@ public class EditCommandParser implements Parser<EditCommand> {
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenize(args, EDIT_PREFIXES.toArray(Prefix[]::new));
 
-        Index index;
+        List<IndexRange> ranges;
 
         try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
+            ranges = IndexRangeParser.parse(argMultimap.getPreamble());
         } catch (ParseException pe) {
+            if (NUMERIC_INDEX_EXPRESSION_PATTERN.matcher(argMultimap.getPreamble().trim()).matches()) {
+                throw new ParseException(MESSAGE_INVALID_PERSON_DISPLAYED_INDEX, pe);
+            }
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        if (ArgumentTokenizer.containsMiscasedNameRelationshipQualifier(args, EDIT_PREFIXES.toArray(Prefix[]::new))) {
+            throw new ParseException(Name.MESSAGE_INVALID_RELATIONSHIP_QUALIFIER);
+        }
+
+        if (ArgumentTokenizer.containsUnknownPrefix(args, EDIT_PREFIXES.toArray(Prefix[]::new))) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
+        }
+
+        if (argMultimap.getValue(PREFIX_LEGACY_ADDRESS).isPresent()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
+        }
+
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_TELEGRAM_HANDLE,
+                PREFIX_SUBJECT, PREFIX_GROUP);
 
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
 
@@ -50,36 +78,64 @@ public class EditCommandParser implements Parser<EditCommand> {
             editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
         }
         if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
+            rejectEmptyValue(argMultimap.getValue(PREFIX_PHONE).get());
             editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
         }
         if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
             editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
         }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
+        if (argMultimap.getValue(PREFIX_TELEGRAM_HANDLE).isPresent()) {
+            rejectEmptyValue(argMultimap.getValue(PREFIX_TELEGRAM_HANDLE).get());
+            editPersonDescriptor.setTelegramHandle(
+                    ParserUtil.parseTelegramHandle(argMultimap.getValue(PREFIX_TELEGRAM_HANDLE).get()));
         }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
+        if (argMultimap.getValue(PREFIX_SUBJECT).isPresent()) {
+            editPersonDescriptor.setSubject(ParserUtil.parseSubject(argMultimap.getValue(PREFIX_SUBJECT).get()));
+        }
+        if (argMultimap.getValue(PREFIX_GROUP).isPresent()) {
+            editPersonDescriptor.setGroup(ParserUtil.parseGroup(argMultimap.getValue(PREFIX_GROUP).get()));
+        }
+
+
+        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG), editPersonDescriptor);
 
         if (!editPersonDescriptor.isAnyFieldEdited()) {
             throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
         }
 
-        return new EditCommand(index, editPersonDescriptor);
+        IndexPersonTarget target = new IndexPersonTarget(ranges);
+
+        if (target.selectsSingleIndex()) {
+            return new EditCommand(ranges.getFirst().start(), editPersonDescriptor);
+        }
+
+        if (editPersonDescriptor.hasSinglePersonOnlyFields()) {
+            throw new ParseException(EditCommand.MESSAGE_INVALID_BULK_EDIT);
+        }
+
+        return new EditCommand(target, editPersonDescriptor);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
+     * Parses ordered tag additions and renames without discarding repeated operations.
      */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
+    private void parseTagsForEdit(List<String> tags, EditPersonDescriptor descriptor) throws ParseException {
+        List<TagEdit> edits = new ArrayList<>();
+        for (String value : tags) {
+            String[] names = value.split(",", -1);
+            if (names.length > 2) {
+                throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
+            }
+            String oldName = names.length == 2 ? ParserUtil.parseTag(names[0]).tagName : null;
+            String newName = ParserUtil.parseTag(names[names.length - 1]).tagName;
+            edits.add(new TagEdit(oldName, newName));
         }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
+        descriptor.setTagEdits(edits);
     }
 
+    private void rejectEmptyValue(String value) throws ParseException {
+        if (value.isEmpty()) {
+            throw new ParseException(EditCommand.MESSAGE_EMPTY_FIELD);
+        }
+    }
 }
