@@ -3,6 +3,7 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -79,6 +80,16 @@ public class UniquePersonList implements Iterable<Person> {
         }
     }
 
+    /**
+     * Sorts the persons in the list using the given {@code comparator}.
+     * Persons that compare as equal keep their relative order.
+     */
+    public void sort(Comparator<Person> comparator) {
+        requireNonNull(comparator);
+        internalList.sort(comparator);
+    }
+
+    /** Replaces the contents of this list with {@code replacement}. */
     public void setPersons(UniquePersonList replacement) {
         requireNonNull(replacement);
         internalList.setAll(replacement.internalList);
@@ -90,7 +101,7 @@ public class UniquePersonList implements Iterable<Person> {
      */
     public void setPersons(List<Person> persons) {
         requireAllNonNull(persons);
-        if (!personsAreUnique(persons)) {
+        if (!arePersonsUnique(persons)) {
             throw new DuplicatePersonException();
         }
 
@@ -123,6 +134,13 @@ public class UniquePersonList implements Iterable<Person> {
         return internalList.equals(otherUniquePersonList.internalList);
     }
 
+    /**
+     * Returns if this collection is empty.
+     */
+    public boolean isEmpty() {
+        return internalList.isEmpty();
+    }
+
     @Override
     public int hashCode() {
         return internalList.hashCode();
@@ -136,7 +154,7 @@ public class UniquePersonList implements Iterable<Person> {
     /**
      * Returns true if {@code persons} contains only unique persons.
      */
-    private boolean personsAreUnique(List<Person> persons) {
+    private boolean arePersonsUnique(List<Person> persons) {
         for (int i = 0; i < persons.size() - 1; i++) {
             for (int j = i + 1; j < persons.size(); j++) {
                 if (persons.get(i).isSamePerson(persons.get(j))) {

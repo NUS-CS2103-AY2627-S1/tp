@@ -21,7 +21,7 @@ public class UiManager implements Ui {
     public static final String ALERT_DIALOG_PANE_FIELD_ID = "alertDialogPane";
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
-    private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String ICON_APPLICATION = "/images/tutorflow_32.png";
 
     private Logic logic;
     private Path dataFilePath;
@@ -52,6 +52,16 @@ public class UiManager implements Ui {
             logger.severe(StringUtil.getDetails(e));
             showFatalErrorDialogAndShutdown("Fatal error during initializing", e);
         }
+    }
+
+    /**
+     * Tells the user why TutorFlow cannot start. There is no main window yet, so the message gets one of its own.
+     * This method only returns after the user has closed it.
+     */
+    public static void showStartupRefusal(String message) {
+        logger.severe(message);
+        showAlertDialogAndWait(null, AlertType.ERROR, "TutorFlow cannot start",
+                "TutorFlow did not open your data file", message);
     }
 
     private Image getImage(String imagePath) {

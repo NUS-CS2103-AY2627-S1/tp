@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -20,6 +21,14 @@ public class NameTest {
     }
 
     @Test
+    public void constructor_extraWhitespace_whitespaceIsNormalised() {
+        assertEquals("John Tan", new Name("John  Tan").fullName);
+        assertEquals("John Tan", new Name("John Tan ").fullName);
+        assertEquals("John Tan", new Name("John     Tan").fullName);
+        assertEquals(new Name("John Tan"), new Name("John   Tan"));
+    }
+
+    @Test
     public void isValidName() {
         // null name
         assertThrows(NullPointerException.class, () -> Name.isValidName(null));
@@ -28,14 +37,36 @@ public class NameTest {
         assertFalse(Name.isValidName("")); // empty string
         assertFalse(Name.isValidName(" ")); // spaces only
         assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
-        assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("peter*")); // contains a character that is not allowed
+        assertTrue(Name.isValidName("-peter")); // punctuation is allowed with a letter
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
-        assertTrue(Name.isValidName("12345")); // numbers only
+        assertFalse(Name.isValidName("12345")); // requires a letter
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("Priya s/o Kumar")); // slash
+        assertTrue(Name.isValidName("Nur Aisyah d/o Ahmad")); // slash
+        assertTrue(Name.isValidName("Tan Wei Ming (twin A)")); // brackets
+        assertTrue(Name.isValidName("O'Brien-Smith Jr.")); // apostrophe, hyphen and full stop
+        assertTrue(Name.isValidName("Jos\u00e9 \u00c1lvarez")); // accented letters
+        assertTrue(Name.isValidName("Jose\u0301 Alvarez")); // letter followed by a combining accent
+        assertTrue(Name.isValidName("\u9648\u4f1f\u660e")); // Chinese characters
+        assertTrue(Name.isValidName("Tan \u9648\u4f1f\u660e")); // English and Chinese together
+        assertFalse(Name.isValidName("\u0301Jose")); // starts with a combining accent
+        assertFalse(Name.isValidName("a".repeat(101))); // too long
+        assertTrue(Name.isValidName("a".repeat(100))); // longest allowed
+    }
+
+    @Test
+    public void constructor_accentTypedAsSeparateCharacter_isSameNameAsComposedAccent() {
+        Name composed = new Name("Jos\u00e9 \u00c1lvarez");
+        Name decomposed = new Name("Jose\u0301 A\u0301lvarez");
+
+        assertEquals(composed, decomposed);
+        assertEquals(composed.hashCode(), decomposed.hashCode());
+        assertEquals("Jos\u00e9 \u00c1lvarez", decomposed.fullName); // stored in the composed form
     }
 
     @Test

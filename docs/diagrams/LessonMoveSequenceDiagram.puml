@@ -1,0 +1,90 @@
+@startuml
+!define LOGIC_COLOR #3333C4
+!define LOGIC_COLOR_T1 #C8C8FA
+!define MODEL_COLOR #9D0012
+!define MODEL_COLOR_T1 #F97181
+!define STORAGE_COLOR #A38300
+!define STORAGE_COLOR_T1 #FFE374
+skinparam Shadowing false
+skinparam SequenceMessageAlign center
+skinparam SequenceBoxFontColor #FFFFFF
+skinparam ParticipantFontColor #FFFFFF
+skinparam ArrowFontStyle plain
+hide footbox
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as Parser LOGIC_COLOR
+participant "command:LessonMoveCommand" as Command LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant "storage:Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("lesson move 1 d/2026-12-24")
+activate LogicManager
+LogicManager -> Parser : parseCommand(...)
+activate Parser
+ref over Parser, Command
+Dispatch to lesson parsers and construct command
+end ref
+Parser --> LogicManager : command
+deactivate Parser
+
+ref over LogicManager, Storage
+Capture the serialized state and displayed lesson rows
+end ref
+
+LogicManager -> Command : execute(model)
+activate Command
+Command -> Model : getFilteredLessonList()
+activate Model
+Model --> Command : displayed lessons
+deactivate Model
+
+note over Command
+Select the target by its displayed index.
+Validate its status, new slot and duplicates.
+Build an immutable replacement that retains its ID.
+end note
+
+Command -> Model : setLesson(target, moved)
+activate Model
+Model --> Command
+deactivate Model
+Command -> Model : getConflictingLessons(moved)
+activate Model
+Model --> Command : overlapping lessons
+deactivate Model
+Command --> LogicManager : result (with overlap warning, if any)
+deactivate Command
+
+ref over LogicManager, Storage
+Compare serialized state and displayed rows after the update
+end ref
+
+opt displayed rows changed and result has no displayed list
+LogicManager -> LogicManager : append refreshed lesson numbers to result
+activate LogicManager
+LogicManager --> LogicManager
+deactivate LogicManager
+end opt
+
+LogicManager -> Storage : saveAddressBook(model.getAddressBook())
+activate Storage
+Storage --> LogicManager
+deactivate Storage
+[<-- LogicManager : result
+deactivate LogicManager
+
+note over LogicManager, Storage
+Successful changed-data path shown; parser internals are omitted.
+If saving fails, the in-memory change is retained and an error
+asks the tutor to retry with save instead of reporting success.
+end note
+@enduml

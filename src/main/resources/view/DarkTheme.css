@@ -4,14 +4,14 @@
 }
 
 .label {
-    -fx-font-size: 11pt;
+    -fx-font-size: 10pt;
     -fx-font-family: "Segoe UI Semibold";
     -fx-text-fill: #555555;
     -fx-opacity: 0.9;
 }
 
 .label-bright {
-    -fx-font-size: 11pt;
+    -fx-font-size: 10pt;
     -fx-font-family: "Segoe UI Semibold";
     -fx-text-fill: white;
     -fx-opacity: 1;
@@ -148,9 +148,13 @@
 
 .result-display {
     -fx-background-color: transparent;
-    -fx-font-family: "Segoe UI Light";
-    -fx-font-size: 13pt;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 10pt;
     -fx-text-fill: white;
+}
+
+.result-display.error {
+    -fx-text-fill: #ff7b72;
 }
 
 .result-display .label {
@@ -219,13 +223,58 @@
     -fx-background-radius: 0;
     -fx-background-color: #1d1d1d;
     -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
-    -fx-font-size: 11pt;
+    -fx-font-size: 10pt;
     -fx-text-fill: #d8d8d8;
     -fx-background-insets: 0 0 0 0, 0, 1, 2;
 }
 
 .button:hover {
     -fx-background-color: #3a3a3a;
+}
+
+.person-card .card-action,
+.person-card .field-edit,
+.person-card .cancel-edit,
+.add-action,
+.clear-command {
+    -fx-padding: 3 6 3 6;
+    -fx-min-width: 26;
+    -fx-min-height: 26;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.person-card .card-action:hover,
+.person-card .field-edit:hover,
+.person-card .cancel-edit:hover,
+.add-action:hover,
+.clear-command:hover {
+    -fx-background-color: derive(#1d1d1d, 45%);
+}
+
+.action-icon {
+    -fx-fill: #f2f2f2;
+}
+
+.clear-command {
+    -fx-padding: 2 5 2 5;
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.clear-command .action-icon {
+    -fx-fill: #b8b8b8;
+}
+
+.command-box .text-field {
+    -fx-padding: 5 34 5 7;
+}
+
+.person-card:focused {
+    -fx-border-color: #7ab8ff;
+    -fx-border-width: 1;
 }
 
 .button:pressed, .button:default:hover:pressed {
@@ -337,12 +386,12 @@
     -fx-background-radius: 0;
 }
 
-#tags {
+#subjects {
     -fx-hgap: 7;
     -fx-vgap: 3;
 }
 
-#tags .label {
+#subjects .label {
     -fx-text-fill: white;
     -fx-background-color: #3e7b91;
     -fx-padding: 1 3 1 3;

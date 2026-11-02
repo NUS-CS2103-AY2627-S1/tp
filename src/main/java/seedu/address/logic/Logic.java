@@ -20,6 +20,23 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
+    /** Returns whether session changes still need to be saved. */
+    default boolean hasUnsavedChanges() {
+        return false;
+    }
+
+    /**
+     * Returns the dashboard of what today requires, as shown by the {@code today} command.
+     * The data is only read, so nothing is saved.
+     */
+    String getDashboard();
+
+    /**
+     * Returns what is shown when TutorFlow starts: a warning about the data file, if there is one, followed by the
+     * dashboard.
+     */
+    String getStartupMessage();
+
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
 

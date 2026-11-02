@@ -10,27 +10,49 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Phone {
 
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+    public static final String MESSAGE_CONSTRAINTS = "Phone numbers must contain 8 to 15 digits, optionally "
+            + "starting with '+'. Spaces and hyphens between the digits are allowed.";
+    public static final String VALIDATION_REGEX = "\\+?\\d{8,15}";
+    private static final String INPUT_REGEX = "\\+?\\d+(?:[ -]\\d+)*";
+    private static final String LEGACY_INPUT_REGEX = "\\+?\\d[\\d -]*";
     public final String value;
 
     /**
      * Constructs a {@code Phone}.
      *
-     * @param phone A valid phone number.
+     * @param phone A valid phone number. Spaces and hyphens are removed, so {@code 9123 4567} is stored as
+     *              {@code 91234567}.
      */
     public Phone(String phone) {
+        this(phone, false);
+    }
+
+    /** Constructs a checked new or grandfathered stored phone. */
+    private Phone(String phone, boolean isStored) {
         requireNonNull(phone);
-        checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
-        value = phone;
+        checkArgument(isStored ? isValidStoredPhone(phone) : isValidPhone(phone), MESSAGE_CONSTRAINTS);
+        value = normalize(phone);
     }
 
     /**
      * Returns true if a given string is a valid phone number.
      */
     public static boolean isValidPhone(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.matches(INPUT_REGEX) && normalize(test).matches(VALIDATION_REGEX);
+    }
+
+    private static String normalize(String phone) {
+        return phone.replaceAll("[ -]", "");
+    }
+
+    /** Accepts the old three-digit minimum only when restoring stored data. */
+    public static boolean isValidStoredPhone(String value) {
+        return value.matches(LEGACY_INPUT_REGEX) && value.replaceAll("[ -]", "").matches("\\+?\\d{3,15}");
+    }
+
+    /** Restores a phone accepted by v1.3 or the current input policy. */
+    public static Phone fromStored(String value) {
+        return new Phone(value, true);
     }
 
     @Override

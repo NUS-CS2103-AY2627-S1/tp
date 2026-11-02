@@ -1,0 +1,48 @@
+@startuml
+skin rose
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+
+start
+:User executes "delete INDEX [confirm]";
+
+if (Arguments are INDEX and an optional 'confirm'?) then ([no])
+    :Show the invalid command format message;
+    stop
+else ([yes])
+endif
+
+if (INDEX is within the displayed student list?) then ([no])
+    :Show "The student index provided is invalid.";
+    stop
+else ([yes])
+endif
+
+:Collect the lessons, homework, follow-up
+tasks and financial events of the student;
+
+if (Student has any linked records?) then ([no])
+    :Delete the student;
+    :Save the address book;
+    :Show "Deleted student: DETAILS";
+    stop
+else ([yes])
+endif
+
+if ('confirm' is given?) then ([no])
+    :Show the preview with the number of lessons
+    and a warning about upcoming lessons, and the
+    counts of homework, tasks and financial events.
+    Any of them adds the advice to use 'archive INDEX';
+    note right: Nothing is deleted.
+    stop
+else ([yes])
+endif
+
+:Delete the student together with their lessons,
+homework, follow-up tasks and financial events;
+:Save the address book;
+:Show "Deleted student: DETAILS, along with
+N lesson(s), [M homework item(s), T task(s) and K financial event(s)]";
+stop
+@enduml

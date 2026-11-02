@@ -1,59 +1,72 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
+
+# About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us at the email `e1406390[at]u.nus.edu`
 
 ## Project team
 
-### John Doe
+### Joshua Andrew
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/joshmode.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/joshmode)]
+[[portfolio](team/joshmode.md)]
 
-* Role: Project Advisor
+* Role: Maintainer and implementer
+* Responsibilities: Maintaining the team repository, including the issue tracker, milestones and merging of pull requests, and implementing features
 
-### Jane Doe
+### Wang Kaiyuanhao
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/lew1swong.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/Lew1sWong)]
+[[portfolio](team/lew1swong.md)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Implementing and testing assigned TutorFlow features, and maintaining related documentation.
 
-### Jean Doe
+### Terence Goh Yan Chen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/notmeegoreng.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/notmeegoreng)]
+[[portfolio](team/notmeegoreng.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Implementing and testing assigned TutorFlow features, and maintaining related documentation.
+
+### Wang Xiaojie
+
+<img src="images/ilieks.png" width="200px">
+
+[[github](https://github.com/IliekS)]
+[[portfolio](team/ilieks.md)]
+
+* Role: Developer
+* Responsibilities: Implementing and testing assigned TutorFlow features, and maintaining related documentation.
+
+### Thakker Yash
+
+<img src="images/yash-popularplusplus.png" width="200px">
+
+[[github](https://github.com/Yash-PoPularPlusPlus)]
+[[portfolio](team/yash-popularplusplus.md)]
+
+* Role: Developer
+* Responsibilities: Implementing and testing assigned TutorFlow features, and maintaining related documentation.
+
+### Samaira Kapur
+
+<img src="images/samairakapur.png" width="200px">
+
+[[github](https://github.com/samairakapur)]
+[[portfolio](team/samairakapur.md)]
+
+* Role: Developer
+* Responsibilities: Implementing and testing assigned TutorFlow features, and maintaining related documentation.

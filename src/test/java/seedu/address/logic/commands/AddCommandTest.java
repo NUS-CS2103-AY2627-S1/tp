@@ -9,6 +9,8 @@ import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -21,7 +23,12 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.finance.LedgerEntry;
+import seedu.address.model.homework.Homework;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.StudentOrder;
+import seedu.address.model.task.Task;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -41,6 +48,31 @@ public class AddCommandTest {
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_sameNameDifferentPhone_addedWithWarning() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person alice = new PersonBuilder().withName("Alice Pauline").withPhone("94351253").build();
+        Person otherAlice = new PersonBuilder().withName("alice  pauline").withPhone("81234567").build();
+        modelStub.addPerson(alice);
+
+        CommandResult commandResult = new AddCommand(otherAlice).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(otherAlice))
+                + String.format(AddCommand.MESSAGE_SAME_NAME_WARNING, otherAlice.getName()),
+                commandResult.getFeedbackToUser());
+        assertEquals(List.of(alice, otherAlice), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_sameNameAndPhoneOnlyDifferingInSpaces_throwsCommandException() {
+        Person alice = new PersonBuilder().withName("Alice Pauline").withPhone("94351253").build();
+        Person sameAlice = new PersonBuilder().withName("Alice   Pauline ").withPhone("94351253").build();
+        ModelStub modelStub = new ModelStubWithPerson(alice);
+
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () ->
+                new AddCommand(sameAlice).execute(modelStub));
     }
 
     @Test
@@ -88,6 +120,47 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void setTravelBuffer(int minutes) {
+            throw new AssertionError("Unexpected travel operation");
+        }
+
+        @Override
+        public java.util.Optional<seedu.address.model.finance.LedgerEntry> chargeLesson(Lesson target,
+                Lesson completedLesson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addLedgerEntry(seedu.address.model.finance.LedgerEntry entry) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addHomework(Homework homework) {
+            throw new AssertionError("Unexpected homework operation");
+        }
+
+        @Override
+        public void setHomework(Homework target, Homework replacement) {
+            throw new AssertionError("Unexpected homework operation");
+        }
+
+        @Override
+        public void deleteHomework(Homework homework) {
+            throw new AssertionError("Unexpected homework operation");
+        }
+
+        @Override
+        public java.util.List<Homework> getDisplayedHomework() {
+            throw new AssertionError("Unexpected homework operation");
+        }
+
+        @Override
+        public void showHomework(java.util.List<Homework> homework) {
+            throw new AssertionError("Unexpected homework operation");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -113,6 +186,11 @@ public class AddCommandTest {
         }
 
         @Override
+        public void clearAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyAddressBook getAddressBook() {
             throw new AssertionError("This method should not be called.");
         }
@@ -133,12 +211,97 @@ public class AddCommandTest {
         }
 
         @Override
+        public void sortPersons(StudentOrder order) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasLesson(Lesson lesson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addLesson(Lesson lesson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteLesson(Lesson target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setLesson(Lesson target, Lesson editedLesson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Lesson> getConflictingLessons(Lesson lesson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Lesson> getFilteredLessonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredLessonList(Predicate<Lesson> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undoDestructiveAction() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addTask(Task task) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Task> findTask(UUID id) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setTask(Task target, Task editedTask) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteTask(Task target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Task> getShownTasks() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setShownTasks(List<Task> tasks) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<LedgerEntry> getShownPayments() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setShownPayments(List<LedgerEntry> payments) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -181,7 +344,9 @@ public class AddCommandTest {
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+            AddressBook addressBook = new AddressBook();
+            personsAdded.forEach(addressBook::addPerson);
+            return addressBook;
         }
     }
 

@@ -54,6 +54,40 @@ public class NameContainsKeywordsPredicateTest {
         // Mixed-case keywords
         predicate = new NameContainsKeywordsPredicate(List.of("aLIce", "bOB"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Keyword that is part of a word at the start, in the middle and at the end of a name
+        predicate = new NameContainsKeywordsPredicate(List.of("Ali"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("lic"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("ob"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Keyword that is part of a name with punctuation
+        predicate = new NameContainsKeywordsPredicate(List.of("wei"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Tan Wei Ming (twin A)").build()));
+    }
+
+    @Test
+    public void test_keywordWithAccentTypedAsSeparateCharacter_returnsTrue() {
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("Jose\u0301"));
+
+        assertTrue(predicate.test(new PersonBuilder().withName("Jos\u00e9 \u00c1lvarez").build()));
+    }
+
+    @Test
+    public void test_unicodeCaseVariants_matchesStudentIdentityIncludingSupplementaryLetters() {
+        String[][] variants = {{"Işık", "ışık"}, {"İpek", "ipek"}, {"ΟΣ", "ος"},
+            {"\uD801\uDC00", "\uD801\uDC28"}};
+        for (String[] pair : variants) {
+            Person upper = new PersonBuilder().withName(pair[0]).build();
+            Person lower = new PersonBuilder(upper).withName(pair[1]).build();
+            assertTrue(upper.isSamePerson(lower));
+            assertTrue(new NameContainsKeywordsPredicate(List.of(pair[1])).test(upper));
+            assertTrue(new NameContainsKeywordsPredicate(List.of(pair[0])).test(lower));
+        }
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Jose")).test(
+                new PersonBuilder().withName("José").build()));
     }
 
     @Test
@@ -62,14 +96,22 @@ public class NameContainsKeywordsPredicateTest {
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of());
         assertFalse(predicate.test(new PersonBuilder().withName("Alice").build()));
 
+        // Blank keyword matches nothing
+        predicate = new NameContainsKeywordsPredicate(List.of(""));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").build()));
+
+        // Keyword longer than the name
+        predicate = new NameContainsKeywordsPredicate(List.of("Alice Bobby"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").build()));
+
         // Non-matching keyword
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
         // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
-        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
-                .withEmail("alice@email.com").withAddress("Main Street").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("12345678", "alice@email.com", "Main", "Street"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345678")
+                .withEmail("alice@email.com").withVenue("Main Street").build()));
     }
 
     @Test

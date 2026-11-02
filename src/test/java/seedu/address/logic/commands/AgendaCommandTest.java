@@ -1,0 +1,236 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.LessonBuilder;
+import seedu.address.testutil.PersonBuilder;
+
+public class AgendaCommandTest {
+
+    private static final LocalDate MONDAY = LocalDate.of(2030, 1, 7);
+
+    private final Lesson mondayMath = new LessonBuilder().withStudent(ALICE).withDate(MONDAY).withTime("16:30")
+            .withDuration(90).build();
+    private final Lesson mondayPhysics = new LessonBuilder().withStudent(BENSON).withSubject("Physics")
+            .withDate(MONDAY).withTime("17:00").withDuration(60).build();
+    private final Lesson tuesdayEnglish = new LessonBuilder().withStudent(CARL).withSubject("English")
+            .withDate(MONDAY.plusDays(1)).withTime("19:00").withDuration(60).build();
+    private final Lesson cancelledWednesday = new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(2))
+            .build().cancel(null);
+    private final Lesson nextMonday = new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(7)).build();
+
+    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+
+    @Test
+    public void constructor_nullDate_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AgendaCommand(null, false));
+    }
+
+    @Test
+    public void execute_dayWithLessons_showsThemInOrderWithOverlapMarked() {
+        addLessons(tuesdayEnglish, mondayPhysics, mondayMath);
+
+        String message = new AgendaCommand(MONDAY, false).execute(model).getFeedbackToUser();
+
+        String[] lines = message.split("\n");
+        assertEquals("Agenda — Mon 07 Jan 2030 (2 lessons, 2h 30m)", lines[0]);
+        assertTrue(lines[1].startsWith(" 1. 16:30-18:00  Alice Pauline"));
+        assertTrue(lines[1].endsWith(AgendaCommand.MESSAGE_OVERLAPS));
+        assertTrue(lines[2].startsWith(" 2. 17:00-18:00  Benson Meier"));
+        assertTrue(lines[2].endsWith(AgendaCommand.MESSAGE_OVERLAPS));
+        assertEquals(3, lines.length);
+        assertEquals(List.of(mondayMath, mondayPhysics), model.getFilteredLessonList());
+    }
+
+    @Test
+    public void execute_sameNameStudents_eachRowSaysWhichStudent() {
+        Person otherAlice = new PersonBuilder().withName("Alice Pauline").withPhone("98765432").build();
+        model.addPerson(otherAlice);
+        // Lessons booked by command carry their student's id, which is what tells the two apart
+        addLessons(mondayMath.snapshotStudent(ALICE), new LessonBuilder().withDate(MONDAY).withTime("19:00")
+                .withDuration(60).build().snapshotStudent(otherAlice));
+
+        String message = new AgendaCommand(MONDAY, false).execute(model).getFeedbackToUser();
+
+        assertTrue(message.contains("\n 1. 16:30-18:00  Alice Pauline (phone ending 1253)"), message);
+        assertTrue(message.contains("\n 2. 19:00-20:00  Alice Pauline (phone ending 5432)"), message);
+    }
+
+    @Test
+    public void execute_weekWithArchivedStudent_marksThemArchived() {
+        addLessons(tuesdayEnglish.snapshotStudent(CARL));
+        model.setPerson(CARL, CARL.withArchived(true));
+
+        String message = new AgendaCommand(MONDAY, true).execute(model).getFeedbackToUser();
+
+        assertTrue(message.contains("\n 1. " + tuesdayEnglish.getTimeRange() + "  Carl Kurz (archived) "), message);
+    }
+
+    @Test
+    public void execute_dayWithoutLessons_reportsNoLessons() {
+        addLessons(mondayMath);
+
+        String message = new AgendaCommand(MONDAY.plusDays(1), false).execute(model).getFeedbackToUser();
+
+        assertEquals(String.format(AgendaCommand.MESSAGE_NO_LESSONS_ON_DAY, "Tue 08 Jan 2030"), message);
+        assertTrue(model.getFilteredLessonList().isEmpty());
+    }
+
+    @Test
+    public void execute_cancelledLesson_isShownButNotCounted() {
+        addLessons(cancelledWednesday);
+
+        String message = new AgendaCommand(MONDAY.plusDays(2), false).execute(model).getFeedbackToUser();
+
+        assertTrue(message.startsWith("Agenda — Wed 09 Jan 2030 (0 lessons, 0m)"));
+        assertTrue(message.endsWith("(cancelled)"));
+    }
+
+    @Test
+    public void execute_equalCancelledLessonsInDay_assignsDistinctNumbers() {
+        addLessons(mondayMath.cancel(null), mondayMath.cancel(null));
+
+        String message = new AgendaCommand(MONDAY, false).execute(model).getFeedbackToUser();
+
+        assertTrue(message.contains("\n 1. 16:30-18:00"));
+        assertTrue(message.contains("\n 2. 16:30-18:00"));
+    }
+
+    @Test
+    public void execute_equalCancelledLessonsInWeek_keepsNumbersAcrossDays() {
+        addLessons(mondayMath.cancel(null), mondayMath.cancel(null), tuesdayEnglish);
+
+        String message = new AgendaCommand(MONDAY, true).execute(model).getFeedbackToUser();
+
+        assertTrue(message.contains("\n 1. 16:30-18:00"));
+        assertTrue(message.contains("\n 2. 16:30-18:00"));
+        assertTrue(message.contains("\n 3. 19:00-20:00"));
+    }
+
+    @Test
+    public void execute_week_showsSevenDaysOfTheWeekContainingTheDate() {
+        addLessons(mondayMath, tuesdayEnglish, cancelledWednesday, nextMonday);
+
+        String message = new AgendaCommand(MONDAY.plusDays(3), true).execute(model).getFeedbackToUser();
+
+        String[] lines = message.split("\n");
+        assertEquals("Week of Mon 07 Jan 2030 to Sun 13 Jan 2030 (2 lessons, 2h 30m)", lines[0]);
+        assertEquals("Mon 07 Jan 2030 (1 lesson, 1h 30m)", lines[1]);
+        assertTrue(lines[2].startsWith(" 1. 16:30-18:00"));
+        assertEquals("Tue 08 Jan 2030 (1 lesson, 1h)", lines[3]);
+        assertTrue(lines[4].startsWith(" 2. 19:00-20:00"));
+        assertTrue(lines[6].startsWith(" 3. "));
+        assertEquals("Thu 10 Jan 2030 (0 lessons, 0m)", lines[7]);
+        assertEquals(AgendaCommand.MESSAGE_EMPTY_DAY, lines[8]);
+        assertEquals(15, lines.length);
+        assertEquals(List.of(mondayMath, tuesdayEnglish, cancelledWednesday), model.getFilteredLessonList());
+    }
+
+    @Test
+    public void execute_weekWithTravelWarnings_placesEachWarningImmediatelyAfterItsDay() {
+        for (int day = 0; day < 2; day++) {
+            addLessons(new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(day)).withTime("10:00")
+                    .withDuration(60).withVenue("Home").build(),
+                    new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(day)).withTime("11:10")
+                    .withDuration(60).withVenue("Cafe").build());
+        }
+        String expected = "Week of Mon 07 Jan 2030 to Sun 13 Jan 2030 (4 lessons, 4h)";
+        for (int day = 0; day < 7; day++) {
+            String date = List.of("Mon 07", "Tue 08", "Wed 09", "Thu 10", "Fri 11", "Sat 12", "Sun 13")
+                    .get(day) + " Jan 2030";
+            expected += "\n" + date + (day < 2 ? " (2 lessons, 2h)" : " (0 lessons, 0m)");
+            if (day < 2) {
+                expected += String.format("\n%2d. %s  %-18s %-10s %s", day * 2 + 1, "10:00-11:00",
+                        "Alice Pauline", "Math", "Home");
+                expected += String.format("\n%2d. %s  %-18s %-10s %s", day * 2 + 2, "11:10-12:10",
+                        "Alice Pauline", "Math", "Cafe");
+                expected += "\nTravel warning: Alice Pauline at Home -> Alice Pauline at Cafe (" + date
+                        + " 11:10): 10 min available; 30 min required.";
+            } else {
+                expected += "\n  — no lessons —";
+            }
+        }
+        assertEquals(expected, new AgendaCommand(MONDAY, true).execute(model).getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_weekOverTwoHundredLessons_capsRowsButKeepsTheTotal() {
+        for (int i = 0; i < 201; i++) {
+            model.addLesson(new LessonBuilder().withStudent(ALICE).withDate(MONDAY)
+                    .withTime(String.format("%02d:%02d", 6 + i / 60, i % 60))
+                    .withDuration(15).build());
+        }
+
+        String[] lines = new AgendaCommand(MONDAY, true).execute(model).getFeedbackToUser().split("\n");
+
+        assertEquals("Week of Mon 07 Jan 2030 to Sun 13 Jan 2030 (201 lessons, 50h 15m)", lines[0]);
+        assertTrue(java.util.Arrays.stream(lines)
+                .anyMatch(line -> line.equals("Showing the first 200 of 201 lessons.")));
+    }
+
+    @Test
+    public void execute_weekWithMoreThanFiftyTravelWarnings_capsWarnings() {
+        for (int day = 0; day < 2; day++) {
+            for (int i = 0; i < 28; i++) {
+                java.time.LocalTime first = java.time.LocalTime.of(6, 0).plusMinutes(30L * i);
+                java.time.LocalTime second = first.plusMinutes(15);
+                model.addLesson(new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(day))
+                        .withTime(first.toString()).withDuration(15)
+                        .withVenue("Home " + day + " " + i).build());
+                model.addLesson(new LessonBuilder().withStudent(ALICE).withDate(MONDAY.plusDays(day))
+                        .withTime(second.toString()).withDuration(15)
+                        .withVenue("Cafe " + day + " " + i).build());
+            }
+        }
+
+        String[] lines = new AgendaCommand(MONDAY, true).execute(model).getFeedbackToUser().split("\n");
+
+        long shownWarnings = java.util.Arrays.stream(lines)
+                .filter(line -> line.startsWith("Travel warning:")).count();
+        assertEquals(50, shownWarnings, String.join("\n", lines));
+        assertTrue(java.util.Arrays.stream(lines)
+                .anyMatch(line -> line.equals("Showing 50 of 110 travel warnings.")),
+                String.join("\n", lines));
+    }
+
+    @Test
+    public void equals() {
+        AgendaCommand command = new AgendaCommand(MONDAY, false);
+
+        assertTrue(command.equals(command)); // same object
+        assertTrue(command.equals(new AgendaCommand(MONDAY, false)));
+        assertFalse(command.equals(null));
+        assertFalse(command.equals(new ClearCommand()));
+        assertFalse(command.equals(new AgendaCommand(MONDAY.plusDays(1), false)));
+        assertFalse(command.equals(new AgendaCommand(MONDAY, true)));
+    }
+
+    @Test
+    public void toStringMethod() {
+        String expected = AgendaCommand.class.getCanonicalName() + "{date=" + MONDAY + ", isWeek=true}";
+        assertEquals(expected, new AgendaCommand(MONDAY, true).toString());
+    }
+
+    private void addLessons(Lesson... lessons) {
+        for (Lesson lesson : lessons) {
+            model.addLesson(lesson);
+        }
+    }
+}

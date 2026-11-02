@@ -1,23 +1,47 @@
 package seedu.address.logic;
 
+import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.Prefix;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.StudentSummaryLabels;
+import seedu.address.model.person.Subject;
 
 /**
  * Container for user visible messages.
  */
 public class Messages {
 
-    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
+    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command. Type \"help\" for list of commands.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The student index provided is invalid.";
+    public static final String MESSAGE_INVALID_LESSON_DISPLAYED_INDEX =
+            "The lesson index provided is invalid. Use 'agenda' or 'lesson list' to see the lesson numbers.";
+    /** Most rows listed when a command renumbers lessons; a 52-lesson series would otherwise print 100+ rows. */
+    public static final int MAX_RENUMBERED_LESSONS_SHOWN = 30;
+    public static final String MESSAGE_NO_VENUE = "\u2014";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d student(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+
+    /** Identifies a rejected student number in the currently visible list. */
+    public static String invalidPersonIndex(Index index, int count) {
+        return MESSAGE_INVALID_PERSON_DISPLAYED_INDEX + " No student numbered " + index.getOneBased()
+                + " in the current list. The list has " + count + " item(s).";
+    }
+
+    /** Identifies a rejected lesson number in the currently visible list. */
+    public static String invalidLessonIndex(Index index, int count) {
+        return MESSAGE_INVALID_LESSON_DISPLAYED_INDEX + " No lesson numbered " + index.getOneBased()
+                + " in the current list. The list has " + count + " item(s).";
+    }
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -38,14 +62,102 @@ public class Messages {
         final StringBuilder builder = new StringBuilder();
         builder.append(person.getName())
                 .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append(person.getPhone());
+        person.getEmail().ifPresent(email -> builder.append("; Email: ").append(email));
+        builder.append("; Level: ")
+                .append(person.getLevel())
+                .append("; Subjects: ")
+                .append(person.getSubjects().stream()
+                        .map(Subject::toString)
+                        .sorted(String.CASE_INSENSITIVE_ORDER)
+                        .collect(Collectors.joining(", ")))
+                .append("; Rate: ")
+                .append(person.getRate().toDisplayString()).append("/hour");
+        person.getVenue().ifPresent(venue -> builder.append("; Venue: ").append(venue));
+        if (!person.getRemark().value.isEmpty()) {
+            builder.append("; Remark: ").append(person.getRemark());
+        }
         return builder.toString();
+    }
+
+    /**
+     * Formats who, what and when of {@code lesson} for display, e.g.
+     * "Tan Wei Ming \u2014 Math, Mon 22 Sep 2026, 16:30-18:00".
+     */
+    public static String format(Lesson lesson) {
+        return formatLesson(lesson, lesson.getStudentName().toString());
+    }
+
+    /** Formats a lesson with the same student label used by agendas and dashboards. */
+    public static String format(Lesson lesson, StudentSummaryLabels labels) {
+        return formatLesson(lesson, studentLabel(labels, lesson));
+    }
+
+    /** Uses the linked student's label, falling back to the stored name for unlinked legacy lessons. */
+    public static String studentLabel(StudentSummaryLabels labels, Lesson lesson) {
+        return lesson.getStudentId().flatMap(labels::find).orElseGet(() -> lesson.getStudentName().toString());
+    }
+
+    private static String formatLesson(Lesson lesson, String studentLabel) {
+        return String.format("%s \u2014 %s, %s, %s", studentLabel, lesson.getSubject(), lesson.getDate(),
+                lesson.getTimeRange());
+    }
+
+    /**
+     * Formats when and where {@code lesson} takes place, e.g. "Mon 22 Sep 2026, 16:30-18:00, Blk 512".
+     */
+    public static String formatSlot(Lesson lesson) {
+        return String.format("%s, %s, %s", lesson.getDate(), lesson.getTimeRange(), formatVenue(lesson));
+    }
+
+    /**
+     * Returns the venue of {@code lesson}, or a dash if the lesson has no venue.
+     */
+    public static String formatVenue(Lesson lesson) {
+        return lesson.getVenue().map(venue -> venue.toString()).orElse(MESSAGE_NO_VENUE);
+    }
+
+    /** Describes the recorded academic level without inventing a past level for migrated lessons. */
+    public static String formatAcademicLevel(Lesson lesson) {
+        return "Level at booking: " + lesson.getAcademicLevel().map(level -> level.value)
+                .orElse("unknown (not recorded)");
+    }
+
+    /** Formats the current numbered lesson selection after a mutation changes its rows. */
+    public static String formatLessonList(List<Lesson> lessons) {
+        return formatLessonList(lessons, Messages::format);
+    }
+
+    /** Formats refreshed lesson numbers using one student-label snapshot for the whole list. */
+    public static String formatLessonList(List<Lesson> lessons, StudentSummaryLabels labels) {
+        return formatLessonList(lessons, lesson -> format(lesson, labels));
+    }
+
+    private static String formatLessonList(List<Lesson> lessons, Function<Lesson, String> formatter) {
+        int shown = Math.min(lessons.size(), MAX_RENUMBERED_LESSONS_SHOWN);
+        String more = lessons.size() > shown
+                ? "\n... and " + (lessons.size() - shown) + " more. Run 'lesson list' or 'agenda' to see every number."
+                : "";
+        return "\n\nLesson numbers have changed. Current lesson list:"
+                + (lessons.isEmpty() ? "\nNo lessons in the current list." : "")
+                + IntStream.range(0, shown)
+                        .mapToObj(i -> "\n" + (i + 1) + ". " + formatter.apply(lessons.get(i)) + ", "
+                                + formatVenue(lessons.get(i)) + "  (" + lessons.get(i).getStatus() + ")")
+                        .collect(Collectors.joining())
+                + more;
+    }
+
+    /**
+     * Formats the lessons that overlap with another lesson, separated by semicolons.
+     */
+    public static String formatOverlaps(List<Lesson> overlappingLessons) {
+        return overlappingLessons.stream().map(Messages::format).collect(Collectors.joining("; ")) + ".";
+    }
+
+    /** Formats overlap warnings without exposing full phone numbers for same-name students. */
+    public static String formatOverlaps(List<Lesson> overlappingLessons, StudentSummaryLabels labels) {
+        return overlappingLessons.stream().map(lesson -> format(lesson, labels))
+                .collect(Collectors.joining("; ")) + ".";
     }
 
 }

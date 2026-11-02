@@ -4,7 +4,9 @@ import java.nio.file.Path;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
@@ -15,6 +17,7 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 
@@ -36,9 +39,12 @@ public class MainWindow extends UiPart<Stage> {
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandAssist commandAssist;
 
     @FXML
     private StackPane commandBoxPlaceholder;
+    @FXML
+    private Button addStudentButton;
 
     @FXML
     private MenuItem helpMenuItem;
@@ -72,6 +78,7 @@ public class MainWindow extends UiPart<Stage> {
         helpWindow = new HelpWindow();
     }
 
+    /** Returns the primary stage of the application. */
     public Stage getPrimaryStage() {
         return primaryStage;
     }
@@ -114,17 +121,21 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandAssist = new CommandAssist(commandBox);
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), commandAssist);
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        resultDisplay.setFeedbackToUser(logic.getStartupMessage());
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        addStudentButton.setGraphic(UiIcon.plus());
+        addStudentButton.setFocusTraversable(true);
     }
 
     /**
@@ -151,8 +162,28 @@ public class MainWindow extends UiPart<Stage> {
         }
     }
 
+    /** Populates the start of the add command without creating a student. */
+    @FXML
+    private void handleAddStudent() {
+        commandAssist.addStudent();
+    }
+
     void show() {
         primaryStage.show();
+    }
+
+    /**
+     * Handles the window's close button and File > Exit. Both run the {@code exit} command, which refuses to close
+     * TutorFlow while the latest changes could not be saved, so that closing the window cannot lose data.
+     */
+    @FXML
+    private void handleExitRequest(Event event) {
+        event.consume(); // the window is only closed by handleExit(), once the exit command has succeeded
+        try {
+            executeCommand(ExitCommand.COMMAND_WORD);
+        } catch (CommandException | ParseException e) {
+            logger.info("Window close refused: pending changes could not be saved"); // the result box shows why
+        }
     }
 
     /**
@@ -167,6 +198,7 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
+    /** Returns the student list panel. */
     public PersonListPanel getPersonListPanel() {
         return personListPanel;
     }
@@ -179,7 +211,8 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+            commandAssist.finishInteraction();
+            logger.fine("Command succeeded");
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
@@ -192,8 +225,8 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            logger.fine("Command rejected: " + e.getClass().getSimpleName());
+            resultDisplay.setErrorToUser(e.getMessage());
             throw e;
         }
     }
