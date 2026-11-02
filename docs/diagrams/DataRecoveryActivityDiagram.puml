@@ -1,0 +1,46 @@
+@startuml
+skin rose
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+
+start
+:Restore the previous files if a save was
+interrupted (roles-transaction.json);
+:Read and validate the role catalog
+and saved candidate data;
+
+'Keep guards on the outgoing edges.
+switch ()
+case ([valid files])
+    :Start with loaded candidates;
+    stop
+case ([candidate file missing])
+    :Start with sample candidates;
+    stop
+case ([load failure])
+    :Back up the original candidate and role
+files to unique timestamped files
+beside the data file;
+    if () then ([backup succeeds])
+    else ([backup fails])
+        :Report error and abort startup
+before UI or commands;
+        stop
+    endif
+
+    :Save an empty candidate list and
+the built-in role catalog;
+    if () then ([save succeeds])
+    else ([save fails])
+        :Report error with backup path and abort
+startup before UI or commands;
+        stop
+    endif
+
+    :Start UI and command logic
+with empty candidate data;
+    :Show recovery warning with backup path
+and restoration instructions;
+    stop
+endswitch
+@enduml

@@ -12,11 +12,43 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.role.Role;
+import seedu.address.model.role.RoleCatalog;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
+
+    @Test
+    public void getNote_newPerson_returnsEmptyNote() {
+        assertTrue(ALICE.getNote().isEmpty());
+        assertFalse(ALICE.hasNote());
+    }
+
+    @Test
+    public void equals_differentNotes_changesEqualityButNotIdentity() {
+        Person notedAlice = new PersonBuilder(ALICE).withNote("Interview feedback").build();
+        Person copy = new PersonBuilder(notedAlice).build();
+
+        assertTrue(notedAlice.hasNote());
+        assertEquals(new Note("Interview feedback"), notedAlice.getNote().orElseThrow());
+        assertTrue(ALICE.isSamePerson(notedAlice));
+        assertTrue(notedAlice.isSamePerson(ALICE));
+        assertFalse(ALICE.equals(notedAlice));
+        assertFalse(notedAlice.equals(new PersonBuilder(ALICE).withNote("Other feedback").build()));
+        assertEquals(notedAlice, copy);
+        assertEquals(notedAlice.hashCode(), copy.hashCode());
+        assertFalse(notedAlice.toString().contains("Interview feedback"));
+    }
+
+    @Test
+    public void constructor_nullNote_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(),
+                ALICE.getAddress(), ALICE.getTags(), Status.APPLIED, null));
+    }
 
     @Test
     public void asObservableList_modifyList_throwsUnsupportedOperationException() {
@@ -25,30 +57,41 @@ public class PersonTest {
     }
 
     @Test
-    public void isSamePerson() {
+    public void isSamePerson_selfOrNull_returnsExpectedResult() {
         // same object -> returns true
         assertTrue(ALICE.isSamePerson(ALICE));
 
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+    }
+
+    @Test
+    public void isSamePerson_sameEmailDifferentDetails_returnsTrue() {
+        Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB)
+                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).withStatus(Status.OFFERED)
+                .withNote("Interview feedback").build();
+
         assertTrue(ALICE.isSamePerson(editedAlice));
+        assertTrue(editedAlice.isSamePerson(ALICE));
+    }
 
-        // different name, all other attributes same -> returns false
-        editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
+    @Test
+    public void isSamePerson_sameNameDifferentEmail_returnsFalse() {
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
+
         assertFalse(ALICE.isSamePerson(editedAlice));
+        assertFalse(editedAlice.isSamePerson(ALICE));
+    }
 
-        // name differs in case, all other attributes same -> returns false
-        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+    @Test
+    public void isSamePerson_emailCaseDiffers_returnsTrueButNotEqual() {
+        Person lowerCase = new PersonBuilder().withEmail("alice@example.com").build();
+        Person mixedCase = new PersonBuilder(lowerCase).withEmail("AlIcE@ExAmPlE.CoM").build();
 
-        // name has trailing spaces, all other attributes same -> returns false
-        String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
-        editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(lowerCase.isSamePerson(mixedCase));
+        assertTrue(mixedCase.isSamePerson(lowerCase));
+        assertFalse(lowerCase.equals(mixedCase));
     }
 
     @Test
@@ -88,12 +131,47 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // different status -> returns false
+        editedAlice = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(),
+                ALICE.getAddress(), ALICE.getTags(), Status.OFFERED);
+        assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", status="
+                + ALICE.getStatus() + ", tags=" + ALICE.getTags() + "}";
         assertEquals(expected, ALICE.toString());
+    }
+
+    @Test
+    public void hashCode_equalPersons_returnsEqualHashCode() {
+        Person aliceCopy = new PersonBuilder(ALICE).build();
+
+        assertEquals(ALICE.hashCode(), aliceCopy.hashCode());
+    }
+
+    @Test
+    public void constructor_legacyPerson_assignsNoRole() {
+        Person person = new PersonBuilder().build();
+
+        assertEquals(Set.of(Role.NO_ROLE), person.getRoles());
+    }
+
+    @Test
+    public void withRoles_emptyAssignments_rejects() {
+        Person person = new PersonBuilder().build();
+
+        assertThrows(IllegalArgumentException.class, RoleCatalog.MESSAGE_ROLES_REQUIRED, () ->
+                person.withRoles(Set.of()));
+    }
+
+    @Test
+    public void getRoles_modifyAssignments_rejects() {
+        Person person = new PersonBuilder().build();
+
+        assertThrows(UnsupportedOperationException.class, null, () -> person.getRoles().clear());
     }
 }

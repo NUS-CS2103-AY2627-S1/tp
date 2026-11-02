@@ -3,6 +3,7 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.address.testutil.TestCaseUtil.assertAllCases;
 
 import java.util.List;
 
@@ -21,6 +22,14 @@ public class FindCommandParserTest {
     }
 
     @Test
+    public void parse_controlCharacters_throwsParseException() {
+        assertAllCases(List.of("\t", "\r", "\n"), text -> {
+            assertParseFailure(parser, "Alice" + text + "Bob",
+                    String.format(ParserUtil.MESSAGE_UNSUPPORTED_CHARACTER, "Search keywords", text.codePointAt(0)));
+        });
+    }
+
+    @Test
     public void parse_validArgs_returnsFindCommand() {
         // no leading and trailing whitespaces
         FindCommand expectedFindCommand =
@@ -28,7 +37,7 @@ public class FindCommandParserTest {
         assertParseSuccess(parser, "Alice Bob", expectedFindCommand);
 
         // multiple whitespaces between keywords
-        assertParseSuccess(parser, " \n Alice \n \t Bob  \t", expectedFindCommand);
+        assertParseSuccess(parser, "   Alice    Bob   ", expectedFindCommand);
     }
 
 }

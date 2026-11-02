@@ -13,17 +13,25 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddRoleCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteRoleCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditRoleCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListRoleCommand;
+import seedu.address.logic.commands.NoteCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Status;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -33,16 +41,51 @@ public class AddressBookParserTest {
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void parseCommand_note_dispatchesToNoteParser() throws Exception {
+        NoteCommand expected = new NoteCommand(INDEX_FIRST_PERSON, new Note("Passed round 2"));
+        assertEquals(expected, parser.parseCommand("note 1 no/Passed round 2"));
+    }
+
+    @Test
+    public void parseCommand_uppercaseOrMixedCaseCommandWord_dispatchesCommand() throws Exception {
+        assertEquals(new NoteCommand(INDEX_FIRST_PERSON, new Note("x")), parser.parseCommand("NOTE 1 no/x"));
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("Help") instanceof HelpCommand);
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), parser.parseCommand("Delete 1"));
+        assertEquals(new ClearCommand(true), parser.parseCommand("CLEAR confirm"));
+    }
+
+    @Test
+    public void parseCommand_multilineNote_throwsParseException() {
+        String text = "Round 1: passed\nRound 2: follow up";
+        assertThrows(ParseException.class,
+                String.format(ParserUtil.MESSAGE_UNSUPPORTED_CHARACTER, "no/", 0x0A), () ->
+                parser.parseCommand("note 1 no/" + text));
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
+        Person person = new PersonBuilder().withStatus(Status.APPLIED).build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
     }
 
     @Test
+    public void parseCommand_addWithStatus_success() throws Exception {
+        Person person = new PersonBuilder().withStatus(Status.INTERVIEWING).build();
+
+        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
+
+        assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
     public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertEquals(new ClearCommand(false), parser.parseCommand(ClearCommand.COMMAND_WORD));
+        assertEquals(new ClearCommand(true),
+                parser.parseCommand(ClearCommand.COMMAND_WORD + " " + ClearCommand.CONFIRM_KEYWORD));
+        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE), ()
+            -> parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
@@ -65,6 +108,13 @@ public class AddressBookParserTest {
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+    }
+
+    @Test
+    public void parseCommand_filter() throws Exception {
+        FilterCommand command = (FilterCommand) parser.parseCommand(
+                FilterCommand.COMMAND_WORD + " s/Interviewing");
+        assertEquals(new FilterCommand(Status.INTERVIEWING), command);
     }
 
     @Test
@@ -96,5 +146,39 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+
+    @Test
+    public void parseCommand_uppercaseAndMixedCaseCommands_preservesNameCase() throws Exception {
+        for (String command : new String[] {"ADD_ROLE", "Add_Role"}) {
+            assertEquals(new AddRoleCommand("Engineer"), parser.parseCommand(command + " N/Engineer"));
+        }
+        for (String command : new String[] {"EDIT_ROLE", "Edit_Role"}) {
+            assertEquals(new EditRoleCommand("Engineer", "Designer"),
+                    parser.parseCommand(command + " R/Engineer N/Designer"));
+        }
+        for (String command : new String[] {"DELETE_ROLE", "Delete_Role"}) {
+            assertEquals(new DeleteRoleCommand("Engineer"), parser.parseCommand(command + " R/Engineer"));
+        }
+        for (String command : new String[] {"LIST_ROLE", "List_Role"}) {
+            assertEquals(new ListRoleCommand(), parser.parseCommand(command));
+        }
+    }
+
+    @Test
+    public void parseCommand_lowercaseCommandAndUppercasePrefixes_preservesNameCase() throws Exception {
+        assertEquals(new AddRoleCommand("Engineer"), parser.parseCommand("add_role N/Engineer"));
+        assertEquals(new EditRoleCommand("Engineer", "Designer"),
+                parser.parseCommand("edit_role R/Engineer N/Designer"));
+        assertEquals(new DeleteRoleCommand("Engineer"), parser.parseCommand("delete_role R/Engineer"));
+        assertEquals(new ListRoleCommand(), parser.parseCommand("list_role"));
+    }
+
+    @Test
+    public void parseCommand_surroundingWhitespace_preservesInternalSpacing() throws Exception {
+        assertEquals(new AddRoleCommand("Software  Engineer"),
+                parser.parseCommand("  add_role   n/ Software  Engineer   "));
+        assertEquals(new AddRoleCommand("Engineer"), parser.parseCommand("add_role\tn/Engineer"));
+        assertEquals(new EditRoleCommand("Old", "New"), parser.parseCommand("edit_role\tr/Old\tn/New"));
     }
 }

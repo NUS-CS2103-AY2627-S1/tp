@@ -4,24 +4,31 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Status;
+import seedu.address.model.role.Role;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -44,12 +51,26 @@ public class AddCommandTest {
     }
 
     @Test
+    public void execute_explicitStatus_returnsExpectedFeedback() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person candidate = new PersonBuilder().withStatus(Status.INTERVIEWING).withTags("backend").build();
+
+        CommandResult result = new AddCommand(candidate).execute(modelStub);
+
+        assertEquals("New candidate added: Amy Bee; Phone: 85355255; Email: amy@gmail.com; "
+                + "Address: 123, Jurong West Ave 6, #08-111; Status: Interviewing; "
+                + "Roles: No role; Tags: [backend]",
+                result.getFeedbackToUser());
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expected = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, validPerson.getName());
+        assertThrows(CommandException.class, expected, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -79,7 +100,7 @@ public class AddCommandTest {
     @Test
     public void toStringMethod() {
         AddCommand addCommand = new AddCommand(ALICE);
-        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
+        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + ", roleNames=[No role]}";
         assertEquals(expected, addCommand.toString());
     }
 
@@ -87,6 +108,21 @@ public class AddCommandTest {
      * A default model stub that has all of the methods failing.
      */
     private class ModelStub implements Model {
+        @Override
+        public void createRole(String name) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void renameRole(String oldName, String newName) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteRole(String name) {
+            throw new AssertionError("This method should not be called.");
+        }
+
         @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
@@ -114,11 +150,16 @@ public class AddCommandTest {
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            throw new AssertionError("This method should not be called.");
+            return new AddressBook();
         }
 
         @Override
         public boolean hasPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> findSamePerson(Person person) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -134,6 +175,21 @@ public class AddCommandTest {
 
         @Override
         public ObservableList<Person> getFilteredPersonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyBooleanProperty isExpandedViewProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void expandPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Predicate<? super Person> getPersonFilter() {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -155,9 +211,9 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
+        public Optional<Person> findSamePerson(Person person) {
             requireNonNull(person);
-            return this.person.isSamePerson(person);
+            return this.person.isSamePerson(person) ? Optional.of(this.person) : Optional.empty();
         }
     }
 
@@ -168,9 +224,9 @@ public class AddCommandTest {
         final ArrayList<Person> personsAdded = new ArrayList<>();
 
         @Override
-        public boolean hasPerson(Person person) {
+        public Optional<Person> findSamePerson(Person person) {
             requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+            return personsAdded.stream().filter(person::isSamePerson).findFirst();
         }
 
         @Override
@@ -185,4 +241,27 @@ public class AddCommandTest {
         }
     }
 
+    @Test
+    public void constructor_emptyAddRoles_rejectsMissingAssignments() {
+        Person person = new PersonBuilder().build();
+        assertThrows(IllegalArgumentException.class, AddCommand.MESSAGE_MISSING_ROLE, () ->
+                new AddCommand(person, Set.of()));
+    }
+
+    @Test
+    public void equals_sameDetailsDifferentRoles_returnsFalse() {
+        Person person = new PersonBuilder().build();
+        assertFalse(new AddCommand(person, Set.of("Developer"))
+                .equals(new AddCommand(person, Set.of("Designer"))));
+    }
+
+    @Test
+    public void execute_invalidRoleNameWithoutParser_reportsCommandErrorAndPreservesModel() {
+        Person person = new PersonBuilder().build();
+        Set<String> invalidNames = Set.of("Developer\tRole");
+        ModelManager model = new ModelManager();
+        model.addPerson(person);
+
+        assertCommandFailure(new AddCommand(person, invalidNames), model, Role.MESSAGE_CONSTRAINTS);
+    }
 }

@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -7,7 +8,7 @@ import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a word in a {@code Person}'s {@code Name} starts with any of the keywords given, ignoring case.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
@@ -18,8 +19,17 @@ public class NameContainsKeywordsPredicate implements Predicate<Person> {
 
     @Override
     public boolean test(Person person) {
+        String name = normalizeSearchWords(person.getName().fullName);
         return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+                .map(NameContainsKeywordsPredicate::normalizeSearchWords)
+                .flatMap(keyword -> Arrays.stream(keyword.split("\\s+")))
+                .filter(keyword -> !keyword.isEmpty())
+                .anyMatch(keyword -> StringUtil.containsWordStartingWithIgnoreCase(name, keyword));
+    }
+
+    /** Treats parentheses and commas as word separators in both names and search keywords. */
+    private static String normalizeSearchWords(String text) {
+        return text.replaceAll("[(),]", " ");
     }
 
     @Override

@@ -1,13 +1,17 @@
 package seedu.address.model.person;
 
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+import static seedu.address.model.role.RoleCatalog.MESSAGE_ROLES_REQUIRED;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
+import seedu.address.commons.util.AppUtil;
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.role.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -16,25 +20,77 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
-    // Identity fields
-    private final Name name;
-    private final Phone phone;
+    // Identity field for duplicate detection
     private final Email email;
 
     // Data fields
+    private final Set<Role> roles;
+    private final Name name;
+    private final Phone phone;
     private final Address address;
+    private final Status status;
+    private final Optional<Note> note;
     private final Set<Tag> tags = new HashSet<>();
 
     /**
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(name, phone, email, address, tags, Status.APPLIED, Optional.empty());
+    }
+
+    /**
+     * Creates a person with an explicit recruitment status.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Status status) {
+        this(name, phone, email, address, tags, status, Optional.empty());
+    }
+
+    /**
+     * Constructs a person with the given details and an optional note.
+     * Every field must be present and not null.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Optional<Note> note) {
+        this(name, phone, email, address, tags, Status.APPLIED, note);
+    }
+
+    /**
+     * Constructs a legacy person with a recruitment status, optional note, and No role.
+     * This compatibility overload supports legacy data; the add parser requires explicit role input.
+     * Every field must be present and not null.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Status status,
+            Optional<Note> note) {
+        this(name, phone, email, address, tags, status, note, Set.of(Role.NO_ROLE));
+    }
+
+    /** Creates a person with nonempty role assignments, removing No role when named roles are present. */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Status status,
+            Optional<Note> note, Set<Role> roles) {
+        requireAllNonNull(name, phone, email, address, tags, status, note, roles);
+        AppUtil.checkArgument(!roles.isEmpty(), MESSAGE_ROLES_REQUIRED);
+        Set<Role> assignedRoles = new HashSet<>(roles);
+        if (assignedRoles.size() > 1) {
+            assignedRoles.remove(Role.NO_ROLE);
+        }
+        this.roles = Set.copyOf(assignedRoles);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.status = status;
+        this.note = note;
         this.tags.addAll(tags);
+    }
+
+    /** Returns immutable role assignments. */
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    /** Copies this person with replacement role assignments, preserving all other fields. */
+    public Person withRoles(Set<Role> replacement) {
+        return new Person(name, phone, email, address, tags, status, note, replacement);
     }
 
     public Name getName() {
@@ -53,6 +109,24 @@ public class Person {
         return address;
     }
 
+    public Status getStatus() {
+        return status;
+    }
+
+    /**
+     * Returns this candidate's optional note.
+     */
+    public Optional<Note> getNote() {
+        return note;
+    }
+
+    /**
+     * Returns whether this candidate has a note.
+     */
+    public boolean hasNote() {
+        return note.isPresent();
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,7 +136,8 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same email, ignoring case.
+     * Emails are trimmed by the parser and validated by the model before comparison.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +146,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getEmail().value.equalsIgnoreCase(getEmail().value);
     }
 
     /**
@@ -93,13 +168,16 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && status.equals(otherPerson.status)
+                && note.equals(otherPerson.note)
+                && tags.equals(otherPerson.tags)
+                && roles.equals(otherPerson.roles);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, status, note, roles);
     }
 
     @Override
@@ -109,6 +187,7 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("status", status)
                 .add("tags", tags)
                 .toString();
     }

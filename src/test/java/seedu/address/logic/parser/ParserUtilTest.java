@@ -4,26 +4,33 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TestCaseUtil.assertAllCases;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Status;
+import seedu.address.model.role.Role;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "Office: 12";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_TAG = "   ";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
@@ -33,6 +40,104 @@ public class ParserUtilTest {
     private static final String VALID_TAG_2 = "neighbour";
 
     private static final String WHITESPACE = " \t\r\n";
+
+    @Test
+    public void parseRoleName_paddedDisplayName_preservesCapitalizationAndInternalSpaces() throws Exception {
+        assertEquals("Software  Engineer", ParserUtil.parseRoleName("\u2003 Software  Engineer \t"));
+    }
+
+    @Test
+    public void parseRoleName_invalidName_throwsSpecificError() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseRoleName(null));
+        for (String name : List.of("", " ", "Software\tEngineer", "Line\nBreak")) {
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseRoleName(name));
+        }
+        assertThrows(ParseException.class, Role.MESSAGE_RESERVED_SYNTAX, () ->
+                ParserUtil.parseRoleName("Senior N/Engineer"));
+    }
+
+    @Test
+    public void parseNote_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseNote(null));
+    }
+
+    @Test
+    public void parseNote_blank_throwsParseException() {
+        assertAllCases(List.of("", " ", "   "), note -> {
+            assertThrows(ParseException.class, Note.MESSAGE_BLANK, () -> ParserUtil.parseNote(note));
+        });
+    }
+
+    @Test
+    public void parseNote_surroundingWhitespace_preservesInternalContents() throws Exception {
+        String contents = "Strong on C++,  weak on SQL; [round 2] / follow-up YES";
+        assertEquals(new Note(contents), ParserUtil.parseNote("   " + contents + "   "));
+    }
+
+    @Test
+    public void parseNote_lengthBoundaries_validatesStrippedCodePointCount() throws Exception {
+        String contents = "a".repeat(Note.MAX_LENGTH);
+        assertEquals(new Note(contents), ParserUtil.parseNote("   " + contents + "   "));
+        assertThrows(ParseException.class, Note.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseNote("   " + contents + "a   "));
+    }
+
+    @Test
+    public void parseNote_unsupportedCharacters_throwsParseException() {
+        assertAllCases(List.of("\t", "\r", "\n", "\u2003", "\u4e2d", "\ud83d\ude00"), character -> {
+            String message = String.format(ParserUtil.MESSAGE_UNSUPPORTED_CHARACTER,
+                    "Note", character.codePointAt(0));
+            assertAllCases(List.of(character, character + "text", "text" + character, "a" + character + "b"), note -> {
+                assertThrows(ParseException.class, message, () -> ParserUtil.parseNote(note));
+            });
+        });
+    }
+
+    @Test
+    public void parseStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseStatus(null));
+    }
+
+    @Test
+    public void parseStatus_invalidValue_throwsParseException() {
+        assertAllCases(List.of("", WHITESPACE, "Unknown", "Short listed"), status -> {
+            assertThrows(ParseException.class, Status.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseStatus(status));
+        });
+    }
+
+    @Test
+    public void parseStatus_validValues_returnsStatus() throws Exception {
+        assertAllCases(List.of(Status.values()), status -> {
+            assertEquals(status, ParserUtil.parseStatus(status.toString()));
+            assertEquals(status, ParserUtil.parseStatus(status.toString().toLowerCase(Locale.ROOT)));
+            assertEquals(status, ParserUtil.parseStatus(status.toString().toUpperCase(Locale.ROOT)));
+        });
+    }
+
+    @Test
+    public void parseStatus_mixedCaseWithWhitespace_returnsStatus() throws Exception {
+        assertEquals(Status.INTERVIEWING, ParserUtil.parseStatus(WHITESPACE + "iNtErViEwInG" + WHITESPACE));
+    }
+
+    @Test
+    public void verifyNoNotePrefix_notePrefixPresent_throwsParseException() {
+        assertAllCases(List.of("no/hi", " no/", " a/Blk 1 no/hi", " a/Blk 1\tno/hi", " NO/hi", " No/hi"), args -> {
+            assertThrows(ParseException.class, "message", () -> ParserUtil.verifyNoNotePrefix(args, "message"));
+        });
+    }
+
+    @Test
+    public void verifyNoNotePrefix_notePrefixAbsentOrInsideWord_doesNotThrow() throws Exception {
+        assertAllCases(List.of("", " a/Blk 1", " a/Blk 1 yes/no/feedback", " a/techno/house", " n/Nolan"), args -> {
+            ParserUtil.verifyNoNotePrefix(args, "message");
+        });
+    }
+
+    @Test
+    public void verifyNoNotePrefix_nullArgs_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.verifyNoNotePrefix(null, "message"));
+    }
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
@@ -55,6 +160,42 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseDisplayedIndex_notWholeNumber_throwsFormatMessage() {
+        assertAllCases(List.of("", WHITESPACE, "a", "10 a", "1.5", "+1", "1-", "--1"), index -> {
+            assertThrows(ParseException.class, "format", () -> ParserUtil.parseDisplayedIndex(index, "format"));
+        });
+    }
+
+    @Test
+    public void parseDisplayedIndex_zeroOrNegative_throwsInvalidIndexMessage() {
+        assertAllCases(List.of("0", "000", "-0", "-1", "-99999999999"), index -> {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () ->
+                    ParserUtil.parseDisplayedIndex(index, "format"));
+        });
+    }
+
+    @Test
+    public void parseDisplayedIndex_tooLarge_throwsInvalidDisplayedIndexMessage() {
+        assertAllCases(List.of(Long.toString(Integer.MAX_VALUE + 1L), "99999999999999999999"), index -> {
+            assertThrows(ParseException.class, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX, () ->
+                    ParserUtil.parseDisplayedIndex(index, "format"));
+        });
+    }
+
+    @Test
+    public void parseDisplayedIndex_validInput_success() throws Exception {
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseDisplayedIndex("1", "format"));
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseDisplayedIndex(WHITESPACE + "001" + WHITESPACE, "format"));
+        assertEquals(Index.fromOneBased(Integer.MAX_VALUE),
+                ParserUtil.parseDisplayedIndex(Integer.toString(Integer.MAX_VALUE), "format"));
+    }
+
+    @Test
+    public void parseDisplayedIndex_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDisplayedIndex(null, "format"));
+    }
+
+    @Test
     public void parseName_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
     }
@@ -72,7 +213,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseName_validValueWithWhitespace_returnsTrimmedName() throws Exception {
-        String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
+        String nameWithWhitespace = "  " + VALID_NAME + "  ";
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
     }
@@ -95,7 +236,7 @@ public class ParserUtilTest {
 
     @Test
     public void parsePhone_validValueWithWhitespace_returnsTrimmedPhone() throws Exception {
-        String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
+        String phoneWithWhitespace = "  " + VALID_PHONE + "  ";
         Phone expectedPhone = new Phone(VALID_PHONE);
         assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
     }
@@ -118,7 +259,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
+        String addressWithWhitespace = "  " + VALID_ADDRESS + "  ";
         Address expectedAddress = new Address(VALID_ADDRESS);
         assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
     }
@@ -141,7 +282,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseEmail_validValueWithWhitespace_returnsTrimmedEmail() throws Exception {
-        String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
+        String emailWithWhitespace = "  " + VALID_EMAIL + "  ";
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
     }
@@ -164,7 +305,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
-        String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
+        String tagWithWhitespace = "  " + VALID_TAG_1 + "  ";
         Tag expectedTag = new Tag(VALID_TAG_1);
         assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
     }

@@ -1,0 +1,76 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TestCaseUtil.assertAllCases;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.ExpandCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+public class ExpandCommandParserTest {
+    private final ExpandCommandParser parser = new ExpandCommandParser();
+
+    @Test
+    public void parse_validIndex_acceptsSurroundingWhitespace() {
+        assertParseSuccess(parser, " \t2 ", new ExpandCommand(Index.fromOneBased(2)));
+        assertParseSuccess(parser, "2147483647", new ExpandCommand(Index.fromOneBased(Integer.MAX_VALUE)));
+        assertParseSuccess(parser, "01", new ExpandCommand(Index.fromOneBased(1)));
+    }
+
+    @Test
+    public void parse_missingIndex_reportsUsage() {
+        for (String input : new String[] {"", " \t "}) {
+            assertParseFailure(parser, input, "Missing index. " + ExpandCommand.MESSAGE_USAGE);
+        }
+    }
+
+    @Test
+    public void parse_malformedIndex_reportsExpandGuidance() {
+        assertAllCases(List.of("1.5", "abc", "+1", "1 2", "1 n/Alice"), input -> {
+            assertParseFailure(parser, input, ExpandCommandParser.MESSAGE_INVALID_INDEX);
+        });
+    }
+
+    @Test
+    public void parse_nonPositiveIndex_reportsPositiveIntegerRequirement() {
+        assertAllCases(List.of("0", "00", "000", "-0", "-1", "-2147483649", "-99999999999"), input -> {
+            assertParseFailure(parser, input, ParserUtil.MESSAGE_INVALID_INDEX);
+        });
+    }
+
+    @Test
+    public void parse_positiveOverflow_reportsInvalidDisplayedIndex() {
+        assertAllCases(List.of("2147483648", "99999999999", "999999999999999999999", "9".repeat(100)), input -> {
+            assertParseFailure(parser, input, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        });
+    }
+
+    @Test
+    public void parse_nullArguments_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+
+    @Test
+    public void parseCommand_expand_dispatchesToExpandParser() throws Exception {
+        assertEquals(new ExpandCommand(Index.fromOneBased(1)), new AddressBookParser().parseCommand("expand 1"));
+    }
+
+    @Test
+    public void parseCommand_expandWithDifferentCase_dispatchesToExpandParser() throws Exception {
+        for (String command : new String[] {"EXPAND 1", "eXpAnD 1"}) {
+            assertEquals(new ExpandCommand(Index.fromOneBased(1)),
+                    new AddressBookParser().parseCommand(command));
+        }
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () ->
+                new AddressBookParser().parseCommand("EXPANDS 1"));
+    }
+}

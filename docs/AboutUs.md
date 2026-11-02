@@ -1,59 +1,55 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 ## Project team
 
-### John Doe
+### Keith Kng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/keithkng.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/keithkng)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Responsible for overall project coordination.
 
-### Johnny Doe
+### Darren Ong Yan En
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/darrenori.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/darrenori)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Integration
+* Responsibilities: Version the code, maintain the code repository, and integrate various parts of the software into a whole.
 
-### Jean Doe
+### Francis Masaoy
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/francisralph.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/FrancisRalph)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Code quality
+* Responsibilities: Looks after code quality, ensures adherence to coding standards, etc.
 
-### James Doe
+### Lim Chuan Hao
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/chuanhao01.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/chuanhao01)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Testing
+* Responsibilities: Ensures the testing of the project is done properly and on time
+
+### Yu Xinyang
+
+<img src="images/xy-241.png" width="200px">
+
+[[github](https://github.com/xy-241)]
+
+* Role: Documentation
+* Responsibilities: Responsible for the quality of various project documents.

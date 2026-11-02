@@ -1,12 +1,15 @@
 ---
-layout: page
-title: Testing guide
+  layout: default.md
+  title: "Testing guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Testing guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Running tests
 
@@ -19,8 +22,14 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
-<div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
-</div>
+<box type="info" seamless>
+
+**Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
+</box>
+
+### Windows symbolic-link prerequisite
+
+The storage tests create real symbolic links. With JDK 25 on Windows, enable **Developer Mode** and run the suite from a session that permits link creation. Otherwise setup can fail with `A required privilege is not held by the client`. See [Microsoft's symbolic-link prerequisites](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsymboliclinkw).
 
 --------------------------------------------------------------------------------------------------------------------
 

@@ -1,10 +1,14 @@
 package seedu.address.model;
 
+import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.Person;
+import seedu.address.model.role.RoleCatalog;
 
 /**
  * The API of the Model component.
@@ -41,6 +45,9 @@ public interface Model {
      */
     boolean hasPerson(Person person);
 
+    /** Returns the candidate with the same identity from the complete address book, regardless of filters. */
+    Optional<Person> findSamePerson(Person person);
+
     /**
      * Deletes the given person.
      * The person must exist in the address book.
@@ -60,6 +67,19 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
+    /** Returns whether the displayed list is in expanded view. */
+    ReadOnlyBooleanProperty isExpandedViewProperty();
+
+    /**
+     * Shows only the given displayed person in expanded view.
+     *
+     * @throws IllegalArgumentException if the person is not in the displayed list.
+     */
+    void expandPerson(Person person);
+
+    /** Returns the current filter for transactional view restoration. */
+    Predicate<? super Person> getPersonFilter();
+
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
@@ -68,4 +88,29 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /** Captures a rollback action for a command whose subsequent save may fail. */
+    default Runnable createRestorePoint() {
+        AddressBook snapshot = new AddressBook(getAddressBook());
+        return () -> setAddressBook(snapshot);
+    }
+
+    /** Returns the shared immutable role catalog. */
+    default RoleCatalog getRoleCatalog() {
+        return getAddressBook().getRoleCatalog();
+    }
+
+    /** Creates an unused role after checking name uniqueness. */
+    void createRole(String name);
+
+    /** Renames a role globally without replacing any person's assignments. */
+    void renameRole(String oldName, String newName);
+
+    /** Removes a role globally, falling back to No role only for empty assignments. */
+    void deleteRole(String name);
+
+    /** Resolves and replaces a person's assignments atomically. */
+    default void replacePersonRoles(Person person, Collection<String> names) {
+        setPerson(person, person.withRoles(getRoleCatalog().resolve(names)));
+    }
 }

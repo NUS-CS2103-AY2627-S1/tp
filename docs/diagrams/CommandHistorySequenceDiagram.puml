@@ -1,0 +1,46 @@
+@startuml
+!include style.puml
+skinparam sequenceArrowThickness 1.1
+
+actor User as U
+participant ":CommandBox" as Box UI_COLOR
+participant ":CommandHistory" as Hist UI_COLOR
+participant ":TextField" as Field UI_COLOR
+
+note over U, Field: Prior to this flow, User has submitted "list" then "find Alice".
+note over Hist: entries = ["list", "find Alice"]\ncursor = 2 (past-the-end)
+
+U -> Box : press Up
+activate Box
+Box -> Hist : previous()
+activate Hist
+Hist --> Box : Optional["find Alice"]
+deactivate Hist
+Box -> Field : setText("find Alice")
+activate Field
+deactivate Field
+deactivate Box
+
+U -> Box : press Up
+activate Box
+Box -> Hist : previous()
+activate Hist
+Hist --> Box : Optional["list"]
+deactivate Hist
+Box -> Field : setText("list")
+activate Field
+deactivate Field
+deactivate Box
+
+U -> Box : press Down
+activate Box
+Box -> Hist : next()
+activate Hist
+Hist --> Box : Optional["find Alice"]
+deactivate Hist
+Box -> Field : setText("find Alice")
+activate Field
+deactivate Field
+deactivate Box
+
+@enduml

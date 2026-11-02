@@ -10,6 +10,7 @@ import java.nio.file.Path;
 public class FileUtil {
 
     private static final String CHARSET = "UTF-8";
+    private static final String BYTE_ORDER_MARK = "\uFEFF";
 
     /**
      * Creates a file if it does not exist along with its missing parent directories.
@@ -28,7 +29,7 @@ public class FileUtil {
     /**
      * Creates parent directories of file if it has a parent directory
      */
-    private static void createParentDirsOfFile(Path file) throws IOException {
+    public static void createParentDirsOfFile(Path file) throws IOException {
         Path parentDir = file.getParent();
 
         if (parentDir != null) {
@@ -37,10 +38,12 @@ public class FileUtil {
     }
 
     /**
-     * Assumes file exists
+     * Returns the file's UTF-8 text without a leading byte order mark, which editors such as Notepad
+     * may add when saving. Assumes the file exists.
      */
     public static String readFromFile(Path file) throws IOException {
-        return new String(Files.readAllBytes(file), CHARSET);
+        String text = new String(Files.readAllBytes(file), CHARSET);
+        return text.startsWith(BYTE_ORDER_MARK) ? text.substring(BYTE_ORDER_MARK.length()) : text;
     }
 
     /**

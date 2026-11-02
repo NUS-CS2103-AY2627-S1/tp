@@ -2,18 +2,25 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.ArgumentTokenizer;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Person;
+import seedu.address.model.role.RoleCatalog;
 import seedu.address.storage.Storage;
 
 /**
@@ -42,26 +49,91 @@ public class LogicManager implements Logic {
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
+        logger.info("----------------[USER COMMAND][" + getCommandWord(commandText) + "]");
 
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
+        List<Person> originalCandidates = List.copyOf(model.getAddressBook().getPersonList());
+        RoleCatalog originalCatalog = model.getRoleCatalog();
+        Runnable restore = model.createRestorePoint();
         commandResult = command.execute(model);
+        commandResult = addPrefixWarning(commandText, command, commandResult);
+
+        if (commandResult.isImport()) {
+            return new ImportOperation(model, storage).execute();
+        }
+
+        if (commandResult.isExport()) {
+            return exportAddressBook();
+        }
+
+        if (originalCandidates.equals(model.getAddressBook().getPersonList())
+                && originalCatalog.equals(model.getRoleCatalog())) {
+            return commandResult;
+        }
 
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            rollBack(restore);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            rollBack(restore);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
         return commandResult;
     }
 
+    /** Makes possible field/text ambiguities prominent while preserving one-shot commands. */
+    private CommandResult addPrefixWarning(String commandText, Command command, CommandResult result) {
+        if (!(command instanceof AddCommand || command instanceof EditCommand)) {
+            return result;
+        }
+        return ArgumentTokenizer.getPrefixWarning(commandText)
+                .map(warning -> new CommandResult(warning + "\n" + result.getFeedbackToUser()))
+                .orElse(result);
+    }
+
+    /** Restores the model to its state before the command, which the data file still holds. */
+    private void rollBack(Runnable restore) {
+        restore.run();
+        logger.warning("Could not save the changes made by the command, so they were rolled back.");
+    }
+
+    /**
+     * Returns the first word of {@code commandText}. The arguments are left out of the log because they can hold
+     * candidate names, contact details and notes.
+     */
+    private static String getCommandWord(String commandText) {
+        return commandText.strip().split("\\s+", 2)[0];
+    }
+
+    /** Completes export before reporting success and deliberately bypasses unrelated JSON saving. */
+    private CommandResult exportAddressBook() throws CommandException {
+        // CH: The export command's logic and execution is here
+        final String messageSuccess = "Exported successfully to %s.";
+        try {
+            Path destination = storage.exportAddressBook(model.getAddressBook());
+            return new CommandResult(String.format(messageSuccess, destination));
+        } catch (IOException e) {
+            throw new CommandException("Export failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public ReadOnlyBooleanProperty isExpandedViewProperty() {
+        return model.isExpandedViewProperty();
+    }
+
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Person> getAllPersonList() {
+        return model.getAddressBook().getPersonList();
     }
 
     @Override

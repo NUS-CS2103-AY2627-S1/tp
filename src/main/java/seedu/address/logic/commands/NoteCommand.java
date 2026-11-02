@@ -1,0 +1,89 @@
+package seedu.address.logic.commands;
+
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.person.Note;
+import seedu.address.model.person.Person;
+
+/**
+ * Replaces or clears the single note of a candidate in the displayed list.
+ */
+public class NoteCommand extends Command {
+
+    public static final String COMMAND_WORD = "note";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Replaces or clears the note of the candidate identified by the displayed index.\n"
+            + "Parameters: INDEX (must be a positive integer) " + PREFIX_NOTE
+            + "[NOTE_TEXT] (at most " + Note.MAX_LENGTH + " characters after trimming; omit to clear the note)\n"
+            + "Example: " + COMMAND_WORD + " 2 " + PREFIX_NOTE + "Strong on system design, weak on SQL";
+    public static final String MESSAGE_SUCCESS = "Updated note for %1$s: %2$s";
+    public static final String MESSAGE_CLEAR_SUCCESS = "Cleared note for %1$s";
+
+    private static final Logger logger = LogsCenter.getLogger(NoteCommand.class);
+
+    private final Index index;
+    private final Optional<Note> note;
+
+    /**
+     * Constructs a command to replace the note at the given displayed index.
+     */
+    public NoteCommand(Index index, Note note) {
+        requireAllNonNull(index, note);
+        this.index = index;
+        this.note = Optional.of(note);
+    }
+
+    /**
+     * Constructs a command to clear the note at the given displayed index.
+     */
+    public NoteCommand(Index index) {
+        requireAllNonNull(index);
+        this.index = index;
+        note = Optional.empty();
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireAllNonNull(model);
+        List<Person> displayedCandidates = model.getFilteredPersonList();
+        checkDisplayedIndex(index, displayedCandidates.size());
+
+        Person candidate = displayedCandidates.get(index.getZeroBased());
+        Person updatedCandidate = new Person(candidate.getName(), candidate.getPhone(), candidate.getEmail(),
+                candidate.getAddress(), candidate.getTags(), candidate.getStatus(), note, candidate.getRoles());
+        model.setPerson(candidate, updatedCandidate);
+        // Logs the position only, as notes and names are personal data.
+        String action = note.isPresent() ? "Updated" : "Cleared";
+        logger.info(action + " the note of the candidate at displayed index " + index.getOneBased());
+        String message = note.map(value -> String.format(MESSAGE_SUCCESS, candidate.getName(), value))
+                .orElseGet(() -> String.format(MESSAGE_CLEAR_SUCCESS, candidate.getName()));
+        return new CommandResult(message);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other == this || other instanceof NoteCommand otherCommand
+                && index.equals(otherCommand.index) && note.equals(otherCommand.note);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(index, note);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this).add("index", index).toString();
+    }
+}

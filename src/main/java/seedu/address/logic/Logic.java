@@ -1,5 +1,6 @@
 package seedu.address.logic;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
@@ -20,8 +21,14 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
+    /** Returns whether the displayed list is in expanded view. */
+    ReadOnlyBooleanProperty isExpandedViewProperty();
+
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable view of every person, including those hidden by the current filter. */
+    ObservableList<Person> getAllPersonList();
 
     /**
      * Returns the user prefs' GUI settings.

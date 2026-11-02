@@ -1,0 +1,67 @@
+@startuml
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor STORAGE_COLOR
+skinparam classBackgroundColor STORAGE_COLOR
+skinparam classFontColor #FFFFFF
+skinparam classAttributeFontColor #FFFFFF
+skinparam classStereotypeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
+
+package Logic as LogicPackage {
+    Class LogicManager LOGIC_COLOR {
+        +execute()
+        -exportAddressBook()
+    }
+
+    package Parser as ParserPackage #F4F6F6 {
+        Class ExportCommandParser LOGIC_COLOR {
+            +parse()
+        }
+    }
+
+    package Commands as CommandsPackage #F4F6F6 {
+        Class ExportCommand LOGIC_COLOR {
+            +execute()
+        }
+        Class CommandResult LOGIC_COLOR {
+            -export: boolean
+            +isExport()
+        }
+    }
+}
+
+package Storage as StoragePackage {
+    Class "<<interface>>\nStorage" as Storage {
+        +exportAddressBook()
+    }
+    Class StorageManager {
+        +exportAddressBook()
+    }
+    class CsvExportWriter {
+        {static} +resolveDestination()
+        +export()
+        #openWriter()
+        ~writeCsv()
+        -writeRecord()
+        {static} ~escapeField()
+    }
+}
+
+show LogicManager methods
+show Storage methods
+show StorageManager methods
+show CsvExportWriter methods
+
+show ExportCommandParser methods
+show ExportCommand methods
+show CommandResult members
+
+ExportCommandParser ..> ExportCommand : <<create>>
+ExportCommand ..> CommandResult : <<create>> with export = true
+LogicManager ..> CommandResult : checks isExport()
+LogicManager --> "1" Storage : storage
+StorageManager .up.|> Storage
+StorageManager ..> CsvExportWriter : <<create>>, calls export()
+
+@enduml
