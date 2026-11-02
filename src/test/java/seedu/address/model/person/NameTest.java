@@ -20,6 +20,14 @@ public class NameTest {
     }
 
     @Test
+    public void constructor_invalidName_reportsCorrectConstraintMessage() {
+        String expectedMessage = "Invalid name: names must start with a letter or number, "
+                + "may only contain letters, numbers, spaces, hyphens, and apostrophes, "
+                + "and must be 1-100 characters long.";
+        assertThrows(IllegalArgumentException.class, expectedMessage, () -> new Name("a".repeat(101)));
+    }
+
+    @Test
     public void isValidName() {
         // null name
         assertThrows(NullPointerException.class, () -> Name.isValidName(null));
@@ -36,6 +44,19 @@ public class NameTest {
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("Anne-Marie O'Connor")); // hyphen and apostrophe
+        assertTrue(Name.isValidName("a".repeat(100))); // maximum length
+    }
+
+    @Test
+    public void constructor_normalizesWhitespace() {
+        Name name = new Name("  Anne   Marie  ");
+        assertTrue(name.fullName.equals("Anne Marie"));
+    }
+
+    @Test
+    public void constructor_overlongName_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> new Name("a".repeat(101)));
     }
 
     @Test

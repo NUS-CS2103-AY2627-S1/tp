@@ -2,6 +2,8 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.Comparator;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -12,6 +14,7 @@ import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
@@ -46,22 +49,55 @@ public class LogicManager implements Logic {
 
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
+        AddressBook originalData = new AddressBook(model.getAddressBook());
+        Predicate<Person> originalFilter = model.getFilteredPersonListPredicate();
+        Comparator<? super Person> originalComparator = model.getFilteredPersonListComparator();
         commandResult = command.execute(model);
+
+        if (originalData.equals(model.getAddressBook())) {
+            return commandResult;
+        }
 
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            restoreModel(originalData, originalFilter, originalComparator);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            restoreModel(originalData, originalFilter, originalComparator);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
         return commandResult;
     }
 
+    private void restoreModel(AddressBook originalData, Predicate<Person> originalFilter,
+            Comparator<? super Person> originalComparator) {
+        model.setAddressBook(originalData);
+        model.updateFilteredPersonList(originalFilter);
+        if (originalComparator != null) {
+            model.sortFilteredPersonList(originalComparator);
+        }
+    }
+
+    @Override
+    public ObservableList<Person> getAllPersons() {
+        return model.getAddressBook().getPersonList();
+    }
+
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate) {
+        model.updateFilteredPersonList(predicate);
+    }
+
+    @Override
+    public void sortFilteredPersonList(Comparator<? super Person> comparator) {
+        model.sortFilteredPersonList(comparator);
     }
 
     @Override

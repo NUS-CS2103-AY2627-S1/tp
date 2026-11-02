@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.layout.VBox?>
-
-<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox spacing="10" styleClass="surface" xmlns:fx="http://javafx.com/fxml/1">
+  <Label text="Candidates" styleClass="section-title" />
+  <FlowPane hgap="8" vgap="6">
+    <Label fx:id="resultCount" styleClass="muted" />
+    <Label fx:id="bulkSelectionCount" text="0 selected" styleClass="muted" />
+    <Button fx:id="bulkStage" text="Stage selected" onAction="#handleBulkStage" />
+    <Button fx:id="bulkDelete" text="Delete selected" onAction="#handleBulkDelete" />
+    <Button fx:id="clearSelection" text="Clear selection" onAction="#handleClearSelection" />
+  </FlowPane>
   <ListView fx:id="personListView" VBox.vgrow="ALWAYS" />
 </VBox>

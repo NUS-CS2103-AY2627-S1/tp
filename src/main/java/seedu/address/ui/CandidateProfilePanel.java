@@ -1,0 +1,198 @@
+package seedu.address.ui;
+
+import static java.util.Objects.requireNonNull;
+
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.function.BiConsumer;
+
+import javafx.beans.binding.Bindings;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Region;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Skill;
+
+/** Read-only, scrollable profile for the currently selected candidate. */
+public class CandidateProfilePanel extends UiPart<Region> {
+    private static final double CHIP_HORIZONTAL_MARGIN = 24;
+    private static final double MIN_CHIP_WIDTH = 160;
+
+    @FXML
+    private Label emptyProfile;
+    @FXML
+    private ScrollPane profileContent;
+    @FXML
+    private Label profileName;
+    @FXML
+    private Label profileStage;
+    @FXML
+    private Label profileEmail;
+    @FXML
+    private Label profilePhone;
+    @FXML
+    private Label profileAddress;
+    @FXML
+    private Label profileRemark;
+    @FXML
+    private Label profileFollowUp;
+    @FXML
+    private FlowPane profileTags;
+    @FXML
+    private FlowPane profileSkills;
+    @FXML
+    private Button copyEmail;
+    @FXML
+    private Button copyPhone;
+    @FXML
+    private Label copyFeedback;
+    @FXML
+    private Button editCandidate;
+    @FXML
+    private Button updateStage;
+    @FXML
+    private Button addRemark;
+    @FXML
+    private Button deleteCandidate;
+
+    private Person candidate;
+    private final BiConsumer<QuickAction, Person> quickActionHandler;
+
+    /** Observes selection rather than retaining an obsolete copy of a candidate. */
+    public CandidateProfilePanel(CandidateSelectionModel selection) {
+        this(selection, (action, person) -> { });
+    }
+
+    /** Observes selection and exposes focused actions for the selected candidate. */
+    public CandidateProfilePanel(CandidateSelectionModel selection,
+            BiConsumer<QuickAction, Person> quickActionHandler) {
+        super("CandidateProfilePanel.fxml");
+        this.quickActionHandler = requireNonNull(quickActionHandler);
+        requireNonNull(selection).selectedPersonProperty()
+                .addListener((observable, previous, current) -> show(current));
+        show(selection.selectedPersonProperty().get());
+    }
+
+    private void show(Person person) {
+        candidate = person;
+        boolean hasSelection = person != null;
+        profileContent.setVisible(hasSelection);
+        profileContent.setManaged(hasSelection);
+        emptyProfile.setVisible(!hasSelection);
+        emptyProfile.setManaged(!hasSelection);
+        copyFeedback.setText("");
+        copyFeedback.setVisible(false);
+        copyFeedback.setManaged(false);
+        editCandidate.setDisable(!hasSelection);
+        updateStage.setDisable(!hasSelection);
+        addRemark.setDisable(!hasSelection);
+        deleteCandidate.setDisable(!hasSelection);
+        if (!hasSelection) {
+            return;
+        }
+        profileContent.setVvalue(0);
+        profileName.setText(person.getName().fullName);
+        profileStage.setText(person.getStage().toString());
+        profileStage.getStyleClass().removeIf(style -> style.startsWith("stage-") && !style.equals("stage-badge"));
+        profileStage.getStyleClass().add("stage-" + person.getStage().name().toLowerCase(Locale.ROOT));
+        profileFollowUp.setText(person.getFollowUp().isScheduled()
+                ? person.getFollowUp().format(LocalDate.now()) : "No follow-up scheduled");
+        profileEmail.setText(displayOptional(person.getEmail().value));
+        profilePhone.setText(person.getPhone().value);
+        profileAddress.setText(displayOptional(person.getAddress().value));
+        profileRemark.setText(displayOptional(person.getRemark().value));
+        copyEmail.setDisable(person.getEmail().value.isBlank());
+        copyPhone.setDisable(person.getPhone().value.isBlank());
+        showChips(profileTags, person.getTags().stream()
+                .sorted(Comparator.comparing(tag -> tag.tagName)).map(tag -> tag.tagName).toList());
+        showChips(profileSkills, person.getSkills().stream()
+                .sorted(Skill.DISPLAY_ORDER).map(skill -> skill.value).toList());
+    }
+
+    private String displayOptional(String value) {
+        return value.isBlank() ? "Not provided" : value;
+    }
+
+    private void showChips(FlowPane pane, List<String> values) {
+        pane.getChildren().clear();
+        if (values.isEmpty()) {
+            pane.getChildren().add(new Label("None"));
+            return;
+        }
+        values.forEach(value -> {
+            Label chip = new Label(value);
+            chip.setWrapText(true);
+            chip.setTooltip(new Tooltip(value));
+            chip.setAccessibleText(value);
+            chip.maxWidthProperty().bind(Bindings.createDoubleBinding(() -> Math.max(MIN_CHIP_WIDTH,
+                    pane.getWidth() - CHIP_HORIZONTAL_MARGIN),
+                    pane.widthProperty()));
+            chip.getStyleClass().add("chip");
+            pane.getChildren().add(chip);
+        });
+    }
+
+    @FXML
+    private void handleCopyEmail() {
+        if (candidate != null && !candidate.getEmail().value.isBlank()) {
+            copy(candidate.getEmail().value, "Email copied");
+        }
+    }
+
+    @FXML
+    private void handleCopyPhone() {
+        if (candidate != null && !candidate.getPhone().value.isBlank()) {
+            copy(candidate.getPhone().value, "Phone copied");
+        }
+    }
+
+    private void copy(String value, String message) {
+        ClipboardContent content = new ClipboardContent();
+        content.putString(value);
+        copyFeedback.setText(Clipboard.getSystemClipboard().setContent(content) ? message : "Copy unavailable");
+        copyFeedback.setVisible(true);
+        copyFeedback.setManaged(true);
+    }
+
+    @FXML
+    private void handleEditCandidate() {
+        runQuickAction(QuickAction.EDIT);
+    }
+
+    @FXML
+    private void handleUpdateStage() {
+        runQuickAction(QuickAction.UPDATE_STAGE);
+    }
+
+    @FXML
+    private void handleAddRemark() {
+        runQuickAction(QuickAction.ADD_REMARK);
+    }
+
+    @FXML
+    private void handleDeleteCandidate() {
+        runQuickAction(QuickAction.DELETE);
+    }
+
+    private void runQuickAction(QuickAction action) {
+        if (candidate != null) {
+            quickActionHandler.accept(action, candidate);
+        }
+    }
+
+    /** Actions available without leaving the selected profile. */
+    public enum QuickAction {
+        EDIT,
+        UPDATE_STAGE,
+        ADD_REMARK,
+        DELETE
+    }
+}

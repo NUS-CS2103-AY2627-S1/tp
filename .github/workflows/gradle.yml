@@ -29,10 +29,20 @@ jobs:
           java-package: jdk+fx
 
       - name: Build and check with Gradle
+        if: runner.os != 'Linux'
         run: ./gradlew check coverage
+
+      - name: Build and check with Gradle using a virtual display
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum ./gradlew check coverage
 
       - name: Upload coverage reports to Codecov
         if: runner.os == 'Linux'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build release JARs for both Mac architectures
+        run: |
+          ./gradlew shadowJar
+          ./gradlew shadowJar -PjavafxMacPlatform=mac-aarch64

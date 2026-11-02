@@ -2,7 +2,11 @@ package seedu.address.storage;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -12,9 +16,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUp;
+import seedu.address.model.person.HiringStage;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Skill;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -28,21 +36,65 @@ class JsonAdaptedPerson {
     private final String phone;
     private final String email;
     private final String address;
+    private final String remark;
+    private final String stage;
+    private final JsonAdaptedFollowUp followUp;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<JsonAdaptedSkill> skills = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, "", null, tags, null);
+    }
+
+    /**
+     * Constructs a stored person, accepting older files without a remark.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            String remark, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, remark, null, tags, null);
+    }
+
+    /**
+     * Constructs a stored person, accepting older files without skills.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            String remark, String stage, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, remark, stage, tags, null);
+    }
+
+    /**
+     * Constructs a stored person, accepting older files without a remark or hiring stage.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            String remark, String stage, List<JsonAdaptedTag> tags, List<JsonAdaptedSkill> skills) {
+        this(name, phone, email, address, remark, stage, tags, skills, null);
+    }
+
+    /**
+     * Reads candidates with or without the optional follow-up field.
+     */
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("remark") String remark, @JsonProperty("stage") String stage,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("skills") List<JsonAdaptedSkill> skills,
+            @JsonProperty("followUp") JsonAdaptedFollowUp followUp) {
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.remark = remark == null ? "" : remark;
+        this.stage = stage;
+        this.followUp = followUp;
         if (tags != null) {
             this.tags.addAll(tags);
+        }
+        if (skills != null) {
+            this.skills.addAll(skills);
         }
     }
 
@@ -54,8 +106,14 @@ class JsonAdaptedPerson {
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        remark = source.getRemark().value;
+        stage = source.getStage().toString();
+        followUp = new JsonAdaptedFollowUp(source.getFollowUp());
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+        skills.addAll(source.getSkills().stream()
+                .map(JsonAdaptedSkill::new)
                 .collect(Collectors.toList()));
     }
 
@@ -67,24 +125,44 @@ class JsonAdaptedPerson {
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
+            }
             personTags.add(tag.toModelType());
         }
+        final Map<String, Skill> skillsByLowerCase = new LinkedHashMap<>();
+        for (JsonAdaptedSkill skill : skills) {
+            if (skill == null) {
+                throw new IllegalValueException(Skill.MESSAGE_CONSTRAINTS);
+            }
+            Skill modelSkill = skill.toModelType();
+            skillsByLowerCase.putIfAbsent(modelSkill.value.toLowerCase(Locale.ROOT), modelSkill);
+        }
+        final Set<Skill> personSkills = new LinkedHashSet<>(skillsByLowerCase.values());
 
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
-        if (!Name.isValidName(name)) {
+        final Name modelName;
+        if (Name.isValidLegacyName(name)) {
+            modelName = Name.fromLegacyValue(name);
+        } else if (Name.isValidName(name)) {
+            modelName = new Name(name);
+        } else {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
         }
-        final Name modelName = new Name(name);
 
         if (phone == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
+        final Phone modelPhone;
+        if (Phone.isValidLegacyPhone(phone)) {
+            modelPhone = Phone.fromLegacyValue(phone);
+        } else if (Phone.isValidPhone(phone)) {
+            modelPhone = new Phone(phone);
+        } else {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
 
         if (email == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
@@ -103,7 +181,15 @@ class JsonAdaptedPerson {
         final Address modelAddress = new Address(address);
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        final HiringStage modelStage;
+        try {
+            modelStage = stage == null ? HiringStage.APPLIED : HiringStage.fromString(stage);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(HiringStage.MESSAGE_CONSTRAINTS, e);
+        }
+        FollowUp modelFollowUp = followUp == null ? FollowUp.empty() : followUp.toModelType();
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, new Remark(remark), modelStage, modelTags,
+                personSkills, modelFollowUp);
     }
 
 }

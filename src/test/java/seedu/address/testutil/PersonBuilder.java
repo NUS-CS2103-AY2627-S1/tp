@@ -1,13 +1,18 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUp;
+import seedu.address.model.person.HiringStage;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Skill;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -25,7 +30,11 @@ public class PersonBuilder {
     private Phone phone;
     private Email email;
     private Address address;
+    private Remark remark = new Remark("");
+    private FollowUp followUp = FollowUp.empty();
+    private HiringStage stage = HiringStage.APPLIED;
     private Set<Tag> tags;
+    private Set<Skill> skills;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -36,6 +45,7 @@ public class PersonBuilder {
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        skills = new LinkedHashSet<>();
     }
 
     /**
@@ -46,7 +56,11 @@ public class PersonBuilder {
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        remark = personToCopy.getRemark();
+        followUp = personToCopy.getFollowUp();
+        stage = personToCopy.getStage();
         tags = new HashSet<>(personToCopy.getTags());
+        skills = new LinkedHashSet<>(personToCopy.getSkills());
     }
 
     /**
@@ -89,8 +103,35 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the remark of the person being built.
+     */
+    public PersonBuilder withRemark(String remark) {
+        this.remark = new Remark(remark);
+        return this;
+    }
+
+    /**
+     * Parses the {@code skills} into a {@code Set<Skill>} and sets it to the {@code Person} that we are building.
+     */
+    public PersonBuilder withSkills(String ... skills) {
+        this.skills = new LinkedHashSet<>();
+        for (String skill : skills) {
+            this.skills.add(new Skill(skill));
+        }
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, remark, stage, tags, skills, followUp);
+    }
+
+    /**
+     * Sets the hiring stage of the person being built.
+     */
+    public PersonBuilder withStage(HiringStage stage) {
+        this.stage = stage;
+        return this;
     }
 
 }

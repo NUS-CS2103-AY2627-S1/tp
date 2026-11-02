@@ -1,0 +1,27 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant "command:ViewCommand" as ViewCommand LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+participant "PersonLookup" as PersonLookup LOGIC_COLOR
+
+[-> ViewCommand : execute(model)
+activate ViewCommand
+ViewCommand -> Model : getFilteredPersonList()
+Model --> ViewCommand : displayedPersons
+ViewCommand -> PersonLookup : findByName(displayedPersons, targetName, ...)
+
+alt exactly one match
+    PersonLookup --> ViewCommand : candidate
+    ViewCommand -->[ : commandResult
+else no match
+    PersonLookup --> ViewCommand : throws CommandException (not found)
+    ViewCommand -->[ : throws CommandException
+else multiple matches
+    PersonLookup --> ViewCommand : throws CommandException (ambiguous name)
+    ViewCommand -->[ : throws CommandException
+end
+deactivate ViewCommand
+@enduml

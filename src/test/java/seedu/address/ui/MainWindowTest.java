@@ -1,0 +1,606 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.imageio.ImageIO;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.event.ActionEvent;
+import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import seedu.address.logic.LogicManager;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.HiringStage;
+import seedu.address.model.person.Person;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.PersonBuilder;
+
+public class MainWindowTest {
+    @TempDir
+    public Path temporaryFolder;
+
+    @BeforeAll
+    public static void setUpJavaFx() throws Exception {
+        FxTestUtil.initialize();
+    }
+
+    @Test
+    public void workflow_keepsProfileDashboardAndIndexesInSync() throws Exception {
+        FxTestUtil.run(() -> {
+            AtomicBoolean failSave = new AtomicBoolean();
+            MainWindow window = createWindow(failSave);
+            try {
+                window.show();
+                execute(window, "view 1");
+                assertEquals("Alex Morgan", label(window, "profileName"));
+                execute(window, "edit 1 n/Alex Tan p/91234568");
+                assertEquals("Alex Tan", label(window, "profileName"));
+                execute(window, "stage 1 s/Interview");
+                assertEquals("Interview", label(window, "profileStage"));
+                assertEquals("2", label(window, "countINTERVIEW"));
+                failSave.set(true);
+                execute(window, "delete 1");
+                assertEquals("Alex Tan", label(window, "profileName"));
+                assertEquals("All candidates: 4  •  Displayed: 4", label(window, "pipelineCount"));
+                assertTrue(result(window).startsWith("Error:"));
+                execute(window, "clear");
+                assertEquals("Alex Tan", label(window, "profileName"));
+                failSave.set(false);
+                execute(window, "find Jamie");
+                assertTrue(window.getPrimaryStage().getScene().lookup("#emptyProfile").isVisible());
+                execute(window, "view 1");
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                execute(window, "list");
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                execute(window, "delete 2");
+                assertTrue(window.getPrimaryStage().getScene().lookup("#emptyProfile").isVisible());
+                assertEquals("All candidates: 3  •  Displayed: 3", label(window, "pipelineCount"));
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void viewCommands_replaceBulkSelectionWithRequestedCandidate() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.show();
+                ListView<?> candidates = (ListView<?>) lookup(window, "personListView");
+                execute(window, "view 1");
+                execute(window, "view 2");
+                assertEquals(List.of("Jamie Tan"), candidates.getSelectionModel().getSelectedItems().stream()
+                        .map(person -> ((Person) person).getName().fullName).toList());
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                assertEquals("1 selected", label(window, "bulkSelectionCount"));
+
+                execute(window, "view Priya Shah");
+                assertEquals(List.of("Priya Shah"), candidates.getSelectionModel().getSelectedItems().stream()
+                        .map(person -> ((Person) person).getName().fullName).toList());
+                assertEquals("Priya Shah", label(window, "profileName"));
+                window.getPersonListPanel().executeBulkStage("Rejected");
+                assertEquals(List.of("Applied", "Screened", "Rejected", "Offered"), candidates.getItems().stream()
+                        .map(person -> ((Person) person).getStage().toString()).toList());
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+        ReadOnlyAddressBook saved = new JsonAddressBookStorage(temporaryFolder.resolve("candidates.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(List.of("Applied", "Screened", "Rejected", "Offered"), saved.getPersonList().stream()
+                .map(person -> person.getStage().toString()).toList());
+    }
+
+    @Test
+    public void viewSameProfile_clearsMultiSelectionWhileOtherCommandsPreserveIt() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.show();
+                execute(window, "view 2");
+                ListView<?> candidates = (ListView<?>) lookup(window, "personListView");
+                candidates.getSelectionModel().selectIndices(0, 1);
+                candidates.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "", "", KeyCode.ENTER,
+                        false, false, false, false));
+                assertEquals(2, candidates.getSelectionModel().getSelectedItems().size());
+                assertEquals("Jamie Tan", label(window, "profileName"));
+
+                execute(window, "summary");
+                assertEquals(2, candidates.getSelectionModel().getSelectedItems().size());
+                execute(window, "stage 2 s/Interview");
+                assertEquals(2, candidates.getSelectionModel().getSelectedItems().size());
+                assertEquals(List.of("Applied", "Interview", "Interview", "Offered"), candidates.getItems().stream()
+                        .map(person -> ((Person) person).getStage().toString()).toList());
+
+                execute(window, "view 2");
+                assertEquals(List.of("Jamie Tan"), candidates.getSelectionModel().getSelectedItems().stream()
+                        .map(person -> ((Person) person).getName().fullName).toList());
+                assertEquals("1 selected", label(window, "bulkSelectionCount"));
+                execute(window, "view 999");
+                assertTrue(result(window).startsWith("Error:"));
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                assertEquals(1, candidates.getSelectionModel().getSelectedItems().size());
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void workspace_rendersDashboardAssistanceAndHelp() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.show();
+                execute(window, "view 1");
+                window.getPrimaryStage().getScene().getRoot().applyCss();
+                window.getPrimaryStage().getScene().getRoot().layout();
+                savePreview(window.getPrimaryStage(), "workspace");
+                assertWorkspaceSectionsFit(window);
+                TextField input = (TextField) window.getPrimaryStage().getScene().lookup("#commandTextField");
+                input.setText("stage 1 s/");
+                input.positionCaret(input.getLength());
+                savePreview(window.getPrimaryStage(), "command-assistance");
+                assertWorkspaceSectionsFit(window);
+                ListView<?> suggestions = (ListView<?>) window.getPrimaryStage().getScene().lookup("#suggestions");
+                assertTrue(suggestions.getHeight() >= 84);
+                window.handleHelp();
+                Stage help = (Stage) Window.getWindows().stream().filter(candidate -> candidate instanceof Stage
+                        && ((Stage) candidate).getTitle().equals("Scoutly command reference"))
+                        .findFirst().orElseThrow();
+                try {
+                    savePreview(help, "command-reference");
+                } finally {
+                    help.hide();
+                }
+                input.clear();
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void minimumWorkspace_keepsProfilesAndInputUsable() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            window.getPrimaryStage().setWidth(760);
+            window.getPrimaryStage().setHeight(700);
+            try {
+                window.show();
+                execute(window, "view 1");
+                savePreview(window.getPrimaryStage(), "workspace-minimum");
+                assertWorkspaceSectionsFit(window);
+                assertEquals(760, window.getPrimaryStage().getWidth(), 2);
+                ListView<?> list = (ListView<?>) window.getPrimaryStage().getScene().lookup("#personListView");
+                assertTrue(list.lookupAll(".scroll-bar").stream().noneMatch(node -> node instanceof ScrollBar bar
+                        && bar.getOrientation() == Orientation.HORIZONTAL && bar.isVisible()));
+                assertTrue(window.getPrimaryStage().getScene().lookup("#commandTextField").getBoundsInParent()
+                        .getWidth() > 500);
+                assertTrue(window.getPrimaryStage().getScene().lookup("#profileContent").getBoundsInParent()
+                        .getHeight() > 100);
+                Node profilePlaceholder = window.getPrimaryStage().getScene().lookup("#profilePlaceholder");
+                Node profileContent = window.getPrimaryStage().getScene().lookup("#profileContent");
+                Bounds placeholderBounds = profilePlaceholder.localToScene(profilePlaceholder.getBoundsInLocal());
+                Bounds contentBounds = profileContent.localToScene(profileContent.getBoundsInLocal());
+                assertTrue(contentBounds.getMinY() >= placeholderBounds.getMinY() - 1);
+                assertTrue(contentBounds.getMaxY() <= placeholderBounds.getMaxY() + 1);
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void dashboardAndToolbar_fitWithoutOverlapAtSupportedSizes() throws Exception {
+        FxTestUtil.run(() -> {
+            for (double[] size : List.of(new double[]{1100, 850}, new double[]{760, 700})) {
+                MainWindow window = createWindow(new AtomicBoolean());
+                try {
+                    window.getPrimaryStage().setWidth(size[0]);
+                    window.getPrimaryStage().setHeight(size[1]);
+                    window.show();
+                    Parent root = window.getPrimaryStage().getScene().getRoot();
+                    root.applyCss();
+                    root.layout();
+
+                    Node dashboardPlaceholder = root.lookup("#dashboardPlaceholder");
+                    Node toolbarPlaceholder = root.lookup("#workspaceToolbarPlaceholder");
+                    Bounds dashboardBounds = layoutSceneBounds(dashboardPlaceholder);
+                    Bounds toolbarBounds = layoutSceneBounds(toolbarPlaceholder);
+                    assertTrue(dashboardBounds.getMaxY() <= toolbarBounds.getMinY() + 1,
+                            "Dashboard and toolbar overlap at " + size[0] + "x" + size[1]
+                                    + ": dashboard=" + dashboardBounds + ", toolbar=" + toolbarBounds);
+
+                    Node stageTiles = root.lookup("#stageTiles");
+                    Node toolbarContent = ((Parent) toolbarPlaceholder).getChildrenUnmodifiable().get(0);
+                    assertContained(dashboardPlaceholder, stageTiles);
+                    assertContained(toolbarPlaceholder, toolbarContent);
+                } finally {
+                    window.getPrimaryStage().close();
+                }
+            }
+        });
+    }
+
+    @Test
+    public void defaultWorkspace_profileKeepsControlsVisible() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.getPrimaryStage().setWidth(1100);
+                window.getPrimaryStage().setHeight(850);
+                window.show();
+                execute(window, "view 1");
+                layout(window);
+
+                assertVisibleInScene(window, "resultDisplay");
+                assertVisibleInScene(window, "commandTextField");
+                assertVisibleInScene(window, "statusbarPlaceholder");
+                assertWorkspaceSectionsFit(window);
+                assertWorkspaceControlsDoNotOverlap(window);
+                assertTrue(((ListView<?>) lookup(window, "personListView")).getHeight() > 0);
+                assertTrue(lookup(window, "profileContent").getBoundsInParent().getHeight() > 0);
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void minimumWorkspace_suggestionsKeepControlsVisibleWhileWorkspaceScrolls() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.getPrimaryStage().setWidth(760);
+                window.getPrimaryStage().setHeight(700);
+                window.show();
+                execute(window, "view 1");
+                TextField input = (TextField) lookup(window, "commandTextField");
+                input.setText("stage 1 s/");
+                input.positionCaret(input.getLength());
+                layout(window);
+
+                Node root = window.getPrimaryStage().getScene().getRoot();
+                ListView<?> suggestions = (ListView<?>) root.lookup("#suggestions");
+                assertTrue(suggestions.isVisible());
+                assertTrue(suggestions.getItems().size() >= 3);
+                assertVisibleInScene(window, "resultDisplay");
+                assertVisibleInScene(window, "commandTextField");
+                assertVisibleInScene(window, "statusbarPlaceholder");
+                assertWorkspaceControlsDoNotOverlap(window);
+
+                ScrollPane workspace = (ScrollPane) lookup(window, "workspaceScroll");
+                assertTrue(workspace.getContent().getBoundsInLocal().getHeight()
+                        > workspace.getViewportBounds().getHeight());
+                double initialContentMinY = workspace.getContent().localToScene(
+                        workspace.getContent().getBoundsInLocal()).getMinY();
+                workspace.setVvalue(1);
+                workspace.requestLayout();
+                workspace.layout();
+                layout(window);
+
+                double scrolledContentMinY = workspace.getContent().localToScene(
+                        workspace.getContent().getBoundsInLocal()).getMinY();
+                assertTrue(scrolledContentMinY < initialContentMinY);
+                assertVisibleInScene(window, "resultDisplay");
+                assertVisibleInScene(window, "commandTextField");
+                assertVisibleInScene(window, "statusbarPlaceholder");
+                assertWorkspaceControlsDoNotOverlap(window);
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void sortingAndFollowUps_preserveProfileTargetsAndRecoverAfterFailedDeletion() throws Exception {
+        FxTestUtil.run(() -> {
+            AtomicBoolean failSave = new AtomicBoolean();
+            MainWindow window = createWindow(failSave);
+            try {
+                window.show();
+                execute(window, "view 1");
+                execute(window, "edit 1 n/Zara Morgan");
+                execute(window, "followup 1 d/" + LocalDate.now().plusDays(1) + " r/Call candidate");
+                assertTrue(label(window, "profileFollowUp").contains("Call candidate"));
+                execute(window, "list sort/name");
+                execute(window, "view 1");
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                execute(window, "view 4");
+                assertEquals("Zara Morgan", label(window, "profileName"));
+                failSave.set(true);
+                execute(window, "delete 4");
+                assertTrue(result(window).startsWith("Error:"));
+                assertEquals("Zara Morgan", label(window, "profileName"));
+                execute(window, "view 1");
+                assertEquals("Jamie Tan", label(window, "profileName"));
+                execute(window, "followups all");
+                execute(window, "view 1");
+                assertEquals("Zara Morgan", label(window, "profileName"));
+                assertEquals("All candidates: 4  •  Displayed: 1", label(window, "pipelineCount"));
+                failSave.set(false);
+                execute(window, "followup 1 done");
+                assertTrue(label(window, "profileFollowUp").contains("completed"));
+                execute(window, "followup 1 clear");
+                assertEquals("No follow-up scheduled", label(window, "profileFollowUp"));
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void toolbarFilters_reconcileProfileAndYieldToExplicitListCommands() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.show();
+                execute(window, "view 1");
+                TextField toolbarSearch = (TextField) window.getPrimaryStage().getScene().lookup("#searchField");
+                ListView<?> candidates = (ListView<?>) window.getPrimaryStage().getScene()
+                        .lookup("#personListView");
+
+                toolbarSearch.setText("Alex");
+                assertEquals(List.of("Alex Morgan"), candidateNames(candidates));
+                assertEquals("Alex Morgan", label(window, "profileName"));
+
+                toolbarSearch.setText("Jamie");
+                assertEquals(List.of("Jamie Tan"), candidateNames(candidates));
+                assertTrue(window.getPrimaryStage().getScene().lookup("#emptyProfile").isVisible());
+
+                execute(window, "find Priya");
+                assertEquals(List.of("Priya Shah"), candidateNames(candidates));
+                assertEquals("", toolbarSearch.getText());
+
+                toolbarSearch.setText("Sam");
+                execute(window, "list sort/name");
+                assertEquals(List.of("Alex Morgan", "Jamie Tan", "Priya Shah", "Sam Lee"),
+                        candidateNames(candidates));
+                assertEquals("", toolbarSearch.getText());
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void bulkStage_resolvesSelectedCandidatesAfterStageFilterIndexesShift() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            try {
+                window.show();
+                execute(window, "stage 2 s/Applied");
+                execute(window, "stage 3 s/Applied");
+                for (boolean useToolbar : List.of(false, true)) {
+                    execute(window, "list");
+                    execute(window, "stage 1 s/Applied");
+                    execute(window, "stage 2 s/Applied");
+                    if (useToolbar) {
+                        ComboBox<?> stages = (ComboBox<?>) window.getPrimaryStage().getScene()
+                                .lookup("#stageFilter");
+                        stages.getSelectionModel().select(1);
+                    } else {
+                        execute(window, "list s/Applied");
+                    }
+                    ListView<?> candidates = (ListView<?>) window.getPrimaryStage().getScene()
+                            .lookup("#personListView");
+                    candidates.getSelectionModel().selectIndices(0, 1);
+                    window.getPersonListPanel().executeBulkStage("Interview");
+                    // Priya was not selected and must stay Applied as the first two rows disappear.
+                    execute(window, "list");
+                    assertEquals(List.of("Interview", "Interview", "Applied", "Offered"),
+                            candidates.getItems().stream().map(person -> ((Person) person).getStage().toString())
+                                    .toList());
+                }
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    @Test
+    public void minimumWorkspace_scrollsWithoutOverlapWhileSuggestionsAreOpen() throws Exception {
+        FxTestUtil.run(() -> {
+            MainWindow window = createWindow(new AtomicBoolean());
+            window.getPrimaryStage().setWidth(760);
+            window.getPrimaryStage().setHeight(700);
+            try {
+                window.show();
+                execute(window, "view 1");
+                TextField input = (TextField) window.getPrimaryStage().getScene().lookup("#commandTextField");
+                input.setText("stage 1 s/");
+                input.positionCaret(input.getLength());
+                savePreview(window.getPrimaryStage(), "workspace-minimum-assistance");
+                assertWorkspaceSectionsFit(window);
+                ScrollPane workspace = (ScrollPane) window.getPrimaryStage().getScene().lookup("#workspaceScroll");
+                assertTrue(workspace.getContent().getBoundsInLocal().getHeight()
+                        > workspace.getViewportBounds().getHeight());
+                workspace.setVvalue(1);
+                workspace.requestLayout();
+                workspace.layout();
+                assertEquals(1, workspace.getVvalue(), 0.01);
+                savePreview(window.getPrimaryStage(), "workspace-minimum-scrolled");
+                assertEquals(1, workspace.getVvalue(), 0.01);
+                assertTrue(workspace.getContent().localToScene(workspace.getContent().getBoundsInLocal()).getMinY()
+                        < workspace.localToScene(workspace.getBoundsInLocal()).getMinY());
+                assertWorkspaceSectionsFit(window);
+                Bounds inputBounds = input.localToScene(input.getBoundsInLocal());
+                assertTrue(inputBounds.getMinY() >= 0);
+                assertTrue(inputBounds.getMaxY() <= window.getPrimaryStage().getScene().getHeight());
+            } finally {
+                window.getPrimaryStage().close();
+            }
+        });
+    }
+
+    private void assertWorkspaceSectionsFit(MainWindow window) {
+        for (String id : List.of("dashboardPlaceholder", "workspaceToolbarPlaceholder", "profilePlaceholder")) {
+            StackPane holder = (StackPane) window.getPrimaryStage().getScene().lookup("#" + id);
+            Bounds content = holder.getChildren().get(0).getBoundsInParent();
+            assertTrue(content.getMinY() >= -1, id + " overflows above its parent: " + content);
+            assertTrue(content.getMaxY() <= holder.getHeight() + 1,
+                    id + " overflows below its parent: " + content);
+        }
+        Node dashboard = window.getPrimaryStage().getScene().lookup("#dashboardPlaceholder");
+        Node toolbar = window.getPrimaryStage().getScene().lookup("#workspaceToolbarPlaceholder");
+        Node profile = window.getPrimaryStage().getScene().lookup("#profilePlaceholder");
+        assertTrue(dashboard.localToScene(dashboard.getBoundsInLocal()).getMaxY()
+                <= toolbar.localToScene(toolbar.getBoundsInLocal()).getMinY());
+        assertTrue(toolbar.localToScene(toolbar.getBoundsInLocal()).getMaxY()
+                <= profile.localToScene(profile.getBoundsInLocal()).getMinY());
+    }
+
+    private MainWindow createWindow(AtomicBoolean failSave) {
+        ModelManager model = new ModelManager();
+        model.addPerson(new PersonBuilder().withName("Alex Morgan").withSkills("Java", "SQL", "Python")
+                .withRemark("Available in November. Interested in backend engineering.").build());
+        model.addPerson(new PersonBuilder().withName("Jamie Tan").withPhone("92222222")
+                .withStage(HiringStage.SCREENED).withSkills("Design", "Figma").build());
+        model.addPerson(new PersonBuilder().withName("Priya Shah").withPhone("93333333")
+                .withStage(HiringStage.INTERVIEW).withSkills("Python", "SQL").build());
+        model.addPerson(new PersonBuilder().withName("Sam Lee").withPhone("94444444")
+                .withStage(HiringStage.OFFERED).withSkills("Java", "Testing").build());
+        Path data = temporaryFolder.resolve("candidates.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(data) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                if (failSave.get()) {
+                    throw new IOException("Simulated save failure");
+                }
+                super.saveAddressBook(addressBook);
+            }
+        };
+        LogicManager logic = new LogicManager(model, new StorageManager(storage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))));
+        MainWindow window = new MainWindow(new Stage(), logic, data);
+        window.fillInnerParts();
+        return window;
+    }
+
+    private void execute(MainWindow window, String command) {
+        TextField field = (TextField) window.getPrimaryStage().getScene().lookup("#commandTextField");
+        field.setText(command);
+        field.fireEvent(new ActionEvent());
+    }
+
+    private String label(MainWindow window, String id) {
+        return ((Label) window.getPrimaryStage().getScene().lookup("#" + id)).getText();
+    }
+
+    private String result(MainWindow window) {
+        return ((TextArea) window.getPrimaryStage().getScene().lookup("#resultDisplay")).getText();
+    }
+
+    private Node lookup(MainWindow window, String id) {
+        return window.getPrimaryStage().getScene().lookup("#" + id);
+    }
+
+    private void layout(MainWindow window) {
+        window.getPrimaryStage().getScene().getRoot().applyCss();
+        window.getPrimaryStage().getScene().getRoot().layout();
+    }
+
+    private void assertVisibleInScene(MainWindow window, String id) {
+        Bounds bounds = visualSceneBounds(lookup(window, id));
+        double sceneWidth = window.getPrimaryStage().getScene().getWidth();
+        double sceneHeight = window.getPrimaryStage().getScene().getHeight();
+        double tolerance = 2;
+        assertTrue(bounds.getMinX() >= -tolerance,
+                id + " starts outside the scene: " + bounds);
+        assertTrue(bounds.getMaxX() <= sceneWidth + tolerance,
+                id + " ends outside the scene: " + bounds);
+        assertTrue(bounds.getMinY() >= -tolerance,
+                id + " starts outside the scene: " + bounds);
+        assertTrue(bounds.getMaxY() <= sceneHeight + tolerance,
+                id + " ends outside the scene: " + bounds);
+    }
+
+    private void assertWorkspaceControlsDoNotOverlap(MainWindow window) {
+        Bounds workspace = layoutSceneBounds(lookup(window, "workspaceScroll"));
+        Bounds result = layoutSceneBounds(lookup(window, "resultDisplayPlaceholder"));
+        Bounds command = layoutSceneBounds(lookup(window, "commandBoxPlaceholder"));
+        Bounds statusbar = layoutSceneBounds(lookup(window, "statusbarPlaceholder"));
+        double tolerance = 2;
+        assertTrue(workspace.getMaxY() <= result.getMinY() + tolerance);
+        assertTrue(result.getMaxY() <= command.getMinY() + tolerance);
+        assertTrue(command.getMaxY() <= statusbar.getMinY() + tolerance);
+    }
+
+    private List<String> candidateNames(ListView<?> candidates) {
+        return candidates.getItems().stream().map(item -> ((Person) item).getName().fullName).toList();
+    }
+
+    private Bounds layoutSceneBounds(Node node) {
+        return node.localToScene(node.getLayoutBounds());
+    }
+
+    private Bounds visualSceneBounds(Node node) {
+        return node.localToScene(node.getBoundsInLocal());
+    }
+
+    private void assertContained(Node container, Node content) {
+        double tolerance = 2;
+        Bounds containerBounds = layoutSceneBounds(container);
+        Bounds contentBounds = visualSceneBounds(content);
+        assertTrue(contentBounds.getMinX() >= containerBounds.getMinX() - tolerance,
+                "Content starts left of its container: content=" + contentBounds + ", container=" + containerBounds);
+        assertTrue(contentBounds.getMaxX() <= containerBounds.getMaxX() + tolerance,
+                "Content ends right of its container: content=" + contentBounds + ", container=" + containerBounds);
+        assertTrue(contentBounds.getMinY() >= containerBounds.getMinY() - tolerance,
+                "Content starts above its container: content=" + contentBounds + ", container=" + containerBounds);
+        assertTrue(contentBounds.getMaxY() <= containerBounds.getMaxY() + tolerance,
+                "Content ends below its container: content=" + contentBounds + ", container=" + containerBounds);
+    }
+
+    private void savePreview(Stage stage, String name) {
+        stage.getScene().getRoot().applyCss();
+        stage.getScene().getRoot().layout();
+        WritableImage snapshot = stage.getScene().snapshot(null);
+        BufferedImage output = new BufferedImage((int) snapshot.getWidth(), (int) snapshot.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < output.getHeight(); y++) {
+            for (int x = 0; x < output.getWidth(); x++) {
+                output.setRGB(x, y, snapshot.getPixelReader().getArgb(x, y));
+            }
+        }
+        try {
+            Path target = Path.of("build", "reports", "ui", name + ".png");
+            Files.createDirectories(target.getParent());
+            ImageIO.write(output, "png", target.toFile());
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
+    }
+}

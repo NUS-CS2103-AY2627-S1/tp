@@ -1,0 +1,28 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant "command:DeleteCommand" as DeleteCommand LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+participant "PersonLookup" as PersonLookup LOGIC_COLOR
+
+[-> DeleteCommand : execute(model)
+activate DeleteCommand
+DeleteCommand -> Model : getFilteredPersonList()
+Model --> DeleteCommand : displayedPersons
+DeleteCommand -> PersonLookup : findByName(displayedPersons, targetName, ...)
+
+alt exactly one match
+    PersonLookup --> DeleteCommand : personToDelete
+    DeleteCommand -> Model : deletePerson(personToDelete)
+    DeleteCommand -->[ : CommandResult(success feedback)
+else no match
+    PersonLookup --> DeleteCommand : throws CommandException (not found)
+    DeleteCommand -->[ : throws CommandException
+else multiple matches
+    PersonLookup --> DeleteCommand : throws CommandException (ambiguous name)
+    DeleteCommand -->[ : throws CommandException
+end
+deactivate DeleteCommand
+@enduml

@@ -1,12 +1,21 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
@@ -17,6 +26,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -28,14 +38,26 @@ public class MainWindow extends UiPart<Stage> {
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
-    private Stage primaryStage;
-    private Logic logic;
-    private Path dataFilePath;
+    private final Stage primaryStage;
+    private final Logic logic;
+    private final Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
+    private final HelpWindow helpWindow;
+    private CandidateSelectionModel candidateSelection;
+    private CommandBox commandBox;
+    private CandidateWorkspaceToolbar workspaceToolbar;
+
+    @FXML
+    private StackPane dashboardPlaceholder;
+
+    @FXML
+    private StackPane workspaceToolbarPlaceholder;
+
+    @FXML
+    private StackPane profilePlaceholder;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -57,19 +79,24 @@ public class MainWindow extends UiPart<Stage> {
      * and the data file path to show in the status bar.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
-        super(FXML, primaryStage);
+        super(FXML, requireNonNull(primaryStage));
 
         // Set dependencies
         this.primaryStage = primaryStage;
-        this.logic = logic;
-        this.dataFilePath = dataFilePath;
+        this.logic = requireNonNull(logic);
+        this.dataFilePath = requireNonNull(dataFilePath);
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
 
         setAccelerators();
 
-        helpWindow = new HelpWindow();
+        helpWindow = new HelpWindow(template -> commandBox.insertTemplate(template));
+        helpWindow.getRoot().setOnHidden(event -> {
+            if (commandBox != null) {
+                commandBox.requestFocus();
+            }
+        });
     }
 
     public Stage getPrimaryStage() {
@@ -78,6 +105,12 @@ public class MainWindow extends UiPart<Stage> {
 
     private void setAccelerators() {
         setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
+        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.L && event.isShortcutDown() && commandBox != null) {
+                commandBox.requestFocus();
+                event.consume();
+            }
+        });
     }
 
     /**
@@ -114,17 +147,94 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
-
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+
+        candidateSelection = new CandidateSelectionModel(logic.getAllPersons(), logic.getFilteredPersonList());
+        workspaceToolbar = new CandidateWorkspaceToolbar(logic, this::showUiFeedback,
+                candidateSelection::reconcileVisibility);
+        workspaceToolbarPlaceholder.getChildren().add(workspaceToolbar.getRoot());
+        dashboardPlaceholder.getChildren().add(
+                new PipelineDashboard(logic.getAllPersons(), logic.getFilteredPersonList(),
+                        workspaceToolbar::selectStage).getRoot());
+        profilePlaceholder.getChildren().add(new CandidateProfilePanel(candidateSelection,
+                this::handleQuickAction).getRoot());
+        personListPanel = new PersonListPanel(
+                logic.getAllPersons(), logic.getFilteredPersonList(), candidateSelection, this::executeCommand);
+        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        if (primaryStage.isShowing()) {
+            commandBox.requestFocus();
+        }
+    }
+
+    private void showUiFeedback(String message) {
+        resultDisplay.setFeedbackToUser(message);
+    }
+
+    private void handleQuickAction(CandidateProfilePanel.QuickAction action, Person candidate) {
+        int index = logic.getFilteredPersonList().indexOf(candidate) + 1;
+        if (index <= 0) {
+            showUiFeedback("Select a candidate that is currently displayed first.");
+            return;
+        }
+        switch (action) {
+            case EDIT:
+                commandBox.insertTemplate("edit " + index + " n/");
+                showUiFeedback("Edit template inserted. Complete the fields and press Enter.");
+                break;
+            case UPDATE_STAGE:
+                showStageDialog(index);
+                break;
+            case ADD_REMARK:
+                showRemarkDialog(index);
+                break;
+            case DELETE:
+                confirmDelete(index, candidate);
+                break;
+            default:
+                throw new IllegalStateException("Unknown quick action: " + action);
+        }
+    }
+
+    private void showStageDialog(int index) {
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(seedu.address.model.person.HiringStage.APPLIED.toString(),
+                Arrays.stream(seedu.address.model.person.HiringStage.values())
+                        .map(seedu.address.model.person.HiringStage::toString).toList());
+        dialog.setTitle("Update candidate stage");
+        dialog.setHeaderText("Choose a new hiring stage");
+        dialog.showAndWait().ifPresent(stage -> runQuickCommand("stage " + index + " s/" + stage));
+    }
+
+    private void showRemarkDialog(int index) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Add candidate remark");
+        dialog.setHeaderText("Enter a remark for this candidate");
+        dialog.showAndWait().filter(remark -> !remark.isBlank())
+                .ifPresent(remark -> runQuickCommand("remark " + index + " r/" + remark));
+    }
+
+    private void confirmDelete(int index, Person candidate) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Delete candidate");
+        confirmation.setHeaderText("Delete " + candidate.getName().fullName + "?");
+        confirmation.setContentText("This action cannot be undone.");
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            runQuickCommand("delete " + index);
+        }
+    }
+
+    private void runQuickCommand(String command) {
+        try {
+            executeCommand(command);
+        } catch (CommandException | ParseException exception) {
+            // executeCommand has already displayed the command failure to the user.
+        }
     }
 
     /**
@@ -153,6 +263,9 @@ public class MainWindow extends UiPart<Stage> {
 
     void show() {
         primaryStage.show();
+        if (commandBox != null) {
+            commandBox.requestFocus();
+        }
     }
 
     /**
@@ -177,10 +290,20 @@ public class MainWindow extends UiPart<Stage> {
      * @see seedu.address.logic.Logic#execute(String)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        Person previousSelection = candidateSelection.selectedPersonProperty().get();
         try {
             CommandResult commandResult = logic.execute(commandText);
+            if (workspaceToolbar != null && commandOwnsDisplayedList(commandText)) {
+                workspaceToolbar.clearForCommand();
+            }
+            commandResult.getProfileTarget().ifPresent(candidate -> {
+                personListPanel.clearBulkSelection();
+                candidateSelection.select(candidate);
+            });
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            resultDisplay.setFeedbackToUser(commandResult.getProfileTarget()
+                    .map(candidate -> "Profile opened: " + candidate.getName())
+                    .orElse(commandResult.getFeedbackToUser()));
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -193,8 +316,30 @@ public class MainWindow extends UiPart<Stage> {
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            // A failed save rolls back the model. Restore a profile cleared by a temporary
+            // deletion/clear as well, rather than leaving the UI in the failed command's state.
+            if (previousSelection != null && logic.getFilteredPersonList().contains(previousSelection)) {
+                candidateSelection.select(previousSelection);
+            }
+            resultDisplay.showFailure(e.getMessage());
             throw e;
+        } finally {
+            candidateSelection.reconcileVisibility();
+            personListPanel.refreshSelection();
+            if (workspaceToolbar != null) {
+                workspaceToolbar.refreshFromModel();
+            }
         }
+    }
+
+    /** Returns whether a command intentionally replaces the current displayed-list predicate. */
+    private boolean commandOwnsDisplayedList(String commandText) {
+        String trimmed = commandText.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        String commandWord = trimmed.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        return commandWord.equals("find") || commandWord.equals("findskill")
+                || commandWord.equals("list") || commandWord.equals("followups");
     }
 }

@@ -2,6 +2,7 @@ package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STAGE;
 
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -15,9 +16,17 @@ import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindSkillCommand;
+import seedu.address.logic.commands.FollowUpCommand;
+import seedu.address.logic.commands.FollowUpsCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.StageCommand;
+import seedu.address.logic.commands.SummaryCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.HiringStage;
 
 /**
  * Parses user input.
@@ -53,11 +62,18 @@ public class AddressBookParser {
 
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case RemarkCommand.COMMAND_WORD -> new RemarkCommandParser().parse(arguments);
+            case FollowUpCommand.COMMAND_WORD -> new FollowUpCommandParser().parse(arguments);
+            case FollowUpsCommand.COMMAND_WORD -> new FollowUpsCommandParser().parse(arguments);
+            case StageCommand.COMMAND_WORD -> new StageCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
             case ClearCommand.COMMAND_WORD -> new ClearCommand();
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
+            case FindSkillCommand.COMMAND_WORD -> new FindSkillCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> parseListCommand(arguments);
+            case SummaryCommand.COMMAND_WORD -> new SummaryCommandParser().parse(arguments);
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {
@@ -65,6 +81,34 @@ public class AddressBookParser {
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };
+    }
+
+    /** Parses the list command, optionally sorting or filtering by hiring stage. */
+    private Command parseListCommand(String arguments) throws ParseException {
+        String trimmedArguments = arguments.trim();
+        if (trimmedArguments.isEmpty()) {
+            return new ListCommand();
+        }
+        if (ListCommand.SORT_BY_NAME_ARGUMENT.equals(trimmedArguments)) {
+            return new ListCommand(ListCommand.SortOrder.NAME);
+        }
+        if (trimmedArguments.contains(ListCommand.SORT_BY_NAME_ARGUMENT)) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE));
+        }
+
+        // Preserve the leading separator before s/ so that ArgumentTokenizer recognises the prefix.
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(arguments, PREFIX_STAGE);
+        if (!argMultimap.getPreamble().isEmpty() || argMultimap.getValue(PREFIX_STAGE).isEmpty()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE));
+        }
+
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_STAGE);
+        try {
+            HiringStage stage = HiringStage.fromString(argMultimap.getValue(PREFIX_STAGE).get());
+            return new ListCommand(stage);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(HiringStage.MESSAGE_CONSTRAINTS, e);
+        }
     }
 
 }

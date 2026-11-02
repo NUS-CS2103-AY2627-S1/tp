@@ -1,14 +1,46 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# Scoutly
 
-![Ui](docs/images/Ui.png)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T09-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-T09-3/tp/actions/workflows/gradle.yml)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+Scoutly is a desktop candidate pipeline and recruitment management application for recruiters who prefer typing commands. It combines a command line with a graphical interface to help recruiters manage candidate details and track progress through the hiring process.
+
+## Current features
+
+- Add candidates with their phone numbers and skills, and edit their details.
+- Find candidates by name or skill; filter by hiring stage or sort alphabetically.
+- View candidate profiles and record recruitment remarks.
+- Track Applied, Screened, Interview, Offered, and Rejected stages.
+- Summarize the full hiring pipeline, including candidates hidden by a search.
+- Delete individual candidates or a batch of displayed indexes.
+- Schedule, complete and clear candidate follow-ups; filter overdue, today and upcoming tasks.
+- View live hiring-stage totals and search result counts alongside compact candidate cards.
+- Inspect scrollable candidate profiles with contact-copy actions.
+- Recall command history, use keyboard autocomplete, and search offline command help.
+- Save candidate data locally and reload it on the next launch.
+
+## Get started
+
+Download the appropriate JAR from [Scoutly releases](https://github.com/AY2627S1-CS2103T-T09-3/tp/releases) and launch it with Java 25 from a writable folder. Apple Silicon Macs use `scoutly-mac-arm64.jar`; Windows, Linux, and Intel Macs use `scoutly.jar`.
+
+Enter commands in the command box. Read feedback in the result area, inspect candidate details in the profile panel, and use the numbered candidate list to select records. For example:
+
+```text
+add n/Jordan Lee p/91234567 s/Java s/SQL
+find Jordan
+view 1
+stage 1 s/Interview
+summary
+```
+
+Indexes refer to the currently displayed list. Check the index again after commands that change the filter or order. The User Guide explains each command and how to back up your data.
+
+## Documentation
+
+- [Project website](https://ay2627s1-cs2103t-t09-3.github.io/tp/)
+- [User Guide](https://ay2627s1-cs2103t-t09-3.github.io/tp/UserGuide.html)
+- [Developer Guide](https://ay2627s1-cs2103t-t09-3.github.io/tp/DeveloperGuide.html)
+- [About Us](https://ay2627s1-cs2103t-t09-3.github.io/tp/AboutUs.html)
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

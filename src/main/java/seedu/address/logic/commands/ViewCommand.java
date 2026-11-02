@@ -1,0 +1,154 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.person.Name;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Skill;
+
+/**
+ * Displays the profile of a candidate identified by the displayed index or full name.
+ */
+public class ViewCommand extends Command {
+
+    public static final String COMMAND_WORD = "view";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Views a candidate profile by index or full name in the displayed list.\n"
+            + "Parameters: INDEX (must be a positive integer) or FULL_NAME (case-insensitive)\n"
+            + "The full name must match exactly one displayed candidate. For multiple matches, use view INDEX.\n"
+            + "All-digit input is treated as an index.\n"
+            + "Examples: " + COMMAND_WORD + " 1; " + COMMAND_WORD + " Alice Pauline";
+
+    public static final String MESSAGE_INVALID_CANDIDATE_DISPLAYED_INDEX =
+            "The candidate index provided is invalid.";
+    public static final String MESSAGE_VIEW_CANDIDATE_SUCCESS = "Candidate profile:\n"
+            + "Name: %1$s\nPhone: %2$s\nEmail: %3$s\nAddress: %4$s\nTags: %5$s\nRemark: %6$s\n"
+            + "Hiring stage: %7$s\nSkills: %8$s";
+
+    public static final String MESSAGE_NAME_NOT_FOUND =
+            "No candidate with this full name exists in the displayed list. Use list to show all candidates.";
+    public static final String MESSAGE_AMBIGUOUS_NAME =
+            "Multiple candidates match \"%1$s\":\n%2$s\nUse view INDEX to choose a candidate.";
+
+    private static final Logger logger = LogsCenter.getLogger(ViewCommand.class);
+
+    private final Index targetIndex;
+    private final Name targetName;
+
+    /**
+     * Creates a ViewCommand to view the candidate at the specified displayed index.
+     */
+    public ViewCommand(Index targetIndex) {
+        this.targetIndex = requireNonNull(targetIndex);
+        this.targetName = null;
+    }
+
+    /**
+     * Creates a ViewCommand to view the unique candidate matching the specified full name.
+     */
+    public ViewCommand(Name targetName) {
+        this.targetIndex = null;
+        this.targetName = requireNonNull(targetName);
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        List<Person> lastShownList = model.getFilteredPersonList();
+
+        String lookupMode = targetName == null ? "index" : "name";
+        Person candidate;
+        try {
+            candidate = targetName == null ? getPersonByIndex(lastShownList) : getPersonByName(lastShownList);
+        } catch (CommandException e) {
+            logger.fine("Candidate profile lookup rejected: mode=" + lookupMode
+                    + ", displayedCandidates=" + lastShownList.size());
+            throw e;
+        }
+        logger.info("Prepared candidate profile using " + lookupMode + " lookup.");
+        String tags = candidate.getTags().stream()
+                .map(tag -> tag.tagName)
+                .sorted()
+                .collect(Collectors.joining(", "));
+        String email = candidate.getEmail().value;
+        String address = candidate.getAddress().value;
+        String remark = candidate.getRemark().value;
+        String skills = candidate.getSkills().stream()
+                .sorted(Skill.DISPLAY_ORDER)
+                .map(skill -> skill.value)
+                .collect(Collectors.joining(", "));
+        return CommandResult.showProfile(String.format(MESSAGE_VIEW_CANDIDATE_SUCCESS,
+                candidate.getName(), candidate.getPhone(), email.isEmpty() ? "None" : email,
+                address.isEmpty() ? "None" : address,
+                tags.isEmpty() ? "None" : tags, remark.isEmpty() ? "None" : remark, candidate.getStage(),
+                skills.isEmpty() ? "None" : skills), candidate);
+    }
+
+    /**
+     * Returns the candidate at the target index in the displayed list.
+     * @throws CommandException if the index is outside the displayed list
+     */
+    private Person getPersonByIndex(List<Person> lastShownList) throws CommandException {
+        if (targetIndex.getZeroBased() >= lastShownList.size()) {
+            throw new CommandException(MESSAGE_INVALID_CANDIDATE_DISPLAYED_INDEX);
+        }
+        return lastShownList.get(targetIndex.getZeroBased());
+    }
+
+    /**
+     * Returns the unique candidate whose full name matches, ignoring case, in the displayed list.
+     * @throws CommandException if no candidate or more than one candidate matches
+     */
+    private Person getPersonByName(List<Person> lastShownList) throws CommandException {
+        return PersonLookup.findByName(lastShownList, targetName, MESSAGE_NAME_NOT_FOUND,
+                matches -> formatAmbiguousName(lastShownList, matches));
+    }
+
+    /**
+     * Formats matching candidates with their indices in the displayed list, names, and phone numbers.
+     */
+    private String formatAmbiguousName(List<Person> lastShownList, List<Person> matches) {
+        String candidates = matches.stream()
+                .map(person -> (lastShownList.indexOf(person) + 1) + ". " + person.getName()
+                        + " — Phone: " + person.getPhone())
+                .collect(Collectors.joining("\n"));
+        return String.format(MESSAGE_AMBIGUOUS_NAME, targetName, candidates);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        if (!(other instanceof ViewCommand otherViewCommand)) {
+            return false;
+        }
+
+        return Objects.equals(targetIndex, otherViewCommand.targetIndex)
+                && Objects.equals(targetName, otherViewCommand.targetName);
+    }
+
+    @Override
+    public String toString() {
+        if (targetName != null) {
+            return new ToStringBuilder(this)
+                    .add("targetName", targetName)
+                    .toString();
+        }
+        return new ToStringBuilder(this)
+                .add("targetIndex", targetIndex)
+                .toString();
+    }
+}

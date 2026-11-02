@@ -4,6 +4,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -23,18 +24,57 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final Remark remark;
+    private final FollowUp followUp;
+    private final HiringStage stage;
     private final Set<Tag> tags = new HashSet<>();
+    private final Set<Skill> skills = new LinkedHashSet<>();
 
     /**
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(name, phone, email, address, new Remark(""), HiringStage.APPLIED, tags, Collections.emptySet());
+    }
+
+    /**
+     * Every field must be present and not null, including the optional remark's value.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Remark remark, Set<Tag> tags) {
+        this(name, phone, email, address, remark, HiringStage.APPLIED, tags, Collections.emptySet());
+    }
+
+    /**
+     * Every field must be present and not null, including the hiring stage.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Remark remark,
+            HiringStage stage, Set<Tag> tags) {
+        this(name, phone, email, address, remark, stage, tags, Collections.emptySet());
+    }
+
+    /**
+     * Every field must be present and not null, including the hiring stage and skills.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Remark remark,
+            HiringStage stage, Set<Tag> tags, Set<Skill> skills) {
+        this(name, phone, email, address, remark, stage, tags, skills, FollowUp.empty());
+    }
+
+    /**
+     * Creates a candidate with all details, including a follow-up.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Remark remark,
+            HiringStage stage, Set<Tag> tags, Set<Skill> skills, FollowUp followUp) {
+        requireAllNonNull(name, phone, email, address, remark, stage, tags, skills, followUp);
+        this.followUp = followUp;
+        this.stage = stage;
+        this.remark = remark;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
         this.tags.addAll(tags);
+        this.skills.addAll(skills);
     }
 
     public Name getName() {
@@ -47,6 +87,25 @@ public class Person {
 
     public Email getEmail() {
         return email;
+    }
+
+    public Remark getRemark() {
+        return remark;
+    }
+
+    public FollowUp getFollowUp() {
+        return followUp;
+    }
+
+    /**
+     * Returns a copy with a replacement follow-up, retaining all other candidate details.
+     */
+    public Person withFollowUp(FollowUp updatedFollowUp) {
+        return new Person(name, phone, email, address, remark, stage, tags, skills, updatedFollowUp);
+    }
+
+    public HiringStage getStage() {
+        return stage;
     }
 
     public Address getAddress() {
@@ -62,7 +121,15 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns an immutable skill set, which throws {@code UnsupportedOperationException}
+     * if modification is attempted.
+     */
+    public Set<Skill> getSkills() {
+        return Collections.unmodifiableSet(skills);
+    }
+
+    /**
+     * Returns true if both persons have the same name and phone number.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +138,9 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && Name.normalizeName(otherPerson.getName().fullName)
+                        .equalsIgnoreCase(Name.normalizeName(getName().fullName))
+                && otherPerson.getPhone().equals(getPhone());
     }
 
     /**
@@ -93,13 +162,17 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && remark.equals(otherPerson.remark)
+                && followUp.equals(otherPerson.followUp)
+                && stage == otherPerson.stage
+                && tags.equals(otherPerson.tags)
+                && skills.equals(otherPerson.skills);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, remark, stage, tags, skills, followUp);
     }
 
     @Override
@@ -109,7 +182,11 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("remark", remark)
+                .add("followUp", followUp)
+                .add("stage", stage)
                 .add("tags", tags)
+                .add("skills", skills)
                 .toString();
     }
 

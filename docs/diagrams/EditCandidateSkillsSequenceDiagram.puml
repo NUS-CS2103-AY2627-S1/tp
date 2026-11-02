@@ -1,0 +1,20 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant "command:EditCommand" as EditCommand LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+
+[-> EditCommand : execute(model)
+activate EditCommand
+EditCommand -> Model : getFilteredPersonList()
+Model --> EditCommand : displayedPersons
+
+EditCommand -> EditCommand : createEditedPerson(personToEdit,\neditPersonDescriptor)
+EditCommand -> Model : setPerson(personToEdit, editedPerson)
+EditCommand -> Model : updateFilteredPersonList(\nPREDICATE_SHOW_ALL_PERSONS)
+
+EditCommand -->[ : CommandResult(success feedback)
+deactivate EditCommand
+@enduml
