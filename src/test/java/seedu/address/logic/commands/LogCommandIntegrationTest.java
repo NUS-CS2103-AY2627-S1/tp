@@ -1,0 +1,87 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.address.testutil.InteractionCommandTestUtil.createModelWithPersons;
+import static seedu.address.testutil.InteractionHistoryTestUtil.assertHistory;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.model.Model;
+import seedu.address.model.person.Interaction;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+import seedu.address.ui.SupporterDetailData;
+
+/**
+ * Tests dated logging from command parsing through the model to detail-panel data, without starting JavaFX.
+ */
+public class LogCommandIntegrationTest {
+
+    @Test
+    public void execute_backDatedLogs_updatesSelectedHistoryInDateOrder() throws Exception {
+        Interaction recentInteraction = new Interaction(LocalDate.of(2024, 3, 10), "Recent call");
+        Person target = new PersonBuilder().withInteractions(recentInteraction).build();
+        Person other = new PersonBuilder().withName("Other Supporter").build();
+        Model model = createModelWithPersons(target, other);
+        model.setViewedPerson(other);
+        model.updateFilteredPersonList(person -> person.getName().equals(target.getName()));
+        AddressBookParser parser = new AddressBookParser();
+
+        // a back-dated entry selects the target but appears below the more recent interaction
+        CommandResult backdatedResult = parser.parseCommand("log 1 nt/Earlier meeting dt/2024-02-29").execute(model);
+        assertBackdatedLogSelectsTarget(model, target, backdatedResult);
+
+        // another entry on the same past date shows the later-logged entry first
+        CommandResult equalDateResult = parser.parseCommand("log 1 dt/2024-02-29 nt/Second earlier meeting")
+                .execute(model);
+        assertEqualDateLogPreservesLoggingOrder(model, target, recentInteraction, equalDateResult);
+
+        // a new latest interaction gets the largest number and is displayed first
+        CommandResult latestResult = parser.parseCommand("log 1 nt/Latest call. dt/2024-03-11").execute(model);
+        assertLatestLogAppearsFirst(model, target, latestResult);
+
+        // the current supporter filter and other supporter remain unchanged
+        assertEquals(List.of(model.getViewedPerson().orElseThrow()), model.getFilteredPersonList());
+        assertEquals(other, model.getAddressBook().getPersonList().get(1));
+    }
+
+    private void assertBackdatedLogSelectsTarget(Model model, Person target, CommandResult result) {
+        Person supporter = model.getViewedPerson().orElseThrow();
+        SupporterDetailData display = new SupporterDetailData(model.getViewedPerson());
+        assertEquals("Logged interaction #1 with " + target.getName() + " (29 Feb 2024): Earlier meeting",
+                result.getFeedbackToUser());
+        assertHistory(display, List.of(2, 1),
+                List.of("10 Mar 2024", "29 Feb 2024"), List.of("Recent call", "Earlier meeting"));
+        assertEquals(2, supporter.getInteractionCount());
+    }
+
+    private void assertEqualDateLogPreservesLoggingOrder(Model model, Person target,
+            Interaction recentInteraction, CommandResult result) {
+        assertEquals("Logged interaction #2 with " + target.getName() + " (29 Feb 2024): Second earlier meeting",
+                result.getFeedbackToUser());
+        Person supporter = model.getViewedPerson().orElseThrow();
+        SupporterDetailData display = new SupporterDetailData(model.getViewedPerson());
+        assertHistory(display, List.of(3, 2, 1),
+                List.of("10 Mar 2024", "29 Feb 2024", "29 Feb 2024"),
+                List.of("Recent call", "Second earlier meeting", "Earlier meeting"));
+        assertEquals("Interactions (3) - newest first", display.getHistoryHeading());
+
+        // display sorting leaves stored logging order unchanged
+        assertEquals(List.of(recentInteraction, new Interaction(LocalDate.of(2024, 2, 29), "Earlier meeting"),
+                new Interaction(LocalDate.of(2024, 2, 29), "Second earlier meeting")),
+                supporter.getInteractions());
+    }
+
+    private void assertLatestLogAppearsFirst(Model model, Person target, CommandResult result) {
+        assertEquals("Logged interaction #4 with " + target.getName() + " (11 Mar 2024): Latest call.",
+                result.getFeedbackToUser());
+        SupporterDetailData display = new SupporterDetailData(model.getViewedPerson());
+        assertHistory(display, List.of(4, 3, 2, 1),
+                List.of("11 Mar 2024", "10 Mar 2024", "29 Feb 2024", "29 Feb 2024"),
+                List.of("Latest call.", "Recent call", "Second earlier meeting", "Earlier meeting"));
+    }
+}

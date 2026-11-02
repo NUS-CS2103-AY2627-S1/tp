@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ORGANISATION_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
@@ -14,6 +15,9 @@ import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +28,9 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Interaction;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Stage;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 
@@ -71,15 +77,262 @@ public class EditCommandTest {
     }
 
     @Test
-    public void execute_noFieldSpecifiedUnfilteredList_success() {
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
-        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+    public void execute_editNonProspectSupporter_stagePreserved() {
+        // second typical person is at stage Giving, which edit must not reset to the default
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        assertEquals(Stage.GIVING, secondPerson.getStage());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+
+        Person editedPerson = new PersonBuilder(secondPerson).withPhone(VALID_PHONE_BOB).build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(secondPerson, editedPerson);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertEquals(Stage.GIVING, model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased()).getStage());
+    }
+
+    @Test
+    public void execute_organisationSpecifiedUnfilteredList_success() {
+        // first typical person has no organisation, so this adds one
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person editedPerson = new PersonBuilder(firstPerson).withOrganisation(VALID_ORGANISATION_AMY).build();
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withOrganisation(VALID_ORGANISATION_AMY).build();
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
 
         String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
 
         Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(firstPerson, editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_addPhoneToEmailOnlySupporter_success() throws Exception {
+        // a supporter who gave only an email can have a phone number added later
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person emailOnly = new PersonBuilder(firstPerson).withoutPhone().withoutAddress().build();
+        model.setPerson(firstPerson, emailOnly);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertEquals(new PersonBuilder(emailOnly).withPhone(VALID_PHONE_BOB).build(), editedPerson);
+    }
+
+    @Test
+    public void execute_editSupporterWithOrganisation_organisationPreserved() throws Exception {
+        // second typical person has an organisation, which edit must carry over unchanged
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        assertTrue(secondPerson.getOrganisation().isPresent());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        new EditCommand(INDEX_SECOND_PERSON, descriptor).execute(model);
+
+        Person editedPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        assertEquals(secondPerson.getOrganisation(), editedPerson.getOrganisation());
+    }
+
+    @Test
+    public void execute_editSupporterWithInteractions_interactionsPreserved() throws Exception {
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person personWithInteraction = new PersonBuilder(firstPerson)
+                .withInteractions(new Interaction(LocalDate.of(2026, 9, 16), "Called"))
+                .build();
+        model.setPerson(firstPerson, personWithInteraction);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertEquals(personWithInteraction.getInteractions(), editedPerson.getInteractions());
+    }
+
+    @Test
+    public void execute_editSupporterWithIntroducer_introducerPreserved() throws Exception {
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        Person introducedPerson = new PersonBuilder(firstPerson)
+                .withIntroducer(secondPerson.getName().fullName)
+                .build();
+        model.setPerson(firstPerson, introducedPerson);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertEquals(introducedPerson.getIntroducer(), editedPerson.getIntroducer());
+    }
+
+    @Test
+    public void execute_renameIntroducer_introductionsFollowNewName() throws Exception {
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        Person introducedPerson = new PersonBuilder(secondPerson)
+                .withIntroducer(firstPerson.getName().fullName)
+                .build();
+        model.setPerson(secondPerson, introducedPerson);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person updatedPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        assertEquals(VALID_NAME_BOB, updatedPerson.getIntroducer().get().fullName);
+    }
+
+    @Test
+    public void execute_clearAddressAndOrganisation_success() {
+        // second typical person has both an address and an organisation
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        assertTrue(secondPerson.getAddress().isPresent());
+        assertTrue(secondPerson.getOrganisation().isPresent());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutAddress()
+                .withoutOrganisation().build();
+        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+
+        Person editedPerson = new PersonBuilder(secondPerson).withoutAddress().withoutOrganisation().build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(secondPerson, editedPerson);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_clearAbsentField_nothingChanged() {
+        // clearing a field the supporter does not have leaves it empty
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person noOrganisation = new PersonBuilder(firstPerson).withoutOrganisation().build();
+        model.setPerson(firstPerson, noOrganisation);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutOrganisation().build();
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_NOT_CHANGED, noOrganisation.getName());
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_clearPhoneWithEmailKept_success() {
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertTrue(firstPerson.getEmail().isPresent());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutPhone().build();
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+
+        Person editedPerson = new PersonBuilder(firstPerson).withoutPhone().build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(firstPerson, editedPerson);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_clearEmailAndSetNewPhone_success() throws Exception {
+        // an email-only supporter can swap their email for a phone number in one edit
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person emailOnly = new PersonBuilder(firstPerson).withoutPhone().build();
+        model.setPerson(firstPerson, emailOnly);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutEmail()
+                .withPhone(VALID_PHONE_BOB).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertEquals(new PersonBuilder(emailOnly).withoutEmail().withPhone(VALID_PHONE_BOB).build(), editedPerson);
+    }
+
+    @Test
+    public void execute_clearOnlyContact_failure() {
+        // an email-only supporter would be left with no way to reach them
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person emailOnly = new PersonBuilder(firstPerson).withoutPhone().build();
+        model.setPerson(firstPerson, emailOnly);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutEmail().build();
+        assertCommandFailure(new EditCommand(INDEX_FIRST_PERSON, descriptor), model,
+                EditCommand.MESSAGE_NO_CONTACT_LEFT);
+    }
+
+    @Test
+    public void execute_clearPhoneAndEmail_failure() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutPhone().withoutEmail().build();
+        assertCommandFailure(new EditCommand(INDEX_FIRST_PERSON, descriptor), model,
+                EditCommand.MESSAGE_NO_CONTACT_LEFT);
+    }
+
+    @Test
+    public void execute_renameToOwnIntroducer_failure() {
+        // the new name clashes with the introducer, so this is a duplicate rather than a self-introduction
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        Person introducedPerson = new PersonBuilder(firstPerson)
+                .withIntroducer(secondPerson.getName().fullName)
+                .build();
+        model.setPerson(firstPerson, introducedPerson);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withName(secondPerson.getName().fullName.toLowerCase()).build();
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PERSON, secondPerson.getName());
+        assertCommandFailure(editCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_noFieldSpecifiedUnfilteredList_nothingChanged() {
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_NOT_CHANGED, firstPerson.getName());
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_unchangedValues_reportsNothingChangedAndSavesNoUndoPoint() throws Exception {
+        Person original = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person renamed = new PersonBuilder(original).withName(VALID_NAME_BOB).build();
+        model.setPerson(original, renamed);
+        model.commitAddressBookIfChanged();
+        String expectedMessage = String.format(EditCommand.MESSAGE_NOT_CHANGED, renamed.getName());
+
+        // the same name, and every detail the supporter already has
+        assertEquals(expectedMessage, new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build()).execute(model).getFeedbackToUser());
+        assertEquals(expectedMessage, new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder(renamed).build()).execute(model).getFeedbackToUser());
+
+        model.commitAddressBookIfChanged();
+        model.undoAddressBook();
+        // the undo reverts the rename, as neither unchanged edit saved an undo point
+        assertEquals(original, model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased()));
+    }
+
+    @Test
+    public void execute_unchangedValuesFilteredList_filterKept() throws Exception {
+        showPersonAtIndex(model, INDEX_SECOND_PERSON);
+        Person secondPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+
+        new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptorBuilder()
+                .withName(secondPerson.getName().fullName).build()).execute(model);
+
+        assertEquals(List.of(secondPerson), model.getFilteredPersonList());
     }
 
     @Test
@@ -105,7 +358,36 @@ public class EditCommandTest {
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(firstPerson).build();
         EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PERSON, firstPerson.getName());
+        assertCommandFailure(editCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_nameDiffersOnlyInCaseAndSpaces_failure() {
+        // "alice  pauline" counts as the same supporter as "Alice Pauline"
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        String sameNameDifferentCase = "  " + firstPerson.getName().fullName.toLowerCase().replace(" ", "  ");
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(sameNameDifferentCase).build();
+        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PERSON, firstPerson.getName());
+        assertCommandFailure(editCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_changeCaseOfOwnName_success() {
+        // changing only the capitalisation of a supporter's own name is not a duplicate
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        String newName = firstPerson.getName().fullName.toUpperCase();
+        Person editedPerson = new PersonBuilder(firstPerson).withName(newName).build();
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(newName).build();
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(firstPerson, editedPerson);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
     }
 
     @Test
@@ -117,7 +399,8 @@ public class EditCommandTest {
         EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
                 new EditPersonDescriptorBuilder(personInList).build());
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PERSON, personInList.getName());
+        assertCommandFailure(editCommand, model, expectedMessage);
     }
 
     @Test

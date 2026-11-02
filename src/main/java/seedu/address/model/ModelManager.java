@@ -3,13 +3,21 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 
 /**
@@ -18,9 +26,14 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final VersionedAddressBook versionedAddressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    // Immutable record versions share their original instance as a session-only identity, not a name or index.
+    private final Map<Person, Person> personOrigins = new IdentityHashMap<>();
+    private Person viewedPerson = null;
+    private boolean hasUncommittedChanges = false;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -30,9 +43,10 @@ public class ModelManager implements Model {
 
         logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.versionedAddressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredPersons = new FilteredList<>(this.versionedAddressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
     }
 
     public ModelManager() {
@@ -61,28 +75,35 @@ public class ModelManager implements Model {
 
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+        versionedAddressBook.resetData(addressBook);
+        hasUncommittedChanges = true;
+        viewedPerson = null;
     }
 
     @Override
     public ReadOnlyAddressBook getAddressBook() {
-        return addressBook;
+        return versionedAddressBook;
     }
 
     @Override
     public boolean hasPerson(Person person) {
         requireNonNull(person);
-        return addressBook.hasPerson(person);
+        return versionedAddressBook.hasPerson(person);
     }
 
     @Override
     public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+        versionedAddressBook.removePerson(target);
+        hasUncommittedChanges = true;
+        if (target.equals(viewedPerson)) {
+            viewedPerson = null;
+        }
     }
 
     @Override
     public void addPerson(Person person) {
-        addressBook.addPerson(person);
+        versionedAddressBook.addPerson(person);
+        hasUncommittedChanges = true;
         updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
@@ -90,24 +111,155 @@ public class ModelManager implements Model {
     public void setPerson(Person target, Person editedPerson) {
         requireAllNonNull(target, editedPerson);
 
-        addressBook.setPerson(target, editedPerson);
+        Person storedTarget = versionedAddressBook.getPersonList().stream()
+                .filter(target::equals)
+                .findFirst()
+                .orElse(target);
+        versionedAddressBook.setPerson(target, editedPerson);
+        personOrigins.put(editedPerson, getPersonOrigin(storedTarget));
+        hasUncommittedChanges = true;
+        if (target.equals(viewedPerson)) {
+            viewedPerson = editedPerson;
+        }
+    }
+
+    @Override
+    public List<Person> getPersonsIntroducedBy(Name introducer) {
+        requireNonNull(introducer);
+        return versionedAddressBook.getPersonList().stream()
+                .filter(person -> person.isIntroducedBy(introducer))
+                .toList();
+    }
+
+    @Override
+    public int replaceIntroducer(Name introducer, Optional<Name> replacement) {
+        requireAllNonNull(introducer, replacement);
+        List<Person> introducedPersons = getPersonsIntroducedBy(introducer);
+        for (Person person : introducedPersons) {
+            // goes through setPerson so that a viewed supporter is kept up to date
+            setPerson(person, person.withIntroducer(replacement));
+        }
+        logger.fine("Replaced introducer " + introducer + " for " + introducedPersons.size() + " supporter(s)");
+        return introducedPersons.size();
+    }
+
+    @Override
+    public boolean isIntroducedThrough(Person person, Name name) {
+        return versionedAddressBook.isIntroducedThrough(person, name);
+    }
+
+    @Override
+    public void commitAddressBookIfChanged() {
+        commitAddressBookIfChanged("");
+    }
+
+    @Override
+    public void commitAddressBookIfChanged(String changeDescription) {
+        requireNonNull(changeDescription);
+        // a command can write back identical data, e.g. an edit to the same phone number
+        if (hasUncommittedChanges && versionedAddressBook.hasChangesSinceLastCommit()) {
+            boolean isDiscardingRedo = versionedAddressBook.canRedo();
+            versionedAddressBook.commit(changeDescription);
+            if (isDiscardingRedo) {
+                discardUnusedPersonOrigins();
+            }
+        } else if (hasUncommittedChanges) {
+            discardUnusedPersonOrigins();
+        }
+        hasUncommittedChanges = false;
+    }
+
+    /**
+     * Releases metadata for discarded redo branches and replaced no-op records.
+     */
+    private void discardUnusedPersonOrigins() {
+        personOrigins.keySet().retainAll(versionedAddressBook.getRetainedPersonVersions());
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return versionedAddressBook.canUndo();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return versionedAddressBook.canRedo();
+    }
+
+    @Override
+    public String undoAddressBook() {
+        String undoneChange = versionedAddressBook.undo();
+        refreshViewedPerson();
+        return undoneChange;
+    }
+
+    @Override
+    public String redoAddressBook() {
+        String redoneChange = versionedAddressBook.redo();
+        refreshViewedPerson();
+        return redoneChange;
+    }
+
+    /**
+     * Replaces the viewed supporter with their record in the restored data, or clears the selection if they
+     * are no longer in it.
+     */
+    private void refreshViewedPerson() {
+        if (viewedPerson == null) {
+            return;
+        }
+        Person viewedOrigin = getPersonOrigin(viewedPerson);
+        viewedPerson = versionedAddressBook.getPersonList().stream()
+                .filter(person -> getPersonOrigin(person) == viewedOrigin)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Returns the shared original instance for a supporter's immutable record versions.
+     * Identity-based keys keep unrelated supporters distinct even if they have identical field values.
+     */
+    private Person getPersonOrigin(Person person) {
+        return personOrigins.getOrDefault(person, person);
+    }
+
+    @Override
+    public Optional<Person> getViewedPerson() {
+        return Optional.ofNullable(viewedPerson);
+    }
+
+    @Override
+    public void setViewedPerson(Person person) {
+        requireNonNull(person);
+        viewedPerson = versionedAddressBook.getPersonList().stream()
+                .filter(person::equals)
+                .findFirst()
+                .orElse(person);
     }
 
     //=========== Filtered Person List Accessors =============================================================
 
     /**
      * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * {@code versionedAddressBook}
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        sortedPersons.setComparator(null);
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public void updateSortedPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
+        requireAllNonNull(predicate, comparator);
+        filteredPersons.setPredicate(predicate);
+        sortedPersons.setComparator(comparator);
     }
 
     @Override
@@ -121,9 +273,11 @@ public class ModelManager implements Model {
             return false;
         }
 
-        return addressBook.equals(otherModelManager.addressBook)
+        return versionedAddressBook.equals(otherModelManager.versionedAddressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && sortedPersons.equals(otherModelManager.sortedPersons)
+                && Objects.equals(viewedPerson, otherModelManager.viewedPerson);
     }
 
 }

@@ -1,9 +1,13 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 
 /**
@@ -60,12 +64,90 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /**
+     * Returns every supporter whose recorded introducer is the supporter called {@code introducer},
+     * in the order they appear in the address book. Names are compared ignoring case and extra spaces.
+     */
+    List<Person> getPersonsIntroducedBy(Name introducer);
+
+    /**
+     * Replaces the introducer of every supporter introduced by {@code introducer} with {@code replacement},
+     * or removes it if {@code replacement} is empty, and returns how many supporters were changed.
+     * Used to keep introductions correct when a supporter is renamed or deleted.
+     */
+    int replaceIntroducer(Name introducer, Optional<Name> replacement);
+
+    /**
+     * Returns true if the supporter called {@code name} introduced {@code person}, directly or through a
+     * chain of introductions. Names are compared ignoring case and extra spaces.
+     */
+    boolean isIntroducedThrough(Person person, Name name);
+
+    /**
+     * Saves the current address book state to the undo/redo history if supporter data has changed since the
+     * last saved state. Any undone states are then discarded, so they can no longer be redone.
+     * The change is saved without a description.
+     */
+    void commitAddressBookIfChanged();
+
+    /**
+     * Saves an undo point in the same way as {@link #commitAddressBookIfChanged()}, recording
+     * {@code changeDescription}, e.g. the command that made the change, so that undo and redo can name it.
+     */
+    void commitAddressBookIfChanged(String changeDescription);
+
+    /**
+     * Returns true if there is an earlier address book state to restore.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Returns true if there is a later address book state to restore.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Restores the previous address book state from the undo/redo history.
+     *
+     * @return the description of the undone change, which is empty if it was saved without one.
+     * @throws IllegalStateException if there is no earlier state.
+     */
+    String undoAddressBook();
+
+    /**
+     * Restores the next undone address book state from the undo/redo history.
+     *
+     * @return the description of the redone change, which is empty if it was saved without one.
+     * @throws IllegalStateException if there is no later state.
+     */
+    String redoAddressBook();
+
+    /**
+     * Returns the supporter being viewed, or an empty {@code Optional} if none has been selected.
+     */
+    Optional<Person> getViewedPerson();
+
+    /**
+     * Records {@code person} as the supporter being viewed without changing the displayed list or its filter.
+     *
+     * @throws NullPointerException if {@code person} is null.
+     */
+    void setViewedPerson(Person person);
+
+    /** Returns an unmodifiable view of the displayed, filtered and optionally sorted person list. */
     ObservableList<Person> getFilteredPersonList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the displayed list using {@code predicate} and restores the underlying supporter order.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the displayed list using {@code predicate} and {@code comparator}, without reordering stored data.
+     * Supporters that compare equally retain their underlying supporter order.
+     *
+     * @throws NullPointerException if either argument is null.
+     */
+    void updateSortedPersonList(Predicate<Person> predicate, Comparator<Person> comparator);
 }

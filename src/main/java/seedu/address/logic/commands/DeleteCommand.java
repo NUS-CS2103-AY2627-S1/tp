@@ -3,7 +3,10 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
@@ -12,21 +15,30 @@ import seedu.address.model.Model;
 import seedu.address.model.person.Person;
 
 /**
- * Deletes a person identified using its displayed index from the address book.
+ * Deletes a supporter and their logged interactions using the displayed index.
  */
 public class DeleteCommand extends Command {
 
     public static final String COMMAND_WORD = "delete";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
+            + ": Deletes the supporter identified by the index number used in the displayed supporter list, "
+            + "together with their logged interactions.\n"
             + "Parameters: INDEX (must be a positive integer)\n"
             + "Example: " + COMMAND_WORD + " 1";
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted supporter: %1$s\n"
+            + "%2$d logged interaction(s) were deleted with them.";
+    public static final String MESSAGE_INTRODUCTIONS_CLEARED =
+            "\nThey were also removed as the introducer of %1$d supporter(s).";
+
+    private static final Logger logger = LogsCenter.getLogger(DeleteCommand.class);
 
     private final Index targetIndex;
 
+    /**
+     * Creates a command to delete the supporter at {@code targetIndex} in the displayed list.
+     */
     public DeleteCommand(Index targetIndex) {
         this.targetIndex = targetIndex;
     }
@@ -37,12 +49,28 @@ public class DeleteCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (targetIndex.getZeroBased() >= lastShownList.size()) {
+            logger.fine(() -> "Rejected delete: displayed index=" + targetIndex.getOneBased()
+                    + ", displayed supporters=" + lastShownList.size());
             throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
         }
 
         Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
+        int interactionCount = personToDelete.getInteractionCount();
+
         model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        int clearedIntroductions = model.replaceIntroducer(personToDelete.getName(), Optional.empty());
+        assert !model.hasPerson(personToDelete) : "A deleted supporter must no longer be stored";
+        assert model.getPersonsIntroducedBy(personToDelete.getName()).isEmpty()
+                : "No introduction may refer to a deleted supporter";
+        logger.fine(() -> "Deleted supporter: displayed index=" + targetIndex.getOneBased()
+                + ", interactions removed=" + interactionCount + ", introductions cleared=" + clearedIntroductions);
+
+        String message = String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete),
+                interactionCount);
+        if (clearedIntroductions > 0) {
+            message += String.format(MESSAGE_INTRODUCTIONS_CLEARED, clearedIntroductions);
+        }
+        return new CommandResult(message);
     }
 
     @Override

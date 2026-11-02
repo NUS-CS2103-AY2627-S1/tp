@@ -1,15 +1,22 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +24,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -34,6 +42,7 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private SupporterDetailPanel supporterDetailPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
 
@@ -45,6 +54,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane supporterDetailPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -82,7 +94,8 @@ public class MainWindow extends UiPart<Stage> {
 
     /**
      * Sets the accelerator of a MenuItem.
-     * @param keyCombination the KeyCombination value of the accelerator
+     *
+     * @param keyCombination the KeyCombination value of the accelerator.
      */
     private void setAccelerator(MenuItem menuItem, KeyCombination keyCombination) {
         menuItem.setAccelerator(keyCombination);
@@ -114,10 +127,24 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
+        fillInnerParts("");
+    }
+
+    /**
+     * Fills the placeholders and shows {@code initialFeedback} in the result display.
+     */
+    void fillInnerParts(String initialFeedback) {
+        requireNonNull(initialFeedback);
+
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
+        supporterDetailPanel = new SupporterDetailPanel();
+        refreshSupporterDetailPanel();
+        supporterDetailPanelPlaceholder.getChildren().add(supporterDetailPanel.getRoot());
+
         resultDisplay = new ResultDisplay();
+        resultDisplay.setFeedbackToUser(initialFeedback);
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
@@ -131,12 +158,31 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        // a size saved on a larger screen is shrunk so that the whole window fits on this one
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        primaryStage.setHeight(Math.min(guiSettings.getWindowHeight(), screenBounds.getHeight()));
+        primaryStage.setWidth(Math.min(guiSettings.getWindowWidth(), screenBounds.getWidth()));
+
+        Point coordinates = guiSettings.getWindowCoordinates();
+        if (coordinates == null) {
+            return;
         }
+        if (!isOnAnyScreen(coordinates)) {
+            // e.g. the window was last on a second screen that is no longer connected
+            logger.info("Saved window position " + coordinates
+                    + " is on no connected screen; using the default position");
+            return;
+        }
+        primaryStage.setX(coordinates.getX());
+        primaryStage.setY(coordinates.getY());
+    }
+
+    /**
+     * Returns true if {@code point} lies within the visual bounds of a connected screen.
+     */
+    static boolean isOnAnyScreen(Point point) {
+        return Screen.getScreens().stream()
+                .anyMatch(screen -> screen.getVisualBounds().contains(point.getX(), point.getY()));
     }
 
     /**
@@ -195,6 +241,19 @@ public class MainWindow extends UiPart<Stage> {
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
+        } finally {
+            refreshSupporterDetailPanel();
         }
+    }
+
+    /**
+     * Shows the viewed supporter, together with the supporters they introduced, in the detail panel.
+     */
+    private void refreshSupporterDetailPanel() {
+        Optional<Person> viewedPerson = logic.getViewedPerson();
+        List<Person> introducedPersons = viewedPerson
+                .map(person -> logic.getPersonsIntroducedBy(person.getName()))
+                .orElseGet(List::of);
+        supporterDetailPanel.setSupporter(viewedPerson, introducedPersons);
     }
 }

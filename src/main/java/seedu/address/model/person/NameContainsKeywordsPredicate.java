@@ -3,23 +3,25 @@ package seedu.address.model.person;
 import java.util.List;
 import java.util.function.Predicate;
 
-import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a {@code Person}'s {@code Name} contains any keyword, ignoring case and apostrophe style.
+ * Canonically equivalent Unicode spellings match, and a keyword can match part of a word.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
 
+    /**
+     * Creates a predicate that matches names containing any of the given keywords, ignoring case.
+     */
     public NameContainsKeywordsPredicate(List<String> keywords) {
         this.keywords = keywords;
     }
 
     @Override
     public boolean test(Person person) {
-        return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+        return new PersonMatchesSearchPredicate(keywords).test(person);
     }
 
     @Override

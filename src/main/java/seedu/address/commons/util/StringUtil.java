@@ -6,11 +6,53 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /**
  * Helper functions for handling strings.
  */
 public class StringUtil {
+
+    private static final Pattern ASCII_DIGITS = Pattern.compile("[0-9]+");
+
+    /**
+     * Removes leading and trailing whitespace and Unicode space separators from a string,
+     * including NEXT LINE (U+0085).
+     * Internal spacing is preserved. Characters removed by {@link String#trim()} are also removed.
+     *
+     * @param text The non-null string to trim.
+     * @return The trimmed string, or an empty string if it contains only trimmable characters.
+     * @throws NullPointerException if {@code text} is null.
+     */
+    public static String trimUnicodeWhitespace(String text) {
+        requireNonNull(text);
+        int start = 0;
+        int end = text.length();
+        while (start < end && isTrimmableWhitespace(text.codePointAt(start))) {
+            start += Character.charCount(text.codePointAt(start));
+        }
+        while (start < end && isTrimmableWhitespace(text.codePointBefore(end))) {
+            end -= Character.charCount(text.codePointBefore(end));
+        }
+        return text.substring(start, end);
+    }
+
+    /**
+     * Returns true if {@code text} is empty or contains only characters removed by
+     * {@link #trimUnicodeWhitespace(String)}, such as NO-BREAK SPACE (U+00A0), which {@link String#isBlank()}
+     * does not recognise.
+     *
+     * @throws NullPointerException if {@code text} is null.
+     */
+    public static boolean isUnicodeBlank(String text) {
+        return trimUnicodeWhitespace(text).isEmpty();
+    }
+
+    private static boolean isTrimmableWhitespace(int codePoint) {
+        // NEXT LINE is Unicode whitespace but is excluded by both Java Character predicates below
+        return codePoint <= ' ' || codePoint == '\u0085'
+                || Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint);
+    }
 
     /**
      * Returns true if the {@code sentence} contains the {@code word}.
@@ -49,7 +91,8 @@ public class StringUtil {
     }
 
     /**
-     * Returns true if {@code s} represents a non-zero unsigned integer
+     * Returns true if {@code s} represents a non-zero unsigned integer using only ASCII digits (0-9).
+     * Leading zeros are allowed.
      * e.g. 1, 2, 3, ..., {@code Integer.MAX_VALUE} <br>
      * Will return false for any other non-null string input
      * e.g. empty string, "-1", "0", "+1", and " 2 " (untrimmed), "3 0" (contains whitespace), "1 a" (contains letters)
@@ -57,10 +100,13 @@ public class StringUtil {
      */
     public static boolean isNonZeroUnsignedInteger(String s) {
         requireNonNull(s);
+        if (!ASCII_DIGITS.matcher(s).matches()) {
+            return false;
+        }
 
         try {
             int value = Integer.parseInt(s);
-            return value > 0 && !s.startsWith("+"); // "+1" is successfully parsed by Integer#parseInt(String)
+            return value > 0;
         } catch (NumberFormatException nfe) {
             return false;
         }

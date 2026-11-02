@@ -1,14 +1,65 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.FileNotFoundException;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 public class StringUtilTest {
+
+    @Test
+    public void trimUnicodeWhitespace_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.trimUnicodeWhitespace(null));
+    }
+
+    @Test
+    public void trimUnicodeWhitespace_blank_returnsEmpty() {
+        for (String text : List.of("", " ", "\t\r\n", "\u0085", "\u2003", "\u00a0", "\u202f", "\u3000",
+                " \t\u0085\u2003\u00a0\u202f\u3000 ")) {
+            assertEquals("", StringUtil.trimUnicodeWhitespace(text));
+        }
+    }
+
+    @Test
+    public void trimUnicodeWhitespace_paddedText_preservesInternalSpacing() {
+        String text = "\ud83d\ude00 Called  about\u00a0the\u2003appeal\u0085today \ud83d\ude00";
+        for (String padding : List.of(" ", "\t", "\u0085", "\u2003", "\u00a0", "\u202f", "\u3000",
+                " \t\u2003\u00a0 ")) {
+            assertEquals(text, StringUtil.trimUnicodeWhitespace(padding + text + padding));
+            assertEquals(text, StringUtil.trimUnicodeWhitespace(padding + text));
+            assertEquals(text, StringUtil.trimUnicodeWhitespace(text + padding));
+        }
+    }
+
+    @Test
+    public void trimUnicodeWhitespace_unpaddedText_unchanged() {
+        String text = "\ud83d\ude00 Called  yesterday \ud83d\ude00";
+        assertEquals(text, StringUtil.trimUnicodeWhitespace(text));
+    }
+
+    @Test
+    public void trimUnicodeWhitespace_asciiControlPadding_preservesTrimBehavior() {
+        // null and unit separator exercise the control-character range handled by String.trim
+        String padding = "\u0000\u001f";
+        assertEquals("Called", StringUtil.trimUnicodeWhitespace(padding + "Called" + padding));
+    }
+
+    @Test
+    public void isUnicodeBlank() {
+        assertThrows(NullPointerException.class, () -> StringUtil.isUnicodeBlank(null));
+
+        for (String text : List.of("", " ", "\t", "\u0085", " ", " ", "   　 ")) {
+            assertTrue(StringUtil.isUnicodeBlank(text));
+        }
+        assertFalse(StringUtil.isUnicodeBlank(" Office "));
+        assertFalse(StringUtil.isUnicodeBlank("-"));
+    }
+
 
     //---------------- Tests for isNonZeroUnsignedInteger --------------------------------------
 
@@ -38,11 +89,20 @@ public class StringUtilTest {
         assertFalse(StringUtil.isNonZeroUnsignedInteger("1 0")); // Spaces in the middle
 
         // EP: number larger than Integer.MAX_VALUE
-        assertFalse(StringUtil.isNonZeroUnsignedInteger(Long.toString(Integer.MAX_VALUE + 1)));
+        assertFalse(StringUtil.isNonZeroUnsignedInteger(Long.toString(Integer.MAX_VALUE + 1L)));
 
         // EP: valid numbers, should return true
         assertTrue(StringUtil.isNonZeroUnsignedInteger("1")); // Boundary value
         assertTrue(StringUtil.isNonZeroUnsignedInteger("10"));
+        assertTrue(StringUtil.isNonZeroUnsignedInteger(Integer.toString(Integer.MAX_VALUE)));
+    }
+
+    @Test
+    public void isNonZeroUnsignedInteger_nonAsciiDigits_returnsFalse() {
+        // cover both reported digit scripts and mixed inputs with a non-ASCII digit at either end
+        for (String input : List.of("１", "١", "1２", "١2")) {
+            assertFalse(StringUtil.isNonZeroUnsignedInteger(input), input);
+        }
     }
 
 

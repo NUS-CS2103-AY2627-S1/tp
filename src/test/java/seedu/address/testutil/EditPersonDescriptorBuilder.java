@@ -8,6 +8,7 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Organisation;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
@@ -33,9 +34,10 @@ public class EditPersonDescriptorBuilder {
     public EditPersonDescriptorBuilder(Person person) {
         descriptor = new EditPersonDescriptor();
         descriptor.setName(person.getName());
-        descriptor.setPhone(person.getPhone());
-        descriptor.setEmail(person.getEmail());
-        descriptor.setAddress(person.getAddress());
+        descriptor.setPhone(person.getPhone().orElse(null));
+        descriptor.setEmail(person.getEmail().orElse(null));
+        descriptor.setAddress(person.getAddress().orElse(null));
+        descriptor.setOrganisation(person.getOrganisation().orElse(null));
         descriptor.setTags(person.getTags());
     }
 
@@ -68,6 +70,46 @@ public class EditPersonDescriptorBuilder {
      */
     public EditPersonDescriptorBuilder withAddress(String address) {
         descriptor.setAddress(new Address(address));
+        return this;
+    }
+
+    /**
+     * Sets the {@code Organisation} of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withOrganisation(String organisation) {
+        descriptor.setOrganisation(new Organisation(organisation));
+        return this;
+    }
+
+    /**
+     * Marks the {@code Phone} of the {@code EditPersonDescriptor} that we are building to be cleared.
+     */
+    public EditPersonDescriptorBuilder withoutPhone() {
+        descriptor.clearPhone();
+        return this;
+    }
+
+    /**
+     * Marks the {@code Email} of the {@code EditPersonDescriptor} that we are building to be cleared.
+     */
+    public EditPersonDescriptorBuilder withoutEmail() {
+        descriptor.clearEmail();
+        return this;
+    }
+
+    /**
+     * Marks the {@code Address} of the {@code EditPersonDescriptor} that we are building to be cleared.
+     */
+    public EditPersonDescriptorBuilder withoutAddress() {
+        descriptor.clearAddress();
+        return this;
+    }
+
+    /**
+     * Marks the {@code Organisation} of the {@code EditPersonDescriptor} that we are building to be cleared.
+     */
+    public EditPersonDescriptorBuilder withoutOrganisation() {
+        descriptor.clearOrganisation();
         return this;
     }
 

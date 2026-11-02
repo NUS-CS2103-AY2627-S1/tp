@@ -1,7 +1,9 @@
 package seedu.address.logic.commands;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -39,10 +41,32 @@ public class AddCommandIntegrationTest {
     }
 
     @Test
+    public void execute_sharedPhone_addsSupporterWithWarning() throws Exception {
+        Person person = new PersonBuilder().withName("Shared Phone Test")
+                .withPhone(ALICE.getPhone().orElseThrow().value).withoutEmail().build();
+
+        CommandResult result = new AddCommand(person).execute(model);
+
+        assertTrue(model.hasPerson(person));
+        assertTrue(result.getFeedbackToUser().contains("Warning:"));
+        assertTrue(result.getFeedbackToUser().contains(ALICE.getName().fullName + " (phone)"));
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person personInList = model.getAddressBook().getPersonList().get(0);
         assertCommandFailure(new AddCommand(personInList), model,
-                AddCommand.MESSAGE_DUPLICATE_PERSON);
+                String.format(Messages.MESSAGE_DUPLICATE_PERSON, personInList.getName()));
+    }
+
+    @Test
+    public void execute_nameDiffersOnlyInCaseAndSpaces_throwsCommandException() {
+        // the message names the supporter already in the list, as they were saved
+        Person personInList = model.getAddressBook().getPersonList().get(0);
+        String sameNameDifferentCase = personInList.getName().fullName.toUpperCase().replace(" ", "   ");
+        Person newPerson = new PersonBuilder().withName(sameNameDifferentCase).build();
+        assertCommandFailure(new AddCommand(newPerson), model,
+                String.format(Messages.MESSAGE_DUPLICATE_PERSON, personInList.getName()));
     }
 
 }

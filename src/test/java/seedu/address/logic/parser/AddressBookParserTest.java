@@ -6,8 +6,13 @@ import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalInteractionNotes.VALID_NOTE;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -17,13 +22,29 @@ import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditLogCommand;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.IntroCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.LogCommand;
+import seedu.address.logic.commands.QuietCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.StageCommand;
+import seedu.address.logic.commands.StatsCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UnlogCommand;
+import seedu.address.logic.commands.UntagCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesSearchPredicate;
+import seedu.address.model.person.Stage;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -31,6 +52,18 @@ import seedu.address.testutil.PersonUtil;
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
+
+    @Test
+    public void parseCommand_invalidSupporterIndex_reportsReasonAndUsage() {
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX + "\n" + DeleteCommand.MESSAGE_USAGE, () ->
+                parser.parseCommand("delete 0"));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX + "\n" + DeleteCommand.MESSAGE_USAGE, () ->
+                parser.parseCommand("delete abc"));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX + "\n" + ViewCommand.MESSAGE_USAGE, () ->
+                parser.parseCommand("view 0"));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX + "\n" + EditCommand.MESSAGE_USAGE, () ->
+                parser.parseCommand("edit 0 n/x"));
+    }
 
     @Test
     public void parseCommand_add() throws Exception {
@@ -46,10 +79,147 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_undo() throws Exception {
+        assertTrue(parser.parseCommand(UndoCommand.COMMAND_WORD) instanceof UndoCommand);
+        assertTrue(parser.parseCommand("  undo  ") instanceof UndoCommand);
+    }
+
+    @Test
+    public void parseCommand_undoWithArguments_throwsParseException() {
+        // a count would otherwise undo only one change while looking like it undid several
+        assertThrows(ParseException.class, UndoCommand.MESSAGE_NO_ARGUMENTS, () -> parser.parseCommand("undo 3"));
+        assertThrows(ParseException.class, UndoCommand.MESSAGE_NO_ARGUMENTS, () -> parser.parseCommand("undo all"));
+    }
+
+    @Test
+    public void parseCommand_redo() throws Exception {
+        assertTrue(parser.parseCommand(RedoCommand.COMMAND_WORD) instanceof RedoCommand);
+        assertTrue(parser.parseCommand("  redo  ") instanceof RedoCommand);
+    }
+
+    @Test
+    public void parseCommand_redoWithArguments_throwsParseException() {
+        assertThrows(ParseException.class, RedoCommand.MESSAGE_NO_ARGUMENTS, () -> parser.parseCommand("redo 3"));
+    }
+
+    @Test
     public void parseCommand_delete() throws Exception {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_editlog_returnsEditLogCommand() throws Exception {
+        EditLogCommand expected = new EditLogCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON,
+                Optional.of("Corrected note"), Optional.of(LocalDate.of(2024, 2, 29)));
+        assertEquals(expected, parser.parseCommand("editlog 1 2 nt/Corrected note dt/2024-02-29"));
+        assertEquals(expected, parser.parseCommand("  editlog\t1 2 dt/2024-02-29 nt/Corrected note  "));
+    }
+
+    @Test
+    public void parseCommand_editlogInvalidArguments_throwsParseException() {
+        String expectedMessage = ParserUtil.MESSAGE_INVALID_INTERACTION_INDICES + "\n" + EditLogCommand.MESSAGE_USAGE;
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("editlog"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("editlog 1 abc nt/Note"));
+        assertThrows(ParseException.class, EditLogCommand.MESSAGE_NOT_EDITED, () ->
+                parser.parseCommand("editlog 1 2"));
+    }
+
+    @Test
+    public void parseCommand_editlogUpperCase_returnsEditLogCommand() throws Exception {
+        // command words ignore case
+        EditLogCommand expected = new EditLogCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON,
+                Optional.of("Note"), Optional.empty());
+        assertEquals(expected, parser.parseCommand("EDITLOG 1 2 nt/Note"));
+    }
+
+    @Test
+    public void parseCommand_log() throws Exception {
+        LogCommand command = (LogCommand) parser.parseCommand(LogCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " nt/" + VALID_NOTE);
+        assertEquals(new LogCommand(INDEX_FIRST_PERSON, VALID_NOTE), command);
+    }
+
+    @Test
+    public void parseCommand_logInvalidIndex_reportsIndexErrorAndUsage() {
+        String expectedMessage = ParserUtil.MESSAGE_INVALID_INDEX + "\n" + LogCommand.MESSAGE_USAGE;
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("log 0 nt/Called"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("log abc nt/Called"));
+    }
+
+    @Test
+    public void parseCommand_unlog_returnsUnlogCommand() throws Exception {
+        UnlogCommand expected = new UnlogCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON);
+        assertEquals(expected, parser.parseCommand("unlog 1 2"));
+        assertEquals(expected, parser.parseCommand("  unlog\t1  2  "));
+    }
+
+    @Test
+    public void parseCommand_unlogInvalidArguments_throwsParseException() {
+        String expectedMessage = ParserUtil.MESSAGE_INVALID_INTERACTION_INDICES + "\n" + UnlogCommand.MESSAGE_USAGE;
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("unlog"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("unlog 1 abc"));
+    }
+
+    @Test
+    public void parseCommand_unlogUpperCase_returnsUnlogCommand() throws Exception {
+        // command words ignore case
+        assertEquals(new UnlogCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), parser.parseCommand("UNLOG 1 2"));
+    }
+
+    @Test
+    public void parseCommand_stage() throws Exception {
+        StageCommand command = (StageCommand) parser.parseCommand(
+                StageCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " cultivating");
+        assertEquals(new StageCommand(INDEX_FIRST_PERSON, Stage.CULTIVATING), command);
+    }
+
+    @Test
+    public void parseCommand_stageMixedCase_returnsStageCommand() throws Exception {
+        // command words ignore case
+        StageCommand expected = new StageCommand(INDEX_FIRST_PERSON, Stage.GIVING);
+        assertEquals(expected, parser.parseCommand("STAGE 1 giving"));
+        assertEquals(expected, parser.parseCommand("Stage 1 giving"));
+    }
+
+    @Test
+    public void parseCommand_view_returnsViewCommand() throws Exception {
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), parser.parseCommand("view 1"));
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), parser.parseCommand("  view\t1  "));
+    }
+
+    @Test
+    public void parseCommand_viewInvalidArguments_throwsParseException() {
+        String expectedMessage = ParserUtil.MESSAGE_INVALID_INDEX + "\n" + ViewCommand.MESSAGE_USAGE;
+        String formatMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ViewCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, formatMessage, () -> parser.parseCommand("view"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("view abc"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("view 0"));
+        assertThrows(ParseException.class, formatMessage, () -> parser.parseCommand("view 1 2"));
+    }
+
+    @Test
+    public void parseCommand_viewUpperCase_returnsViewCommand() throws Exception {
+        // command words ignore case
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), parser.parseCommand("VIEW 1"));
+    }
+
+    @Test
+    public void parseCommand_viewAfterFind_selectsSupporterAndKeepsFilteredList() throws Exception {
+        Model model = new ModelManager();
+        Person alice = new PersonBuilder().withName("Alice").build();
+        Person benson = new PersonBuilder().withName("Benson").build();
+        model.addPerson(alice);
+        model.addPerson(benson);
+        parser.parseCommand("find Benson").execute(model);
+        assertEquals(List.of(benson), model.getFilteredPersonList());
+
+        assertEquals("Showing Benson: no interactions logged yet",
+                parser.parseCommand("view 1").execute(model).getFeedbackToUser());
+        assertEquals(Optional.of(benson), model.getViewedPerson());
+        assertEquals(List.of(benson), model.getFilteredPersonList());
+        assertEquals(List.of(alice, benson), model.getAddressBook().getPersonList());
     }
 
     @Test
@@ -72,7 +242,15 @@ public class AddressBookParserTest {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
                 FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+        assertEquals(new FindCommand(new PersonMatchesSearchPredicate(keywords)), command);
+    }
+
+    @Test
+    public void parseCommand_quiet() throws Exception {
+        assertEquals(new QuietCommand(60), parser.parseCommand("quiet"));
+        assertEquals(new QuietCommand(30), parser.parseCommand("quiet 30"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("quiet 0"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("quiet 30 60"));
     }
 
     @Test
@@ -82,9 +260,56 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_intro() throws Exception {
+        assertEquals(new IntroCommand(INDEX_FIRST_PERSON, Optional.of(INDEX_SECOND_PERSON)),
+                parser.parseCommand(IntroCommand.COMMAND_WORD + " 1 by/2"));
+        assertEquals(new IntroCommand(INDEX_FIRST_PERSON, Optional.empty()),
+                parser.parseCommand(IntroCommand.COMMAND_WORD + " 1 by/"));
+    }
+
+    @Test
+    public void parseCommand_tag() throws Exception {
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("vip"), new Tag("donor"))),
+                parser.parseCommand(TagCommand.COMMAND_WORD + " 1 t/vip t/donor"));
+    }
+
+    @Test
+    public void parseCommand_untag() throws Exception {
+        assertEquals(new UntagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("vip"))),
+                parser.parseCommand(UntagCommand.COMMAND_WORD + " 1 t/vip"));
+    }
+
+    @Test
+    public void parseCommand_nonBreakingSpaceAfterCommandWord_parsedAsSpace() throws Exception {
+        // a non-breaking space is often copied from web pages, e.g. the online user guide
+        assertEquals(parser.parseCommand("find alex"), parser.parseCommand("find\u00A0alex"));
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), parser.parseCommand("view\u00A0\u00A01"));
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), parser.parseCommand("view \u00A01"));
+        Person person = new PersonBuilder().build();
+        assertEquals(new AddCommand(person),
+                parser.parseCommand(PersonUtil.getAddCommand(person).replaceFirst(" ", "\u00A0")));
+        assertEquals(new AddCommand(person),
+                parser.parseCommand(PersonUtil.getAddCommand(person).replaceFirst(" ", " \u00A0")));
+        assertTrue(parser.parseCommand("undo\u00A0") instanceof UndoCommand);
+    }
+
+    @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listMixedCase_returnsListCommand() throws Exception {
+        // command words ignore case, e.g. when Caps Lock is on
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("List") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_stats() throws Exception {
+        assertTrue(parser.parseCommand(StatsCommand.COMMAND_WORD) instanceof StatsCommand);
+        assertTrue(parser.parseCommand(StatsCommand.COMMAND_WORD + " 3") instanceof StatsCommand);
     }
 
     @Test

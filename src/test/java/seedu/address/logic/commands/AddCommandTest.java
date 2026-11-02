@@ -8,7 +8,9 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
@@ -49,7 +52,8 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PERSON, validPerson.getName());
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -133,12 +137,72 @@ public class AddCommandTest {
         }
 
         @Override
+        public void commitAddressBookIfChanged() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void commitAddressBookIfChanged(String changeDescription) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String redoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> getViewedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setViewedPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Person> getPersonsIntroducedBy(Name introducer) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public int replaceIntroducer(Name introducer, Optional<Name> replacement) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean isIntroducedThrough(Person person, Name name) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateSortedPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -158,6 +222,13 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return this.person.isSamePerson(person);
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
         }
     }
 
