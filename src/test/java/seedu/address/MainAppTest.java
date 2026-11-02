@@ -1,0 +1,146 @@
+package seedu.address;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.logic.LogicManager;
+import seedu.address.model.AddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.PersonBuilder;
+
+public class MainAppTest {
+    @TempDir
+    public Path testFolder;
+
+    @Test
+    public void load_missingFile_showsSamplesWithoutCreatingFile() {
+        Path dataPath = testFolder.resolve("missing.json");
+        MainApp.InitialData initialData = load(dataPath);
+        assertEquals("No saved client data found. Showing sample clients.", initialData.message());
+        assertEquals(SampleDataUtil.getSampleAddressBook(), initialData.model().getAddressBook());
+        assertFalse(initialData.isProtectedMode());
+        assertFalse(Files.exists(dataPath));
+    }
+
+    @Test
+    public void load_missingFile_firstChangeSavesSamplesAndNewClient() throws Exception {
+        Path dataPath = testFolder.resolve("missing.json");
+        MainApp.InitialData initialData = load(dataPath);
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(testFolder.resolve("prefs.json")));
+        LogicManager logic = new LogicManager(initialData.model(), storage);
+
+        logic.execute("add r/C9999 n/New Client p/90000001 e/new-client@example.com a/10 Main Street"
+                + " cn/6011000000000004 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+
+        assertTrue(Files.exists(dataPath));
+        assertEquals(SampleDataUtil.getSamplePersons().length + 1,
+                new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow().getPersonList().size());
+    }
+
+    @Test
+    public void load_emptyFile_startsEmpty() throws Exception {
+        Path dataPath = testFolder.resolve("empty.json");
+        new JsonAddressBookStorage(dataPath).saveAddressBook(new AddressBook());
+        MainApp.InitialData initialData = load(dataPath);
+        assertEquals("No saved client data found.", initialData.message());
+        assertTrue(initialData.model().getAddressBook().getPersonList().isEmpty());
+        assertFalse(initialData.isProtectedMode());
+    }
+
+    @Test
+    public void load_savedClients_showsCountAndData() throws Exception {
+        Path dataPath = testFolder.resolve("saved.json");
+        AddressBook saved = new AddressBook();
+        Person first = new PersonBuilder().withClientReference("C0001").build();
+        Person second = new PersonBuilder().withClientReference("C0002").build();
+        saved.addPerson(first);
+        saved.addPerson(second);
+        new JsonAddressBookStorage(dataPath).saveAddressBook(saved);
+
+        MainApp.InitialData initialData = load(dataPath);
+        assertEquals("Loaded 2 client(s).", initialData.message());
+        assertEquals(saved, initialData.model().getAddressBook());
+        assertFalse(initialData.isProtectedMode());
+    }
+
+    @Test
+    public void load_invalidFile_startsProtectedWithoutChangingFile() throws Exception {
+        Path dataPath = testFolder.resolve("invalid.json");
+        Files.writeString(dataPath, "invalid json");
+        MainApp.InitialData initialData = load(dataPath);
+        assertEquals(LogicManager.LOAD_FAILURE_MESSAGE, initialData.message());
+        assertTrue(initialData.model().getAddressBook().getPersonList().isEmpty());
+        assertTrue(initialData.isProtectedMode());
+        assertEquals("invalid json", Files.readString(dataPath));
+    }
+
+    @Test
+    public void load_invalidTimestamp_startsProtectedWithoutChangingFile() throws Exception {
+        Path dataPath = testFolder.resolve("badTimestamp.json");
+        AddressBook saved = new AddressBook();
+        saved.addPerson(new PersonBuilder().withClientReference("C0001").build()
+                .withTimestamps(Instant.parse("2026-03-15T01:42:00Z"),
+                        Instant.parse("2026-03-15T01:42:00Z")));
+        new JsonAddressBookStorage(dataPath).saveAddressBook(saved);
+        String corrupted = Files.readString(dataPath).replace("2026-03-15T01:42:00Z", "bad date");
+        Files.writeString(dataPath, corrupted);
+
+        MainApp.InitialData initialData = load(dataPath);
+
+        assertEquals(LogicManager.LOAD_FAILURE_MESSAGE, initialData.message());
+        assertTrue(initialData.isProtectedMode());
+        assertTrue(initialData.model().getAddressBook().getPersonList().isEmpty());
+        assertEquals(corrupted, Files.readString(dataPath));
+    }
+
+    @Test
+    public void load_extremeTimestamps_loadsNormallyAndPreservesValuesOnSave() throws Exception {
+        Path dataPath = testFolder.resolve("extremeTimestamps.json");
+        String json = "{\"persons\":[{\"clientReference\":\"A1\",\"name\":\"Alice\","
+                + "\"createdAt\":\"+1000000000-12-31T23:59:59.999999999Z\","
+                + "\"lastModifiedAt\":\"-1000000000-01-01T00:00:00Z\"}]}";
+        Files.writeString(dataPath, json);
+
+        MainApp.InitialData initialData = load(dataPath);
+
+        assertFalse(initialData.isProtectedMode());
+        assertEquals("Loaded 1 client(s).", initialData.message());
+        assertEquals(json, Files.readString(dataPath));
+        Person person = initialData.model().getAddressBook().getPersonList().getFirst();
+        assertEquals(Instant.MAX, person.getCreatedAt().orElseThrow());
+        assertEquals(Instant.MIN, person.getLastModifiedAt().orElseThrow());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataPath);
+        storage.saveAddressBook(initialData.model().getAddressBook());
+        assertEquals(initialData.model().getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void load_unreadablePath_startsProtectedWithoutChangingPath() throws Exception {
+        Path dataPath = testFolder.resolve("directory.json");
+        Files.createDirectory(dataPath);
+        MainApp.InitialData initialData = load(dataPath);
+        assertEquals(LogicManager.LOAD_FAILURE_MESSAGE, initialData.message());
+        assertTrue(initialData.isProtectedMode());
+        assertTrue(Files.isDirectory(dataPath));
+    }
+
+    private MainApp.InitialData load(Path dataPath) {
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(testFolder.resolve("prefs.json")));
+        return new MainApp().initModelManager(storage, new UserPrefs());
+    }
+}

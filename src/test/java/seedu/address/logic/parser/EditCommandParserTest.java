@@ -23,6 +23,9 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CARD_NUMBER;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CREDIT_SCORE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CVV;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
@@ -39,9 +42,13 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.CardDetails;
+import seedu.address.model.person.CreditScore;
+import seedu.address.model.person.Debt;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.ServiceNote;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
@@ -67,6 +74,16 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_clashConfirmation_usesTokenizerPrefix() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
+        assertParseSuccess(parser, "1" + PHONE_DESC_AMY + " confirm/y",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor, true));
+        assertParseFailure(parser, "1" + PHONE_DESC_AMY + " confirm/n", ParserUtil.MESSAGE_INVALID_CONFIRMATION);
+        assertParseFailure(parser, "1" + PHONE_DESC_AMY + " confirm/y confirm/y",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_CONFIRM));
+    }
+
+    @Test
     public void parse_invalidPreamble_failure() {
         // negative index
         assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
@@ -77,8 +94,7 @@ public class EditCommandParserTest {
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1 i/ string", "Unknown prefix: i/");
     }
 
     @Test
@@ -88,6 +104,9 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
         assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+        assertParseFailure(parser, "1 cs/-1", CreditScore.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 d/-10", Debt.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 exp/13/30", CardDetails.EXPIRY_DATE_MESSAGE_CONSTRAINTS);
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
@@ -115,6 +134,24 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_escapedPrefixInNote_usesSharedRule() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setServiceNote(new ServiceNote("Discuss w/o guarantor"));
+        assertParseSuccess(parser, "1 s/Discuss \\w/o guarantor",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseFailure(parser, "1 s/Discuss w/o guarantor",
+                "Unknown prefix: w/");
+        descriptor.setServiceNote(new ServiceNote("Use p/ literally"));
+        assertParseSuccess(parser, "1 s/Use \\p/ literally",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_unknownPrefixAfterAddress_failure() {
+        assertParseFailure(parser, "1 a/10 Main Street ph/92345678", "Unknown prefix: ph/");
     }
 
     @Test
@@ -187,6 +224,13 @@ public class EditCommandParserTest {
         assertParseFailure(parser, userInput,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
 
+        assertParseFailure(parser, "1 cvv/123 cvv/456",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_CVV));
+        assertParseFailure(parser, "1 cn/4111111111111111 cn/5555555555554444",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_CARD_NUMBER));
+        assertParseFailure(parser, "1 cs/700 cs/750",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_CREDIT_SCORE));
+
         // multiple invalid values
         userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC
                 + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC;
@@ -204,5 +248,32 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_individualNewFields_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        assertParseSuccess(parser, "1 cn/5555555555554444",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withCardNumber("5555555555554444").build()));
+        assertParseSuccess(parser, "1 cvv/456",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withCvv("456").build()));
+        assertParseSuccess(parser, "1 exp/01/30",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withExpiryDate("01/30").build()));
+        assertParseSuccess(parser, "1 provider/Mastercard",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withProvider("Mastercard").build()));
+        assertParseSuccess(parser, "1 r/C0002",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withClientReference("C0002").build()));
+        assertParseSuccess(parser, "1 cs/750",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withCreditScore("750").build()));
+        assertParseSuccess(parser, "1 d/1200.50",
+                new EditCommand(targetIndex, new EditPersonDescriptorBuilder()
+                        .withDebt("1200.50").build()));
     }
 }

@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.person.ClientReference;
+
 public class CommandResultTest {
     @Test
     public void equals() {
@@ -28,10 +30,10 @@ public class CommandResultTest {
         // different feedbackToUser value -> returns false
         assertFalse(commandResult.equals(new CommandResult("different")));
 
-        // different showHelp value -> returns false
+        // different shouldShowHelp value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", true, false)));
 
-        // different exit value -> returns false
+        // different shouldExit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
     }
 
@@ -45,19 +47,32 @@ public class CommandResultTest {
         // different feedbackToUser value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("different").hashCode());
 
-        // different showHelp value -> returns different hashcode
+        // different shouldShowHelp value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", true, false).hashCode());
 
-        // different exit value -> returns different hashcode
+        // different shouldExit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+    }
+
+    @Test
+    public void selectionRequest_distinguishesExplicitReferenceFromPreservedSelection() {
+        ClientReference reference = new ClientReference("C0001");
+        CommandResult selectReference = new CommandResult("feedback", reference);
+
+        assertEquals(CommandResult.SelectionRequest.SELECT_REFERENCE, selectReference.getSelectionRequest());
+        assertEquals(reference, selectReference.getSelectedClientReference().orElseThrow());
+        assertNotEquals(new CommandResult("feedback"), selectReference);
+        assertEquals(selectReference, new CommandResult("feedback", reference));
     }
 
     @Test
     public void toStringMethod() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
-                + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + commandResult.getFeedbackToUser() + ", shouldShowHelp=" + commandResult.shouldShowHelp()
+                + ", shouldExit=" + commandResult.shouldExit()
+                + ", selectionRequest=PRESERVE_OR_FIRST, personToSelect=null"
+                + ", clientClashes=[], commandToConfirm=null}";
         assertEquals(expected, commandResult.toString());
     }
 }

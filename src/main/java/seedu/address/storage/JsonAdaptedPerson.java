@@ -1,5 +1,7 @@
 package seedu.address.storage;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,14 +9,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.TimestampUtil;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.CardDetails;
+import seedu.address.model.person.ClientReference;
+import seedu.address.model.person.CreditScore;
+import seedu.address.model.person.Debt;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.ServiceNote;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,37 +34,95 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String INVALID_TIMESTAMP_MESSAGE = TimestampUtil.INVALID_TIMESTAMP_MESSAGE;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String clientReference;
     private final String name;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final String phone;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final String email;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final String address;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final JsonAdaptedCardDetails cardDetails;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String creditScore;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String debt;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String createdAt;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String lastModifiedAt;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final JsonNode serviceNote;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
+    public JsonAdaptedPerson(@JsonProperty("clientReference") String clientReference,
+            @JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("cardDetails") JsonAdaptedCardDetails cardDetails,
+            @JsonProperty("creditScore") String creditScore, @JsonProperty("debt") String debt,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("createdAt") String createdAt,
+            @JsonProperty("lastModifiedAt") String lastModifiedAt,
+            @JsonProperty("serviceNote") JsonNode serviceNote) {
+        this.clientReference = clientReference;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.cardDetails = cardDetails;
+        this.creditScore = creditScore;
+        this.debt = debt;
+        this.serviceNote = serviceNote;
+        this.createdAt = createdAt;
+        this.lastModifiedAt = lastModifiedAt;
         if (tags != null) {
             this.tags.addAll(tags);
         }
+    }
+
+    /** Creates a person in the older JSON format without timestamps. */
+    public JsonAdaptedPerson(String clientReference, String name, String phone, String email, String address,
+            JsonAdaptedCardDetails cardDetails, String creditScore, String debt, List<JsonAdaptedTag> tags) {
+        this(clientReference, name, phone, email, address, cardDetails, creditScore, debt, tags, null, null, null);
+    }
+
+    /** Creates a person with timestamps and no service note. */
+    public JsonAdaptedPerson(String clientReference, String name, String phone, String email, String address,
+            JsonAdaptedCardDetails cardDetails, String creditScore, String debt, List<JsonAdaptedTag> tags,
+            String createdAt, String lastModifiedAt) {
+        this(clientReference, name, phone, email, address, cardDetails, creditScore, debt, tags,
+                createdAt, lastModifiedAt, null);
+    }
+
+    /** Creates an unreferenced person from the fields used by older data files. */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            JsonAdaptedCardDetails cardDetails, String creditScore, String debt, List<JsonAdaptedTag> tags) {
+        this(null, name, phone, email, address, cardDetails, creditScore, debt, tags, null, null, null);
     }
 
     /**
      * Converts a given {@code Person} into this class for Jackson use.
      */
     public JsonAdaptedPerson(Person source) {
+        clientReference = source.getClientReference().map(reference -> reference.value).orElse(null);
         name = source.getName().fullName;
-        phone = source.getPhone().value;
-        email = source.getEmail().value;
-        address = source.getAddress().value;
+        phone = source.getPhone().map(value -> value.value).orElse(null);
+        email = source.getEmail().map(value -> value.value).orElse(null);
+        address = source.getAddress().map(value -> value.value).orElse(null);
+        cardDetails = source.getCardDetails().map(JsonAdaptedCardDetails::new).orElse(null);
+        creditScore = source.getCreditScore().map(Object::toString).orElse(null);
+        debt = source.getDebt().map(Object::toString).orElse(null);
+        createdAt = source.getCreatedAt().map(Object::toString).orElse(null);
+        lastModifiedAt = source.getLastModifiedAt().map(Object::toString).orElse(null);
+        serviceNote = source.getServiceNote().map(note -> TextNode.valueOf(note.value)).orElse(null);
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -61,49 +130,142 @@ class JsonAdaptedPerson {
 
     /**
      * Converts this Jackson-friendly adapted person object into the model's {@code Person} object.
+     * Absent or null optional details remain unrecorded; supplied details must be valid.
      *
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
-        final List<Tag> personTags = new ArrayList<>();
-        for (JsonAdaptedTag tag : tags) {
-            personTags.add(tag.toModelType());
-        }
+        ServiceNote modelNote = parseServiceNote();
+        Instant modelCreatedAt = parseTimestamp(createdAt);
+        Instant modelLastModifiedAt = parseTimestamp(lastModifiedAt);
+        return createModelPerson(parseClientReference(), parseName(), parsePhone(), parseEmail(), parseAddress(),
+                parseCardDetails(), parseCreditScore(), parseDebt(), parseTags(), modelNote,
+                modelCreatedAt, modelLastModifiedAt);
+    }
 
+    private ServiceNote parseServiceNote() throws IllegalValueException {
+        // Jackson also supplies NullNode when an optional creator property is absent.
+        // JsonAddressBookStorage rejects explicit JSON null before reaching this adapter.
+        if (serviceNote == null || serviceNote.isNull()) {
+            return null;
+        }
+        if (!serviceNote.isTextual() || !ServiceNote.isValidServiceNote(serviceNote.textValue())) {
+            throw new IllegalValueException(ServiceNote.MESSAGE_CONSTRAINTS);
+        }
+        return new ServiceNote(serviceNote.textValue());
+    }
+
+    private ClientReference parseClientReference() throws IllegalValueException {
+        if (clientReference == null) {
+            return null;
+        }
+        if (!ClientReference.isValidClientReference(clientReference)) {
+            throw new IllegalValueException(ClientReference.MESSAGE_CONSTRAINTS);
+        }
+        return new ClientReference(clientReference);
+    }
+
+    private Set<Tag> parseTags() throws IllegalValueException {
+        List<Tag> modelTags = new ArrayList<>();
+        for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException("Tags list contains a null tag.");
+            }
+            modelTags.add(tag.toModelType());
+        }
+        return new HashSet<>(modelTags);
+    }
+
+    private Name parseName() throws IllegalValueException {
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
         if (!Name.isValidName(name)) {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
         }
-        final Name modelName = new Name(name);
+        return new Name(name);
+    }
 
-        if (phone == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
-        }
-        if (!Phone.isValidPhone(phone)) {
+    private Phone parsePhone() throws IllegalValueException {
+        if (phone != null && !Phone.isValidPhone(phone)) {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
+        return phone == null ? null : new Phone(phone);
+    }
 
-        if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
-        }
-        if (!Email.isValidEmail(email)) {
+    private Email parseEmail() throws IllegalValueException {
+        if (email != null && !Email.isValidEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
         }
-        final Email modelEmail = new Email(email);
+        return email == null ? null : new Email(email);
+    }
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
+    private Address parseAddress() throws IllegalValueException {
+        if (address != null && !Address.isValidAddress(address)) {
             throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
         }
-        final Address modelAddress = new Address(address);
+        return address == null ? null : new Address(address);
+    }
 
-        final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+    private CardDetails parseCardDetails() throws IllegalValueException {
+        if (cardDetails == null) {
+            return null;
+        }
+        try {
+            return cardDetails.toModelType();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(e.getMessage(), e);
+        }
+    }
+
+    private CreditScore parseCreditScore() throws IllegalValueException {
+        if (creditScore == null) {
+            return null;
+        }
+        try {
+            return new CreditScore(creditScore);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(e.getMessage(), e);
+        }
+    }
+
+    private Debt parseDebt() throws IllegalValueException {
+        if (debt == null) {
+            return null;
+        }
+        try {
+            return new Debt(debt);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(e.getMessage(), e);
+        }
+    }
+
+    private static Person createModelPerson(ClientReference reference, Name modelName, Phone modelPhone,
+            Email modelEmail, Address modelAddress, CardDetails modelCardDetails, CreditScore modelCreditScore,
+            Debt modelDebt, Set<Tag> modelTags, ServiceNote modelNote, Instant modelCreatedAt,
+            Instant modelLastModifiedAt) throws IllegalValueException {
+        try {
+            Person person = reference != null
+                    ? new Person(reference, modelName, modelPhone, modelEmail, modelAddress,
+                            modelCardDetails, modelCreditScore, modelDebt, modelTags, modelNote)
+                    : new Person(modelName, modelPhone, modelEmail, modelAddress, modelCardDetails,
+                            modelCreditScore, modelDebt, modelTags, modelNote);
+            return person.withTimestamps(modelCreatedAt, modelLastModifiedAt);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(e.getMessage(), e);
+        }
+    }
+
+    /** Parses an optional ISO instant while preserving the cause of malformed saved data. */
+    private static Instant parseTimestamp(String value) throws IllegalValueException {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new IllegalValueException(INVALID_TIMESTAMP_MESSAGE, e);
+        }
     }
 
 }

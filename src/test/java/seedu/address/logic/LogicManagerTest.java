@@ -1,41 +1,54 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.ClientReference;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.PersonUtil;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
     private static final IOException DUMMY_AD_EXCEPTION = new AccessDeniedException("dummy access denied exception");
+    private static final Instant CREATED = Instant.parse("2026-03-15T01:42:00Z");
+    private static final Instant MODIFIED = Instant.parse("2026-10-12T06:18:00Z");
 
     @TempDir
     public Path temporaryFolder;
@@ -59,6 +72,34 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_doesNotLogCommandArguments() throws Exception {
+        String marker = "SYNTHETIC_CARD_MARKER";
+        List<String> messages = new ArrayList<>();
+        Logger logRoot = Logger.getLogger("ab3");
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                messages.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() { }
+
+            @Override
+            public void close() { }
+        };
+        logRoot.addHandler(handler);
+        try {
+            logic.execute("find cn/" + marker);
+            assertThrows(ParseException.class, () -> logic.execute("unknown " + marker));
+            assertThrows(ParseException.class, () -> logic.execute(marker));
+            assertTrue(messages.stream().noneMatch(message -> message.contains(marker)));
+        } finally {
+            logRoot.removeHandler(handler);
+        }
+    }
+
+    @Test
     public void execute_commandExecutionError_throwsCommandException() {
         String deleteCommand = "delete 9";
         assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
@@ -71,15 +112,344 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_addClient_savesToFile() throws Exception {
+        CommandResult result = logic.execute("add r/c0001 n/Alex Yeoh p/87438807"
+                + " e/alex@example.com a/10 Main Street cn/4111111111111111 cvv/123 exp/12/28"
+                + " provider/Visa cs/700 d/1250.50");
+        assertEquals("Added client: C0001 Alex Yeoh", result.getFeedbackToUser());
+        assertEquals("C0001", model.getAddressBook().getPersonList().getFirst()
+                .getClientReference().orElseThrow().value);
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        assertTrue(Files.exists(dataPath));
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+        assertEquals(model.getAddressBook(), loaded);
+    }
+
+    @Test
+    public void execute_addViewEditAndReload_tracksTimestamps() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(CREATED, ZoneOffset.UTC));
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+
+        var added = model.getAddressBook().getPersonList().getFirst();
+        assertEquals(CREATED, added.getCreatedAt().orElse(null));
+        assertEquals(CREATED, added.getLastModifiedAt().orElse(null));
+        logic.execute("list");
+        logic.execute("find n/Alex");
+        logic.execute("find cn/4111111111111111");
+        assertEquals(added, model.getAddressBook().getPersonList().getFirst());
+
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(MODIFIED, ZoneOffset.UTC));
+        logic.execute("edit 1 p/87438807");
+        var edited = model.getAddressBook().getPersonList().getFirst();
+        assertEquals(CREATED, edited.getCreatedAt().orElse(null));
+        assertEquals(MODIFIED, edited.getLastModifiedAt().orElse(null));
+        assertEquals(model.getAddressBook(), new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_successfulTimestampChanges_logsOnlyAfterAddAndEdit() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        Logger logRoot = Logger.getLogger("ab3");
+        TimestampLogHandler handler = new TimestampLogHandler();
+        logRoot.addHandler(handler);
+        try {
+            logic = new LogicManager(model, storage, "", false, Clock.fixed(CREATED, ZoneOffset.UTC));
+            logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                    + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+            assertEquals(List.of("Timestamp ADD recorded"), handler.messages);
+
+            logic.execute("list");
+            logic.execute("find n/Alex");
+            logic.execute("find cn/4111111111111111");
+            assertEquals(1, handler.messages.size());
+
+            logic = new LogicManager(model, storage, "", false, Clock.fixed(MODIFIED, ZoneOffset.UTC));
+            logic.execute("edit 1 p/87438807");
+            assertEquals(List.of("Timestamp ADD recorded", "Timestamp EDIT recorded"),
+                    handler.messages);
+            logic.execute("delete 1");
+            logic.execute("clear");
+            assertEquals(2, handler.messages.size());
+        } finally {
+            logRoot.removeHandler(handler);
+        }
+    }
+
+    @Test
+    public void execute_editLegacyRecord_logsUnreferencedProfile() throws Exception {
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(new PersonBuilder().build());
+        model = new ModelManager(addressBook, new UserPrefs());
+        StorageManager storage = new StorageManager(
+                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json")),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(MODIFIED, ZoneOffset.UTC));
+        Logger logRoot = Logger.getLogger("ab3");
+        TimestampLogHandler handler = new TimestampLogHandler();
+        logRoot.addHandler(handler);
+        try {
+            logic.execute("edit 1 p/91234567");
+            assertEquals(List.of("Timestamp EDIT recorded"), handler.messages);
+        } finally {
+            logRoot.removeHandler(handler);
+        }
+    }
+
+    @Test
+    public void execute_addMinimalThenReloadAndEdit_preservesMissingDetails() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(CREATED, ZoneOffset.UTC));
+        Person minimal = new Person(new ClientReference("C0001"), new Name("John Doe"),
+                null, null, null, null, null, null, Collections.emptySet()).withTimestamps(CREATED, CREATED);
+        CommandResult added = logic.execute("add r/c0001 n/John Doe");
+        assertEquals("Added client: C0001 John Doe", added.getFeedbackToUser());
+
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+        assertEquals(minimal, loaded.getPersonList().getFirst());
+        Model freshModel = new ModelManager(loaded, new UserPrefs());
+        StorageManager freshStorage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        Logic freshLogic = new LogicManager(freshModel, freshStorage, "", false, Clock.fixed(MODIFIED, ZoneOffset.UTC));
+        CommandResult edited = freshLogic.execute("edit 1 p/91234567");
+
+        assertEquals("Edited person: John Doe; Phone: 91234567", edited.getFeedbackToUser());
+        Person expected = new PersonBuilder(minimal).withPhone("91234567").build().withTimestamps(CREATED, MODIFIED);
+        ReadOnlyAddressBook reloaded = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+        assertEquals(expected, reloaded.getPersonList().getFirst());
+        assertEquals(freshModel.getAddressBook(), reloaded);
+    }
+
+    @Test
+    public void execute_addIndependentOptionalDetails_automaticallySavesAndReloadsEachProfile() throws Exception {
+        Person minimal = new Person(new ClientReference("C0001"), new Name("John Doe"),
+                null, null, null, null, null, null, Collections.emptySet());
+        List<Person> profiles = List.of(minimal,
+                new PersonBuilder(minimal).withClientReference("C0002").withPhone("91234567").build(),
+                new PersonBuilder(minimal).withClientReference("C0003").withEmail("john@example.com").build(),
+                new PersonBuilder(minimal).withClientReference("C0004").withAddress("123 Main Street").build(),
+                new PersonBuilder(minimal).withClientReference("C0005")
+                        .withCardDetails("4111111111111111", "123", "12/28", "Visa").build(),
+                new PersonBuilder(minimal).withClientReference("C0006").withCreditScore("0").build(),
+                new PersonBuilder(minimal).withClientReference("C0007").withDebt("0.00").build(),
+                new PersonBuilder(minimal).withClientReference("C0008").withPhone("91234568")
+                        .withEmail("john8@example.com").withCreditScore("0").withDebt("25.50")
+                        .withTags("friend").build());
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(CREATED, ZoneOffset.UTC));
+        for (Person profile : profiles) {
+            logic.execute(PersonUtil.getAddCommand(profile));
+            ReadOnlyAddressBook loaded = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+            assertEquals(profile.withTimestamps(CREATED, CREATED), loaded.getPersonList().getLast());
+            assertEquals(model.getAddressBook(), loaded);
+        }
+    }
+
+    @Test
+    public void execute_addClient_overwritesExistingSavedData() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        String original = "{\"persons\": []}";
+        Files.writeString(dataPath, original);
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        assertFalse(original.equals(Files.readString(dataPath)));
+        assertEquals(model.getAddressBook(), new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow());
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+    }
+
+    @Test
+    public void execute_displayCommand_doesNotSave() throws Exception {
+        logic.execute("list");
+        assertFalse(Files.exists(temporaryFolder.resolve("addressBook.json")));
+    }
+
+    @Test
+    public void execute_findByPhone_filtersWithoutSaving() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        logic.execute("add r/C0002 n/Bernice Yu p/87438808 e/bernice@example.com a/20 Main Street"
+                + " cn/5555555555554444 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        String savedJson = Files.readString(dataPath);
+
+        CommandResult result = logic.execute("find p/87438808");
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(1, logic.getFilteredPersonList().size());
+        assertEquals("C0002", logic.getFilteredPersonList().getFirst().getClientReference().orElseThrow().value);
+        assertEquals(savedJson, Files.readString(dataPath));
+    }
+
+    @Test
+    public void execute_findByCard_filtersWithoutSaving() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/0012  3456 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        logic.execute("add r/C0002 n/Bernice Yu p/87438808 e/bernice@example.com a/20 Main Street"
+                + " cn/5555555555554444 cvv/123 exp/12/28 provider/Mastercard cs/700 d/0.00");
+        String savedJson = Files.readString(dataPath);
+
+        CommandResult result = logic.execute("find cn/0012  3456");
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(1, logic.getFilteredPersonList().size());
+        assertEquals("C0001", logic.getFilteredPersonList().getFirst().getClientReference().orElseThrow().value);
+        assertEquals(savedJson, Files.readString(dataPath));
+    }
+
+    @Test
+    public void execute_addThenDelete_syncsCurrentData() throws Exception {
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        String expectedFeedback = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
+                Messages.format(model.getFilteredPersonList().getFirst()));
+        CommandResult result = logic.execute("delete 1");
+        assertEquals(expectedFeedback, result.getFeedbackToUser());
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertTrue(loaded.getPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_deleteFromFilteredList_removesDisplayedClient() throws Exception {
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        logic.execute("add r/C0002 n/Bernice Yu p/87438808 e/bernice@example.com a/20 Main Street"
+                + " cn/5555555555554444 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        logic.execute("find n/Bernice");
+        logic.execute("delete 1");
+
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(1, loaded.getPersonList().size());
+        assertEquals("C0001", loaded.getPersonList().getFirst().getClientReference().orElseThrow().value);
+    }
+
+    @Test
+    public void execute_editThenClear_syncsCurrentData() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        logic.execute("edit 1 p/91234567");
+        ReadOnlyAddressBook edited = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+        assertEquals("91234567", edited.getPersonList().getFirst().getPhone().orElseThrow().value);
+        assertEquals("C0001", edited.getPersonList().getFirst().getClientReference().orElseThrow().value);
+
+        logic.execute("clear");
+        ReadOnlyAddressBook cleared = new JsonAddressBookStorage(dataPath).readAddressBook().orElseThrow();
+        assertTrue(cleared.getPersonList().isEmpty());
+    }
+
+    @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, LogicManager.SAVE_FAILURE_MESSAGE);
     }
 
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, LogicManager.SAVE_FAILURE_MESSAGE);
+    }
+
+    @Test
+    public void execute_failedSave_keepsModelAndFilteredList() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        String savedJson = Files.readString(dataPath);
+        logic.execute("find n/Alex");
+        Model before = new ModelManager(model.getAddressBook(), model.getUserPrefs());
+        before.updateFilteredPersonList(model.getFilteredPersonListPredicate());
+
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(dataPath) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("write failed");
+            }
+        };
+        StorageManager storage = new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        assertThrows(CommandException.class, LogicManager.SAVE_FAILURE_MESSAGE, () -> logic.execute("delete 1"));
+        assertEquals(before, model);
+        assertEquals(1, logic.getFilteredPersonList().size());
+        assertEquals(savedJson, Files.readString(dataPath));
+    }
+
+    @Test
+    public void execute_failedEditSave_keepsPreviousTimestamps() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50");
+        var before = model.getAddressBook().getPersonList().getFirst();
+        String savedJson = Files.readString(dataPath);
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(dataPath) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("write failed");
+            }
+        };
+        StorageManager storage = new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, "", false, Clock.fixed(MODIFIED, ZoneOffset.UTC));
+
+        Logger logRoot = Logger.getLogger("ab3");
+        TimestampLogHandler handler = new TimestampLogHandler();
+        logRoot.addHandler(handler);
+        try {
+            assertThrows(CommandException.class, LogicManager.SAVE_FAILURE_MESSAGE, () ->
+                    logic.execute("edit 1 p/91234567"));
+            assertTrue(handler.messages.isEmpty());
+        } finally {
+            logRoot.removeHandler(handler);
+        }
+        assertEquals(before, model.getAddressBook().getPersonList().getFirst());
+        assertEquals(savedJson, Files.readString(dataPath));
+    }
+
+    private static class TimestampLogHandler extends Handler {
+        private final List<String> messages = new ArrayList<>();
+
+        @Override
+        public void publish(LogRecord record) {
+            if (record.getMessage().startsWith("Timestamp ")) {
+                messages.add(record.getMessage());
+            }
+        }
+
+        @Override
+        public void flush() { }
+
+        @Override
+        public void close() { }
+    }
+
+    @Test
+    public void execute_protectedMode_blocksChangesAndAllowsDisplayCommands() throws Exception {
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        Files.writeString(dataPath, "invalid json");
+        StorageManager storage = new StorageManager(new JsonAddressBookStorage(dataPath),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage, LogicManager.LOAD_FAILURE_MESSAGE, true);
+
+        assertThrows(CommandException.class, LogicManager.LOAD_FAILURE_MESSAGE, () -> logic.execute("clear"));
+        assertThrows(CommandException.class, LogicManager.LOAD_FAILURE_MESSAGE, () ->
+                logic.execute("edit 1 p/91234567"));
+        assertThrows(CommandException.class, LogicManager.LOAD_FAILURE_MESSAGE, () -> logic.execute("delete 1"));
+        assertThrows(CommandException.class, LogicManager.LOAD_FAILURE_MESSAGE, () ->
+                logic.execute("add r/C0001 n/Alex Yeoh p/87438807 e/alex@example.com a/10 Main Street"
+                        + " cn/4111111111111111 cvv/123 exp/12/28 provider/Visa cs/700 d/1250.50"));
+        assertEquals(ListCommand.MESSAGE_SUCCESS, logic.execute("list").getFeedbackToUser());
+        assertTrue(model.getAddressBook().getPersonList().isEmpty());
+        assertEquals("invalid json", Files.readString(dataPath));
     }
 
     @Test
@@ -163,12 +533,6 @@ public class LogicManagerTest {
 
         logic = new LogicManager(model, storage);
 
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        assertCommandFailure("clear", CommandException.class, expectedMessage, new ModelManager());
     }
 }

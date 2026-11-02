@@ -21,9 +21,14 @@ import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RemoveCardCommand;
+import seedu.address.logic.commands.SortCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.SortOrder;
+import seedu.address.model.person.ClientReference;
+import seedu.address.model.person.FindPersonPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -34,7 +39,7 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
+        Person person = new PersonBuilder().withClientReference("C0001").build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
     }
@@ -42,7 +47,7 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
@@ -50,6 +55,20 @@ public class AddressBookParserTest {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_unicodeWhitespace_separatesCommandAndArguments() throws Exception {
+        String emSpace = "\u2003";
+        assertTrue(parser.parseCommand(emSpace + "list" + emSpace) instanceof ListCommand);
+        assertEquals(new DeleteCommand(new ClientReference("C0001")),
+                parser.parseCommand("delete" + emSpace + "r/C0001"));
+        assertEquals(new RemoveCardCommand(new ClientReference("C0001")),
+                parser.parseCommand("removecard" + emSpace + "r/C0001"));
+        assertEquals(new SortCommand(SortOrder.DESC), parser.parseCommand("sort" + emSpace + "desc"));
+        assertThrows(ParseException.class, SortCommand.MESSAGE_INVALID_COMMAND, () -> parser.parseCommand(
+                "sort" + emSpace + "asc" + emSpace + "desc"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("list" + emSpace + "unexpected"));
     }
 
     @Test
@@ -64,27 +83,60 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
-        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ExitCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
     public void parseCommand_find() throws Exception {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+                FindCommand.COMMAND_WORD + " n/" + keywords.stream().collect(Collectors.joining(" ")));
+        assertEquals(new FindCommand(new FindPersonPredicate(keywords, List.of())), command);
+    }
+
+    @Test
+    public void parseCommand_findByPhone() throws Exception {
+        FindCommand command = (FindCommand) parser.parseCommand("find p/91234567");
+        assertEquals(new FindCommand(new FindPersonPredicate(List.of(), List.of(new Phone("91234567")))), command);
+    }
+
+    @Test
+    public void parseCommand_findByCard() throws Exception {
+        FindCommand command = (FindCommand) parser.parseCommand("find cn/0012345678901234");
+        assertEquals(new FindCommand(new FindPersonPredicate(List.of(), List.of(), "0012345678901234")), command);
     }
 
     @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
-        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(HelpCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_removeCard() throws Exception {
+        assertEquals(new RemoveCardCommand(new ClientReference("C0001")),
+                parser.parseCommand("removecard r/c0001"));
+    }
+
+    @Test
+    public void parseCommand_sortAcceptsOnlySpecifiedOrders() throws Exception {
+        assertEquals(new SortCommand(SortOrder.ASC), parser.parseCommand("sort"));
+        assertEquals(new SortCommand(SortOrder.ASC), parser.parseCommand("  sort   asc  "));
+        assertEquals(new SortCommand(SortOrder.DESC), parser.parseCommand("sort   desc"));
+        assertEquals(new SortCommand(SortOrder.ORIGINAL), parser.parseCommand("sort reset"));
+
+        String invalidDesc = String.format(SortCommand.MESSAGE_INVALID_ORDER, "DESC");
+        String invalidName = String.format(SortCommand.MESSAGE_INVALID_ORDER, "name");
+        String invalidCommand = SortCommand.MESSAGE_INVALID_COMMAND;
+        assertThrows(ParseException.class, invalidDesc, () -> parser.parseCommand("sort DESC"));
+        assertThrows(ParseException.class, invalidName, () -> parser.parseCommand("sort name"));
+        assertThrows(ParseException.class, invalidCommand, () -> parser.parseCommand("sort asc desc"));
     }
 
     @Test

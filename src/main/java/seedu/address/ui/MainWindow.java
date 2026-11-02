@@ -1,15 +1,18 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +20,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,6 +29,9 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double MIN_WINDOW_WIDTH = 650;
+    private static final double MIN_WINDOW_HEIGHT = 500;
+    private static final double SCREEN_MARGIN = 40;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -34,8 +41,12 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private PersonDetailsPanel personDetailsPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+
+    /** The original command waiting for a typed yes/no response. */
+    private String pendingClashCommand;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +56,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane personDetailsPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -114,11 +128,16 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
+        personDetailsPanel = new PersonDetailsPanel();
+        personDetailsPanelPlaceholder.getChildren().add(personDetailsPanel.getRoot());
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        personListPanel.setSelectionHandler(personDetailsPanel::showPerson);
+        personListPanel.selectFirst();
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        resultDisplay.setFeedbackToUser(logic.getStartupMessage());
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
@@ -131,12 +150,42 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
+        Rectangle2D screenBounds = findTargetScreen(guiSettings);
+        double maxWidth = Math.max(MIN_WINDOW_WIDTH, screenBounds.getWidth() - SCREEN_MARGIN);
+        double maxHeight = Math.max(MIN_WINDOW_HEIGHT, screenBounds.getHeight() - SCREEN_MARGIN);
+        double width = clamp(guiSettings.getWindowWidth(), MIN_WINDOW_WIDTH, maxWidth);
+        double height = clamp(guiSettings.getWindowHeight(), MIN_WINDOW_HEIGHT, maxHeight);
+
+        double x = screenBounds.getMinX() + (screenBounds.getWidth() - width) / 2;
+        double y = screenBounds.getMinY() + (screenBounds.getHeight() - height) / 2;
         if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+            x = guiSettings.getWindowCoordinates().getX();
+            y = guiSettings.getWindowCoordinates().getY();
         }
+
+        primaryStage.setWidth(width);
+        primaryStage.setHeight(height);
+        primaryStage.setX(clamp(x, screenBounds.getMinX(), screenBounds.getMaxX() - width));
+        primaryStage.setY(clamp(y, screenBounds.getMinY(), screenBounds.getMaxY() - height));
+    }
+
+    /** Finds the saved window's screen, falling back to the primary screen. */
+    private static Rectangle2D findTargetScreen(GuiSettings guiSettings) {
+        if (guiSettings.getWindowCoordinates() != null) {
+            double x = guiSettings.getWindowCoordinates().getX();
+            double y = guiSettings.getWindowCoordinates().getY();
+            List<Screen> screens = Screen.getScreens();
+            for (Screen screen : screens) {
+                if (screen.getVisualBounds().contains(x, y)) {
+                    return screen.getVisualBounds();
+                }
+            }
+        }
+        return Screen.getPrimary().getVisualBounds();
+    }
+
+    private static double clamp(double value, double minimum, double maximum) {
+        return Math.max(minimum, Math.min(value, maximum));
     }
 
     /**
@@ -177,22 +226,71 @@ public class MainWindow extends UiPart<Stage> {
      * @see seedu.address.logic.Logic#execute(String)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        String normalizedCommand = commandText.trim().toLowerCase();
+
+        if (pendingClashCommand != null) {
+            return handleClashConfirmation(normalizedCommand);
+        }
+
+        return executeNormalCommand(commandText);
+    }
+
+    /** Handles a typed response to a pending clash warning. */
+    private CommandResult handleClashConfirmation(String response)
+            throws CommandException, ParseException {
+
+        if (response.equals("yes")) {
+            String commandToRetry = pendingClashCommand;
+            pendingClashCommand = null;
+            return executeNormalCommand(commandToRetry + " confirm/y");
+        }
+
+        if (response.equals("no")) {
+            pendingClashCommand = null;
+            CommandResult cancelledResult = new CommandResult("Operation cancelled.");
+            resultDisplay.setFeedbackToUser(cancelledResult.getFeedbackToUser());
+            return cancelledResult;
+        }
+
+        CommandResult invalidResponse = new CommandResult("Please type yes or no.");
+        resultDisplay.setFeedbackToUser(invalidResponse.getFeedbackToUser());
+        return invalidResponse;
+    }
+
+    /** Executes a command and updates the UI with its result. */
+    private CommandResult executeNormalCommand(String commandText)
+            throws CommandException, ParseException {
         try {
+            Person previouslySelected = personListPanel.getSelectedPerson();
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+
+            if (commandResult.requiresClashConfirmation()) {
+                pendingClashCommand = commandResult.getCommandToConfirm();
+
+                String warningMessage = commandResult.getFeedbackToUser()
+                        + System.lineSeparator()
+                        + "Type yes to proceed or no to cancel.";
+
+                resultDisplay.setFeedbackToUser(warningMessage);
+                logger.info("Clash confirmation required");
+                return commandResult;
+            }
+
+            personListPanel.applySelection(commandResult, previouslySelected);
+            logger.info("Command completed");
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
-            if (commandResult.isShowHelp()) {
+            if (commandResult.shouldShowHelp()) {
                 handleHelp();
             }
 
-            if (commandResult.isExit()) {
+            if (commandResult.shouldExit()) {
                 handleExit();
             }
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            logger.info("A command failed");
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }

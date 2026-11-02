@@ -3,16 +3,23 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.logging.Logger;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.commons.util.FileUtil;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.ServiceNote;
 
 /**
  * A class to access AddressBook data stored as a JSON file on the hard disk.
@@ -50,16 +57,33 @@ public class JsonAddressBookStorage {
     public Optional<ReadOnlyAddressBook> readAddressBook(Path filePath) throws DataLoadingException {
         requireNonNull(filePath);
 
-        Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFile(
-                filePath, JsonSerializableAddressBook.class);
-        if (!jsonAddressBook.isPresent()) {
+        Optional<JsonNode> rawAddressBook = JsonUtil.readJsonFile(filePath, JsonNode.class);
+        if (rawAddressBook.isEmpty()) {
             return Optional.empty();
         }
-
+        JsonNode root = rawAddressBook.get();
+        if (!root.isObject() || !root.path("persons").isArray()) {
+            throw new DataLoadingException(new IllegalValueException("Address book must contain a persons array."));
+        }
+        for (JsonNode person : root.path("persons")) {
+            if (!person.isObject()) {
+                throw new DataLoadingException(new IllegalValueException("Persons list contains an invalid person."));
+            }
+            if (person.has("serviceNote") && !person.get("serviceNote").isTextual()) {
+                throw new DataLoadingException(new IllegalValueException(ServiceNote.MESSAGE_CONSTRAINTS));
+            }
+            if (person.has("tags") && !person.get("tags").isArray()) {
+                throw new DataLoadingException(new IllegalValueException("Tags must be an array."));
+            }
+        }
         try {
-            return Optional.of(jsonAddressBook.get().toModelType());
+            JsonSerializableAddressBook jsonAddressBook = JsonUtil.fromJsonNode(root,
+                    JsonSerializableAddressBook.class);
+            return Optional.of(jsonAddressBook.toModelType());
+        } catch (JsonProcessingException e) {
+            throw new DataLoadingException(e);
         } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
+            logger.info("Illegal values found in address book data");
             throw new DataLoadingException(ive);
         }
     }
@@ -82,8 +106,20 @@ public class JsonAddressBookStorage {
         requireNonNull(addressBook);
         requireNonNull(filePath);
 
-        FileUtil.createIfMissing(filePath);
-        JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
+        Path absolutePath = filePath.toAbsolutePath();
+        Path parent = absolutePath.getParent();
+        Files.createDirectories(parent);
+        Path temporaryFile = Files.createTempFile(parent, "addressbook-", ".tmp");
+        try {
+            Files.writeString(temporaryFile, JsonUtil.toJsonString(new JsonSerializableAddressBook(addressBook)),
+                    StandardCharsets.UTF_8);
+            Files.move(temporaryFile, absolutePath, StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            throw new IOException("Atomic file replacement is unavailable for " + filePath, e);
+        } finally {
+            Files.deleteIfExists(temporaryFile);
+        }
     }
 
 }

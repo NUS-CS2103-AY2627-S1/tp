@@ -1,21 +1,37 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static seedu.address.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.CardDetails;
+import seedu.address.model.person.ClientReference;
+import seedu.address.model.person.CreditScore;
+import seedu.address.model.person.Debt;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
@@ -25,9 +41,13 @@ public class JsonAdaptedPersonTest {
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = BENSON.getName().toString();
-    private static final String VALID_PHONE = BENSON.getPhone().toString();
-    private static final String VALID_EMAIL = BENSON.getEmail().toString();
-    private static final String VALID_ADDRESS = BENSON.getAddress().toString();
+    private static final String VALID_PHONE = BENSON.getPhone().orElseThrow().toString();
+    private static final String VALID_EMAIL = BENSON.getEmail().orElseThrow().toString();
+    private static final String VALID_ADDRESS = BENSON.getAddress().orElseThrow().toString();
+    private static final JsonAdaptedCardDetails VALID_CARD_DETAILS =
+            new JsonAdaptedCardDetails(BENSON.getCardDetails().orElseThrow());
+    private static final String VALID_CREDIT_SCORE = BENSON.getCreditScore().orElseThrow().toString();
+    private static final String VALID_DEBT = BENSON.getDebt().orElseThrow().toString();
     private static final List<JsonAdaptedTag> VALID_TAGS = BENSON.getTags().stream()
             .map(JsonAdaptedTag::new)
             .collect(Collectors.toList());
@@ -39,16 +59,174 @@ public class JsonAdaptedPersonTest {
     }
 
     @Test
+    public void toModelType_timestamps_preservesBothValues() throws Exception {
+        Instant created = Instant.parse("2026-03-15T01:42:00Z");
+        Instant modified = Instant.parse("2026-10-12T06:18:00Z");
+        var source = BENSON.withTimestamps(created, modified);
+
+        assertEquals(source, new JsonAdaptedPerson(source).toModelType());
+    }
+
+    @Test
+    public void toModelType_offsetTimestamps_preserveFractionalPrecision() throws Exception {
+        var adapted = new JsonAdaptedPerson(null, VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS,
+                "2026-03-15T09:42:00.123456789+08:00", "2026-03-15T09:42:00.123456789+08:00");
+
+        Person person = adapted.toModelType();
+
+        Instant expected = Instant.parse("2026-03-15T01:42:00.123456789Z");
+        assertEquals(expected, person.getCreatedAt().orElseThrow());
+        assertEquals(expected, person.getLastModifiedAt().orElseThrow());
+        assertEquals(person, new JsonAdaptedPerson(person).toModelType());
+    }
+
+    @Test
+    public void toModelType_oldFormat_keepsTimestampsUnknown() throws Exception {
+        var adapted = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+
+        assertNull(adapted.toModelType().getCreatedAt().orElse(null));
+        assertNull(adapted.toModelType().getLastModifiedAt().orElse(null));
+    }
+
+    @Test
+    public void toModelType_malformedTimestamp_throwsIllegalValueException() {
+        var adapted = new JsonAdaptedPerson(null, VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS, "not-a-timestamp", null);
+
+        assertThrows(IllegalValueException.class, JsonAdaptedPerson.INVALID_TIMESTAMP_MESSAGE,
+                adapted::toModelType);
+    }
+
+    @Test
+    public void serialization_minimalProfile_acceptsMissingOrNullDetailsAndOmitsThemWhenWriting() throws Exception {
+        Person expected = new Person(new ClientReference("C0001"), new Name("John Doe"),
+                null, null, null, null, null, null, Collections.emptySet());
+        JsonNode expectedJson = JsonUtil.fromJsonString(
+                "{\"clientReference\":\"C0001\",\"name\":\"John Doe\",\"tags\":[]}", JsonNode.class);
+
+        for (String json : List.of(
+                "{\"clientReference\":\"c0001\",\"name\":\"John Doe\"}",
+                """
+                {"clientReference":"c0001","name":"John Doe","phone":null,"email":null,
+                 "address":null,"cardDetails":null,"creditScore":null,"debt":null,"tags":null}
+                """)) {
+            Person person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+            assertEquals(expected, person);
+            String serialized = JsonUtil.toJsonString(new JsonAdaptedPerson(person));
+            assertEquals(expectedJson, JsonUtil.fromJsonString(serialized, JsonNode.class));
+        }
+    }
+
+    @Test
+    public void toModelType_blankOptionalValues_throwsIllegalValueException() throws Exception {
+        Map<String, String> constraints = Map.of("phone", Phone.MESSAGE_CONSTRAINTS,
+                "email", Email.MESSAGE_CONSTRAINTS, "address", Address.MESSAGE_CONSTRAINTS,
+                "creditScore", CreditScore.MESSAGE_CONSTRAINTS, "debt", Debt.MESSAGE_CONSTRAINTS);
+
+        for (var field : constraints.entrySet()) {
+            for (String blank : List.of("", " ")) {
+                ObjectNode json = JsonUtil.fromJsonString(
+                        "{\"clientReference\":\"C0001\",\"name\":\"John Doe\"}", ObjectNode.class);
+                json.put(field.getKey(), blank);
+                JsonAdaptedPerson person = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class);
+                assertThrows(IllegalValueException.class, field.getValue(), person::toModelType);
+            }
+        }
+    }
+
+    @Test
+    public void toModelType_partialCardObject_throwsIllegalValueException() throws Exception {
+        List<String> fields = List.of("cardNumber", "cvv", "expiryDate", "provider");
+        String completeCard = JsonUtil.toJsonString(VALID_CARD_DETAILS);
+
+        // A present card must contain all four fields, even when no other optional details exist.
+        for (int mask = 0; mask < 15; mask++) {
+            for (boolean explicitNull : List.of(false, true)) {
+                ObjectNode card = JsonUtil.fromJsonString(completeCard, ObjectNode.class);
+                for (int field = 0; field < fields.size(); field++) {
+                    if ((mask & (1 << field)) == 0) {
+                        if (explicitNull) {
+                            card.putNull(fields.get(field));
+                        } else {
+                            card.remove(fields.get(field));
+                        }
+                    }
+                }
+                String json = "{\"name\":\"John Doe\",\"cardDetails\":" + card + "}";
+                JsonAdaptedPerson person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class);
+                assertThrows(IllegalValueException.class, person::toModelType);
+            }
+        }
+    }
+
+    @Test
+    public void serialization_completeProfile_writesPlainValues() throws Exception {
+        String serialized = JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON));
+        JsonNode json = JsonUtil.fromJsonString(serialized, JsonNode.class);
+
+        assertEquals(VALID_PHONE, json.get("phone").textValue());
+        assertEquals(VALID_EMAIL, json.get("email").textValue());
+        assertEquals(VALID_ADDRESS, json.get("address").textValue());
+        assertEquals(JsonUtil.fromJsonString(JsonUtil.toJsonString(VALID_CARD_DETAILS), JsonNode.class),
+                json.get("cardDetails"));
+        assertEquals(VALID_CREDIT_SCORE, json.get("creditScore").textValue());
+        assertEquals(VALID_DEBT, json.get("debt").textValue());
+        assertEquals(BENSON, JsonUtil.fromJsonString(serialized, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void serialization_legacyProfile_omitsCardAndFinancialDetails() throws Exception {
+        Person legacy = new Person(BENSON.getName(), BENSON.getPhone().orElseThrow(),
+                BENSON.getEmail().orElseThrow(), BENSON.getAddress().orElseThrow(), BENSON.getTags());
+        String serialized = JsonUtil.toJsonString(new JsonAdaptedPerson(legacy));
+        JsonNode json = JsonUtil.fromJsonString(serialized, JsonNode.class);
+
+        assertEquals(VALID_PHONE, json.get("phone").textValue());
+        assertEquals(VALID_EMAIL, json.get("email").textValue());
+        assertEquals(VALID_ADDRESS, json.get("address").textValue());
+        assertFalse(json.has("cardDetails"));
+        assertFalse(json.has("creditScore"));
+        assertFalse(json.has("debt"));
+        assertEquals(legacy, JsonUtil.fromJsonString(serialized, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void toModelType_referencedPerson_preservesReference() throws Exception {
+        var referencedPerson = new PersonBuilder().withClientReference("c0001").build();
+        assertEquals(referencedPerson, new JsonAdaptedPerson(referencedPerson).toModelType());
+    }
+
+    @Test
+    public void toModelType_referencedPersonWithoutCard_preservesOtherFields() throws Exception {
+        var withCard = new PersonBuilder().withClientReference("C0001").build();
+        var withoutCard = new Person(withCard.getClientReference().orElse(null), withCard.getName(),
+                withCard.getPhone().orElse(null), withCard.getEmail().orElse(null), withCard.getAddress().orElse(null),
+                null, withCard.getCreditScore().orElse(null), withCard.getDebt().orElse(null), withCard.getTags());
+        assertEquals(withoutCard, new JsonAdaptedPerson(withoutCard).toModelType());
+    }
+
+    @Test
+    public void toModelType_invalidReference_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson("bad reference", VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertThrows(IllegalValueException.class, ClientReference.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
     public void toModelType_invalidName_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                        VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
         String expectedMessage = Name.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullName_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
@@ -56,46 +234,100 @@ public class JsonAdaptedPersonTest {
     @Test
     public void toModelType_invalidPhone_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                        VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
         String expectedMessage = Phone.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_nullPhone_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
-        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName());
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_nullPhone_returnsPersonWithoutPhone() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getPhone());
     }
 
     @Test
     public void toModelType_invalidEmail_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_ADDRESS,
+                        VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
         String expectedMessage = Email.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_nullEmail_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_ADDRESS, VALID_TAGS);
-        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName());
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_nullEmail_returnsPersonWithoutEmail() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getEmail());
     }
 
     @Test
     public void toModelType_invalidAddress_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, INVALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, INVALID_ADDRESS,
+                        VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
         String expectedMessage = Address.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_nullAddress_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null, VALID_TAGS);
-        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName());
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_nullAddress_returnsPersonWithoutAddress() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getAddress());
+    }
+
+    @Test
+    public void toModelType_nullCardDetails_returnsPersonWithoutCardDetails() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                null, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getCardDetails());
+    }
+
+    @Test
+    public void toModelType_blankNestedCardField_throwsIllegalValueException() {
+        JsonAdaptedCardDetails invalidCard = new JsonAdaptedCardDetails("4111111111111111", " ", "12/28", "Visa");
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                invalidCard, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertThrows(IllegalValueException.class, CardDetails.CVV_MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidExpiryDate_throwsIllegalValueException() {
+        JsonAdaptedCardDetails invalidCard = new JsonAdaptedCardDetails("4111111111111111", "123", "13/28", "Visa");
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                invalidCard, VALID_CREDIT_SCORE, VALID_DEBT, VALID_TAGS);
+        assertThrows(IllegalValueException.class, CardDetails.EXPIRY_DATE_MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidCreditScore_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, null, null,
+                null, "-1", null, VALID_TAGS);
+        assertThrows(IllegalValueException.class, CreditScore.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullCreditScore_returnsPersonWithoutCreditScore() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, null, VALID_DEBT, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getCreditScore());
+    }
+
+    @Test
+    public void toModelType_invalidDebt_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, null, null,
+                null, null, "1.234", VALID_TAGS);
+        assertThrows(IllegalValueException.class, Debt.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullDebt_returnsPersonWithoutDebt() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_CARD_DETAILS, VALID_CREDIT_SCORE, null, VALID_TAGS);
+        assertEquals(Optional.empty(), person.toModelType().getDebt());
     }
 
     @Test
@@ -103,7 +335,8 @@ public class JsonAdaptedPersonTest {
         List<JsonAdaptedTag> invalidTags = new ArrayList<>(VALID_TAGS);
         invalidTags.add(new JsonAdaptedTag(INVALID_TAG));
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, invalidTags);
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                        VALID_CARD_DETAILS, VALID_CREDIT_SCORE, VALID_DEBT, invalidTags);
         assertThrows(IllegalValueException.class, person::toModelType);
     }
 

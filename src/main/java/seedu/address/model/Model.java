@@ -1,9 +1,14 @@
 package seedu.address.model;
 
+import java.time.Clock;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.ClientClash;
+import seedu.address.model.person.ClientReference;
 import seedu.address.model.person.Person;
 
 /**
@@ -41,6 +46,48 @@ public interface Model {
      */
     boolean hasPerson(Person person);
 
+    /** Finds a referenced client, or returns empty when no such client exists. */
+    default Optional<Person> findPersonByReference(ClientReference reference) {
+        return getAddressBook().getPersonList().stream()
+                .filter(person -> person.getClientReference().filter(reference::equals).isPresent())
+                .findFirst();
+    }
+
+    /** Creates an isolated working model that can be committed after persistence succeeds. */
+    default ModelStage beginStaging(Clock clock) {
+        Model source = this;
+        ModelManager staged = new ModelManager(getAddressBook(), getUserPrefs(), clock);
+        staged.updateFilteredPersonList(getFilteredPersonListPredicate());
+        staged.setSortOrder(getSortOrder());
+        return new ModelStage() {
+            @Override
+            public Model model() {
+                return staged;
+            }
+
+            @Override
+            public void commit() {
+                source.setAddressBook(staged.getAddressBook());
+                source.updateFilteredPersonList(staged.getFilteredPersonListPredicate());
+            }
+
+            @Override
+            public Optional<String> timestampAction() {
+                return staged.getTimestampChange().map(change -> change.action().name());
+            }
+        };
+    }
+
+    /**
+     * Finds reference, phone, card-number, and email clashes for a proposed
+     * client. During editing, {@code clientBeingEdited} is excluded from the
+     * comparison; when adding a client, it should be {@code null}.
+     */
+    default List<ClientClash> findClientClashes(
+            Person proposedClient, Person clientBeingEdited) {
+        return List.of();
+    }
+
     /**
      * Deletes the given person.
      * The person must exist in the address book.
@@ -63,9 +110,20 @@ public interface Model {
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Returns the predicate used for the displayed person list. */
+    default Predicate<Person> getFilteredPersonListPredicate() {
+        return PREDICATE_SHOW_ALL_PERSONS;
+    }
+
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /** Returns the display order selected for this session. */
+    SortOrder getSortOrder();
+
+    /** Sets the display order without changing the stored address book. */
+    void setSortOrder(SortOrder sortOrder);
 }
