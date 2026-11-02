@@ -2,27 +2,39 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.function.Predicate;
+
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists contacts by name-prefix or phone-number search.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds contacts by name prefix or phone digits and "
+            + "displays them as a list with index numbers.\n"
+            + "Parameters: KEYWORD [MORE_KEYWORDS]... or p/PHONE_DIGITS\n"
             + "Example: " + COMMAND_WORD + " alice bob charlie";
 
-    private final NameContainsKeywordsPredicate predicate;
+    public static final String MESSAGE_EMPTY_KEYWORD =
+            "Please enter at least one name keyword to search for. Example: find alice tan";
+    public static final String MESSAGE_EMPTY_PHONE_KEYWORD =
+            "Please enter at least one phone digit to search for. Example: find p/9123";
+    public static final String MESSAGE_INVALID_PHONE_KEYWORD =
+            "Phone search keywords must contain digits only. Example: find p/9123";
+    /** Follows the "... is not used by find." error for a prefix that find does not take. */
+    public static final String MESSAGE_SEARCHES_ONLY_NAMES_AND_PHONES = "It only searches names, "
+            + "or phone numbers with p/, e.g. find John or find p/9123. "
+            + "To filter by status or tag, use list st/STATUS or list t/TAG.";
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    private final Predicate<Person> predicate;
+
+    public FindCommand(Predicate<Person> predicate) {
         this.predicate = predicate;
     }
 
@@ -31,7 +43,7 @@ public class FindCommand extends Command {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                Messages.getPersonListOverview(model.getFilteredPersonList().size()));
     }
 
     @Override

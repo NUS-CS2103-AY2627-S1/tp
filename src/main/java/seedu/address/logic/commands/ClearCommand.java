@@ -6,18 +6,49 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 
 /**
- * Clears the address book.
+ * Clears the address book after confirmation.
  */
 public class ClearCommand extends Command {
 
     public static final String COMMAND_WORD = "clear";
-    public static final String MESSAGE_SUCCESS = "Address book has been cleared!";
+    public static final String CONFIRM_KEYWORD = "confirm";
 
+    public static final String MESSAGE_CONFIRM_CLEAR =
+            "This deletes all %d %s. Type 'clear confirm' to proceed.";
+    public static final String MESSAGE_SUCCESS =
+            "All contacts have been cleared from Easy-Insurance.";
+
+    private final boolean isConfirmed;
+
+    /**
+     * Creates a {@code ClearCommand}.
+     *
+     * @param isConfirmed Whether the user has confirmed the clear operation.
+     */
+    public ClearCommand(boolean isConfirmed) {
+        this.isConfirmed = isConfirmed;
+    }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
+
+        if (!isConfirmed) {
+            int contactCount = model.getAddressBook().getPersonList().size();
+            String contactNoun =
+                    contactCount == 1 ? "contact" : "contacts";
+
+            return new CommandResult(
+                    String.format(
+                            MESSAGE_CONFIRM_CLEAR,
+                            contactCount,
+                            contactNoun));
+        }
+
         model.setAddressBook(new AddressBook());
+        model.updateFilteredPersonList(
+                Model.PREDICATE_SHOW_ALL_PERSONS);
+
         return new CommandResult(MESSAGE_SUCCESS);
     }
 }

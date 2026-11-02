@@ -8,48 +8,129 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Status;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
 
     @Test
     public void constructor_nullPerson_throwsNullPointerException() {
+        // EP: null contact violates the constructor precondition.
         assertThrows(NullPointerException.class, () -> new AddCommand(null));
     }
 
     @Test
     public void execute_personAcceptedByModel_addSuccessful() throws Exception {
+        // EP: a new contact has no follow-up date, so it is added without a past-date warning.
         ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
         Person validPerson = new PersonBuilder().build();
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
-                commandResult.getFeedbackToUser());
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validPerson.getName(), validPerson.getStatus())
+                + String.format(AddCommand.MESSAGE_DISPLAYED_INDEX, 1), commandResult.getFeedbackToUser());
+        assertEquals(0, commandResult.getIndexToScrollTo().orElseThrow());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
 
     @Test
+    public void execute_pastFollowUp_addSuccessfulWithWarning() throws Exception {
+        // EP: a new contact has a past follow-up date; the date is accepted with a warning.
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person personWithPastFollowUp = new PersonBuilder().withFollowUp("01-01-2020").build();
+
+        CommandResult commandResult = new AddCommand(personWithPastFollowUp).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, personWithPastFollowUp.getName(),
+                personWithPastFollowUp.getStatus())
+                + String.format(AddCommand.MESSAGE_DISPLAYED_INDEX, 1)
+                + personWithPastFollowUp.getFollowUp().get().getPastDateWarning(), commandResult.getFeedbackToUser());
+        assertEquals(List.of(personWithPastFollowUp), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_futureFollowUp_addSuccessfulWithoutWarning() throws Exception {
+        // EP: a new contact has a future follow-up date; no past-date warning is needed.
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person personWithFutureFollowUp = new PersonBuilder().withFollowUp("25-12-2099").build();
+
+        CommandResult commandResult = new AddCommand(personWithFutureFollowUp).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, personWithFutureFollowUp.getName(),
+                personWithFutureFollowUp.getStatus()) + String.format(AddCommand.MESSAGE_DISPLAYED_INDEX, 1),
+                commandResult.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_addedContactHiddenByActiveFilter_informsUser() throws Exception {
+        Model model = new ModelManager(new AddressBook(), new UserPrefs());
+        Person client = new PersonBuilder().withName("Client Tan").withStatus("CLIENT").build();
+        Person prospect = new PersonBuilder().withName("Prospect Lee").build();
+        model.addPerson(client);
+        model.updateFilteredPersonList(person -> person.getStatus() == Status.CLIENT);
+
+        CommandResult result = new AddCommand(prospect).execute(model);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, prospect.getName(), prospect.getStatus())
+                + AddCommand.MESSAGE_HIDDEN_CONTACT, result.getFeedbackToUser());
+        assertEquals(List.of(client), model.getFilteredPersonList());
+        assertEquals(List.of(client, prospect), model.getAddressBook().getPersonList());
+        assertTrue(result.getIndexToScrollTo().isEmpty());
+    }
+
+    @Test
+    public void execute_visibleContactInSortedList_reportsDisplayedIndex() throws Exception {
+        Model model = new ModelManager(new AddressBook(), new UserPrefs());
+        Person later = new PersonBuilder().withName("Zoe Tan").build();
+        Person earlier = new PersonBuilder().withName("Amy Lee").build();
+        model.addPerson(later);
+        model.updateFilteredPersonList(person -> true, Comparator.comparing(person -> person.getName().fullName));
+
+        CommandResult result = new AddCommand(earlier).execute(model);
+
+        assertEquals(List.of(earlier, later), model.getFilteredPersonList());
+        assertEquals(0, result.getIndexToScrollTo().orElseThrow());
+        assertTrue(result.getFeedbackToUser().contains("Shown at index 1."));
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
+        // EP: the contact already exists with identical details.
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, String.format(AddCommand.MESSAGE_DUPLICATE_PERSON,
+                validPerson.getName(), validPerson.getPhone()), () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_nameDiffersOnlyInCase_throwsDuplicateCommandException() {
+        // EP: the contact name is equivalent after ignoring case and repeated spaces.
+        Person existingPerson = new PersonBuilder().withName("Alice Tan").build();
+        Person duplicatePerson = new PersonBuilder().withName("alice  tan").build();
+        AddCommand addCommand = new AddCommand(duplicatePerson);
+        ModelStub modelStub = new ModelStubWithPerson(existingPerson);
+
+        assertThrows(CommandException.class, String.format(AddCommand.MESSAGE_DUPLICATE_PERSON,
+                existingPerson.getName(), existingPerson.getPhone()), () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -138,7 +219,23 @@ public class AddCommandTest {
         }
 
         @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
+        public Predicate<? super Person> getPersonListPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Comparator<? super Person> getPersonListComparator() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<? super Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<? super Person> predicate,
+                Comparator<? super Person> comparator) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -158,6 +255,13 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return this.person.isSamePerson(person);
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
         }
     }
 
@@ -182,6 +286,11 @@ public class AddCommandTest {
         @Override
         public ReadOnlyAddressBook getAddressBook() {
             return new AddressBook();
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded);
         }
     }
 

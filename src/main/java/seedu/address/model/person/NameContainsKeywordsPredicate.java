@@ -1,5 +1,7 @@
 package seedu.address.model.person;
 
+import java.text.Normalizer;
+import java.text.Normalizer.Form;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -7,19 +9,24 @@ import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a {@code Person}'s {@code Name} has a word starting with any of the keywords given.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
 
+    /**
+     * Creates a name filter with keywords in the same Unicode NFC form as stored names.
+     */
     public NameContainsKeywordsPredicate(List<String> keywords) {
-        this.keywords = keywords;
+        this.keywords = keywords.stream()
+                .map(keyword -> Normalizer.normalize(keyword, Form.NFC))
+                .toList();
     }
 
     @Override
     public boolean test(Person person) {
         return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+                .anyMatch(keyword -> StringUtil.containsWordStartingWithIgnoreCase(person.getName().fullName, keyword));
     }
 
     @Override

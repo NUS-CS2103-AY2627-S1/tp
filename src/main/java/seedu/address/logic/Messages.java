@@ -1,23 +1,49 @@
 package seedu.address.logic;
 
+import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
+import seedu.address.model.person.FollowUp;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 
 /**
  * Container for user visible messages.
  */
 public class Messages {
 
-    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
+    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command. Type help to see all commands.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX =
+            "There is no contact %1$d. The list shows %2$s.";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d contacts listed.";
+    public static final String MESSAGE_PERSON_LISTED_OVERVIEW = "1 contact listed.";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_NO_PARAMETERS_EXPECTED =
+            "The %1$s command does not accept additional parameters.";
+    public static final String MESSAGE_MISSING_REQUIRED_FIELDS = "Missing required field(s): %1$s\n%2$s";
+
+    /**
+     * Returns a grammatically correct result-count message.
+     */
+    public static String getPersonListOverview(int numberOfContacts) {
+        if (numberOfContacts == 1) {
+            return MESSAGE_PERSON_LISTED_OVERVIEW;
+        }
+
+        return String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, numberOfContacts);
+    }
+
+    /** Returns an error message for an index outside the displayed contact list. */
+    public static String getInvalidPersonDisplayedIndexMessage(int index, int numberOfContacts) {
+        String contactCount = numberOfContacts == 1
+                ? "1 contact" : String.format("%d contacts", numberOfContacts);
+        return String.format(MESSAGE_INVALID_PERSON_DISPLAYED_INDEX, index, contactCount);
+    }
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -32,9 +58,13 @@ public class Messages {
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Formats the {@code person} for display, using card order for tags and {@code none} for empty fields.
      */
     public static String format(Person person) {
+        String tags = person.getTags().stream()
+                .sorted(Comparator.comparing(tag -> tag.tagName))
+                .map(Tag::toString)
+                .collect(Collectors.joining(" "));
         final StringBuilder builder = new StringBuilder();
         builder.append(person.getName())
                 .append("; Phone: ")
@@ -43,8 +73,12 @@ public class Messages {
                 .append(person.getEmail())
                 .append("; Address: ")
                 .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append("; Status: ")
+                .append(person.getStatus())
+                .append("; Tags: ")
+                .append(tags.isEmpty() ? "none" : tags)
+                .append("; Follow-up: ")
+                .append(person.getFollowUp().map(FollowUp::toString).orElse("none"));
         return builder.toString();
     }
 

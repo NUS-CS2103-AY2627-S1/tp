@@ -1,59 +1,57 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 ## Project team
 
-### John Doe
+### Kaelin Quek
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kqjy29.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/kqjy29)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Code quality, in charge of Logic component
 
-### Jean Doe
+### Tommy Quak
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/tommyquak.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/tommyquak)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Team lead, documentation, release and integration
+
+<!-- @@author kaseyho -->
+### Kasey Ho Kei Ching
+
+<img src="images/kaseyho.png" width="200px">
+
+[[github](https://github.com/kaseyho)]
+<!-- @@author -->
+
+* Role: Developer
+* Responsibilities: Git expert, in charge of Model and Storage components
+
+### Peter Bezgoubov
+
+<img src="images/pbez02.png" width="200px">
+
+[[github](https://github.com/pbez02)]
+
+* Role: Developer
+* Responsibilities: Project scheduling, UI and command usability
+
+### Jovan Ong
+
+<img src="images/watsurprob.png" width="200px">
+
+[[github](https://github.com/WatsUrProb)]
+
+* Role: Developer
+* Responsibilities: Testing

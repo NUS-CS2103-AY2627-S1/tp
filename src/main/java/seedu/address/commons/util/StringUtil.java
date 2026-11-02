@@ -39,6 +39,28 @@ public class StringUtil {
     }
 
     /**
+     * Returns true if a name part in {@code sentence} starts with {@code word}, ignoring case.
+     * Parts begin at the start of the sentence or after whitespace or supported name punctuation.
+     */
+    public static boolean containsWordStartingWithIgnoreCase(String sentence, String word) {
+        requireNonNull(sentence);
+        requireNonNull(word);
+        String preppedWord = word.trim();
+        checkArgument(!preppedWord.isEmpty(), "Word parameter cannot be empty");
+        checkArgument(preppedWord.split("\\s+").length == 1, "Word parameter should be a single word");
+        // Match the original text so punctuation inside a queried name part is preserved.
+        for (int i = 0; i < sentence.length(); i++) {
+            boolean isNamePartStart = i == 0
+                    || Character.isWhitespace(sentence.charAt(i - 1))
+                    || "-'.,/".indexOf(sentence.charAt(i - 1)) >= 0;
+            if (isNamePartStart && sentence.regionMatches(true, i, preppedWord, 0, preppedWord.length())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Returns a detailed message of {@code t}, including the stack trace.
      */
     public static String getDetails(Throwable t) {
