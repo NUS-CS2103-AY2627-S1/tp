@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -53,4 +54,64 @@ public class AddressTest {
         // different values -> returns false
         assertFalse(address.equals(new Address("Other Valid Address")));
     }
+
+    @Test
+    public void constructor_singleLineUnicode_trimsOrdinarySpacesAndPreservesText() {
+        assertEquals("新加坡 🏠 #02-01", new Address("  新加坡 🏠 #02-01  ").value);
+        for (String invalid : new String[] {"A\nB", "A\rB", "A\tB", "A\u0085B", "A\u2028B", "A\u2029B"}) {
+            assertFalse(Address.isValidAddress(invalid));
+            assertThrows(IllegalArgumentException.class, () -> new Address(invalid));
+        }
+    }
+
+    @Test
+    public void isValidAddress_onlyUnicodeSpacesOrFormatting_rejectsBlankText() {
+        for (String invisible : new String[] {"\u00a0", "\u3000", "\u200b", "\u2007", "\u202f",
+            "\ufeff", "\u200c\u200d", " \u00a0\u3000\u200b "}) {
+            assertFalse(Address.isValidAddress(invisible));
+            assertThrows(IllegalArgumentException.class, () -> new Address(invisible));
+            String visible = "Blk" + invisible + "1";
+            assertTrue(Address.isValidAddress(visible));
+            assertEquals(visible, new Address(visible).value);
+        }
+    }
+
+    @Test
+    public void isValidAddress_onlyInvisibleCharacters_rejectsBlankText() {
+        for (String invisible : new String[] {
+            "\u115f", "\u1160", "\u3164", "\uffa0", "\u2800",
+            "\u0301", "\u093e", "\u20dd", " \u115f\u1160\u3164\uffa0\u200b\u0301 "
+        }) {
+            assertFalse(Address.isValidAddress(invisible));
+            assertThrows(IllegalArgumentException.class, () -> new Address(invisible));
+        }
+    }
+
+    @Test
+    public void constructor_visibleTextWithInvisibleCharacters_preservesText() {
+        for (String visible : new String[] {
+            "Blk \u3164 123", "\u115f\u1161", "新加坡 🏠 #02-01", "Cafe\u0301", "🏠", "-"
+        }) {
+            assertTrue(Address.isValidAddress(visible));
+            assertEquals(visible, new Address("  " + visible + "  ").value);
+        }
+    }
+
+    @Test
+    public void isValidAddress_unpairedSurrogates_rejectsMalformedText() {
+        for (String invalid : new String[] {"\uD800", "\uDC00", "\uDC00\uD800", "\uD800A",
+            "\uD800\uD800", "A\uDC00B", "\uD83C\uDFE0\uD800"}) {
+            assertFalse(Address.isValidAddress(invalid));
+            assertThrows(IllegalArgumentException.class, () -> new Address(invalid));
+        }
+    }
+
+    @Test
+    public void constructor_validUnicode_preservesSupplementaryAndReplacementCharacters() {
+        for (String valid : new String[] {"\uD800\uDC00", "\uDBFF\uDFFF", "新加坡 🏠 #02-01", "Blk \uFFFD"}) {
+            assertTrue(Address.isValidAddress(valid));
+            assertEquals(valid, new Address("  " + valid + "  ").value);
+        }
+    }
+
 }

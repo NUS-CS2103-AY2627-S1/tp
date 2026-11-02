@@ -1,0 +1,598 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.JavaFxTestUtil.callOnFxThread;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.application.Platform;
+import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
+import javafx.css.Styleable;
+import javafx.geometry.Bounds;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Control;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.LogicManager;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.JavaFxTestUtil;
+import seedu.address.testutil.LogCapturingHandler;
+import seedu.address.testutil.PersonBuilder;
+
+public class CommandSubmissionTest {
+
+    private static final LocalDate TODAY = LocalDate.of(2026, 10, 7);
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-07T00:00:00Z"), ZoneOffset.UTC);
+
+    @TempDir
+    public Path temporaryFolder;
+
+    @BeforeAll
+    public static void initializeToolkit() throws Exception {
+        JavaFxTestUtil.initializeToolkit();
+    }
+
+    @Test
+    public void initializeToolkit_alreadyRunning_remainsUsable() throws Exception {
+        initializeToolkit();
+        initializeToolkit();
+        assertTrue(callOnFxThread(Platform::isFxApplicationThread));
+        assertFalse(callOnFxThread(Platform::isImplicitExit));
+    }
+
+    @Test
+    public void constructor_nullExecutor_throwsNullPointerException() throws Exception {
+        NullPointerException exception = callOnFxThread(() ->
+                assertThrows(NullPointerException.class, () -> new CommandBox(null)));
+
+        assertEquals("commandExecutor", exception.getMessage());
+    }
+
+    @Test
+    public void constructor_validExecutor_loadsEditableFieldWithoutExecuting() throws Exception {
+        AtomicInteger executionCount = new AtomicInteger();
+
+        callOnFxThread(() -> {
+            CommandBox commandBox = new CommandBox(commandText -> {
+                executionCount.incrementAndGet();
+                return new CommandResult("Listed all clients.");
+            });
+            TextField commandTextField = assertInstanceOf(TextField.class,
+                    commandBox.getRoot().lookup("#commandTextField"));
+
+            commandTextField.setText("list");
+            assertTrue(commandTextField.isEditable());
+            assertEquals("list", commandTextField.getText());
+            return null;
+        });
+
+        assertEquals(0, executionCount.get());
+    }
+
+    @Test
+    public void submit_enterAndRun_executeIdenticalTextExactlyOnce() throws Exception {
+        callOnFxThread(() -> {
+            List<String> executedTexts = new ArrayList<>();
+            List<String> expectedTexts = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(commandText -> {
+                executedTexts.add(commandText);
+                return new CommandResult("Command submitted.");
+            });
+            new Scene(commandBox.getRoot());
+            commandBox.getRoot().applyCss();
+            TextField commandTextField = assertInstanceOf(TextField.class,
+                    commandBox.getRoot().lookup("#commandTextField"));
+            Button runButton = assertInstanceOf(Button.class, commandBox.getRoot().lookup("#runButton"));
+
+            for (String input : List.of("list", "", "  \t  ", "  followup 1 clear  ", "invalid command")) {
+                commandTextField.setText(input);
+                String currentText = commandTextField.getText();
+                commandTextField.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                        false, false, false, false));
+                commandTextField.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "", "", KeyCode.ENTER,
+                        false, false, false, false));
+                expectedTexts.add(currentText);
+                assertEquals(expectedTexts, executedTexts, "Enter must submit the current text exactly once");
+
+                commandTextField.setText(input);
+                assertEquals(currentText, commandTextField.getText());
+                runButton.fire();
+                expectedTexts.add(currentText);
+                assertEquals(expectedTexts, executedTexts, "Run must submit the same text exactly once");
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void runButton_isAccessibleAndDoesNotSubmitAsDefaultButton() throws Exception {
+        callOnFxThread(() -> {
+            CommandBox commandBox = new CommandBox(commandText -> new CommandResult("Command submitted."));
+            Button runButton = assertInstanceOf(Button.class, commandBox.getRoot().lookup("#runButton"));
+
+            assertFalse(runButton.isDefaultButton(), "Enter in the command field must not also activate Run");
+            assertTrue(runButton.isFocusTraversable(), "Run must be reachable using the keyboard");
+            assertFalse(runButton.getText().isBlank(), "Run must have a visible label");
+            assertFalse(runButton.getAccessibleText().isBlank(), "Run must have an accessible label");
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBar_existingHost_keepsControlsReadableAndWithinBounds() throws Exception {
+        callOnFxThread(() -> {
+            Path dataFile = temporaryFolder.resolve("clients.json");
+            LogicManager logic = new LogicManager(new ModelManager(), new StorageManager(
+                    new JsonAddressBookStorage(dataFile),
+                    new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))), CLOCK);
+            MainWindow window = new MainWindow(new Stage(), logic, dataFile);
+            try {
+                window.fillInnerParts();
+                Scene scene = window.getPrimaryStage().getScene();
+                Region root = assertInstanceOf(Region.class, scene.getRoot());
+                TextField commandTextField = assertInstanceOf(TextField.class, root.lookup("#commandTextField"));
+                Button runButton = assertInstanceOf(Button.class, root.lookup("#runButton"));
+                Region commandBar = assertInstanceOf(Region.class, commandTextField.getParent());
+                commandTextField.setText("find " + "Long command text ".repeat(30));
+
+                for (double width : new double[] {450, 853, 1280, 1920}) {
+                    root.resize(width, 720);
+                    root.applyCss();
+                    root.layout();
+                    assertControlsFit(commandBar, commandTextField, runButton);
+                    assertReadable(commandTextField);
+                    assertTrue(contrastRatio((Color) runButton.getTextFill(),
+                            (Color) runButton.getBackground().getFills().getFirst().getFill()) >= 4.5,
+                            "The Run label must remain readable in the existing host");
+                }
+
+                commandTextField.setText("invalid command");
+                runButton.fire();
+                root.applyCss();
+                assertEquals("invalid command", commandTextField.getText());
+                assertEquals(1, errorClassCount(commandTextField));
+                assertReadable(commandTextField);
+            } finally {
+                window.getPrimaryStage().close();
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBar_narrowWidth_keepsInputAndRunAvailable() throws Exception {
+        callOnFxThread(() -> {
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> new CommandResult("Submitted."));
+            Region root = assertInstanceOf(Region.class, fixture.scene.getRoot());
+            fixture.commandTextField.setText("find " + "Long command text ".repeat(30));
+
+            for (double width : new double[] {320, 450, 853}) {
+                root.resize(width, root.prefHeight(width));
+                root.applyCss();
+                root.layout();
+                assertControlsFit(root, fixture.commandTextField, fixture.runButton);
+                fixture.commandTextField.positionCaret(fixture.commandTextField.getLength());
+                assertEquals(fixture.commandTextField.getLength(), fixture.commandTextField.getCaretPosition());
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBar_tabAndSpace_submitOnceAndReturnFocus() throws Exception {
+        callOnFxThread(() -> {
+            AtomicInteger executionCount = new AtomicInteger();
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> {
+                executionCount.incrementAndGet();
+                return new CommandResult("Submitted.");
+            });
+            fixture.commandTextField.setText("list");
+            fixture.commandTextField.requestFocus();
+            pressKey(fixture.commandTextField, KeyCode.TAB);
+            assertSame(fixture.runButton, fixture.scene.getFocusOwner(), "Tab must reach Run from the input");
+            pressKey(fixture.runButton, KeyCode.SPACE);
+            assertEquals(1, executionCount.get());
+            assertEquals("", fixture.commandTextField.getText());
+            assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+            assertFalse(fixture.commandTextField.getAccessibleText().isBlank());
+            assertFalse(fixture.commandTextField.getAccessibleHelp().isBlank());
+            assertFalse(fixture.runButton.getAccessibleHelp().isBlank());
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBar_buttonStates_keepReadableLabelAndVisibleFocus() throws Exception {
+        callOnFxThread(() -> {
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> new CommandResult("Submitted."));
+            Region root = assertInstanceOf(Region.class, fixture.scene.getRoot());
+            root.resize(450, root.prefHeight(450));
+            root.layout();
+            double buttonWidth = fixture.runButton.getWidth();
+
+            for (String state : List.of("hover", "pressed", "focused")) {
+                PseudoClass pseudoClass = PseudoClass.getPseudoClass(state);
+                fixture.runButton.pseudoClassStateChanged(pseudoClass, true);
+                root.applyCss();
+                root.layout();
+                Color buttonBackground = (Color) fixture.runButton.getBackground().getFills().getFirst().getFill();
+                assertTrue(contrastRatio((Color) fixture.runButton.getTextFill(), buttonBackground) >= 4.5,
+                        "The Run label must stay readable in every interactive state");
+                assertEquals(buttonWidth, fixture.runButton.getWidth(), "Interaction must not shift the layout");
+                if (state.equals("focused")) {
+                    Color focusBorder = (Color) fixture.runButton.getBorder().getStrokes().getFirst().getTopStroke();
+                    Color barBackground = (Color) root.getBackground().getFills().getFirst().getFill();
+                    assertEquals(1.0, focusBorder.getOpacity(), "The focus indicator must be visible");
+                    assertTrue(contrastRatio(focusBorder, barBackground) >= 3,
+                            "Keyboard focus must be distinguishable against the command bar");
+                }
+                fixture.runButton.pseudoClassStateChanged(pseudoClass, false);
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBar_inputStates_keepVisibleBoundary() throws Exception {
+        callOnFxThread(() -> {
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> new CommandResult("Submitted."));
+            Region root = assertInstanceOf(Region.class, fixture.scene.getRoot());
+            PseudoClass focused = PseudoClass.getPseudoClass("focused");
+            for (boolean isError : List.of(false, true)) {
+                if (isError) {
+                    fixture.commandTextField.getStyleClass().add(CommandBox.ERROR_STYLE_CLASS);
+                }
+                for (boolean isFocused : List.of(false, true)) {
+                    fixture.commandTextField.pseudoClassStateChanged(focused, isFocused);
+                    root.applyCss();
+                    Color border = (Color) fixture.commandTextField.getBorder().getStrokes().getFirst()
+                            .getTopStroke();
+                    Color background = (Color) root.getBackground().getFills().getFirst().getFill();
+                    assertEquals(1.0, border.getOpacity(), "The input boundary must be visible");
+                    assertTrue(contrastRatio(border, background) >= 3,
+                            "The input boundary must contrast against the command bar in every state");
+                    assertReadable(fixture.commandTextField);
+                }
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void submit_rejectedCommands_retainInputStateAndFocusThenRecover() throws Exception {
+        callOnFxThread(() -> {
+            for (SubmissionMethod method : SubmissionMethod.values()) {
+                AddressBook addressBook = new AddressBook();
+                Person person = new PersonBuilder().build();
+                addressBook.addPerson(person);
+                ModelManager model = new ModelManager(addressBook, new UserPrefs(), TODAY, false);
+                model.selectPerson(person);
+                Path dataFile = temporaryFolder.resolve(method.name() + ".json");
+                LogicManager logic = new LogicManager(model, new StorageManager(
+                        new JsonAddressBookStorage(dataFile),
+                        new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))), CLOCK);
+                List<String> failures = new ArrayList<>();
+                AtomicInteger executionCount = new AtomicInteger();
+                CommandBoxFixture fixture = new CommandBoxFixture(commandText -> {
+                    executionCount.incrementAndGet();
+                    try {
+                        return logic.execute(commandText);
+                    } catch (CommandException | ParseException e) {
+                        failures.add(e.getMessage());
+                        throw e;
+                    }
+                });
+                List<RejectedCommand> rejectedCommands = List.of(
+                        new RejectedCommand("", "Enter a command."),
+                        new RejectedCommand("   ", "Enter a command."),
+                        new RejectedCommand("invalid command", Messages.MESSAGE_UNKNOWN_COMMAND),
+                        new RejectedCommand("delete 9", "No client with ID 9."),
+                        new RejectedCommand("followup 999 d/bad m/", "No client with ID 999."));
+
+                for (RejectedCommand rejected : rejectedCommands) {
+                    assertRejectedCommandRetries(fixture, method, rejected, failures, () -> {
+                        assertClientStateUnchanged(model, addressBook, person);
+                        assertFalse(Files.exists(dataFile));
+                    });
+                }
+                assertEquals(rejectedCommands.size() * 2, executionCount.get());
+
+                fixture.commandTextField.setText("list");
+                assertEquals(0, errorClassCount(fixture.commandTextField), "Editing must reset the error style");
+                fixture.submit(method);
+                assertEquals("", fixture.commandTextField.getText());
+                assertEquals(0, errorClassCount(fixture.commandTextField));
+                assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+                assertEquals(rejectedCommands.size() * 2 + 1, executionCount.get());
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void submit_saveFailure_retainsInputAndCommittedDataThenRetries() throws Exception {
+        callOnFxThread(() -> {
+            for (SubmissionMethod method : SubmissionMethod.values()) {
+                AddressBook addressBook = new AddressBook();
+                Person person = new PersonBuilder().build();
+                addressBook.addPerson(person);
+                ModelManager model = new ModelManager(addressBook, new UserPrefs(), TODAY, false);
+                model.selectPerson(person);
+                Path dataFile = temporaryFolder.resolve(method.name() + ".json");
+                new JsonAddressBookStorage(dataFile).saveAddressBook(addressBook);
+                byte[] savedData = Files.readAllBytes(dataFile);
+                AtomicBoolean shouldFailSave = new AtomicBoolean(true);
+                AtomicInteger saveCount = new AtomicInteger();
+                JsonAddressBookStorage storage = new JsonAddressBookStorage(dataFile) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook data) throws IOException {
+                        saveCount.incrementAndGet();
+                        if (shouldFailSave.get()) {
+                            throw new IOException("Simulated save failure");
+                        }
+                        super.saveAddressBook(data);
+                    }
+                };
+                LogicManager logic = new LogicManager(model, new StorageManager(storage,
+                        new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))), CLOCK);
+                List<String> failures = new ArrayList<>();
+                CommandBoxFixture fixture = new CommandBoxFixture(commandText -> {
+                    try {
+                        return logic.execute(commandText);
+                    } catch (CommandException e) {
+                        failures.add(e.getMessage());
+                        throw e;
+                    }
+                });
+                fixture.commandTextField.setText("delete 1");
+
+                for (int attempt = 0; attempt < 2; attempt++) {
+                    fixture.submit(method);
+                    assertEquals("delete 1", fixture.commandTextField.getText());
+                    assertEquals(String.format(LogicManager.MESSAGE_SAVE_FAILED, dataFile), failures.getLast());
+                    assertEquals(1, errorClassCount(fixture.commandTextField));
+                    assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+                    assertClientStateUnchanged(model, addressBook, person);
+                    assertArrayEquals(savedData, Files.readAllBytes(dataFile));
+                    assertEquals(attempt + 1, saveCount.get());
+                }
+
+                shouldFailSave.set(false);
+                fixture.submit(method);
+                assertEquals("", fixture.commandTextField.getText());
+                assertEquals(0, errorClassCount(fixture.commandTextField));
+                assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+                assertTrue(model.getAddressBook().getPersonList().isEmpty());
+                assertTrue(new JsonAddressBookStorage(dataFile).readAddressBook().orElseThrow()
+                        .getPersonList().isEmpty());
+                assertEquals(3, saveCount.get());
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void submit_unexpectedFailure_propagatesWithoutClearingInput() throws Exception {
+        callOnFxThread(() -> {
+            IllegalStateException expected = new IllegalStateException("Executor unavailable");
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> {
+                throw expected;
+            });
+            fixture.commandTextField.setText("list");
+
+            RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                    fixture.submit(SubmissionMethod.RUN_ACTION));
+            Throwable cause = exception;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            assertSame(expected, cause);
+            assertEquals("list", fixture.commandTextField.getText());
+            assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+            return null;
+        });
+    }
+
+    @Test
+    public void submit_diagnostics_recordOutcomesWithoutPrivateData() throws Exception {
+        callOnFxThread(() -> {
+            String privateDetails = "PRIVATE_CLIENT_COMMAND_AND_ERROR";
+            CommandBoxFixture fixture = new CommandBoxFixture(commandText -> {
+                if (commandText.startsWith("parse")) {
+                    throw new ParseException(privateDetails);
+                }
+                if (commandText.startsWith("save")) {
+                    throw new CommandException(privateDetails, new IOException(privateDetails));
+                }
+                return new CommandResult(privateDetails);
+            });
+            Logger logger = LogsCenter.getLogger(CommandBox.class);
+            LogCapturingHandler handler = new LogCapturingHandler();
+            Level previousLevel = logger.getLevel();
+            boolean wasUsingParentHandlers = logger.getUseParentHandlers();
+            logger.setLevel(Level.FINE);
+            logger.setUseParentHandlers(false);
+            logger.addHandler(handler);
+            try {
+                for (String prefix : List.of("parse", "save", "list")) {
+                    fixture.commandTextField.setText(prefix + " " + privateDetails);
+                    fixture.submit(SubmissionMethod.RUN_ACTION);
+                }
+                List<LogRecord> records = handler.getRecords();
+                assertEquals(3, records.size(), "Every submission must record an outcome at diagnostic level");
+                assertTrue(records.get(0).getMessage().contains("ParseException"));
+                assertTrue(records.get(1).getMessage().contains("CommandException"));
+                for (LogRecord record : records) {
+                    assertFalse(record.getMessage().contains(privateDetails));
+                    assertNull(record.getThrown(), "Exception details can contain client data");
+                    assertNull(record.getParameters(), "Raw command values must not be logged as parameters");
+                }
+            } finally {
+                logger.removeHandler(handler);
+                logger.setLevel(previousLevel);
+                logger.setUseParentHandlers(wasUsingParentHandlers);
+            }
+            return null;
+        });
+    }
+
+    private static void assertRejectedCommandRetries(CommandBoxFixture fixture, SubmissionMethod method,
+            RejectedCommand rejected, List<String> failures, Runnable assertUnchangedState) {
+        fixture.commandTextField.setText(rejected.input());
+        for (int attempt = 0; attempt < 2; attempt++) {
+            fixture.submit(method);
+            assertEquals(rejected.input(), fixture.commandTextField.getText());
+            assertEquals(rejected.expectedMessage(), failures.getLast());
+            assertEquals(1, errorClassCount(fixture.commandTextField));
+            assertSame(fixture.commandTextField, fixture.scene.getFocusOwner());
+            assertUnchangedState.run();
+        }
+    }
+
+    private static void assertClientStateUnchanged(ModelManager model, ReadOnlyAddressBook initialData, Person person) {
+        assertEquals(initialData, model.getAddressBook());
+        assertEquals(List.of(person), model.getFilteredPersonList());
+        assertSame(person, model.selectedPersonProperty().get());
+        assertEquals(TODAY, model.getToday());
+    }
+
+    private static long errorClassCount(TextField commandTextField) {
+        return commandTextField.getStyleClass().stream().filter(CommandBox.ERROR_STYLE_CLASS::equals).count();
+    }
+
+    private static void assertControlsFit(Region commandBar, TextField commandTextField, Button runButton) {
+        assertTrue(commandTextField.getWidth() >= 100, "The command field must retain usable editing space");
+        assertTrue(commandTextField.getBoundsInParent().getMaxX() <= runButton.getLayoutX(),
+                "The input and Run button must not overlap");
+        assertTrue(runButton.getBoundsInParent().getMaxX() <= commandBar.getWidth(),
+                "Run must remain inside the command bar");
+        assertTrue(runButton.getBoundsInParent().getMaxY() <= commandBar.getHeight(),
+                "Run must fit the command bar height");
+        Text label = assertInstanceOf(Text.class, runButton.lookup(".text"));
+        Bounds labelBounds = runButton.sceneToLocal(label.localToScene(label.getBoundsInLocal()));
+        assertTrue(runButton.getLayoutBounds().contains(labelBounds), "The Run label must not be clipped");
+    }
+
+    private static void assertReadable(TextField commandTextField) {
+        Color background = (Color) commandTextField.getBackground().getFills().getLast().getFill();
+        assertTrue(contrastRatio(textFieldColor(commandTextField, "-fx-text-fill"), background) >= 4.5,
+                "Command text must remain readable in normal and error states");
+        assertTrue(contrastRatio(textFieldColor(commandTextField, "-fx-prompt-text-fill"), background) >= 4.5,
+                "The command prompt must remain readable");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Color textFieldColor(TextField commandTextField, String property) {
+        CssMetaData<Styleable, ?> metadata = (CssMetaData<Styleable, ?>) commandTextField.getCssMetaData().stream()
+                .filter(cssProperty -> cssProperty.getProperty().equals(property)).findFirst().orElseThrow();
+        return assertInstanceOf(Color.class, metadata.getStyleableProperty(commandTextField).getValue());
+    }
+
+    private static double contrastRatio(Color first, Color second) {
+        double firstLuminance = relativeLuminance(first);
+        double secondLuminance = relativeLuminance(second);
+        return (Math.max(firstLuminance, secondLuminance) + 0.05)
+                / (Math.min(firstLuminance, secondLuminance) + 0.05);
+    }
+
+    private static double relativeLuminance(Color color) {
+        return 0.2126 * linearChannel(color.getRed()) + 0.7152 * linearChannel(color.getGreen())
+                + 0.0722 * linearChannel(color.getBlue());
+    }
+
+    private static double linearChannel(double channel) {
+        return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    }
+
+    private static void pressKey(Control control, KeyCode keyCode) {
+        control.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode, false, false, false, false));
+        control.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "", "", keyCode, false, false, false, false));
+    }
+
+    private enum SubmissionMethod {
+        ENTER,
+        RUN_ACTION,
+        RUN_KEYBOARD
+    }
+
+    private record RejectedCommand(String input, String expectedMessage) {}
+
+    /**
+     * Loads the real command controls into a scene for submission and logical focus checks.
+     */
+    private static class CommandBoxFixture {
+        private final Scene scene;
+        private final TextField commandTextField;
+        private final Button runButton;
+
+        CommandBoxFixture(CommandBox.CommandExecutor commandExecutor) {
+            CommandBox commandBox = new CommandBox(commandExecutor);
+            scene = new Scene(commandBox.getRoot());
+            commandBox.getRoot().applyCss();
+            commandTextField = assertInstanceOf(TextField.class, commandBox.getRoot().lookup("#commandTextField"));
+            runButton = assertInstanceOf(Button.class, commandBox.getRoot().lookup("#runButton"));
+        }
+
+        void submit(SubmissionMethod method) {
+            switch (method) {
+                case ENTER:
+                    commandTextField.requestFocus();
+                    pressKey(commandTextField, KeyCode.ENTER);
+                    break;
+                case RUN_ACTION:
+                    runButton.requestFocus();
+                    runButton.fire();
+                    break;
+                case RUN_KEYBOARD:
+                    runButton.requestFocus();
+                    pressKey(runButton, KeyCode.SPACE);
+                    break;
+                default:
+                    throw new AssertionError("Unknown submission method");
+            }
+        }
+    }
+}

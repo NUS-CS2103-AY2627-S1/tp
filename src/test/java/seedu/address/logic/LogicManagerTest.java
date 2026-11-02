@@ -1,19 +1,31 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_CHANGES_BLOCKED;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,14 +35,19 @@ import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.FollowUp;
+import seedu.address.model.person.FollowUpStatus;
 import seedu.address.model.person.Person;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
+import seedu.address.testutil.MutableClock;
 import seedu.address.testutil.PersonBuilder;
 
 public class LogicManagerTest {
@@ -42,13 +59,14 @@ public class LogicManagerTest {
 
     private Model model = new ModelManager();
     private Logic logic;
+    private Storage storage;
 
     @BeforeEach
     public void setUp() {
         JsonAddressBookStorage addressBookStorage =
                 new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        storage = new StorageManager(addressBookStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
     }
 
@@ -61,7 +79,7 @@ public class LogicManagerTest {
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
         String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandException(deleteCommand, "No client with ID 9.");
     }
 
     @Test
@@ -71,20 +89,222 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_caseVariants_preserveClientDetailsAndPersistFollowUpChanges() throws Exception {
+        logic.execute("ADD n/Rachel McKay p/91110001 e/Rachel.McKay@Example.com a/Blk 123 Queen Street");
+        Person client = model.getAddressBook().getPersonList().getFirst();
+        assertEquals("Rachel McKay", client.getName().fullName);
+        assertEquals("Rachel.McKay@Example.com", client.getEmail().value);
+        assertEquals("Blk 123 Queen Street", client.getAddress().value);
+        FollowUp followUp = new FollowUp(LocalDate.of(2099, 12, 15), "Call Rachel ASAP");
+
+        logic.execute("FoLlOwUp 1 d/2099-12-15 m/Call Rachel ASAP");
+        logic.execute("VIEW 1");
+        Person withFollowUp = model.getAddressBook().getPersonList().getFirst();
+        assertEquals(client.withFollowUp(followUp), withFollowUp);
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+        byte[] savedBytes = Files.readAllBytes(storage.getAddressBookFilePath());
+
+        assertThrows(ParseException.class, () -> logic.execute("FOLLOWUP 1 CLEAR extra"));
+        assertSame(withFollowUp, model.getAddressBook().getPersonList().getFirst());
+        assertSame(withFollowUp, model.selectedPersonProperty().get());
+        assertTrue(java.util.Arrays.equals(savedBytes, Files.readAllBytes(storage.getAddressBookFilePath())));
+
+        logic.execute("FOLLOWUP 1 CLEAR");
+        assertEquals(List.of(client), model.getAddressBook().getPersonList());
+        assertSame(model.getAddressBook().getPersonList().getFirst(), model.selectedPersonProperty().get());
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION,
+                String.format(LogicManager.MESSAGE_SAVE_FAILED, temporaryFolder.resolve("ExceptionUserPrefs.json")));
     }
 
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION,
+                String.format(LogicManager.MESSAGE_SAVE_FAILED, temporaryFolder.resolve("ExceptionUserPrefs.json")));
+    }
+
+    @Test
+    public void execute_saveFailure_identifiesDestinationAndRecoveryWithoutLeakingCause() {
+        Path destination = temporaryFolder.resolve("client data/addressbook.json");
+        IOException failure = new AccessDeniedException("private client text must not appear");
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(destination) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw failure;
+            }
+        };
+        Logic failingLogic = new LogicManager(model, new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))));
+        CommandException error = org.junit.jupiter.api.Assertions.assertThrows(CommandException.class, () ->
+                failingLogic.execute("add n/Alice Tan p/91110001 e/alice@example.com a/Blk 1"));
+        assertTrue(error.getMessage().contains(destination.toString()));
+        assertTrue(error.getMessage().contains("writable"));
+        assertFalse(error.getMessage().contains("private client text"));
+        assertSame(failure, error.getCause());
+        assertTrue(model.getAddressBook().getPersonList().isEmpty());
+        assertFalse(Files.exists(destination));
+    }
+
+    @Test
+    public void execute_symbolicLinkSaveFailure_preservesModelAndLink() throws Exception {
+        Path target = temporaryFolder.resolve("original.json");
+        Path link = temporaryFolder.resolve("addressBook-link.json");
+        new JsonAddressBookStorage(target).saveAddressBook(model.getAddressBook());
+        byte[] originalBytes = Files.readAllBytes(target);
+        try {
+            Files.createSymbolicLink(link, target.getFileName());
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            Assumptions.assumeTrue(false, "Symbolic links unavailable: " + e.getMessage());
+        }
+        storage = new StorageManager(new JsonAddressBookStorage(link),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        Model expectedModel = new ModelManager(model.getAddressBook(), model.getUserPrefs(), model.getToday(),
+                model.isDataLoadingBlocked());
+        assertCommandFailure(addCommand, CommandException.class, LogicManager.MESSAGE_SYMLINK_SAVE_FAILED,
+                expectedModel);
+        assertTrue(Files.isSymbolicLink(link));
+        assertTrue(java.util.Arrays.equals(originalBytes, Files.readAllBytes(target)));
     }
 
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void followUpStateProperties_reflectLiveModel() {
+        LocalDate today = LocalDate.of(2026, 10, 7);
+        ModelManager liveModel = new ModelManager(new AddressBook(), new UserPrefs(), today, true);
+        Clock fixedClock = Clock.fixed(Instant.parse("2026-10-07T00:00:00Z"), ZoneOffset.UTC);
+        Logic bridgedLogic = new LogicManager(liveModel, storage, fixedClock);
+
+        assertSame(liveModel.todayProperty(), bridgedLogic.todayProperty());
+        assertEquals(today, bridgedLogic.todayProperty().get());
+        assertSame(liveModel.showingFollowUpsProperty(), bridgedLogic.showingFollowUpsProperty());
+        assertFalse(bridgedLogic.showingFollowUpsProperty().get());
+        assertTrue(bridgedLogic.isDataLoadingBlocked());
+
+        liveModel.showPendingFollowUps();
+        assertTrue(bridgedLogic.showingFollowUpsProperty().get());
+
+        liveModel.commitFrom(liveModel.forkForCommand(today.plusDays(1)));
+        assertEquals(today.plusDays(1), bridgedLogic.todayProperty().get());
+    }
+
+    @Test
+    public void selectedPersonProperty_reflectsPublishedLiveSelection() {
+        Person person = new PersonBuilder().build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(person);
+        ModelManager liveModel = new ModelManager(addressBook, new UserPrefs());
+        Logic bridgedLogic = new LogicManager(liveModel, storage);
+
+        assertSame(liveModel.selectedPersonProperty(), bridgedLogic.selectedPersonProperty());
+        assertNull(bridgedLogic.selectedPersonProperty().get());
+
+        Model candidate = liveModel.forkForCommand(liveModel.getToday());
+        candidate.selectPerson(candidate.getFilteredPersonList().get(0));
+        assertNull(bridgedLogic.selectedPersonProperty().get());
+
+        liveModel.commitFrom(candidate);
+        assertSame(liveModel.getFilteredPersonList().get(0), bridgedLogic.selectedPersonProperty().get());
+        assertSame(liveModel.selectedPersonProperty(), bridgedLogic.selectedPersonProperty());
+
+        liveModel.showPendingFollowUps();
+        assertNull(bridgedLogic.selectedPersonProperty().get());
+    }
+
+    @Test
+    public void execute_dataLoadingBlocked_mutationCommandsBlocked() {
+        Model blockedModel = new ModelManager(new AddressBook(), new UserPrefs(),
+                LocalDate.of(2026, 10, 7), true);
+        Logic blockedLogic = new LogicManager(blockedModel, storage);
+        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        assertThrows(ParseException.class, MESSAGE_CHANGES_BLOCKED, () -> blockedLogic.execute(addCommand));
+        assertThrows(ParseException.class, "Unknown command.", () -> blockedLogic.execute("clear"));
+        assertThrows(ParseException.class, MESSAGE_CHANGES_BLOCKED, () -> blockedLogic.execute("delete 1"));
+        assertThrows(ParseException.class, MESSAGE_CHANGES_BLOCKED, () ->
+                blockedLogic.execute("edit 1 " + NAME_DESC_AMY));
+        assertThrows(ParseException.class, MESSAGE_CHANGES_BLOCKED, () -> blockedLogic.execute("followup 1 clear"));
+    }
+
+    @Test
+    public void execute_dataLoadingBlocked_readOnlyCommandSucceeds() throws Exception {
+        Model blockedModel = new ModelManager(new AddressBook(), new UserPrefs(),
+                LocalDate.of(2026, 10, 7), true);
+        Logic blockedLogic = new LogicManager(blockedModel, storage);
+        CommandResult result = blockedLogic.execute(ListCommand.COMMAND_WORD);
+        assertEquals(ListCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_unknownFollowUpId_precedesInvalidDate() {
+        assertCommandException("followup 999 d/bad m/", "No client with ID 999.");
+    }
+
+    @Test
+    public void execute_afterMidnightInvalidCommand_keepsDate() {
+        LocalDate startupDate = LocalDate.of(2026, 10, 7);
+        Model liveModel = new ModelManager(new AddressBook(), new UserPrefs(), startupDate, false);
+        Clock nextDayClock = Clock.fixed(Instant.parse("2026-10-08T00:00:00Z"), ZoneOffset.UTC);
+        Logic nextDayLogic = new LogicManager(liveModel, storage, nextDayClock);
+        assertThrows(ParseException.class, () -> nextDayLogic.execute("invalid"));
+        assertEquals(startupDate, liveModel.getToday());
+    }
+
+    @Test
+    public void refreshToday_idleAcrossLocalMidnight_updatesStatusesWithoutSaving() {
+        LocalDate startupDate = LocalDate.of(2026, 10, 7);
+        Person dueToday = new PersonBuilder().withFollowUp(new FollowUp(startupDate, "Call client")).build();
+        Person dueTomorrow = new PersonBuilder().withName("Tomorrow")
+                .withFollowUp(new FollowUp(startupDate.plusDays(1), "Send quotation")).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(dueToday);
+        addressBook.addPerson(dueTomorrow);
+        Model liveModel = new ModelManager(addressBook, new UserPrefs(), startupDate, false);
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-07T15:59:59Z"),
+                ZoneId.of("Asia/Singapore"));
+        Logic idleLogic = new LogicManager(liveModel, storage, clock);
+        List<LocalDate> dateChanges = new ArrayList<>();
+        idleLogic.todayProperty().addListener((observable, oldDate, newDate) -> dateChanges.add(newDate));
+        idleLogic.refreshToday();
+        assertTrue(dateChanges.isEmpty());
+        assertEquals(FollowUpStatus.DUE_TODAY, dueToday.getFollowUp().orElseThrow().getStatus(liveModel.getToday()));
+        assertEquals(FollowUpStatus.UPCOMING, dueTomorrow.getFollowUp().orElseThrow().getStatus(liveModel.getToday()));
+        clock.setInstant(Instant.parse("2026-10-07T16:00:00Z"));
+        idleLogic.refreshToday();
+        assertEquals(LocalDate.of(2026, 10, 8), idleLogic.todayProperty().get());
+        assertEquals(List.of(LocalDate.of(2026, 10, 8)), dateChanges);
+        assertEquals(FollowUpStatus.OVERDUE, dueToday.getFollowUp().orElseThrow().getStatus(liveModel.getToday()));
+        assertEquals(FollowUpStatus.DUE_TODAY, dueTomorrow.getFollowUp().orElseThrow().getStatus(liveModel.getToday()));
+        idleLogic.refreshToday();
+        assertEquals(1, dateChanges.size());
+        assertFalse(liveModel.hasUnsavedChanges());
+        assertEquals(addressBook, liveModel.getAddressBook());
+        assertFalse(Files.exists(storage.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void refreshToday_clockJumps_usesCurrentDate() {
+        LocalDate startupDate = LocalDate.of(2026, 10, 7);
+        Model liveModel = new ModelManager(new AddressBook(), new UserPrefs(), startupDate, false);
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-07T00:00:00Z"), ZoneOffset.UTC);
+        Logic timedLogic = new LogicManager(liveModel, storage, clock);
+        clock.setInstant(Instant.parse("2026-10-12T00:00:00Z"));
+        timedLogic.refreshToday();
+        assertEquals(LocalDate.of(2026, 10, 12), liveModel.getToday());
+        clock.setInstant(Instant.parse("2026-10-06T00:00:00Z"));
+        timedLogic.refreshToday();
+        assertEquals(LocalDate.of(2026, 10, 6), liveModel.getToday());
     }
 
     /**
@@ -166,9 +386,8 @@ public class LogicManagerTest {
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
                 + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
+        Model expectedModel = new ModelManager(model.getAddressBook(), model.getUserPrefs(), model.getToday(),
+                model.isDataLoadingBlocked());
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

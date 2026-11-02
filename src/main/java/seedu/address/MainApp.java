@@ -2,14 +2,24 @@ package seedu.address;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.AppInstanceLock;
+import seedu.address.commons.util.ApplicationHome;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
@@ -19,7 +29,6 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.util.SampleDataUtil;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
@@ -32,58 +41,76 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
-    private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path APPLICATION_HOME = ApplicationHome.getHomeDirectory();
+    private static final Path USER_PREFS_FILE_PATH = APPLICATION_HOME.resolve("preferences.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = APPLICATION_HOME.resolve("data").resolve("addressbook.json");
+    private static final Path INSTANCE_LOCK_FILE_PATH = APPLICATION_HOME.resolve(".policyharbor.lock");
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
 
+    private Timeline dateRefreshTimeline;
+    private AppInstanceLock instanceLock;
+    private String startupFailureMessage;
+
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing PolicyHarbor ]===========================");
         super.init();
 
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
-        UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        try {
+            instanceLock = AppInstanceLock.acquire(INSTANCE_LOCK_FILE_PATH);
+        } catch (AppInstanceLock.AlreadyRunningException e) {
+            startupFailureMessage = "PolicyHarbor is already running in this folder. "
+                    + "Use the existing window, or close it before opening PolicyHarbor again. "
+                    + "No client data or preferences were loaded or changed by this window.";
+            logger.warning("Startup blocked because another instance holds the data-folder lock.");
+            return;
+        } catch (IOException e) {
+            startupFailureMessage = "PolicyHarbor could not lock this folder for saving data. "
+                    + "Move PolicyHarbor.jar to a writable folder and check that .policyharbor.lock is a regular file. "
+                    + "No client data or preferences were loaded or changed.";
+            logger.warning("Startup blocked because the data-folder lock could not be acquired.");
+            return;
+        }
 
-        model = initModelManager(storage, userPrefs);
+        try {
+            JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
+            UserPrefs userPrefs = initPrefs(userPrefsStorage);
+            JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
+            storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
-        logic = new LogicManager(model, storage);
+            model = initModelManager(storage, userPrefs);
+            logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+            ui = new UiManager(logic, storage.getAddressBookFilePath());
+        } catch (Exception | Error e) {
+            releaseInstanceLock();
+            throw e;
+        }
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns a model with saved data, or an empty writable model when the data file does not exist.
+     * Invalid saved data results in an empty model that blocks client changes to protect the file.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+    Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
         try {
-            addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
-            }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
+            Optional<ReadOnlyAddressBook> savedData = storage.readAddressBook();
+            ReadOnlyAddressBook initialData = savedData.orElseGet(AddressBook::new);
+            return new ModelManager(initialData, userPrefs, LocalDate.now(), false);
         } catch (DataLoadingException e) {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+                    + " Client changes are blocked to protect the saved file.");
+            return new ModelManager(new AddressBook(), userPrefs, LocalDate.now(), true);
         }
-
-        return new ModelManager(initialData, userPrefs);
     }
 
     /**
@@ -120,17 +147,65 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        if (startupFailureMessage != null) {
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("PolicyHarbor could not start");
+            alert.setHeaderText("This window cannot use the data folder");
+            alert.setContentText(startupFailureMessage);
+            alert.showAndWait();
+            Platform.exit();
+            return;
+        }
+        logger.info("Starting PolicyHarbor " + MainApp.VERSION);
+        logic.refreshToday();
+        refreshDateOnFocus(primaryStage.focusedProperty(), logic);
         ui.start(primaryStage);
+        dateRefreshTimeline = createDateRefreshTimeline(logic);
+        dateRefreshTimeline.play();
+    }
+
+    /** Refreshes statuses when the application returns to the foreground. */
+    static void refreshDateOnFocus(ObservableValue<Boolean> focused, Logic logic) {
+        focused.addListener((observable, wasFocused, isFocused) -> {
+            if (isFocused) {
+                logic.refreshToday();
+            }
+        });
+    }
+
+    /** Refreshes statuses every minute so an open window also updates across local midnight. */
+    static Timeline createDateRefreshTimeline(Logic logic) {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.minutes(1), event -> logic.refreshToday()));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        return timeline;
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping PolicyHarbor ] =============================");
+        if (dateRefreshTimeline != null) {
+            dateRefreshTimeline.stop();
+        }
         try {
-            storage.saveUserPrefs(model.getUserPrefs());
+            if (storage != null && model != null) {
+                storage.saveUserPrefs(model.getUserPrefs());
+            }
         } catch (IOException e) {
             logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+        } finally {
+            releaseInstanceLock();
+        }
+    }
+
+    private void releaseInstanceLock() {
+        if (instanceLock != null) {
+            try {
+                instanceLock.close();
+            } catch (IOException e) {
+                logger.warning("Could not close the data-folder lock channel.");
+            } finally {
+                instanceLock = null;
+            }
         }
     }
 }

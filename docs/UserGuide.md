@@ -3,196 +3,406 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+PolicyHarbor helps independent insurance agents in Singapore keep client contacts and their next follow-up together. Find a client, review their details, update their contact information and record the next conversation, using typed commands in a desktop workspace.
+
+**Version:** this guide describes the published [PolicyHarbor v1.6 release](https://github.com/AY2627S1-CS2103T-W13-3/tp/releases/tag/v1.6), whose window title is **PolicyHarbor v1.6**. It includes JAR-folder storage, improved edit/search feedback, case-insensitive command words and profile copying.
 
 * Table of Contents
 {:toc}
 
---------------------------------------------------------------------------------------------------------------------
-
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+### Install and launch
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Install Java **25**. On macOS, follow the [SE-EDU Java installation guide](https://se-education.org/guides/tutorials/javaInstallationMac.html) for the prescribed Zulu JDK with JavaFX.
+2. Download [**PolicyHarbor.jar**](https://github.com/AY2627S1-CS2103T-W13-3/tp/releases/download/v1.6/PolicyHarbor.jar) from the [official v1.6 release](https://github.com/AY2627S1-CS2103T-W13-3/tp/releases/tag/v1.6). Place `PolicyHarbor.jar` in a **writable folder**, such as a folder you create in Documents. If upgrading, first follow the [backup and migration instructions](#upgrading-from-v15).
+3. Open a terminal and use `cd` to enter that folder. Check `java -version` in the same terminal; it should report Java 25. Then run:
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+   ```text
+   java -jar "PolicyHarbor.jar"
+   ```
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+   Launching from a terminal makes the Java version and any startup error visible; double-clicking may use a different Java installation. If your downloaded JAR has a different filename, substitute that filename inside the quotes.
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
+On a first launch with no saved client data beside the JAR, the client list is empty. The client file is `data/addressbook.json` within the JAR's folder. If clients already appear, your saved data has loaded: use their displayed Client IDs and skip adding the sample client if it would duplicate an existing record.
 
-   * `list` : Lists all contacts.
+### Try a daily workflow
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+Copy the JAR into a fresh, separate folder and launch that copy for this example so that it does not change your real clients. Merely changing the terminal's folder while launching the original JAR still uses the original data. Enter each line separately and press **Enter** or click **Run**:
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+```text
+add n/Rachel Lim p/91234567 e/rachel@example.com a/Blk 123 t/health
+find n/rac
+view 1
+edit 1 p/92345678
+followup 1 d/2099-12-15 m/Discuss renewal options
+followups
+```
 
-   * `clear` : Deletes all contacts.
+- In this fresh dataset, the first successful add assigns Rachel **Client ID 1**. In an existing dataset, read the ID from the add feedback or table and substitute it in later commands; deleting all clients does not restart ID allocation.
+- The search finds Rachel by part of her name. `view 1` opens her profile; `edit` changes her phone to `92345678` while keeping her ID.
+- The follow-up appears in Rachel's profile and the pending summary. The example date is in the future and displays as `UPCOMING`; use the real due date for your own work.
 
-   * `exit` : Exits the app.
+Close the main window, then run the **same JAR** again. Rachel, her edited phone and her action are restored. The profile starts closed; enter `view 1` to reopen it. You can also close the app through **File → Exit**.
 
-1. Refer to the [Features](#features) section below for details of each command.
+## Understanding the workspace
 
---------------------------------------------------------------------------------------------------------------------
+<span id="reading-the-workspace"></span>
 
-## Features
+[![PolicyHarbor showing permanent Client IDs, Rachel's selected profile and pending follow-ups](images/Ui.png)](images/Ui.png)
 
-<div markdown="block" class="alert alert-info">
+*The workspace in pending mode, populated with fictional clients. The Client ID is the command target; the screenshot contains a larger dataset than the quick-start example. Captured from the v1.6 candidate on 2 November 2026; status badges reflect that date and change with the current date. Open the image for a full-size view.*
 
-**:information_source: Notes about the command format:**<br>
+- **Top: command and feedback.** Type a command, then press Enter or use Run. The feedback explains the result or how to correct an error.
+- **Left: client table.** It shows Client ID, name, phone and email. `list` shows all clients, `find` shows matches and `followups` shows clients with pending actions, adding due-date and status columns. Columns cannot be sorted by clicking their headers; use the command's displayed order. Narrow tables scroll horizontally.
+- **Upper right: client profile.** Use `view ID` to open full contact details, tags and the current action. Clicking or highlighting a table row or summary card does **not** open a profile.
+- **Lower right: pending summary.** This always shows every pending action, even when a search hides its client in the table. An empty search result can therefore appear beside a populated summary. Actions are grouped by status as explained under [pending follow-ups](#showing-pending-follow-ups-followups).
+- **Bottom: data-file location.** Hover over a shortened path to read the full path.
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+Drag the main divider to change the table/sidebar widths and the sidebar divider to change the profile/summary heights. Long values wrap; scroll each right-hand panel independently. On a small or highly scaled display, a panel may be shorter than one action card: scroll it or give it more space with the divider.
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+### Permanent Client IDs
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+A Client ID identifies one client permanently. It does not change when you search, reorder follow-ups or edit contact details. Read it from the table, profile, summary card or add feedback. Gaps after deletion are normal; IDs are not reused during normal operation.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+**An ID is not a row position.** If a search shows only Client ID 8, `delete 1` targets Client ID 1, even if that client is hidden. Always check the ID and, before a change, use `view ID` to confirm the intended client.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+`view`, `edit`, `delete` and `followup` resolve IDs against **all saved clients**, including clients hidden by a search or the pending list. IDs use digits `0`–`9` and range from `1` to `2147483647`. Leading zeroes are allowed: `view 001` and `view 1` select the same client. See [backup precautions](#existing-files-client-ids-and-backups) before moving or modifying ID history.
 
-* If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+### Keeping the same client profile open
 
-### Viewing help: `help`
+A viewed client is marked `VIEWING` in the table and, when they have an action, the summary. The profile shows their ID, contact details, lowercase tag chips and pending action. With no tags it shows `No tags`; without an action, `Follow-up: None`.
 
-Shows a message explaining how to access the help page.
+To copy a client's phone, email, address or follow-up action, **right-click its value** and choose **Copy phone**, **Copy email**, **Copy address** or **Copy follow-up action**. You can also **Tab** to focus the value and press **Enter**, **Space** or the copy shortcut (**Ctrl+C** on Windows/Linux, **Command+C** on macOS).
 
-![help message](images/helpMessage.png)
+The complete current value is copied, including spaces and Unicode text; copying an action copies its description, without the due date. Feedback confirms success, such as `Copied phone.`, or reports `Could not copy phone.` if the clipboard is unavailable. Your command draft stays unchanged. A missing client or cleared action cannot be copied; an unavailable action reports `No follow-up action to copy.`
 
-Format: `help`
+| What you do | What happens to the open profile |
+| --- | --- |
+| `list`, add another client or change another client's action | The same client stays open. |
+| Search, show pending actions or edit details used by a search | The client stays open only if they remain in the displayed table; otherwise the profile closes. |
+| Replace the viewed client's action | Their profile updates and follows the same ID, even if the row moves. |
+| Clear their action | The profile stays open in full/search mode; it closes in pending mode because the client leaves that table. |
+| Delete the viewed client | The profile closes without selecting someone else. |
 
+When a profile closes, later returning to the full list does not reopen it; use `view ID` again. Restarting also clears profile selection. Opening a different client starts at the top; updating the same client's details/action or refreshing the date keeps the reading position as far as the remaining content allows. A failed command or save preserves the previous profile.
 
-### Adding a person: `add`
+### Keyboard workflow and error correction
 
-Adds a person to the address book.
+Successful commands clear the command field. Rejected commands keep the input for correction, mark the field and show **Error** above the message. For example, after `view 0`, correct the retained line to `view 1` for Rachel. Editing removes the field's error style; feedback stays until the next command. Long feedback wraps, scrolls and can be selected/copied.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+There is no command history. Copy a reusable command from the command field before submitting it if you want to keep it elsewhere.
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+Enter and Run submit the same command. You can reach Run with **Tab** and activate it with **Space**; typing focus returns to the command field after submission. If the retained text is selected, typing replaces it.
 
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+Paste one command line at a time. A paste containing a tab, control character or line separator is rejected as a whole: the previous draft and selection remain, and no command runs. Remove those characters before pasting again. If you press Enter after a rejected paste, the unchanged previous draft is what runs.
 
-### Listing all persons: `list`
+## Command overview
 
-Shows a list of all persons in the address book.
+<span id="supported-commands"></span>
+<span id="command-summary"></span>
+<span id="features"></span>
 
-Format: `list`
+| Task | Format |
+| --- | --- |
+| [Add a client](#adding-a-client-add) | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...` |
+| [List all clients](#listing-all-clients-list) | `list` |
+| [Find clients](#finding-clients-find) | `find KEYWORD [MORE_KEYWORDS]...` or `find n/NAME_PART`, `find p/PHONE_PART`, `find t/TAG` |
+| [Open a profile](#selecting-a-client-view) | `view ID` |
+| [Edit contact details](#editing-a-clients-details-edit) | `edit ID [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...` |
+| [Delete a client](#deleting-a-client-delete) | `delete ID` |
+| [Record or replace an action](#recording-or-replacing-a-follow-up-followup) | `followup ID d/DATE m/DESCRIPTION` |
+| [Clear an action](#clearing-a-follow-up-followup-id-clear) | `followup ID clear` |
+| [Show pending clients](#showing-pending-follow-ups-followups) | `followups` |
 
-### Editing a person: `edit`
+### Command format
 
-Edits an existing person in the address book.
+- Replace `UPPER_CASE` words with your values. Do not type the square brackets: they mark optional fields. `...` means tags or bare search keywords may be repeated as shown.
+- Command words and the `clear` subcommand are case-insensitive: `LIST`, `Find Rachel` and `followup 1 CLEAR` work like their lowercase equivalents. Use ordinary spaces to separate words; extra ordinary spaces around a command are accepted. Tabs, control characters and line separators are rejected.
+- Named fields such as `n/` and `p/` may be supplied in any order. Prefixes remain lowercase and case-sensitive. Put a space before each prefix. Required fields cannot be omitted or empty; `edit ID t/` is the special case for clearing tags.
+- Do not repeat single-valued fields such as `n/` or `d/`; `t/` may repeat. Known prefixes within values can be interpreted as fields, and quotes do not escape them. See the [prefix reference](#prefixes-and-literal-text).
+- `list` and `followups` take **no arguments**. For example, `list 123` is rejected with usage feedback.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Standalone `clear`, `help` and `exit` are unsupported and report `Unknown command.`. Clear an action with `followup ID clear`, open Help through the menu/F1 and close the app through the window or File → Exit.
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+## Managing clients
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+The reference examples below use Rachel with Client ID 1. They illustrate each command independently; substitute your client's actual ID. In particular, try deletion only with disposable data, as it removes the client used in the other examples.
 
-### Locating persons by name: `find`
+### Adding a client: `add`
 
-Finds persons whose names contain any of the given keywords.
+Save a client or prospect's contact details, with optional tags.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+**Format:** `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+**Example in a fresh dataset:**
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+```text
+add n/Rachel Lim p/91234567 e/rachel@example.com a/Blk 123 t/health
+```
 
-### Deleting a person: `delete`
+**Result:** Rachel is assigned ID 1, with no follow-up yet. Feedback includes her ID and contact details, ending in `Tags: [health]`. With no tags, it ends in `Tags: None`. This is the same add used in the quick start; adding it again is rejected as a duplicate.
 
-Deletes the specified person from the address book.
+Supply name, phone, email and address exactly once. Tags are optional. The [contact field reference](#contact-field-reference) explains accepted values.
 
-Format: `delete INDEX`
+A duplicate is rejected when the **name matches and either the phone or email matches** an existing client. Names ignore case, equivalent accented spellings and repeated ordinary spaces; phone comparison ignores allowed formatting, and emails ignore case. Straight `'` and curly `’` apostrophes remain distinct in names: `Sean O'Brien` and `Sean O’Brien` do not count as the same name. Address, tags and follow-up are not part of the check. Two clients may have the same name if both phone and email differ; different names may share contact details. Hidden clients are also checked.
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+For example, after adding Rachel, `add n/RACHEL  LIM p/91234567 e/other@example.com a/Blk 456` reports `This client already exists in PolicyHarbor.`
 
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+Adding preserves the current table mode and open profile. In a search, the new client appears only if they match; in pending mode, they stay hidden until they have an action. To see all clients, use `list`.
 
-### Clearing all entries: `clear`
+### Listing all clients: `list`
 
-Clears all entries from the address book.
+Return to all clients in the order they were added.
 
-Format: `clear`
+**Format and example:** `list`
 
-### Exiting the program: `exit`
+**Result:** `Listed all clients.` The current profile stays open. This leaves search/pending mode without changing data or IDs. Extra arguments are rejected; use `find` to search.
 
-Exits the program.
+### Finding clients: `find`
 
-Format: `exit`
+Search all clients, including those hidden by the current view. Results appear once per client in the order clients were added.
 
-### Saving the data
+**Formats and examples:**
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+| Search | Format | Example and meaning |
+| --- | --- | --- |
+| Whole name words or a full phone number | `find KEYWORD [MORE_KEYWORDS]...` | `find Rachel Lim` matches either complete name word, ignoring case. `find 92345678` matches those complete phone digits. |
+| Part of a name | `find n/NAME_PART` | `find n/rac` matches Rachel. |
+| Part of a phone number | `find p/PHONE_PART` | `find p/9234` matches Rachel's edited phone from the quick start. |
+| Exact tag | `find t/TAG` | `find t/HEALTH` matches the whole tag `health`, ignoring case. |
 
-### Editing the data file
+**Result:** feedback gives the count, such as `1 client(s) listed!`. Search leaves pending mode. The profile remains open only if the viewed client is among the results; the global summary still shows every pending action.
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+Bare search uses **either** keyword, not all keywords together: `find Rachel 92345678` returns clients matching either. Partial words do not match in bare mode: `find Rach` does not find Rachel; `find n/Rach` does. Bare phone search requires all stored digits, including any country code and leading zeroes. Separate tokens are not joined into one phone number.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+Explicit name search ignores case, equivalent accented spellings and repeated ordinary spaces. Straight `'` and curly `’` apostrophes are distinct in both name search modes: use the spelling stored in the name, or search for a part without the apostrophe. Phone search ignores stored `+`, spaces and hyphens, and accepts a fragment of one or more digits with valid phone formatting. `find t/new` does not match `renewal`. Email and address are not searched; quotes and punctuation are literal text.
 
-### Archiving data files `[coming in v2.0]`
+Invalid phone searches such as `find p/9123  4567` report phone-query constraints: at least one digit, an optional leading `+`, and single spaces or hyphens between digit groups. Invalid tags such as `find t/health!` report tag constraints; `find t/life-insurance` is valid. These errors leave the table, profile and saved records unchanged.
 
-_Details coming soon ..._
+Use **one** explicit field, without bare text before it. `find n/Rachel p/9234`, repeated fields, empty values or `find` alone produce usage feedback. The prefixes `n/`, `p/` and `t/` remain reserved inside explicit queries.
 
---------------------------------------------------------------------------------------------------------------------
+### Selecting a client: `view`
 
-## FAQ
+Open the client's complete profile so you can check their details before acting.
 
-**Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**Format:** `view ID`
 
---------------------------------------------------------------------------------------------------------------------
+**Example:** `view 1`
 
-## Known issues
+**Result:** for Rachel, `Showing client ID 1: Rachel Lim`; her profile opens and her row is marked `VIEWING`. If she was hidden, the app first returns to the full list. If she was visible, the current mode and order stay unchanged. Viewing does not change saved data.
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+Supply one existing [Client ID](#permanent-client-ids). An unknown ID reports, for example, `No client with ID 1.`; this is different from an invalid number such as `0`. A failed view preserves the previous profile and table.
 
---------------------------------------------------------------------------------------------------------------------
+### Editing a client's details: `edit`
 
-## Command summary
+Update contact details while retaining the client's **ID and pending follow-up**. The target can be hidden by the current view.
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+**Format:** `edit ID [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...`
+
+**Example:** `edit 1 p/92345678`
+
+**Result:** Rachel's phone changes; feedback starts `Client ID 1 updated: Rachel Lim`. Omitted fields keep their values. At least one field must be supplied; `edit 1` alone reports `At least one field to edit must be provided.`
+
+A mistyped prefix after an ID, such as `edit 1 pp/92345678` or `edit 1 phone/92345678`, produces edit usage feedback. Correct it to `edit 1 p/92345678` and retry. An invalid numeric ID such as `0` still reports the ID constraint. Text already inside a recognised value, such as `edit 1 a/Home pp/unit`, remains literal address text.
+
+**Supplying tags replaces the entire tag set.** For example, `edit 1 a/Blk 456 t/renewal t/priority` changes the address and replaces all previous tags with `priority` and `renewal`. Use a lone empty `t/`, as in `edit 1 t/`, to remove all tags.
+
+The [contact field rules](#contact-field-reference) and duplicate check used for adding also apply to editing. An edit that duplicates another client reports `This person already exists in PolicyHarbor.` The current table mode remains, but search results are checked again: changing a matching field can hide that client and close their profile. Rejected edits keep the previous data.
+
+### Deleting a client: `delete`
+
+Remove an incorrect or unwanted client record and their pending follow-up.
+
+**Format:** `delete ID`
+
+**Example with disposable Rachel data:** `delete 1`
+
+**Result:** Rachel and her action disappear; feedback starts `Deleted client ID 1: Rachel Lim`. If she was viewed, her profile closes. The current table mode remains, and other clients keep their IDs.
+
+**Deletion is saved immediately, with no confirmation or undo.** It also removes the client's current action. Verify the ID with `view ID` first and keep a [backup](#existing-files-client-ids-and-backups) if you may need the record again. Deleting a hidden client works too; the first displayed row is not necessarily Client ID 1.
+
+## Managing follow-ups
+
+Each client can have **one pending action**. An overdue action stays pending until you clear it. The examples use Rachel's actual ID, shown as 1 here, and assume she has not been deleted.
+
+### Recording or replacing a follow-up: `followup`
+
+Record a dated next action, or replace the client's current one.
+
+**Format:** `followup ID d/DATE m/DESCRIPTION`
+
+**Example:** `followup 1 d/2099-12-15 m/Discuss renewal options`
+
+**Result:** for a client without an action, feedback is `Follow-up for client ID 1: Rachel Lim recorded for 2099-12-15.` For a client with an action, it is `Follow-up for client ID 1: Rachel Lim updated to 2099-12-15.` The profile/summary refresh; in pending mode, a changed date can move the row while retaining the selected client.
+
+**Replacing overwrites the previous date and description.** There is no history or undo; copy any details you need before replacing an action.
+
+Use an actual calendar date in `YYYY-MM-DD` format, with a year from `0001` to `9999`. Past, current and future dates are accepted, so you can record overdue work using its original due date.
+
+Descriptions allow multilingual text and emoji and must contain visible text or a symbol. The limit is **1–200 Unicode code points**, after trimming outer ordinary spaces; most letters count once, but joined emoji and accented combinations can count as several. Internal spacing is retained. Controls, line breaks, invalid characters and notes made only of invisible characters/combining marks are rejected.
+
+The prefixes `d/` and `m/` preceded by an ordinary space are reserved even inside descriptions and quotes. For example, `m/Confirm d/m/y format` is rejected as a repeated date field. Write `m/Confirm day/month/year format` instead; `m/Check ref:d/m/y` is also valid because the internal `d/` has no preceding space.
+
+### Clearing a follow-up: `followup ID clear`
+
+Remove the current action after completing it, while keeping the client.
+
+**Format:** `followup ID clear`
+
+**Example:** `followup 1 clear`
+
+**Result:** `Follow-up for client ID 1: Rachel Lim cleared.` Their summary card disappears. In pending mode, the client also leaves the table and their profile closes; in full/search mode, the client remains and their open profile shows no action.
+
+Clearing is saved immediately and has no undo/history. If there is no action, the result is `This client has no pending follow-up.`; no client is deleted.
+
+### Showing pending follow-ups: `followups`
+
+Review clients with actions still to do, in **earliest due-date order**. Equal dates keep the order the clients were added.
+
+**Format and example:** `followups`
+
+**Result:** `Pending follow-ups`, or `There are no pending follow-ups.` if none remain. Extra arguments are rejected. `list` returns to all clients; `find` searches the full dataset.
+
+The global summary groups the same actions by status, retaining due-date order within each group:
+
+| Badge | Meaning |
+| --- | --- |
+| `OVERDUE` | Due before today. |
+| `DUE TODAY` | Due today. |
+| `UPCOMING` | Due after today. |
+
+Statuses use the computer's current local date and refresh at startup, when the main window regains focus and once a minute while running. No command is needed to refresh them. Dates remain in `YYYY-MM-DD` format regardless of your computer's date display format.
+
+## Saving and managing data
+
+<span id="saving-the-data"></span>
+
+### Automatic saving and restart
+
+Successful `add`, `edit`, `delete` and singular `followup` changes are saved automatically before appearing in the workspace. There is no save command. `list`, `find`, `view` and `followups` do not rewrite client data.
+
+In v1.6, `data/addressbook.json` is inside the folder containing the **executed JAR**, regardless of the terminal's working directory. The footer shows the absolute data-file path. `preferences.json`, `.policyharbor.lock` and rotating `policyharbor.log.*` diagnostics use that same JAR folder. A symbolic link to the JAR uses the physical target JAR's folder; separate copies in different folders have independent datasets. IDE/Gradle runs use their working directory instead.
+
+For example, launching `java -jar "/path/to/clients/PolicyHarbor.jar"` from another folder still loads `/path/to/clients/data/addressbook.json`. Diagnostic logs are local files; back up and share them with care.
+
+After restarting the same JAR, contacts, IDs and pending actions return. The app starts with the full client list and no open profile; search/pending mode and profile selection are not restored.
+
+### If saving fails
+
+A failed save keeps the previous client data, table and profile, and retains the rejected command for correction/retry. For a normal write failure, feedback says:
+
+```text
+Could not save to /path/to/JAR-folder/data/addressbook.json. No changes were kept. Check that the data folder is writable and has free space, then try again.
+```
+
+The path in the message is your actual data-file location; the path above is illustrative. Restore access to the data folder and free disk space as needed, then submit the retained command again. Do not assume a failed add received an ID or that an unsuccessful edit/delete/action change was saved. The [troubleshooting table](#troubleshooting) covers protected data and symbolic-link errors separately.
+
+### Upgrading from v1.5
+
+v1.5 used the terminal's working folder; v1.6 does **not** automatically import files from that old location. Before upgrading, close every instance and back up the old `data/addressbook.json` and `preferences.json`. Put the new JAR in that old folder to keep using its files, or copy the complete client file into the new JAR folder's `data` subfolder. Copy preferences only if you want to retain window settings. Back up any destination files first; do not overwrite or combine two datasets without choosing which complete copy to keep. Do not copy or delete an active lock file. Restart and check the footer path and several client IDs before making changes.
+
+### Existing files, Client IDs and backups
+
+**Back up the complete `data/addressbook.json` while the app is closed.** There is no automatic backup or undo. Restore backups while closed, then restart; restoring an older copy replaces newer saved work with that copy's contents.
+
+To transfer data, close the app on both computers. Put the matching JAR in a writable folder on the destination, create its `data` subfolder and copy the complete client file there, backing up any existing destination file first. Launch the new JAR copy with Java 25.
+
+IDs and allocation history survive normal restarts and deletion, including deleting every client. Copying only contact entries, discarding identity fields or restoring an older backup can lose that history. Never reset IDs or lower their allocation counter as a repair. See [advanced file compatibility](#advanced-data-file-reference) if you maintain saved files directly.
+
+## Help and troubleshooting
+
+The **Help → Help** menu or **F1** opens a window with the online User Guide link. Use **Copy link** or select/copy the link field, then open it in your browser. `Esc` closes Help. Opening Help again restores a minimised Help window and brings it forward. Core client/action commands work offline; opening the online guide needs Internet access.
+
+<span id="faq"></span>
+<span id="troubleshooting-and-known-limitations"></span>
+
+### Troubleshooting
+
+| Problem | What to do |
+| --- | --- |
+| The JAR does not start | Launch from a terminal with `java -version` and `java -jar "PolicyHarbor.jar"`. Confirm Java 25 and the actual JAR filename. Double-clicking may use another Java installation. |
+| Startup fails on macOS | Follow the [prescribed JavaFX/JDK setup](https://se-education.org/guides/tutorials/javaInstallationMac.html). Check `java -version` and `which java` in the same terminal before launching. |
+| Linux shows `Gdk-CRITICAL` under Wayland | Try `GDK_BACKEND=x11 java -jar "PolicyHarbor.jar"`, as advised in the [course JAR testing instructions](https://nus-cs2103-ay2627-s1.github.io/website/schedule/week11/project.html). |
+| A command is rejected | Read the complete feedback, correct the retained line and retry. Use lowercase field prefixes and one line with ordinary spaces. Command words accept any letter case. See the [command overview](#command-overview) and [field reference](#contact-field-reference). |
+| A new or edited client seems missing | Run `list`: an active search can hide non-matching clients, and pending mode hides clients without actions. IDs have not changed. |
+| `No client with ID ...` | Check the table/profile ID, not the row position. The client may have been deleted or belong to another data folder. |
+| Changes cannot be saved | Check write access, free space and whether a regular file is blocking the `data` folder. Restore access, then retry. Do not run as administrator just to bypass permissions. |
+| Saved-data warning; changes are blocked | Follow [protected-data recovery](#saved-data-warning-and-recovery). Restoring folder access or editing a file does not unlock the running session; restart to reload. |
+| Another instance is running | Use or close the existing window for that JAR home. Launching the same JAR from another terminal folder still shares its lock; JAR copies in separate folders have independent data. |
+| The folder cannot be locked | Use a writable folder. `.policyharbor.lock` must be a regular file; it normally remains after closing. Its presence alone does not mean the app is running. Do not delete/replace it while an instance runs; closing/terminating that instance releases the operating-system lock. |
+| The data file is a symbolic link | Saving through it is refused. Close the app, back up the link's target, then replace the link with a regular data file and restart. Do not change data paths externally while the app is open. |
+| Window settings are invalid or a saved screen was disconnected | Invalid `preferences.json` falls back to default settings and may be replaced; a preference error alone does not block client changes. A missing saved screen causes the window to fit on the primary screen; deleting client data is unnecessary. |
+| The workspace feels cramped | Maximise the main window and adjust its dividers. Scroll the table horizontally and the profile/summary vertically. Secondary windows can behave differently across platforms; keep Help in an ordinary window if fullscreen causes trouble. |
+| Diagnostic logging is unavailable | The launch terminal reports `Unable to create diagnostic log file; continuing with console logging.` The app keeps running. Check write access to the JAR folder and that `policyharbor.log.0` there is not a directory, then restart to restore file logging. |
+
+### Saved-data warning and recovery
+
+When loading reports a saved-data error, the app shows an empty table and a persistent warning. **This does not mean your saved clients were deleted.** `add`, `edit`, `delete` and `followup` are blocked to protect the file; query commands remain available. An ordinary command result does not dismiss the warning.
+
+1. Before closing, note the **data-file path at the bottom of the main window**; hover over a shortened path to read it in full. Separate JAR copies can use different client files. Close PolicyHarbor and back up that exact file if you can access it. Do not delete the only copy of client data to make the warning disappear.
+2. If the folder was inaccessible, restore access. Otherwise restore a complete known-good backup, or have the file repaired using the [advanced reference](#advanced-data-file-reference).
+3. Restart the same JAR copy to reload the file. If the client file is absent and that absence can be confirmed, the app starts a new, writable dataset. The app does not partly load a file containing invalid records.
+4. Run `list`, then `view ID` using an ID from the restored table, and check the expected contact details and follow-up. If expected clients are still missing, check the footer path and backup you restored before adding replacement records; an empty list alone does not confirm successful recovery.
+
+**Known startup limitation:** an externally edited client file with extremely deeply nested data can stop the app before the dashboard or saved-data warning appears. Normal app commands cannot create this problem. Close the app and preserve the original file, then restore a complete known-good backup to the JAR's `data/addressbook.json` or have the file safely repaired before restarting. The protected empty workspace is not available in this case; do not delete your only copy to get past startup.
+
+## Known limitations
+
+### Client records
+
+- **Complete contact details are required.** Adding a prospect requires a name, phone, valid email and address. Unknown email/address values cannot be omitted or left empty, so a prospect with incomplete details cannot yet be recorded. See [adding a client](#adding-a-client-add).
+- **Shared contacts can trigger duplicate rejection.** Distinct people with matching normalised names and either a matching phone or email cannot both be stored, even if they share that contact legitimately. There is no override; see the [duplicate rules](#adding-a-client-add).
+- **Tag changes replace the whole set.** `edit ID t/TAG` does not append a tag: supply every tag you want to retain. `edit ID t/` clears all tags. See [editing details](#editing-a-clients-details-edit) for the full syntax.
+
+### Follow-ups and everyday use
+
+- **Rescheduling requires the description again.** Use `followup ID d/DATE m/DESCRIPTION`; a date-only change is unsupported. You can copy the existing description from the profile before [replacing the action](#recording-or-replacing-a-follow-up-followup). Each client has one current action, with no follow-up history, reminders or notifications.
+- **Searches do not combine.** Only one explicit field is accepted: `find n/Lim t/health` is unsupported. Each new search replaces the previous filter rather than narrowing its results. Email/address searches are unsupported; see [search options](#finding-clients-find).
+- **Profiles open through `view ID`.** Clicking or highlighting a table row does not open its profile. Use the permanent Client ID shown in the table, not its row position; see [selecting a client](#selecting-a-client-view).
+- **Successful commands cannot be recalled with Up/Down.** There is no command history. Failed input stays available for correction; see the [keyboard workflow](#keyboard-workflow-and-error-correction) for ways to reuse command text.
+- **Saved changes have no undo.** Successful edits, deletions and follow-up changes save immediately. Check the intended client with `view ID` before changing their details. Backups are manual; restoring one replaces later changes. See [backup precautions](#existing-files-client-ids-and-backups).
+
+### Known display and startup problems
+
+- **Mixed Chinese/Tamil action text can display incorrectly** on some macOS/JavaFX setups, although the stored text remains intact. This affects readability of some mixed-language descriptions; a portable workaround has not been verified.
+- **Exceptionally nested, externally edited files can prevent startup**, before the dashboard or protected-data warning opens. Follow [saved-data recovery](#saved-data-warning-and-recovery), preserving the original file before restoring a complete known-good backup or arranging a safe repair.
+
+PolicyHarbor stores contacts and next actions. It does not manage insurance policy, premium or claim records; send messages; import/export CSV; or synchronise with cloud services.
+
+## Reference information
+
+### Contact field reference
+
+These rules apply to both adding and editing. Ordinary spaces at the outside of field values are removed; internal spacing, spelling and case are retained except that tags become lowercase. There are no additional contact-length limits.
+
+| Field | Accepted values |
+| --- | --- |
+| Name | Starts with a letter from any language or a digit `0`–`9`. Supports Unicode letters with combining accents, ordinary spaces and `/ - ' ’ @ .`. Both the straight apostrophe `'` and curly right apostrophe `’` (U+2019) are accepted and retained as typed. A name must contain visible content; invisible Hangul fillers alone are rejected. Examples: `Ravi s/o Kumar`, `Sean O'Brien`, `Sean O’Brien`, `Dr. Lim`. |
+| Phone | At least three digits `0`–`9`, optionally beginning with `+`, with single spaces or hyphens between digit groups. For example, `+65 9123 4567`. Display formatting and leading zeroes are retained. |
+| Email | One `@`, with ASCII letters/digits and supported punctuation; no spaces. Before `@`, the first/last characters must be letters/digits; `+`, `_`, `-`, straight apostrophes `'` and periods may occur inside. Each period must have a letter/digit immediately on both sides. For example, `o'connor@example.com` is accepted; a curly apostrophe `’` is not. Domain labels start/end with letters/digits and may contain hyphens; the final label needs two adjacent letters/digits. Stored case is retained. |
+| Address | Non-empty, single-line text with visible content, including punctuation, non-English text and emoji. Text made only of spaces/invisible formatting, controls or invalid character sequences is rejected. |
+| Tag | One or more English letters or digits, optionally separated by single internal hyphens `-` or underscores `_`. For example, `life-insurance` and `high_priority` are valid; leading/trailing separators, adjacent separators such as `life--insurance`, spaces and other punctuation are rejected. Tags become lowercase; repeated case variants become one tag. |
+
+Tags have no count limit. They display in lowercase alphabetical order; command feedback uses bracketed tags separated by spaces. Missing required fields, repeated single-valued prefixes and invalid values produce feedback to guide correction. When several values are invalid, correct the reported error and resubmit rather than assuming every problem was listed.
+
+### Prefixes and literal text
+
+Recognised field prefixes are lowercase and case-sensitive and must follow an ordinary space. For add/edit, these are `n/`, `p/`, `e/`, `a/` and `t/`; for recording an action, `d/` and `m/`. For example, `EDIT 1 n/Rachel Lim` uses a recognised name prefix, but `EDIT 1 N/Rachel Lim` does not. Quotes are literal characters, not a way to escape a recognised prefix. Avoid putting a space followed by a command's recognised prefix inside a value.
+
+Unrecognised prefixes stay inside the value and must still meet that field's rules: `z/unit` can be address text but is not a valid phone number. Local name forms `s/o` and `d/o` are ordinary name text for add/edit. Explicit search reserves `n/`, `p/` and `t/` and accepts only one field.
+
+### Advanced data-file reference
+
+<span id="editing-the-data-file"></span>
+
+Prefer `add`/`edit`/`followup` to changing saved files directly. If you must edit `data/addressbook.json`, **close the app first and back up the complete file**. The [Developer Guide's saved-data description](DeveloperGuide.html#saved-client-loading) contains the schema and detailed validation rules.
+
+- Save as **UTF-8**. A single leading byte-order mark (BOM), as added by some editors, is accepted. Invalid byte sequences or invalid saved character sequences are rejected, even when a JSON escape is syntactically valid.
+- Contact fields, tags, dates and descriptions must be JSON strings. Keep phone values quoted to retain leading zeroes. IDs/counters are numbers; do not convert them to strings.
+- Keep property names exact, including `persons`, `tags` and `followUp`. Unknown fields, repeated properties in one object, invalid/duplicate clients, missing required values and invalid identity metadata are rejected. When loading reports a data error, the app opens a protected empty workspace; see the [startup limitation and recovery steps](#saved-data-warning-and-recovery) for extremely deeply nested files. Optional missing tags mean no tags; absent/null `followUp` means no action. Valid overdue dates remain supported.
+- A legacy file with **no identity metadata** loads valid clients with insertion-order IDs, starting at 1, without rewriting the file. The first successfully saved change writes IDs and the next-ID counter.
+- Keep every `clientId` and the root `nextClientId` when copying/backing up. If any identity metadata remains, incomplete/invalid metadata is rejected. If **all** IDs and the counter are removed or set to `null`, the file is treated as legacy and receives a new ID history; discarded IDs and the old counter cannot be reconstructed. Restoring an older backup can also restore older history.
+- Do not change paths or saved files externally while PolicyHarbor is running. Symbolic-link save checks do not synchronise with external filesystem changes. Repairing a file during a protected session cannot unlock it; close and restart after repair.
+
+**Repeated properties are different from repeated fields across clients.** Two `email` properties inside one client object are rejected even if both contain the same address; one `email` property in each of two separate client objects is normal. The same rule applies to `persons` in the outer object and `description` inside a follow-up. Before removing a repeated property, compare both values with your backup so that you do not discard clients or follow-up details that need to be recovered.

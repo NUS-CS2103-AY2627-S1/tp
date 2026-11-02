@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -39,6 +40,44 @@ public class NameTest {
     }
 
     @Test
+    public void constructor_localNameForms_preservesPunctuationAndSpacing() {
+        for (String name : new String[] {"Ravi s/o Kumar", "Priya d/o Raj", "Mary-Ann Lim", "Sean O'Brien",
+            "Tan Ah Kow @ Tan Ah Kau", "Dr. Lim", "A/B", "R@chel"}) {
+            assertTrue(Name.isValidName(name));
+            assertEquals(name, new Name("  " + name + "  ").fullName);
+        }
+        for (String invalid : new String[] {"-", "'", "@", ".", "/", "-Mary", "Sean_OBrien", "Mary\nAnn"}) {
+            assertFalse(Name.isValidName(invalid));
+            assertThrows(IllegalArgumentException.class, () -> new Name(invalid));
+        }
+    }
+
+    @Test
+    public void messageConstraints_explainsFirstCharacterRule() {
+        assertTrue(Name.MESSAGE_CONSTRAINTS.contains("begin with a letter or digit (0-9)"));
+        assertFalse(Name.isValidName("-Sean"));
+        assertTrue(Name.isValidName("Sean-"));
+    }
+
+    @Test
+    public void constructor_smartApostrophe_preservesExactSpelling() {
+        for (String name : new String[] {"Sean O’Brien", "Sean O'Brien", "José O’Neil", "Jose\u0301 O’Neil"}) {
+            assertTrue(Name.isValidName(name));
+            assertEquals(name, new Name("  " + name + "  ").fullName);
+        }
+        assertFalse(new Name("Sean O’Brien").equals(new Name("Sean O'Brien")));
+    }
+
+    @Test
+    public void isValidName_smartApostrophe_keepsUnrelatedRestrictions() {
+        for (String invalid : new String[] {"’Sean", "‘Sean", "Sean‘", "Sean_", "Sean\uD800",
+            "Sean\uDC00", "Sean\n", "\u3164", "O’\u0301Neil"}) {
+            assertFalse(Name.isValidName(invalid));
+            assertThrows(IllegalArgumentException.class, () -> new Name(invalid));
+        }
+    }
+
+    @Test
     public void equals() {
         Name name = new Name("Valid Name");
 
@@ -57,4 +96,43 @@ public class NameTest {
         // different values -> returns false
         assertFalse(name.equals(new Name("Other Valid Name")));
     }
+
+    @Test
+    public void constructor_outerOrdinarySpaces_preservesCaseAndInternalSpaces() {
+        assertEquals("Rachel  Lim", new Name("  Rachel  Lim  ").fullName);
+        for (String invalid : new String[] {"Rachel\tLim", "Rachel\u00a0Lim"}) {
+            assertFalse(Name.isValidName(invalid));
+        }
+    }
+
+    @Test
+    public void isValidName_unicodeLettersAndCombiningMarks() {
+        for (String valid : new String[] {"José Tan", "陈小明", "நிலா", "Jose\u0301 Tan"}) {
+            assertTrue(Name.isValidName(valid));
+            assertEquals(valid, new Name(valid).fullName);
+        }
+        String[] invalidNames = {"\u0301Jose", "Jose \u0301", "Jose\u0000 Tan", "Jose\uD800", "Jose\uDC00"};
+        for (String invalid : invalidNames) {
+            assertFalse(Name.isValidName(invalid));
+        }
+    }
+
+    @Test
+    public void constructor_invisibleFillersOnly_rejectsBlankName() {
+        for (String blank : new String[] {"\u115f", "\u1160", "\u3164", "\uffa0",
+            " \u115f \u1160\u3164\uffa0 "}) {
+            assertFalse(Name.isValidName(blank));
+            assertThrows(IllegalArgumentException.class, () -> new Name(blank));
+        }
+    }
+
+    @Test
+    public void constructor_fillersWithVisibleLetters_preservesMultilingualName() {
+        for (String visible : new String[] {"김민수", "\u115f\u1161", "김\u3164민수",
+            "A\u115f", "\u1160José", "\uffa0陈小明", "\u31641"}) {
+            assertTrue(Name.isValidName(visible));
+            assertEquals(visible, new Name(visible).fullName);
+        }
+    }
+
 }

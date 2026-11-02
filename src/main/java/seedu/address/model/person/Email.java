@@ -9,28 +9,8 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Email {
 
-    private static final String SPECIAL_CHARACTERS = "+_.-";
-    public static final String MESSAGE_CONSTRAINTS = "Emails should be of the format local-part@domain "
-            + "and adhere to the following constraints:\n"
-            + "1. The local-part should only contain alphanumeric characters and these special characters, excluding "
-            + "the parentheses, (" + SPECIAL_CHARACTERS + "). The local-part may not start or end with any special "
-            + "characters.\n"
-            + "2. The local-part is followed by an '@' and then a domain name. The domain name is made up of domain "
-            + "labels separated by periods.\n"
-            + "The domain name must:\n"
-            + "    - end with a domain label at least 2 characters long\n"
-            + "    - have each domain label start and end with alphanumeric characters\n"
-            + "    - have each domain label consist of alphanumeric characters, separated only by hyphens, if any.";
-    // alphanumeric and special characters
-    private static final String ALPHANUMERIC_NO_UNDERSCORE = "[^\\W_]+"; // alphanumeric characters except underscore
-    private static final String LOCAL_PART_REGEX = "^" + ALPHANUMERIC_NO_UNDERSCORE + "([" + SPECIAL_CHARACTERS + "]"
-            + ALPHANUMERIC_NO_UNDERSCORE + ")*";
-    private static final String DOMAIN_PART_REGEX = ALPHANUMERIC_NO_UNDERSCORE
-            + "(-" + ALPHANUMERIC_NO_UNDERSCORE + ")*";
-    private static final String DOMAIN_LAST_PART_REGEX = "(" + DOMAIN_PART_REGEX + "){2,}$"; // At least two chars
-    private static final String DOMAIN_REGEX = "(" + DOMAIN_PART_REGEX + "\\.)*" + DOMAIN_LAST_PART_REGEX;
-    public static final String VALIDATION_REGEX = LOCAL_PART_REGEX + "@" + DOMAIN_REGEX;
-
+    public static final String MESSAGE_CONSTRAINTS =
+            "Email format is not supported. Example: rachel.lim+work@example.com.";
     public final String value;
 
     /**
@@ -46,9 +26,57 @@ public class Email {
 
     /**
      * Returns true if a given string is a valid email.
+     * Scans once without recursive regex matching, including for long input.
      */
-    public static boolean isValidEmail(String test) {
-        return test.matches(VALIDATION_REGEX);
+    public static boolean isValidEmail(String email) {
+        requireNonNull(email);
+        int separator = email.indexOf('@');
+        if (separator <= 0 || separator == email.length() - 1) {
+            return false;
+        }
+        return isValidLocalPart(email, separator) && isValidDomain(email, separator + 1);
+    }
+
+    /** Validates the local part in place, preserving the supported punctuation grammar. */
+    private static boolean isValidLocalPart(String email, int separator) {
+        boolean wasPreviousCharacterAlphanumeric = false;
+        for (int i = 0; i < separator; i++) {
+            char character = email.charAt(i);
+            boolean isAlphanumeric = isAsciiAlphanumeric(character);
+            if (!isAlphanumeric && (i == 0 || "+_'.-".indexOf(character) < 0
+                    || email.charAt(i - 1) == '.' || character == '.' && !wasPreviousCharacterAlphanumeric)) {
+                return false;
+            }
+            wasPreviousCharacterAlphanumeric = isAlphanumeric;
+        }
+        return wasPreviousCharacterAlphanumeric;
+    }
+
+    /** Validates domain labels in place; the final label requires adjacent alphanumeric characters. */
+    private static boolean isValidDomain(String email, int domainStart) {
+        boolean wasPreviousCharacterAlphanumeric = false;
+        boolean hasAdjacentPair = false;
+        for (int i = domainStart; i < email.length(); i++) {
+            char character = email.charAt(i);
+            if (isAsciiAlphanumeric(character)) {
+                hasAdjacentPair |= wasPreviousCharacterAlphanumeric;
+                wasPreviousCharacterAlphanumeric = true;
+            } else if (character == '-' && (wasPreviousCharacterAlphanumeric || email.charAt(i - 1) == '-')) {
+                wasPreviousCharacterAlphanumeric = false;
+            } else if (character == '.' && wasPreviousCharacterAlphanumeric) {
+                wasPreviousCharacterAlphanumeric = false;
+                hasAdjacentPair = false;
+            } else {
+                return false;
+            }
+        }
+        return wasPreviousCharacterAlphanumeric && hasAdjacentPair;
+    }
+
+    private static boolean isAsciiAlphanumeric(char character) {
+        return character >= 'a' && character <= 'z'
+                || character >= 'A' && character <= 'Z'
+                || character >= '0' && character <= '9';
     }
 
     @Override

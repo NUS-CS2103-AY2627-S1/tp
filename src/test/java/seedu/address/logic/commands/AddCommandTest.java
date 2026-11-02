@@ -7,12 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
@@ -38,7 +41,7 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, "1", Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
@@ -138,6 +141,61 @@ public class AddCommandTest {
         }
 
         @Override
+        public void showPendingFollowUps() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public LocalDate getToday() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateToday(LocalDate today) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyObjectProperty<LocalDate> todayProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyBooleanProperty showingFollowUpsProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyObjectProperty<Person> selectedPersonProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void selectPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean isDataLoadingBlocked() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Model forkForCommand(LocalDate today) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasUnsavedChanges() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void commitFrom(Model candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
@@ -157,7 +215,7 @@ public class AddCommandTest {
         @Override
         public boolean hasPerson(Person person) {
             requireNonNull(person);
-            return this.person.isSamePerson(person);
+            return this.person.isDuplicateOf(person);
         }
     }
 
@@ -166,22 +224,24 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
+        final AddressBook addressBook = new AddressBook();
 
         @Override
         public boolean hasPerson(Person person) {
             requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+            return personsAdded.stream().anyMatch(person::isDuplicateOf);
         }
 
         @Override
         public void addPerson(Person person) {
             requireNonNull(person);
             personsAdded.add(person);
+            addressBook.addPerson(person);
         }
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+            return addressBook;
         }
     }
 

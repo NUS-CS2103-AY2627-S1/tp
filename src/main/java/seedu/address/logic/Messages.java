@@ -1,11 +1,11 @@
 package seedu.address.logic;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 
 /**
  * Container for user visible messages.
@@ -14,10 +14,17 @@ public class Messages {
 
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The client index provided is invalid.";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d client(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_INVALID_CHARACTERS =
+            "Use one command line and ordinary spaces. Control characters are not allowed.";
+    public static final String MESSAGE_EMPTY_COMMAND = "Enter a command.";
+    public static final String MESSAGE_LOAD_WARNING = "Saved data could not be loaded. Client changes are blocked "
+            + "to protect your saved data. Close PolicyHarbor and restore a valid saved copy before trying again.";
+    public static final String MESSAGE_CHANGES_BLOCKED = "Client changes are blocked because saved data could not be "
+            + "loaded. Close PolicyHarbor and restore valid saved data.";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -25,10 +32,12 @@ public class Messages {
     public static String getErrorMessageForDuplicatePrefixes(Prefix... duplicatePrefixes) {
         assert duplicatePrefixes.length > 0;
 
-        Set<String> duplicateFields =
-                Stream.of(duplicatePrefixes).map(Prefix::toString).collect(Collectors.toSet());
+        Set<String> duplicateFields = new LinkedHashSet<>();
+        for (Prefix duplicatePrefix : duplicatePrefixes) {
+            duplicateFields.add(duplicatePrefix.toString());
+        }
 
-        return MESSAGE_DUPLICATE_FIELDS + String.join(" ", duplicateFields);
+        return MESSAGE_DUPLICATE_FIELDS + String.join(", ", duplicateFields);
     }
 
     /**
@@ -43,8 +52,8 @@ public class Messages {
                 .append(person.getEmail())
                 .append("; Address: ")
                 .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append("; Tags: ")
+                .append(Tag.formatTags(person.getTags()));
         return builder.toString();
     }
 

@@ -1,14 +1,51 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# PolicyHarbor
 
-![Ui](docs/images/Ui.png)
+[![Java CI](https://github.com/AY2627S1-CS2103T-W13-3/tp/actions/workflows/gradle.yml/badge.svg?branch=master)](https://github.com/AY2627S1-CS2103T-W13-3/tp/actions/workflows/gradle.yml)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+**Clients. Follow-ups. Made simple.**
+
+PolicyHarbor v1.6 is a desktop client and follow-up manager for individual insurance agents who prefer typed commands. Keep client contact details and their next action together, then review what is overdue, due today or upcoming.
+
+![PolicyHarbor showing pending follow-ups and a selected client profile](docs/images/Ui.png)
+
+## What you can do
+
+- Add, list, edit and delete clients, including distinct clients with the same name.
+- Find clients by a name fragment, phone-number fragment or exact tag.
+- Open a complete client profile with `view ID`, including contact details, sorted tags and the pending action. Permanent Client IDs stay unchanged across searches, edits and follow-up sorting.
+- Record, replace or clear one dated follow-up per client.
+- Keep an all-client pending summary visible beside searches and the selected profile, grouped with `OVERDUE`, `DUE TODAY` and `UPCOMING` badges.
+- Save changes automatically to local JSON and reload them after restarting. Failed saves preserve the previous state; invalid saved files open a protected session.
+
+- Submit commands with Enter or Run and correct rejected input using explicit, scrollable error feedback.
+
+PolicyHarbor supports one pending action per client. Multiple actions, follow-up history and notifications are outside v1.6.
+
+## Get started
+
+The guides below describe the published v1.6 release.
+
+Install Java 25; Mac users should use the [prescribed Zulu JDK+FX distribution](https://se-education.org/guides/tutorials/javaInstallationMac.html). Download [PolicyHarbor.jar](https://github.com/AY2627S1-CS2103T-W13-3/tp/releases/download/v1.6/PolicyHarbor.jar) from the [official v1.6 release](https://github.com/AY2627S1-CS2103T-W13-3/tp/releases/tag/v1.6). Place it in a writable folder, open a terminal there and run:
+
+```bash
+java -jar PolicyHarbor.jar
+```
+
+The first launch is empty. See the [User Guide](docs/UserGuide.md#quick-start) for a short walkthrough.
+
+## Documentation and development
+
+- [Product website](https://ay2627s1-cs2103t-w13-3.github.io/tp/)
+- [User Guide](docs/UserGuide.md)
+- [Developer Guide](docs/DeveloperGuide.md)
+- [Development Setup](docs/SettingUp.md)
+- [About the Team](docs/AboutUs.md)
+- [Issue Tracker](https://github.com/AY2627S1-CS2103T-W13-3/tp/issues)
+
+## Acknowledgements
+
+PolicyHarbor evolves [AddressBook Level 3](https://github.com/se-edu/addressbook-level3), created by the [SE-EDU initiative](https://se-education.org). It retains AB3's Java/JavaFX architecture and test conventions. See the Developer Guide for acknowledgements of AI assistance.
+
+## License
+
+PolicyHarbor is distributed under the [MIT License](LICENSE).

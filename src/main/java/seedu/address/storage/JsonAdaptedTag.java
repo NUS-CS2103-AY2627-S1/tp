@@ -1,7 +1,10 @@
 package seedu.address.storage;
 
+import static seedu.address.commons.util.StringUtil.trimOrdinarySpaces;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.tag.Tag;
@@ -17,7 +20,7 @@ class JsonAdaptedTag {
      * Constructs a {@code JsonAdaptedTag} with the given {@code tagName}.
      */
     @JsonCreator
-    public JsonAdaptedTag(String tagName) {
+    public JsonAdaptedTag(@JsonDeserialize(using = StoredTextDeserializer.class) String tagName) {
         this.tagName = tagName;
     }
 
@@ -39,10 +42,14 @@ class JsonAdaptedTag {
      * @throws IllegalValueException if there were any data constraints violated in the adapted tag.
      */
     public Tag toModelType() throws IllegalValueException {
-        if (!Tag.isValidTagName(tagName)) {
+        if (tagName == null) {
             throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(tagName);
+        String trimmedTagName = trimOrdinarySpaces(tagName);
+        if (!Tag.isValidTagName(trimmedTagName)) {
+            throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
+        }
+        return new Tag(trimmedTagName);
     }
 
 }

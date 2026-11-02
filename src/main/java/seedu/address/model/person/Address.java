@@ -2,6 +2,7 @@ package seedu.address.model.person;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
+import static seedu.address.commons.util.StringUtil.trimOrdinarySpaces;
 
 /**
  * Represents a Person's address in the address book.
@@ -9,13 +10,11 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Address {
 
-    public static final String MESSAGE_CONSTRAINTS = "Addresses can take any values, and should not be blank";
+    public static final String MESSAGE_CONSTRAINTS =
+            "Addresses must contain valid, non-blank single-line Unicode text without control characters.";
 
-    /*
-     * The first character of the address must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
-     */
-    public static final String VALIDATION_REGEX = "[^\\s].*";
+    // Single-line text may contain Unicode and punctuation, but not controls or line separators.
+    public static final String VALIDATION_REGEX = "[^\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029]+";
 
     public final String value;
 
@@ -26,15 +25,51 @@ public class Address {
      */
     public Address(String address) {
         requireNonNull(address);
-        checkArgument(isValidAddress(address), MESSAGE_CONSTRAINTS);
-        value = address;
+        String trimmedAddress = trimOrdinarySpaces(address);
+        checkArgument(isValidAddress(trimmedAddress), MESSAGE_CONSTRAINTS);
+        value = trimmedAddress;
     }
 
     /**
      * Returns true if a given string is a valid address.
      */
     public static boolean isValidAddress(String test) {
-        return test.matches(VALIDATION_REGEX);
+        String trimmedAddress = trimOrdinarySpaces(test);
+        return trimmedAddress.codePoints().anyMatch(Address::isVisibleAddressCharacter)
+                && trimmedAddress.matches(VALIDATION_REGEX)
+                && hasValidSurrogatePairs(trimmedAddress);
+    }
+
+    /**
+     * Invisible characters may accompany visible address text but cannot provide visible content on their own.
+     */
+    private static boolean isVisibleAddressCharacter(int codePoint) {
+        if (Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint)) {
+            return false;
+        }
+        return switch (Character.getType(codePoint)) {
+            case Character.FORMAT, Character.NON_SPACING_MARK, Character.COMBINING_SPACING_MARK,
+                    Character.ENCLOSING_MARK -> false;
+            // Hangul fillers and Braille blank have letter/symbol categories but do not provide visible content.
+            default -> codePoint != 0x115f && codePoint != 0x1160 && codePoint != 0x3164
+                    && codePoint != 0xffa0 && codePoint != 0x2800;
+        };
+    }
+
+    /** Returns whether every UTF-16 surrogate belongs to a complete high/low pair. */
+    private static boolean hasValidSurrogatePairs(String text) {
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (Character.isHighSurrogate(character)) {
+                if (index + 1 >= text.length() || !Character.isLowSurrogate(text.charAt(index + 1))) {
+                    return false;
+                }
+                index++;
+            } else if (Character.isLowSurrogate(character)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

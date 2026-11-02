@@ -66,6 +66,15 @@ public class AddCommandParserTest {
     }
 
     @Test
+    public void parse_segmentedTags_normalizesValues() {
+        Person expected = new PersonBuilder(BOB).withTags("life-insurance", "high_priority").build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " t/LIFE-INSURANCE t/high_priority", new AddCommand(expected));
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " t/life--insurance", Tag.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
     public void parse_repeatedNonTagValue_failure() {
         String validExpectedPersonString = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
                 + ADDRESS_DESC_BOB + TAG_DESC_FRIEND;
@@ -90,7 +99,7 @@ public class AddCommandParserTest {
         assertParseFailure(parser,
                 validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
                         + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
 
         // invalid value followed by valid value
 
@@ -193,4 +202,37 @@ public class AddCommandParserTest {
                 + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
     }
+
+    @Test
+    public void parse_shapeErrors_precedeRepeatedPrefixesAndFieldValidation() {
+        assertParseFailure(parser, " n/Bad& n/Rachel p/12 e/bad",
+                "Invalid command format!\nUsage: add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...");
+        assertParseFailure(parser, " text n/Rachel n/Rachel p/001 e/a@bc a/Blk 1",
+                "Invalid command format!\nUsage: add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...");
+        assertParseFailure(parser, " n/Bad& n/Rachel p/12 e/bad a/",
+                "Multiple values specified for the following single-valued field(s): n/");
+    }
+
+    @Test
+    public void parse_fieldValidation_followsNamePhoneEmailAddressThenTags() {
+        assertParseFailure(parser, " a/ t/! e/bad p/12 n/Bad&",
+                Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " a/ t/! e/bad p/12 n/Rachel",
+                Phone.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " a/ t/! e/bad p/001 n/Rachel",
+                "Email format is not supported. Example: rachel.lim+work@example.com.");
+        assertParseFailure(parser, " a/ t/! e/a@bc p/001 n/Rachel", Address.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " a/Blk 1 t/! e/a@bc p/001 n/Rachel",
+                Tag.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_unicodeAddressAndMixedCaseTags_preservesLiteralUnknownPrefix() {
+        Person person = new PersonBuilder().withName("Rachel  Lim").withPhone("001")
+                .withEmail("Rachel@example.com").withAddress("新加坡 🏠 z/literal")
+                .withTags("health", "active").build();
+        assertParseSuccess(parser, " n/  Rachel  Lim  p/001 e/Rachel@example.com a/新加坡 🏠 z/literal"
+                + " t/HEALTH t/health t/active", new AddCommand(person));
+    }
+
 }

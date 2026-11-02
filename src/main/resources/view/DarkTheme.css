@@ -107,13 +107,33 @@
     -fx-background-color: #515658;
 }
 
-.list-cell:filled:selected {
-    -fx-background-color: #424d5f;
+/* ListView selection is not the viewed client, so it must look like an ordinary row. */
+.list-cell:filled:selected:even {
+    -fx-background-color: #3c3e3f;
 }
 
-.list-cell:filled:selected #cardPane {
-    -fx-border-color: #3e7b91;
-    -fx-border-width: 1;
+.list-cell:filled:selected:odd {
+    -fx-background-color: #515658;
+}
+
+#cardPane.viewed-client {
+    -fx-background-color: #424d5f;
+    -fx-border-color: #e0b44c;
+    -fx-border-width: 0 0 0 4;
+}
+
+.viewed-marker {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 11px;
+    -fx-text-fill: #1d1d1d;
+    -fx-background-color: #e0b44c;
+    -fx-padding: 1 6 1 6;
+    -fx-background-radius: 3;
+}
+
+/* Extra .label class outranks the later white .list-cell .label rule. */
+.list-cell .label.viewed-marker {
+    -fx-text-fill: #1d1d1d;
 }
 
 .list-cell .label {
@@ -349,4 +369,42 @@
     -fx-border-radius: 2;
     -fx-background-radius: 2;
     -fx-font-size: 11;
+}
+
+.follow-up-section {
+    -fx-border-color: #747a7d transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 7 0 0 0;
+}
+
+.follow-up-description {
+    -fx-line-spacing: 1;
+}
+
+.follow-up-status {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 11px;
+    -fx-text-fill: white;
+    -fx-padding: 2 6 2 6;
+    -fx-background-radius: 3;
+}
+
+.follow-up-status-overdue {
+    -fx-background-color: #8b1e1e;
+}
+
+.follow-up-status-due-today {
+    -fx-background-color: #6b4d00;
+}
+
+.follow-up-status-upcoming {
+    -fx-background-color: #1f5d45;
+}
+
+.load-warning {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 13px;
+    -fx-text-fill: white;
+    -fx-background-color: #8b1e1e;
+    -fx-padding: 6 10 6 10;
 }

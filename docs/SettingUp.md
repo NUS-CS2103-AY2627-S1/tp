@@ -16,15 +16,27 @@ title: Setting up and getting started
 Follow the steps below precisely. The setup may fail if you skip or change a step.
 </div>
 
-First, **fork** this repo, and **clone** the fork into your computer.
+First, **fork** the [team repository](https://github.com/AY2627S1-CS2103T-W13-3/tp), then **clone** your fork. Use Java 25 for Gradle and the IDE. **Mac users:** follow the [Zulu JDK+FX setup](https://se-education.org/guides/tutorials/javaInstallationMac.html); other distributions can fail to load the JavaFX native libraries.
 
 If you plan to use IntelliJ IDEA (highly recommended):
 1. **Configure the JDK**: Follow the guide [_[se-edu/guides] IDEA: Configuring the JDK_](https://se-education.org/guides/tutorials/intellijJdk.html) to ensure IntelliJ is configured to use **JDK 25**.
 1. **Import the project as a Gradle project**: Follow the guide [_[se-edu/guides] IDEA: Importing a Gradle project_](https://se-education.org/guides/tutorials/intellijImportGradleProject.html) to import the project into IDEA.<br>
   :exclamation: Note: Importing a Gradle project is slightly different from importing a normal Java project.
 1. **Verify the setup**:
-   1. Run `seedu.address.Main` and try a few commands.
-   1. [Run the tests](Testing.md) to ensure they all pass.
+   1. Run `./gradlew run` and try a few commands. Gradle enables Java assertions for application runs, including `runShadow`, and tests.
+   1. [Run the tests](Testing.html) to ensure they all pass.
+
+If you run `seedu.address.Main` directly through IntelliJ instead of Gradle, open **Run > Edit Configurations**, select the application configuration, choose **Modify options > Add VM options**, and enter `-ea`. Apply this to each application run configuration you use. See the [SE-EDU assertions instructions](https://se-education.org/guides/tutorials/intellijUsefulSettings.html#enabling-assertions). Keep personal IDE configurations out of Git.
+
+Build the packaged application with `./gradlew shadowJar`. From the project root, run `java -ea -jar build/libs/PolicyHarbor.jar`; alternatively, change into the directory containing the JAR and run `java -ea -jar PolicyHarbor.jar`.
+
+Packaged launches resolve `data/addressbook.json`, `preferences.json` and `.policyharbor.lock` relative to the JAR's folder, regardless of the working directory. With the JAR still in `build/libs`, both commands above use `build/libs/data/addressbook.json`. A symbolic link to the JAR uses the physical target JAR's folder.
+
+Direct IDE launches and `./gradlew run` use their configured working directory, normally the project root. A packaged launch does not automatically import data from that development folder.
+
+For manual checks, copy the JAR into a fresh writable folder outside `build/`, launch it from that folder and use fictional data. Changing only the working directory does not select a separate client file. Do not keep important records under `build/`: `./gradlew clean` removes that directory.
+
+A direct `java -jar` launch does not inherit Gradle's assertion settings. Also check an ordinary launch without `-ea`, using the same JAR path: assertions protect internal programmer assumptions and must not replace user-input validation or file-error handling.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -45,7 +57,7 @@ If you plan to use IntelliJ IDEA (highly recommended):
 
 1. **Learn the design**
 
-   When you are ready to start coding, we recommend that you get some sense of the overall design by reading about [AddressBook’s architecture](DeveloperGuide.md#architecture).
+   When you are ready to start coding, we recommend that you get some sense of the overall design by reading about [PolicyHarbor’s architecture](DeveloperGuide.html#architecture).
 
 1. **Do the tutorials**
    These tutorials will help you get acquainted with the codebase.

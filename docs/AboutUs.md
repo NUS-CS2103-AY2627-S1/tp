@@ -5,55 +5,51 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+For product questions and bug reports, use the [team issue tracker](https://github.com/AY2627S1-CS2103T-W13-3/tp/issues).
 
 ## Project team
 
-### John Doe
+### Josthan Wong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/josthan12.png" width="200px" alt="Josthan Wong">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/josthan12)]
 
-* Role: Project Advisor
+* Role: Developer — Command Processing & Search Lead
+* Responsibilities: Develop and maintain command parsing, client search and command-input workflows. Implement follow-up command routing, validation and user feedback. Ensure commands behave consistently and provide clear error messages through automated tests and regression testing.
 
-### Jane Doe
+### Ayush Jain
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ayushjain8541.png" width="200px" alt="Ayush Jain">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Ayushjain8541)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Developer — Project Coordination & Core Model Lead
+* Responsibilities: Coordinate project milestones, development priorities, team meetings and release preparation. Develop and maintain core client and follow-up domain models, including permanent client identity management. Support feature integration, code reviews and verification of release readiness.
 
-### Johnny Doe
+### Gwen Lim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/gwenlim89.png" width="200px" alt="Gwen Lim">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/gwenlim89)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Developer — Client Workflow Integration & Quality Assurance Lead
+* Responsibilities: Develop and integrate client-management workflows, including follow-up management, profile selection, permanent-ID command targeting and client editing. Maintain consistency between model state, command execution and displayed client information. Coordinate cross-feature testing, regression checks and data-integrity verification.
 
-### Jean Doe
+### Kin Chong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/wkc75.png" width="200px" alt="Kin Chong">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/wkc75)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Developer — UI/UX & Documentation Lead
+* Responsibilities: Develop and maintain the client dashboard, client table, pending follow-up presentation and Help interface. Ensure the interface remains readable and usable across different layouts and display sizes. Coordinate User Guide and Developer Guide updates, UI documentation and usability verification.
 
-### James Doe
+### Somaaditya Samal
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/somaadityasamal.png" width="200px" alt="Somaaditya Samal">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/SomaadityaSamal)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Developer — Data Persistence & Storage Lead
+* Responsibilities: Develop and maintain client-data storage, JSON serialization and persistence workflows. Ensure safe loading, saving and migration of client information, including permanent client IDs and follow-up records. Implement storage validation and recovery safeguards, and contribute to client-profile presentation, integration testing and release verification.

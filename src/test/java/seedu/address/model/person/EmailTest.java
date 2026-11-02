@@ -1,8 +1,13 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+
+import java.time.Duration;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +72,60 @@ public class EmailTest {
     }
 
     @Test
+    public void isValidEmail_longInput_preservesGrammarWithoutStackOverflow() {
+        String localPart = "a.".repeat(20000) + "a";
+        String domain = "ab-".repeat(20000) + "cd";
+        String labels = "a.".repeat(20000) + "bc";
+        for (String email : List.of(localPart + "@example.com", "a@" + domain,
+                "a@" + labels, "a@" + "a".repeat(40000))) {
+            assertTrue(Email.isValidEmail(email));
+            assertEquals(email, new Email(email).value);
+            assertFalse(Email.isValidEmail(email + "!"));
+        }
+        assertFalse(Email.isValidEmail(localPart + ".@example.com"));
+        assertFalse(Email.isValidEmail("a@" + "a-".repeat(20000) + "b"));
+    }
+
+    @Test
+    public void isValidEmail_dotAdjacentToOtherPunctuation_rejected() {
+        for (String email : List.of("alice+.smith@example.com", "alice_.smith@example.com",
+                "alice-.smith@example.com", "alice.+smith@example.com", "alice._smith@example.com",
+                "alice.-smith@example.com")) {
+            assertFalse(Email.isValidEmail(email), "Dots must separate alphanumeric characters: " + email);
+        }
+    }
+
+    @Test
+    public void isValidEmail_internalAsciiApostrophes_preservesExactValue() {
+        for (String email : List.of("sean.o'brien@example.com", "Sean.O'Brien@Example.COM",
+                "a''b@example.com", "a+'b@example.com")) {
+            assertTrue(Email.isValidEmail(email), email);
+            assertEquals(email, new Email(email).value);
+        }
+    }
+
+    @Test
+    public void isValidEmail_apostrophes_doNotRelaxOtherConstraints() {
+        for (String email : List.of("'sean@example.com", "sean'@example.com", "sean.'brien@example.com",
+                "sean'.brien@example.com", "sean..o'brien@example.com", "sean.o'brien@exam'ple.com",
+                "sean.o'brien@-example.com", "sean.o'brien@example.c", "sean.o’brien@example.com",
+                "sean.o' brien@example.com", "sean.o'brien@example.com\t",
+                "sean.o'" + (char) 0 + "brien@example.com")) {
+            assertFalse(Email.isValidEmail(email), email);
+        }
+    }
+
+    @Test
+    public void isValidEmail_longApostropheInput_remainsBounded() {
+        String email = "a'".repeat(20000) + "b@example.com";
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            assertTrue(Email.isValidEmail(email));
+            assertEquals(email, new Email(email).value);
+            assertFalse(Email.isValidEmail(email + "!"));
+        });
+    }
+
+    @Test
     public void equals() {
         Email email = new Email("valid@email");
 
@@ -85,4 +144,30 @@ public class EmailTest {
         // different values -> returns false
         assertFalse(email.equals(new Email("other.valid@email")));
     }
+
+    @Test
+    public void isValidEmail_mvpExamples_matchGrammar() {
+        for (String valid : List.of("john@example", "john@ab-c", "john@a-bc", "a@12", "Rachel+work@example.com")) {
+            assertTrue(Email.isValidEmail(valid));
+        }
+        for (String invalid : List.of("john..doe@example.com", "john@a-b", "john@example-.com",
+                "john@@example.com", "john@a.b", "é@example.com", "john@例子.com")) {
+            assertFalse(Email.isValidEmail(invalid));
+        }
+        assertEquals("Rachel.Lim+work@Example.COM", new Email("Rachel.Lim+work@Example.COM").value);
+    }
+
+    @Test
+    public void isValidEmail_repeatedAtomPunctuationAndPunycodeDomain_accepted() {
+        for (String valid : List.of("alice--smith@example.com", "alice__smith@example.com",
+                "alice@example--company.com", "alice@xn--bcher-kva.de")) {
+            assertTrue(Email.isValidEmail(valid));
+            assertEquals(valid, new Email(valid).value);
+        }
+        for (String invalid : List.of("alice..smith@example.com", "alice@example--.com",
+                "alice@--example.com", "alice@example.com--")) {
+            assertFalse(Email.isValidEmail(invalid));
+        }
+    }
+
 }
