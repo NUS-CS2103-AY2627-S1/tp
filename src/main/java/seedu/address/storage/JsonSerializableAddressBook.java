@@ -1,7 +1,9 @@
 package seedu.address.storage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -11,7 +13,9 @@ import com.fasterxml.jackson.annotation.JsonRootName;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.ContactId;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Role;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -19,16 +23,19 @@ import seedu.address.model.person.Person;
 @JsonRootName(value = "addressbook")
 class JsonSerializableAddressBook {
 
-    public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_DUPLICATE_PERSON = "Contact list contains duplicate contacts.";
+    public static final String MESSAGE_DUPLICATE_ID = "Contacts contain duplicate IDs.";
+    public static final String MESSAGE_INVALID_RELATIONSHIP = "A student link must refer to an existing guardian.";
+    public static final String MESSAGE_MISSING_PERSONS = "The data file has no persons list.";
 
-    private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final List<JsonAdaptedPerson> persons;
 
     /**
      * Constructs a {@code JsonSerializableAddressBook} with the given persons.
      */
     @JsonCreator
     public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+        this.persons = persons == null ? null : new ArrayList<>(persons);
     }
 
     /**
@@ -37,7 +44,7 @@ class JsonSerializableAddressBook {
      * @param source future changes to this will not affect the created {@code JsonSerializableAddressBook}.
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
-        persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        persons = source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList());
     }
 
     /**
@@ -46,13 +53,32 @@ class JsonSerializableAddressBook {
      * @throws IllegalValueException if there were any data constraints violated.
      */
     public AddressBook toModelType() throws IllegalValueException {
+        if (persons == null) {
+            throw new IllegalValueException(MESSAGE_MISSING_PERSONS);
+        }
         AddressBook addressBook = new AddressBook();
+        Map<ContactId, Person> contacts = new HashMap<>();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException("Contacts must not contain null entries.");
+            }
             Person person = jsonAdaptedPerson.toModelType();
+            if (contacts.containsKey(person.getId())) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_ID);
+            }
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
             }
             addressBook.addPerson(person);
+            contacts.put(person.getId(), person);
+        }
+        for (Person person : addressBook.getPersonList()) {
+            if (person.getGuardianId().isPresent()) {
+                Person guardian = contacts.get(person.getGuardianId().get());
+                if (guardian == null || guardian.getRole() != Role.GUARDIAN) {
+                    throw new IllegalValueException(MESSAGE_INVALID_RELATIONSHIP);
+                }
+            }
         }
         return addressBook;
     }

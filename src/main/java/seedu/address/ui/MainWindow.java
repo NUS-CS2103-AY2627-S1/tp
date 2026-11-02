@@ -1,15 +1,20 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +22,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.ContactId;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -45,6 +51,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane personDetailsPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -114,11 +123,16 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.getPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+
+        PersonDetailsPanel personDetailsPanel = new PersonDetailsPanel(logic.getPersonList(),
+                personListPanel.selectedPersonProperty());
+        personDetailsPanelPlaceholder.getChildren().add(personDetailsPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        logic.getStartupMessage().ifPresent(resultDisplay::setErrorToUser);
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
@@ -128,15 +142,33 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Sets the default size and position based on {@code guiSettings},
+     * shrinking and moving the window if needed so that it fits on the screen.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        GuiSettings fittedSettings = guiSettings.fitWithin(getScreenBounds(guiSettings));
+        primaryStage.setHeight(fittedSettings.getWindowHeight());
+        primaryStage.setWidth(fittedSettings.getWindowWidth());
+        if (fittedSettings.getWindowCoordinates() != null) {
+            primaryStage.setX(fittedSettings.getWindowCoordinates().getX());
+            primaryStage.setY(fittedSettings.getWindowCoordinates().getY());
         }
+    }
+
+    /**
+     * Returns the visible bounds of the screen that the window in {@code guiSettings} is on,
+     * or of the primary screen if the window has no position or is not on any screen.
+     */
+    private static Rectangle2D getScreenBounds(GuiSettings guiSettings) {
+        Point coordinates = guiSettings.getWindowCoordinates();
+        if (coordinates == null) {
+            return Screen.getPrimary().getVisualBounds();
+        }
+
+        List<Screen> screens = Screen.getScreensForRectangle(coordinates.getX(), coordinates.getY(),
+                guiSettings.getWindowWidth(), guiSettings.getWindowHeight());
+        Screen screen = screens.isEmpty() ? Screen.getPrimary() : screens.get(0);
+        return screen.getVisualBounds();
     }
 
     /**
@@ -178,7 +210,10 @@ public class MainWindow extends UiPart<Stage> {
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
+            Optional<ContactId> previousSelection = Optional.ofNullable(personListPanel.getSelectedPerson())
+                    .map(person -> person.getId());
             CommandResult commandResult = logic.execute(commandText);
+            commandResult.getSelectedContactId().or(() -> previousSelection).ifPresent(personListPanel::selectPerson);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
@@ -193,7 +228,7 @@ public class MainWindow extends UiPart<Stage> {
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            resultDisplay.setErrorToUser(e.getMessage());
             throw e;
         }
     }

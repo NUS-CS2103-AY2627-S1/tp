@@ -5,15 +5,22 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import seedu.address.logic.parser.exceptions.ParseException;
+
 /**
- * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
+ * Tokenizes an argument string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
  *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
  * 1. An argument's value can be an empty string e.g. the value of {@code k/} in the above example.<br>
- * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
+ * 2. Leading and trailing whitespace of an argument value will be discarded.<br>
  * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
  *    in the above example.<br>
+ * Prefixes start at the beginning of the input or after {@link Character#isWhitespace(char)} whitespace.
+ * Whitespace inside a value is retained for the field parser to validate.
  */
 public class ArgumentTokenizer {
+
+    public static final String MESSAGE_UNCLOSED_QUOTED_VALUE =
+            "Quoted value is missing a closing quotation mark.";
 
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
@@ -26,6 +33,48 @@ public class ArgumentTokenizer {
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
         List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
         return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Tokenizes {@code argsString}, ignoring prefixes that occur inside a quoted value belonging to
+     * {@code quotedValuePrefix}. The opening quotation mark must be the first non-whitespace character after the
+     * prefix. Quotation marks are retained in the extracted value for the field parser to validate and remove.
+     *
+     * @throws ParseException if the quoted value has no closing quotation mark
+     */
+    public static ArgumentMultimap tokenizeWithQuotedValue(String argsString, Prefix quotedValuePrefix,
+            Prefix... prefixes) throws ParseException {
+        return tokenizeWithQuotedValues(argsString, List.of(quotedValuePrefix), prefixes);
+    }
+
+    /** Tokenizes arguments while retaining quoted values for all specified fields as literal text. */
+    public static ArgumentMultimap tokenizeWithQuotedValues(String argsString, List<Prefix> quotedValuePrefixes,
+            Prefix... prefixes) throws ParseException {
+        List<PrefixPosition> positions = findAllPrefixPositionsOutsideQuotedValue(
+                argsString, quotedValuePrefixes, prefixes);
+        return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Returns {@code argsString} with each of the given prefixes in lowercase, so that {@code N/Alex} is read as
+     * {@code n/Alex}. Field values, unknown prefixes and text inside the quoted values are unchanged.
+     *
+     * @throws ParseException if a quoted value has no closing quotation mark
+     */
+    public static String toLowerCasePrefixes(String argsString, List<Prefix> quotedValuePrefixes,
+            List<Prefix> prefixes) throws ParseException {
+        ArgumentTokenScanner scanner = new ArgumentTokenScanner(argsString, quotedValuePrefixes, true);
+        StringBuilder lowerCasedArgs = new StringBuilder(argsString);
+        while (scanner.hasNext()) {
+            String typedPrefix = scanner.getParameterPrefix();
+            prefixes.stream()
+                    .filter(prefix -> prefix.getPrefix().equalsIgnoreCase(typedPrefix))
+                    .findFirst()
+                    .ifPresent(prefix -> lowerCasedArgs.replace(scanner.getTokenStart(),
+                            scanner.getTokenStart() + prefix.getPrefix().length(), prefix.getPrefix()));
+            scanner.advance();
+        }
+        return lowerCasedArgs.toString();
     }
 
     /**
@@ -42,6 +91,33 @@ public class ArgumentTokenizer {
     }
 
     /**
+     * Finds prefix positions while treating quoted values for {@code quotedValuePrefixes} as literal text.
+     */
+    private static List<PrefixPosition> findAllPrefixPositionsOutsideQuotedValue(String argsString,
+            List<Prefix> quotedValuePrefixes, Prefix... prefixes) throws ParseException {
+        List<PrefixPosition> positions = new ArrayList<>();
+        List<Prefix> supportedQuotedPrefixes = Arrays.stream(prefixes).filter(quotedValuePrefixes::contains).toList();
+        ArgumentTokenScanner scanner = new ArgumentTokenScanner(argsString, supportedQuotedPrefixes);
+        while (scanner.hasNext()) {
+            if (scanner.isTokenStart()) {
+                addMatchingPrefix(positions, argsString, scanner.getPosition(), prefixes);
+            }
+            scanner.advance();
+        }
+        return positions;
+    }
+
+    private static void addMatchingPrefix(List<PrefixPosition> positions, String arguments, int position,
+            Prefix... prefixes) {
+        for (Prefix prefix : prefixes) {
+            if (arguments.startsWith(prefix.getPrefix(), position)) {
+                positions.add(new PrefixPosition(prefix, position));
+                return;
+            }
+        }
+    }
+
+    /**
      * @see #findAllPrefixPositions(String, Prefix...)
      */
     private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
@@ -51,7 +127,8 @@ public class ArgumentTokenizer {
         while (prefixPosition != -1) {
             PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
             positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(),
+                    prefixPosition + prefix.getPrefix().length());
         }
 
         return positions;
@@ -60,7 +137,7 @@ public class ArgumentTokenizer {
     /**
      * Returns the index of the first occurrence of {@code prefix} in
      * {@code argsString} starting from index {@code fromIndex}. An occurrence
-     * is valid if there is a whitespace before {@code prefix}. Returns -1 if no
+     * is valid at the start of the string or if there is whitespace before {@code prefix}. Returns -1 if no
      * such occurrence can be found.
      *
      * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
@@ -70,9 +147,11 @@ public class ArgumentTokenizer {
      * {@code fromIndex} = 0, this method returns 5.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        int prefixIndex = argsString.indexOf(prefix, fromIndex);
+        while (prefixIndex > 0 && !Character.isWhitespace(argsString.charAt(prefixIndex - 1))) {
+            prefixIndex = argsString.indexOf(prefix, prefixIndex + 1);
+        }
+        return prefixIndex;
     }
 
     /**
@@ -113,15 +192,14 @@ public class ArgumentTokenizer {
      * Returns the trimmed value of the argument in the arguments string specified by {@code currentPrefixPosition}.
      * The end position of the value is determined by {@code nextPrefixPosition}.
      */
-    private static String extractArgumentValue(String argsString,
-                                        PrefixPosition currentPrefixPosition,
-                                        PrefixPosition nextPrefixPosition) {
+    private static String extractArgumentValue(String argsString, PrefixPosition currentPrefixPosition,
+            PrefixPosition nextPrefixPosition) {
         Prefix prefix = currentPrefixPosition.getPrefix();
 
         int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
         String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
 
-        return value.trim();
+        return value.trim().strip();
     }
 
     /**

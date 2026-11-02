@@ -1,36 +1,24 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,80 +26,169 @@ import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Subject;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditCommandParserTest {
 
-    private static final String TAG_EMPTY = " " + PREFIX_TAG;
-
-    private static final String MESSAGE_INVALID_FORMAT =
-            String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
-
     private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_localEmailPunctuation_success() {
+        for (String email : List.of("mei__tan@example.com", "mei+_tan@example.com", "mei++__tan@example.com",
+                "_mei-@example.com")) {
+            EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withEmail(email).build();
+            assertParseSuccess(parser, "1 e/" + email, new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        }
+    }
+
+    @Test
+    public void parse_emailExceedingMaximumLength_reportsLengthError() {
+        String email = "a".repeat(64) + "@" + "b".repeat(63)
+                + "." + "c".repeat(63) + "." + "d".repeat(62);
+        assertParseFailure(parser, "1 e/" + email, Email.MESSAGE_TOO_LONG);
+    }
 
     @Test
     public void parse_missingParts_failure() {
         // no index specified
-        assertParseFailure(parser, VALID_NAME_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, NAME_DESC_AMY, EditCommand.MESSAGE_INVALID_COMMAND);
 
         // no field specified
         assertParseFailure(parser, "1", EditCommand.MESSAGE_NOT_EDITED);
 
         // no index and no field specified
-        assertParseFailure(parser, "", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "", EditCommand.MESSAGE_INVALID_COMMAND);
     }
 
     @Test
-    public void parse_invalidPreamble_failure() {
+    public void parse_invalidIndex_failure() {
         // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "-5" + NAME_DESC_AMY, Messages.MESSAGE_INVALID_CONTACT_INDEX);
 
         // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "0" + NAME_DESC_AMY, Messages.MESSAGE_INVALID_CONTACT_INDEX);
 
-        // invalid arguments being parsed as preamble
-        assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
+        // words and decimals
+        assertParseFailure(parser, "abc" + NAME_DESC_AMY, Messages.MESSAGE_INVALID_CONTACT_INDEX);
+        assertParseFailure(parser, "1.5" + NAME_DESC_AMY, Messages.MESSAGE_INVALID_CONTACT_INDEX);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        // index too large for an int
+        assertParseFailure(parser, "99999999999" + NAME_DESC_AMY, Messages.MESSAGE_INVALID_CONTACT_INDEX);
+    }
+
+    @Test
+    public void parse_leadingZeroIndex_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY).build();
+        assertParseSuccess(parser, "02" + NAME_DESC_AMY, new EditCommand(INDEX_SECOND_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_extraPreamble_failure() {
+        assertParseFailure(parser, "1 some random string", EditCommand.MESSAGE_INVALID_COMMAND);
+        assertParseFailure(parser, "1 2" + NAME_DESC_AMY, EditCommand.MESSAGE_INVALID_COMMAND);
+        assertParseFailure(parser, "1\t2" + NAME_DESC_AMY, EditCommand.MESSAGE_INVALID_COMMAND);
+    }
+
+    @Test
+    public void parse_unknownParameter_failure() {
+        // unknown prefix in place of a field
+        assertParseFailure(parser, "1 r/guardian", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+        assertParseFailure(parser, "1 a/123 Main Street", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+        assertParseFailure(parser, "1 t/", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+
+        // unknown prefix after an unquoted name also suggests quoting the name
+        assertParseFailure(parser, "1 n/Alex a/15", EditCommand.MESSAGE_UNKNOWN_PARAMETER_OR_NAME_SLASH);
+
+        // unknown prefix after a field
+        assertParseFailure(parser, "1 n/Alex" + PHONE_DESC_AMY + " a/15", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+        assertParseFailure(parser, "1" + PHONE_DESC_AMY + " t/friends", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+        assertParseFailure(parser, "1" + EMAIL_DESC_AMY + " x/1", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+
+        // unknown prefix after a quoted name
+        assertParseFailure(parser, "1 n/\"Alex Tan\" a/15", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+
+        // unknown prefix inside an unquoted subject suggests quoting the subject
+        assertParseFailure(parser, "1 sub/Combined Science (Chem/Bio)",
+                EditCommand.MESSAGE_UNKNOWN_PARAMETER_OR_SUBJECT_SLASH);
+
+        // unknown prefix after a quoted subject
+        assertParseFailure(parser, "1 sub/\"Combined Science (Chem/Bio)\" a/15", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+
+        // unknown prefix is reported before an invalid index
+        assertParseFailure(parser, "0 r/guardian", EditCommand.MESSAGE_UNKNOWN_PARAMETER);
+    }
+
+    @Test
+    public void parse_quotedSubjectWithSlash_keepsWholeSubject() {
+        // the enclosing quotes are removed, so the saved subject has none
+        EditPersonDescriptor descriptor =
+                new EditPersonDescriptorBuilder().withSubject("Combined Science (Chem/Bio)").build();
+        assertParseSuccess(parser, "1 sub/\"Combined Science (Chem/Bio)\"",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_slashInsideWord_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("AC/DC").build();
+        assertParseSuccess(parser, "1 n/AC/DC", new EditCommand(INDEX_FIRST_PERSON, descriptor));
     }
 
     @Test
     public void parse_invalidValue_failure() {
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
-        assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
-        assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+        // Heuristic: reject each invalid field independently before checking combined invalid inputs.
+        assertParseFailure(parser, "1" + INVALID_NAME_DESC,
+                "Name contains unsupported characters. Use letters, digits, spaces, apostrophes, "
+                        + "hyphens, periods, middle dots (·), parentheses, commas, and slashes."); // invalid name
+        assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_TOO_FEW_DIGITS); // invalid phone
+        assertParseFailure(parser, "1" + INVALID_EMAIL_DESC,
+                "Email address must contain exactly one @ symbol."); // invalid email
 
         // invalid phone followed by valid email
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_TOO_FEW_DIGITS);
 
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
-        // parsing it together with a valid tag results in error
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
+        // Combination: invalid name and email with a valid phone checks name-first error precedence.
+        assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + PHONE_DESC_AMY,
+                "Name contains unsupported characters. Use letters, digits, spaces, apostrophes, "
+                        + "hyphens, periods, middle dots (·), parentheses, commas, and slashes.");
+    }
 
-        // multiple invalid values, but only the first invalid value is captured
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + VALID_ADDRESS_AMY + VALID_PHONE_AMY,
-                Name.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_invalidPhoneAndOtherOptionalFields_reportsPhoneFirst() {
+        for (String input : List.of("1 p/12 e/bad", "1 e/bad p/12",
+                "1 p/12 lv/---", "1 lv/--- p/12", "1 p/12 sub/---", "1 sub/--- p/12")) {
+            assertParseFailure(parser, input, Phone.MESSAGE_TOO_FEW_DIGITS);
+        }
+    }
+
+    @Test
+    public void parse_invalidEmailAndStudentDetails_reportsEmailFirst() {
+        for (String input : List.of("1 e/bad lv/---", "1 lv/--- e/bad",
+                "1 e/bad sub/---", "1 sub/--- e/bad")) {
+            assertParseFailure(parser, input, "Email address must contain exactly one @ symbol.");
+        }
+    }
+
+    @Test
+    public void parse_invalidLevelAndSubject_reportsLevelFirst() {
+        // Combination: both invalid fields check precedence, independently of their command order.
+        for (String input : List.of("1 lv/--- sub/---", "1 sub/--- lv/---")) {
+            assertParseFailure(parser, input, Level.MESSAGE_MISSING_ALPHANUMERIC);
+        }
     }
 
     @Test
     public void parse_allFieldsSpecified_success() {
         Index targetIndex = INDEX_SECOND_PERSON;
-        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + TAG_DESC_HUSBAND
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + NAME_DESC_AMY + TAG_DESC_FRIEND;
+        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB
+                + EMAIL_DESC_AMY + NAME_DESC_AMY;
 
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY)
-                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY).withAddress(VALID_ADDRESS_AMY)
-                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY)
+                .build();
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
@@ -149,60 +226,205 @@ public class EditCommandParserTest {
         descriptor = new EditPersonDescriptorBuilder().withEmail(VALID_EMAIL_AMY).build();
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
-
-        // address
-        userInput = targetIndex.getOneBased() + ADDRESS_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withAddress(VALID_ADDRESS_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // tags
-        userInput = targetIndex.getOneBased() + TAG_DESC_FRIEND;
-        descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
     }
 
     @Test
     public void parse_multipleRepeatedFields_failure() {
         // More extensive testing of duplicate parameter detections is done in
-        // AddCommandParserTest#parse_repeatedNonTagValue_failure()
+        // AddCommandParserTest#parse_repeatedValue_failure()
 
         // valid followed by invalid
         Index targetIndex = INDEX_FIRST_PERSON;
         String userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + PHONE_DESC_BOB;
 
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, userInput, EditCommand.MESSAGE_REPEATED_PARAMETER);
 
         // invalid followed by valid
         userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + INVALID_PHONE_DESC;
 
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+        assertParseFailure(parser, userInput, EditCommand.MESSAGE_REPEATED_PARAMETER);
 
         // multiple valid fields repeated
-        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY
-                + TAG_DESC_FRIEND + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY + TAG_DESC_FRIEND
-                + PHONE_DESC_BOB + ADDRESS_DESC_BOB + EMAIL_DESC_BOB + TAG_DESC_HUSBAND;
+        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                + PHONE_DESC_BOB + EMAIL_DESC_BOB;
 
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+        assertParseFailure(parser, userInput, EditCommand.MESSAGE_REPEATED_PARAMETER);
 
         // multiple invalid values
-        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC
-                + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC;
+        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_EMAIL_DESC
+                + INVALID_PHONE_DESC + INVALID_EMAIL_DESC;
 
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+        assertParseFailure(parser, userInput, EditCommand.MESSAGE_REPEATED_PARAMETER);
+
+        // repeated name
+        assertParseFailure(parser, "1 n/A n/B", EditCommand.MESSAGE_REPEATED_PARAMETER);
     }
 
     @Test
-    public void parse_resetTags_success() {
-        Index targetIndex = INDEX_THIRD_PERSON;
-        String userInput = targetIndex.getOneBased() + TAG_EMPTY;
+    public void parse_emptyEmail_failure() {
+        assertParseFailure(parser, "1 e/", Email.MESSAGE_EMPTY);
+        assertParseFailure(parser, "1 e/   ", Email.MESSAGE_EMPTY);
+        assertParseFailure(parser, "1 e/alex@example",
+                "Email domain must contain at least two labels separated by a period.");
+    }
 
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withTags().build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
+    @Test
+    public void parse_emailNone_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutEmail().build();
+        assertParseSuccess(parser, "1 e/NONE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 e/ NONE ", new EditCommand(INDEX_FIRST_PERSON, descriptor));
 
-        assertParseSuccess(parser, userInput, expectedCommand);
+        descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY).withoutEmail().build();
+        assertParseSuccess(parser, "1" + NAME_DESC_AMY + " e/NONE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_phoneNone_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutPhone().build();
+        assertParseSuccess(parser, "1 p/NONE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 p/ NONE ", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        descriptor = new EditPersonDescriptorBuilder().withoutPhone().withoutEmail().build();
+        assertParseSuccess(parser, "1 p/NONE e/NONE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_phoneNoneAnyCase_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutPhone().build();
+        assertParseSuccess(parser, "1 p/none", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 p/nOnE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_emptyPhone_failure() {
+        assertParseFailure(parser, "1 p/", Phone.MESSAGE_EMPTY);
+        assertParseFailure(parser, "1 p/   ", Phone.MESSAGE_EMPTY);
+    }
+
+    @Test
+    public void parse_emailNoneAnyCase_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutEmail().build();
+        assertParseSuccess(parser, "1 e/none", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 e/None", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_quotedName_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        // quoted name containing a prefix is kept whole
+        String userInput = targetIndex.getOneBased() + " n/\"Randy p/e ratio\"" + PHONE_DESC_AMY;
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("Randy p/e ratio")
+                .withPhone(VALID_PHONE_AMY).build();
+        assertParseSuccess(parser, userInput, new EditCommand(targetIndex, descriptor));
+
+        // quoted name containing the email prefix is kept whole
+        userInput = targetIndex.getOneBased() + " n/\"Tan e/x Lim\"" + EMAIL_DESC_AMY;
+        descriptor = new EditPersonDescriptorBuilder().withName("Tan e/x Lim").withEmail(VALID_EMAIL_AMY).build();
+        assertParseSuccess(parser, userInput, new EditCommand(targetIndex, descriptor));
+
+        // a name with s/o must be quoted, since s/ would otherwise read as a parameter
+        descriptor = new EditPersonDescriptorBuilder().withName("Ravi s/o Kumar").build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " n/\"Ravi s/o Kumar\"",
+                new EditCommand(targetIndex, descriptor));
+        assertParseFailure(parser, targetIndex.getOneBased() + " n/Ravi s/o Kumar",
+                EditCommand.MESSAGE_UNKNOWN_PARAMETER_OR_NAME_SLASH);
+    }
+
+    @Test
+    public void parse_prefixesInAnyLetterCase_success() {
+        // EP: every edit prefix in uppercase or mixed case, with values keeping their capitalization
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("Alex Lim")
+                .withPhone("91234567").withEmail("alex@example.com").withLevel("Sec 3").withSubject("Math").build();
+        assertParseSuccess(parser, "1 N/Alex Lim P/91234567 E/alex@example.com LV/Sec 3 SuB/Math",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        // EP: prefix-like text inside a quoted name keeps its capitalization and creates no field
+        descriptor = new EditPersonDescriptorBuilder().withName("Randy P/E Ratio").build();
+        assertParseSuccess(parser, "1 N/\"Randy P/E Ratio\"", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        // EP: an uppercase subject prefix still keeps its quoted value whole
+        descriptor = new EditPersonDescriptorBuilder().withSubject("Combined Science (Chem/Bio)").build();
+        assertParseSuccess(parser, "1 SUB/\"Combined Science (Chem/Bio)\"",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        // EP: the same prefix in two letter cases is a repeated parameter
+        assertParseFailure(parser, "1 n/Alex N/Bob", EditCommand.MESSAGE_REPEATED_PARAMETER);
+    }
+
+    @Test
+    public void parse_malformedQuotedName_failure() {
+        assertParseFailure(parser, "1 n/\"Randy p/e ratio", ArgumentTokenizer.MESSAGE_UNCLOSED_QUOTED_VALUE);
+        assertParseFailure(parser, "1 n/Randy\"", ParserUtil.MESSAGE_INVALID_NAME_QUOTES);
+        assertParseFailure(parser, "1 n/\"Ran\"dy\"", ParserUtil.MESSAGE_INVALID_NAME_QUOTES);
+    }
+
+    @Test
+    public void parse_levelAndSubject_success() {
+        // All combinations across these four tests: level set/remove x subject set/remove.
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withLevel("Sec 4")
+                .withSubject("A-Math").build();
+        assertParseSuccess(parser, "1 lv/ Sec  4 sub/A-Math",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_levelAndSubjectNone_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutLevel().withoutSubject()
+                .build();
+        assertParseSuccess(parser, "1 lv/NONE sub/none", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 lv/ None  sub/nOnE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_setLevelRemoveSubject_success() {
+        // Heuristic: a valid level must still be set when the other field requests removal.
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withLevel("Sec 4")
+                .withoutSubject().build();
+        assertParseSuccess(parser, "1 lv/Sec 4 sub/NONE", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_removeLevelSetSubject_success() {
+        // Heuristic: a valid subject must still be set when the other field requests removal.
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutLevel()
+                .withSubject("Physics").build();
+        assertParseSuccess(parser, "1 lv/NONE sub/Physics", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_oneInvalidStudentDetailWithValidCompanion_reportsInvalidField() {
+        // Heuristic: isolate each invalid input so another invalid field cannot mask its error.
+        assertParseFailure(parser, "1 lv/--- sub/Physics", Level.MESSAGE_MISSING_ALPHANUMERIC);
+        assertParseFailure(parser, "1 lv/Sec 4 sub/---", Subject.MESSAGE_MISSING_ALPHANUMERIC);
+    }
+
+    @Test
+    public void parse_invalidLevelOrSubject_failure() {
+        assertParseFailure(parser, "1 lv/Sec #3", Level.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, "1 sub/Math # Science", Subject.MESSAGE_INVALID_CHARACTERS);
+    }
+
+    @Test
+    public void parse_emptyLevel_reportsEmptyParameter() {
+        for (String value : List.of("", "   ", "\t\r\n")) {
+            assertParseFailure(parser, "1 lv/" + value,
+                    "Empty level parameter: Level cannot be empty when lv/ is specified.");
+        }
+    }
+
+    @Test
+    public void parse_emptySubject_reportsEmptyParameter() {
+        for (String value : List.of("", "   ", "\t\r\n")) {
+            assertParseFailure(parser, "1 sub/" + value,
+                    "Empty subject parameter: Subject cannot be empty when sub/ is specified.");
+        }
+    }
+
+    @Test
+    public void parse_repeatedLevelOrSubject_failure() {
+        assertParseFailure(parser, "1 lv/Sec 3 lv/Sec 4", EditCommand.MESSAGE_REPEATED_PARAMETER);
+        assertParseFailure(parser, "1 sub/Math sub/Physics", EditCommand.MESSAGE_REPEATED_PARAMETER);
     }
 }

@@ -6,18 +6,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.StudentStatus;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) and unit tests for
@@ -28,12 +35,175 @@ public class DeleteCommandTest {
     private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
 
     @Test
+    public void equals_nameTargets_comparesNamesAndTargetTypes() {
+        DeleteCommand command = new DeleteCommand(new Name("Alice Tan"));
+        assertTrue(command.equals(new DeleteCommand(new Name("Alice Tan"))));
+        assertFalse(command.equals(new DeleteCommand(new Name("Bob Tan"))));
+        assertFalse(command.equals(new DeleteCommand(INDEX_FIRST_PERSON)));
+        assertFalse(new DeleteCommand(INDEX_FIRST_PERSON).equals(command));
+    }
+
+    @Test
+    public void toString_nameTarget_includesName() {
+        Name name = new Name("Alice Tan");
+        assertEquals(DeleteCommand.class.getCanonicalName() + "{targetName=" + name + "}",
+                new DeleteCommand(name).toString());
+    }
+
+    @Test
+    public void execute_uniqueName_reusesIndexDeletion() throws Exception {
+        Person target = model.getFilteredPersonList().getFirst();
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        CommandResult expected = new DeleteCommand(INDEX_FIRST_PERSON).execute(expectedModel);
+
+        CommandResult actual = new DeleteCommand(new Name(target.getName().fullName.toUpperCase()))
+                .execute(model);
+
+        assertEquals(expected, actual);
+        assertEquals(expectedModel.getAddressBook(), model.getAddressBook());
+    }
+
+    @Test
+    public void execute_canonicallyEquivalentName_deletesOnlyDisplayedMatch() throws Exception {
+        Person hidden = new PersonBuilder().withName("Jose\u0301 Tan").build();
+        Person displayed = new PersonBuilder().withName("Jos\u00e9 Tan").withRole("guardian").build();
+        Model filteredModel = new ModelManager();
+        filteredModel.addPerson(hidden);
+        filteredModel.addPerson(displayed);
+        filteredModel.updateFilteredPersonList(person -> person.getId().equals(displayed.getId()));
+
+        CommandResult result = new DeleteCommand(new Name("  JOSE\u0301   TAN  ")).execute(filteredModel);
+
+        assertEquals("Deleted contact: Jos\u00e9 Tan [Guardian].", result.getFeedbackToUser());
+        assertTrue(filteredModel.getFilteredPersonList().isEmpty());
+        assertEquals(List.of(hidden.getId()), filteredModel.getAddressBook().getPersonList().stream()
+                .map(Person::getId).toList());
+    }
+
+    @Test
+    public void execute_canonicallyEquivalentNames_reportsAmbiguityWithoutDeleting() {
+        Model duplicateModel = new ModelManager();
+        duplicateModel.addPerson(new PersonBuilder().withName("Jos\u00e9 Tan").build());
+        duplicateModel.addPerson(new PersonBuilder().withName("Jose\u0301 Tan").withRole("guardian").build());
+        List<Person> displayed = List.copyOf(duplicateModel.getFilteredPersonList());
+        String choices = "1 [" + displayed.get(0).getRole() + "]\n2 [" + displayed.get(1).getRole() + "]";
+
+        assertCommandFailure(new DeleteCommand(new Name("Jos\u00e9 Tan")), duplicateModel,
+                String.format(DeleteCommand.MESSAGE_AMBIGUOUS_NAME, "Jos\u00e9 Tan", choices));
+        assertEquals(displayed.stream().map(Person::getId).toList(),
+                duplicateModel.getFilteredPersonList().stream().map(Person::getId).toList());
+    }
+
+    @Test
+    public void execute_apostropheVariants_reportsAmbiguityWithoutDeleting() {
+        Model duplicateModel = new ModelManager();
+        duplicateModel.addPerson(new PersonBuilder().withName("O'Brien").build());
+        duplicateModel.addPerson(new PersonBuilder().withName("O\u2019Brien").withRole("guardian").build());
+        List<Person> displayed = List.copyOf(duplicateModel.getFilteredPersonList());
+        String choices = "1 [" + displayed.get(0).getRole() + "]\n2 [" + displayed.get(1).getRole() + "]";
+
+        assertCommandFailure(new DeleteCommand(new Name("O'Brien")), duplicateModel,
+                String.format(DeleteCommand.MESSAGE_AMBIGUOUS_NAME, "O'Brien", choices));
+        assertEquals(displayed.stream().map(Person::getId).toList(),
+                duplicateModel.getFilteredPersonList().stream().map(Person::getId).toList());
+    }
+
+    @Test
+    public void execute_duplicateName_reportsDisplayedIndexesWithoutDeleting() {
+        Model duplicateModel = new ModelManager();
+        duplicateModel.addPerson(new PersonBuilder().withName("Alice Tan").build());
+        duplicateModel.addPerson(new PersonBuilder().withName("ALICE TAN").withRole("guardian").build());
+        DeleteCommand command = new DeleteCommand(new Name("Alice Tan"));
+        String choices = "1 [" + duplicateModel.getFilteredPersonList().get(0).getRole() + "]\n2 ["
+                + duplicateModel.getFilteredPersonList().get(1).getRole() + "]";
+
+        assertCommandFailure(command, duplicateModel, String.format(DeleteCommand.MESSAGE_AMBIGUOUS_NAME,
+                "Alice Tan", choices));
+        assertEquals(2, duplicateModel.getAddressBook().getPersonList().size());
+    }
+
+    @Test
+    public void execute_hiddenName_reportsNoMatchWithoutDeleting() {
+        Person target = model.getFilteredPersonList().getFirst();
+        model.updateFilteredPersonList(person -> !person.getId().equals(target.getId()));
+        assertCommandFailure(new DeleteCommand(target.getName()), model,
+                String.format(DeleteCommand.MESSAGE_NAME_NOT_FOUND, target.getName()));
+    }
+
+    @Test
+    public void constructor_emptyIndexes_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> new DeleteCommand(List.<Index>of()));
+    }
+
+    @Test
+    public void execute_linkedStudent_reportsRemovedLinkAndRetainsGuardian() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person student = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId()).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(student, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new DeleteCommand(INDEX_FIRST_PERSON).execute(linkedModel);
+        assertEquals("Deleted contact: Alex Tan [Student]. Removed 1 student-guardian relationship.",
+                result.getFeedbackToUser());
+        assertEquals(List.of(guardian), List.copyOf(linkedModel.getAddressBook().getPersonList()));
+    }
+
+    @Test
+    public void execute_linkedGuardian_reportsRemovedLinkToHiddenStudent() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person student = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId()).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(student, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+        linkedModel.updateFilteredPersonList(person -> person.getId().equals(guardian.getId()));
+
+        CommandResult result = new DeleteCommand(INDEX_FIRST_PERSON).execute(linkedModel);
+        assertEquals("Deleted contact: Mei Tan [Guardian]. Removed 1 student-guardian relationship.",
+                result.getFeedbackToUser());
+        assertEquals(student.getId(), linkedModel.getAddressBook().getPersonList().getFirst().getId());
+        assertTrue(linkedModel.getAddressBook().getPersonList().getFirst().getGuardianId().isEmpty());
+    }
+
+    @Test
+    public void execute_guardianOfFormerStudent_keepsStudentStatus() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person student = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId())
+                .withStatus(StudentStatus.FORMER).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(student, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+
+        // The former student is hidden, so the guardian is the first contact shown.
+        new DeleteCommand(Index.fromOneBased(1)).execute(linkedModel);
+
+        assertTrue(linkedModel.getAddressBook().getPersonList().getFirst().isFormerStudent());
+    }
+
+    @Test
+    public void execute_guardianOfMultipleStudents_reportsCountAndClearsAllLinks() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person student = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId()).build();
+        Person otherStudent = new PersonBuilder().withName("Bea Tan").withGuardianId(guardian.getId()).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(student, otherStudent, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new DeleteCommand(Index.fromOneBased(3)).execute(linkedModel);
+        assertEquals("Deleted contact: Mei Tan [Guardian]. Removed 2 student-guardian relationships.",
+                result.getFeedbackToUser());
+        assertEquals(2, linkedModel.getAddressBook().getPersonList().size());
+        assertTrue(linkedModel.getAddressBook().getPersonList().stream()
+                .allMatch(person -> person.getGuardianId().isEmpty()));
+    }
+
+    @Test
     public void execute_validIndexUnfilteredList_success() {
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_CONTACT_SUCCESS,
+                personToDelete.getName(), personToDelete.getRole());
 
         ModelManager expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
         expectedModel.deletePerson(personToDelete);
@@ -42,11 +212,92 @@ public class DeleteCommandTest {
     }
 
     @Test
+    public void execute_middleContact_remainingIndexesAreConsecutive() throws Exception {
+        Person first = new PersonBuilder().withName("Alex Tan").build();
+        Person middle = new PersonBuilder().withName("Bea Tan").build();
+        Person last = new PersonBuilder().withName("Cara Tan").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(first, middle, last));
+        Model indexedModel = new ModelManager(addressBook, new UserPrefs());
+
+        new DeleteCommand(INDEX_SECOND_PERSON).execute(indexedModel);
+
+        assertEquals(List.of(first, last), List.copyOf(indexedModel.getFilteredPersonList()));
+        new DeleteCommand(INDEX_SECOND_PERSON).execute(indexedModel);
+        assertEquals(List.of(first), List.copyOf(indexedModel.getFilteredPersonList()));
+    }
+
+    @Test
+    public void execute_multipleIndexes_deletesContactsAtOriginalIndexes() throws Exception {
+        Person first = new PersonBuilder().withName("Alex Tan").build();
+        Person second = new PersonBuilder().withName("Bea Tan").build();
+        Person third = new PersonBuilder().withName("Cara Tan").build();
+        Person fourth = new PersonBuilder().withName("Dion Tan").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(first, second, third, fourth));
+        Model indexedModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new DeleteCommand(List.of(Index.fromOneBased(3), Index.fromOneBased(1)))
+                .execute(indexedModel);
+
+        assertEquals("Deleted 2 contacts:\nCara Tan [Student]\nAlex Tan [Student].", result.getFeedbackToUser());
+        assertEquals(List.of(second, fourth), List.copyOf(indexedModel.getFilteredPersonList()));
+    }
+
+    @Test
+    public void execute_multipleIndexesOneOutOfRange_deletesNothing() {
+        List<Person> originalPersons = List.copyOf(model.getAddressBook().getPersonList());
+        Index outOfRange = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
+        DeleteCommand command = new DeleteCommand(List.of(INDEX_FIRST_PERSON, outOfRange));
+
+        assertCommandFailure(command, model,
+                String.format(Messages.MESSAGE_CONTACT_NOT_FOUND, outOfRange.getOneBased()));
+        assertEquals(originalPersons, List.copyOf(model.getAddressBook().getPersonList()));
+    }
+
+    @Test
+    public void execute_linkedStudentAndGuardian_countsRelationshipOnce() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person student = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId()).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(student, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new DeleteCommand(List.of(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON))
+                .execute(linkedModel);
+
+        assertEquals("Deleted 2 contacts:\nAlex Tan [Student]\nMei Tan [Guardian]."
+                + " Removed 1 student-guardian relationship.", result.getFeedbackToUser());
+        assertTrue(linkedModel.getAddressBook().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_guardianAndLinkedStudents_countsEveryRelationship() throws Exception {
+        Person guardian = new PersonBuilder().withName("Mei Tan").withRole("guardian").build();
+        Person firstStudent = new PersonBuilder().withName("Alex Tan").withGuardianId(guardian.getId()).build();
+        Person secondStudent = new PersonBuilder().withName("Bea Tan").withGuardianId(guardian.getId()).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(firstStudent, secondStudent, guardian));
+        Model linkedModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new DeleteCommand(List.of(Index.fromOneBased(1), Index.fromOneBased(3)))
+                .execute(linkedModel);
+
+        assertEquals("Deleted 2 contacts:\nAlex Tan [Student]\nMei Tan [Guardian]."
+                + " Removed 2 student-guardian relationships.", result.getFeedbackToUser());
+        assertEquals(1, linkedModel.getAddressBook().getPersonList().size());
+        Person retainedStudent = linkedModel.getAddressBook().getPersonList().getFirst();
+        assertEquals(secondStudent.getId(), retainedStudent.getId());
+        assertTrue(retainedStudent.getGuardianId().isEmpty());
+    }
+
+    @Test
     public void execute_invalidIndexUnfilteredList_throwsCommandException() {
         Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model,
+                String.format(Messages.MESSAGE_CONTACT_NOT_FOUND, outOfBoundIndex.getOneBased()));
     }
 
     @Test
@@ -56,8 +307,8 @@ public class DeleteCommandTest {
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_CONTACT_SUCCESS,
+                personToDelete.getName(), personToDelete.getRole());
 
         Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
         expectedModel.deletePerson(personToDelete);
@@ -76,13 +327,15 @@ public class DeleteCommandTest {
 
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model,
+                String.format(Messages.MESSAGE_CONTACT_NOT_FOUND, outOfBoundIndex.getOneBased()));
     }
 
     @Test
     public void equals() {
         DeleteCommand deleteFirstCommand = new DeleteCommand(INDEX_FIRST_PERSON);
         DeleteCommand deleteSecondCommand = new DeleteCommand(INDEX_SECOND_PERSON);
+        DeleteCommand deleteMultipleCommand = new DeleteCommand(List.of(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON));
 
         // same object -> returns true
         assertTrue(deleteFirstCommand.equals(deleteFirstCommand));
@@ -99,13 +352,22 @@ public class DeleteCommandTest {
 
         // different person -> returns false
         assertFalse(deleteFirstCommand.equals(deleteSecondCommand));
+        assertFalse(deleteFirstCommand.equals(deleteMultipleCommand));
+
+        // same multiple indexes -> returns true
+        assertTrue(deleteMultipleCommand.equals(
+                new DeleteCommand(List.of(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON))));
+
+        // different index order -> returns false
+        assertFalse(deleteMultipleCommand.equals(
+                new DeleteCommand(List.of(INDEX_SECOND_PERSON, INDEX_FIRST_PERSON))));
     }
 
     @Test
     public void toStringMethod() {
         Index targetIndex = Index.fromOneBased(1);
         DeleteCommand deleteCommand = new DeleteCommand(targetIndex);
-        String expected = DeleteCommand.class.getCanonicalName() + "{targetIndex=" + targetIndex + "}";
+        String expected = DeleteCommand.class.getCanonicalName() + "{targetIndexes=[" + targetIndex + "]}";
         assertEquals(expected, deleteCommand.toString());
     }
 

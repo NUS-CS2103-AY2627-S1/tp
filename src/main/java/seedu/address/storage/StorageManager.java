@@ -65,4 +65,14 @@ public class StorageManager implements Storage {
         addressBookStorage.saveAddressBook(addressBook);
     }
 
+    @Override
+    public boolean isDataFileLoadFailed() {
+        return addressBookStorage.isDataFileLoadFailed();
+    }
+
+    @Override
+    public Optional<String> getDataFileLoadFailureReason() {
+        return addressBookStorage.getDataFileLoadFailureReason();
+    }
+
 }

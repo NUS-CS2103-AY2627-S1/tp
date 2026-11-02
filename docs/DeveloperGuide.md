@@ -1,15 +1,48 @@
 ---
-layout: page
-title: Developer Guide
+  layout: default.md
+  title: "Developer Guide"
+  pageNav: 3
 ---
-* Table of Contents
-{:toc}
+
+# TutorRoster Developer Guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* TutorRoster is based on [AddressBook-Level3](https://github.com/se-edu/addressbook-level3) by the
+  [SE-EDU initiative](https://se-education.org/). Its code, documentation structure and UML diagrams have been reused
+  and adapted for student and guardian contact management. This includes the proposed undo/redo design below.
+  The original [User Guide](https://se-education.org/addressbook-level3/UserGuide.html) and
+  [Developer Guide](https://se-education.org/addressbook-level3/DeveloperGuide.html) provide the starting documentation.
+* [JavaFX](https://openjfx.io/) provides the graphical interface, and
+  [Jackson](https://github.com/FasterXML/jackson) handles JSON serialization.
+* [JUnit 5](https://junit.org/junit5/) provides the automated testing framework.
+* [MarkBind](https://markbind.org/) builds the documentation website, with
+  [PlantUML](https://plantuml.com/) rendering the UML diagrams.
+* Build and quality tools include [Gradle](https://gradle.org/),
+  [Shadow](https://github.com/GradleUp/shadow), [Checkstyle](https://checkstyle.org/) and
+  [JaCoCo](https://www.jacoco.org/jacoco/).
+
+**AI assistance**
+
+* Loh Yang Jie used OpenAI Codex to draft and review code, tests and documentation for contact deletion,
+  bulk and name-based deletion, deletion undo and data-quality reports, and to assist with debugging,
+  preliminary pull-request reviews and UML diagrams.
+* Lu Ziyue used OpenAI Codex/ChatGPT to assist with guardian linking, unlink and children lookup,
+  storage validation and recovery, tests, debugging, pull-request review, and the User and Developer Guides.
+* Seah Jia Le used OpenAI Codex to assist with implementing and refining Add, Help, input validation and
+  feedback-display changes, writing tests, debugging, reviewing pull requests, and improving the User and
+  Developer Guides.
+* Loh Yang Zhi used Claude Code and OpenAI Codex to draft and review code, tests and documentation for the edit,
+  level/subject and student status features, and for preliminary pull request reviews. All output was reviewed
+  and edited before merging.
+* Lim Jun Hong Jeff used Claude to assist with list filtering by role, status, level and subject, the view
+  command, accent-insensitive name matching and ordering, the contact list and details panel UI, tests,
+  debugging, code-quality reviews of pull requests, and the User and Developer Guides.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -21,14 +54,9 @@ Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+<puml src="diagrams/ArchitectureDiagram.puml" width="280" />
 
 The ***Architecture Diagram*** given above explains the high-level design of the App.
 
@@ -36,7 +64,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -53,7 +81,7 @@ The bulk of the app's work is done by the following four components:
 
 The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<puml src="diagrams/ArchitectureSequenceDiagram.puml" width="574" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -62,19 +90,21 @@ Each of the four main components (also shown in the diagram above),
 
 For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
 
-<img src="images/ComponentManagers.png" width="300" />
+<puml src="diagrams/ComponentManagers.puml" width="300" />
 
 The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<puml src="diagrams/UiClassDiagram.puml" alt="Structure of the UI Component"/>
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, `PersonDetailsPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+`PersonListPanel` shows a `PersonCard` for each contact in the list, and `PersonDetailsPanel` shows the selected contact's details, including a student's level, subject and guardian. Both use `RoleBadges`, a class of static helper methods, so that a contact's role and former-student status look the same in the list and in the details panel.
+
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
@@ -85,65 +115,86 @@ The `UI` component,
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<puml src="diagrams/LogicClassDiagram.puml" width="550" alt="Partial Logic class diagram showing the shared student status command hierarchy"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+`XYZCommand` represents the concrete commands listed in the diagram. `ArchiveCommand` and `UnarchiveCommand`
+instead extend the abstract `StudentStatusCommand`, which shares their student-status validation and update logic.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+The sequence diagram below focuses on parsing and command execution for `delete 1`. Model `c` is the candidate
+used by the [shared execution and saving policy](#executing-and-saving-changes). Resolving the displayed index,
+copying the candidate, saving, publishing and recording deletion history are omitted from this focused view.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+<puml src="diagrams/DeleteSequenceDiagram.puml" alt="Interactions Inside the Logic Component for the `delete 1` Command" />
+
+<box type="info" seamless>
+
+**Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, the lifeline continues till the end of diagram.
+</box>
+
 
 How the `Logic` component works:
 
 1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
+1. This produces a concrete `Command`, which `LogicManager` executes using the shared read-only or data-changing flow.
 1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
    Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
 1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<puml src="diagrams/ParserClasses.puml" width="600"/>
 
 How the parsing works:
 * When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+The overview below shows how the Model stores all contacts and exposes a filtered, sorted view for display.
+The contact's fields are expanded in the following Person class diagram.
 
+<puml src="diagrams/ModelClassDiagram.puml" alt="Model component: contact storage, preferences and displayed view" />
 
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list, sorted by name and then role. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+The following diagram expands `Person`. The multiplicity `1` means a value is required; `0..1` means it is optional.
+Associations represent the stored values, including the values wrapped in `Optional` fields in Java.
 
-<img src="images/BetterModelClassDiagram.png" width="450" />
+<puml src="diagrams/PersonClassDiagram.puml" alt="Person fields: required identity, name, role and status; optional guardian ID, phone, email, level and subject" />
 
-</div>
+Each contact has a stable `ContactId`, a `Name`, a `Role` (`STUDENT` or `GUARDIAN`) and a `StudentStatus`
+(`ACTIVE` or `FORMER`). Phone and email are individually optional, although a guardian must have at least one.
+Only students can have a level, subject or guardian reference, and only students can be former.
 
+The `id` association identifies the contact itself. The optional `guardianId` stores another contact's ID,
+which must resolve to an existing guardian. Each student can reference at most one guardian, and several students
+can reference the same guardian. The Person diagram uses ordinary associations because replacement contacts can
+share immutable field values.
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-T15-2/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
-<img src="images/StorageClassDiagram.png" width="550" />
+<puml src="diagrams/StorageClassDiagram.puml" width="550" />
 
 The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+
+`MainApp` resolves `data/addressbook.json` and `preferences.json` relative to the running JAR's directory,
+using its code-source URI. This keeps both files independent of the terminal's working directory and handles
+paths containing spaces or non-English characters. Unpackaged IDE and Gradle runs use the working directory.
 
 ### Common classes
 
@@ -155,94 +206,681 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
+### Executing and saving changes
+
+`LogicManager` parses each command and checks `Command.isDataChanging()`. Read-only commands run on the live
+model without saving. Data-changing commands follow one shared policy:
+
+1. Reject changes if the contact-data file failed to load.
+2. Copy the live data and preferences to a candidate `ModelManager`, retaining the current filter.
+3. Execute and validate the command on the candidate, then save it through `Storage#saveAddressBook`.
+4. Only after saving succeeds, publish the candidate's data and filter to the live model and update deletion history.
+
+A successful deletion records a snapshot; undo consumes it; other successful data changes clear it. Validation
+and save failures leave live contacts, relationships, filters and deletion history unchanged. Ordinary save failures
+report `Changes could not be saved. No changes were made.` Conflicting external saves have a separate recovery
+message. See [Saving contacts and relationships](#saving-contacts-and-relationships) for atomic file replacement,
+locking and load-failure protection. Feature-specific rules are described below.
+
 ### \[Proposed\] Undo/redo feature
 
 #### Proposed Implementation
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+This is a future design adapted from AB3, **not the current deletion-only undo implementation** described
+[below](#undoing-the-latest-deletion). It would support undoing and redoing multiple kinds of data changes.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+A proposed `VersionedAddressBook` would extend `AddressBook`, storing snapshots in `addressBookStateList` and
+tracking the current snapshot with `currentStatePointer`. Its operations would be exposed through `Model`:
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+| Operation | Proposed behaviour |
+| --- | --- |
+| `commitAddressBook()` | Append a successfully changed state and advance the pointer, discarding any redo history |
+| `undoAddressBook()` | Move to the previous snapshot; reject when already at the first |
+| `redoAddressBook()` | Move to the next snapshot; reject when already at the latest |
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+Read-only and failed commands would not commit snapshots. For example, after a deletion and an addition,
+undoing would restore the post-deletion state. A new successful change would replace the abandoned redo branch.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+<puml src="diagrams/UndoRedoState3.puml" alt="Proposed snapshot history after undoing an addition" />
 
-![UndoRedoState0](images/UndoRedoState0.png)
-
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
-
-![UndoRedoState1](images/UndoRedoState1.png)
-
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
-
-![UndoRedoState2](images/UndoRedoState2.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
-
-</div>
-
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
-
-![UndoRedoState3](images/UndoRedoState3.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
-
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
+<puml src="diagrams/CommitActivityDiagram.puml" width="250" alt="Proposed commit decision flow" />
 
 #### Design considerations:
 
-**Aspect: How undo & redo execute:**
+Whole-address-book snapshots simplify restoration at the cost of memory. Command-specific inverse operations
+could use less memory, but each command would need its own correct reversal logic, including relationship changes.
+The current deletion undo uses one snapshot; it does not expose the proposed general undo/redo API.
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+### Undoing the latest deletion
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+The `undo` command restores one successful deletion, including index, bulk and name-based deletion.
+`DeletionSnapshot` holds a separate copy of the pre-deletion contact data, the display filter and the deleted IDs.
+Restoring the complete data also restores links cleared on surviving students when their guardian was deleted.
 
-_{more aspects and alternatives to be added}_
+The sequence below shows successful restoration and the save-failure path. Parsing and snapshot accessor calls are
+simplified to keep the focus on restoring a candidate before saving and publishing it to the live model.
 
-### \[Proposed\] Data archiving
+<puml src="diagrams/UndoDeletionSequenceDiagram.puml" alt="Undo deletion restores a candidate and saves before updating live data and clearing history" />
 
-_{Explain here how the data archiving feature will be implemented}_
+`LogicManager` records history only after deletion saves successfully. Read-only commands and failed operations
+retain that history; a later successful deletion replaces it, and another successful data-changing command clears it.
+Undo consumes history only after the restored candidate saves successfully. A failed save therefore preserves both
+the current live state and the opportunity to retry. History is limited to the current session and does not provide redo.
+This deletion-specific implementation is separate from the proposed general undo/redo design above.
 
+### Editing contacts
+
+`edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [lv/LEVEL] [sub/SUBJECT]` changes the name, phone number, email address,
+level or subject of a displayed contact. Only a student can have a level or subject.
+The role cannot be edited. The sequence diagram below shows `edit 1 p/NONE`, removing the first displayed
+student `p`'s phone. Candidate `c` and live model `m` follow the shared
+[execution and saving policy](#executing-and-saving-changes).
+
+<puml src="diagrams/EditSequenceDiagram.puml" alt="Interactions inside the Logic component for the `edit 1 p/NONE` command" />
+
+**Parsing.** `EditCommandParser` changes its prefixes to lowercase with `ArgumentTokenizer#toLowerCasePrefixes`, so
+`N/Alex` is read as `n/Alex`. It then tokenizes the arguments with `ArgumentTokenizer#tokenizeWithQuotedValue`, so a
+quoted name such as `n/"Randy p/e ratio"` keeps any prefix-like text inside the quotes. It then checks, in order:
+
+1. No unknown parameter. Any word ending in `/` outside a quoted name, other than `n/`, `p/`, `e/`, `lv/` or `sub/`, is rejected
+   with `Unknown parameter`. This is why an unquoted name such as `Ravi s/o Kumar` must be quoted. When the word is
+   inside an unquoted name or subject, the message also suggests quoting that value, as `add` does.
+2. No repeated parameter. Each of `n/`, `p/`, `e/`, `lv/` and `sub/` may appear once.
+3. A valid index. A missing index, or extra text before the first parameter, gives `Invalid edit command`. A value
+   that is not a positive integer gives `The contact index must be a positive integer shown in the list.`
+
+Each supplied value is stored in an `EditPersonDescriptor`. `NONE` in any letter case is stored as a removal
+(such as `removePhone()` or `removeLevel()`) rather than a value. Setting a value after a removal clears the removal flag.
+An empty descriptor is rejected with `At least one of n/, p/, e/, lv/, or sub/ must be provided.`
+
+**Execution.** `EditCommand#execute` resolves the index against the filtered, sorted display list, so the index the
+user sees is the one edited. An index beyond the list gives `No contact exists at index INDEX.` The edited contact is
+built by `createEditedPerson`: each field takes the descriptor's value, is emptied if marked for removal, or keeps the
+current value otherwise. The contact's ID, role, status and guardian link are always copied, so relationships survive an
+edit.
+
+The edit is rejected if it sets or removes the level or subject of a guardian. It is then rejected if it would leave
+a guardian with no phone number and no email, if every resulting value is the same as the current one
+(`No changes made: the new values are the same as the current ones.`), or if the edited contact would duplicate
+another contact. Values are compared exactly, so changing only capitalization is still an edit.
+The duplicate check is skipped when the edited contact still matches its original
+duplicate identity, so changing only the capitalization of a name is allowed.
+
+If the edit is allowed, `getPossibleDuplicateWarning` compares the edited contact with every other contact, excluding
+itself by ID, using the same rules as `add`. A contact with the same role and name that also has a matching phone
+number (ignoring spaces and hyphens), the same email address, or a shared missing phone number or email produces a
+warning, which is appended to the success message. The edit is still applied, because different people may share a
+name.
+
+The command prepares its success feedback and any duplicate warning before changing the candidate.
+`Model#setPerson` then replaces the contact in `c`. The candidate's filter resets to
+`PREDICATE_SHOW_FORMER_STUDENTS` for a former student, or `PREDICATE_SHOW_ACTIVE_CONTACTS` for an active student or
+guardian. Thus editing a former student shows the former-student view; other edits show guardians and active
+students. The previous search, role, level or subject filter is replaced so the edited contact remains visible.
+
+After the shared save flow succeeds, the result's contact ID lets `MainWindow` select the edited contact and
+refresh its details panel.
+
+**Design considerations.**
+
+* **Removing a field:** `p/NONE` and `e/NONE` were chosen over an empty `p/` or `e/`, which is rejected as a likely
+  typo. `NONE` cannot be a valid phone number or email, so it never clashes with real data. Letter case is ignored as
+  a deliberate choice for ease of typing.
+* **Possible duplicates:** a warning was chosen over rejecting the edit, matching `add`, so that two people with
+  the same name can both be recorded. Rejecting would force the tutor to change one name just to save the record.
+* **Rejecting unknown parameters:** silently keeping `a/15` as part of a name would save data the user did not intend.
+  The cost is that names containing a word ending in `/` must be quoted.
+
+### Marking students as former and active
+
+`archive INDEX` marks a student as `FORMER`; `unarchive INDEX` marks a former student as `ACTIVE` again.
+Both commands retain the contact and its guardian relationship. They do not archive or export the data file.
+
+**Parsing and validation.** `ArchiveCommandParser` and `UnarchiveCommandParser` use `ParserUtil#parseSingleIndex`
+to accept one positive integer. Missing input gives `Missing contact index. Use: archive INDEX`; extra arguments
+give `Only one contact index is allowed. Use: archive INDEX`, using `unarchive INDEX` for Unarchive.
+Java whitespace is accepted around the index and separates extra arguments. A malformed index instead gives
+`The contact index must be a positive integer shown in the list.` Both concrete commands inherit
+`StudentStatusCommand#execute`, supplying a target status and command-specific messages. This shared method
+resolves the index against `Model#getFilteredPersonList`, which is sorted in displayed order. It rejects an index
+beyond that list, a guardian target, or a student who already has the requested status before changing any data.
+
+**Updating the student.** `Person#withStatus` creates a replacement contact with the new status and the original
+ID, name, phone, email, role, guardian ID, level and subject. `Model#setPerson` replaces the target by ID, so even
+same-name students remain separate records. The result reports the student's name and new status.
+
+The sequence below shows a successful `archive 1` when the first displayed contact is an active student.
+Parsing, UI updates and deletion-history maintenance are omitted to focus on command execution and saving.
+The Model and Storage components are shown through their public operations.
+
+<puml src="diagrams/ArchiveSequenceDiagram.puml" alt="Archiving a student on a candidate model, saving it, and then updating the live model" />
+
+`unarchive` follows the same sequence through the inherited `execute` method, using `StudentStatus.ACTIVE`
+and the messages supplied by `UnarchiveCommand` instead.
+
+**Keeping the current view.** The status commands retain the current filter. Replacing the contact causes the
+filtered list to re-evaluate whether the student still matches:
+
+| Current view | After `archive` | After `unarchive` |
+| --- | --- | --- |
+| `list` or `list st/active` (guardians and active students) | The student disappears; the guardian remains. | Former students are hidden; use `list st/former` or `list st/all` first. |
+| `list st/former` | An already-former student is rejected. | The student disappears from the former-student list. |
+| `list st/all` | The student remains visible with the `Former` badge. | The student remains visible without the badge. |
+| `find NAME` | A matching student remains visible with the `Former` badge. | The student remains visible without the badge. |
+
+If the student was selected, the UI clears the selection and detail panel when the student leaves the view.
+When the student remains in the view, as with `find` or `list st/all`, the existing selection is retained
+and its details are refreshed. The details panel shows the status as `Role: Student [Former]`.
+
+**Saving and failure handling.** Both commands use the shared
+[execution and saving policy](#executing-and-saving-changes). A successful status change clears deletion undo;
+validation and save failures preserve it.
+
+**Design considerations.**
+
+* Sharing `StudentStatusCommand` keeps index, role and status checks consistent between the two commands.
+* Only students can be former: guardians remain contactable even when their linked students stop taking lessons.
+  Keeping the student's ID and guardian reference allows the tutor to reactivate the same record later.
+* Retaining the filter preserves the tutor's current task. Former students stay retrievable through
+  `list st/former` and `list st/all`, and `find` matches names independently of status, so a name search
+  does not silently change meaning when a student becomes former.
+
+### Student-guardian linking
+
+The diagram below shows how relationship identity is represented independently of names, display indexes and
+student status. Both `id` and `guardianId` use `ContactId`; they are distinct fields with different multiplicities.
+
+<puml src="diagrams/LinkRelationshipClassDiagram.puml" alt="Contact identity and student-guardian references" />
+
+`LinkCommandParser` accepts `link s/STUDENT_INDEX g/GUARDIAN_INDEX` in either parameter order. It rejects missing, repeated and unknown prefixes, extra text and invalid integer indexes. `LinkCommand` resolves both indexes against the filtered, sorted display list, validates their roles, rejects duplicate links and replaces an existing guardian when requested.
+
+Every `Person` has an immutable `ContactId`, represented by a UUID. A student has an optional `guardianId` referencing a guardian's ID. This gives each student at most one guardian while allowing several students to refer to the same guardian. References use IDs because names can change and display indexes change after sorting or filtering. Contact-field duplicate detection continues to use `isSamePerson`, including the exception for students without either contact method described below. `Person.equals` includes the guardian relationship as contact data.
+
+`UniquePersonList` locates update and removal targets by `ContactId`, rather than contact-field equality. Two students
+with the same name and no contact methods can have equal fields but must remain separate records. Linking, editing
+or deleting the second displayed student must therefore use its ID. Otherwise replacing the first equal contact with
+the second contact's updated record would lose the first ID and save the second ID twice, making the file invalid.
+
+`EditCommand` preserves both IDs when constructing the edited person. `AddressBook.removePerson` clears references to a removed guardian. The detail panel resolves the guardian against the complete contact list, including contacts outside the current search results, and refreshes when either contact changes. The command result carries the student's ID so the UI can select that contact after a successful save.
+
+**Interaction with student status and deletion.** Archiving changes a student's status while retaining the student's
+ID and guardian reference. A former student can be linked after a command such as `find` makes both targets visible.
+The target is still resolved by its displayed index and then updated by ID, so an active student with the same name
+remains a separate record. Relinking preserves the student's status, level and subject.
+
+Deleting a guardian clears references from all its students, including former students hidden by the current filter.
+Bulk deletion resolves every target before removing any contact, so index shifts cannot retarget later deletions.
+Its relationship count counts each affected student once, even when both that student and its guardian are deleted.
+These changes run on the candidate model described below; a failed save must not clear live relationships.
+
+### Removing and looking up guardian relationships
+
+`UnlinkCommandParser` and `ChildrenCommandParser` share `RelationshipIndexParser`, which accepts exactly one
+required prefix and parses its value with `ParserUtil.parseIndex`. Repeated prefixes, preambles, missing indexes
+and trailing arguments are rejected before a command executes. Reusing this parser keeps both commands' input
+validation consistent without coupling them to the two-target `link` syntax.
+
+**Unlink.** `UnlinkCommand` resolves the student's current displayed index, checks the role and existing link,
+then calls `Person.withGuardianId(Optional.empty())`. This retains the contact ID, role, name, phone, email,
+student status, level and subject. `Model.setPerson` replaces that one contact by persistent identity.
+The guardian and other students are untouched, including same-name students. The result requests selection by
+the student's ID; the UI clears selection if the preserved filter now excludes that student.
+
+<puml src="diagrams/UnlinkSequenceDiagram.puml" alt="Unlink execution with save-before-publish failure handling" />
+
+Unlink uses the shared [execution and saving policy](#executing-and-saving-changes), including preservation of
+live data and deletion undo on failure.
+
+**Guardian lookup.** `ChildrenCommand` first resolves and validates a guardian in the current displayed list,
+then replaces the model predicate with `GuardianChildrenPredicate`. The predicate stores a `ContactId` and
+matches students whose `guardianId` equals it; it does not impose a student-status condition. Therefore, lookup
+can reveal former students and students hidden by the previous search. Matching names never establish a
+relationship. The existing sorted observable list provides display order and reacts to later changes.
+For example, unlinking a student from this view removes that student from the results.
+
+Lookup inherits `Command.isDataChanging() == false`, so it neither saves data nor invalidates deletion undo.
+A wrong role or out-of-range index fails before the view changes. An empty result is a successful lookup and
+explains how to return to contacts with `list`.
+
+**Design choices.** Separate commands allow the user to remove an association without deleting either contact
+and retrieve a guardian's students without remembering their names. A persistent-ID predicate keeps lookup
+correct after a guardian is renamed or contacts are reordered. Including both statuses avoids silently hiding
+former students in a family lookup; users can distinguish them by their existing badges. Restricting each
+command to one target keeps validation and recovery predictable.
+
+`RelationshipManagementTest` covers displayed indexes, shared guardians, same-name students and guardians,
+former students, reactive filtering, persistence, failed saves, malformed input and deletion-undo interaction.
+
+### Contact details and Add validation
+
+Adding a contact involves three responsibilities: the parser validates command input, the model enforces contact
+invariants, and `LogicManager` saves a candidate model before publishing the change. `AddCommand` checks duplicate
+identity and prepares any warning before inserting the new contact. The following subsections explain these
+responsibilities and the design choices behind them.
+
+#### Parsing and validation
+
+**Validation order.** `AddCommandParser#parse` delegates syntax checks to `tokenizeArguments` and field parsing
+to `parsePerson`. Role and name are required. Syntax checks precede field validation, which follows role, name,
+phone, email, level and subject order regardless of input order. Role-specific checks run after phone and email
+validation, before student details. This keeps the first reported error predictable.
+
+**Parameter recognition.** `AddCommandParser` and the quote-aware path in `ArgumentTokenizer` share
+`ArgumentTokenScanner`, keeping token boundaries and quoted values consistent. Prefixes start at the beginning
+of the arguments or after `Character.isWhitespace` characters. Add normalizes recognized prefixes without
+changing field capitalization. Command dispatch lowercases only the command word using `Locale.ROOT`.
+
+Before dispatch, `AddressBookParser` uses `StringUtil#normalizeSpaceSeparators` to replace Unicode `Zs` characters
+with ordinary spaces throughout the input, including quoted values. This includes non-breaking, figure and narrow
+non-breaking spaces from pasted text. Tabs and line breaks remain unchanged for the existing tokenizer and field
+validation rules. Normalizing at this boundary keeps Add, Edit, Find, List and name-based Delete consistent.
+
+**Quoted values.** The scanner protects a name or subject only when its first non-whitespace value character is
+a straight double quote. Quotes elsewhere remain literal, so phone text cannot hide later parameters.
+`AddCommandParser` supplies command-specific errors; an unknown parameter before an unclosed quoted value
+is reported first.
+
+**Name normalization.** `ParserUtil#parseName` removes enclosing quotes, trims surrounding whitespace and
+collapses repeated ordinary spaces. Internal unsupported whitespace fails validation. Add requires quotes around
+every name containing `/`; Edit also accepts unquoted embedded slashes. The Add parser supplies a quoting hint
+when an unknown parameter follows an unquoted name.
+See the [UG field rules and error examples](UserGuide.md#adding-a-contact-add) for the user-facing constraints.
+
+`Name` requires at least one Unicode letter or number after checking blank input, length and supported characters.
+This rejects punctuation-only names and combining marks without a base letter or number through both Add and Edit.
+The whitelist accepts straight and both curly apostrophes, as well as the middle dot U+00B7, without changing their
+stored spelling. Shared value-class validation keeps Add, Edit and JSON loading consistent.
+Saved contacts use the same invariant. An older file with such a name fails loading without being overwritten;
+the existing recovery flow requires correcting the name and restarting.
+
+#### Model invariants
+
+`Person` stores phone and email as non-null `Optional` values. A student may omit both, while a guardian must have
+at least one contact method. The parser checks the guardian requirement after validating supplied phone and email
+values, then rejects student-only prefixes before parsing their values. The `Person` constructor enforces these
+role constraints independently of parsing, so other creation paths cannot bypass them. `EditCommand` checks the
+resulting contact against the same contact-method requirement.
+
+`Level` and `Subject` are optional student-only value types. Levels allow 1 to 30 Unicode code points; subjects
+allow 1 to 100, with at least one letter or digit required in either field. Both support Unicode letters,
+combining marks, digits, spaces, hyphens, periods, plus signs
+and parentheses; subjects additionally support slashes and ampersands. `ParserUtil` trims their values, collapses
+repeated ordinary spaces and removes enclosing subject quotes. `StudentDetailValidator` rejects `NONE`, which
+Edit reserves for removing a field, including when loading saved data. Empty command values receive field-specific
+empty-parameter messages.
+`StudentDetailValidator` checks length, supported characters, alphanumeric content and surrounding spaces; each
+value class maps the result to its own error message. The constructors reject invalid values, including blank
+strings. `isSameValue` ignores letter case and spaces, allowing a filter for `sec3` to match `Sec 3`.
+Both types use `StudentDetailNormalizer` to remove spaces, normalize comparison text to Unicode NFC,
+lowercase with `Locale.ROOT`, and map Greek final sigma to ordinary sigma for comparison.
+NFC is applied again after lowercasing, which can introduce decomposed characters.
+Composed and decomposed spellings of the same accented text therefore match,
+while different accents remain distinct. Stored values, validation limits, `equals` and `hashCode` are unchanged.
+
+#### Email validation
+
+`ParserUtil#parseEmail` trims surrounding whitespace, then delegates to `Email#getValidationErrorMessage`.
+`Email#isValidEmail` uses that same method, so command parsing and model construction share the rules.
+The helpers preserve the following error priority when several constraints fail:
+
+| Stage | Checks |
+| --- | --- |
+| Address structure | Total length of at most 254 ASCII characters, then exactly one `@`. |
+| Address parts | Local-part presence, its 64-character limit, domain presence, then internal whitespace. |
+| Local-part contents | Supported characters, then period placement. |
+| Domain | Every label's 63-character limit, label count, then label contents in order. The final label must have at least two characters. |
+
+`getAddressStructureError`, `getAddressPartsError`, `getLocalPartError` and `getDomainError` each return the
+first error or `null` when their checks pass. Character and punctuation rules are kept separate to provide
+specific feedback; see the [UG field rules](UserGuide.md#field-rules) for accepted characters and examples.
+Character scans avoid recursive regex matching, and the total-length check rejects oversized input first.
+Because email accepts ASCII only, character and byte counts agree. `EmailTest` covers length boundaries and
+competing failures; parser and storage tests cover propagation through their respective entry points.
+
+#### Duplicate detection
+
+`AddCommand` rejects exact duplicates using `Model#hasPerson`, which delegates to `Person#isSamePerson`. Identity
+consists of role, name, phone and email. Name and email comparisons ignore capitalization; phone comparisons trim
+surrounding whitespace but retain internal spaces and hyphens. Two absent optional values match only when both
+contacts have at least one contact method. Consequently, two contactless students with the same name and role
+are allowed, with a general warning for the second. Exact duplicates are rejected with
+`This contact already exists.` Level, subject, IDs and guardian links do not contribute to duplicate identity.
+
+`Person#hasSamePhoneIgnoringFormatting` applies the same space-separator normalization before removing spaces and
+hyphens, so phone warnings and the duplicate report also recognize existing saved numbers containing Unicode spaces.
+This comparison does not rewrite those saved values or broaden exact duplicate identity.
+
+Warning-name comparison uses `Person#hasSameNameAndRole` and `Name#isSameNameForDuplicateWarning`.
+It trims ordinary spaces, collapses repeated ones and maps curly apostrophes to straight apostrophes.
+It first compares the names with `String#equalsIgnoreCase`, then compares their Unicode NFD decompositions
+ignoring case. Decomposition avoids case-dependent composition differences such as `J` with a combining caron
+versus precomposed lowercase `ǰ`.
+It retains accents and word boundaries and does not rewrite stored names.
+`Person#isSamePerson` continues using the narrower `Name#isSameName` comparison, so broader warning matching
+does not reject previously valid saved contacts as exact duplicates on loading.
+
+For contacts with the same role and equivalent warning names that are not exact duplicates,
+`DuplicateWarning#classify` returns the highest-priority match across all saved contacts, including former
+students and contacts hidden by filters:
+
+1. `PHONE`: phone numbers match after spaces and hyphens are removed.
+1. `EMAIL`: email addresses match ignoring capitalization.
+1. `GENERAL`: both contacts lack a phone number, or both lack an email address.
+1. `NONE`: no warning condition matches.
+
+Add and Edit share this classification but supply their own feedback. Edit excludes the contact being edited by
+ID. Add logs the chosen warning and prepares feedback before insertion, so the new contact cannot match itself.
+A possible-duplicate warning accompanies a successful addition; it does not reject the contact.
+
+#### Execution and persistence
+
+The activity diagram follows an Add command from input validation to publication of a saved change. It assumes
+the data file loaded successfully; otherwise, `LogicManager` rejects data-changing commands before creating a
+candidate. Parsing or command-validation errors terminate the operation before saving.
+
+<puml src="diagrams/AddContactActivityDiagram.puml" width="620" alt="Add flow showing validation, duplicate classification, candidate update and saving before publication" />
+
+`LogicManager` executes `AddCommand` on a candidate model copied from the live data and current filter.
+`AddCommand#execute` separates rejection checks, feedback preparation and candidate updates. After insertion,
+it asserts that the candidate contains the new contact ID and resets the filter with
+`PREDICATE_SHOW_ACTIVE_CONTACTS`, showing guardians and active students while hiding former students.
+The new contact starts active. Only after saving succeeds does `LogicManager` publish the candidate and return
+the command result, whose contact ID lets the UI select the new contact. Failed commands and saves leave the live
+contacts, relationships, filter and selection unchanged. The file-writing and replacement mechanism is described
+under [Saving contacts and relationships](#saving-contacts-and-relationships).
+
+#### Design considerations for Add
+
+* **Validation in both parser and model:** Parser checks provide specific errors and predictable error ordering.
+  Constructor checks protect invariants when contacts are created through storage or other commands. Parser-only
+  validation would reduce repeated checks but leave those other paths able to construct invalid contacts.
+* **Warn about possible duplicates:** Rejecting only exact duplicates lets tutors record different people with the
+  same name, including students without contact methods. Rejecting every matching name and role would prevent
+  legitimate records; accepting them silently would make accidental duplicates harder to notice. Warnings retain
+  that flexibility but leave the final decision to the tutor.
+* **Share classification, keep feedback in each command:** `DuplicateWarning` keeps Add and Edit warning priority
+  aligned, while separate message formatting lets each command describe its own outcome. Separate classifiers
+  would be simpler to change independently but could drift into inconsistent duplicate rules.
+* **Save before publishing:** Executing on a candidate prevents a failed save from leaving the UI ahead of the
+  stored data. Updating the live model first would avoid the copy but require reliable rollback of data, filters
+  and selection on failure. The candidate approach uses additional memory in exchange for simpler failure handling.
+
+### Help command and command reference
+
+`HelpCommand` returns a `CommandResult` with `isShowHelp()` set to true. `MainWindow` handles that flag after
+displaying the command feedback, keeping window operations in the UI component. Help is read-only: it does not
+save contact data, replace the current filter or clear deletion undo.
+
+The sequence below shows how executing `help` reuses the Help window.
+Parsing and routine feedback updates are omitted.
+
+<puml src="diagrams/HelpSequenceDiagram.puml" width="680" alt="Help execution returning a UI flag and reusing the existing Help window" />
+
+`MainWindow` creates one `HelpWindow` during initialization. `handleHelp` shows it when hidden and focuses it
+when already showing, so repeated requests do not create extra windows. F1 and the Help menu call this same UI
+handler directly; they do not execute a `HelpCommand`. Closing the Help window hides it for later reuse, while
+exiting the application hides both windows. The minimized-window limitation is documented in the
+[UG known issues](UserGuide.md#known-issues).
+
+`HelpWindow` builds its command-reference rows from the command classes' format constants, using usage strings
+where those already contain only the syntax. This avoids maintaining a second copy of command formats.
+The rows live inside a scroll pane, and command labels wrap as the window narrows. The **Copy URL** handler
+writes `USERGUIDE_URL` to the system clipboard; it does not launch a browser or fetch the guide.
+
+**Design choices.** Returning a UI flag keeps JavaFX window state out of command logic and allows command tests
+without opening a window. Reusing one window avoids duplicate references and gives keyboard and menu actions
+the same behavior. Sharing format constants reduces syntax drift, but adding a command still requires adding
+its reference row; `HelpCommandReferenceTest` checks the command set and selected formats.
+`HelpWindowTest` covers the window controls and displayed reference.
+
+### Saving contacts and relationships
+
+Contact JSON records contain an `id` UUID string and an optional `guardianId` UUID string, alongside the existing fields. `JsonAdaptedPerson` restores saved IDs; legacy records without IDs receive new IDs that are persisted on the next successful save. `JsonSerializableAddressBook` first loads all contacts, rejecting duplicate IDs and duplicate contact details, then validates that every guardian reference points to an existing contact with the guardian role. A guardian cannot carry a guardian reference. Repeated JSON object fields are rejected during parsing.
+
+`Person` stores phone and email as non-null `Optional` values. `Phone` and `Email` always represent valid, present
+values. Phone details contain at least 3 ASCII digits (`0-9`) and no more than 100 characters. Other numerals and
+Unicode text remain allowed but do not count towards the minimum. Saved phone values with fewer than 3 ASCII digits
+are rejected during loading, including values that previously passed using only non-ASCII numerals.
+The JSON adapter keeps both fields as
+nullable strings: missing or null means absent, while empty and invalid
+strings are rejected. Existing valid strings retain their capitalization. Single-label email domains and domains
+whose final label has fewer than two characters are invalid; incompatible files fail loading without being rewritten
+automatically. `JsonAdaptedPerson` rejects a guardian record that has neither a phone number nor an email address
+while converting it to a model object. The `Person` constructor enforces the same invariant, so saved data cannot
+bypass the guardian contact-method requirement.
+
+Level and subject are optional JSON strings. Legacy records without these properties, and explicit null values,
+load with the corresponding fields absent. Present values must satisfy their value-class constraints; blank or
+invalid strings and guardian records containing either field are rejected during loading.
+
+Saved emails use the same [email validation](#email-validation) as Add and Edit. Previously accepted values
+exceeding the total, local-part or domain-label limits fail loading without rewriting the file.
+Correct the invalid values and restart to re-enable data-changing commands.
+
+Loading applies the duplicate identity rules described under Contact details and Add validation, including the
+exception for contactless students. Full object equality remains case-sensitive so capitalization-only edits remain
+observable. Existing same-role records differing only in
+capitalization may therefore fail duplicate validation on loading. IDs and guardian links remain independent of
+duplicate identity.
+
+Following the [execution and saving policy](#executing-and-saving-changes), `JsonAddressBookStorage` writes a
+temporary file in the destination directory and atomically replaces the data file. If atomic replacement is
+unavailable, saving fails safely without publishing the candidate.
+
+Each successful load retains the exact file bytes parsed into that session's model (including whether the
+file was missing). Before saving, storage acquires an exclusive operating-system lock on the sibling
+`addressbook.json.lock` file, compares the current bytes with that snapshot, and refuses stale or overlapping
+writes with `DataFileConflictException`. `LogicManager` displays its recovery message without publishing the
+candidate or changing deletion undo. Successful replacement advances the session's snapshot to exactly the bytes
+written. The lock covers both comparison and replacement; the lock file is retained so processes keep locking
+the same filesystem object. Merely checking timestamps or using atomic replacement alone would not prevent lost updates.
+
+The activity diagram below separates command validation, persistence and publication to the live model. Temporary
+file cleanup is attempted after every save attempt; cleanup failures are logged without replacing the save outcome.
+
+<puml src="diagrams/SafeSaveActivityDiagram.puml" width="520" alt="Candidate execution and safe-save decision flow" />
+
+If loading fails, storage records that failure for the session. The UI displays the startup error, and all data-changing commands are disabled until the user fixes the file and restarts the application. The invalid file is never overwritten during that session. A missing data file starts with an empty list and is created by the first successful data-changing command.
+
+Relevant tests cover Add parsing and validation, repeated parameters, fixed validation-error ordering, whitespace
+separators, literal prefixes inside quoted names, level and subject length boundaries, the phone length limit,
+optional student contact methods, guardians with either one contact method, guardian contact-method
+requirements, exact duplicates and possible-duplicate warning priority, displayed indexes, role validation, first links, replacements, shared guardians, ID preservation,
+relationship persistence, deletion cleanup, invalid references, failed saves and UI selection/details. JavaFX UI tests
+run on Windows desktop environments; the remaining tests run on all supported platforms.
+
+### Listing and finding contacts
+
+`list` and `find` change which contacts the list panel shows by updating the predicate of the model's filtered list.
+Neither command changes any contact data.
+
+**Listing.** `list [r/ROLE] [st/STATUS] [lv/LEVEL] [sub/SUBJECT]` shows the contacts that match a `ContactFilter`, as
+shown in the class diagram below.
+
+<puml src="diagrams/ContactFilterClassDiagram.puml" alt="Classes involved in filtering the contact list" />
+
+A `ContactFilter` is a `Predicate<Person>` that holds an optional `Role`, `StudentStatus`, `Level` and `Subject`. A
+contact matches when it has every chosen value; an empty value matches any contact. Levels and subjects match when
+`Level#isSameValue` and `Subject#isSameValue` hold, so `list lv/sec3` matches `Sec 3`, ignoring letter case and spaces.
+A whole value must match, so `sub/Math` does not match `A-Math`. Guardians are always `ACTIVE` and have no level or
+subject, so they never match a filter for former contacts or for a level or subject.
+`ContactFilter.ACTIVE_CONTACTS` (guardians and active students) is the default, `ContactFilter.FORMER_STUDENTS` shows
+only former students, and `ContactFilter.ALL_CONTACTS` shows everyone. `Model#PREDICATE_SHOW_ACTIVE_CONTACTS` and
+`Model#PREDICATE_SHOW_FORMER_STUDENTS` refer to the first two filters, so the rules for which contacts are active live
+in one class.
+
+`ListCommandParser` first changes the list prefixes to lowercase with `ArgumentTokenizer#toLowerCasePrefixes`, which
+uses `ArgumentTokenScanner` as `add` does, so `R/student` is read as `r/student`. `EditCommandParser` uses the same
+method for the edit prefixes. It then checks the input as shown in the activity diagram below, and stops at
+the first problem it finds.
+
+<puml src="diagrams/ListParserActivityDiagram.puml" width="400" alt="Checks made by ListCommandParser" />
+
+* **Format error:** any prefix other than `r/`, `st/`, `lv/` or `sub/` (such as `n/` in `n/Alex`), or any text before
+  the first prefix (such as `extra` in `list extra r/student`), gives
+  `Invalid list command. Use: list [r/ROLE] [st/STATUS] [lv/LEVEL] [sub/SUBJECT]`.
+  Text inside a quoted `sub/` value, such as `n/` in `sub/"Art n/Design"`, is part of the subject and is not
+  checked as a prefix.
+  If the whole input is a single role or status without its prefix, such as `list former`, the message suggests the
+  intended command instead: `Invalid list command. Did you mean: list st/former?`
+* **Repeated parameter:** a repeated prefix gives `Each of r/, st/, lv/ and sub/ may appear only once.`
+* **Role or status error:** `r/ROLE` is parsed with `ParserUtil#parseRole`, the same method `add` uses, so role values
+  and errors match `add`. `st/` accepts `active`, `former` or `all`, ignoring letter case; `all` becomes an empty
+  status, which matches any status. Any other value, or an empty `st/`, gives
+  `Invalid status. Status must be active, former, or all.` Without `st/`, the status is `ACTIVE`. `lv/` and `sub/`
+  are parsed with `ParserUtil#parseLevel` and `ParserUtil#parseSubject`, the same methods `add` and `edit` use, so
+  their values and errors match those commands. The values are checked in the order `r/`, `st/`, `lv/`, `sub/`,
+  whatever order the user types them in.
+* **Guardians cannot be former:** `r/guardian st/former` gives
+  `Guardians cannot be former. Remove r/guardian or st/former.`, because that filter could never match a contact.
+* **Guardians have no level or subject:** `r/guardian` with `lv/` or `sub/` gives
+  `Guardians have no level or subject. Remove r/guardian, or remove lv/ and sub/.`, for the same reason.
+
+`ListCommand#execute` passes its filter to `Model#updateFilteredPersonList`. It then reports the number of contacts
+shown, for example `Listed 6 contacts` or `Listed 2 former students`, using `Messages#formatContactCount` and
+`Messages#formatFormerStudentCount`.
+
+When the filter shows active contacts only (`ContactFilter#hidesFormerStudents`), former students are hidden without
+the tutor asking for it. To make this visible, `ListCommand` counts the former students that
+`ContactFilter#withAnyStatus` (the same filter with any status) would also have shown, and adds the count to the
+message, for example `Listed 6 contacts. 2 former students hidden. Add st/all to include them.` For
+`list r/guardian`, this count is always 0, so no note is added.
+
+When nothing matches, the message explains why, so the tutor knows whether the contact list is empty or the filter hid
+everyone:
+
+* `list` with no saved contacts gives `No contacts found.` If every saved contact is a former student, it gives
+  `No active contacts found. Use list st/former to see former students.`
+* `list st/former` gives `No former students found.`
+* `list r/guardian` gives `No guardians found.` `list r/student` gives `No students found.`, or
+  `No active students found. Use list r/student st/former to see former students.` if every student is former.
+* A filter with a level or subject gives `No contacts found.`, followed by the hidden-former-students note if
+  former students would match. This check comes before the status and role messages, because a missing level or
+  subject is then the reason nothing is shown. For example, `list st/former lv/Sec 4` gives `No contacts found.`
+  rather than `No former students found.`, which would suggest there are no former students at all.
+
+`ListCommand#execute` also logs the filter and both counts at the `FINE` level, to help trace unexpected results.
+
+`list` changes no contact data, so `LogicManager` runs it directly on the live model, and it still works when data
+changes are disabled after a failed load.
+
+The sequence diagram below shows how `list r/student` is executed.
+
+<puml src="diagrams/ListSequenceDiagram.puml" alt="Interactions for the `list r/student` command" />
+
+**Finding.** `FindCommandParser` treats all the text after `find` as a single search term. It removes leading and
+trailing whitespace, reduces each run of internal whitespace to one space, and rejects a term that is then empty with
+`Invalid find command. Use: find NAME`. The term is wrapped in a `NameContainsSubstringPredicate`, which matches a
+contact whose name contains the term, ignoring letter case. Consecutive spaces in the name are also treated as one
+space. `FindCommand` applies the predicate with `Model#updateFilteredPersonList` and reports either
+`Found X contacts matching: NAME.` or `No contacts found matching: NAME`.
+
+The term is matched as a whole, so word order matters: `find tan alex` does not match `Alex Tan`. Matching only the
+name keeps results predictable for the tutor, who searches for a person rather than for a phone number or email.
+
+Curly apostrophes (`’` and `‘`) in the name and the term are treated as straight apostrophes, using
+`Name#replaceCurlyApostrophes`. Names copied from messaging apps often contain `’`, while tutors usually type `'`.
+`PersonDisplayOrderComparator` applies the same replacement, so these names are also ordered together. Accents are also
+ignored, using `Name#removeAccents`, so `find elise` matches `Élise` and `find soren` matches `Søren`. Tutors may not
+know how to type accented letters, and the contact list already orders accented letters with their unaccented forms.
+Both the name and the term are processed in the same way, so a match is never lost. Only the combining marks of Latin,
+Greek and Cyrillic letters are removed. In other scripts, such as Devanagari, combining marks include vowel signs that
+change a name, so removing them would make `find किरण` also match `करण`, and a term made only of a vowel sign would
+match every name.
+
+The sequence diagram below shows how `find ale` is executed.
+
+<puml src="diagrams/FindSequenceDiagram.puml" alt="Interactions for the `find ale` command" />
+
+#### Design considerations:
+
+**Aspect: Where filtering by role and status happens**
+
+* **Alternative 1 (current choice):** Add optional filters to `list`, and keep `find` for names only.
+  * Pros: `list r/student` reads as "list the students". `find NAME` stays a simple name search. The default `list`
+    already hides former students, so `list r/student` shows only current students without an extra parameter.
+  * Cons: Searching by name and role together needs two steps, `find` and then reading the roles shown on the cards.
+* **Alternative 2:** Add the filters to `find`, so that the name becomes optional.
+  * Pros: One command could combine a name with a role or status.
+  * Cons: `find r/student` with no name reads oddly. `find` includes former students, so `find r/student` would
+    show former students too, which defeats the purpose of hiding them.
+
+**Aspect: How the status is given**
+
+* **Alternative 1 (current choice):** A separate `st/` prefix, independent of `r/`.
+  * Pros: Role and status are separate attributes in the model, as in `Role: Student [Former]`. `r/` accepts the same
+    values in `add` and `list`. This follows common command-line tools, such as `gh issue list --label bug
+    --state closed`, where each attribute has its own option.
+  * Cons: Users must learn a second prefix, and `st/` is close to `link`'s `s/`. The invalid-format message names the
+    valid prefixes to help with this.
+* **Alternative 2:** Treat `former` as a role value, as in `list r/former`.
+  * Pros: Only one prefix to learn.
+  * Cons: `r/former` would be accepted by `list` but not by `add` or `edit`. It could not express "all students,
+    active and former" without another special value.
+
+**Aspect: How `ListCommand` stores what to show**
+
+* **Alternative 1 (current choice):** A single `ContactFilter` object holding the optional role and the status.
+  * Pros: New filters, such as level and subject, are added as fields of one class, without changing how
+    `ListCommand` applies the filter. The filter has `equals`, so parser tests can compare commands directly.
+  * Cons: One more class than a plain lambda.
+* **Alternative 2:** One `boolean` or lambda per option in `ListCommand`.
+  * Pros: Less code for a single option.
+  * Cons: Each new option adds another constructor argument and branch, and `new ListCommand(true)` does not say what
+    `true` means.
+
+### Ordering and displaying contacts
+
+**Ordering.** `ModelManager` wraps its `FilteredList` in a `SortedList` that uses `PersonDisplayOrderComparator`, and
+`Model#getFilteredPersonList` returns this sorted view. The comparator orders contacts by name, ignoring letter case and
+treating consecutive spaces as one space. It first compares names with accents removed using `Name#removeAccents`, so
+that `Élise` is ordered with `Elise` rather than after `Zoe`. This method decomposes the name with
+`java.text.Normalizer` and removes the combining marks. Some letters, such as `ø`, `ł`, `æ` and `ß`, are separate
+letters in Unicode and cannot be decomposed, so the method replaces them with their base letters from a fixed table, for
+example `Søren` with `Soren`. Names that are still equal are then compared with their accents, so that names differing
+only in accents have a fixed order. `java.text.Collator` was not used because it ignores spaces and some punctuation,
+which would place `Alexa Lim` before `Alex Tan`. Contacts with the same name are ordered by role, with guardians before
+students. The specification does not order contacts with the same name and role, so the comparator treats them as equal.
+
+Both name comparisons use `String#compareToIgnoreCase`, after canonical Unicode normalization, rather than lowercasing
+whole words. This keeps ordinary and final Greek sigma case variants together and lets the guardian-first tie-breaker
+apply consistently. Canonically equivalent accented spellings also compare alike without changing stored names.
+
+Commands that take an index, such as `edit`, `delete` and `link`, look it up in `Model#getFilteredPersonList`, so
+the index always refers to the order shown on screen. The order is kept after `list`, `find`, `add` and
+`edit`, and when the application starts, without any command having to sort the list itself.
+
+**List cards.** `PersonCard` shows each contact's name with a role badge, and a `Former` badge for a former student,
+followed by `Phone:` and `Email:` lines.
+`ContactDisplayFormatter` formats these values, showing `Not provided` for a missing phone number or email address.
+A student's card also shows `Guardian: NAME`, or `Guardian: None` if the student has no linked guardian, and a
+`Level: LEVEL | Subject: SUBJECT` line if either value is set.
+Each line wraps instead of being cut off, so long names, email addresses and guardian names are shown in full.
+
+`PersonListPanel` receives both the displayed list and the complete contact list. It looks up a student's guardian in
+the complete list, so the guardian is still named when `find` hides the guardian from the displayed list. The panel
+redraws its cards whenever any contact changes, so renaming a guardian also updates the cards of the guardian's
+students.
+
+#### Design considerations:
+
+**Aspect: Where contacts are sorted**
+
+* **Alternative 1 (current choice):** Sort in `ModelManager`, as a sorted view of the filtered list.
+  * Pros: Every command and the UI see the same order, so displayed indexes always match the indexes commands use.
+  * Cons: The order is fixed for all views of the list.
+* **Alternative 2:** Sort in each command or in the UI.
+  * Pros: Different views could use different orders.
+  * Cons: Each command must remember to sort, and the UI order could differ from the indexes commands use.
+
+**Aspect: How `find` matches names**
+
+* **Alternative 1 (current choice):** Match the whole search term as part of the name, ignoring case.
+  * Pros: Tutors can find a contact from part of a name, as required by the MVP specification.
+  * Cons: Word order matters, so `find tan alex` does not match `Alex Tan`.
+* **Alternative 2:** Match any of several whole-word keywords, as in AB3.
+  * Pros: Word order does not matter.
+  * Cons: Partial names such as `ale` do not match, and searching for several words returns many unrelated contacts.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -260,72 +898,345 @@ _{Explain here how the data archiving feature will be implemented}_
 ### Product scope
 
 **Target user profile**:
+* are independent private tutors personally managing contact information for a small group of secondary school or junior college students and their guardians
+* need to retrieve and update student and guardian details quickly
+* need to record tutoring context and relationships between students and guardians
+* prefer using a desktop application that stores their contacts locally on a single device
+* can type quickly and prefer keyboard-driven commands to mouse interactions
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
-
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: TutorRoster helps independent private tutors keep student and guardian contact information organized and up to date, allowing them to retrieve accurate details quickly when communicating with students and families.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …                                                    | I want to …                                                       | So that I can …                                                              |
+|----------|-----------------------------------------------------------|-------------------------------------------------------------------|------------------------------------------------------------------------------|
+| `* * *`  | private tutor taking on a new student                     | add a student contact                                             | store the student's contact details                                          |
+| `* * *`  | private tutor                                             | add a guardian contact                                            | know whom to contact when necessary                                          |
+| `* *`    | private tutor who communicates through different channels | record multiple contact methods for a student or guardian         | have alternative ways to contact them                                        |
+| `* *`    | private tutor                                             | add notes to a contact                                            | record useful information that does not fit into the standard contact fields |
+| `* *`    | private tutor teaching different levels and subjects      | record concise tutoring context such as education level or subject | distinguish students quickly                                                 |
+| `* * *`  | private tutor                                             | record the relationship between a student and guardian            | know which contacts are related                                              |
+| `* *`    | private tutor                                             | associate multiple guardians with a student                       | keep track of all relevant contacts for that student                         |
+| `* *`    | private tutor                                             | designate a student's primary guardian                            | know whom to contact first when necessary                                    |
+| `* *`    | private tutor                                             | unlink an incorrect or outdated student-guardian association      | avoid confusion caused by inaccurate relationships                           |
+| `* * *`  | private tutor                                             | view the guardian linked to a student                             | identify whom to contact without searching separately                        |
+| `* *`    | private tutor teaching siblings                           | view all students linked to a guardian                            | manage families with multiple students efficiently                           |
+| `* *`    | private tutor                                             | search for a contact by name                                      | find the person quickly                                                      |
+| `* *`    | busy private tutor                                        | filter contacts using tutoring-related information                | retrieve the relevant contacts efficiently                                   |
+| `* * *`  | private tutor                                             | view a student's complete contact record                          | retrieve the information needed for communication                            |
+| `* * *`  | private tutor                                             | view a guardian's complete contact record                         | retrieve the information needed to contact the appropriate adult             |
+| `* *`    | private tutor with contacts who have identical names      | view identifying information for contacts with identical names    | select the correct person                                                    |
+| `* *`    | private tutor                                             | update outdated contact information                               | keep my records accurate                                                     |
+| `* *`    | private tutor                                             | mark a student as active or former                                | prevent old records from cluttering my daily use                             |
+| `*`      | cautious private tutor                                    | receive warnings about potential duplicate contacts               | avoid maintaining multiple records of the same person                        |
+| `* *`    | private tutor                                             | see which required contact information is missing                 | keep my records complete                                                     |
+| `* * *`  | private tutor                                             | delete a contact that was added by mistake                        | remove incorrect records from my contact list                                |
+| `* *`    | beginner private tutor                                    | receive feedback explaining why a command is invalid              | correct the command quickly                                                  |
+| `*`      | private tutor                                             | undo my most recent change                                        | recover from an accidental modification                                      |
+| `* * *`  | private tutor                                             | view all stored contacts                                          | review the people in my contact list                                         |
+| `* * *`  | private tutor                                             | identify whether a contact is a student or guardian               | understand the person's role                                                 |
+| `* *`    | private tutor                                             | search using part of a contact's name                             | find the person when I do not remember the full name                         |
+| `* *`    | private tutor                                             | mark a former student as active again                             | resume managing that contact if the student returns                          |
+| `* * *`  | private tutor                                             | retain my contact records after closing and reopening TutorRoster | avoid entering the information again                                         |
+| `* *`    | private tutor                                             | filter contacts by whether they are students or guardians         | focus on the relevant type of contact                                        |
+| `* *`    | beginner private tutor                                    | view the available commands and their usage                       | learn how to manage contacts                                                 |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+For all use cases below, the **System** is `TutorRoster` and the **Actor** is the `Tutor`, unless specified otherwise
 
-**Use case: Delete a person**
+#### UC01: Link a student to a guardian
+
+**Preconditions:** The student and guardian contacts already exist.
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. Tutor requests to list all contacts.
+2. TutorRoster displays the contacts and their indexes.
+3. Tutor requests to link a student to a guardian using their displayed indexes.
+4. TutorRoster saves the relationship and displays the student's details together with the guardian's contact information.
 
-    Use case ends.
+   Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* **3a. An index is invalid or does not refer to a contact in the displayed list.**
+
+  3a1. TutorRoster displays an error and leaves existing relationships unchanged.
+
+  Use case resumes at step 3.
+
+* **3b. The selected student contact is not a student, or the selected guardian contact is not a guardian.**
+
+  3b1. TutorRoster displays an error and leaves existing relationships unchanged.
+
+  Use case resumes at step 3.
+
+* **3c. The student is already linked to the specified guardian.**
+
+  3c1. TutorRoster informs the tutor that the relationship already exists and makes no changes.
 
   Use case ends.
 
-* 3a. The given index is invalid.
+* **3d. The student is linked to a different guardian.**
 
-    * 3a1. AddressBook shows an error message.
+  3d1. TutorRoster replaces the existing relationship with the requested guardian, saves the change, and displays the updated guardian information.
 
-      Use case resumes at step 2.
+  Use case ends.
 
-*{More to be added}*
+* **4a. TutorRoster cannot save the relationship, including a replacement relationship in extension 3d.**
+
+  4a1. TutorRoster displays an error. Existing contacts, relationships, and saved data remain unchanged.
+
+  Use case ends.
+
+#### UC02: Update a contact's details
+
+**MSS**
+
+1. Tutor requests to find a contact by name.
+2. TutorRoster displays matching contacts and their indexes.
+3. Tutor requests to edit a contact using its displayed index and supplies the new name, phone number, email address,
+   or, for a student, level or subject.
+4. TutorRoster saves the changes and displays the updated contact. Unspecified fields and existing student-guardian relationships remain unchanged.
+
+   Use case ends.
+
+**Extensions**
+
+* **1a. The search request contains no name or only whitespace.**
+
+  1a1. TutorRoster displays an error.
+
+  Use case resumes at step 1.
+
+* **2a. No contacts match the supplied name.**
+
+  2a1. TutorRoster informs the tutor that no matching contacts were found.
+
+  Use case ends.
+
+* **3a. The index is invalid or does not refer to a contact in the displayed list.**
+
+  3a1. TutorRoster displays an error and makes no changes.
+
+  Use case resumes at step 3.
+
+* **3b. No editable fields are supplied, or the supplied details are invalid.**
+
+  3b1. TutorRoster displays an error and leaves the contact unchanged.
+
+  Use case resumes at step 3.
+
+* **3c. The requested changes would remove a guardian's last contact method.**
+
+  3c1. TutorRoster explains that a guardian must have a phone number or email address and leaves the contact unchanged.
+
+  Use case resumes at step 3.
+
+* **3d. The tutor tries to set or remove a guardian's level or subject.**
+
+  3d1. TutorRoster explains that only students can have a level or subject and leaves the contact unchanged.
+
+  Use case resumes at step 3.
+
+* **3e. The updated contact would duplicate another existing contact.**
+
+  3e1. TutorRoster reports the duplicate and leaves the contact unchanged.
+
+  Use case resumes at step 3.
+
+* **3f. The requested edit would leave every stored value unchanged.**
+
+  3f1. TutorRoster reports that no changes were made. The contact, displayed list and any deletion undo remain
+  unchanged.
+
+  Use case resumes at step 3.
+
+* **4a. TutorRoster cannot save the changes.**
+
+  4a1. TutorRoster displays an error. Existing contact details, relationships, and saved data remain unchanged.
+
+  Use case ends.
+
+#### UC03: Delete a contact
+
+**MSS**
+
+1. Tutor requests to list all contacts.
+2. TutorRoster displays the contacts and their indexes.
+3. Tutor requests to delete a contact using its displayed index.
+4. TutorRoster deletes the contact and removes any student-guardian relationships involving it. Other contacts are retained.
+5. TutorRoster saves the changes, refreshes the contact list and its indexes, and reports the deletion and any relationships removed.
+
+   Use case ends.
+
+**Extensions**
+
+* **2a. The contact list is empty.**
+
+  2a1. TutorRoster informs the tutor that no contacts were found.
+
+  Use case ends.
+
+* **3a. The index is invalid or does not refer to a contact in the displayed list.**
+
+  3a1. TutorRoster displays an error. No contact or relationship is deleted.
+
+  Use case resumes at step 3.
+
+* **4a. The deleted contact is a student linked to a guardian.**
+
+  4a1. TutorRoster removes the student's relationship with the guardian. The guardian contact is retained.
+
+  Use case resumes at step 5.
+
+* **4b. The deleted contact is a guardian linked to one or more students.**
+
+  4b1. TutorRoster removes all relationships involving that guardian. The student contacts are retained and show that they have no linked guardian.
+
+  Use case resumes at step 5.
+
+* **5a. TutorRoster cannot save the deletion.**
+
+  5a1. TutorRoster reports that the deletion failed. The contact and its relationships are retained, and the displayed list and previously saved data remain unchanged.
+
+  Use case ends.
+
+#### UC04: Remove a student's guardian association
+
+**Preconditions:** The student contact already exists.
+
+**MSS**
+
+1. Tutor requests to display the relevant student contacts.
+2. TutorRoster displays the matching contacts.
+3. Tutor requests to remove one student's guardian association.
+4. TutorRoster saves the removal and displays confirmation, retaining both contacts.
+
+   Use case ends.
+
+**Extensions**
+
+* **3a. The requested target is invalid, absent from the displayed contacts or not a student.**
+
+  3a1. TutorRoster displays an error and leaves data unchanged.
+
+  Use case resumes at step 3.
+
+* **3b. The student has no guardian association.**
+
+  3b1. TutorRoster explains that there is no association to remove and makes no changes.
+
+  Use case ends.
+
+* **4a. TutorRoster cannot save the removal.**
+
+  4a1. TutorRoster displays an error, preserving existing contacts, relationships and saved data.
+
+  Use case ends.
+
+#### UC05: Add a contact
+
+**MSS**
+
+1. Tutor requests to add a contact, supplying its role, name and any optional contact or tuition details.
+2. TutorRoster validates the details and checks existing contacts for duplicates.
+3. TutorRoster saves the contact and reports success.
+
+   Use case ends.
+
+**Extensions**
+
+* **1a. A required field is missing, a supplied value is invalid, or the request contains an unsupported or repeated parameter.**
+
+  1a1. TutorRoster explains the first problem and leaves existing contacts unchanged.
+
+  Use case resumes at step 1.
+
+* **1b. The requested guardian has neither a phone number nor an email address.**
+
+  1b1. TutorRoster explains that a guardian needs at least one contact method and makes no changes.
+
+  Use case resumes at step 1.
+
+* **1c. The requested guardian has a level or subject.**
+
+  1c1. TutorRoster explains that only students can have tuition details and makes no changes.
+
+  Use case resumes at step 1.
+
+* **2a. An exact duplicate contact already exists, including among former or filtered-out contacts.**
+
+  2a1. TutorRoster reports the duplicate and does not add the contact.
+
+  Use case resumes at step 1.
+
+* **2b. The details meet a possible-duplicate warning condition but are not an exact duplicate.**
+
+  2b1. TutorRoster saves the contact and reports success with a possible-duplicate warning.
+
+  Use case ends. If the save fails, extension 3a applies.
+
+* **3a. TutorRoster cannot save the contact.**
+
+  3a1. TutorRoster reports the save failure. Existing contacts, relationships, the current view, deletion undo and saved data remain unchanged.
+
+  Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+**Environment and portability**
 
-*{More to be added}*
+1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
+2.  Should provide all features without an internet connection.
+3.  Should be distributable as a single JAR file of at most 100MB that runs without an installer.
+4.  Should not depend on a remote server or an external database management system.
+
+**Performance**
+
+The performance requirements below assume a computer with at least 4GB of RAM and a dual-core processor released within the last five years.
+
+5.  Should be able to store up to 500 contacts.
+6.  Should display the result of any command within 1 second when storing 500 contacts.
+7.  Should display the contact list within 5 seconds of launching the JAR file when storing 500 contacts.
+
+**Usability**
+
+8.  Should allow every feature to be used with the keyboard alone, without a mouse.
+9.  A user who types at least 40 words per minute and is familiar with the commands should be able to add a contact with a name, phone number, and email address within 20 seconds.
+10. Should display all user interface elements without overlapping or being cut off on screen resolutions of 1920x1080 and higher at screen scales of 100% and 125%.
+11. Should keep every feature accessible on screen resolutions of 1280x720 and higher at a screen scale of 150%, although some panels may need scrolling.
+
+**Reliability and data**
+
+12. Should retain the changes made by a successful command after the application is terminated unexpectedly, such as when its process is killed or the computer loses power.
+13. Should store data locally in a plain-text JSON file that can be read and edited in a standard text editor.
+14. Should be able to load a data file copied from another computer, including one running a different _mainstream OS_.
+
+**Privacy and scope**
+
+15. Should not make any network connections while running.
+16. Should serve a single user on a single device, and is not required to support concurrent access by multiple users or synchronisation across devices.
 
 ### Glossary
 
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Contact**: A person record in TutorRoster that represents either a student or a guardian
+* **Role**: Whether a contact is a student or a guardian. This decides which rules apply to it
+* **Contact method**: Either a phone number or an email address. Students may omit both; a guardian must have at least
+  one
+* **Student**: A learner who receives or previously received tuition from the private tutor. A student may have no
+  linked guardian
+* **Guardian**: An adult responsible for a student and whom the private tutor may contact regarding the student
+* **Primary guardian**: The guardian designated as the private tutor's first point of contact for a student
+* **Active student**: A student who is currently receiving tuition from the private tutor
+* **Former student**: A student who is no longer receiving tuition but whose contact record is retained
+* **Tutoring context**: Concise information about a student, such as the student's education level or subject
+* **Normalized value**: A value after leading and trailing spaces are removed and repeated spaces inside a name are collapsed to one. This is the form used to store contacts and check for duplicates
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -333,10 +1244,11 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
 Given below are instructions to test the app manually.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
+<box type="info" seamless>
 
-</div>
+**Note:** These instructions only provide a starting point for testers to work on;
+testers are expected to do more *exploratory* testing.
+</box>
 
 ### Launch and shutdown
 
@@ -344,39 +1256,766 @@ testers are expected to do more *exploratory* testing.
 
    1. Download the JAR file and copy it into an empty folder.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar` with the JAR's file name in quotes, for example
+      `java -jar "[CS2103T-T15-2][TutorRoster].jar"`.<br>
+      Expected: The GUI opens with an empty contact list, no selected contact and the command box focused.
+      No data file is created until the first successful data-changing command. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with the same command.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Viewing help
 
-### Deleting a person
+Prerequisites: launch TutorRoster with the main window visible and the Help window closed. On macOS, leave
+fullscreen mode before testing secondary windows. These tests do not require any saved contacts.
 
-1. Deleting a person while all persons are being shown
+1. Test case: enter `help` in the command box and press Enter.<br>
+   Expected: One Help window opens with the command reference, User Guide URL and **Copy URL** button.
+   The main window reports `Opened help window.`
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+1. Test case: close the Help window, focus the main window's command box and press F1. Close the Help window
+   again, then select **Help > Help** in the main window's menu.<br>
+   Expected: Each action opens the Help window. Closing it leaves the main window open and usable.
+
+1. Test case: scroll through the command reference and compare its entries with the
+   [UG command summary](UserGuide.md#command-summary).<br>
+   Expected: Each supported command appears once, including `check`, `unlink` and `children`.
+   The `list` format includes role, status, level and subject parameters; clearing requires `clear confirm`.
+
+1. Test case: resize the Help window to its minimum size, then scroll to the bottom and back to the top.<br>
+   Expected: The reference remains readable, long command formats wrap, and the final **Exit app** entry is
+   reachable. The User Guide URL and **Copy URL** button remain accessible at the top.
+
+1. Test case: click **Copy URL**, then paste into a plain-text editor.<br>
+   Expected: The pasted text is exactly `https://ay2627s1-cs2103t-t15-2.github.io/tp/UserGuide.html`.
+   The button copies the URL without opening a browser.
+
+1. Test case: with the Help window still open and not minimized, return to the main window and run `help` again.<br>
+   Expected: The existing Help window receives focus; no additional Help window is created. Close it and run
+   `help` once more to verify that it can be reopened. For minimized-window behavior, see the
+   [UG known issues](UserGuide.md#known-issues).
+
+1. Test case: leave the Help window open, return to the main window and run `exit`.<br>
+   Expected: Both windows close. Relaunch TutorRoster before continuing with the next section.
+
+### Adding a contact
+
+Use a fresh disposable application folder for each numbered workflow below. Run commands individually in the
+given order. For rejected commands, check that the contact list, selection, details and saved file stay unchanged;
+the failed input should remain in the command box. The [UG Add section](UserGuide.md#adding-a-contact-add)
+contains the complete field rules and ordinary error examples.
+
+1. **Contact methods and roles.** Enter `add r/student n/Ben Lim`,
+   `add r/guardian n/Mei Tan p/91234567`, and `add r/guardian n/Betsy Crowe e/betsy@example.com`.<br>
+   Expected: All three are saved and selected when added. Ben has no contact methods; each guardian has one.
+   Try `add r/guardian n/No Contact`: it is rejected because a guardian needs a contact method.
+
+1. **Duplicate rejection versus warnings.** Enter `add r/student n/Alex Tan p/91234567 e/alex@example.com`
+   twice, then `add r/student n/Alex Tan p/9123 4567 e/other@example.com`.<br>
+   Expected: The exact repeat is rejected; the formatted-phone variant is saved with a phone warning.
+   Enter `add r/student n/Ben Lim` twice: both are saved, with a general warning on the second.
+   Restart and verify all four accepted contacts remain.
+
+1. **Validation order and atomic rejection.** Add `add r/student n/Alex Tan`, then try each command below.<br>
+   Expected: Every command fails without changing Alex or the saved data.
+
+   | Command | First error to check |
+   | --- | --- |
+   | `add p/12 n/Bea Lim r/teacher` | Invalid role, before the phone error. |
+   | `add r/guardian n/Mei Tan lv/Sec 3` | Missing guardian contact method, before the student-only field error. |
+   | `add r/guardian n/Mei Tan p/91234567 lv/Sec 3` | Student-only field error. |
+   | `add r/student n/Bea Lim sub/ lv/` | Empty level, before empty subject. |
+   | `add r/student n/Bea Lim e/bea@example.c` | Final email label is too short. |
+   | `add r/student n/...` | Name needs a letter or digit. |
+
+1. **Case-insensitive prefixes and protected text.** Enter
+   `ADD R/student N/"Ravi P/e Ratio" Lv/Sec 3 SuB/"Math N/Applied"`.<br>
+   Expected: The name is `Ravi P/e Ratio`, level is `Sec 3`, and subject is `Math N/Applied`, with no phone or
+   email. Prefix-like text inside quotes keeps its capitalization and does not create additional fields.
+   Try `add r/student n/Alex N/Bob`: the mixed-case name prefixes count as a repeated `n/` parameter.
+   Restart and verify the accepted contact's spelling and student details are retained.
+
+1. **International punctuation across Add, Edit and reload.** Use a fresh folder for each row.
+
+   | Add, then edit | Expected after restart |
+   | --- | --- |
+   | `add r/student n/玛丽·居里`, then `edit 1 n/让·皮埃尔` | Name remains `让·皮埃尔`; `find 让·皮埃尔` finds it. |
+   | `add r/student n/O‘Brien`, then `edit 1 n/D‘Souza` | Name remains `D‘Souza`; `find D'Souza` using a straight apostrophe finds it. |
+
+   Repeat the apostrophe workflow with straight (`'`) and closing curly (`’`) apostrophes as controls.
+   `edit 1 n/'` must fail without modifying the saved contact.
+
+
+### Feedback wrapping and resizing
+
+Prerequisites: launch TutorRoster with the main window visible. These checks do not require saved contacts.
+
+1. Run `list` to show a short result, then enter `add n/Feedback Test` without a role.<br>
+   Expected: The missing-role error includes the Add format and example. The feedback area grows as needed,
+   up to its height limit, and wraps the text without horizontal scrolling. No contact is added.
+
+1. Reduce the main window to its minimum size while the error is displayed, then scroll through the message.<br>
+   Expected: Text rewraps, the feedback height adapts to the available space, and vertical scrolling allows
+   the full error to be read. Enlarge the window again and check that the layout readjusts.
+
+1. Scroll to the end of the error, then run `list` again.<br>
+   Expected: The feedback area shrinks for the short result, the error styling is removed, and the new message
+   starts at the top rather than retaining the previous scroll position.
+
+### Equivalent names in duplicate warnings
+
+Use an empty disposable data folder for each pair. Copy the Unicode examples to preserve their code points.
+
+1. Enter `add r/student n/Élise p/91234567 e/elise@example.com`, then
+   `add r/student n/Élise p/91234567 e/elise@example.com`.<br>
+   Expected: Both contacts are saved; the second addition includes a possible-duplicate phone warning.
+   The first name starts with precomposed U+00C9; the second starts with U+0045 U+0301.
+   `check duplicates` reports one pair. Restart and verify both original spellings and the report are retained.
+
+1. Repeat with `D'Souza` and `D’Souza`, using the same phone/email values.<br>
+   Expected: The second addition warns and the report contains one pair. Repeat with `Élise` and `Elise` as a
+   negative control: these different accents produce no duplicate warning or suggestion.
+
+### Pasted space separators
+
+Use an empty disposable data folder for each case. The gaps inside `Bea Lim`, `9333 3333`, `Sec 3` and
+`Alex Tan` below are non-breaking spaces (U+00A0); copy the commands to retain them.
+
+1. Enter `add r/student n/Bea Lim p/93333333`, then
+   `add r/student n/Bea Lim p/9333 3333 e/b@x.com`, then
+   `add r/student n/Bea Lim p/9333 3333 e/c@x.com`.<br>
+   Expected: Both later additions show the phone-match warning. `check duplicates` reports three pairs.
+   The second contact is saved as `Bea Lim` with phone `9333 3333` using ordinary spaces. Restart and verify
+   that the names, phone values and duplicate report are retained.
+
+1. Enter `add r/student n/Alex Tan lv/Sec 3 sub/Math`, then `list lv/Sec 3`, then `find Alex Tan`.<br>
+   Expected: Alex is added and both queries show that contact. `edit 1 lv/Sec 4` updates the level to `Sec 4`.
+   `delete n/Alex Tan` deletes the contact successfully.
+
+1. Paste a non-breaking space after the email in `add r/guardian n/Mei Tan e/mei@example.com`.<br>
+   Expected: Mei is added with email `mei@example.com`. Moving that space inside the email, immediately before
+   `@`, gives `Email address cannot contain whitespace.` without changing the contacts or saved data.
+
+### Deleting contacts
+
+1. Deleting contacts while all contacts are being shown
+
+   1. Prerequisites: Prepare a dataset with at least three active contacts visible after running `list`.
+      Back up `data/addressbook.json` with the app closed. Before each successful deletion test below, close
+      the app, restore that same backup, restart the app and run `list`. This ensures `delete 1 3` and
+      `delete 3 1` start from the same contacts and indexes. Restarting alone does not restore deleted contacts.
 
    1. Test case: `delete 1`<br>
       Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
 
+   1. Test case: `delete 1 3`<br>
+      Expected: The contacts originally shown at indexes 1 and 3 are deleted. The status message lists both contacts.
+
+   1. Test case: `delete 3 1`<br>
+      Expected: The same two contacts are deleted, listed in the order supplied.
+
+   1. Test case: `delete 1 1`<br>
+      Expected: No contact is deleted. The status message says each index may appear only once.
+
+   1. Test case: `delete 1 INDEX`, where `INDEX` is larger than the list size.<br>
+      Expected: No contact is deleted, including the valid contact at index 1. The status message identifies the
+      out-of-range index.
+
    1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+      Expected: No contact is deleted. The status message is
+      `The contact index must be a positive integer shown in the list.`
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Test case: `delete`<br>
+      Expected: No contact is deleted. The status message is
+      `Invalid delete command. Use: delete INDEX [INDEX...] or delete n/NAME`.
 
-1. _{ more test cases …​ }_
+   1. Test case: `delete x`, using the literal nonnumeric value `x`.<br>
+      Expected: No contact is deleted. The status message is
+      `The contact index must be a positive integer shown in the list.`
+
+   1. Test case: `delete INDEX`, replacing `INDEX` with a number larger than the displayed list size.<br>
+      Expected: No contact is deleted. The status message is `No contact exists at index INDEX.`, with `INDEX`
+      replaced by the supplied number.
+
+### Reviewing contact data
+
+1. Prerequisites: start with an empty list, then run `add r/student n/Alex Tan p/91234567 lv/Sec 3 sub/Math`
+   and `add r/guardian n/Mei Tan p/98765432`. Run `list` before using the displayed indexes below.
+
+1. Test case: `check guardians`.<br>
+   Expected: `Guardian links (1)` identifies `1: Alex Tan [Student]: no guardian linked.` Suggestions are advisory;
+   contacts and the displayed list remain unchanged.
+
+1. Test case: `link s/1 g/2`, `archive 1`, `list st/former`, then `check guardians`.<br>
+   Expected: One displayed contact is checked and `Guardian links (0)` reports `No suggestions.` The former
+   student's link remains recognized even though the guardian is hidden from the displayed view.
+
+1. Test case: on that former-student view, `edit 1 lv/NONE sub/NONE`, then `check details`.<br>
+   Expected: `1: Alex Tan [Student] [Former]: consider adding level, subject.` Restore with
+   `edit 1 lv/Sec 3 sub/Math`, then run `check details` again. Expected: `Contact and student details (0)` and
+   `No suggestions.` The contact ID, former status and guardian link are preserved.
+
+1. Test case: `check unknown` or `check guardians details`.<br>
+   Expected: `Use check [guardians|details|duplicates].` No contacts or saved data change.
+
+1. Test case: `list`, then `find Nobody`, then `check`.<br>
+   Expected: `No displayed contacts to check. Use list or find to display contacts first.`
+
+### Undoing a deletion
+
+1. Prerequisites: prepare an active student linked to a guardian and a former student linked to the same guardian.
+   Close the application and back up `data/addressbook.json`. Restore this same backup with the application closed
+   before each independent case below; restarting alone does not restore deleted contacts.
+
+1. Test case: `list`, delete the guardian by its displayed index, then `undo`.<br>
+   Expected: The guardian returns with its original ID and details. Both students regain their guardian link,
+   including the hidden former student. The active view is restored and the guardian is selected.
+   Feedback lists the guardian's name and role under `Restored 1 contact:` and reports
+   `Restored 2 student-guardian relationships.`
+
+1. Test case: `list st/former`, `delete 1`, `list`, then `undo`.<br>
+   Expected: The former student returns with its original status, details and guardian. The former-student view
+   returns and selects the restored student.
+
+1. Test case: `list`, `delete 1 2`, then `undo`.<br>
+   Expected: Both original contacts return together, including any relationship between them. A second `undo`
+   reports `No deletion is available to undo.`
+   Feedback lists both restored contacts under `Restored 2 contacts:`. Their shared relationship is counted once;
+   links from other students to the restored guardian are also included, even if those students are hidden.
+
+1. Test case: delete a contact, successfully edit a remaining contact, then `undo`.<br>
+   Expected: Undo is unavailable and the edit is retained. Repeat with an invalid or unchanged edit instead;
+   undo remains available.
+
+1. Test case: delete a contact, close and reopen the application, then `undo`.<br>
+   Expected: The deletion remains saved and undo is unavailable because history is session-only.
+
+Save failures are verified by `UndoDeletionTest` with simulated storage errors. The tests check both failure to undo
+and failed intervening changes, ensuring that live data, saved data and the previous undo opportunity are preserved.
+
+#### Confirming a complete clear
+
+Use a disposable data folder containing a guardian, an active student and a linked former student.
+
+1. Delete the active student, then run `clear`, `clear 1` and `clear confirm extra`.<br>
+   Expected: Each command warns that clearing is permanent and instructs the user to run `clear confirm`.
+   Contacts, the current filter and saved data remain unchanged. `undo` still restores the deleted student.
+1. Run `list r/guardian`, then `clear confirm`.<br>
+   Expected: All contacts are removed, including hidden students and links. Restarting shows an empty roster.
+   `undo` cannot restore this confirmed clear. Help and the UG show the required confirmation syntax.
+
+`ClearConfirmationTest` also simulates a failed confirmed-clear save and checks that contacts, the saved file
+and prior deletion undo remain intact. A confirmed clear follows the existing candidate-model save policy.
+
+### Editing a contact
+
+Run these cases in order; each step relies on the contacts and indexes left by the previous one.
+
+1. Prerequisites: start with an empty contact list, for example by running `clear confirm`. Then add three contacts:
+   `add r/student n/Bernice Yu p/99272758`, `add r/guardian n/David Li p/91031282` and
+   `add r/student n/Irfan Ibrahim e/irfan@example.com`. They are displayed as Bernice Yu, David Li, Irfan Ibrahim.
+
+1. Test case: `edit 1 n/Alex Yeoh p/91234567`<br>
+   Expected: `Updated contact: Alex Yeoh [Student].` Alex Yeoh is selected and the detail panel shows the new
+   name and phone.
+
+1. Test case: `edit 1 p/NONE`<br>
+   Expected: Alex Yeoh's phone is removed and shows `Not provided`.
+
+1. Test case: `edit 2 p/NONE` (David Li, a guardian with a phone and no email)<br>
+   Expected: No change. The status message shows
+   `A guardian must have at least one contact method: phone or email.`
+
+1. Test case: `find Alex`, then `edit 1 n/Alex Tan`<br>
+   Expected: Alex Yeoh becomes Alex Tan. The search is cleared and the list again shows guardians and active
+   students, with Alex Tan selected. (Editing a former student shows the former-student view instead.)
+
+1. Test case: `edit 1 n/Ravi s/o Kumar`, then `edit 1 n/"Ravi s/o Kumar"`<br>
+   Expected: The first is rejected with `Unknown parameter. Use: ...`, because `s/` is read as a parameter.
+   The second renames Alex Tan to `Ravi s/o Kumar`. The list is now David Li, Irfan Ibrahim, Ravi s/o Kumar.
+
+1. Test case: `add r/student n/Roy Balakrishnan p/92624417 e/irfan@example.com`, then `edit 4 n/Irfan Ibrahim`<br>
+   Expected: Roy (index 4) is renamed. The success message is followed by
+   `Warning: Another contact with the same role and name, and the same email address exists. This contact may be a
+   duplicate, but it was updated.`
+
+1. Incorrect commands to try, each leaving the contacts unchanged:
+   * `edit 1 p/91031282` (David Li's current phone) gives
+     `No changes made: the new values are the same as the current ones.` The view and deletion undo are unchanged.
+   * `edit 1` gives `At least one of n/, p/, e/, lv/, or sub/ must be provided.`
+   * `edit n/Alex` gives `Invalid edit command. Use: edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [lv/LEVEL] [sub/SUBJECT]`
+   * `edit 0 n/Alex` gives `The contact index must be a positive integer shown in the list.`
+   * `edit 999 n/Alex` gives `No contact exists at index 999.`
+   * `edit 1 r/guardian` gives `Unknown parameter. Use: edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [lv/LEVEL] [sub/SUBJECT]`
+   * `edit 1 n/A n/B` gives `Each of n/, p/, e/, lv/, and sub/ may appear only once.`
+   * `edit 1 lv/Sec 3` (a guardian) gives
+     `Only students can have a level or subject. Remove lv/ and sub/ when editing a guardian.`
+   * Editing one Irfan Ibrahim to have the other's phone and email, for example
+     `edit 2 p/92624417 e/irfan@example.com`, gives `This edit would create a duplicate contact.`
+
+### Archiving and unarchiving students
+
+Use a separate, disposable application folder with an empty contact list. Run these cases in order so the
+displayed indexes are predictable. Launch with Java 25 using `java -jar` and the JAR's file name in quotes;
+use the same folder for each restart. This setup is independent of the data used in the other manual-testing sections.
+
+1. Prepare a linked student and guardian:
+   1. `add r/student n/Ava Tan p/98765432 e/ava@example.com lv/Sec 3 sub/Math`
+   1. `add r/guardian n/Mei Tan p/91234567`
+   1. `list`, then `link s/1 g/2`.<br>
+      Expected: Ava Tan is student `1`, Mei Tan is guardian `2`, and Ava is linked to Mei.
+   1. `view 1`.<br>
+      Expected: Ava's details show her phone, email, level, subject and guardian Mei Tan.
+
+1. Archive, restart and reactivate:
+   1. `archive 1`.<br>
+      Expected: `Marked Ava Tan as a former student.` Ava disappears from the default list; Mei remains.
+      Because Ava was selected, the selection clears and the detail panel says `Select a contact to view details.`
+   1. `list st/former`, then `view 1`.<br>
+      Expected: Ava is the only displayed contact, with the `Former` badge. Her contact details, level,
+      subject and link to Mei are unchanged, even though Mei is outside this view.
+   1. `exit`, then relaunch the same JAR from the same folder. Run `list st/former`, then `view 1`.<br>
+      Expected: Ava is still former, with the same details and guardian. The saved status and relationship
+      survive restart.
+   1. `unarchive 1`.<br>
+      Expected: `Marked Ava Tan as an active student.` The former-student list becomes empty, and the selection
+      and details clear. Run `list` to see Ava at `1` and Mei at `2` again.
+   1. `exit`, then relaunch again. Run `list`, then `view 1`.<br>
+      Expected: Ava is active, and her details and guardian link are still present.
+
+1. Change status while searching:
+   1. `find Ava`, then `view 1`.
+   1. `archive 1`.<br>
+      Expected: Ava stays at index `1` in the search results, gains the `Former` badge, and remains selected.
+      Her detail panel still shows guardian Mei Tan.
+   1. `unarchive 1`.<br>
+      Expected: Ava stays selected in the same search results. The `Former` badge disappears and her other
+      details stay unchanged.
+
+1. Reject invalid targets and repeated status changes:
+   1. Run `find Tan` to show active student Ava at `1` and guardian Mei at `2`.
+   1. Try each command below. For every rejection, verify that the displayed contacts, their status, the selected
+      contact, guardian link and saved data remain unchanged.
+
+      | Command | Expected error |
+      | --- | --- |
+      | `unarchive 1` | `Ava Tan is already an active student.` |
+      | `archive 2` | `Only students can be archived.` |
+      | `unarchive 2` | `Only students can be unarchived.` |
+      | `archive 3` and `unarchive 3`, separately | `No contact exists at index 3.` |
+      | `archive 0` and `unarchive abc`, separately | `The contact index must be a positive integer shown in the list.` |
+      | `archive` | `Missing contact index. Use: archive INDEX` |
+      | `unarchive` | `Missing contact index. Use: unarchive INDEX` |
+      | `archive 1 2` | `Only one contact index is allowed. Use: archive INDEX` |
+      | `unarchive 1 2` | `Only one contact index is allowed. Use: unarchive INDEX` |
+
+   1. Run `archive 1`, then repeat `archive 1`.<br>
+      Expected: The first command succeeds and Ava remains visible because `find Tan` is still applied.
+      The second reports `Ava Tan is already a former student.` and leaves the data unchanged.
+
+### Contact-name rendering on Windows
+
+1. Use a separate disposable application folder with an empty contact list. Add students named `किरण`, `李小明` and
+   `Élise Tan`, then run `list` and select each contact with `view INDEX`.<br>
+   Expected: All three names are readable in their list cards and the details panel, without missing-glyph boxes.
+   Each card shows its Student badge.
+
+1. Run `archive INDEX` for one of these students, using its current displayed index, then run `list st/former`
+   and select the archived student with `view INDEX` using its new displayed index.<br>
+   Expected: The archived student's name remains readable in its list card and the details panel, and its card shows
+   both Student and Former badges.
+
+### Listing contacts
+
+1. Prerequisites: start with an empty contact list, for example by running `clear confirm`.
+
+1. Test case: `list`<br>
+   Expected: No contacts are shown. The status message shows `No contacts found.`
+
+1. Test case: `add r/student n/Alex Yeoh`, then `list`<br>
+   Expected: Alex Yeoh is shown. The status message shows `Listed 1 contact`.
+
+1. Test case: `add r/guardian n/Mei Tan p/98765432`, then `list`<br>
+   Expected: Both contacts are shown. The status message shows `Listed 2 contacts`.
+
+1. Test case: `list 3`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Invalid list command. Use: list [r/ROLE] [st/STATUS] [lv/LEVEL] [sub/SUBJECT]`
+
+### Filtering the contact list
+
+1. Prerequisites: start with an empty contact list, for example by running `clear confirm`. Then add four contacts:
+   `add r/guardian n/Mei Tan p/98765432`, `add r/student n/Alex Tan p/91234567 lv/Sec 3 sub/A-Math`,
+   `add r/student n/Bea Lim lv/Sec 4 sub/A-Math` and `add r/student n/Chloe Ng lv/Sec 3`. Mark Chloe Ng as former
+   with `find Chloe`, then `archive 1`.
+
+1. Test case: `list`<br>
+   Expected: Alex Tan, Bea Lim and Mei Tan are shown. The status message shows
+   `Listed 3 contacts. 1 former student hidden. Add st/all to include them.`
+
+1. Test case: `list r/student`<br>
+   Expected: Alex Tan and Bea Lim are shown. The status message shows
+   `Listed 2 contacts. 1 former student hidden. Add st/all to include them.`
+
+1. Test case: `list r/GUARDIAN`<br>
+   Expected: Mei Tan is shown. The status message shows `Listed 1 contact`.
+
+1. Test case: `list r/student st/former`<br>
+   Expected: Chloe Ng is shown. The status message shows `Listed 1 former student`.
+
+1. Test case: `list st/all`<br>
+   Expected: All four contacts are shown. The status message shows `Listed 4 contacts`.
+
+1. Test case: `list r/student st/ALL`<br>
+   Expected: Alex Tan, Bea Lim and Chloe Ng are shown. The status message shows `Listed 3 contacts`.
+
+1. Test case: `list r/guardian st/former`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Guardians cannot be former. Remove r/guardian or st/former.`
+
+1. Test case: `list r/teacher`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Invalid role. Role must be student or guardian.`
+
+1. Test case: `list r/student r/guardian`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Each of r/, st/, lv/ and sub/ may appear only once.`
+
+1. Test case: `list st/active`<br>
+   Expected: The same contacts and message as `list`.
+
+1. Test case: `list st/archived`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Invalid status. Status must be active, former, or all.`
+
+1. Test case: `list former`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Invalid list command. Did you mean: list st/former?`
+
+1. Test case: `list n/Alex`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Invalid list command. Use: list [r/ROLE] [st/STATUS] [lv/LEVEL] [sub/SUBJECT]`
+
+1. Test case: `list lv/sec3`<br>
+   Expected: Alex Tan is shown. The status message shows
+   `Listed 1 contact. 1 former student hidden. Add st/all to include them.`
+
+1. Test case: `list sub/a-math`<br>
+   Expected: Alex Tan and Bea Lim are shown. The status message shows `Listed 2 contacts`.
+
+1. Test case: `list lv/Sec 3 sub/A-Math`<br>
+   Expected: Alex Tan is shown. The status message shows `Listed 1 contact`.
+
+1. Test case: `list lv/Sec 3 st/all`<br>
+   Expected: Alex Tan and Chloe Ng are shown. The status message shows `Listed 2 contacts`.
+
+1. Test case: `list st/former lv/Sec 4`<br>
+   Expected: No contacts are shown, because the only former student, Chloe Ng, is at Sec 3. The status message shows
+   `No contacts found.`
+
+1. Test case: `list sub/Math`<br>
+   Expected: No contacts are shown, because `Math` and `A-Math` are different subjects. The status message shows
+   `No contacts found.`
+
+1. Test case: `list sub/"Art n/Design"`, then `list sub/Art n/Design`<br>
+   Expected: The first command shows no contacts and the status message `No contacts found.`, because the quoted
+   `n/` is part of the subject. The second is rejected with
+   `Invalid list command. Use: list [r/ROLE] [st/STATUS] [lv/LEVEL] [sub/SUBJECT]`, and the shown contacts are
+   unchanged.
+
+1. Test case: `list r/guardian lv/Sec 3`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Guardians have no level or subject. Remove r/guardian, or remove lv/ and sub/.`
+
+1. Test case: `list lv/`<br>
+   Expected: The shown contacts are unchanged. The status message shows
+   `Empty level parameter: Level cannot be empty when lv/ is specified.`
+
+1. Test case: `find Mei`, then `delete 1`, then `list r/guardian`<br>
+   Expected: No contacts are shown. The status message shows `No guardians found.`
+
+### Finding contacts
+
+1. Prerequisites: start with an empty contact list, for example by running `clear confirm`. Then add three contacts:
+   `add r/student n/Alex Yeoh`, `add r/student n/Charlotte Oliveiro` and `add r/guardian n/David Li p/91031282`.
+
+1. Test case: `find ale`<br>
+   Expected: Only Alex Yeoh is shown. The status message shows `Found 1 contact matching: ale.`
+
+1. Test case: `find LI`<br>
+   Expected: Charlotte Oliveiro and David Li are shown, as the search ignores case and matches part of a name.
+   The status message shows `Found 2 contacts matching: LI.`
+
+1. Test case: `find yeoh alex`<br>
+   Expected: No contacts are shown, as the words must appear in the same order as in the name. The status message
+   shows `No contacts found matching: yeoh alex`
+
+1. Test case: `list` after any of the `find` commands above<br>
+   Expected: All three contacts are shown again. The status message shows `Listed 3 contacts`.
+
+1. Test case: `find`<br>
+   Expected: The shown contacts are unchanged. The status message shows `Invalid find command. Use: find NAME`
+
+### Ordering and displaying contacts
+
+1. Prerequisites: start with an empty contact list, for example by running `clear confirm`. Then add four contacts in this
+   order: `add r/guardian n/David Li p/91031282`, `add r/student n/Charlotte Oliveiro`, `add r/student n/Alex Yeoh`
+   and `add r/guardian n/Bernice Yu p/99272758`.
+
+1. Test case: `list`<br>
+   Expected: The contacts are shown in alphabetical order: Alex Yeoh, Bernice Yu, Charlotte Oliveiro, then David Li.
+   Each card shows the name with a `Student` or `Guardian` badge, and shows `Not provided` for a
+   missing phone or email. Student cards also show `Guardian: None`, and guardian cards have no guardian line.
+
+1. Test case: `link s/1 g/2`<br>
+   Expected: The status message shows `Linked student Alex Yeoh to guardian Bernice Yu.` Alex Yeoh's card shows
+   `Guardian: Bernice Yu`.
+
+1. Test case: `edit 2 n/Bernice Tan`<br>
+   Expected: Alex Yeoh's card shows `Guardian: Bernice Tan` straight away, without running another command.
+
+1. Test case: `add r/student n/David Li`<br>
+   Expected: The new student is shown directly after the guardian David Li, as guardians come before students with
+   the same name.
+
+1. Test case: `add r/guardian n/aaron lim p/81234567`<br>
+   Expected: The new guardian `aaron lim` is shown first, as the order ignores capitalization.
+
+1. In a separate empty disposable data folder, run `add r/guardian n/Οσ p/91234567`, then
+   `add r/student n/ΟΣ` and `list`.<br>
+   Expected: The guardian is contact 1 and the student is contact 2. `view 1` selects the guardian. Run
+   `edit 2 n/ος`, then `find ΟΣ`.<br>
+   Expected: Both contacts still match, with the guardian first. Restart and run `list` again to confirm the same
+   order and original saved spellings. The names use Greek omicron and uppercase, ordinary lowercase or final sigma.
+
+1. Test case: `add r/student n/Maximilian Alexander Christopher Bartholomew Montgomery Fitzgerald`<br>
+   Expected: The whole name is visible. If it does not fit on one line, it wraps onto the next line instead of being
+   cut off.
+
+### Checking subject punctuation
+
+Subjects allow `/` and `&` without expanding the character set for levels. The shared tokenizer accepts
+quoted names and subjects in Add and Edit, and quoted subjects in List. Prefix-like text within a quoted
+subject remains literal; unknown or repeated parameters outside the quotes are still rejected. The subject
+parser removes the enclosing quotes before applying the normal length, content and reserved-value checks.
+Saved subjects use the same validation rules and contain no enclosing command-syntax quotes.
+
+In a disposable folder, add `add r/student n/Alex sub/"Combined Science (Chem/Bio)"`, then run
+`list sub/"Combined Science (Chem/Bio)"`. Edit with `edit 1 sub/English Language & Literature`, restart, and
+confirm the subject is retained. An extra `x/value` after the quoted subject must fail without changing data.
+
+### Linking students to guardians
+
+`link s/INDEX g/NONE` removes only the displayed student's guardian link. The parser creates a `LinkCommand`
+with an empty optional guardian index. The command rejects guardians and already-unlinked students, then
+clears the selected student's guardian ID while preserving all contact IDs, fields, the current filter and
+other relationships. The normal candidate-model save flow applies, so a failed save preserves the original
+relationship. The result requests selection of the student, but selection clears if the student no longer
+matches the current filter, such as after `children g/INDEX`. A successful unlink invalidates deletion undo,
+as other successful non-deletion changes do.
+
+To test unlinking, link two students to one guardian, display just one student with `find`, and run
+`link s/1 g/NONE`. That student's details should show `Guardian: None`; the guardian and the other student's
+link should remain. Restart and confirm the saved result. Repeat with a locked data file to check that a
+failed unlink preserves the relationship and the displayed list.
+
+Use a disposable copy of TutorRoster in a separate folder so these tests do not change real contact data.
+Run the following cases in order.
+
+1. Prerequisites: run `clear confirm`, then add `add r/student n/Alex Tan`, `add r/student n/Bea Tan`,
+   `add r/guardian n/Mei Tan p/98765432` and `add r/guardian n/Sarah Lim e/sarah@example.com`.
+   Run `list`. The displayed indexes are Alex 1, Bea 2, Mei 3 and Sarah 4.
+
+1. Test case: `link s/01 g/03`<br>
+   Expected: `Linked student Alex Tan to guardian Mei Tan.` Alex is selected. His card shows `Guardian: Mei Tan`,
+   and the detail panel shows Mei's name, `Guardian phone: 98765432` and `Guardian email: Not provided`.
+   The command box is empty and retains focus. The relationship is saved automatically.
+
+1. Test case: `link g/3 s/1`<br>
+   Expected: `Alex Tan is already linked to Mei Tan.` Contacts, links, selection, details and saved data are unchanged.
+   The failed command remains in the command box, which retains focus.
+
+1. Test case: `link g/4 s/1`<br>
+   Expected: `Changed Alex Tan’s guardian from Mei Tan to Sarah Lim.` Alex remains selected, with Sarah's name,
+   `Guardian phone: Not provided` and `Guardian email: sarah@example.com` in the detail panel.
+
+1. Test case: `find Tan`, then `link s/1 g/3`<br>
+   Expected: The displayed contacts are Alex, Bea and Mei. Alex's guardian changes from Sarah to Mei even though
+   Sarah is outside the search results. Only those three contacts remain displayed after linking.
+
+1. Test case: `find Alex`<br>
+   Expected: Alex's card and detail panel still show Mei's details even though Mei is hidden by the search.
+   `link s/1 g/3` now reports `No contact exists at guardian index 3.` without changing the existing link. Run `list`.
+
+1. Test case: `link s/2 g/3`, then close and restart TutorRoster.<br>
+   Expected: Alex and Bea both retain their links to Mei. All four contacts reload in alphabetical order.
+   No contact is initially selected. Selecting either student shows Mei's current details.
+
+1. Test case: `edit 3 n/Zara Tan p/NONE e/zara@example.com`<br>
+   Expected: The edited guardian is selected and moves to index 4. Select Alex, then Bea; each shows
+   `Guardian: Zara Tan`, `Guardian phone: Not provided` and `Guardian email: zara@example.com`.
+   Restart and check that both links and the updated guardian details remain.
+
+1. Test case: `delete 4`<br>
+   Expected: Zara is deleted and two relationships are reported removed. Alex and Bea remain with `Guardian: None`.
+   Restart and check that the guardian and both links remain absent.
+
+1. Incorrect commands to try while all contacts are displayed:
+   * `link s/1` or `link s/1 g/3 extra`: `Invalid link command. Use: link s/STUDENT_INDEX g/GUARDIAN_INDEX or link s/STUDENT_INDEX g/NONE`
+   * `link s/1 g/3 x/4`: `Unknown parameter. Use: link s/STUDENT_INDEX g/GUARDIAN_INDEX or link s/STUDENT_INDEX g/NONE`
+   * `link s/1 s/2 g/3`: `Each of s/ and g/ may appear only once.`
+   * `link s/0 g/3`: `Student index must be a positive integer shown in the list.`
+   * `link s/1 g/-1`: `Guardian value must be a positive integer shown in the list, or NONE to remove the guardian link.`
+   * `link s/999 g/3`: `No contact exists at student index 999.`
+   * `link s/3 g/3`: `Student index must refer to a student.`
+   * `link s/1 g/2`: `Guardian index must refer to a guardian.`
+   Expected for every failure: contacts, relationships, selection, details and saved data remain unchanged.
+
+1. Same-name students: run `clear confirm`, add `add r/student n/Alex Tan` twice, then add
+   `add r/guardian n/Mei Tan p/98765432`. Run `link s/2 g/3`.<br>
+   Expected: Only the second Alex is linked and selected. The first Alex still shows `Guardian: None`.
+   Restart and check that both students are present with their separate links. Run `link s/1 g/3`, then
+   `edit 2 n/Bea Tan`. Only the second student is renamed and both retain Mei as guardian. Rename Bea back to Alex,
+   then `delete 2`; only the second student is removed. Restart and check that the first Alex and Mei remain linked.
+
+### Removing links and finding a guardian's students
+
+Use a fresh, disposable application folder. Run these cases in order.
+
+1. Add `add r/student n/Alex Tan lv/Sec 3 sub/Math`, `add r/student n/Bea Tan` and
+   `add r/guardian n/Mei Tan p/98765432`. Run `list`: Alex is 1, Bea is 2 and Mei is 3.
+1. Run `link s/1 g/3`, `link s/2 g/3`, then `archive 2`.
+   Expected: Bea becomes former and disappears from the default view; both saved links remain.
+1. Run `list r/guardian`, then `children g/1`.
+   Expected: Alex and Bea are shown as students 1 and 2, with Bea marked former. The result is
+   `Listed 2 students linked to Mei Tan, including former students.`
+1. Run `unlink s/2`.
+   Expected: `Removed the guardian link from Bea Tan. Both contacts were kept.` Bea disappears from the
+   family results because she is no longer linked to Mei; Alex remains. Selection clears if Bea was selected.
+1. Run `list st/former`, then `view 1`.
+   Expected: Bea is still former and has no guardian. Run `unlink s/1` again:
+   `Bea Tan has no guardian link to remove.` No data changes.
+1. Restart, run `list st/all`, then inspect Alex, Bea and Mei.
+   Expected: all three contacts remain. Alex retains Mei; Bea has no guardian. Alex's level and subject remain.
+1. Run `list r/guardian`, then `children g/1`.
+   Expected: only Alex is listed and the result uses `1 student`. Run `unlink s/1`, then
+   `list r/guardian` and `children g/1` again.
+   Expected: an empty list and `No students are linked to Mei Tan. Use list to return to contacts.`
+1. Run `list st/all`, then separately try `unlink s/3`, `children g/1`, `unlink s/99`,
+   `children g/99`, `unlink s/1 s/2`, `children g/3 extra` and `unlink s/0`.
+   Expected: errors describe the invalid role, missing target or input format. No data or view changes.
+1. To check undo interaction, relink Alex to Mei, add an unrelated student, and delete only that unrelated
+   student. Run `list r/guardian`, `children g/1`, then `undo`.
+   Expected: the deleted student is restored. Repeat the unrelated deletion, then successfully unlink Alex:
+   `undo` now reports `No deletion is available to undo.`
+
+The automated tests also simulate unlink save failures and verify that the saved file, live relationships,
+filter and deletion undo remain unchanged.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+Use a disposable application folder and keep a backup of its data file before testing failures.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Concurrent copies: launch two copies of the same JAR from an empty disposable application folder before
+   adding contacts. Add `Alice` in the first copy, then try adding `Bob` in the second.<br>
+   Expected: The second command reports a save conflict and asks for other copies to be closed and TutorRoster
+   restarted. Its live list stays empty; the saved file still contains Alice. Close both copies, restart,
+   and add Bob again: both contacts now remain saved. `ConcurrentAppProcessTest` exercises two real JVMs and,
+   on Windows, submits these commands through two actual JavaFX windows.
 
-1. _{ more test cases …​ }_
+1. Missing data file: launch TutorRoster in a folder without `data/addressbook.json`.<br>
+   Expected: An empty list, no selected contact and no load error. `list` does not create the file.
+   Add a student and a guardian, link them, then restart. Both contacts and their relationship reload.
+
+1. Invalid data file: close TutorRoster, replace `data/addressbook.json` with `{invalid json}`, and restart.<br>
+   Expected: An empty list and `Data changes are disabled because the data file could not be loaded.
+   Fix the file and restart TutorRoster.` followed by `Reason: Invalid JSON:` and the parsing error.
+   Valid `add`, `link`, `unlink`, `edit`, `delete` and `clear` commands are blocked with the same explanation.
+   `list` still works, and the invalid file remains unchanged. Restore the backup and restart to recover the contacts.
+
+1. Empty data file: close TutorRoster, back up the test data, replace the data file with a zero-byte file,
+   and restart. Repeat with a file containing only spaces, tabs and newlines.<br>
+   Expected: Changes remain disabled. The reason identifies the empty or whitespace-only file and explains
+   how to restore a backup or delete the empty file and restart for a fresh contact list. The file remains
+   unchanged. Repairing or removing the file without restarting does not re-enable changes in that session.
+
+1. Invalid guardian fields: close the app and add a non-empty `level` or `subject` to a guardian in the
+   disposable test file. Restart.<br>
+   Expected: The startup warning explains `Only a student can have a level or subject.` A blocked change
+   shows the same warning, and the original file is preserved. Restore the backup and restart.
+
+1. Invalid relationship: close the app and change a student's `guardianId` in the test file to the ID of a student,
+   or to a UUID that is absent from the contact records. Restart.<br>
+   Expected: The same load-failure behavior as above, with no contacts partially loaded or invalid file overwritten.
+   Restore the backup before continuing.
+
+1. Save failure on Windows: start with two students and two guardians in the disposable folder. Link one student,
+   select that student, and use `find` to display both that student and a different guardian. Keep the app open and
+   lock `data/addressbook.json` against replacement, for example by opening it in a separate PowerShell session with
+   `File.Open` using `FileMode.Open`, `FileAccess.Read` and `FileShare.None`. Attempt to link to the other guardian.<br>
+   Expected: `Changes could not be saved. No changes were made.` The old guardian, filtered list, selected contact
+   and detail panel remain unchanged. Release the lock by disposing the file stream; the file is unchanged and
+   restarting restores the old link. Retrying the command after releasing the lock succeeds.
+
+   Automated `LinkPersistenceTest` and `LinkUiTest` also exercise failed saves using a storage implementation that
+   throws `IOException`, without requiring file-permission changes.
+
+--------------------------------------------------------------------------------------------------------------------
+
+## **Appendix: Effort**
+
+This appendix compares TutorRoster with AddressBook-Level3 (AB3), the code base it started from.
+
+### Difficulty level
+
+AB3 manages one entity type, a person, with independent fields and no links between records. TutorRoster keeps
+two roles, students and guardians, with different rules. A student may have no phone number or email address, but a
+guardian must have at least one. Only students have a level, a subject and an active or former status. A student
+can be linked to one guardian, and one guardian can have several students. Every command that changes data must keep
+those links valid, so most features had to consider their effect on related contacts as well as on the target.
+
+### Challenges faced
+
+* **Keeping links consistent.** Names and display indexes change after edits, sorting and filtering, so links refer
+  to a permanent `ContactId` instead. Edit, archive and relinking keep both IDs. Deleting a guardian clears the link
+  on all of its students, including former students hidden by the current filter, and `undo` restores those links.
+  Loading rejects duplicate IDs and links that point to a missing contact or to a non-guardian.
+* **Never losing data on a failed save.** AB3 updates the live model and then saves. TutorRoster applies each
+  data-changing command to a candidate copy, saves it, and only then publishes it, so a save failure leaves both the
+  displayed data and the file unchanged. Undo follows the same rule and keeps its history until a restore saves.
+* **Same-name contacts.** Two students can share a name and have no contact details, so their fields are equal.
+  `UniquePersonList` therefore finds update and removal targets by ID, not by field equality.
+* **Forgiving but strict input.** Names may contain `/`, which collides with parameter prefixes, so names and
+  subjects can be quoted and the error messages suggest quoting when a value looks like a parameter. Pasted Unicode
+  spaces and equivalent names are normalised for duplicate warnings, while the data file is validated strictly so
+  that hand edits cannot bypass the rules enforced by commands.
+
+### Effort required
+
+* **New commands:** `archive`, `unarchive`, `view`, `link`, `unlink`, `children`, `undo` and `check`.
+* **Reworked AB3 commands:** `add` and `edit` with role-specific fields, quoting and duplicate warnings; `list` with
+  role, status, level and subject filters; `find` with substring matching; `delete` with bulk and name-based targets;
+  and `help` with a command reference.
+* **Model, storage and UI:** contact IDs and guardian references, a fixed display order, JSON validation of the new
+  fields and links, and a detail panel that shows a student's linked guardian, even when the guardian is outside
+  the current list.
+* **Size and testing:** at v1.6, production code has grown from about 4,700 lines in AB3 to about 9,100 lines, and
+  test code from about 4,600 to about 17,000 lines, with about 970 JUnit tests. The tests cover parsing errors,
+  link and deletion rules, failed saves, data file loading and UI selection.
+
+### Achievements
+
+A tutor can record a student and their guardian, link them, and move from either contact to the other in a few
+commands. Former students stay out of the default list without being deleted, `check` reports missing or doubtful
+contact details, and error messages name the field that is wrong and show the expected format. A failed save never loses
+data, and an invalid data file is reported instead of being silently overwritten.
+
+### Reuse
+
+TutorRoster reuses and adapts the AB3 code, documentation structure and UML diagrams, as stated in the
+[Acknowledgements](#acknowledgements). The other projects listed there are used as libraries and tools, not copied
+into the code base.

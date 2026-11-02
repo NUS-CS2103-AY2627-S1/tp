@@ -1,17 +1,14 @@
 package seedu.address.model.util;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Role;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
@@ -19,24 +16,24 @@ import seedu.address.model.tag.Tag;
 public class SampleDataUtil {
     public static Person[] getSamplePersons() {
         return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+            new Person(new Name("Alex Yeoh"), Optional.of(new Phone("87438807")),
+                Optional.of(new Email("alexyeoh@example.com")),
+                Role.STUDENT),
+            new Person(new Name("Bernice Yu"), Optional.of(new Phone("99272758")),
+                Optional.of(new Email("berniceyu@example.com")),
+                Role.GUARDIAN),
+            new Person(new Name("Charlotte Oliveiro"), Optional.of(new Phone("93210283")),
+                Optional.of(new Email("charlotte@example.com")),
+                Role.STUDENT),
+            new Person(new Name("David Li"), Optional.of(new Phone("91031282")),
+                Optional.of(new Email("lidavid@example.com")),
+                Role.GUARDIAN),
+            new Person(new Name("Irfan Ibrahim"), Optional.of(new Phone("92492021")),
+                Optional.of(new Email("irfan@example.com")),
+                Role.STUDENT),
+            new Person(new Name("Roy Balakrishnan"), Optional.of(new Phone("92624417")),
+                Optional.of(new Email("royb@example.com")),
+                Role.GUARDIAN)
         };
     }
 
@@ -46,15 +43,6 @@ public class SampleDataUtil {
             sampleAb.addPerson(samplePerson);
         }
         return sampleAb;
-    }
-
-    /**
-     * Returns a tag set containing the list of strings given.
-     */
-    public static Set<Tag> getTagSet(String... strings) {
-        return Arrays.stream(strings)
-                .map(Tag::new)
-                .collect(Collectors.toSet());
     }
 
 }

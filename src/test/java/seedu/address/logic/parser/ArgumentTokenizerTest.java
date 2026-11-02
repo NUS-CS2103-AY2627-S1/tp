@@ -4,15 +4,61 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 public class ArgumentTokenizerTest {
 
     private final Prefix unknownPrefix = new Prefix("--u");
+    private final Prefix nSlash = new Prefix("n/");
     private final Prefix pSlash = new Prefix("p/");
+    private final Prefix eSlash = new Prefix("e/");
     private final Prefix dashT = new Prefix("-t");
     private final Prefix hatQ = new Prefix("^Q");
+
+    @Test
+    public void toLowerCasePrefixes_knownPrefixes_lowercasesOnlyThosePrefixes() throws Exception {
+        List<Prefix> prefixes = List.of(nSlash, pSlash);
+        // EP: known prefixes in any case become lowercase; values and unknown prefixes keep their case
+        assertEquals("1 n/Alex Tan p/9123 E/x",
+                ArgumentTokenizer.toLowerCasePrefixes("1 N/Alex Tan P/9123 E/x", List.of(nSlash), prefixes));
+        // EP: text inside a quoted value is unchanged
+        assertEquals("n/\"Ravi P/e\" p/1",
+                ArgumentTokenizer.toLowerCasePrefixes("N/\"Ravi P/e\" P/1", List.of(nSlash), prefixes));
+        // EP: a slash later in a word is not a prefix
+        assertEquals("n/AC/DC", ArgumentTokenizer.toLowerCasePrefixes("N/AC/DC", List.of(nSlash), prefixes));
+        // EP: an unclosed quoted value is rejected
+        assertThrows(ParseException.class, ArgumentTokenizer.MESSAGE_UNCLOSED_QUOTED_VALUE, () ->
+                ArgumentTokenizer.toLowerCasePrefixes("N/\"Ravi", List.of(nSlash), prefixes));
+    }
+
+    @Test
+    public void tokenize_whitespaceSeparators_preservesInternalWhitespace() {
+        for (String separator : List.of(" ", "\t", "\n", "\r\n", "\u2003", " \t ")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenize(
+                    "n/Alex" + separator + "p/123\t456" + separator + "e/alex@example.com",
+                    nSlash, pSlash, eSlash);
+            assertArgumentPresent(arguments, nSlash, "Alex");
+            assertArgumentPresent(arguments, pSlash, "123\t456");
+            assertArgumentPresent(arguments, eSlash, "alex@example.com");
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_whitespaceSeparators_keepsQuotedPrefixesLiteral() throws Exception {
+        for (String separator : List.of(" ", "\t", "\n", "\r\n", "\u2003", " \t ")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedValue(
+                    "n/" + separator + "\"Alex\tp/example\"" + separator + "p/123\t456",
+                    nSlash, nSlash, pSlash);
+            assertArgumentPresent(arguments, nSlash, "\"Alex\tp/example\"");
+            assertArgumentPresent(arguments, pSlash, "123\t456");
+        }
+    }
 
     @Test
     public void tokenize_emptyArgsString_noValues() {
@@ -134,6 +180,92 @@ public class ArgumentTokenizerTest {
         assertArgumentAbsent(argMultimap, pSlash);
         assertArgumentPresent(argMultimap, dashT, "not joined^Qjoined");
         assertArgumentAbsent(argMultimap, hatQ);
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_prefixesInsideQuotedName_treatedAsNameText() throws Exception {
+        String argsString = " n/\"Randy p/e ratio e/example\" p/123456 e/randy@example.com";
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithQuotedValue(
+                argsString, nSlash, nSlash, pSlash, eSlash);
+
+        assertPreambleEmpty(argMultimap);
+        assertArgumentPresent(argMultimap, nSlash, "\"Randy p/e ratio e/example\"");
+        assertArgumentPresent(argMultimap, pSlash, "123456");
+        assertArgumentPresent(argMultimap, eSlash, "randy@example.com");
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_unquotedNameWithSlash_tokenizesNormally() throws Exception {
+        String argsString = " n/Ravi s/o Kumar p/123456";
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithQuotedValue(
+                argsString, nSlash, nSlash, pSlash);
+
+        assertArgumentPresent(argMultimap, nSlash, "Ravi s/o Kumar");
+        assertArgumentPresent(argMultimap, pSlash, "123456");
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_spacesBeforeOpeningQuote_recognizesQuotedName() throws Exception {
+        String argsString = " n/   \"Randy p/e ratio\" p/123456";
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithQuotedValue(
+                argsString, nSlash, nSlash, pSlash);
+
+        assertArgumentPresent(argMultimap, nSlash, "\"Randy p/e ratio\"");
+        assertArgumentPresent(argMultimap, pSlash, "123456");
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_unclosedQuotedName_throwsParseException() {
+        assertThrows(ParseException.class, ArgumentTokenizer.MESSAGE_UNCLOSED_QUOTED_VALUE, ()
+                -> ArgumentTokenizer.tokenizeWithQuotedValue(
+                    " n/\"Randy p/e ratio p/123456", nSlash, nSlash, pSlash));
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_emptyNameAtEnd_returnsEmptyName() throws Exception {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithQuotedValue(
+                " n/", nSlash, nSlash, pSlash);
+
+        assertPreambleEmpty(argMultimap);
+        assertArgumentPresent(argMultimap, nSlash, "");
+        assertArgumentAbsent(argMultimap, pSlash);
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_adjacentTextAfterClosingQuote_remainsInNameValue() throws Exception {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedValue(
+                " n/\"Alex\"p/123 p/456", nSlash, nSlash, pSlash);
+
+        assertArgumentPresent(arguments, nSlash, "\"Alex\"p/123");
+        assertArgumentPresent(arguments, pSlash, "456");
+    }
+
+    @Test
+    public void tokenizeWithQuotedValue_unsupportedQuotedPrefix_doesNotHideSupportedPrefixes() throws Exception {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedValue(
+                " n/\"Alex p/123", nSlash, pSlash);
+
+        assertPreamblePresent(arguments, "n/\"Alex");
+        assertArgumentPresent(arguments, pSlash, "123");
+    }
+
+    @Test
+    public void tokenizeWithQuotedValues_multipleQuotedFields_keepsPrefixesLiteral() throws Exception {
+        for (String arguments : List.of(" n/\"Alex p/Example\" e/\"Science p/Applied\" p/123",
+                " e/\"Science p/Applied\" n/\"Alex p/Example\" p/123")) {
+            ArgumentMultimap values = ArgumentTokenizer.tokenizeWithQuotedValues(
+                    arguments, List.of(nSlash, eSlash), nSlash, eSlash, pSlash);
+
+            assertArgumentPresent(values, nSlash, "\"Alex p/Example\"");
+            assertArgumentPresent(values, eSlash, "\"Science p/Applied\"");
+            assertArgumentPresent(values, pSlash, "123");
+        }
+        assertThrows(ParseException.class, ArgumentTokenizer.MESSAGE_UNCLOSED_QUOTED_VALUE, () ->
+                ArgumentTokenizer.tokenizeWithQuotedValues(" n/\"Alex\" e/\"Science p/Applied",
+                        List.of(nSlash, eSlash), nSlash, eSlash, pSlash));
     }
 
     @Test

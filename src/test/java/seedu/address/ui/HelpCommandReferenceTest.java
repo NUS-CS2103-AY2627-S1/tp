@@ -1,0 +1,67 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.CheckCommand;
+import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.LinkCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.parser.AddressBookParser;
+
+public class HelpCommandReferenceTest {
+
+    @Test
+    public void getCommandFormats_currentCommands_listsEachCommandOnce() {
+        List<String> formats = HelpWindow.getCommandFormats();
+        Set<String> commandWords = formats.stream().map(format -> format.split(" ", 2)[0])
+                .collect(Collectors.toSet());
+
+        assertEquals(Set.of("add", "edit", "delete", "undo", "view", "find", "link", "unlink", "children", "list",
+                "archive",
+                "unarchive", "clear", "check", "help", "exit"), commandWords);
+        assertEquals(commandWords.size(), formats.size());
+    }
+
+    @Test
+    public void getCommandFormats_deleteAndUndo_describesSupportedSyntax() throws Exception {
+        List<String> formats = HelpWindow.getCommandFormats();
+        assertTrue(formats.contains("delete INDEX [INDEX...] or delete n/NAME"));
+        assertTrue(formats.contains("undo"));
+
+        AddressBookParser parser = new AddressBookParser();
+        for (String example : List.of("delete 1", "delete 1 3 5", "delete n/Alex Tan")) {
+            assertTrue(parser.parseCommand(example) instanceof DeleteCommand);
+        }
+        assertTrue(parser.parseCommand("undo") instanceof UndoCommand);
+    }
+
+    @Test
+    public void getCommandFormats_link_includesUnlinkSyntax() throws Exception {
+        assertTrue(HelpWindow.getCommandFormats().contains(LinkCommand.COMMAND_FORMAT));
+        assertEquals(LinkCommand.unlink(seedu.address.commons.core.index.Index.fromOneBased(1)),
+                new AddressBookParser().parseCommand("link s/1 g/NONE"));
+    }
+
+    @Test
+    public void getCommandFormats_check_describesSupportedSections() throws Exception {
+        assertTrue(HelpWindow.getCommandFormats().contains(CheckCommand.COMMAND_FORMAT));
+        AddressBookParser parser = new AddressBookParser();
+        for (String example : List.of("check", "check guardians", "check details", "check duplicates")) {
+            assertTrue(parser.parseCommand(example) instanceof CheckCommand);
+        }
+    }
+
+    @Test
+    public void getCommandFormats_clear_requiresConfirmation() throws Exception {
+        assertTrue(HelpWindow.getCommandFormats().contains("clear confirm"));
+        assertTrue(new AddressBookParser().parseCommand("clear confirm") instanceof ClearCommand);
+    }
+}

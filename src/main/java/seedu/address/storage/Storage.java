@@ -54,4 +54,14 @@ public interface Storage {
      */
     void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
 
+    /**
+     * Returns true if the data file failed to load in this session.
+     */
+    boolean isDataFileLoadFailed();
+
+    /**
+     * Returns the retained explanation for a data-file load failure, or empty if none has occurred.
+     */
+    Optional<String> getDataFileLoadFailureReason();
+
 }

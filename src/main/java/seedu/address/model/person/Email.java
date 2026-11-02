@@ -9,28 +9,39 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Email {
 
-    private static final String SPECIAL_CHARACTERS = "+_.-";
-    public static final String MESSAGE_CONSTRAINTS = "Emails should be of the format local-part@domain "
-            + "and adhere to the following constraints:\n"
-            + "1. The local-part should only contain alphanumeric characters and these special characters, excluding "
-            + "the parentheses, (" + SPECIAL_CHARACTERS + "). The local-part may not start or end with any special "
-            + "characters.\n"
-            + "2. The local-part is followed by an '@' and then a domain name. The domain name is made up of domain "
-            + "labels separated by periods.\n"
-            + "The domain name must:\n"
-            + "    - end with a domain label at least 2 characters long\n"
-            + "    - have each domain label start and end with alphanumeric characters\n"
-            + "    - have each domain label consist of alphanumeric characters, separated only by hyphens, if any.";
-    // alphanumeric and special characters
-    private static final String ALPHANUMERIC_NO_UNDERSCORE = "[^\\W_]+"; // alphanumeric characters except underscore
-    private static final String LOCAL_PART_REGEX = "^" + ALPHANUMERIC_NO_UNDERSCORE + "([" + SPECIAL_CHARACTERS + "]"
-            + ALPHANUMERIC_NO_UNDERSCORE + ")*";
-    private static final String DOMAIN_PART_REGEX = ALPHANUMERIC_NO_UNDERSCORE
-            + "(-" + ALPHANUMERIC_NO_UNDERSCORE + ")*";
-    private static final String DOMAIN_LAST_PART_REGEX = "(" + DOMAIN_PART_REGEX + "){2,}$"; // At least two chars
-    private static final String DOMAIN_REGEX = "(" + DOMAIN_PART_REGEX + "\\.)*" + DOMAIN_LAST_PART_REGEX;
-    public static final String VALIDATION_REGEX = LOCAL_PART_REGEX + "@" + DOMAIN_REGEX;
-
+    public static final int MAX_LENGTH = 254;
+    public static final int MAX_LOCAL_PART_LENGTH = 64;
+    public static final int MAX_DOMAIN_LABEL_LENGTH = 63;
+    public static final String MESSAGE_CONSTRAINTS =
+            "Invalid email address: Email must contain one @ symbol, "
+            + "a non-empty local part, and at least two non-empty domain labels "
+            + "separated by periods, without spaces. Email cannot exceed " + MAX_LENGTH + " characters; "
+            + "the local part cannot exceed " + MAX_LOCAL_PART_LENGTH + " characters, and each domain label "
+            + "cannot exceed " + MAX_DOMAIN_LABEL_LENGTH + " characters.";
+    public static final String MESSAGE_TOO_LONG =
+            "Email address cannot exceed " + MAX_LENGTH + " characters.";
+    public static final String MESSAGE_LOCAL_PART_TOO_LONG =
+            "Email local part cannot exceed " + MAX_LOCAL_PART_LENGTH + " characters.";
+    public static final String MESSAGE_DOMAIN_LABEL_TOO_LONG =
+            "Email domain labels cannot exceed " + MAX_DOMAIN_LABEL_LENGTH + " characters.";
+    public static final String MESSAGE_EMPTY =
+            "Empty email parameter: Email cannot be empty when e/ is specified.";
+    public static final String MESSAGE_LOCAL_PART_EMPTY = "Email local part cannot be empty.";
+    public static final String MESSAGE_DOMAIN_EMPTY = "Email domain cannot be empty.";
+    public static final String MESSAGE_WHITESPACE = "Email address cannot contain whitespace.";
+    public static final String MESSAGE_DOMAIN_LABEL_EMPTY = "Email domain labels cannot be empty.";
+    public static final String MESSAGE_FINAL_LABEL_TOO_SHORT =
+            "Email's final domain label must contain at least two characters.";
+    public static final String MESSAGE_LOCAL_CHARACTERS =
+            "Email local part contains unsupported characters. Use ASCII letters (A-Z, a-z), digits (0-9), "
+                    + "and these symbols: ! # $ % & ' * + - / = ? ^ _ ` { | } ~ .";
+    public static final String MESSAGE_LOCAL_PUNCTUATION =
+            "Email local part cannot start or end with a period, or contain consecutive periods.";
+    public static final String MESSAGE_DOMAIN_CHARACTERS =
+            "Email domain labels contain unsupported characters. Use ASCII letters (A-Z, a-z), digits (0-9), "
+                    + "and hyphens only.";
+    public static final String MESSAGE_DOMAIN_PUNCTUATION =
+            "Email domain labels cannot start or end with a hyphen.";
     public final String value;
 
     /**
@@ -48,7 +59,139 @@ public class Email {
      * Returns true if a given string is a valid email.
      */
     public static boolean isValidEmail(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return getValidationErrorMessage(test) == null;
+    }
+
+    /**
+     * Returns a specific validation error for {@code test}, or {@code null} if it is valid.
+     */
+    public static String getValidationErrorMessage(String test) {
+        requireNonNull(test);
+        String structureError = getAddressStructureError(test);
+        if (structureError != null) {
+            return structureError;
+        }
+        String[] addressParts = test.split("@", -1);
+        return getAddressPartsError(addressParts[0], addressParts[1]);
+    }
+
+    private static String getAddressStructureError(String address) {
+        if (address.length() > MAX_LENGTH) {
+            return MESSAGE_TOO_LONG;
+        }
+        if (address.chars().filter(character -> character == '@').count() != 1) {
+            return "Email address must contain exactly one @ symbol.";
+        }
+        return null;
+    }
+
+    /**
+     * Returns the first error in the local part or domain, or {@code null} if both are valid.
+     * Presence, local-part length and whitespace are checked before character rules.
+     */
+    private static String getAddressPartsError(String localPart, String domain) {
+        if (localPart.isEmpty()) {
+            return MESSAGE_LOCAL_PART_EMPTY;
+        }
+        if (localPart.length() > MAX_LOCAL_PART_LENGTH) {
+            return MESSAGE_LOCAL_PART_TOO_LONG;
+        }
+        if (domain.isEmpty()) {
+            return MESSAGE_DOMAIN_EMPTY;
+        }
+        if (containsWhitespace(localPart) || containsWhitespace(domain)) {
+            return MESSAGE_WHITESPACE;
+        }
+        String localPartError = getLocalPartError(localPart);
+        return localPartError != null ? localPartError : getDomainError(domain);
+    }
+
+    private static boolean containsWhitespace(String value) {
+        return value.chars().anyMatch(Character::isWhitespace);
+    }
+
+    private static String getLocalPartError(String localPart) {
+        if (hasUnsupportedCharacters(localPart, ".!#$%&'*+-/=?^_`{|}~")) {
+            return MESSAGE_LOCAL_CHARACTERS;
+        }
+        if (!isValidLocalPart(localPart)) {
+            return MESSAGE_LOCAL_PUNCTUATION;
+        }
+        return null;
+    }
+
+    /**
+     * Returns the first domain error, or {@code null} if the domain is valid.
+     * Every label's length is checked before validating label count and contents in order.
+     */
+    private static String getDomainError(String domain) {
+        String[] domainLabels = domain.split("\\.", -1);
+        for (String label : domainLabels) {
+            if (label.length() > MAX_DOMAIN_LABEL_LENGTH) {
+                return MESSAGE_DOMAIN_LABEL_TOO_LONG;
+            }
+        }
+        if (domainLabels.length < 2) {
+            return "Email domain must contain at least two labels separated by a period.";
+        }
+        for (int i = 0; i < domainLabels.length - 1; i++) {
+            if (domainLabels[i].isEmpty()) {
+                return MESSAGE_DOMAIN_LABEL_EMPTY;
+            }
+            String labelError = getDomainLabelError(domainLabels[i]);
+            if (labelError != null) {
+                return labelError;
+            }
+        }
+        return getFinalDomainLabelError(domainLabels[domainLabels.length - 1]);
+    }
+
+    private static String getFinalDomainLabelError(String finalLabel) {
+        if (finalLabel.isEmpty()) {
+            return MESSAGE_DOMAIN_LABEL_EMPTY;
+        }
+        if (finalLabel.length() < 2) {
+            return MESSAGE_FINAL_LABEL_TOO_SHORT;
+        }
+        return getDomainLabelError(finalLabel);
+    }
+
+    /**
+     * Checks period placement after the local part's characters have been validated.
+     * Other supported punctuation can appear consecutively and at either end.
+     */
+    private static boolean isValidLocalPart(String localPart) {
+        return !localPart.startsWith(".") && !localPart.endsWith(".") && !localPart.contains("..");
+    }
+
+    private static String getDomainLabelError(String label) {
+        if (hasUnsupportedCharacters(label, "-")) {
+            return MESSAGE_DOMAIN_CHARACTERS;
+        }
+        return label.startsWith("-") || label.endsWith("-") ? MESSAGE_DOMAIN_PUNCTUATION : null;
+    }
+
+    private static boolean hasUnsupportedCharacters(String part, String allowedPunctuation) {
+        for (int i = 0; i < part.length(); i++) {
+            char character = part.charAt(i);
+            if (!isAsciiAlphanumeric(character) && allowedPunctuation.indexOf(character) < 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isAsciiAlphanumeric(char character) {
+        return (character >= 'a' && character <= 'z')
+                || (character >= 'A' && character <= 'Z')
+                || (character >= '0' && character <= '9');
+    }
+
+    /**
+     * Returns true if both email addresses are the same, ignoring letter case.
+     */
+    public boolean isSameEmail(Email otherEmail) {
+        return otherEmail != null && value.equalsIgnoreCase(otherEmail.value);
     }
 
     @Override

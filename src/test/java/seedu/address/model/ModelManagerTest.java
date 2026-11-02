@@ -3,18 +3,24 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.model.Model.PREDICATE_SHOW_ACTIVE_CONTACTS;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_FORMER_STUDENTS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.NameContainsSubstringPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.StudentStatus;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
@@ -74,6 +80,88 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void getFilteredPersonList_personsAddedOutOfOrder_sortedByName() {
+        modelManager.addPerson(CARL);
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        assertEquals(List.of(ALICE, BENSON, CARL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void getFilteredPersonList_filtered_remainsSorted() {
+        modelManager.addPerson(CARL);
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        modelManager.updateFilteredPersonList(person -> !person.equals(BENSON));
+        assertEquals(List.of(ALICE, CARL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void getFilteredPersonList_personRenamed_resorted() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        Person renamedAlice = new PersonBuilder(ALICE).withName("Zoe Pauline").build();
+        modelManager.setPerson(ALICE, renamedAlice);
+        assertEquals(List.of(BENSON, renamedAlice), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void getFilteredPersonList_sameNameDifferentRole_guardianBeforeStudent() {
+        Person student = new PersonBuilder().withName("Alex Tan").withRole("student")
+                .withPhone("91234567").build();
+        Person guardian = new PersonBuilder().withName("Alex Tan").withRole("guardian")
+                .withPhone("98765432").build();
+        modelManager.addPerson(student);
+        modelManager.addPerson(guardian);
+        assertEquals(List.of(guardian, student), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void getFilteredPersonList_sigmaVariants_guardianFirstAfterRenameAndFilter() {
+        Person student = new PersonBuilder().withName("\u039f\u03a3").withRole("student").build();
+        Person guardian = new PersonBuilder().withName("\u039f\u03c3").withRole("guardian").build();
+        modelManager.addPerson(student);
+        modelManager.addPerson(guardian);
+        assertEquals(List.of(guardian.getId(), student.getId()), modelManager.getFilteredPersonList().stream()
+                .map(Person::getId).toList());
+
+        Person renamedStudent = new PersonBuilder(student).withName("\u03bf\u03c2").build();
+        modelManager.setPerson(student, renamedStudent);
+        modelManager.updateFilteredPersonList(new NameContainsSubstringPredicate("\u039f\u03a3"));
+        assertEquals(List.of(guardian.getId(), student.getId()), modelManager.getFilteredPersonList().stream()
+                .map(Person::getId).toList());
+    }
+
+    @Test
+    public void getFilteredPersonList_formerStudent_hiddenByDefault() {
+        Person former = new PersonBuilder(BENSON).withStatus(StudentStatus.FORMER).build();
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(former).build(),
+                new UserPrefs());
+        assertEquals(PREDICATE_SHOW_ACTIVE_CONTACTS, modelManager.getPersonFilter());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void addPerson_formerStudentsShown_showsActiveContacts() {
+        Person former = new PersonBuilder(BENSON).withStatus(StudentStatus.FORMER).build();
+        modelManager.addPerson(former);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_FORMER_STUDENTS);
+        modelManager.addPerson(ALICE);
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_formerStudentPredicate_showsFormerStudentsOnly() {
+        Person former = new PersonBuilder(BENSON).withStatus(StudentStatus.FORMER).build();
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(former);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_FORMER_STUDENTS);
+        assertEquals(List.of(former), modelManager.getFilteredPersonList());
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, former), modelManager.getFilteredPersonList());
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
@@ -97,12 +185,11 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new NameContainsSubstringPredicate(ALICE.getName().fullName));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ACTIVE_CONTACTS);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

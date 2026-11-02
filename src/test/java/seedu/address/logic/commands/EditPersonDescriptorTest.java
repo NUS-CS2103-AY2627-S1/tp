@@ -5,11 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,13 +46,77 @@ public class EditPersonDescriptorTest {
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different address -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        // email removed -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withoutEmail().build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different tags -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
-        assertFalse(DESC_AMY.equals(editedAmy));
+        // phone removed -> returns false
+        EditPersonDescriptor phoneRemovedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withoutPhone().build();
+        assertFalse(DESC_AMY.equals(phoneRemovedAmy));
+        assertTrue(phoneRemovedAmy.equals(new EditPersonDescriptor(phoneRemovedAmy)));
+
+        // email removed in both -> returns true
+        assertTrue(editedAmy.equals(new EditPersonDescriptor(editedAmy)));
+    }
+
+    @Test
+    public void removeEmail_thenSetEmail_emailNotRemoved() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutEmail().build();
+        assertTrue(descriptor.isEmailRemoved());
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        descriptor.setEmail(DESC_BOB.getEmail().get());
+        assertFalse(descriptor.isEmailRemoved());
+    }
+
+    @Test
+    public void equals_differentLevelOrSubject_returnsFalse() {
+        EditPersonDescriptor original = new EditPersonDescriptorBuilder(DESC_AMY)
+                .withLevel("Sec 3").withSubject("Math").build();
+        EditPersonDescriptor differentLevel = new EditPersonDescriptorBuilder(original).withLevel("Sec 4").build();
+        EditPersonDescriptor differentSubject = new EditPersonDescriptorBuilder(original)
+                .withSubject("Physics").build();
+
+        assertFalse(original.equals(differentLevel));
+        assertFalse(differentLevel.equals(original));
+        assertFalse(original.equals(differentSubject));
+        assertFalse(differentSubject.equals(original));
+        assertEquals(original, new EditPersonDescriptor(original));
+    }
+
+    @Test
+    public void equals_differentStudentDetailRemovalFlags_returnsFalse() {
+        EditPersonDescriptor omitted = new EditPersonDescriptorBuilder(DESC_AMY).build();
+        EditPersonDescriptor levelRemoved = new EditPersonDescriptorBuilder(omitted).withoutLevel().build();
+        EditPersonDescriptor subjectRemoved = new EditPersonDescriptorBuilder(omitted).withoutSubject().build();
+
+        assertFalse(omitted.equals(levelRemoved));
+        assertFalse(levelRemoved.equals(omitted));
+        assertFalse(omitted.equals(subjectRemoved));
+        assertFalse(subjectRemoved.equals(omitted));
+        assertFalse(levelRemoved.equals(subjectRemoved));
+    }
+
+    @Test
+    public void copyConstructor_studentDetailRemovalFlags_remainEqual() {
+        EditPersonDescriptor levelRemoved = new EditPersonDescriptorBuilder(DESC_AMY).withoutLevel().build();
+        EditPersonDescriptor subjectRemoved = new EditPersonDescriptorBuilder(DESC_AMY).withoutSubject().build();
+        EditPersonDescriptor bothRemoved = new EditPersonDescriptorBuilder(DESC_AMY)
+                .withoutLevel().withoutSubject().build();
+
+        assertEquals(levelRemoved, new EditPersonDescriptor(levelRemoved));
+        assertEquals(subjectRemoved, new EditPersonDescriptor(subjectRemoved));
+        assertEquals(bothRemoved, new EditPersonDescriptor(bothRemoved));
+    }
+
+    @Test
+    public void removePhone_thenSetPhone_phoneNotRemoved() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutPhone().build();
+        assertTrue(descriptor.isPhoneRemoved());
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        descriptor.setPhone(DESC_BOB.getPhone().get());
+        assertFalse(descriptor.isPhoneRemoved());
     }
 
     @Test
@@ -63,9 +125,13 @@ public class EditPersonDescriptorTest {
         String expected = EditPersonDescriptor.class.getCanonicalName() + "{name="
                 + editPersonDescriptor.getName().orElse(null) + ", phone="
                 + editPersonDescriptor.getPhone().orElse(null) + ", email="
-                + editPersonDescriptor.getEmail().orElse(null) + ", address="
-                + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getEmail().orElse(null) + ", isPhoneRemoved="
+                + editPersonDescriptor.isPhoneRemoved() + ", isEmailRemoved="
+                + editPersonDescriptor.isEmailRemoved() + ", level="
+                + editPersonDescriptor.getLevel().orElse(null) + ", subject="
+                + editPersonDescriptor.getSubject().orElse(null) + ", isLevelRemoved="
+                + editPersonDescriptor.isLevelRemoved() + ", isSubjectRemoved="
+                + editPersonDescriptor.isSubjectRemoved() + "}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }

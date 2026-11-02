@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
-import seedu.address.model.person.Person;
 
 /**
  * Container for user visible messages.
@@ -14,10 +13,11 @@ public class Messages {
 
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_INVALID_CONTACT_INDEX =
+            "The contact index must be a positive integer shown in the list.";
+    public static final String MESSAGE_CONTACT_NOT_FOUND = "No contact exists at index %1$d.";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -32,20 +32,20 @@ public class Messages {
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Returns {@code count} followed by "contact" if {@code count} is 1, or "contacts" otherwise.
+     * For example, 1 gives "1 contact" and 5 gives "5 contacts".
      */
-    public static String format(Person person) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
-        return builder.toString();
+    public static String formatContactCount(int count) {
+        return count + (count == 1 ? " contact" : " contacts");
+    }
+
+    /**
+     * Returns {@code count} followed by "former student" if {@code count} is 1,
+     * or "former students" otherwise.
+     * For example, 1 gives "1 former student" and 5 gives "5 former students".
+     */
+    public static String formatFormerStudentCount(int count) {
+        return count + (count == 1 ? " former student" : " former students");
     }
 
 }

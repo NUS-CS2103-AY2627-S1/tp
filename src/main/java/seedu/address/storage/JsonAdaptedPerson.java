@@ -1,62 +1,93 @@
 package seedu.address.storage;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
+import seedu.address.model.person.ContactId;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.StudentStatus;
+import seedu.address.model.person.Subject;
 
 /**
  * Jackson-friendly version of {@link Person}.
+ * Legacy address and tags properties are ignored by JsonUtil and omitted when saving.
+ * Contacts saved before student status existed have no status property and load as active.
+ * Contacts without a level or subject have no level or subject property.
  */
 class JsonAdaptedPerson {
 
-    public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String MISSING_FIELD_MESSAGE_FORMAT = "Contact's %s field is missing!";
 
+    private final String id;
+    private final String guardianId;
     private final String name;
     private final String phone;
     private final String email;
-    private final String address;
-    private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final String role;
+    private final String status;
+    private final String level;
+    private final String subject;
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+    public JsonAdaptedPerson(@JsonProperty("id") String id,
+            @JsonProperty("name") String name, @JsonProperty("phone") String phone,
+            @JsonProperty("email") String email,
+            @JsonProperty("role") String role,
+            @JsonProperty("guardianId") String guardianId,
+            @JsonProperty("status") String status,
+            @JsonProperty("level") String level,
+            @JsonProperty("subject") String subject) {
+        this.id = id;
+        this.guardianId = guardianId;
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
-        if (tags != null) {
-            this.tags.addAll(tags);
-        }
+        this.role = role;
+        this.status = status;
+        this.level = level;
+        this.subject = subject;
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} with the given person details and status,
+     * and no level or subject.
+     */
+    public JsonAdaptedPerson(String id, String name, String phone, String email, String role,
+            String guardianId, String status) {
+        this(id, name, phone, email, role, guardianId, status, null, null);
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} with the given person details and no saved status.
+     */
+    public JsonAdaptedPerson(String id, String name, String phone, String email, String role, String guardianId) {
+        this(id, name, phone, email, role, guardianId, null);
     }
 
     /**
      * Converts a given {@code Person} into this class for Jackson use.
      */
     public JsonAdaptedPerson(Person source) {
+        id = source.getId().toString();
+        guardianId = source.getGuardianId().map(ContactId::toString).orElse(null);
         name = source.getName().fullName;
-        phone = source.getPhone().value;
-        email = source.getEmail().value;
-        address = source.getAddress().value;
-        tags.addAll(source.getTags().stream()
-                .map(JsonAdaptedTag::new)
-                .collect(Collectors.toList()));
+        phone = source.getPhone().map(Phone::toString).orElse(null);
+        email = source.getEmail().map(Email::toString).orElse(null);
+        role = source.getRole().name();
+        status = source.getStatus().name();
+        level = source.getLevel().map(Level::toString).orElse(null);
+        subject = source.getSubject().map(Subject::toString).orElse(null);
     }
 
     /**
@@ -65,11 +96,10 @@ class JsonAdaptedPerson {
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
-        final List<Tag> personTags = new ArrayList<>();
-        for (JsonAdaptedTag tag : tags) {
-            personTags.add(tag.toModelType());
+        if (id != null && !ContactId.isValidId(id)) {
+            throw new IllegalValueException(ContactId.MESSAGE_CONSTRAINTS);
         }
-
+        final ContactId modelId = id == null ? ContactId.generate() : new ContactId(id);
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
@@ -78,32 +108,60 @@ class JsonAdaptedPerson {
         }
         final Name modelName = new Name(name);
 
-        if (phone == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
-        }
-        if (!Phone.isValidPhone(phone)) {
+        if (phone != null && !Phone.isValidPhone(phone)) {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
+        final Optional<Phone> modelPhone = Optional.ofNullable(phone).map(Phone::new);
 
-        if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
-        }
-        if (!Email.isValidEmail(email)) {
+        if (email != null && !Email.isValidEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
         }
-        final Email modelEmail = new Email(email);
+        final Optional<Email> modelEmail = Optional.ofNullable(email).map(Email::new);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
+        if (role == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Role.class.getSimpleName()));
         }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
+        if (!Role.isValidRole(role)) {
+            throw new IllegalValueException(Role.MESSAGE_CONSTRAINTS);
         }
-        final Address modelAddress = new Address(address);
+        final Role modelRole = Role.fromString(role);
 
-        final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        if (guardianId != null && !ContactId.isValidId(guardianId)) {
+            throw new IllegalValueException(ContactId.MESSAGE_CONSTRAINTS);
+        }
+        if (guardianId != null && modelRole != Role.STUDENT) {
+            throw new IllegalValueException(Person.MESSAGE_INVALID_GUARDIAN_OWNER);
+        }
+        final Optional<ContactId> modelGuardianId = Optional.ofNullable(guardianId).map(ContactId::new);
+
+        if (modelRole == Role.GUARDIAN && modelPhone.isEmpty() && modelEmail.isEmpty()) {
+            throw new IllegalValueException(Person.MESSAGE_GUARDIAN_WITHOUT_CONTACT_METHOD);
+        }
+
+        if (status != null && !StudentStatus.isValidStatus(status)) {
+            throw new IllegalValueException(StudentStatus.MESSAGE_CONSTRAINTS);
+        }
+        final StudentStatus modelStatus = status == null
+                ? StudentStatus.ACTIVE
+                : StudentStatus.fromString(status);
+        if (modelStatus != StudentStatus.ACTIVE && modelRole != Role.STUDENT) {
+            throw new IllegalValueException(Person.MESSAGE_INVALID_FORMER_STATUS);
+        }
+
+        if (level != null && !Level.isValidLevel(level)) {
+            throw new IllegalValueException(Level.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Level> modelLevel = Optional.ofNullable(level).map(Level::new);
+        if (subject != null && !Subject.isValidSubject(subject)) {
+            throw new IllegalValueException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Subject> modelSubject = Optional.ofNullable(subject).map(Subject::new);
+        if (modelRole != Role.STUDENT && (modelLevel.isPresent() || modelSubject.isPresent())) {
+            throw new IllegalValueException(Person.MESSAGE_INVALID_STUDENT_DETAILS);
+        }
+
+        return new Person(modelId, modelName, modelPhone, modelEmail, modelRole,
+                modelGuardianId, modelStatus, modelLevel, modelSubject);
     }
 
 }
