@@ -3,20 +3,28 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.commands.AddLessonCommand;
+import seedu.address.logic.commands.AddStudentCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
-import seedu.address.logic.commands.DeleteCommand;
-import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.DeleteLessonCommand;
+import seedu.address.logic.commands.DeleteStudentCommand;
+import seedu.address.logic.commands.EditLessonCommand;
+import seedu.address.logic.commands.EditStudentCommand;
+import seedu.address.logic.commands.EnrolCommand;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindStudentCommand;
 import seedu.address.logic.commands.HelpCommand;
-import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListLessonsCommand;
+import seedu.address.logic.commands.ListStudentsCommand;
+import seedu.address.logic.commands.UnenrolCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -38,12 +46,14 @@ public class AddressBookParser {
      * @throws ParseException if the user input does not conform to the expected format
      */
     public Command parseCommand(String userInput) throws ParseException {
-        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
+        // pasted text can carry spaces that look normal but are not, so read them as plain spaces first
+        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(StringUtil.normalizeSpaces(userInput).trim());
         if (!matcher.matches()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
-        final String commandWord = matcher.group("commandWord");
+        // a command word means the same in any letter case, as in ADDLESSON or AddLesson
+        final String commandWord = matcher.group("commandWord").toLowerCase(Locale.ROOT);
         final String arguments = matcher.group("arguments");
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
@@ -52,12 +62,27 @@ public class AddressBookParser {
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
         return switch (commandWord) {
-            case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
-            case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
-            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
-            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
+            case EnrolCommand.COMMAND_WORD -> new EnrolCommandParser().parse(arguments);
+            case UnenrolCommand.COMMAND_WORD -> new UnenrolCommandParser().parse(arguments);
+            case AddStudentCommand.COMMAND_WORD -> new AddStudentCommandParser().parse(arguments);
+            case DeleteStudentCommand.COMMAND_WORD -> new DeleteStudentCommandParser().parse(arguments);
+            case EditStudentCommand.COMMAND_WORD -> new EditStudentCommandParser().parse(arguments);
+            case AddLessonCommand.COMMAND_WORD -> new AddLessonCommandParser().parse(arguments);
+            case DeleteLessonCommand.COMMAND_WORD -> new DeleteLessonCommandParser().parse(arguments);
+            case EditLessonCommand.COMMAND_WORD -> new EditLessonCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (arguments.trim().equalsIgnoreCase(ClearCommand.CONFIRMATION_WORD)) {
+                    yield ClearCommand.confirmed();
+                }
+                if (!arguments.trim().isEmpty()) {
+                    throw new ParseException(String.format(
+                            MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE));
+                }
+                yield new ClearCommand();
+            }
+            case FindStudentCommand.COMMAND_WORD -> new FindStudentCommandParser().parse(arguments);
+            case ListLessonsCommand.COMMAND_WORD -> new ListLessonsCommandParser().parse(arguments);
+            case ListStudentsCommand.COMMAND_WORD -> new ListStudentsCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {

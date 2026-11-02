@@ -4,7 +4,10 @@ import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.lesson.Enrolment;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
 
 /**
  * The API of the Model component.
@@ -12,6 +15,62 @@ import seedu.address.model.person.Person;
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
     Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+
+    /** Predicate that shows all students. */
+    Predicate<Student> PREDICATE_SHOW_ALL_STUDENTS = unused -> true;
+
+    /** Predicate that shows every lesson. */
+    Predicate<Lesson> PREDICATE_SHOW_ALL_LESSONS = unused -> true;
+
+    /** Returns whether a duplicate student already exists. */
+    boolean hasStudent(Student student);
+
+    /** Adds a student and clears the student filter. Rejects duplicates. */
+    void addStudent(Student student);
+
+    /** Replaces a student while preserving the active filter and enrolments. */
+    void setStudent(Student target, Student editedStudent);
+
+    /** Deletes an existing student, preserving the student filter. */
+    void deleteStudent(Student student);
+
+    /** Returns an unmodifiable observable view for student commands and the UI. */
+    ObservableList<Student> getFilteredStudentList();
+
+    /** Replaces the student filter. The predicate must not be null. */
+    void updateFilteredStudentList(Predicate<Student> predicate);
+
+    /** Observe this list to refresh membership labels when links change. */
+    default ObservableList<Enrolment> getEnrolmentList() {
+        return getAddressBook().getEnrolmentList();
+    }
+
+    /** Checks for an existing lesson with the same ID or details. */
+    boolean hasLesson(Lesson lesson);
+
+    /** Adds a lesson and clears only the lesson filter. */
+    void addLesson(Lesson lesson);
+
+    /** Replaces a lesson while preserving active filters and enrolments. */
+    void setLesson(Lesson target, Lesson editedLesson);
+
+    /** Deletes a lesson and its links, preserving students. */
+    void deleteLesson(Lesson lesson);
+
+    /** Links existing records; rejects missing records and duplicate links. */
+    void enrolStudent(Student student, Lesson lesson);
+
+    /** Removes an existing link, keeping both records; rejects a missing link. */
+    void unenrolStudent(Student student, Lesson lesson);
+
+    /** Returns an unmodifiable observable lesson view. */
+    ObservableList<Lesson> getFilteredLessonList();
+
+    /** Replaces the lesson filter. */
+    void updateFilteredLessonList(Predicate<Lesson> predicate);
+
+    /** Filters students by a stable lesson ID, not its displayed index. */
+    void filterStudentsByLesson(Lesson lesson);
 
     /**
      * Returns the user prefs.
@@ -32,6 +91,15 @@ public interface Model {
      * Replaces address book data with the data in {@code addressBook}.
      */
     void setAddressBook(ReadOnlyAddressBook addressBook);
+
+    /**
+     * Captures data for rollback after a failed save. Implementations with display filters
+     * should also restore those filters.
+     */
+    default Runnable createRestorePoint() {
+        AddressBook snapshot = new AddressBook(getAddressBook());
+        return () -> setAddressBook(snapshot);
+    }
 
     /** Returns the AddressBook */
     ReadOnlyAddressBook getAddressBook();

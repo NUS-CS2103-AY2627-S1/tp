@@ -1,0 +1,90 @@
+package seedu.address.model.student;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.Name;
+import seedu.address.model.person.Phone;
+
+public class StudentTest {
+    private final Name name = new Name("Aiden Tan");
+    private final Phone phone = new Phone("91234567");
+    private final Guardian guardian = new Guardian(new Name("Tan Mei Ling"), phone);
+
+    @Test
+    public void constructor_optionalContacts_requiresOneNumber() {
+        assertTrue(new Student(name, phone, null).getGuardian().isEmpty());
+        assertTrue(new Student(name, null, guardian).getPhone().isEmpty());
+        assertEquals(guardian, new Student(name, phone, guardian).getGuardian().orElseThrow());
+        assertThrows(IllegalArgumentException.class, () -> new Student(name, null, null));
+        assertThrows(NullPointerException.class, () -> new Student(null, phone, null));
+        assertThrows(NullPointerException.class, () -> new Guardian(name, null));
+        assertThrows(NullPointerException.class, () -> new Guardian(null, phone));
+    }
+
+    @Test
+    public void hasSameName_normalizedNameWhateverThePhones() {
+        Student student = new Student(name, phone, null);
+
+        assertTrue(student.hasSameName(new Student(new Name("aiden  tan "), new Phone("88888888"), null)));
+        assertTrue(student.hasSameName(new Student(name, null, guardian)));
+        assertFalse(student.hasSameName(new Student(new Name("Aiden Lim"), phone, null)));
+        assertFalse(student.hasSameName(null));
+    }
+
+    @Test
+    public void isSameStudent_normalizedNameAndSharedNumber() {
+        Student ownContact = new Student(name, phone, null);
+        Student sameOwnContact = new Student(new Name("aiden  tan "), phone, null);
+        Student guardianContact = new Student(new Name("aiden  tan "), null, guardian);
+        Student sameGuardianContact = new Student(name, null,
+                new Guardian(new Name("Lim Mei Ling"), phone));
+
+        assertTrue(ownContact.isSameStudent(sameOwnContact));
+        assertTrue(ownContact.isSameStudent(guardianContact));
+        assertTrue(guardianContact.isSameStudent(ownContact));
+        assertTrue(guardianContact.isSameStudent(sameGuardianContact));
+        assertFalse(ownContact.isSameStudent(new Student(name, new Phone("88888888"), null)));
+        assertFalse(guardianContact.isSameStudent(new Student(name, new Phone("88888888"), null)));
+        assertFalse(guardianContact.isSameStudent(new Student(name, new Phone("88888888"),
+                new Guardian(new Name("Other Guardian"), new Phone("99999999")))));
+        assertFalse(ownContact.isSameStudent(new Student(new Name("Chloe Tan"), null, guardian)));
+        assertFalse(ownContact.isSameStudent(null));
+    }
+
+    @Test
+    public void isSameStudent_namesWithSameLetters_returnsTrue() {
+        assertTrue(sameStudent("Liam O'Connor", "Liam O’Connor"));
+        assertTrue(sameStudent("Liam O'Connor", "liam oconnor"));
+        assertTrue(sameStudent("Anne-Marie Lim", "Anne Marie Lim"));
+        assertTrue(sameStudent("Kumar s/o Ravi", "Kumar so Ravi"));
+        assertFalse(sameStudent("Kumar s/o Ravi", "Kumar d/o Ravi"));
+    }
+
+    private boolean sameStudent(String first, String second) {
+        return new Student(new Name(first), phone, null).isSameStudent(new Student(new Name(second), phone, null));
+    }
+
+    @Test
+    public void equals_comparesAllFields() {
+        Student student = new Student(name, phone, guardian);
+        Student copy = new Student(student.getId(), new Name("Aiden Tan"), new Phone("91234567"),
+                new Guardian(new Name("Tan Mei Ling"), new Phone("91234567")));
+        assertEquals(student, student);
+        assertEquals(student, copy);
+        assertNotEquals(student, null);
+        assertNotEquals(student, "Aiden Tan");
+        assertNotEquals(student, new Student(name, phone, guardian));
+        assertNotEquals(student, new Student(student.getId(), new Name("Chloe Tan"), phone, guardian));
+        assertEquals(student.hashCode(), copy.hashCode());
+        assertNotEquals(student, new Student(student.getId(), name, phone, null));
+        assertNotEquals(student, new Student(student.getId(), name, null, guardian));
+        assertNotEquals(student, new Student(student.getId(), name, phone,
+                new Guardian(new Name("Other Guardian"), phone)));
+    }
+}

@@ -12,6 +12,7 @@ import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -21,14 +22,33 @@ class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
 
+    public static final String MESSAGE_DUPLICATE_STUDENT = "Students list contains duplicate student(s).";
+
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final List<JsonAdaptedStudent> students = new ArrayList<>();
+    private final List<JsonAdaptedLesson> lessons = new ArrayList<>();
+    private final List<JsonAdaptedEnrolment> enrolments = new ArrayList<>();
 
     /**
-     * Constructs a {@code JsonSerializableAddressBook} with the given persons.
+     * Constructs stored data. Missing lists default to empty for older address books.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons,
+            @JsonProperty("students") List<JsonAdaptedStudent> students,
+            @JsonProperty("lessons") List<JsonAdaptedLesson> lessons,
+            @JsonProperty("enrolments") List<JsonAdaptedEnrolment> enrolments) {
+        if (lessons != null) {
+            this.lessons.addAll(lessons);
+        }
+        if (enrolments != null) {
+            this.enrolments.addAll(enrolments);
+        }
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
+        if (students != null) {
+            this.students.addAll(students);
+        }
     }
 
     /**
@@ -37,7 +57,10 @@ class JsonSerializableAddressBook {
      * @param source future changes to this will not affect the created {@code JsonSerializableAddressBook}.
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
+        lessons.addAll(source.getLessonList().stream().map(JsonAdaptedLesson::new).toList());
+        enrolments.addAll(source.getEnrolmentList().stream().map(JsonAdaptedEnrolment::new).toList());
         persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        students.addAll(source.getStudentList().stream().map(JsonAdaptedStudent::new).collect(Collectors.toList()));
     }
 
     /**
@@ -48,11 +71,40 @@ class JsonSerializableAddressBook {
     public AddressBook toModelType() throws IllegalValueException {
         AddressBook addressBook = new AddressBook();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException("Person records must not be null.");
+            }
             Person person = jsonAdaptedPerson.toModelType();
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
             }
             addressBook.addPerson(person);
+        }
+        for (JsonAdaptedStudent jsonStudent : students) {
+            if (jsonStudent == null) {
+                throw new IllegalValueException("Student records must not be null.");
+            }
+            Student student = jsonStudent.toModelType();
+            if (addressBook.hasStudent(student)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_STUDENT);
+            }
+            addressBook.addStudent(student);
+        }
+        try {
+            for (JsonAdaptedLesson lesson : lessons) {
+                if (lesson == null) {
+                    throw new IllegalValueException("Lesson records must not be null.");
+                }
+                addressBook.addLesson(lesson.toModelType());
+            }
+            for (JsonAdaptedEnrolment enrolment : enrolments) {
+                if (enrolment == null) {
+                    throw new IllegalValueException("Enrolment records must not be null.");
+                }
+                addressBook.addEnrolment(enrolment.toModelType());
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(e.getMessage());
         }
         return addressBook;
     }

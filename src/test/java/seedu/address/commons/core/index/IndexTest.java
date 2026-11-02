@@ -38,12 +38,21 @@ public class IndexTest {
     }
 
     @Test
+    public void extremeIndices_doNotWrapAround() {
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromOneBased(Integer.MIN_VALUE));
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromZeroBased(Integer.MAX_VALUE));
+        assertEquals(Integer.MAX_VALUE - 1, Index.fromOneBased(Integer.MAX_VALUE).getZeroBased());
+        assertEquals(Integer.MAX_VALUE, Index.fromZeroBased(Integer.MAX_VALUE - 1).getOneBased());
+    }
+
+    @Test
     public void equals() {
         final Index fifthPersonIndex = Index.fromOneBased(5);
 
         // same values -> returns true
         assertTrue(fifthPersonIndex.equals(Index.fromOneBased(5)));
         assertTrue(fifthPersonIndex.equals(Index.fromZeroBased(4)));
+        assertEquals(fifthPersonIndex.hashCode(), Index.fromZeroBased(4).hashCode());
 
         // same object -> returns true
         assertTrue(fifthPersonIndex.equals(fifthPersonIndex));

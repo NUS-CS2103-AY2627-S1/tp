@@ -9,7 +9,19 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* TutorReach is based on the [AddressBook-Level3](https://se-education.org/addressbook-level3/) project created by the [SE-EDU initiative](https://se-education.org).
+* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+
+Notable uses of AI:
+
+* Claude Code and Codex were used in development by Ravan (`ravanc`), Foo Kee Juan (`keejuanfoo`), Ling Si Han (`LINGSIHAN`), Wee Yen Zhe (`randomwish`) and Way Yan (`greysome`).
+* The tools were used for:
+  * **Implementation:** drafting features and bug fixes.
+  * **Automated testing:** writing and extending JUnit tests, including edge cases.
+  * **Documentation:** updating the User Guide and Developer Guide, including the PlantUML diagrams.
+  * **Alpha and beta testing:** creating test cases, running commands against the built JAR file and triaging the bugs found.
+  * **Pull request checks:** reviewing changes against the project's requirements before merging.
+* Each team member remains responsible for the work they submitted.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +48,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -51,7 +63,7 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `deletestudent 1`.
 
 <img src="images/ArchitectureSequenceDiagram.png" width="574" />
 
@@ -68,41 +80,45 @@ The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
 ![Structure of the UI Component](images/UiClassDiagram.png)
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `StudentListPanel`, `LessonListPanel` and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `StudentListPanel` and `LessonListPanel` are shown side by side. Each holds one card per item in its list: a `StudentCard` shows a student's phone number, guardian and enrolled lessons, and a `LessonCard` shows a lesson's day, time and enrolled students.
+
+The `ResultDisplay` wraps command feedback and adjusts its preferred height to show up to nine rows immediately. Its height is capped to keep the student and lesson panels usable; feedback beyond the cap remains available by scrolling.
+
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
 * executes user commands using the `Logic` component.
 * listens for changes to `Model` data so that the UI can be updated with the modified data.
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+* depends on some classes in the `Model` component because it displays `Student` and `Lesson` objects from the model.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
 <img src="images/LogicClassDiagram.png" width="550"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("deletestudent 1")` API call as an example.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+![Interactions Inside the Logic Component for the `deletestudent 1` Command](images/DeleteSequenceDiagram.png)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteStudentCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
 
 How the `Logic` component works:
 
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
+1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteStudentCommandParser`) and uses it to parse the command.
+1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteStudentCommand`) which is executed by the `LogicManager`.
+1. The command can communicate with the `Model` when it is executed (e.g. to delete a student).<br>
    Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
 1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
 
@@ -111,39 +127,43 @@ Here are the other classes in `Logic` (omitted from the class diagram above) tha
 <img src="images/ParserClasses.png" width="600"/>
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddStudentCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddStudentCommand`). The `AddressBookParser` returns that object as a `Command` object.
+* All `XYZCommandParser` classes, such as `AddStudentCommandParser` and `DeleteStudentCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/model/Model.java)
 
 <img src="images/ModelClassDiagram.png" width="450" />
 
 
 The `Model` component,
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores all `Student`, `Lesson` and `Enrolment` objects in observable source lists owned by `AddressBook`.
+* stores each student's guardian, if any, as a `Guardian` object inside that `Student`, rather than as a separate contact.
+* gives every student and lesson a stable UUID. Each `Enrolment` links one student UUID to one lesson UUID, keeping `Student` and `Lesson` independent of each other.
+* stores the `Student` objects selected by the current filter, such as search results or the students in one lesson, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Student>` that the UI can observe and bind to, so the UI updates when the list changes. The `Lesson` objects selected by the current filter, such as the lessons on one day, are exposed in the same way as an `ObservableList<Lesson>`.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+The diagram below shows the separate enrolment links used by the current model.
 
 <img src="images/BetterModelClassDiagram.png" width="450" />
-
-</div>
 
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-F13-1/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
-The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
-* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
-* depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+The `Storage` component stores tutor data and user preferences in separate local JSON files.
+`StorageManager` delegates these operations to `JsonAddressBookStorage` and `JsonUserPrefsStorage`.
+`MainApp` supplies `data/addressbook.json` for tutor data and `preferences.json` for window preferences,
+both relative to the working directory from which the app is launched.
+
+Student and lesson records retain stable UUIDs. Each enrolment stores a student UUID and a lesson UUID,
+so editing contact details or lesson times does not break the relationship. Legacy `persons` records
+are retained separately; they are not converted into students.
 
 ### Common classes
 
@@ -155,15 +175,320 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
+### Saving and recovering tutor data
+
+#### Single-instance protection
+
+Before reading or saving preferences or tutor data, `MainApp.init()` calls
+`ApplicationLock.tryAcquire()` for `data/addressbook.json.lock`. The method opens a `FileChannel`
+and attempts a non-blocking exclusive lock. If another instance holds the lock, startup stops with a
+message asking the user to use the existing window. If the lock file cannot be accessed, startup also
+stops rather than proceeding without protection.
+
+The channel stays open for the lifetime of TutorReach and is closed in `MainApp.stop()`, after saving
+preferences. JVM termination also releases the lock. The lock file itself is deliberately retained:
+its existence does not mean TutorReach is running. The separate lock file is needed because saving
+atomically replaces the data file. This protects instances using the same lock file; it does not prevent
+external editors from modifying the data file while TutorReach is running.
+
+#### Saving after a command
+
+Commands change the model; they do not write files directly. `LogicManager.execute()` controls saving:
+
+1. A command whose `changesStoredData()` returns `false` executes without checking or writing storage.
+   Listing, searching, help and exit follow this path. New commands default to `true`.
+1. For a potentially mutating command, the logic captures the data and display filters, then calls
+   `Storage.checkAddressBookSaveAllowed()` before executing the command. A blocked path prevents execution.
+1. After successful execution, the logic compares the data with the snapshot. It saves the whole address
+   book only if the stored records changed; a no-op such as clearing an empty book does not write a file.
+1. `StorageManager` delegates to `JsonAddressBookStorage`, which checks the path again and passes a
+   `JsonSerializableAddressBook` to `JsonUtil`. The second check also protects direct storage callers.
+1. `JsonUtil` serializes the data before writing, writes and flushes a temporary file in the destination
+   directory, then atomically replaces the destination. If atomic replacement is unsupported, saving fails
+   rather than falling back to a potentially partial overwrite. Failed writes attempt to remove the temporary file.
+
+If the save guard or write raises an `IOException`, `LogicManager` restores the captured data and filters
+and returns a `CommandException` for the existing message box. Permission failures receive a specific
+message. The guard only detects paths blocked by loading failures; it cannot predict later disk-write failures.
+
+The [save sequence diagram source](diagrams/SaveAddressBookSequenceDiagram.puml) shows the successful storage calls.
+
+#### Loading and partial recovery
+
+`JsonAddressBookStorage.readAddressBook()` reads the original bytes and passes the JSON to
+`AddressBookRecovery`. Jackson's `STRICT_DUPLICATE_DETECTION` rejects duplicate JSON field names
+anywhere in the file, including inside individual records. Such a file is rejected as a whole before
+record recovery begins; the original is preserved and saving is blocked. This differs from duplicate
+student or lesson records, which can be skipped individually.
+
+The root must be one JSON object. Missing or null record lists are treated as empty;
+a present, non-null list must be an array. Records are processed in the order `persons`, `students`,
+`lessons`, then `enrolments`, so enrolment references can be checked against the recovered records.
+
+Each record is validated independently through its JSON adapter and the model's duplicate checks.
+Invalid records, duplicates and enrolments referencing missing records are skipped. The first valid
+occurrence of a duplicate is retained. Each skipped record is described by its type, one-based position
+within its list, name when available, and reason, such as `student 2 (Aiden Tan): invalid phone number`.
+The startup warning shows up to five skipped records and indicates how many more were skipped;
+the warning log includes the full list.
+
+| Load result | App behaviour | Protection of the original file |
+| --- | --- | --- |
+| File missing | Starts with sample data. | No file is written just by loading. |
+| Valid file | Loads the records. | No recovery backup is needed. |
+| Invalid individual records | Loads valid records and shows a skipped-record count and backup path. | Backs up the exact original bytes before returning recovered data. |
+| Malformed JSON, duplicate JSON field names, invalid list structure, read failure or backup failure | Starts empty with a warning. Read-only commands remain available. | Blocks saving to that normalized absolute path and rejects mutating commands before execution. |
+
+Recovery backups are stored beside the source as `<filename>.recovery-<unique suffix>.bak`. They are
+not overwritten or automatically deleted, and another recovery can create another backup. Loading does
+not rewrite the source: the next successful data-changing command saves the recovered records.
+A recovery backup may itself contain invalid data; it is a copy for inspection and repair, not necessarily
+an immediately usable restore point. Repair the file while the app is closed, then restart.
+
+Older students without IDs receive UUIDs in memory. These IDs are written on the next successful save;
+reopening an unchanged legacy file before that save generates new IDs. Lessons and enrolments require IDs.
+A lesson without an ID is an invalid record, so recovery skips it, reports it in the load warning and
+preserves its original data in the recovery backup.
+
+Stored student and guardian phone numbers use the legacy validation rule when loading, so numbers accepted
+by v1.4 remain available after upgrading. The stricter student-phone rule is applied only to new values parsed
+from `addstudent` and `editstudent` commands.
+
+Phone-role conflict validation is also command-only. Loading does not reject a legacy record merely because
+its phone number is reused in another contact role. New and edited records must follow the conflict rules below.
+
+`JsonSerializableAddressBook.toModelType()` remains a strict conversion API; normal tutor-data loading
+uses `AddressBookRecovery` instead. Partial recovery applies to tutor data, not user preferences.
+
+#### User preferences
+
+`JsonUserPrefsStorage` reads `preferences.json` through `JsonUtil`. `MainApp.initPrefs()` uses default
+preferences when the file is missing or reading throws `DataLoadingException`, then attempts to save
+the initialized preferences. Preferences are saved again on shutdown. They use the same atomic-writing
+helper, but do not use `AddressBookRecovery`, recovery backups or the tutor-data blocked-save guard.
+Duplicate-key detection is enabled for tutor-data recovery only; it is not enabled on the shared
+`JsonUtil` mapper used to read preferences.
+
+
+### Warning about clashing lessons
+
+`addlesson` adds a lesson even if its time overlaps an existing lesson, since a tutor may teach overlapping lessons on purpose. It then warns which lessons clash, so that an accidental double-booking is noticed. `editlesson` warns in the same way when an edit moves a lesson onto another lesson's time, and `enrol` warns when the student already attends a lesson at an overlapping time, since that student would be double-booked.
+
+The sequence diagram below shows how `AddLessonCommand` finds the clashes before adding the lesson.
+
+![Interactions inside the Logic and Model components when adding a lesson](images/AddLessonSequenceDiagram.png)
+
+1. `AddLessonCommand#execute()` first calls `ReadOnlyAddressBook#findDuplicateOf()`. A duplicate lesson is rejected with a `CommandException` that names the existing lesson, so it never gets a warning instead.
+1. It calls `ReadOnlyAddressBook#getClashingLessons()`, which checks the full lesson list, so lessons hidden by `listlessons d/DAY` still count. A lesson with the same ID as the given lesson is skipped, so that `editlesson` does not report a lesson as clashing with its own old times.
+1. `getClashingLessons()` compares each lesson with the new one using `Lesson#overlaps()`.
+1. The command adds the lesson, and returns a `CommandResult` whose last line names the clashing lessons, if any. `Messages#formatClashWarning()` formats that line.
+
+`EditLessonCommand#execute()` follows the same steps after its own duplicate check. It passes the edited lesson, which keeps the original lesson's ID, to `getClashingLessons()`, and adds the same warning to its result. `EnrolCommand#execute()` keeps only the clashing lessons the student is enrolled in, and names them with `Messages#formatStudentClashWarning()`.
+
+A duplicate lesson is rejected with an error that names the existing lesson (`Messages#formatDuplicateLesson()`), and says how to show it if the lesson list's day filter hides it.
+
+Because an end time earlier than the start time means a lesson past midnight, swapped times are not rejected. Instead, `addlesson` and `editlesson` warn when a lesson that ends on the next day lasts more than 12 hours in total (`Messages#formatLongLessonWarning()`), which is almost always a mistake, while a short late lesson, such as one from 2200 to 0100, gives no warning.
+
+`Lesson#overlaps()` places each lesson on a weekly cycle of 7 × 24 × 60 minutes. A lesson starts at minute `(day - 1) × 1440 + start time` and lasts `(end time - start time) mod 1440` minutes, which also gives the right length for a lesson that runs past midnight. Two lessons overlap if either one starts before the other has ended, counting forward around the week. Counting around the week lets a Sunday lesson that runs past midnight clash with an early Monday lesson. A lesson that starts exactly when another ends does not clash with it.
+
+#### Design considerations:
+
+**Aspect: What to do with a clashing lesson:**
+
+* **Alternative 1 (current choice):** Add the lesson and warn.
+  * Pros: Tutors who teach overlapping groups on purpose are not blocked.
+  * Cons: A warning can be overlooked.
+
+* **Alternative 2:** Reject the lesson.
+  * Pros: A double-booking cannot happen by accident.
+  * Cons: Overlapping lessons cannot be recorded at all, even when they are intended.
+
+**Aspect: How to compare lessons that run past midnight:**
+
+* **Alternative 1 (current choice):** Compare time ranges on a weekly cycle.
+  * Pros: One comparison covers every case, including Sunday into Monday.
+  * Cons: The modular arithmetic is less obvious than comparing two times.
+
+* **Alternative 2:** Split a lesson that runs past midnight into one range on each day, and compare ranges on the same day.
+  * Pros: Each comparison is simple.
+  * Cons: A lesson may become two ranges, and Sunday into Monday still needs special handling.
+
+### Editing students and lessons
+
+The `editstudent` and `editlesson` commands replace immutable domain objects without changing their stable UUIDs.
+
+Support for digits in student and guardian name fields is intentional. It accommodates tutor-defined class-level, cohort, or year identifiers, such as `John P5` or `Aiden 2026`. Validation remains restricted to the documented character set, and digit-containing identifiers remain searchable using `findstudent`.
+
+1. The command parser reads a positive displayed-list index and one or more optional fields. It rejects repeated prefixes, missing edit fields and invalid values. For `editstudent`, a blank `p/` removes the student's phone, while blank `gn/ gp/` values remove the guardian. If the student already has a guardian, `gn/` and `gp/` can be edited independently, and the omitted detail is kept. Adding a guardian requires both values, while supplying only one blank guardian field is rejected.
+1. The command resolves the index against the corresponding filtered list, so it edits the item the user can see rather than the same position in the complete list.
+1. The command creates a replacement object using the supplied values, `null` for an optional contact being removed, the target's values for unspecified fields and the target's UUID. The student model rejects a replacement with no contact number.
+1. If the replacement equals the target, the command throws a `CommandException` explaining that the incoming changes are identical and asking the user to change at least one field. It does not call `Model#setStudent()` or `Model#setLesson()`, so `LogicManager` does not save the address book.
+1. Otherwise, the command rejects a replacement that would duplicate another student or lesson. For a student, it also validates the final phone roles against the complete student list before asking the model to replace the target in the source list.
+1. The filtered list re-evaluates its predicate when the source item is replaced. An edited item therefore remains visible only if it still matches the active filter.
+
+The following sequence diagram shows a successful edit that changes data: `editstudent 1 p/97654321`. The `editlesson` command follows the same sequence using its lesson-specific parser, command, filtered list and model operation, but without the student phone-conflict validation. The diagram omits the subsequent persistence flow, which is covered by [Saving after a command](#saving-after-a-command) and its [save sequence diagram source](diagrams/SaveAddressBookSequenceDiagram.puml).
+
+![Interactions for editing a student](images/EditStudentSequenceDiagram.png)
+
+Enrolments link the stable student and lesson UUIDs. Because an edit retains the target UUID, existing enrolments continue to refer to the edited record without being recreated. This also keeps a student list filtered by lesson valid when that lesson is edited.
+
+### Preventing conflicting phone-number reuse
+
+`StudentPhoneConflictValidator` checks the complete candidate record before `addstudent` or `editstudent` changes the model. It compares the canonical `Phone` values created by the parser, so local Singapore formats such as `91234567`, `9123-4567` and `+65 9123 4567` are treated as the same number without another normalization step.
+
+The validator applies these rules:
+
+* A student phone must not match another student phone, any guardian phone or the guardian phone in the same record.
+* A guardian phone must not match any student phone.
+* Guardian phones may match other guardian phones because siblings may share a guardian.
+
+For an edit, the validator reads the source student list rather than the filtered display list, so hidden records still participate. It excludes the record with the candidate's UUID, which allows an unchanged phone to remain on that record. The duplicate-student check remains separate and runs first, preserving its existing error message.
+
+Validation finishes before `Model#addStudent()` or `Model#setStudent()` is called. A conflict therefore rejects the whole command without changing stored data or causing the active student filter to re-evaluate.
+
+### Deleting a lesson
+
+`deletelesson` deletes the lesson at a displayed index. The students in it are kept, but their enrolments in the lesson are removed, so that no enrolment refers to a missing lesson.
+
+![Interactions inside the Logic and Model components for deletelesson](images/DeleteLessonSequenceDiagram.png)
+
+1. `DeleteLessonCommandParser` reads one positive index. It reports that an index must be positive for zero or negative integers, reports an invalid lesson index for positive integers too large to represent, and uses the command usage message for malformed input.
+1. `DeleteLessonCommand#execute()` looks the index up in the filtered lesson list, so it deletes the lesson the tutor sees at that position, even when `listlessons d/DAY` hides other lessons.
+1. Before deleting, it asks the address book for the students enrolled in the lesson, so that the result can name them.
+1. `ModelManager#deleteLesson()` calls `AddressBook#removeLesson()`, which removes the lesson's enrolments and then the lesson. If the student list shows only this lesson's students (`liststudents l/INDEX`), the model shows all students again, since that filter no longer refers to a lesson.
+1. The result names the deleted lesson, marked `(next day)` if it runs past midnight, and the students who were unenrolled.
+
+#### Design considerations:
+
+**Aspect: What happens to the lesson's students:**
+
+* **Alternative 1 (current choice):** Keep the students and remove only their enrolments in the lesson.
+  * Pros: A tutor who stops a lesson keeps the contacts of its students and their guardians.
+  * Cons: Students with no lessons left must be deleted separately if they are no longer needed.
+
+* **Alternative 2:** Also delete students who have no other lessons.
+  * Pros: No students without lessons are left behind.
+  * Cons: Contacts the tutor may still need are lost without warning.
+
+**Aspect: A student list filtered by the deleted lesson:**
+
+* **Alternative 1 (current choice):** Show all students again.
+  * Pros: The student panel never shows a filter for a lesson that no longer exists.
+  * Cons: The tutor's view changes as a side effect of the deletion.
+
+* **Alternative 2:** Keep the filter, which now matches no student.
+  * Pros: The view does not change unexpectedly.
+  * Cons: An empty student panel looks as if all students were deleted.
+
+### Enrolling a student in a lesson
+
+#### Implementation
+
+The `enrol` command links a student to a lesson. It is facilitated by `EnrolCommand`, `EnrolCommandParser` and the following operations:
+
+* `ReadOnlyAddressBook#isEnrolled(Student, Lesson)` — Checks whether the UUID pair already exists.
+* `Model#enrolStudent(Student, Lesson)` — Adds an `Enrolment` containing the selected student and lesson UUIDs.
+
+Given below is an example usage scenario and how the enrolment mechanism behaves at each step.
+
+Step 1. The user executes `liststudents` and `listlessons`, so that the student and the lesson are both shown in their panels.
+
+Step 2. The user executes `enrol s/1 l/2`. `EnrolCommandParser` checks that both `s/` and `l/` are present exactly once and that each value is a positive integer, then creates an `EnrolCommand` with the two indices.
+
+Step 3. `EnrolCommand#execute()` looks up the 1st student in the filtered student list and the 2nd lesson in the filtered lesson list. If either index is out of range, it throws a `CommandException`, checking the student index first.
+
+Step 4. The command calls `ReadOnlyAddressBook#isEnrolled()`. If the UUID pair already exists, it throws a `CommandException` naming both the student and the lesson.
+
+Step 5. Otherwise, the command calls `Model#enrolStudent()`, which adds a new `Enrolment` to the source list. Both panels update because they derive each student's lessons and each lesson's students from that list.
+
+Deleting a student or lesson also removes every enrolment containing that record's UUID.
+
+#### Design considerations:
+
+**Aspect: Where enrolments are stored:**
+
+* **Alternative 1:** Each `Student` holds the set of `Lesson` objects they are enrolled in.
+  * Pros: Showing a student's lessons is direct, and saving follows the same pattern as other fields of `Student`.
+  * Cons: Showing a lesson's students requires checking every student. Deleting a lesson requires updating every student enrolled in it.
+
+* **Alternative 2:** Each `Lesson` holds the set of `Student` objects enrolled in it.
+  * Pros: Showing a lesson's students is direct.
+  * Cons: Editing or deleting a student requires updating every lesson they are in, and the relationship is owned asymmetrically.
+
+* **Alternative 3 (current choice):** A separate list of `Enrolment` objects, each linking one student UUID to one lesson UUID.
+  * Pros: `Student` and `Lesson` stay independent, edits preserve links through stable UUIDs, and enrolments have one authoritative representation.
+  * Cons: Looking up either side of the relationship requires searching the enrolment list.
+
+### Unenrolling a student from a lesson
+
+The `unenrol` command removes a student from a lesson, keeping both the student and the lesson. It is facilitated by `UnenrolCommand`, `UnenrolCommandParser` and the following operations:
+
+* `ReadOnlyAddressBook#isEnrolled(Student, Lesson)` — Checks whether the student is enrolled in the lesson.
+* `Model#unenrolStudent(Student, Lesson)` — Removes the enrolment linking the student to the lesson.
+
+The sequence diagram below shows how `unenrol s/1 l/2` is executed.
+
+![Interactions for the `unenrol s/1 l/2` Command](images/UnenrolSequenceDiagram.png)
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UnenrolCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+</div>
+
+Step 1. `UnenrolCommandParser` checks that `s/` and `l/` are each present exactly once, that there is no other text before them, and that each value is a positive integer. It then creates an `UnenrolCommand` with the two indices.
+
+Step 2. `UnenrolCommand#execute()` looks up the student in the filtered student list and the lesson in the filtered lesson list. If either index is out of range, it throws a `CommandException`, checking the student index first.
+
+Step 3. The command calls `ReadOnlyAddressBook#isEnrolled()`. If the student is not enrolled in the lesson, it throws a `CommandException` naming both the student and the lesson.
+
+Step 4. Otherwise, the command calls `Model#unenrolStudent()`, which removes the enrolment from the `AddressBook`. If the student list is currently showing only one lesson's students, the filter is reapplied, so a student unenrolled from that lesson disappears from the list. Both panels stay filtered as before.
+
+### Finding students by name or phone number
+
+`findstudent` shows only the students who match a search, by setting a `StudentContainsKeywordsPredicate` as the filter of the student list.
+
+1. `AddressBookParser` first turns every Unicode space in the command, such as a no-break space pasted from a PDF or a messaging app, into a plain space, and drops zero-width characters (`StringUtil#normalizeSpaces()`).
+1. `FindStudentCommandParser` rejects a word that looks like a prefix but is not `n/`, `gn/` or `p/` (`ArgumentTokenizer#verifyNoUnknownPrefixes()`), so the error names it instead of blaming a valid value.
+1. It splits the `n/` and `gn/` values into keywords, each of which must be a valid name part, which may be cut at an apostrophe or hyphen, as in `o'`. It reads the `p/` value as one phone number: spaces, hyphens and a leading `+` are allowed, and only the digits are kept.
+1. `FindStudentCommand#execute()` passes the predicate to `Model#updateFilteredStudentList()`, which replaces any earlier search or lesson filter.
+
+The activity diagram below shows how the predicate decides whether a student matches. Name keywords may match any part of a name. Before comparing, the predicate puts both the name and the keyword in lower case and makes curly apostrophes straight, so `O’Connor` finds `O'Connor`.
+
+![How findstudent decides whether a student matches](images/FindStudentActivityDiagram.png)
+
+A searched number also matches a stored number of at least seven digits if it is that number with `65` in front. This finds a number copied with the Singapore country code, such as `+65 9123 4567`, while a short stored number, such as `567`, is only found as part of a longer search, and `+852 9123 4567` does not find the local number `91234567`. An international number is stored with its country code, so it is found by the same digits.
+
+#### Design considerations:
+
+**Aspect: How to read the `p/` value:**
+
+* **Alternative 1 (current choice):** As one number, ignoring spaces, hyphens and a leading `+`.
+  * Pros: A number pasted as `9123 4567` or `+65 9123-4567` finds the right student.
+  * Cons: Several numbers cannot be searched at once.
+
+* **Alternative 2:** As separate keywords, any of which may match, like names.
+  * Pros: Several partial numbers can be searched at once.
+  * Cons: `9123 4567` finds every student whose number contains either half.
+
+**Aspect: How to match a number with a country code:**
+
+* **Alternative 1 (current choice):** Match a stored number only with the Singapore country code, `65`, in front.
+  * Pros: A caller from another country never finds a family with the same last digits.
+  * Cons: A legacy number saved without its foreign country code is not found when searched with that code, though its own digits still find it.
+
+* **Alternative 2:** Match a stored number that the search ends with, if at most three digits come before it.
+  * Pros: Works for any country code without a list of codes.
+  * Cons: A foreign caller ID such as `+852 9123 4567` finds the unrelated local number `91234567`.
+
 ### \[Proposed\] Undo/redo feature
 
 #### Proposed Implementation
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+This feature and the APIs described below are not currently implemented.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as a `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+
+* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
+* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
+* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
 
 These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
 
@@ -173,11 +498,11 @@ Step 1. The user launches the application for the first time. The `VersionedAddr
 
 ![UndoRedoState0](images/UndoRedoState0.png)
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+Step 2. The user executes `deletestudent 5` command to delete the 5th student in the address book. The `deletestudent` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `deletestudent 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
 
 ![UndoRedoState1](images/UndoRedoState1.png)
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+Step 3. The user executes `addstudent n/David …​` to add a new student. The `addstudent` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
 
 ![UndoRedoState2](images/UndoRedoState2.png)
 
@@ -185,11 +510,11 @@ Step 3. The user executes `add n/David …​` to add a new person. The `add` co
 
 </div>
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+Step 4. The user now decides that adding the student was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
 
 ![UndoRedoState3](images/UndoRedoState3.png)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
+<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial address book state, then there are no previous address book states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
 than attempting to perform the undo.
 
 </div>
@@ -206,17 +531,17 @@ Similarly, how an undo operation goes through the `Model` component is shown bel
 
 ![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone address book states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
 
 </div>
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+Step 5. The user then decides to execute the command `liststudents`. Commands that do not modify the address book, such as `liststudents`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
 
 ![UndoRedoState4](images/UndoRedoState4.png)
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+Step 6. The user executes `addlesson n/Sec 1 Math …​`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `addstudent n/David …​` command. This is the behavior that most modern desktop applications follow.
 
 ![UndoRedoState5](images/UndoRedoState5.png)
 
@@ -234,14 +559,8 @@ The following activity diagram summarizes what happens when a user executes a ne
 
 * **Alternative 2:** Individual command knows how to undo/redo by
   itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
-
-### \[Proposed\] Data archiving
-
-_{Explain here how the data archiving feature will be implemented}_
+  * Pros: Will use less memory (e.g. for `deletestudent`, just save the student being deleted).
+  * Cons: We must ensure that the implementation of each individual command is correct. Commands with side effects, such as `deletelesson` removing the lesson from every enrolled student, are harder to reverse correctly.
 
 
 --------------------------------------------------------------------------------------------------------------------
@@ -261,42 +580,275 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
+* is an independent private tutor who teaches secondary-school students
+* has to keep track of many students, along with their parents' or guardians' contact details
+* teaches several weekly lessons, each with a different group of students
+* often needs to contact a student or their guardian quickly
 * prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
+* can type fast and prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Help independent private tutors organise and quickly retrieve student and guardian contact details, reducing the effort needed to manage multiple students and communicate with the right family.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …​                                   | I want to …​                                                     | So that I can…​                                                                  |
+|----------|-------------------------------------------|------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| `* * *`  | new user                                  | see usage instructions                                           | refer to instructions when I forget how to use the app                           |
+| `* * *`  | tutor                                     | add a student with their contact details                         | start storing my students' contact details                                       |
+| `* * *`  | tutor                                     | add a guardian's contact details to a student                    | reach the student's family when the student has no phone of their own            |
+| `* * *`  | tutor                                     | see at a glance which details belong to a student and which to a guardian | tell whom I am calling before I call                                    |
+| `* * *`  | tutor                                     | delete a student                                                 | remove students who have stopped lessons                                         |
+| `* * *`  | tutor                                     | view all my students with their contact details                  | see what information I have stored                                               |
+| `* * *`  | tutor                                     | find a student by name                                           | retrieve their contact details without browsing the entire list                  |
+| `* * *`  | tutor                                     | find students by their guardian's name                           | tell which student a guardian's message is about                                 |
+| `* * *`  | tutor                                     | find a student by part of a phone number                         | tell who is contacting me from a number I have not saved                         |
+| `* * *`  | tutor                                     | add a weekly lesson with its day and time                        | organise my students by the lessons they attend                                  |
+| `* * *`  | tutor                                     | delete a lesson                                                  | remove lessons that no longer run                                                |
+| `* * *`  | tutor                                     | view all my lessons and the students in each                     | see how my students are organised                                                |
+| `* * *`  | tutor                                     | enrol a student in a lesson                                      | keep track of which students attend which lesson                                 |
+| `* * *`  | tutor                                     | view the students in a particular lesson                         | contact the families relevant to that lesson                                     |
+| `* * *`  | tutor                                     | have my data saved automatically                                 | keep my records without having to save them manually                             |
+| `* *`    | tutor                                     | view only the lessons on a particular day                        | focus on the lessons I teach that day                                            |
+| `* *`    | tutor                                     | remove a student from a lesson                                   | correct a wrong enrolment or record a student leaving one lesson                 |
+| `* *`    | tutor                                     | edit a student's or guardian's details                           | correct inaccurate or outdated details                                           |
+| `* *`    | tutor                                     | edit a lesson's details                                          | update a lesson that has moved to a different day or time                        |
+| `* *`    | tutor                                     | be warned when a lesson I add or move clashes with another one   | avoid double-booking myself                                                      |
+| `* *`    | tutor                                     | undo my most recent change                                       | recover from an accidental addition, edit or deletion                            |
+| `* *`    | tutor                                     | add more than one guardian to a student                          | store the contact details of both parents                                        |
+| `* *`    | tutor of a student with several guardians | mark one guardian as the primary contact                         | know whom to contact first                                                       |
+| `* *`    | tutor                                     | copy a phone number or email address                             | paste it into my preferred messaging app                                         |
+| `* *`    | tutor                                     | record a contact's email address                                 | reach families who prefer email                                                  |
+| `* *`    | tutor                                     | record a contact's preferred communication method                | reach them in the way they prefer                                                |
+| `* *`    | home tutor                                | record a student's lesson location                               | remember where each student's lessons are held                                   |
+| `* *`    | tutor who teaches several subjects        | record the subject I teach each student                          | avoid confusing students with similar names or in similar lessons                |
+| `* *`    | expert user                               | filter students using several criteria at once                   | quickly narrow down a long list of students                                      |
+| `* *`    | expert user                               | enrol or remove several students in one command                  | manage enrolment changes efficiently                                             |
+| `*`      | detail-oriented tutor                     | add private notes to a student                                   | record useful information that does not belong in their contact details          |
+| `*`      | tutor                                     | archive students who have stopped lessons                        | keep their details for future reference without cluttering my list              |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `TutorReach` and the **Actor** is the `tutor`, unless specified otherwise)
 
-**Use case: Delete a person**
+**Use case: UC01 - Add a student**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1.  Tutor requests to add a student, giving the student's name and at least one phone number (the student's, or a guardian's name and phone number).
+2.  TutorReach adds the student and shows the added student's details.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. A required detail is missing, or a guardian's name is given without a phone number (or vice versa).
+
+    * 1a1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 1b. A given detail is invalid.
+
+    * 1b1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 1c. The student already exists in TutorReach.
+
+    * 1c1. TutorReach shows an error message.
+
+      Use case ends.
+
+* 1d. A student phone would be reused by a student or guardian, a guardian phone would be reused by a student, or the student and guardian would have the same phone.
+
+    * 1d1. TutorReach shows an error message identifying the conflicting contact role.
+
+      Use case ends.
+
+**Use case: UC02 - Delete a student**
+
+**MSS**
+
+1.  Tutor requests to list students.
+2.  TutorReach shows a list of students.
+3.  Tutor requests to delete a specific student in the list.
+4.  TutorReach deletes the student, removes them from all their lessons, and shows the deleted student's details.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. Tutor requests to find students by name instead (UC05).
+
+  Use case resumes at step 2.
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given index is invalid.
+
+    * 3a1. TutorReach shows an error message.
+
+      Use case resumes at step 2.
+
+**Use case: UC03 - Add a lesson**
+
+**MSS**
+
+1.  Tutor requests to add a lesson, giving its name, day, start time and end time.
+2.  TutorReach adds the lesson and shows the added lesson's details.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. A required detail is missing.
+
+    * 1a1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 1b. A given detail is invalid, or the end time is the same as the start time.
+
+    * 1b1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 1c. A lesson with the same name, day, start time and end time already exists.
+
+    * 1c1. TutorReach shows an error message.
+
+      Use case ends.
+
+* 1d. The lesson's time overlaps an existing lesson.
+
+    * 1d1. TutorReach adds the lesson and warns which lessons it clashes with.
+
+      Use case ends.
+
+**Use case: UC04 - Enrol a student in a lesson**
+
+**MSS**
+
+1.  Tutor requests to list students.
+2.  TutorReach shows a list of students.
+3.  Tutor requests to list lessons.
+4.  TutorReach shows a list of lessons.
+5.  Tutor requests to enrol a specific student in the student list in a specific lesson in the lesson list.
+6.  TutorReach enrols the student in the lesson and shows the student's and lesson's names.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. Tutor requests to find students by name instead (UC05).
+
+  Use case resumes at step 2.
+
+* 2a. The list of students is empty.
+
+  Use case ends.
+
+* 4a. The list of lessons is empty.
+
+    * 4a1. Tutor adds a lesson (UC03).
+
+      Use case resumes at step 3.
+
+* 5a. The given student index or lesson index is invalid.
+
+    * 5a1. TutorReach shows an error message.
+
+      Use case resumes at step 5.
+
+* 5b. The student is already enrolled in the lesson.
+
+    * 5b1. TutorReach shows an error message.
+
+      Use case ends.
+
+* 6a. The student already attends another lesson at an overlapping time.
+
+    * 6a1. TutorReach enrols the student and warns which of their lessons clash.
+
+      Use case ends.
+
+**Use case: UC05 - Find a student by name**
+
+**MSS**
+
+1.  Tutor requests to find students whose names contain the given keywords.
+2.  TutorReach shows the matching students with their own and their guardians' contact details.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. Tutor gives keywords for the guardian's name instead of, or as well as, the student's name.
+
+  Use case resumes at step 2, with TutorReach showing the students who match at least one keyword for each name searched.
+
+* 1b. Tutor gives a phone number, or part of one, instead of, or as well as, names.
+
+  Use case resumes at step 2, with TutorReach matching students whose own or guardian's phone number contains it, ignoring spaces, hyphens and the Singapore country code in front of a full number.
+
+* 1c. No keywords are given, or the phone number contains a character other than a digit, space, hyphen or leading `+`.
+
+    * 1c1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 2a. No student matches the keywords.
+
+  Use case ends.
+
+**Use case: UC06 - Contact the families of students in a lesson**
+
+**MSS**
+
+1.  Tutor requests to list the lessons on a particular day.
+2.  TutorReach shows the lessons on that day.
+3.  Tutor requests to list the students in a specific lesson in the list.
+4.  TutorReach shows the students in that lesson with their own and their guardians' contact details.
+5.  Tutor contacts the families using the contact details shown.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The given day is invalid.
+
+    * 1a1. TutorReach shows an error message.
+
+      Use case resumes at step 1.
+
+* 2a. There are no lessons on that day.
+
+  Use case ends.
+
+* 3a. The given index is invalid.
+
+    * 3a1. TutorReach shows an error message.
+
+      Use case resumes at step 2.
+
+* 4a. No students are enrolled in the lesson.
+
+  Use case ends.
+
+**Use case: UC07 - Delete a lesson**
+
+**MSS**
+
+1.  Tutor requests to list lessons.
+2.  TutorReach shows a list of lessons.
+3.  Tutor requests to delete a specific lesson in the list.
+4.  TutorReach deletes the lesson, removes it from its students' records, and shows the deleted lesson's details and the students who were unenrolled.
 
     Use case ends.
 
@@ -308,24 +860,123 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
 * 3a. The given index is invalid.
 
-    * 3a1. AddressBook shows an error message.
+    * 3a1. TutorReach shows an error message.
 
       Use case resumes at step 2.
 
-*{More to be added}*
+**Use case: UC08 - Edit a student**
+
+**MSS**
+
+1.  Tutor requests to list or find students.
+1.  TutorReach shows the matching students.
+1.  Tutor requests to edit one or more details of a specific student in the displayed list.
+1.  TutorReach updates the student, preserves the student's enrolments and shows the edited student's details.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given index is invalid, no edit field is given or a given detail is invalid.
+
+    * 3a1. TutorReach shows an error message.
+
+      Use case resumes at step 3.
+
+* 3b. The guardian details would be incomplete because the tutor supplies only one non-blank guardian field for a student without a guardian, or supplies exactly one blank guardian field.
+
+    * 3b1. TutorReach shows an error message.
+
+      Use case resumes at step 3.
+
+* 3c. The edited details would duplicate another student.
+
+    * 3c1. TutorReach shows an error message.
+
+      Use case ends.
+
+* 3d. The final edited details would contain a phone-number conflict.
+
+    * 3d1. TutorReach shows an error message identifying the conflicting contact role.
+
+      Use case ends.
+
+* 4a. The edited student no longer matches the active student filter.
+
+  TutorReach removes the student from the displayed list after completing the edit.
+
+**Use case: UC09 - Edit a lesson**
+
+**MSS**
+
+1.  Tutor requests to list lessons.
+1.  TutorReach shows the matching lessons.
+1.  Tutor requests to edit one or more details of a specific lesson in the displayed list.
+1.  TutorReach updates the lesson, preserves its student enrolments and shows the edited lesson's details.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given index is invalid, no edit field is given or a given detail is invalid.
+
+    * 3a1. TutorReach shows an error message.
+
+      Use case resumes at step 3.
+
+* 3b. The edited start and end times are the same.
+
+    * 3b1. TutorReach shows an error message.
+
+      Use case resumes at step 3.
+
+* 3c. The edited details would duplicate another lesson.
+
+    * 3c1. TutorReach shows an error message.
+
+      Use case ends.
+
+* 4a. The edited lesson no longer matches the active lesson filter.
+
+  TutorReach removes the lesson from the displayed list after completing the edit.
+
+* 4b. The edited lesson's time overlaps other lessons.
+
+    * 4b1. TutorReach warns which lessons it clashes with.
+
+      Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+1.  Should run on Windows, macOS, and Linux when Java `25` or later is installed.
+2.  A tutor familiar with the documented command formats should be able to execute every supported command using only the keyboard after TutorReach starts.
+3.  Should work without an internet connection.
+4.  Should save stored data before reporting successful completion of each command that changes it. If saving fails, TutorReach should report the failure and restore the data and displayed lists to their state before the command.
+5.  Should store the data locally in a human-editable text file, so that advanced users can edit or back up the data directly.
+6.  Should not send any student or guardian data off the user's computer.
+7.  Should run from a single JAR file without an installer, and the JAR file should not exceed 100MB.
+8.  Should be used by a single user on one computer; it does not need to support sharing data between users.
+9.  The GUI should work well (i.e., no resizing needed to use all features) for screen resolutions of 1920x1080 and higher at screen scales of 100% and 125%, and be usable (i.e., all features can be used, even if not optimally) at 1280x720 and higher at a screen scale of 150%.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Tutor**: The user of TutorReach; an independent private tutor
+* **Student**: A person the tutor teaches; stored with their name, an optional phone number and an optional guardian
+* **Guardian**: A parent or other adult responsible for a student, stored as part of that student's record with a name and phone number
+* **Lesson**: A weekly time slot in which the tutor teaches a group of students, identified by its name, day, start time and end time. A lesson whose end time is earlier than its start time runs past midnight; its day is the day it starts on
+* **Enrol**: To link a student to a lesson, recording that the student attends that lesson
+* **Index**: The number shown next to a student or lesson in the currently displayed list, used in commands to refer to that student or lesson
+* **Duplicate student**: A student whose name matches an existing student's (comparing only its letters, ignoring case) and who shares at least one phone number with them, counting both student and guardian phone numbers
+* **Phone-number conflict**: Reuse of a phone number as more than one student contact or as both a student and guardian contact; guardian contacts may share a number
+* **Duplicate lesson**: A lesson whose name (ignoring case and extra spaces), day, start time and end time all match an existing lesson's
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -344,39 +995,366 @@ testers are expected to do more *exploratory* testing.
 
    1. Download the JAR file and copy it into an empty folder.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar tutorReach.jar`.<br>
+      Expected: The GUI opens with a set of sample students. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with `java -jar tutorReach.jar`.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+1. Shutting down
 
-### Deleting a person
+   1. Test case: `exit`<br>
+      Expected: The app closes.
 
-1. Deleting a person while all persons are being shown
+### Adding a student
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+1. Adding a student while all students are being shown
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+   1. Prerequisites: List all students using the `liststudents` command.
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+   1. Test case: `addstudent n/Marcus Lim gn/Lim Hui Min gp/98761234`<br>
+      Expected: A student card for Marcus Lim is added at the end of the students panel, with no phone of their own and Lim Hui Min as guardian. The status message shows the added student's details.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Test case: `addstudent n/Ryan Lim p/93210283`<br>
+      Expected: A student with no guardian is added. The status message shows the added student's details.
 
-1. _{ more test cases …​ }_
+   1. Test case: `addstudent n/Ng Ah Kow @ Ng Kok Wee p/81000003`, followed by `addstudent n/S. Ramasamy p/81000004`, `addstudent n/Tan Wei Ming (David) p/81000005` and `addstudent n/Tan Ah Kow Jr. p/81000006`<br>
+      Expected: All four students are added. Their aliases, initials, parenthesized names and suffix punctuation are preserved in the displayed names.
+
+   1. Test case: `addstudent n/Ryan Lim`<br>
+      Expected: No student is added. The status message states that at least one phone number is required.
+
+   1. Test case: `addstudent n/Ryan Lim gn/Lim Wei`<br>
+      Expected: No student is added. The status message states that guardian name and guardian phone must be given together.
+
+1. Adding a duplicate student
+
+   1. Prerequisites: The test case `addstudent n/Marcus Lim gn/Lim Hui Min gp/98761234` above has been executed.
+
+   1. Test case: `addstudent n/marcus  lim p/98761234`<br>
+      Expected: No student is added, since the name matches (comparing only its letters, ignoring case) and a phone number is shared. The status message shows `This student already exists`.
+
+   1. Test case: `addstudent n/Marcus Lim p/88887777`<br>
+      Expected: The student is added, since no phone number is shared. The status message also warns that another student has the same name, in case it is the same child added twice.
+
+1. Preventing conflicting phone-number reuse
+
+   1. Prerequisites: Start with an empty address book. Execute `addstudent n/Aiden Tan p/91234567 gn/Tan Mei gp/92345678`.
+
+   1. Test case: `addstudent n/Ben Lim p/+65 9123-4567`<br>
+      Expected: No student is added. The status message shows `This phone number is already used by another student.`
+
+   1. Test case: `addstudent n/Ben Lim p/9234-5678`<br>
+      Expected: No student is added. The status message shows `This phone number is already used as a guardian contact.`
+
+   1. Test case: `addstudent n/Ben Lim gn/Lim Mei gp/+65 9123 4567`<br>
+      Expected: No student is added. The status message shows `This phone number is already used by another student.`
+
+   1. Test case: `addstudent n/Ben Lim p/93456789 gn/Lim Mei gp/+65 9345-6789`<br>
+      Expected: No student is added. The status message shows `A student and their guardian cannot use the same phone number.`
+
+   1. Test case: `addstudent n/Ben Lim gn/Lim Mei gp/94567890`, followed by `addstudent n/Chloe Lim gn/Mei Lim gp/+65 9456-7890`<br>
+      Expected: Both students are added because guardian phone numbers may be shared even when the guardian names differ.
+
+   1. Test case: `findstudent n/ben`, followed by `editstudent 1 p/91234567`<br>
+      Expected: No student is edited even though Aiden is hidden by the filter. The status message shows `This phone number is already used by another student.`
+
+   1. Test case: `editstudent 1 p/92345678`<br>
+      Expected: No student is edited. The status message shows `This phone number is already used as a guardian contact.`
+
+   1. Test case: `editstudent 1 p/94567890`<br>
+      Expected: No student is edited. The status message shows `A student and their guardian cannot use the same phone number.`
+
+### Editing a student
+
+1. Editing a student while all students are shown
+
+   1. Prerequisites: Start with an empty address book. Execute `addstudent n/Aiden Tan p/91234567 gn/Tan Mei gp/92345678`, `addlesson n/Math d/mon st/1600 et/1800`, `enrol s/1 l/1` and `liststudents`, in that order.
+
+   1. Test case: `editstudent 1 p/97654321`<br>
+      Expected: Only the first student's phone number changes. Their name, guardian and lesson enrolments remain unchanged, and the status message shows the edited student's details.
+
+   1. Test case: `editstudent 1 gn/Lim Mei gp/91234567`<br>
+      Expected: Only the first student's guardian details are replaced. Their own details and lesson enrolments remain unchanged.
+
+   1. Test case: Repeat `editstudent 1 p/97654321` after the preceding test case.<br>
+      Expected: No student is edited, and the data file is not rewritten. The status message shows an error stating that the incoming changes are identical to the current student details and asks the user to change at least one field.
+
+   1. Test case: `editstudent 1 p/97654321 gn/Lim Wei gp/98765432`<br>
+      Expected: The unchanged phone number is accepted, the guardian details change and the address book is saved because at least one resulting field is different.
+
+   1. Test case: `editstudent 1 gn/Lim Hui`<br>
+      Expected: Only the first student's guardian name changes. The guardian phone and all other details remain unchanged.
+
+   1. Test case: `editstudent 1 p/`<br>
+      Expected: The first student's own phone is removed. Their guardian, identity and lesson enrolments remain unchanged.
+
+   1. Test case: `editstudent 1 p/97654321 gn/ gp/`<br>
+      Expected: The first student's own phone is set to `97654321` and their guardian is removed. Their identity and lesson enrolments remain unchanged.
+
+   1. Test case: `editstudent 1 p/ gn/ gp/`<br>
+      Expected: No student is edited because the result would have no contact number. The status message states that at least one phone number is required.
+
+   1. Other incorrect commands to try: `editstudent 1`, `editstudent 0 n/Aiden`, `editstudent 1 p/12`, `editstudent 1 n/Aiden n/Ryan`<br>
+      Expected: No student is edited. The status message shows the relevant missing field, invalid index, invalid phone or duplicate-prefix error.
+
+1. Editing a student while the students panel is filtered
+
+   1. Prerequisites: Execute `findstudent n/aiden`, with Aiden shown as the first result.
+
+   1. Test case: `editstudent 1 n/Zoe Tan`<br>
+      Expected: The student is edited and disappears from the displayed list because the active search filter is re-evaluated.
+
+   1. Prerequisites: List the students in a lesson using `liststudents l/1`, with at least one student shown.
+
+   1. Test case: `editstudent 1 p/97654321`<br>
+      Expected: The first displayed student is edited and remains in the list because the lesson enrolment is preserved.
+
+### Deleting a student
+
+1. Deleting a student while all students are being shown
+
+   1. Prerequisites: List all students using the `liststudents` command, with multiple students in the list.
+
+   1. Test case: `deletestudent 1`<br>
+      Expected: The first student is deleted from the list and removed from every lesson card. The status message shows the deleted student's details.
+
+   1. Test case: `deletestudent 0`, followed by `deletestudent -1`<br>
+      Expected: No student is deleted. Both commands show `Index must be a positive integer.`
+
+   1. Other incorrect delete commands to try: `deletestudent`, `deletestudent abc`, `deletestudent 1 2`<br>
+      Expected: No student is deleted. The status message shows the invalid command format and usage instructions.
+
+   1. Test case: `deletestudent 99`, followed by `deletestudent 99999999999`<br>
+      Expected: No student is deleted. The status message shows `Student index exceeds the number of students in the displayed list.`
+
+1. Deleting a student while the students panel is filtered
+
+   1. Prerequisites: Show only some students, e.g. using `findstudent n/tan`.
+
+   1. Test case: `deletestudent 1`<br>
+      Expected: The first student shown is deleted. The filter stays on.
+
+### Adding and deleting a lesson
+
+1. Adding a lesson
+
+   1. Test case: `addlesson n/Sec 3 A-Math d/mon st/1600 et/1800`<br>
+      Expected: A lesson card for Sec 3 A-Math (Mon 1600-1800) with no students is added to the lessons panel, which lists lessons by day and then start time.
+
+   1. Test case: the same command again<br>
+      Expected: No lesson is added. The status message shows `This lesson already exists: Sec 3 A-Math (Mon 1600-1800)`.
+
+   1. Test case: `addlesson n/sec 3  a-math d/MON st/1600 et/1800`<br>
+      Expected: No lesson is added. The day may be in any letter case, and the name matches the existing lesson's once case and extra spaces are ignored. The status message shows `This lesson already exists: Sec 3 A-Math (Mon 1600-1800)`.
+
+   1. Test case: `addlesson n/Night Class d/fri st/2200 et/0100`<br>
+      Expected: A lesson card for Night Class (Fri 2200-0100) is added. An end time earlier than the start time means the lesson runs past midnight and ends on the next day, so the status message marks it `(next day)`.
+
+   1. Test case: `addlesson n/Swapped d/sat st/1800 et/1600`<br>
+      Expected: The lesson is added as Sat 1800-1600 (next day). The status message warns that it lasts 22 h and that the start and end times may be swapped.
+
+   1. Test case: `addlesson n/Sec 3 A-Math d/mon st/1600 et/1600`<br>
+      Expected: No lesson is added. The status message states that the end time must not be the same as the start time.
+
+   1. Test case: `addlesson n/Sec 4 E-Math d/Tuesday st/16:30 et/18:30`<br>
+      Expected: A lesson card for Sec 4 E-Math (Tue 1630-1830) is added. A day may be written in full, and a time may contain a colon.
+
+   1. Test case: `addlesson n/Math d/mon st/1600et/1800`<br>
+      Expected: No lesson is added. The status message says that `et/END_TIME` is missing and that each prefix must have a space before it, followed by the command's usage.
+
+   1. Other incorrect commands to try: `addlesson n/Math d/funday st/1600 et/1800`, `addlesson n/Math d/mo st/1600 et/1800`, `addlesson n/Math d/mon st/4pm et/1800`, `addlesson n/Math d/mon st/2400 et/2430`<br>
+      Expected: No lesson is added. The status message shows the error for the invalid value: a day must be its name or at least its first three letters, so `funday` and `mo` are rejected, and a time must be `HHMM` or `HH:MM` from `0000` to `2359`.
+
+1. Adding a lesson that clashes with another
+
+   1. Prerequisites: The lesson Sec 3 A-Math (Mon 1600-1800) exists, and no other lesson is on Monday evening.
+
+   1. Test case: `addlesson n/Sec 3 E-Math d/mon st/1700 et/1900`<br>
+      Expected: The lesson is added. The status message shows the added lesson and, on the next line, a warning that it clashes with Sec 3 A-Math (Mon 1600-1800).
+
+   1. Test case: `addlesson n/Sec 2 Math d/mon st/1900 et/2000`<br>
+      Expected: The lesson is added with no warning, since it starts exactly when Sec 3 E-Math ends.
+
+   1. Test case: `editlesson INDEX st/1830`, where `INDEX` is Sec 2 Math's index in the lessons panel<br>
+      Expected: The lesson is edited to Mon 1830-2000. The status message shows the edited lesson and, on the next line, a warning that it clashes with Sec 3 E-Math (Mon 1700-1900).
+
+1. Filtering lessons by day
+
+   1. Prerequisites: Add lessons on at least two different days, including Monday.
+
+   1. Test case: `listlessons d/mon`<br>
+      Expected: Only lessons starting on Monday are shown. Matching is case-insensitive, and `listlessons d/Monday` gives the same list.
+
+   1. Test case: `listlessons`<br>
+      Expected: All lessons are shown again.
+
+   1. Other incorrect commands to try: `listlessons mon`, `listlessons d/funday`, `listlessons d/mon d/tue`, `listlessons n/Math`<br>
+      Expected: The list is unchanged. The status message shows the relevant invalid command, day or duplicate-prefix error.
+
+1. Deleting a lesson
+
+   1. Prerequisites: List all lessons using `listlessons`. The first lesson has at least one student enrolled.
+
+   1. Test case: `deletelesson 1`<br>
+      Expected: The first lesson is deleted. Its enrolled students are kept, but the lesson is removed from their cards. The status message lists the students who were unenrolled.
+
+   1. Test case: `deletelesson 0`, followed by `deletelesson -1`<br>
+      Expected: No lesson is deleted. Both commands show `Index must be a positive integer.`
+
+   1. Other incorrect delete commands to try: `deletelesson`, `deletelesson abc`, `deletelesson 1 2`<br>
+      Expected: No lesson is deleted. The status message shows the invalid command format and usage instructions.
+
+   1. Test case: `deletelesson 99`, followed by `deletelesson 99999999999`<br>
+      Expected: No lesson is deleted. The status message shows `Lesson index exceeds the number of lessons in the displayed list.`
+
+### Editing a lesson
+
+1. Editing a lesson while all lessons are shown
+
+   1. Prerequisites: List all lessons using `listlessons`. The first lesson has at least one enrolled student.
+
+   1. Test case: `editlesson 1 d/tue`<br>
+      Expected: Only the first lesson's day changes. Its name, times and student enrolments remain unchanged, and the status message shows the edited lesson's details.
+
+   1. Test case: `editlesson 1 st/2200 et/0100`<br>
+      Expected: The lesson is edited to run past midnight and retains its student enrolments.
+
+   1. Test case: Repeat `editlesson 1 d/tue` after the preceding test case.<br>
+      Expected: No lesson is edited, and the data file is not rewritten. The status message shows an error stating that the incoming changes are identical to the current lesson details and asks the user to change at least one field.
+
+   1. Test case: `editlesson 1 d/tue st/1700 et/1900`<br>
+      Expected: The unchanged day is accepted, the times change and the address book is saved because at least one resulting field is different.
+
+   1. Test case: `editlesson 1 st/1700 et/1700`<br>
+      Expected: No lesson is edited. The status message states that the end time must not be the same as the start time.
+
+   1. Other incorrect commands to try: `editlesson 1`, `editlesson 0 n/Math`, `editlesson 1 d/funday`, `editlesson 1 st/4pm`, `editlesson 1 d/mon d/tue`<br>
+      Expected: No lesson is edited. The status message shows the relevant missing field, invalid index, invalid value or duplicate-prefix error.
+
+1. Editing a lesson while a filter is active
+
+   1. Prerequisites: Show Monday lessons using `listlessons d/mon`, with at least one lesson shown.
+
+   1. Test case: `editlesson 1 d/tue`<br>
+      Expected: The lesson is edited and disappears from the displayed lesson list because the active day filter is re-evaluated.
+
+   1. Prerequisites: Run `listlessons` to show all lessons, then list students in the first lesson using `liststudents l/1`, with at least one student shown.
+
+   1. Test case: `editlesson 1 n/Updated Mathematics`<br>
+      Expected: The lesson is edited, and the filtered student list remains unchanged because the lesson's identity and enrolments are preserved.
+
+### Enrolling a student in a lesson
+
+1. Enrolling a student
+
+   1. Prerequisites: List all students and lessons using `liststudents` and `listlessons`, with at least one of each. The first student is not enrolled in the first lesson.
+
+   1. Test case: `enrol s/1 l/1`<br>
+      Expected: The lesson appears on the first student's card, and the student appears on the first lesson's card.
+
+   1. Test case: `enrol s/1 l/1` again<br>
+      Expected: No change. The status message states that the student is already enrolled in the lesson.
+
+   1. Test case: `enrol 1 1`<br>
+      Expected: No change. The status message shows the invalid command format error.
+
+   1. Test case: `enrol s/x l/1` (where x is larger than the number of students shown)<br>
+      Expected: No change. The status message shows `Student index exceeds the number of students in the displayed list.`
+
+1. Enrolling a student in a clashing lesson
+
+   1. Prerequisites: The first student is enrolled in Sec 3 A-Math (Mon 1600-1800), and the lesson Sec 3 E-Math (Mon 1700-1900) exists at index `INDEX`.
+
+   1. Test case: `enrol s/1 l/INDEX`<br>
+      Expected: The student is enrolled. The status message warns, on the next line, that the student already attends the clashing lesson Sec 3 A-Math (Mon 1600-1800).
+
+### Viewing and finding students
+
+1. Viewing the students in a lesson
+
+   1. Prerequisites: At least one lesson is shown, with students enrolled.
+
+   1. Test case: `liststudents l/1`<br>
+      Expected: Only the students enrolled in the first lesson are shown, and the status message names the lesson.
+
+   1. Test case: `liststudents 1`<br>
+      Expected: The list is unchanged. The status message shows the invalid command format error.
+
+   1. Test case: `liststudents`<br>
+      Expected: All students are shown again.
+
+1. Deleting the lesson used to filter students
+
+   1. Prerequisites: At least two students and one lesson are shown. Enrol only the first student in the first lesson, then execute `liststudents l/1`.
+
+   1. Test case: `deletelesson 1`<br>
+      Expected: The selected lesson is deleted and all remaining students are shown again, because the lesson used by the student filter no longer exists.
+
+1. Finding students
+
+   1. Test case: `findstudent gn/tan`<br>
+      Expected: Only students whose guardian's name contains "tan" are shown.
+
+   1. Test case: `findstudent n/`<br>
+      Expected: The list is unchanged. The status message states that the search text cannot be empty.
+
+   1. Test case: `findstudent p/9123`<br>
+      Expected: Only students whose own phone number or guardian's phone number contains "9123" are shown.
+
+   1. Test case: `findstudent p/+65 9123 4567`<br>
+      Expected: Only students whose own phone number or guardian's phone number is 91234567 are shown. The spaces and the country code are ignored.
+
+   1. Test case: `findstudent p/91a`<br>
+      Expected: The list is unchanged. The status message states that a phone search should contain only digits, spaces, hyphens and a leading `+`.
+
+   1. Test case: `addstudent n/Jose O'Connor p/97654321`, followed by `findstudent n/jose`, then `FindStudent n/O’Connor`<br>
+      Expected: Both searches show Jose O'Connor. The style of apostrophe and the letter case of the command word are ignored.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+Use a disposable copy of the data file for these tests. The default path is `data/addressbook.json`
+relative to the app's working directory. Close the app before
+editing files, and retain a separate copy of the original data.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Missing file: move the data file aside and launch the app. Expect the sample students.
+   Exit without changing data; no tutor data file should be created.
+1. Partial recovery: in a valid file containing at least two students, change one student's phone to
+   `invalid`, then restart. Expect that student and any enrolments referencing them to be skipped,
+   valid records to remain, and a warning containing the backup path. Check that the backup contains
+   the original invalid value. Listing and exiting must leave the source file unchanged.
+1. Saving recovered data: repeat the partial-recovery setup, then successfully add a new student.
+   Restart and verify that the recovered records and new student persist. The recovery backup must remain.
+1. Unrecoverable file: remove a closing `}` and restart. Expect an empty app and a warning that saving
+   is disabled. `liststudents`, `help` and `exit` must work. An `addstudent` command must report an error
+   without adding a student or changing the file. Restore the valid copy and restart to resume normal use.
+1. Duplicate JSON field names: in a disposable valid file, repeat the root `students` key with an
+   empty array as its second value. Restart and expect the same blocked-saving behaviour as an
+   unrecoverable file, with the original bytes unchanged. Repeat with a duplicated `name` key inside
+   one student record; the entire file must be rejected, not partially recovered.
+1. Single-instance protection: launch TutorReach twice from the same working directory. The second
+   instance must show the already-running message and exit without changing the data or preferences.
+   Close the first instance and launch again; startup must succeed even though the lock file remains.
+1. Save failure: with valid data loaded, make the destination unwritable using filesystem permissions
+   supported by your OS, then try adding a student. Expect a save error, unchanged stored data and
+   restoration of the previous displayed lists. Restore permissions before retrying.
 
-1. _{ more test cases …​ }_
+### Clearing all data
+
+1. Clearing with confirmation
+
+   1. Test case: `clear`<br>
+      Expected: Nothing is deleted. The status message warns that all students, lessons and
+      enrolments will be deleted and asks for `clear confirm`.
+
+   1. Test case: `clear confirm`<br>
+      Expected: All students, lessons and enrolments are deleted. The data file is overwritten with
+      the empty data, so back up the file first if you want to retain a copy.
+
+   1. Other incorrect commands to try: `clear 3`, `clear yes`<br>
+      Expected: Nothing is deleted. The status message shows the invalid command format error and
+      the `clear` usage instructions.

@@ -11,14 +11,20 @@ Class UiManager
 Class MainWindow
 Class HelpWindow
 Class ResultDisplay
-Class PersonListPanel
-Class PersonCard
+Class StudentListPanel
+Class StudentCard
+Class StudentCardDetails
+Class LessonListPanel
+Class LessonCard
+Class LessonCardDetails
+Class LessonUiFormatter
 Class StatusBarFooter
 Class CommandBox
 }
 
 package Model <<Rectangle>> {
 Class HiddenModel #FFFFFF
+Class ReadOnlyAddressBook
 }
 
 package Logic <<Rectangle>> {
@@ -32,29 +38,46 @@ UiManager .left.|> Ui
 UiManager -down-> "1" MainWindow
 MainWindow *-down->  "1" CommandBox
 MainWindow *-down-> "1" ResultDisplay
-MainWindow *-down-> "1" PersonListPanel
+MainWindow *-down-> "1" StudentListPanel
+MainWindow *-down-> "1" LessonListPanel
 MainWindow *-down-> "1" StatusBarFooter
 MainWindow --> "0..1" HelpWindow
 
-PersonListPanel -down-> "*" PersonCard
+StudentListPanel -down-> "*" StudentCard
+LessonListPanel -down-> "*" LessonCard
+StudentCard ..> StudentCardDetails : formats student view
+LessonCard ..> LessonCardDetails : formats lesson view
+StudentCardDetails ..> LessonUiFormatter : formats memberships
+LessonCardDetails ..> LessonUiFormatter : formats schedules
+StudentListPanel ..> ReadOnlyAddressBook : reads memberships
+LessonListPanel ..> ReadOnlyAddressBook : reads memberships
+StudentListPanel ..> ReadOnlyAddressBook : listens for changes
+LessonListPanel ..> ReadOnlyAddressBook : listens for changes
 
 MainWindow -left-|> UiPart
 
 ResultDisplay --|> UiPart
 CommandBox --|> UiPart
-PersonListPanel --|> UiPart
-PersonCard --|> UiPart
+StudentListPanel --|> UiPart
+StudentCard --|> UiPart
+StudentCardDetails ..> HiddenModel
+LessonListPanel --|> UiPart
+LessonCard --|> UiPart
+LessonCardDetails ..> HiddenModel
+LessonUiFormatter ..> HiddenModel
 StatusBarFooter --|> UiPart
 HelpWindow --|> UiPart
 
-PersonCard ..> Model
+StudentCard ..> Model
+LessonCard ..> Model
 UiManager -right-> Logic
 MainWindow -left-> Logic
 
-PersonListPanel -[hidden]left- HelpWindow
+LessonListPanel -[hidden]left- HelpWindow
 HelpWindow -[hidden]left- CommandBox
 CommandBox -[hidden]left- ResultDisplay
 ResultDisplay -[hidden]left- StatusBarFooter
+StudentListPanel -[hidden]right- LessonListPanel
 
 MainWindow -[hidden]-|> UiPart
 @enduml

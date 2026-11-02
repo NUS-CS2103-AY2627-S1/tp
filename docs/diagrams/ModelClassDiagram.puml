@@ -3,6 +3,7 @@
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+skinparam nodesep 40
 
 Package Model as ModelPackage <<Rectangle>>{
 Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
@@ -12,15 +13,12 @@ Class AddressBook
 Class ModelManager
 Class UserPrefs
 
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
+Class Student
+Class Enrolment
+Class Lesson
+Class Guardian
 Class Name
 Class Phone
-Class Tag
-
-Class I #FFFFFF
 }
 
 Class HiddenOutside #FFFFFF
@@ -35,20 +33,20 @@ ModelManager -left-> "1" AddressBook
 ModelManager -right-> "1" UserPrefs
 UserPrefs .up.|> ReadOnlyUserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+AddressBook *--> "~* all" Student
+AddressBook *--> "~* all" Lesson
+AddressBook *---> "~* all" Enrolment
+Enrolment -up-> "1" Student
+Enrolment -up-> "1" Lesson
+Student *--> Name
+Student *--> "0..1" Phone
+Student *--> "0..1" Guardian
+Guardian *--> Name
+Guardian *--> Phone
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+UserPrefs -[hidden]down- Lesson
+Phone -[hidden]right- Enrolment
 
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
-ModelManager --> "~* filtered" Person
+ModelManager --> "~* filtered" Student
+ModelManager --> "~* filtered" Lesson
 @enduml

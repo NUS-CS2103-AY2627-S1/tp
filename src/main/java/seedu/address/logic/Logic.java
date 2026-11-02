@@ -5,7 +5,11 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.lesson.Enrolment;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
 
 /**
  * API of the Logic component
@@ -22,6 +26,18 @@ public interface Logic {
 
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable observable student list for the UI. */
+    ObservableList<Student> getFilteredStudentList();
+
+    /** Observable lessons for the lesson panel. */
+    ObservableList<Lesson> getFilteredLessonList();
+
+    /** Observe membership changes to refresh lesson and student cards. */
+    ObservableList<Enrolment> getEnrolmentList();
+
+    /** Complete data for membership queries, independent of display filters. */
+    ReadOnlyAddressBook getAddressBook();
 
     /**
      * Returns the user prefs' GUI settings.

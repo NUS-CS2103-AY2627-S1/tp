@@ -1,0 +1,106 @@
+package seedu.address.model.student;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+import seedu.address.model.person.Name;
+import seedu.address.model.person.Phone;
+
+/**
+ * Immutable student contact. A student must be reachable through their own phone or a guardian.
+ */
+public final class Student {
+    public static final String MESSAGE_CONTACT_REQUIRED =
+            "At least one phone number is required: p/ for the student, or gn/ with gp/ for the guardian.";
+
+    private final UUID id;
+    private final Name name;
+    private final Phone phone;
+    private final Guardian guardian;
+
+    /**
+     * Creates a student. {@code phone} and {@code guardian} may be null to indicate absence,
+     * but at least one must be present. {@code name} must not be null.
+     */
+    public Student(Name name, Phone phone, Guardian guardian) {
+        this(UUID.randomUUID(), name, phone, guardian);
+    }
+
+    /** Restores a student with a persisted ID; optional contact values may be null. */
+    public Student(UUID id, Name name, Phone phone, Guardian guardian) {
+        this.id = requireNonNull(id);
+        this.name = requireNonNull(name);
+        checkArgument(phone != null || guardian != null, MESSAGE_CONTACT_REQUIRED);
+        this.phone = phone;
+        this.guardian = guardian;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public Name getName() {
+        return name;
+    }
+
+    public Optional<Phone> getPhone() {
+        return Optional.ofNullable(phone);
+    }
+
+    public Optional<Guardian> getGuardian() {
+        return Optional.ofNullable(guardian);
+    }
+
+    /**
+     * Returns whether the names have the same letters, and at least one phone
+     * matches across either student's own or guardian's number. This is a duplicate check,
+     * not value equality; siblings with different names are allowed.
+     */
+    public boolean isSameStudent(Student other) {
+        if (!hasSameName(other)) {
+            return false;
+        }
+        return (phone != null && other.hasPhone(phone))
+                || (guardian != null && other.hasPhone(guardian.getPhone()));
+    }
+
+    /**
+     * Returns whether the names have the same letters, ignoring case and everything else, such as spaces,
+     * punctuation and digits, whatever the phone numbers.
+     */
+    public boolean hasSameName(Student other) {
+        return other != null && normalizedName().equals(other.normalizedName());
+    }
+
+    private String normalizedName() {
+        return name.fullName.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
+    }
+
+    private boolean hasPhone(Phone number) {
+        return number.equals(phone) || (guardian != null && number.equals(guardian.getPhone()));
+    }
+
+    /** Returns true for the same record ID and identical contact details. */
+    @Override
+    public boolean equals(Object other) {
+        return other == this || (other instanceof Student student
+                && id.equals(student.id) && name.equals(student.name) && Objects.equals(phone, student.phone)
+                && Objects.equals(guardian, student.guardian));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, phone, guardian);
+    }
+
+    @Override
+    public String toString() {
+        return name + "; Phone: " + getPhone().map(Phone::toString).orElse("-")
+                + "; Guardian: " + getGuardian().map(Guardian::toString).orElse("-");
+    }
+}

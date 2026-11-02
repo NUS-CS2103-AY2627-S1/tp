@@ -126,10 +126,28 @@
     -fx-text-fill: #010504;
 }
 
+.panel_header_label {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 16px;
+    -fx-text-fill: white;
+}
+
 .cell_small_label {
     -fx-font-family: "Segoe UI";
     -fx-font-size: 13px;
     -fx-text-fill: #010504;
+}
+
+.list-cell .contact_section_label {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 12px;
+    -fx-text-fill: #b9d9f0;
+}
+
+.list-cell .contact_field_label {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 12px;
+    -fx-text-fill: #c2c2c2;
 }
 
 .stack-pane {

@@ -11,14 +11,15 @@ import seedu.address.commons.util.ToStringBuilder;
  * convert it back to an int if the index will not be passed to a different component again.
  */
 public class Index {
-    private int zeroBasedIndex;
+    private final int zeroBasedIndex;
 
     /**
      * Index can only be created by calling {@link Index#fromZeroBased(int)} or
      * {@link Index#fromOneBased(int)}.
      */
     private Index(int zeroBasedIndex) {
-        if (zeroBasedIndex < 0) {
+        // Integer.MAX_VALUE is rejected because its one-based form would overflow
+        if (zeroBasedIndex < 0 || zeroBasedIndex == Integer.MAX_VALUE) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -44,6 +45,9 @@ public class Index {
      * Creates a new {@code Index} using a one-based index.
      */
     public static Index fromOneBased(int oneBasedIndex) {
+        if (oneBasedIndex <= 0) {
+            throw new IndexOutOfBoundsException();
+        }
         return new Index(oneBasedIndex - 1);
     }
 
@@ -59,6 +63,11 @@ public class Index {
         }
 
         return zeroBasedIndex == otherIndex.zeroBasedIndex;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(zeroBasedIndex);
     }
 
     @Override
