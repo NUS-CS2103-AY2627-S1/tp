@@ -1,10 +1,13 @@
 package seedu.address.logic;
 
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
+import seedu.address.model.StudentSummary;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
 
 /**
@@ -14,13 +17,35 @@ public class Messages {
 
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
+    public static final String MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX =
+            "The student index provided is invalid.";
+    public static final String MESSAGE_INVALID_LESSON_DISPLAYED_INDEX =
+            "The lesson index provided is invalid.";
+    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
+    public static final String MESSAGE_NO_LESSONS = "No lessons logged yet for %1$s.";
+    /** One lesson in a lesson listing: its {@code view} number, date and content. */
+    public static final String MESSAGE_LESSON_LINE = "%1$d. %2$s: %3$s";
+    public static final String MESSAGE_FUTURE_DATE =
+            "Lesson dates cannot be in the future. Log a lesson on or after the day it is taught.";
     public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    /** Shown after a duplicate-field error, since prefix-like text in a value starts another field. */
+    public static final String MESSAGE_PREFIX_TEXT_HINT = "A recognised prefix after a space starts another field. "
+            + "If it was part of your text, please reword it.";
+    /**
+     * Shown after an invalid date in {@code loglesson} or {@code editlesson}, where date/ may have been meant as notes.
+     */
+    public static final String MESSAGE_LESSON_DATE_TEXT_HINT =
+            "If \"date/\" was part of your lesson notes, please reword it, for example \"date and time\".";
+
+    /** Day, month and four-digit year, as Singapore users write dates, e.g. 18/10/2026. */
+    public static final DateTimeFormatter LESSON_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/uuuu");
+    public static final String UNDATED_LESSON = "(undated)";
 
     /**
-     * Returns an error message indicating the duplicate prefixes.
+     * Returns an error message indicating the duplicate prefixes, followed by a hint to reword text that
+     * contains one of them.
      */
     public static String getErrorMessageForDuplicatePrefixes(Prefix... duplicatePrefixes) {
         assert duplicatePrefixes.length > 0;
@@ -28,7 +53,7 @@ public class Messages {
         Set<String> duplicateFields =
                 Stream.of(duplicatePrefixes).map(Prefix::toString).collect(Collectors.toSet());
 
-        return MESSAGE_DUPLICATE_FIELDS + String.join(" ", duplicateFields);
+        return MESSAGE_DUPLICATE_FIELDS + String.join(" ", duplicateFields) + "\n" + MESSAGE_PREFIX_TEXT_HINT;
     }
 
     /**
@@ -39,13 +64,49 @@ public class Messages {
         builder.append(person.getName())
                 .append("; Phone: ")
                 .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
                 .append("; Address: ")
                 .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append("; Level: ")
+                .append(person.getLevel())
+                .append("; Subject: ")
+                .append(person.getSubject());
         return builder.toString();
+    }
+
+    /**
+     * Formats the date of {@code lesson} for display to the user, or marks the lesson as undated.
+     */
+    public static String formatLessonDate(Lesson lesson) {
+        return lesson.getDate()
+                .map(date -> date.format(LESSON_DATE_FORMATTER))
+                .orElse(UNDATED_LESSON);
+    }
+
+    /**
+     * Formats a student's lesson count and latest recorded date for their card.
+     */
+    public static String formatLessonStatus(Person person) {
+        int count = person.getLessonCount();
+        if (count == 0) {
+            return "No lessons yet";
+        }
+        String lessonCount = count + (count == 1 ? " lesson" : " lessons");
+        return person.getLatestLessonDate()
+                .map(date -> lessonCount + ", last " + date.format(LESSON_DATE_FORMATTER))
+                .orElse(lessonCount + " " + UNDATED_LESSON);
+    }
+
+    /**
+     * Describes the complete collection's student and lesson totals.
+     */
+    public static String formatSummaryParagraph(StudentSummary summary) {
+        int students = summary.getStudentCount();
+        if (students == 0) {
+            return "No students yet. Add a student to start recording lessons.";
+        }
+        long lessons = summary.getLessonCount();
+        return "You have " + students + (students == 1 ? " student" : " students")
+                + " and " + lessons + (lessons == 1 ? " lesson record" : " lesson records") + " in total.";
     }
 
 }

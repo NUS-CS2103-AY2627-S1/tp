@@ -1,5 +1,7 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
@@ -21,23 +23,49 @@ public class UiManager implements Ui {
     public static final String ALERT_DIALOG_PANE_FIELD_ID = "alertDialogPane";
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
-    private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String ICON_APPLICATION = "/images/tutorlah_icon.png";
 
     private Logic logic;
     private Path dataFilePath;
     private MainWindow mainWindow;
+    private final String startupWarning;
+    private final String startupFailure;
+    private Stage primaryStage;
 
     /**
      * Creates a {@code UiManager} with the given {@code Logic} and the data file path
      * to show in the status bar.
      */
     public UiManager(Logic logic, Path dataFilePath) {
+        this(logic, dataFilePath, null);
+    }
+
+    /**
+     * Creates the UI with a warning to show after the main window is ready.
+     *
+     * @param startupWarning The recovery instructions, or null when no warning is needed.
+     */
+    public UiManager(Logic logic, Path dataFilePath, String startupWarning) {
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.startupWarning = startupWarning;
+        this.startupFailure = null;
+    }
+
+    /** Creates a UI that only explains why TutorLah could not start. */
+    public UiManager(String startupFailure) {
+        this.startupWarning = null;
+        this.startupFailure = requireNonNull(startupFailure);
     }
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        if (startupFailure != null) {
+            showAlertDialogAndWait(AlertType.ERROR, "TutorLah could not start",
+                    "TutorLah is already open or its data folder is unavailable", startupFailure);
+            return;
+        }
         logger.info("Starting UI...");
 
         //Set the application icon.
@@ -47,6 +75,10 @@ public class UiManager implements Ui {
             mainWindow = new MainWindow(primaryStage, logic, dataFilePath);
             mainWindow.show(); //This should be called before creating other UI parts
             mainWindow.fillInnerParts();
+            if (startupWarning != null) {
+                showAlertDialogAndWait(AlertType.WARNING, "Student data could not be loaded",
+                        "Saving is disabled for this session", startupWarning);
+            }
 
         } catch (Throwable e) {
             logger.severe(StringUtil.getDetails(e));
@@ -59,7 +91,7 @@ public class UiManager implements Ui {
     }
 
     void showAlertDialogAndWait(Alert.AlertType type, String title, String headerText, String contentText) {
-        showAlertDialogAndWait(mainWindow.getPrimaryStage(), type, title, headerText, contentText);
+        showAlertDialogAndWait(primaryStage, type, title, headerText, contentText);
     }
 
     /**
@@ -70,7 +102,9 @@ public class UiManager implements Ui {
                                                String contentText) {
         final Alert alert = new Alert(type);
         alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
-        alert.initOwner(owner);
+        if (owner.getScene() != null) {
+            alert.initOwner(owner);
+        }
         alert.setTitle(title);
         alert.setHeaderText(headerText);
         alert.setContentText(contentText);

@@ -13,6 +13,26 @@ import java.util.Arrays;
 public class StringUtil {
 
     /**
+     * Returns {@code text} without surrounding Unicode whitespace, including non-breaking spaces.
+     * Internal whitespace and format characters such as zero-width joiners are kept.
+     */
+    public static String stripUnicodeWhitespace(String text) {
+        requireNonNull(text);
+        return text.replaceAll("(?U)^\\s+|\\s+$", "");
+    }
+
+    /**
+     * Returns true if {@code text} is empty or contains only Unicode whitespace and format characters.
+     * Does not trim or modify the text.
+     *
+     * @throws NullPointerException if {@code text} is null.
+     */
+    public static boolean isBlankOrInvisible(String text) {
+        requireNonNull(text);
+        return text.matches("[\\p{IsWhite_Space}\\p{Cf}]*");
+    }
+
+    /**
      * Returns true if the {@code sentence} contains the {@code word}.
      *   Ignores case, but a full word match is required.
      *   <br>examples:<pre>
@@ -36,6 +56,30 @@ public class StringUtil {
 
         return Arrays.stream(wordsInPreppedSentence)
                 .anyMatch(preppedWord::equalsIgnoreCase);
+    }
+
+    /**
+     * Returns true if {@code text} contains {@code keyword} as a substring, ignoring case.
+     * Each candidate substring is compared with {@link String#regionMatches(boolean, int, String, int, int)},
+     * so matching does not depend on the system locale or on context-sensitive case conversion,
+     * such as the Greek final sigma.
+     *   <br>examples:<pre>
+     *       containsIgnoreCase("H2 Math", "math") == true
+     *       containsIgnoreCase("Sec 3", "SEC 3") == true
+     *       containsIgnoreCase("Math", "maths") == false
+     *       </pre>
+     * @param text cannot be null
+     * @param keyword cannot be null
+     */
+    public static boolean containsIgnoreCase(String text, String keyword) {
+        requireNonNull(text);
+        requireNonNull(keyword);
+        for (int start = 0; start <= text.length() - keyword.length(); start++) {
+            if (text.regionMatches(true, start, keyword, 0, keyword.length())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

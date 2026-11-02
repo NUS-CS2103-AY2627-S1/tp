@@ -3,8 +3,10 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.person.Person;
 
 /**
  * Represents the result of a command execution.
@@ -19,13 +21,29 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
+    /** The student this command viewed or changed, if it acted on one student. */
+    private final Person student;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+        this(feedbackToUser, showHelp, exit, null);
+    }
+
+    private CommandResult(String feedbackToUser, boolean showHelp, boolean exit, Person student) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.student = student;
+    }
+
+    /**
+     * Constructs feedback that identifies the student the command viewed or changed,
+     * as that student is after the command.
+     */
+    public CommandResult(String feedbackToUser, Person student) {
+        this(feedbackToUser, false, false, requireNonNull(student));
     }
 
     /**
@@ -48,6 +66,13 @@ public class CommandResult {
         return exit;
     }
 
+    /**
+     * Returns the student to show in the detail panel after this command.
+     */
+    public Optional<Person> getStudent() {
+        return Optional.ofNullable(student);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (other == this) {
@@ -61,12 +86,13 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && Objects.equals(student, otherCommandResult.student);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, student);
     }
 
     @Override
@@ -75,6 +101,7 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("student", student)
                 .toString();
     }
 

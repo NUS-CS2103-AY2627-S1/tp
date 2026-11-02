@@ -8,12 +8,12 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
-import java.util.List;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -74,6 +74,24 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void getFilteredPersonListPredicate_noFilter_matchesAllStudents() {
+        assertTrue(modelManager.getFilteredPersonListPredicate().test(ALICE));
+        assertTrue(modelManager.getFilteredPersonListPredicate().test(BENSON));
+    }
+
+    @Test
+    public void getFilteredPersonListPredicate_filterChanges_savedPredicateKeepsItsMeaning() {
+        modelManager.updateFilteredPersonList(ALICE::equals);
+        Predicate<Person> savedPredicate = modelManager.getFilteredPersonListPredicate();
+        modelManager.updateFilteredPersonList(BENSON::equals);
+        assertTrue(savedPredicate.test(ALICE));
+        assertFalse(savedPredicate.test(BENSON));
+        modelManager.updateFilteredPersonList(savedPredicate);
+        assertTrue(modelManager.getFilteredPersonListPredicate().test(ALICE));
+        assertFalse(modelManager.getFilteredPersonListPredicate().test(BENSON));
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
@@ -97,8 +115,7 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(ALICE::equals);
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests

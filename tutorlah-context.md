@@ -1,0 +1,269 @@
+# TutorLah: context
+
+Last updated: Oct 28, 2026, for find search suggestions (#187) and case-insensitive command words (#185).
+
+Do not update the "Last updated" line in feature PRs; keeping it stable avoids
+merge conflicts between concurrent branches.
+
+## What it is
+
+TutorLah is a desktop app for freelance tutors in Singapore who teach secondary
+and junior college (JC) students one-to-one. They use it to keep student
+details and record what each lesson covered. It is built by
+adapting AddressBook-Level3 (AB3), the SE-EDU sample app, and keeps AB3's
+architecture and typing-first workflow while reshaping the data and commands
+around tutoring.
+
+## Who it's for
+
+Jaren is a full-time freelance tutor in Singapore with about 18 one-to-one
+students from Sec 1 to JC2, in subjects such as A-Math, Physics and H2
+Chemistry. He teaches at their homes, travels between
+lessons on a tight schedule, and keeps everything on one laptop. His notes are
+split between a spiral notebook and WhatsApp chats with parents, so each lesson
+starts with working out where the last one stopped. He prefers typing to
+clicking.
+
+## Why AB3 is a good base
+
+AB3 is already a typing-first desktop app for managing a list of people.
+Jaren's core need has the same shape: a list of students he picks by number and
+acts on with short commands. The work is adapting who is stored and what is
+recorded about them, not building a new kind of app.
+
+## What changes from AB3
+
+| | AB3 | TutorLah |
+|---|---|---|
+| **Entity** | `Person` (a contact) | Student |
+| **Fields** | name, phone, email, address, tags | name, phone, address, **level**, **subject**, and an optional follow-up **flag** with an optional reason. Email and tags are not in the spec. |
+| **Name rule** | letters and digits only (`[\p{Alnum}][\p{Alnum} ]*`) | Unicode letters, spaces, `'` `-` `.` `/`, with no digits, so names like Mary-Anne, O'Brien and Ramesh s/o Kumar work |
+| **Level and subject rules** | not in AB3 | English letters (A-Z, a-z), digits 0 to 9 and spaces, up to 40 characters for a level and 50 for a subject. Subjects also allow `-` `&` `(` `)` `+` and commas, and start with an English letter or a digit 0 to 9. Other scripts, such as Chinese or Tamil, are not accepted (#211). |
+| **Phone rule** | digits only, at least 3 | exactly 8 digits, since every Singapore number is 8 digits and a fixed length catches typos |
+| **Duplicate** | same name (`isSamePerson`) | same phone **and** same name ignoring case, since two students can both be "Tan Wei Ming" |
+| **`list`** | ignores any extra text | rejects parameters; reports `Listed {COUNT} students.` (`Listed 1 student.` for one) or `No students found. Use add to create a student.` |
+| **New entity** | none | **Lesson**: a record of what was covered and the date it was logged, owned by a student |
+| **New commands** | none | Lesson commands plus `flag INDEX [r/REASON]`, `unflag INDEX` and `flagged` |
+
+## What stays from AB3
+
+- **Architecture:** UI, Logic, Model and Storage, connected through interfaces.
+- **Choosing by index:** `delete 3` targets the 3rd *displayed* student, the
+  same as AB3's commands.
+- **Command style:** a case-insensitive command word, an index, then lowercase
+  `prefix/value` parameters
+  in any order.
+- **Storage:** JSON on disk. AB3 currently saves to `data/addressbook.json`.
+
+TutorLah allows only one running copy per data folder. It keeps an operating-system lock on `data/.tutorlah.lock` for the whole session; a second copy explains the conflict and exits before loading or changing student data.
+
+If a command cannot be saved, TutorLah restores its preceding in-memory student data and active filter, then reports the save error. Retrying uses the original displayed indexes; a later command cannot silently persist a failed mutation.
+
+Save permission and filesystem errors identify the configured student data file instead of a hidden temporary file. Filesystem failures show their reason, such as a full disk, without including staging paths. The original exception remains available for diagnostics, and the existing rollback and cleanup behaviour is kept.
+
+If an existing student file cannot be loaded, including a null JSON root or null student entry, the app shows recovery instructions and disables saving for that session. Commands cannot overwrite the unreadable file. Read-only commands, help and exit still work; a data-changing command is rejected and rolled back. The tutor exits, backs up and repairs or restores the file, then restarts to resume normal use. A genuinely missing file still loads sample students. Student data is saved only when a command changes it, so read-only commands do not rewrite the file.
+
+When loading student data, names use the same whitespace normalization as commands before identity checks. Equivalent names with the same phone make the file invalid; students and their records are never silently merged. Imported lessons are stably sorted oldest first, with undated lessons before dated lessons in storage and saved order kept for equal dates. Dates before 01/01/2000 are rejected, while undated legacy records and existing future dates are retained so a clock correction cannot invalidate saved records. Command-side future-date checks remain unchanged. A failed load shows a field-validation reason or a short JSON syntax explanation with line and column when known. Invalid structures and other read problems get general recovery guidance. The dialog does not quote student data or internal exception details. Loading and read-only commands do not rewrite the original bytes.
+
+Student data and preferences are serialized completely, written to a unique temporary file beside the destination and replaced atomically. A write or replacement failure keeps the previous saved file; failed first saves leave no empty destination. Temporary files are cleaned up where possible. Abrupt termination may leave a hidden `.tutorlah-*.tmp` file that is not loaded or cleaned up on restart; it can be removed after closing all copies of TutorLah. Unsupported atomic replacement is a save error, with no non-atomic fallback. This does not add a second-instance lock or guarantee recovery from power loss.
+
+## Where the changes land in the code
+
+Saved JSON files contain exactly one root value followed only by whitespace. Extra values or malformed trailing content are rejected. An invalid student file enters protected recovery, preserving its original bytes; invalid preferences retain the existing default-preferences fallback. Null GUI settings count as invalid preferences (#209).
+
+- **Model:** the `Person` fields change, `Level` and `Subject` are added, the
+  duplicate rule changes, a `Lesson` list sits on each student, and an optional
+  immutable `Flag` records follow-up state.
+- **Logic:** `AddCommandParser` gets new prefixes (`l/`, `sub/`), and there are
+  new `LogCommand` and `ViewCommand` classes with their parsers. `list` gets
+  a check that rejects parameters.
+- **Storage:** `JsonAdaptedPerson` saves level, subject, lessons and optional flags.
+- **UI (#155):** a split view. The left list has compact cards: displayed index,
+  initials, name, `level · subject`, lesson count/latest date, and a red flag icon
+  for flagged students. The right details panel shows one student's level and
+  subject chips, phone, address, flag reason banner and numbered lessons, newest
+  first, with the same numbers as `view`. Tutors can type `view INDEX` or
+  left-click a student card to open that student, while command text is preserved.
+  The click callback uses the current displayed index and the existing command path.
+  `view`, `findlesson`, `loglesson`, `edit`, `editlesson`, `deletelesson`, `flag` and
+  `unflag` open their student in the panel through `CommandResult#getStudent`.
+  Other commands keep the panel's student while it is still displayed, and clear
+  the panel otherwise. Failed commands turn the result box red and never change
+  the panel. Successful views highlight the matching card and scroll it into view.
+  Card presses are handled before selection updates, so switching from typed
+  commands needs only one click. `view` still lists the records in the result box.
+  With no student selected, the panel suggests `view 1`, `list` or the `add` format,
+  whichever works for the current list. The window can shrink to 700 x 420 pixels
+  and opens no larger than the primary screen, for 1280x720 displays at 150%
+  scale. Its saved position is kept when the complete window fits on a connected
+  screen, including a negative-coordinate secondary screen. An obsolete or
+  off-screen position is replaced by a centred position on the primary screen.
+
+The README, website home page and User Guide share `docs/images/Ui.png`,
+a screenshot of the current GUI using fictional student and lesson details.
+Main-window guide screenshots use a 1488 x 846 pixel canvas and a 726 pixel
+display width. `Ui.png` keeps that display width but is taller, so that six
+students and a full lesson history fit. The help dialog links to the User
+Guide with a Copy URL button, without individual command hints, and keeps its
+natural proportions. Captures show the application window with its title bar,
+without mouse or assistant overlays.
+
+Addresses and lesson content cannot consist only of Unicode whitespace or
+formatting characters, such as non-breaking spaces and zero-width spaces.
+Commands and JSON loading use the same validation. Real text keeps its
+internal spaces and formatting, including joiners used in written languages
+and emoji sequences.
+
+Command words, indexes and prefixed fields can be separated by Unicode
+whitespace, including non-breaking spaces. Pasted tabs and line breaks become
+spaces so words do not join. Tutors check the pasted command and press Enter
+to run it; meaningful spacing inside addresses and lesson content is kept.
+
+A prefix the command uses always starts a new field after whitespace, so text
+such as `c/o` or `date/time` cannot appear after whitespace inside lesson notes. Tutors reword
+it (`care of`, `date and time`); the duplicate-field and `loglesson`/`editlesson`
+date errors say so. This is a deliberate, documented limitation.
+
+`add` and `edit` remove Unicode whitespace, including non-breaking spaces,
+from phone values before checking for exactly eight ASCII digits. Zero-width
+characters remain invalid. Stored phone values must already be eight digits;
+loading does not normalize them.
+
+For invalid `add` phones, levels and subjects, a separate prefix-like token
+after an otherwise valid value adds guidance listing the supported fields.
+Names and addresses keep their normal errors. No extra fields are parsed.
+
+## MVP commands
+
+| Command | Format | Example |
+|---|---|---|
+| Add a student | `add n/NAME p/PHONE addr/ADDRESS l/LEVEL sub/SUBJECT` | `add n/Tan Wei Ming p/87654321 addr/Blk 8 Bishan St 22 #05-13 l/JC1 sub/H2 Math` |
+| Delete a student | `delete INDEX` | `delete 3` |
+| List students | `list` | `list` |
+| Log a lesson | `loglesson INDEX c/CONTENT [date/DATE]` | `loglesson 3 c/Quadratic inequalities date/21/10/2026` |
+| View lessons | `view INDEX` | `view 3` |
+
+Added after the MVP (v1.4):
+
+| Command | Format | Example |
+|---|---|---|
+| Edit a student | `edit INDEX [n/NAME] [p/PHONE] [addr/ADDRESS] [l/LEVEL] [sub/SUBJECT]` | `edit 2 l/Sec 4 sub/A-Math` |
+| Delete a lesson | `deletelesson STUDENT_INDEX LESSON_INDEX` | `deletelesson 2 1` |
+| Find students | `find [KEYWORD]... [n/NAME] [sub/SUBJECT] [l/LEVEL]` | `find sub/Physics l/Sec 3` |
+
+Added in v1.5:
+
+| Command | Format | Example |
+|---|---|---|
+| Flag a student | `flag INDEX [r/REASON]` | `flag 2 r/Missed homework twice` |
+| Remove a flag | `unflag INDEX` | `unflag 2` |
+| List flagged students | `flagged` | `flagged` |
+| Summarize students and lessons | `summary` | `summary` |
+| Search a student's lessons | `findlesson INDEX [KEYWORDS] [from/DATE] [to/DATE]` | `findlesson 2 algebra from/01/10/2026` |
+
+`findlesson` searches one displayed student's lesson content, an inclusive date
+range or both. Every keyword must match; date searches exclude undated lessons.
+Keywords must precede date prefixes; extra words after a valid date get a correction example.
+Results keep their original `view` numbers for editing or deletion, but those
+numbers can change after a lesson mutation. The search is a one-off result and
+changes neither stored data nor the student filter.
+
+When a lesson search finds no matches for keywords starting with `c/` or `date/`,
+the feedback explains date boundaries and plain content keywords. Searches still
+match literal text; no hint is added to successful results or empty histories.
+
+`summary` counts all students and all lesson occurrences, even when `find` or `flagged` filters the visible list. It keeps that filter and shows a single short paragraph explaining the totals. Cards show a lesson count and the most recent recorded date, or `No lessons yet` / `N lessons (undated)` where appropriate. The line refreshes when lesson records change. These values are derived from existing data and introduce no JSON fields.
+
+Flags mark unresolved follow-up without changing student identity or lesson
+history. The reason is optional and can be replaced by flagging again with a
+different reason. `flagged` replaces the current filter and `list` restores all
+students. Flag state is persisted; filter state is not.
+
+`edit` changes only the fields given and keeps the student's lesson records.
+
+`deletelesson` removes one record using the lesson number shown by `view`
+(newest first). The student and their other lesson records are kept.
+The confirmation includes the lesson date, or `(undated)` for a legacy record.
+An empty history reports `No lessons logged yet for NAME.`.
+
+Added in v1.5:
+
+| Command | Format | Example |
+|---|---|---|
+| Edit a lesson | `editlesson STUDENT_INDEX LESSON_INDEX [c/CONTENT] [date/DATE]` | `editlesson 2 1 c/Vectors date/21/10/2026` |
+
+`editlesson` corrects one lesson's content, date or both, using the lesson number shown by `view`. A content-only edit keeps the lesson's number. A new date moves the lesson into date order, so the confirmation gives its new number.
+
+`find` shows students whose name, subject and level contain every keyword
+given for that field, ignoring case and keyword order; partial words are
+accepted. Bare keywords and `n/` search names, `sub/` subjects and `l/`
+levels, and every given field must match, so a tutor can bring up all Sec 3
+Physics students at once. It searches all students each time and uses literal
+keywords without spelling correction. Every word after `sub/` or `l/` belongs
+to that field, so names go first; if a search such as `find sub/Physics ng`
+finds no one but `find ng sub/Physics` would, TutorLah suggests that search
+without changing the list (#187).
+Results keep their original order and are renumbered from 1. Commands and
+card clicks use these displayed indexes. `list` restores the full list.
+Adding or editing also restores it; viewing, logging and deleting students
+or lessons retain the filter. Searching changes no student or lesson data,
+and filters are not kept across restarts.
+
+Case-insensitive search compares substrings directly rather than lowercasing
+names and keywords separately, so Greek sigma variants also match. An empty
+student panel offers both `list` and the add-command format and example,
+covering searches with no matches as well as a genuinely empty address book.
+
+`loglesson` dates each lesson with today's date (v1.4, issue #98), or with
+`date/DD/MM/YYYY` for a lesson taught earlier (issue #120). Future dates are
+rejected. `view` shows each record as `NUMBER. DD/MM/YYYY: CONTENT`, most
+recent date first. Lessons saved before v1.4 have no date and show
+`(undated)`. The data file stores the date as `YYYY-MM-DD`.
+
+## Scope
+
+- **In the MVP:** add, delete, list, log a lesson, view lessons.
+- **Added in v1.4:** edit a student's details (lessons are kept), find
+  students by partial name, delete individual lesson records, and date
+  each logged lesson.
+- **Added in v1.5:** persistent follow-up flags with optional reasons and a
+  filtered flagged-student view, editing a lesson record's content or date, and
+  student/lesson totals with per-student lesson status, and lesson-history search.
+- **Planned next:** parent or guardian contact,
+  weekly slots, homework tracking, rescheduling, monthly lesson counts,
+  archiving.
+- **Out of scope:** arranging lessons, messaging parents, grading, payments,
+  exam planning, and moving data between machines.
+
+## Decisions (Oct 8, 2026)
+
+- **No lesson date** in the MVP. `log` takes content only. Replaced in v1.4
+  by issue #98: `log` dates each lesson with today's date. `log` was renamed
+  `loglesson` on Oct 29 (#227), to match the other lesson commands.
+- **View order:** most recently logged first (reverse logging order), as
+  agreed by the team on Oct 8. Implemented in PR #63. This replaces the
+  earlier order-logged proposal. Since issue #120, lessons are kept in date
+  order, so `view` shows the most recent date first.
+- **Email and tags are removed.** They may return post-MVP as optional
+  fields.
+- **`edit`, `find` and `clear` are removed for the MVP** and can be restored
+  from Git history later. Removed from the code in issue #72 (Oct 14).
+  `edit` was restored in issue #100 (Oct 20) for v1.4.
+  `find` was restored in issue #101 (Oct 20), with all-keyword partial matching, and extended to subject and level in issue #143 (Oct 25); `clear` remains removed.
+- **`view` replaces `lessons`** as the command for viewing a student's lessons.
+- **`/` is allowed in names** so that s/o and d/o work. Since #109 (Oct 26)
+  the address prefix is `addr/`, so `a/l` and `a/p` names such as
+  `Muthu a/l Raju` also work in `add` and `edit`.
+- **Duplicates** are the same phone with the same name ignoring case.
+
+## Shared index policy
+
+- **Invalid index messages:** `delete`, `loglesson`, and `view` accept positive
+  integers without leading zeros. There is no arbitrary 1000 cap. Zero,
+  negative integers, leading-zero integers, values too large to parse, and
+  indexes outside the displayed list give "The student index provided is
+  invalid." Missing or malformed command parts keep the command's invalid
+  format message and usage.
+
+For coding agents, use `tutorlah-agent-brief.md`, which has the full rules,
+messages and interfaces.

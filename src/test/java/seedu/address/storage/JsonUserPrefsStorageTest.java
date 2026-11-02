@@ -43,6 +43,11 @@ public class JsonUserPrefsStorageTest {
         assertThrows(DataLoadingException.class, () -> readUserPrefs("NotJsonFormatUserPrefs.json"));
     }
 
+    @Test
+    public void readUserPrefs_nullGuiSettings_exceptionThrown() {
+        assertThrows(DataLoadingException.class, () -> readUserPrefs("NullGuiSettingsUserPrefs.json"));
+    }
+
     private Path addToTestDataPathIfNotNull(String userPrefsFileInTestDataFolder) {
         return userPrefsFileInTestDataFolder != null
                 ? TEST_DATA_FOLDER.resolve(userPrefsFileInTestDataFolder)
@@ -104,7 +109,7 @@ public class JsonUserPrefsStorageTest {
         UserPrefs original = new UserPrefs();
         original.setGuiSettings(new GuiSettings(1200, 200, 0, 2));
 
-        Path pefsFilePath = testFolder.resolve("TempPrefs.json");
+        Path pefsFilePath = testFolder.resolve("new/data/TempPrefs.json");
         JsonUserPrefsStorage jsonUserPrefsStorage = new JsonUserPrefsStorage(pefsFilePath);
 
         //Try writing when the file doesn't exist

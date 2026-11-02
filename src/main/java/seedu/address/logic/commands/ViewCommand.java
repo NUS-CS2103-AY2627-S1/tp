@@ -1,0 +1,79 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.person.Person;
+
+/**
+ * Displays a student's lesson records in reverse logging order without changing the student list.
+ */
+public class ViewCommand extends Command {
+
+    public static final String COMMAND_WORD = "view";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Views lesson records for the student identified by the displayed student index.\n"
+            + "Parameters: INDEX (must be a positive integer)\n"
+            + "Example: " + COMMAND_WORD + " 1";
+    public static final String MESSAGE_LESSONS_HEADER = "Lesson records for %1$s (%2$d):";
+
+    private final Index targetIndex;
+
+    /**
+     * Creates a command to view lessons for the student at {@code targetIndex}.
+     */
+    public ViewCommand(Index targetIndex) {
+        requireNonNull(targetIndex);
+        this.targetIndex = targetIndex;
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        List<Person> students = model.getFilteredPersonList();
+        if (targetIndex.getZeroBased() >= students.size()) {
+            throw new CommandException(Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+        }
+
+        Person student = students.get(targetIndex.getZeroBased());
+        List<Lesson> lessons = student.getLessons();
+        if (lessons.isEmpty()) {
+            return new CommandResult(String.format(Messages.MESSAGE_NO_LESSONS, student.getName()), student);
+        }
+
+        StringBuilder result = new StringBuilder(String.format(MESSAGE_LESSONS_HEADER,
+                student.getName(), lessons.size()));
+        for (int i = lessons.size() - 1; i >= 0; i--) {
+            Lesson lesson = lessons.get(i);
+            result.append("\n").append(String.format(Messages.MESSAGE_LESSON_LINE,
+                    lessons.size() - i, Messages.formatLessonDate(lesson), lesson.content));
+        }
+        return new CommandResult(result.toString(), student);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof ViewCommand otherViewCommand)) {
+            return false;
+        }
+
+        return targetIndex.equals(otherViewCommand.targetIndex);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this).add("targetIndex", targetIndex).toString();
+    }
+}

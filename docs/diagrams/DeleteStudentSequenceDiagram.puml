@@ -1,0 +1,73 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 16
+skinparam ParticipantFontColor #FFFFFF
+skinparam SequenceBoxFontColor #222222
+
+box Logic #F2F2FC
+    participant ":LogicManager" as logicManager LOGIC_COLOR
+    participant ":AddressBookParser" as addressBookParser LOGIC_COLOR
+    participant ":DeleteCommandParser" as parser LOGIC_COLOR
+    participant ":DeleteCommand" as command LOGIC_COLOR
+end box
+
+box Model #FBF1F2
+    participant ":Model" as model MODEL_COLOR
+end box
+
+[-> logicManager : execute("delete 1")
+activate logicManager
+
+logicManager -> addressBookParser : parseCommand(...)
+activate addressBookParser
+
+create parser
+addressBookParser -> parser : DeleteCommandParser()
+activate parser
+parser --> addressBookParser
+deactivate parser
+
+addressBookParser -> parser : parse("1")
+activate parser
+
+create command
+parser -> command : DeleteCommand(...)
+activate command
+command --> parser
+deactivate command
+
+parser --> addressBookParser : command
+deactivate parser
+parser -[hidden]-> addressBookParser
+destroy parser
+
+addressBookParser --> logicManager : command
+deactivate addressBookParser
+
+logicManager -> command : execute(model)
+activate command
+command -> model : getFilteredPersonList()
+activate model
+model --> command : displayedStudents
+deactivate model
+
+command -> model : deletePerson(personToDelete)
+activate model
+model --> command : return
+deactivate model
+
+note over command, model
+  Deleting this student also deletes
+  their lesson records from the
+  student data.
+end note
+
+command --> logicManager : commandResult
+deactivate command
+command -[hidden]-> logicManager
+destroy command
+
+[<-- logicManager : commandResult
+deactivate logicManager
+@enduml

@@ -1,20 +1,24 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.shape.SVGPath;
+import seedu.address.logic.Messages;
 import seedu.address.model.person.Person;
 
 /**
- * A UI component that displays information of a {@code Person}.
+ * A compact UI component that identifies a {@code Person} in the student list.
+ * Contact details, the flag reason and lessons are shown in the {@code StudentDetailPanel}.
  */
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    private static final int MAX_INITIALS = 2;
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -29,17 +33,17 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private HBox cardPane;
     @FXML
-    private Label name;
-    @FXML
     private Label id;
     @FXML
-    private Label phone;
+    private Label avatar;
     @FXML
-    private Label address;
+    private Label name;
     @FXML
-    private Label email;
+    private Label levelSubject;
     @FXML
-    private FlowPane tags;
+    private Label lessonStatus;
+    @FXML
+    private SVGPath flagIcon;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -48,12 +52,31 @@ public class PersonCard extends UiPart<Region> {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
+        avatar.setText(initialsOf(person.getName().fullName));
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        levelSubject.setText(formatLevelAndSubject(person));
+        lessonStatus.setText(Messages.formatLessonStatus(person));
+        flagIcon.setVisible(person.isFlagged());
+        flagIcon.setManaged(person.isFlagged());
+    }
+
+    /**
+     * Returns up to two initials from the letters that start the words of {@code fullName}.
+     * Words that do not start with a letter, such as "-", are skipped.
+     */
+    static String initialsOf(String fullName) {
+        String initials = Arrays.stream(fullName.trim().split("\\s+"))
+                .filter(word -> !word.isEmpty() && Character.isLetter(word.codePointAt(0)))
+                .limit(MAX_INITIALS)
+                .map(word -> new String(Character.toChars(word.codePointAt(0))))
+                .collect(Collectors.joining());
+        return initials.isEmpty() ? "?" : initials.toUpperCase();
+    }
+
+    /**
+     * Returns the level and subject on one line, such as "Sec 3 · Physics".
+     */
+    static String formatLevelAndSubject(Person person) {
+        return person.getLevel().value + " · " + person.getSubject().value;
     }
 }

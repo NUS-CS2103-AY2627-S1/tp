@@ -1,0 +1,556 @@
+# TutorLah agent brief
+
+Coding agents load this file through `AGENTS.md` in the repo root. Claude
+Code users add a local `CLAUDE.md` containing `@AGENTS.md` (Git ignores
+it). If your tool reads neither, paste this file in before your task. It
+replaces the "Shared rules" and "Shared conventions and agreed interfaces"
+sections of the Oct 5 work plan.
+
+Last updated: Oct 28, 2026, for find search suggestions (#187) and case-insensitive command words (#185).
+
+Do not update the "Last updated" line in feature PRs; keeping it stable avoids
+merge conflicts between concurrent branches.
+
+**Owner:** aerodart (Git expert). Update this file and `tutorlah-context.md`
+in the same PR that changes a decision, message or interface.
+
+**Order of authority:** course rules (section 9) come first, then this
+file, then older team documents, then the agent's own defaults. If this
+file disagrees with the code on `master`, or two sources disagree, stop and
+ask the team. Do not guess.
+
+---
+
+## Non-negotiables
+
+- Changes reach `master` only through a reviewed PR. Never push to the
+  team repo (`upstream`).
+- No `Co-Authored-By:` trailers or "Generated with" lines for AI tools in
+  commits or PR text. Credit AI use in the DG Acknowledgements instead, as
+  the course's [reuse policy][reuse] requires for widespread use.
+- Credit reused or adapted code and text next to where it is used and in
+  the DG Acknowledgements. This includes other teams' tP work, which the
+  course checks for automatically.
+- Use made-up student data in tests, screenshots and examples. Run manual
+  tests from an empty folder, never against your own `data/` folder.
+- Report checks that failed or were skipped. Never describe intended
+  behaviour as tested.
+- Check the source before stating a fact: open the file, page or command
+  output instead of answering from memory, and confirm a path exists
+  before giving it.
+- Before drafting an issue, search the open issues for the same scope.
+- Use straight quotes (`"` and `'`) in code, messages and docs. Curly
+  quotes break exact-text tests and copied commands.
+
+---
+
+## 1. Shared rules
+
+- **Repo:** `AY2627S1-CS2103T-T11-1/tp`, a brownfield fork of AB3. Work in
+  your own fork, on a new branch made from an up-to-date `master`
+  (`git pull upstream master` first). Never commit on `master`.
+- **One PR per task**, linked to its issue (`Fixes #N`), with the current
+  milestone and one reviewer from the team.
+- **Commit subjects** follow the course [Git convention][git]: imperative
+  mood, capitalised, no full stop, **at most 50 characters** (72 is the hard
+  limit). If a body is needed, leave a blank line and wrap at 72.
+- **Commit bodies** say what and why, not how. Describe the situation in the
+  present tense, then introduce the change with "Let's ...". Avoid
+  "currently" and "originally".
+- **PR text** (descriptions, issues, comments) is not wrapped: write each
+  paragraph or bullet as one line, because GitHub shows every line break.
+- **PR description:** `Fixes #N`, or `Fixes part of #N` for a partial fix.
+  Add before-and-after screenshots for UI changes. Open the PR as a draft
+  until CI passes. See the [GitHub conventions][github-conv].
+- **Before merging:** merge the latest `master` into the branch and wait for
+  CI to pass on that result. Never merge while CI is failing or has not run.
+- **Merging:** use "Create a merge commit". Do not squash or rebase, and do
+  not delete merged branches. To catch up with `master`, merge it into your
+  branch. Do not rebase. These protect the course's grading scripts
+  ([Appendix E][appendix-e]).
+- **Merge commit subject:** type `Issue title #N (#PR)` into GitHub's merge
+  title box, within 72 characters. For example:
+  `Update UG command summary to TutorLah formats #99 (#105)`
+- **Keep the PR to the task.** Do not rename classes, packages or files
+  outside the task. In particular, do not rename `Person` to `Student`.
+  Do not reformat or tidy files the task does not need: it hides the real
+  change and credits the lines to the wrong author in RepoSense.
+- **Checks:** `./gradlew clean check coverage` must pass. This is what CI
+  runs (`.github/workflows/gradle.yml`), and it includes the tests and
+  Checkstyle. New code needs tests. Codecov's patch target is the current
+  coverage of `master` (about 85% on Oct 18), so new and changed lines must
+  be covered at least that well.
+- **Java 25:** the build needs JDK 25. If Gradle fails with
+  `invalid source release: 25`, the shell is using an older JDK. Agent
+  shells often skip SDKMAN, so set it first, for example on macOS:
+  `export JAVA_HOME="$HOME/.sdkman/candidates/java/current"`.
+- **Style:** match the surrounding AB3 code. Javadoc on public classes and
+  methods. Write `equals` in the same layout as `Address#equals`.
+  Use `ToStringBuilder` for `toString`, except `Lesson#toString` (section 5).
+  No wildcard imports.
+- **AI use:** the course expects AI use in the tP. Read and understand
+  every line the agent writes before you commit it.
+
+---
+
+## 2. Commands (current)
+
+| Command | Format | Success message |
+|---|---|---|
+| Add | `add n/NAME p/PHONE addr/ADDRESS l/LEVEL sub/SUBJECT` | `New student added: {NAME}; Phone: {PHONE}; Address: {ADDRESS}; Level: {LEVEL}; Subject: {SUBJECT}` |
+| Delete | `delete INDEX` | `Deleted student: {NAME}; Phone: {PHONE}; Address: {ADDRESS}; Level: {LEVEL}; Subject: {SUBJECT}` |
+| Delete lesson | `deletelesson STUDENT_INDEX LESSON_INDEX` | `Deleted lesson {LESSON_INDEX} for {NAME} ({DATE}): {CONTENT}` |
+| Edit lesson | `editlesson STUDENT_INDEX LESSON_INDEX [c/CONTENT] [date/DATE]` | `Edited lesson {LESSON_INDEX} for {NAME} (now lesson {NEW_INDEX}). {DATE}: {CONTENT}` |
+| List | `list` | `Listed {COUNT} students.` (`Listed 1 student.` for one) or `No students found. Use add to create a student.` |
+| Edit | `edit INDEX [n/NAME] [p/PHONE] [addr/ADDRESS] [l/LEVEL] [sub/SUBJECT]` | `Edited student: {NAME}; Phone: {PHONE}; Address: {ADDRESS}; Level: {LEVEL}; Subject: {SUBJECT}` |
+| Find | `find [KEYWORD]... [n/NAME] [sub/SUBJECT] [l/LEVEL]` | `Found {COUNT} students.` (`Found 1 student.` for one) or `No matching students found. Use list to show all students.`, followed by `To search by subject or level, use sub/ or l/, e.g. find sub/Physics.` when only name keywords were given, or by `Words after sub/ or l/ search only that field. Did you mean: {FIND_COMMAND}?` when a search using `sub/` or `l/` finds no one but moving the last words of that field to the names would (#187) |
+| Find lesson | `findlesson INDEX [KEYWORDS] [from/DATE] [to/DATE]` | Header `Matching lesson records for {NAME} ({COUNT}):` then matching `view` lines, or `No matching lesson records found for {NAME}.` |
+| Flag | `flag INDEX [r/REASON]` | `Flagged student: {NAME}.`, `Flagged student: {NAME}. Reason: {REASON}`, or `Updated flag for {NAME}. Reason: {REASON}` |
+| Flagged | `flagged` | `Listed {COUNT} flagged students.` (`Listed 1 flagged student.` for one) or `No flagged students found. Use list to show all students.` |
+| Log lesson | `loglesson INDEX c/CONTENT [date/DATE]` | `Logged lesson for {NAME} on {DATE}: {CONTENT}` |
+| Summary | `summary` | `Summary:` then a single summary paragraph on the next line |
+| Unflag | `unflag INDEX` | `Unflagged student: {NAME}.` |
+| **View** | **`view INDEX`** | Header `Lesson records for {NAME} ({COUNT}):` then one line per lesson, `{NUMBER}. {DATE}: {CONTENT}`, or `No lessons logged yet for {NAME}.` |
+
+Command words ignore case, so `list`, `LIST` and `LiSt` select the same command.
+Prefixes remain case-sensitive and must be typed in lowercase as documented.
+
+**Prefix text inside values (#174, #175):** a prefix the command recognises
+starts a new field wherever it follows whitespace, in every command; values
+cannot contain it after a space. We do not special-case `c/o` or `date/time`
+or guess intent. Instead, `Messages#getErrorMessageForDuplicatePrefixes` adds
+`A recognised prefix after a space starts another field. If it was part of your text, please reword it.`
+on a new line to every duplicate-field error, and `loglesson` and `editlesson` parse
+`date/` with `ParserUtil#parseLessonDateWithNotesHint`, which adds
+`If "date/" was part of your lesson notes, please reword it, for example "date and time".`
+on a new line and keeps the original exception as the cause. `findlesson` dates
+and index or content errors get no date hint. The UG suggests `care of` and
+`date and time`. Valid commands with a different meaning, such as
+`edit 1 addr/Unit l/2`, are a documented limitation; escaping is future work.
+
+**Summary paragraph (#146):** after the heading, show `You have N students and M lesson records in total.` (use `student` and `lesson record` for one). An empty collection instead says `No students yet. Add a student to start recording lessons.`.
+
+**Summary (#146):** count the complete address book, regardless of `find` or `flagged`, and keep the current filter and displayed indexes. Include undated and repeated lesson occurrences. `SummaryCommandParser` accepts only whitespace; arguments give the invalid command format with `SummaryCommand.MESSAGE_USAGE`: `summary: Shows totals for all students and lesson records. Accepts no parameters.`, then `Example: summary` on a new line. Summary values are derived and never stored in JSON; the command changes no student data and does not attempt to save.
+
+**Card lesson status (#146):** below the subject, show `No lessons yet`, `1 lesson, last DD/MM/YYYY` or `N lessons, last DD/MM/YYYY`. With only undated records, show `1 lesson (undated)` or `N lessons (undated)`. Count all records and use the greatest recorded date, not the last command time. Logging, editing and deleting a lesson refresh the line through the existing immutable student replacement. Keep the flag icon independent.
+
+**Help:** show the TutorLah User Guide URL and a Copy URL button, without
+individual command hints.
+
+**Lesson dates (#98, #120):** `loglesson` dates each lesson with `date/DATE` if
+given, otherwise today's date from the system clock. `{DATE}` is
+`DD/MM/YYYY`, for example `18/10/2026`, and typed dates use the same format
+(`1/2/2026` is also accepted). A future date gives `Lesson dates cannot be
+in the future. Log a lesson on or after the day it is taught.` Lessons
+saved before v1.4 have no date, and `view` shows `(undated)` in place of
+`{DATE}`.
+
+**Imported student data (#176, #177, #178):** `Name#normalize` is shared by command parsing and JSON loading: trim surrounding Unicode whitespace and collapse internal whitespace before name validation and duplicate detection. Normalized duplicates invalidate the complete file without merging or dropping either student's lessons or flag; equal names with different phones are allowed. `JsonAdaptedPerson` stably sorts loaded lessons oldest first, with undated lessons first in storage and saved order retained for ties. Read-only loading does not rewrite the file. Stored dates before `Lesson.EARLIEST_DATE` are invalid; the storage message uses `YYYY-MM-DD` and the shared minimum. Undated legacy records and existing future dates still load. Future dates remain rejected by lesson-writing commands; accepting recorded dates after clock correction does not change those checks.
+
+**Lesson order (#120):** each student's lessons are stored in date order.
+A lesson logged for an earlier date is inserted by date, after lessons on
+the same date. Undated lessons stay at the oldest end. `view` shows the
+stored order reversed, and `deletelesson` uses the same numbers.
+
+**`view` replaces `lessons`.** The team renamed the command on Oct 8.
+Any older document that says `lessons INDEX`, `LessonsCommand` or
+`lessons-command` means `view`.
+
+**`loglesson` replaces `log`.** The team renamed the command on Oct 29 (#227),
+to match `deletelesson`, `editlesson` and `findlesson`. `log` is now an
+unknown command, and the classes keep their names (`LogCommand`,
+`LogCommandParser`). Older decision records that say `log` mean `loglesson`.
+
+**GUI shortcut:** left-clicking a populated student card runs `view INDEX` for
+its current displayed index. Clicking it again views the student again. Existing
+history messages and newest-first ordering apply, and typed command text is kept.
+Successful views also highlight and scroll to that student's card. The shortcut
+runs on the first primary mouse press, before selection can rebuild the cell.
+List updates and programmatic selection changes do not execute this shortcut.
+
+**Details panel (#155):** the right-hand `StudentDetailPanel` shows one student
+or `No student selected.` Commands that view or change exactly one student
+(`view`, `findlesson`, `loglesson`, `edit`, `editlesson`, `deletelesson`, `flag`,
+`unflag`) return that student, as it is after the command, in
+`CommandResult(String, Person)`. Any new command of that kind must do the same.
+After other successful commands, `MainWindow` keeps the panel's student only
+while the displayed list still contains it. Failed commands use the red
+result-box style and leave the panel unchanged. Lesson rows use `view`'s
+numbering, newest first.
+With no student selected, the panel's hint suits the current list (#168):
+`view 1` while students are displayed, `list` when a filter hides every saved
+student, and the `add` format when there are none. It follows changes to
+`Logic#getFilteredPersonList` and `Logic#getAddressBook`'s student list.
+Stacked level and subject chips return side by side only with 20 pixels to
+spare, more than the scroll bar, so the layout cannot flicker (#202).
+`MainWindow` has a minimum size of 700 x 420 pixels and opens no larger than
+the primary screen's usable area. By calculation this fits 1280x720 at 150%
+scale (#167). A saved position is restored only when the complete window fits
+within a connected screen's usable bounds; otherwise, the window is centred on
+the primary screen. Valid secondary-screen positions include negative
+coordinates (#216).
+
+Other messages:
+
+- Duplicate student: `This student already exists in the list.` (used by `add` and `edit`)
+- `add` keeps each field's validation error and appends
+  `If {PREFIX} was intended as a field, add accepts only n/, p/, addr/, l/ and sub/.`
+  only for invalid phones, levels and subjects with an unsupported ASCII-letter prefix after Unicode
+  whitespace and an otherwise valid value. Names and addresses keep their normal errors. Validation,
+  accepted values and missing/duplicate-field errors are unchanged.
+- `edit` with no field: `At least one field to edit must be provided.`
+- `list` with extra text: `The list command does not accept parameters.`
+- `find` without any keyword or field: invalid command format with the find usage; the current filter is kept. A blank `n/`, `sub/` or `l/` value gives that field's constraint message (`Name`, `Subject` or `Level`), and a repeated prefix gives the duplicate-prefix message.
+- Invalid index (see section 4): `The student index provided is invalid.`
+- Invalid lesson index: `The lesson index provided is invalid.`
+
+**Lesson deletion:** `deletelesson` uses the displayed student index and
+the lesson number from `view` (newest first). Remove only that occurrence,
+even if contents repeat. Keep the student, remaining lessons and current
+filter. Deleting the last lesson leaves an empty history. The confirmation
+includes the lesson date as `(DD/MM/YYYY)`, or `(undated)` for a legacy record.
+The details panel shows the remaining records.
+
+**Lesson editing (#145):** `editlesson` uses the same two indexes and index errors as `deletelesson`, and needs at least one of `c/` and `date/` (otherwise `At least one field to edit must be provided.`). Content and dates follow the `loglesson` rules, including the future-date message. A content-only edit, or one that gives the current date, keeps the lesson's position and number. A new date removes the lesson and adds it again in date order, after the lessons already on that date, so its number can change; the confirmation reports the old and new numbers. An undated lesson stays undated unless `date/` is given, and a date cannot be removed. An edit that changes nothing gives `The lesson already has those details.`. The student, other lessons and the current filter are kept.
+
+**Find policy (#101, extended in #143):** bare keywords before any prefix and
+the `n/` value search names, `sub/` searches subjects and `l/` searches levels.
+Every whitespace-separated keyword must occur somewhere in its field, ignoring
+case and keyword order, and every given field must match. Partial words are
+supported. Each prefix may appear once and must not be blank. Leading,
+trailing and repeated whitespace is ignored. Keywords are literal text, not
+wildcards or spelling corrections; other prefixes such as `p/` stay part of
+the name keywords.
+Each find searches the full address book and keeps the original list order.
+Displayed indexes restart at 1 and are used by commands and card clicks.
+`list` restores all students; add and edit also restore the full list. `view`,
+`loglesson`, `delete` and `deletelesson` retain the filter. Find changes no stored
+student or lesson data, and filters are not persisted. The empty-list panel says
+`No students to display.` and `Type list to show all students, or add one:`,
+followed by the add-command format and example. This offers useful guidance
+both when a search hides saved students and when no students are saved.
+
+**Lesson search:** `findlesson` needs keywords or a date boundary. Keywords precede
+date prefixes and all match literal content substrings using the same case rules as
+`find`. Dates reuse the strict lesson-date parser, but future query limits are valid.
+A valid date followed by extra words gives `Put keywords before from/ and to/.`
+followed by `Example: findlesson 1 algebra from/01/10/2026`.
+Ranges are inclusive, may have one open end and reject a lower bound after the upper
+bound with `The from date must be on or before the to date.`. Duplicate prefixes use
+the shared error. Date criteria exclude undated lessons; content-only searches do not.
+Results retain full-history `view` numbers and order, with the same empty-history
+message as `view`. No student filter or saved data changes. Lesson mutations can
+change later numbers, so search again before reusing an old result.
+
+If records exist but a lesson search finds no matches and a keyword starts with
+lowercase `c/` or `date/`, append `To search by date, use from/ and to/. Content keywords need no prefix.`
+on a new line. Keywords remain literal; successful searches and empty histories get no hint.
+
+**Follow-up flags (#142):** `flag` and `unflag` use the current displayed index
+and retain the active filter. A flag may omit its reason. Flagging an already
+flagged student without `r/` preserves its reason and reports `{NAME} is already
+flagged.`; supplying the same reason reports `{NAME} is already flagged with
+that reason.`; a different reason replaces it. `unflag` removes the flag and
+reason, or reports `{NAME} is not flagged.` if no flag exists. These no-change
+outcomes are command errors. `flagged` searches the complete saved collection,
+replaces any `find` filter and keeps original order. `list` restores all
+students. Unflagging from the flagged view removes that student from the view.
+Filters are not persisted, but flags are.
+
+Flagged cards show a red flag icon. The details panel shows the reason in a red
+banner, or `Flagged (no reason given)` for a reasonless flag. JSON omits the
+`flag` property for an unflagged student, stores `"flag": {}` without a reason,
+and stores `"flag": {"reason": "..."}` with one. Data without `flag` loads as
+unflagged. `edit`, `loglesson` and `deletelesson` preserve the flag when rebuilding a
+student.
+
+---
+
+## 3. Fields and validation
+
+Command words, indexes and prefix boundaries accept Unicode whitespace,
+including non-breaking spaces. Trim surrounding field whitespace but keep
+meaningful internal spacing and joiners. Pasted tabs and line breaks become
+spaces before the command box removes them; pasting never executes a command.
+
+| Field | Prefix | Accepted | Invalid-value message |
+|---|---|---|---|
+| Name | `n/` | 1 to 100 characters after collapsing repeated spaces. Unicode letters, spaces, `'`, `-`, `.` and `/`, with at least one letter. No digits. | `Names should be 1 to 100 characters long, contain at least one letter, and use only letters, spaces, apostrophes, hyphens, periods and slashes.` |
+| Phone | `p/` | Exactly 8 ASCII digits after removing Unicode whitespace. No `+` or country code. | `Phone numbers should be exactly 8 digits.` |
+| Address | `addr/` | 1 to 200 printable characters | `Addresses must not be blank and must be at most 200 characters.` |
+| Level | `l/` | 1 to 40 characters: English letters (A-Z, a-z), digits 0 to 9, spaces (#211) | `Levels should be 1 to 40 characters long and use only English letters, digits 0 to 9 and spaces.` |
+| Subject | `sub/` | 1 to 50 characters, starting with an English letter or digit: English letters (A-Z, a-z), digits 0 to 9, spaces, hyphens, `&`, `(`, `)`, `+`, commas (#211) | `Subjects should be 1 to 50 characters long, start with an English letter or a digit 0 to 9, and use only English letters, digits 0 to 9, spaces, hyphens, &, (, ), + and commas.` |
+| Lesson content | `c/` | 1 to 300 printable characters, internal spaces kept | `Lesson content must not be blank and must be at most 300 characters.` |
+| Lesson date | `date/` | Optional. A real date as `D/M/YYYY` or `DD/MM/YYYY` (digits only, four-digit year), from 01/01/2000 (`Lesson.EARLIEST_DATE`), not in the future | `Lesson dates should be real dates from 01/01/2000 onwards, in the format DD/MM/YYYY, for example 21/10/2026.` |
+| Flag reason | `r/` | Optional. 1 to 100 characters after trimming surrounding Unicode whitespace; not blank and no control characters | `Flag reasons must not be blank and must be at most 100 characters.` |
+
+- `ParserUtil#parsePhone` removes Unicode `White_Space` in `add` and `edit`,
+  including non-breaking and narrow non-breaking spaces. Zero-width formatting
+  characters are not removed. JSON phone values still require eight ASCII digits
+  without whitespace; storage does not use command-input normalization.
+- Addresses and lesson content cannot consist entirely of Unicode whitespace
+  or format characters, including non-breaking spaces, ZERO WIDTH SPACE
+  (U+200B), WORD JOINER (U+2060) and BOM (U+FEFF). The model validators enforce
+  this for typed commands and JSON loading, with the same messages above.
+  Real text keeps internal spaces and formatting, including joiners used by
+  written languages and emoji sequences.
+- `/` is allowed in names so that `s/o` and `d/o` work. No prefix starts
+  with `s/`, `o/` or `d/`. `date/` is used only by `loglesson`, so lesson content
+  such as `d/dx` and names such as `d/o` are unaffected.
+- **Address prefix `addr/` (#109):** the address prefix is `addr/`, not `a/`, so names containing `a/l` or `a/p` (e.g. `Muthu a/l Raju`) are kept in full by `add` and `edit`, and `edit` never changes the address through a name. Old `a/` input is not reinterpreted: it joins the previous field, whose validation rejects it, or stays in the name. When `addr/` is missing and ` a/` appears, `add` appends `The address prefix is addr/, for example addr/1 Example Street.` to its usage message.
+- **Duplicate student:** same phone, and names equal when case is ignored
+  (`Person#isSamePerson`).
+
+---
+
+## 4. Decisions (0A) and their status
+
+| # | Decision | Status on `master` |
+|---|---|---|
+| 1 | No lesson date in the MVP. `log` takes content only. | Done for the MVP. Replaced in v1.4 by issue #98: `log` dates each lesson with today's date. |
+| 2 | **Order shown by `view`: most recent first.** Most recent date first, then most recently logged among lessons on the same date. | Agreed by the team on Oct 8 as reverse logging order (PR #63). Updated by issue #120: lessons are stored in date order when logged, so `view` and `deletelesson` need no sorting. |
+| 3 | Email and tags removed from `Person`. They may return post-MVP as optional fields. | Done (PR #51) |
+| 4 | `edit`, `find` and `clear` removed for the MVP. Delete the commands, parsers, tests, `AddressBookParser` cases, help and UG entries. Restore from Git history post-MVP. | Done (issue #72). `edit` restored in issue #100 and `find` in issue #101 for v1.4; `clear` remains removed. |
+| 5 | `/` allowed in names | Done (PR #51) |
+| 6 | Case-insensitive duplicate names | Done (PR #51) |
+| 7 | **Invalid index behaviour.** See below. | Applied consistently to `delete`, `log`, and `view` in issue #59. |
+
+**On decision 7.** An index is a positive integer without leading zeros.
+There is no arbitrary limit of 1000; any value representable by `Index` is
+accepted by the parser. Commands apply these errors consistently:
+
+- Zero, negative integers, leading-zero integers, values too large for
+  `Index`, and indexes outside the displayed list give
+  `The student index provided is invalid.`
+- Missing indexes, words, decimals, signs such as `+1`, and extra command
+  parts give the invalid command format message with that command's usage.
+- `deletelesson` applies these rules to both indexes. An invalid lesson
+  number gives `The lesson index provided is invalid.`. For a valid positive
+  lesson number but no lessons, show `No lessons logged yet for {NAME}.`.
+  Check indexes and history before changing data.
+
+---
+
+## 5. Agreed Java interfaces (as on `master`)
+
+- `JsonUtil#fromJsonString` reads exactly one JSON value, allowing only whitespace after it. Extra root values and malformed trailing content are JSON parse failures. Student-file loading then uses the existing sanitized recovery warning and save guard; the ignored suffix is never discarded by a later save. Preferences use the same strict reader and retain their existing fallback policy. `"guiSettings": null` is also treated as an unreadable preferences file, so startup uses the defaults instead of failing (#209).
+
+- `LogicManager` saves student data only when it differs from the snapshot taken before command execution. Read-only commands and edits that leave stored values unchanged skip saving, so help, exit and filters still work during recovery or write failures. First-run sample data is saved by the first data-changing command.
+
+- Save permission errors name `Storage#getAddressBookFilePath`, never the temporary path from the exception. Other filesystem errors use `Could not save data to file {PATH} due to the following error: {REASON}`, using only `FileSystemException#getReason`; null or blank reasons use `The file or folder could not be written.`. Other IO errors retain their existing messages, including the saving-disabled explanation. The original exception remains the cause, and rollback and temporary-file cleanup are unchanged.
+
+- `Model#getFilteredPersonListPredicate()` captures the active student filter as a non-null predicate. `LogicManager` snapshots the address book and filter before command execution. If saving fails, it restores changed student data and the captured filter before throwing the existing save-error `CommandException`. Lesson records and flags are preserved, and later commands cannot silently save the failed mutation.
+
+- If reading a student data file fails (including a null JSON root or null student entry), that `JsonAddressBookStorage` instance refuses every later save with `MESSAGE_SAVE_BLOCKED`: `Saving is disabled because the student data file could not be loaded. Close TutorLah, repair or restore the file, then restart.` `MainApp` starts with an empty model and `UiManager` shows a recovery warning including the file location and a sanitized `Reason:`. A non-blank `IllegalValueException` message is retained. A JSON syntax error, including one wrapped by Jackson mapping, gives `Reason: The file is not valid JSON (line N, column M).` when both coordinates are positive, or `Reason: The file is not valid JSON.` otherwise. Invalid structures and other errors give `Reason: Check that the file is readable and contains valid student data.` Raw parser messages, JSON excerpts and internal class names are not displayed. The original student file is preserved. Read-only commands still work; changed student data is rejected by the guard and rolled back. A new storage instance after repair/restart restores normal saving; genuinely missing files still use samples. `MainApp` and `UiManager` store the warning as a nullable string; `MainApp#getStartupWarning()` returns an `Optional<String>`.
+
+- At startup, `ApplicationLock` takes an operating-system lock on `data/.tutorlah.lock` before preferences or student data are loaded. `MainApp` retains it until `stop`. A second copy using the same data folder stops initialization before storage, model, logic or the main window is created; a failure-only `UiManager` explains the conflict. Failure to create or lock the lock file is also fatal. The lock file may remain after exit; only the operating-system lock indicates a running instance.
+
+- `seedu.address.model.person.Level` and `Subject`: same shape as
+  `Address` (public `value`, `isValidLevel` / `isValidSubject`,
+  `MESSAGE_CONSTRAINTS`, `MAX_LENGTH`).
+- `Person(Name, Phone, Address, Level, Subject)` creates a student with no
+  lessons. `Person(Name, Phone, Address, Level, Subject, List<Lesson>)`
+  creates one with lessons.
+- `Person(Name, Phone, Address, Level, Subject, List<Lesson>, Optional<Flag>)`
+  creates one with lessons and an optional follow-up flag.
+- `Person#getFlag()` returns an `Optional<Flag>` and `Person#isFlagged()` tests
+  whether it is present. `withFlag(Flag)` and `withoutFlag()` return immutable
+  copies and preserve all other fields. A `Flag` has an optional reason; reasons
+  use `Flag#isValidReason` and `Flag.MAX_REASON_LENGTH`.
+- `StudentSummary(ReadOnlyAddressBook)` captures immutable student and lesson totals through `getStudentCount()` and `getLessonCount()` (a `long`). It is not a persisted model field.
+- `Person#getLessonCount()` includes undated records; `getLatestLessonDate()` returns the greatest recorded `LocalDate`, or empty if none are dated. `Messages#formatLessonStatus(Person)` formats the card line.
+- `Person#getLessons()` returns an unmodifiable list, oldest first.
+  `Person#withLessonAdded(Lesson)` returns a new `Person` with the lesson
+  inserted in date order (see "Lesson order" in section 2).
+- `seedu.address.model.lesson.Lesson`: immutable. `Lesson(String content)`
+  is undated and `Lesson(String content, LocalDate date)` is dated. Public
+  `content`, `getDate()` (an `Optional<LocalDate>`), `withDate(LocalDate)`,
+  `isValidContent`, `MESSAGE_CONSTRAINTS`, `MAX_LENGTH`. Two lessons are
+  equal only if both content and date are equal.
+- `Lesson#toString` returns the content only, because command confirmations
+  print lessons through it. Keep it that way and do not switch it to
+  `ToStringBuilder`.
+- `LogCommand(Index, Lesson)` keeps a dated lesson's date and dates an
+  undated lesson with the system clock. `LogCommand(Index, Lesson, Clock)`
+  lets tests fix today's date. It rejects dates after today.
+- `ParserUtil.parseLessonDate(String)` parses `DD/MM/YYYY` strictly and
+  throws `ParseException` with `Lesson.MESSAGE_DATE_CONSTRAINTS`.
+- `Messages.formatLessonDate(Lesson)` returns the `DD/MM/YYYY` date, or
+  `(undated)`, using `Messages.LESSON_DATE_FORMATTER`. Use it wherever a
+  lesson date is shown.
+- `JsonAdaptedLesson` stores the date as `"date" : "YYYY-MM-DD"` and leaves
+  the field out for undated lessons. A missing date loads as undated, and an
+  invalid date makes the data file invalid.
+- **Testing with dates:** `loglesson` run through `Logic` uses today's date, so
+  build expected text with `LessonDateUtil.todayText()` and expected lessons
+  with `LessonDateUtil.loggedToday(...)` (in `testutil`). Unit tests of
+  `LogCommand` pass a fixed `Clock` instead. `PersonBuilder#withLessons`
+  creates undated lessons, which `view` shows as `(undated)`.
+- `Person#withLessonRemoved(int zeroBasedIndex)` returns a new `Person`
+  without the selected lesson in stored order. Other fields are kept.
+- `Person#withLessonReplaced(int zeroBasedIndex, Lesson lesson)` returns a new `Person` with the lesson at that stored position replaced, keeping its position, the other lessons and the flag. It asserts that the date is unchanged; to change a date, use `withLessonRemoved` then `withLessonAdded`.
+- `Lesson#withContent(String)` returns a copy with new content and the same date, or undated if the lesson is undated.
+- `EditLessonCommand(Index, Index, EditLessonDescriptor[, Clock])` edits one lesson. `EditLessonDescriptor` holds the optional new content and date, like `EditCommand.EditPersonDescriptor`. Tests pass a fixed `Clock`, as for `LogCommand`.
+- Logging a lesson is `model.setPerson(target, target.withLessonAdded(lesson))`.
+  Deleting a student removes their lessons, because lessons live inside
+  `Person`.
+- `Messages.format(Person)` prints the add and delete format above.
+- `PersonListPanel(ObservableList<Person>, Consumer<Index>)` invokes the callback
+  for primary-button clicks on populated cards. `MainWindow` routes that index
+  through `Logic.execute("view " + index.getOneBased())` and displays its result.
+- `view`, `findlesson`, `loglesson`, `edit`, `editlesson`, `deletelesson`, `flag` and
+  `unflag` return `CommandResult(feedback, Person)` with the student as it is
+  after the command. The optional `getStudent()` is empty for other commands.
+  `MainWindow` shows that student in `StudentDetailPanel#show(Person, int)` and
+  passes its displayed position to `PersonListPanel#selectPerson(Index)`, which
+  highlights and scrolls without executing another command or taking focus from
+  the command box.
+- Prefixes in `CliSyntax`: `n/`, `p/`, `addr/`, `l/`, `sub/`, `c/`, `date/`,
+  `r/`, `from/`, `to/`.
+- `LessonSearchPredicate(List<String>, LocalDate, LocalDate)` copies keywords and
+  accepts null for an absent date boundary. `FindLessonCommand(Index, predicate)`
+  returns a one-off history result with the displayed student index to highlight.
+- `StringUtil#isBlankOrInvisible(String)` checks for empty text or only Unicode
+  whitespace/format characters without altering meaningful text.
+- `ParserUtil#parseCommandIndex(text, usage, invalidIndexMessage)` shares
+  student and lesson index validation. `parseStudentIndex` delegates to it
+  with the student-index error message.
+- `EditCommand(Index, EditPersonDescriptor)` edits name, phone, address, level and subject. It rebuilds the student with the 6-argument `Person` constructor, carrying `getLessons()` across, so lessons are never lost on edit.
+- `FindCommand(StudentContainsKeywordsPredicate)` replaces the displayed filter. The predicate takes name, subject and level keyword lists, needs at least one keyword in total and no blank keyword, and keeps immutable copies as typed. Each keyword matches a literal substring of its own field through `StringUtil#containsIgnoreCase`, which uses locale-independent `String#regionMatches(true, ...)` without lowercasing the text or keywords. An empty list means the field is not searched. Predicate equality and hashing use all three lists. `FindCommandParser` tokenizes only `n/`, `sub/` and `l/`; the preamble and `n/` value are name keywords. The predicate exposes `getNameKeywords()`, `getSubjectKeywords()` and `getLevelKeywords()`, and `withTrailingFieldWordsAsNames()` returns the searches that move the last 1, 2, ... words of a multi-word subject or level search to the names: fewest words first, subject before level for the same count, keeping at least one word per field. When a search using `sub/` or `l/` finds no one, `FindCommand` tests these alternatives against `Model#getAddressBook` without changing the displayed filter and suggests the first that matches, written as `find {names} sub/{subject} l/{level}` (#187).
+- **Any code that rebuilds a `Person`** (for example an edit command) must
+  carry `getLessons()` across. The 5-argument constructor starts with no
+  lessons and would silently delete them.
+
+Student data and preferences are serialized completely, written to a unique temporary file beside the destination and replaced atomically. A write or replacement failure keeps the previous saved file; failed first saves leave no empty destination. Temporary files are cleaned up where possible. Abrupt termination may leave a hidden `.tutorlah-*.tmp` file that is not loaded or cleaned up on restart; it can be removed after closing all copies of TutorLah. Unsupported atomic replacement is a save error, with no non-atomic fallback. This does not add a second-instance lock or guarantee recovery from power loss.
+
+---
+
+## 6. Known gaps on `master` (Oct 15)
+
+These are mismatches with this brief. Fix them only if your task covers
+them.
+
+No known mismatches recorded. `docs/images/Ui.png` shows the current TutorLah
+GUI after `findlesson 1 quadratic`, with fictional student and lesson details
+(issue #258).
+
+---
+
+## 7. Verification checklist (run before every PR)
+
+Ask the agent to run each check and report the result. Open the PR only
+when all pass.
+
+- [ ] Branch made from an up-to-date `master`. No commits on `master`.
+- [ ] `./gradlew clean check coverage` passes (tests and Checkstyle, as in CI).
+- [ ] Every acceptance criterion in the task is met. Quote each one and say
+      how it was checked.
+- [ ] Every user-facing message matches this brief character for character.
+- [ ] New or changed code has tests, including the boundary values in
+      section 3.
+- [ ] Only the files the task needs changed (`git diff --stat master`).
+- [ ] The app starts with `./gradlew run` and the feature works by hand.
+      For a release, test the JAR as in section 11.
+- [ ] Commit subjects: imperative, capitalised, no full stop, at most 50
+      characters.
+- [ ] PR: base `AY2627S1-CS2103T-T11-1/tp` `master`, `Fixes #N`, current
+      milestone, one reviewer.
+- [ ] After merge: `git switch master`, `git pull upstream master`,
+      `git push origin master`.
+
+When the agent finishes, it reports in four parts:
+
+- **Changed:** the files, and why each one changed.
+- **Verified:** the exact commands or steps, with their output.
+- **Not verified:** what was not checked, and why.
+- **Risks:** anything the team needs to decide or approve.
+
+---
+
+## 8. Designing user-facing behaviour
+
+From the course guidance on [functionality bugs][bugs] and
+[feature flaws][flaws]. A PE tester judges the app by what a reasonable
+tutor expects, not by what was easy to parse.
+
+- Plan for likely mistakes, not only the normal case. A typo must not crash
+  the app, corrupt the data file or leave the app unusable.
+- Do not restrict input just to make parsing easier. Real names, addresses
+  and levels must be possible to enter. Names with `a/l` or `a/p` work since #109.
+- Prefer a warning to a rejection for unusual but harmless input. Reject
+  only when accepting would make the data ambiguous or wrong.
+- Error messages name the field that is wrong and say why.
+- Duplicate checks compare normalised values (case, repeated spaces). The
+  UG states what the check does not catch.
+- Long values must not break the student cards or hide the result box.
+- The data file stays editable by hand. After a format change, files saved
+  by the previous release must still load, with a test that proves it.
+- Every restriction a user can run into is in the UG.
+- Change validation rules in their own issue, not inside an unrelated PR.
+- **Open question (#106):** is "exactly 8 digits" too strict for a phone
+  number, for example an overseas parent's number? The rule stands until
+  the team decides.
+
+---
+
+## 9. Course constraints
+
+From the [tP constraints][constraints] page. These are course rules, not
+team choices.
+
+- Typing is the main way to use the app. It is for a single user.
+- Data is stored locally in a human-editable text file. No database
+  (DBMS) and no remote server run by the team.
+- It runs on Windows, macOS and Linux with only Java 25 installed, without
+  an installer.
+- Third-party libraries need approval from the teaching team first.
+- The GUI works well at 1920x1080 and above at 100% and 125% scale, and is
+  usable at 1280x720 and above at 150% scale.
+- The product is one JAR file of at most 100 MB.
+
+---
+
+## 10. Reviewing PRs
+
+From [Appendix E][appendix-e] and the [SE-EDU review guide][reviewing].
+
+- Put most feedback in inline comments on the relevant lines, plus one
+  overall comment. The course values location-specific comments more in
+  grading.
+- Ask questions rather than give orders, and include the input that fails
+  and a possible fix. Say what works well and why ("I like how ...").
+- Run anything you call a bug before you post it, or say that you did not.
+- Do not repeat a comment at every occurrence. Note that it appears in
+  other places too. Do not repeat another reviewer's comment either: reply
+  to it with new evidence instead.
+- Check that the PR is one complete change, with tests and docs updated, a
+  correct title and description, and no unrelated edits.
+- Point out overlaps with other open PRs, and say whether a conflict was
+  actually checked.
+- Approve only after your earlier comments are addressed.
+- Use plain English with no slang.
+
+---
+
+## 11. Iterations and releases
+
+- Before closing a milestone, compare it with what actually shipped, and
+  move unfinished issues to the next milestone.
+- A release has the version tag, the JAR from `./gradlew shadowJar`
+  (`build/libs/TutorLah.jar`), and notes listing what changed since the
+  previous release, with screenshots committed under `docs/images/`.
+- Before publishing, copy the JAR to an empty folder and run it with
+  `java -jar TutorLah.jar` under Java 25. Run `add`, `loglesson`, `view` and `exit`, then
+  start it again and check that the data was kept.
+- For the feature freeze and final submission, read the live
+  [Week 12 page][w12]. Do not rely on remembered limits.
+
+[reuse]: https://nus-cs2103-ay2627-s1.github.io/website/admin/appendixB-policies.html#policy-on-reuse
+[appendix-e]: https://nus-cs2103-ay2627-s1.github.io/website/admin/appendixE-gitHub.html
+[constraints]: https://nus-cs2103-ay2627-s1.github.io/website/admin/tp-constraints.html
+[bugs]: https://nus-cs2103-ay2627-s1.github.io/website/schedule/week8/project.html#triaging-functionality-bugs
+[flaws]: https://nus-cs2103-ay2627-s1.github.io/website/schedule/week8/project.html#triaging-feature-flaw-bugs
+[w12]: https://nus-cs2103-ay2627-s1.github.io/website/admin/tp-w12.html
+[git]: https://se-education.org/guides/conventions/git.html
+[github-conv]: https://se-education.org/guides/conventions/github.html
+[reviewing]: https://se-education.org/guides/guidelines/PRs-reviewing.html

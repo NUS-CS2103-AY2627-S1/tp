@@ -1,59 +1,57 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us via zikiai at the email `e1525973@u.nus.edu`
 
 ## Project team
 
-### John Doe
+### zikiai
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zikiai.png" width="200px" alt="Profile photo of zikiai">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/zikiai)]
 
-* Role: Project Advisor
+* Role: Team lead
+* Responsibilities: Integration
 
-### Jane Doe
+### aerodart
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/aerodart.png" width="200px" alt="Profile photo of aerodart">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/aerodart)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Testing, Git Expert
+* Responsibilities: Model
 
-### Johnny Doe
+### fuhlie
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/fuhlie.png" width="200px" alt="Profile photo of fuhlie">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/fuhlie)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Code quality
+* Responsibilities: Logic
 
-### Jean Doe
+### srivatsanj27
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/srivatsanj27.png" width="200px" alt="Profile photo of srivatsanj27">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/srivatsanj27)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Scheduling tracking and deliverables
+* Responsibilities: Storage
 
-### James Doe
+### cibichandar
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/cibichandar.png" width="200px" alt="Profile photo of cibichandar">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/cibichandar)]
 
-* Role: Developer
+* Role: Documentation
 * Responsibilities: UI

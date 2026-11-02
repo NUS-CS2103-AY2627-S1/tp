@@ -1,14 +1,47 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.FileNotFoundException;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 public class StringUtilTest {
+
+    @Test
+    public void stripUnicodeWhitespace_preservesInternalWhitespaceAndJoiners() {
+        assertEquals("New\u00a0  Road", StringUtil.stripUnicodeWhitespace("\u0085\u00a0New\u00a0  Road\u3000"));
+        assertEquals("क्\u200dष 👩\u200d🏫", StringUtil.stripUnicodeWhitespace(" क्\u200dष 👩\u200d🏫 "));
+        assertEquals("\u200b", StringUtil.stripUnicodeWhitespace("\u200b"));
+        assertEquals("", StringUtil.stripUnicodeWhitespace(" \t\r\n\u00a0\u2003\u202f\u3000"));
+        assertEquals("", StringUtil.stripUnicodeWhitespace(""));
+        assertThrows(NullPointerException.class, () -> StringUtil.stripUnicodeWhitespace(null));
+    }
+
+    @Test
+    public void isBlankOrInvisible_nullText_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.isBlankOrInvisible(null));
+    }
+
+    @Test
+    public void isBlankOrInvisible_blankOrFormattingOnly_returnsTrue() {
+        for (String text : List.of("", " \t\r\n", "\u00a0\u2003\u3000", "\u200b", "\u2060", "\ufeff",
+                " \u00a0\u200b\u200d\u2060\ufeff")) {
+            assertTrue(StringUtil.isBlankOrInvisible(text));
+        }
+    }
+
+    @Test
+    public void isBlankOrInvisible_visibleText_returnsFalse() {
+        for (String text : List.of("Algebra", "0", ".", "中文", " \u200bAlgebra\u2060 ",
+                "क्\u200dष", "👩\u200d🏫")) {
+            assertFalse(StringUtil.isBlankOrInvisible(text));
+        }
+    }
 
     //---------------- Tests for isNonZeroUnsignedInteger --------------------------------------
 
@@ -121,6 +154,36 @@ public class StringUtilTest {
 
         // Matches multiple words in sentence
         assertTrue(StringUtil.containsWordIgnoreCase("AAA bBb ccc  bbb", "bbB"));
+    }
+
+    //---------------- Tests for containsIgnoreCase --------------------------------------
+
+    /*
+     * Equivalence partitions for keyword: null, part of the text, the whole text, not in the text,
+     * longer than the text; for text: null, empty, non-empty.
+     */
+
+    @Test
+    public void containsIgnoreCase_nullInputs_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.containsIgnoreCase(null, "abc"));
+        assertThrows(NullPointerException.class, () -> StringUtil.containsIgnoreCase("abc", null));
+    }
+
+    @Test
+    public void containsIgnoreCase_validInputs_correctResult() {
+        // Part of the text, including across a space and with different case
+        assertTrue(StringUtil.containsIgnoreCase("H2 Math", "math"));
+        assertTrue(StringUtil.containsIgnoreCase("H2 Math", "2 M"));
+        assertTrue(StringUtil.containsIgnoreCase("Sec 3", "SEC 3"));
+        assertTrue(StringUtil.containsIgnoreCase("Sec 3", "3")); // last character (boundary case)
+
+        // The whole text
+        assertTrue(StringUtil.containsIgnoreCase("Physics", "physics"));
+
+        // Not in the text, or longer than the text
+        assertFalse(StringUtil.containsIgnoreCase("Physics", "chem"));
+        assertFalse(StringUtil.containsIgnoreCase("Math", "maths"));
+        assertFalse(StringUtil.containsIgnoreCase("", "a")); // empty text (boundary case)
     }
 
     //---------------- Tests for getDetails --------------------------------------
