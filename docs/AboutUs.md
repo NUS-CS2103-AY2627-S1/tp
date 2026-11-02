@@ -1,59 +1,73 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Lee Wen Kang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/leewenkang-nus.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://wenkang.dev/)]
+[[github](https://github.com/LeeWenKang-NUS)]
 
-* Role: Project Advisor
+<!-- [[portfolio](team/johndoe.md)] -->
 
-### Jane Doe
+- Role: Tech Lead
 
-<img src="images/johndoe.png" width="200px">
+### Lu Yao
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/luyao-111.png" width="200px">
 
-* Role: Team Lead
-* Responsibilities: UI
+[[github](http://github.com/luyao-111)]
 
-### Johnny Doe
+* Role: Integration
 
-<img src="images/johndoe.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+### Bevan Poh
 
-* Role: Developer
-* Responsibilities: Data
+<img src="images/bevanpoh.png" width="200px">
 
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/bevanpoh)]
 
 * Role: Developer
 * Responsibilities: UI
+
+
+### Simon Christian Luigi Soriano
+
+<img src="images/luigi-simon.png" width="200px">
+
+[[github](https://github.com/Luigi-Simon)]
+
+* Role: Documentation Lead
+* Responsibilities: Maintaining and coordinating project documentation
+
+
+### Aden Koh
+
+<img src="images/aster0.png" width="200px">
+
+[[homepage](https://astero.me)]
+[[github](https://github.com/aster0)]
+
+* Role: Deliverables and Deadlines
+* Responsibility: Ensures project deliverables are done on time and in the right format.
+
+
+### Ryan Yong
+
+<img src="images/ryanyzh.png" width="200px">
+
+[[github](https://github.com/ryanyzh)]
+
+* Role: Tester
+* Responsibilities: Plans tests, checks features, manages bug reports and regression testing
+

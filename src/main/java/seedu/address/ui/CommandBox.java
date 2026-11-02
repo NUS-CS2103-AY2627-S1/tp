@@ -1,8 +1,14 @@
 package seedu.address.ui;
 
+import java.util.List;
+
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -15,20 +21,70 @@ public class CommandBox extends UiPart<Region> {
 
     public static final String ERROR_STYLE_CLASS = "error";
     private static final String FXML = "CommandBox.fxml";
+    private static final PseudoClass SYNTAX_HINT = PseudoClass.getPseudoClass("syntax");
 
     private final CommandExecutor commandExecutor;
+    private final CommandHistory commandHistory;
 
     @FXML
     private TextField commandTextField;
+
+    @FXML
+    private Label commandHint;
+
+    @FXML
+    private Label commandHintDetails;
 
     /**
      * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
      */
     public CommandBox(CommandExecutor commandExecutor) {
+        this(commandExecutor, List.of());
+    }
+
+    /** Creates a command box with previously saved successful commands. */
+    public CommandBox(CommandExecutor commandExecutor, List<String> savedCommands) {
         super(FXML);
+        commandHistory = new CommandHistory(savedCommands);
         this.commandExecutor = commandExecutor;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
-        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.textProperty().addListener((observable, previous, current) -> {
+            setStyleToDefault();
+            updateHint(current);
+        });
+        commandTextField.addEventFilter(KeyEvent.KEY_PRESSED, this::handleHistoryNavigation);
+        updateHint(commandTextField.getText());
+    }
+
+    /** Separates command syntax from its explanation while keeping both labels read-only. */
+    private void updateHint(String draft) {
+        String[] lines = CommandHints.forInput(draft).split("\n", 2);
+        boolean hasDetails = lines.length == 2;
+        commandHint.setText(lines[0]);
+        commandHint.pseudoClassStateChanged(SYNTAX_HINT, hasDetails);
+        commandHintDetails.setText(hasDetails ? lines[1] : "");
+        commandHintDetails.setVisible(hasDetails);
+        commandHintDetails.setManaged(hasDetails);
+    }
+
+    /**
+     * Recalls commands without executing them when unmodified Up or Down is pressed.
+     */
+    private void handleHistoryNavigation(KeyEvent event) {
+        if (event.getCode() != KeyCode.UP && event.getCode() != KeyCode.DOWN) {
+            return;
+        }
+        if (event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return;
+        }
+        String currentInput = commandTextField.getText();
+        String recalledInput = event.getCode() == KeyCode.UP
+                ? commandHistory.previous(currentInput) : commandHistory.next(currentInput);
+        if (!recalledInput.equals(currentInput)) {
+            commandTextField.setText(recalledInput);
+            commandTextField.positionCaret(recalledInput.length());
+        }
+        event.consume();
     }
 
     /**
@@ -37,14 +93,16 @@ public class CommandBox extends UiPart<Region> {
     @FXML
     private void handleCommandEntered() {
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        if (commandText.isBlank()) {
             return;
         }
 
         try {
             commandExecutor.execute(commandText);
+            commandHistory.add(commandText);
             commandTextField.setText("");
         } catch (CommandException | ParseException e) {
+            commandHistory.resetNavigation(commandText);
             setStyleToIndicateCommandFailure();
         }
     }

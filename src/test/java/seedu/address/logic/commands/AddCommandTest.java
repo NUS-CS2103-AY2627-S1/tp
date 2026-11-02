@@ -7,21 +7,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.academicclass.AcademicClass;
+import seedu.address.model.academicclass.ClassName;
+import seedu.address.model.academicclass.ModuleCode;
+import seedu.address.model.attendance.Attendance;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.StudentNumber;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -49,7 +57,29 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_STUDENT_NUMBER, ()
+                -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_duplicateEmail_throwsCommandException() {
+        Person validPerson = new PersonBuilder().build();
+        Person sameEmailDifferentStudent = new PersonBuilder(validPerson).withStudentNumber("A9999999Z").build();
+        ModelStub modelStub = new ModelStubWithPerson(sameEmailDifferentStudent);
+
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_EMAIL, ()
+                -> new AddCommand(validPerson).execute(modelStub));
+    }
+
+    @Test
+    public void execute_duplicateTelegram_throwsCommandException() {
+        Person validPerson = new PersonBuilder().withTelegram("amy_bee").build();
+        Person sameTelegramDifferentStudent = new PersonBuilder().withStudentNumber("A9999999Z")
+                .withEmail("other@example.com").withTelegram("AMY_BEE").build();
+        ModelStub modelStub = new ModelStubWithPerson(sameTelegramDifferentStudent);
+
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_TELEGRAM, ()
+                -> new AddCommand(validPerson).execute(modelStub));
     }
 
     @Test
@@ -87,6 +117,57 @@ public class AddCommandTest {
      * A default model stub that has all of the methods failing.
      */
     private class ModelStub implements Model {
+
+        @Override
+        public java.util.List<String> getCommandHistory() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setCommandHistory(java.util.List<String> commands) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Attendance> getAttendanceList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<AcademicClass> getAttendanceDisplayClass() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setAttendanceDisplayClass(AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void clearAttendanceDisplayClass() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean addAttendance(Person person, AcademicClass academicClass, LocalDate date) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean removeAttendance(Person person, AcademicClass academicClass, LocalDate date) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> findPersonByStudentNumber(StudentNumber studentNumber) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<AcademicClass> findAcademicClass(ModuleCode moduleCode, ClassName className) {
+            throw new AssertionError("This method should not be called.");
+        }
+
         @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
@@ -118,7 +199,23 @@ public class AddCommandTest {
         }
 
         @Override
+        public Rollback createRollback() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+
+        @Override
         public boolean hasPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasEmail(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasTelegram(Person person) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -133,12 +230,94 @@ public class AddCommandTest {
         }
 
         @Override
+        public void setAcademicClass(AcademicClass target, AcademicClass editedClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void filterPersonsByClass(AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void filterPersonsByClass(AcademicClass academicClass, Optional<Integer> threshold) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void filterPersonsByClassAndDisplayAttendance(AcademicClass academicClass,
+                Optional<Integer> threshold) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasAcademicClass(AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean assignStudentToClass(Person person, AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addAcademicClass(AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean unassignStudentFromClass(Person person, AcademicClass academicClass) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteAcademicClass(AcademicClass target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<AcademicClass> getAcademicClassList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<AcademicClass> getFilteredAcademicClassList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> findDisplayedPerson(Index index) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<AcademicClass> findDisplayedAcademicClass(Index index) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+
+        @Override
+        public void updateFilteredPersonListAlphabetically(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredAcademicClassList(Predicate<AcademicClass> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredAcademicClassListByStudent(StudentNumber studentNumber) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -159,6 +338,18 @@ public class AddCommandTest {
             requireNonNull(person);
             return this.person.isSamePerson(person);
         }
+
+        @Override
+        public boolean hasEmail(Person person) {
+            requireNonNull(person);
+            return this.person.hasSameEmail(person);
+        }
+
+        @Override
+        public boolean hasTelegram(Person person) {
+            requireNonNull(person);
+            return this.person.hasSameTelegram(person);
+        }
     }
 
     /**
@@ -171,6 +362,18 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return personsAdded.stream().anyMatch(person::isSamePerson);
+        }
+
+        @Override
+        public boolean hasEmail(Person person) {
+            requireNonNull(person);
+            return personsAdded.stream().anyMatch(person::hasSameEmail);
+        }
+
+        @Override
+        public boolean hasTelegram(Person person) {
+            requireNonNull(person);
+            return personsAdded.stream().anyMatch(person::hasSameTelegram);
         }
 
         @Override

@@ -12,16 +12,25 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.AddClassCommand;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.DeleteClassCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ListByClassCommand;
+import seedu.address.logic.commands.ListByStudentCommand;
+import seedu.address.logic.commands.ListClassCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.academicclass.AcademicClass;
+import seedu.address.model.academicclass.ClassName;
+import seedu.address.model.academicclass.ModuleCode;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
@@ -33,10 +42,57 @@ public class AddressBookParserTest {
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void parseCommand_unicodeSpaces_treatedAsOrdinarySpaces() throws Exception {
+        String nbsp = String.valueOf((char) 0xA0);
+        String emSpace = String.valueOf((char) 0x2003);
+
+        // between command word and arguments
+        assertEquals(new ListByStudentCommand(INDEX_FIRST_PERSON), parser.parseCommand("listbystudent" + nbsp + "1"));
+
+        // around and between keywords
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice", "Tan"))),
+                parser.parseCommand(nbsp + "find" + emSpace + "Alice" + nbsp + "Tan" + nbsp));
+
+        // between prefixed fields and inside a name
+        Person person = new PersonBuilder().build();
+        String addCommand = PersonUtil.getAddCommand(person);
+        assertEquals(new AddCommand(person), parser.parseCommand(addCommand.replace(" ", nbsp)));
+        assertEquals(parser.parseCommand(addCommand), parser.parseCommand(addCommand.replace(" ", nbsp)));
+    }
+
+    @Test
+    public void parseCommand_listByStudent() throws Exception {
+        assertEquals(new ListByStudentCommand(INDEX_FIRST_PERSON), parser.parseCommand("listbystudent 1"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("listbystudent"));
+    }
+
+    @Test
+    public void parseCommand_listByClass() throws Exception {
+        assertEquals(new ListByClassCommand(Index.fromOneBased(1)),
+                parser.parseCommand("listbyclass 1"));
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
         Person person = new PersonBuilder().build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_generatedAddWithSlashes_preservesNameAndFields() throws Exception {
+        for (String name : List.of("Ravi S/O Kumar", "Alex n/Alias e/Other sn/Number tg/Handle t/Group")) {
+            Person person = new PersonBuilder().withName(name).build();
+            assertEquals(new AddCommand(person), parser.parseCommand(PersonUtil.getAddCommand(person)));
+        }
+    }
+
+    @Test
+    public void parseCommand_addClass() throws Exception {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        AddClassCommand command = (AddClassCommand) parser.parseCommand(AddClassCommand.COMMAND_WORD
+                + " m/CS2103 c/F10-2");
+        assertEquals(new AddClassCommand(academicClass), command);
     }
 
     @Test
@@ -53,12 +109,37 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_deleteClass() throws Exception {
+        DeleteClassCommand command = (DeleteClassCommand) parser.parseCommand(
+                "deleteclass 1");
+        assertEquals(new DeleteClassCommand(Index.fromOneBased(1)), command);
+    }
+
+    @Test
+    public void parseCommand_deleteClassMissingArguments_throwsParseException() {
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteClassCommand.MESSAGE_USAGE), ()
+                    -> parser.parseCommand("deleteclass"));
+    }
+
+    @Test
     public void parseCommand_edit() throws Exception {
         Person person = new PersonBuilder().build();
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
         EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
                 + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
         assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+    }
+
+    @Test
+    public void parseCommand_generatedEditWithSlashes_preservesNameAndFields() throws Exception {
+        for (String name : List.of("Ravi S/O Kumar", "Alex n/Alias e/Other sn/Number tg/Handle t/Group")) {
+            Person person = new PersonBuilder().withName(name).build();
+            EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
+            String command = EditCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " "
+                    + PersonUtil.getEditPersonDescriptorDetails(descriptor);
+            assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), parser.parseCommand(command));
+        }
     }
 
     @Test
@@ -85,6 +166,13 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listClass() throws Exception {
+        assertTrue(parser.parseCommand(ListClassCommand.COMMAND_WORD) instanceof ListClassCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ListClassCommand.COMMAND_WORD + " extra"));
+        assertThrows(ParseException.class, () -> parser.parseCommand(ListClassCommand.COMMAND_WORD.toUpperCase()));
     }
 
     @Test

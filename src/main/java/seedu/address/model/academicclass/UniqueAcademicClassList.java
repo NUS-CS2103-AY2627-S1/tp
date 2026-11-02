@@ -1,0 +1,115 @@
+package seedu.address.model.academicclass;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import seedu.address.model.academicclass.exceptions.AcademicClassNotFoundException;
+import seedu.address.model.academicclass.exceptions.DuplicateAcademicClassException;
+
+/**
+ * A list of academic classes that enforces uniqueness by module code and class name.
+ */
+public class UniqueAcademicClassList implements Iterable<AcademicClass> {
+
+    private final ObservableList<AcademicClass> internalList = FXCollections.observableArrayList();
+    private final ObservableList<AcademicClass> internalUnmodifiableList =
+            FXCollections.unmodifiableObservableList(internalList);
+
+    /**
+     * Replaces the contents with {@code academicClasses}, which must not contain nulls or duplicates.
+     */
+    public void setAcademicClasses(List<AcademicClass> academicClasses) {
+        requireAllNonNull(academicClasses);
+        if (new HashSet<>(academicClasses).size() != academicClasses.size()) {
+            throw new DuplicateAcademicClassException();
+        }
+        internalList.setAll(List.copyOf(academicClasses));
+
+
+    }
+
+    /**
+     * Replaces {@code target} without changing its position in the list.
+     *
+     * @throws NullPointerException if either argument is null
+     * @throws AcademicClassNotFoundException if the target is absent
+     * @throws DuplicateAcademicClassException if another class has the replacement identity
+     */
+    public void setAcademicClass(AcademicClass target, AcademicClass editedClass) {
+        requireAllNonNull(target, editedClass);
+
+        int index = internalList.indexOf(target);
+        if (index == -1) {
+            throw new AcademicClassNotFoundException();
+        }
+
+        for (int i = 0; i < internalList.size(); i++) {
+            if (i != index && internalList.get(i).hasIdentity(
+                    editedClass.getModuleCode(), editedClass.getClassName())) {
+                throw new DuplicateAcademicClassException();
+            }
+        }
+
+        internalList.set(index, editedClass);
+    }
+
+    /**
+     * Removes the equivalent academic class from the list.
+     * The academic class must exist in the list.
+     */
+    public void remove(AcademicClass toRemove) {
+        requireNonNull(toRemove);
+        if (!internalList.remove(toRemove)) {
+            throw new AcademicClassNotFoundException();
+        }
+    }
+
+    /**
+     * Returns copies of all academic classes in this list, in the same order.
+     */
+    public List<AcademicClass> deepCopy() {
+        return internalList.stream().map(AcademicClass::copy).toList();
+    }
+
+    /**
+     * Returns the backing list as an unmodifiable {@code ObservableList}.
+     */
+    public ObservableList<AcademicClass> asUnmodifiableObservableList() {
+        return internalUnmodifiableList;
+    }
+
+    @Override
+    public Iterator<AcademicClass> iterator() {
+        return internalList.iterator();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof UniqueAcademicClassList otherUniqueAcademicClassList)) {
+            return false;
+        }
+
+        return internalList.equals(otherUniqueAcademicClassList.internalList);
+    }
+
+    @Override
+    public int hashCode() {
+        return internalList.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return internalList.toString();
+    }
+}

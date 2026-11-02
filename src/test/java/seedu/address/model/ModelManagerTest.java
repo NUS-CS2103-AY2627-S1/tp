@@ -2,23 +2,147 @@ package seedu.address.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_ACADEMIC_CLASSES;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.academicclass.AcademicClass;
+import seedu.address.model.academicclass.ClassName;
+import seedu.address.model.academicclass.ModuleCode;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.StudentNumber;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
 
     private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void findDisplayedPerson_unfiltered_returnsStoredStudentsInDisplayedOrder() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        assertSame(BENSON, modelManager.findDisplayedPerson(Index.fromOneBased(1)).orElseThrow());
+        assertSame(ALICE, modelManager.findDisplayedPerson(Index.fromOneBased(2)).orElseThrow());
+        assertEquals(Optional.empty(), modelManager.findDisplayedPerson(Index.fromOneBased(3)));
+    }
+
+    @Test
+    public void findDisplayedPerson_filtered_usesCurrentViewWithoutChangingIt() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        modelManager.updateFilteredPersonList(person -> person.equals(ALICE));
+        assertSame(ALICE, modelManager.findDisplayedPerson(Index.fromOneBased(1)).orElseThrow());
+        assertEquals(Optional.empty(), modelManager.findDisplayedPerson(Index.fromOneBased(2)));
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+        assertEquals(List.of(BENSON, ALICE), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void findDisplayedPerson_classView_usesAlphabeticalOrder() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("T01"));
+        modelManager.addAcademicClass(academicClass);
+        modelManager.assignStudentToClass(BENSON, academicClass);
+        modelManager.assignStudentToClass(ALICE, academicClass);
+        modelManager.filterPersonsByClass(academicClass);
+        assertSame(ALICE, modelManager.findDisplayedPerson(Index.fromOneBased(1)).orElseThrow());
+        assertSame(BENSON, modelManager.findDisplayedPerson(Index.fromOneBased(2)).orElseThrow());
+    }
+
+    @Test
+    public void findDisplayedPerson_emptyOrHidden_returnsEmpty() {
+        assertEquals(Optional.empty(), modelManager.findDisplayedPerson(Index.fromOneBased(1)));
+        modelManager.addPerson(ALICE);
+        modelManager.updateFilteredPersonList(person -> false);
+        assertEquals(Optional.empty(), modelManager.findDisplayedPerson(Index.fromOneBased(1)));
+    }
+
+    @Test
+    public void findDisplayedAcademicClass_unfiltered_returnsStoredClassesInDisplayedOrder() {
+        AcademicClass first = new AcademicClass(new ModuleCode("CS2103"), new ClassName("T01"));
+        AcademicClass second = new AcademicClass(new ModuleCode("CS2100"), new ClassName("L01"));
+        modelManager.addAcademicClass(first);
+        modelManager.addAcademicClass(second);
+        assertSame(first, modelManager.findDisplayedAcademicClass(Index.fromOneBased(1)).orElseThrow());
+        assertSame(second, modelManager.findDisplayedAcademicClass(Index.fromOneBased(2)).orElseThrow());
+        assertEquals(Optional.empty(), modelManager.findDisplayedAcademicClass(Index.fromOneBased(3)));
+    }
+
+    @Test
+    public void findDisplayedAcademicClass_studentFilter_tracksMembershipChanges() {
+        AcademicClass first = new AcademicClass(new ModuleCode("CS2103"), new ClassName("T01"));
+        AcademicClass second = new AcademicClass(new ModuleCode("CS2100"), new ClassName("L01"));
+        modelManager.addPerson(ALICE);
+        modelManager.addAcademicClass(first);
+        modelManager.addAcademicClass(second);
+        modelManager.assignStudentToClass(ALICE, second);
+        modelManager.updateFilteredAcademicClassListByStudent(ALICE.getStudentNumber());
+        assertSame(second, modelManager.findDisplayedAcademicClass(Index.fromOneBased(1)).orElseThrow());
+        assertEquals(Optional.empty(), modelManager.findDisplayedAcademicClass(Index.fromOneBased(2)));
+        assertEquals(List.of(second), modelManager.getFilteredAcademicClassList());
+        modelManager.assignStudentToClass(ALICE, first);
+        assertSame(first, modelManager.findDisplayedAcademicClass(Index.fromOneBased(1)).orElseThrow());
+        assertSame(second, modelManager.findDisplayedAcademicClass(Index.fromOneBased(2)).orElseThrow());
+        assertEquals(List.of(first, second), modelManager.getAcademicClassList());
+    }
+
+    @Test
+    public void findDisplayedAcademicClass_emptyOrHidden_returnsEmpty() {
+        assertEquals(Optional.empty(), modelManager.findDisplayedAcademicClass(Index.fromOneBased(1)));
+        modelManager.addAcademicClass(new AcademicClass(new ModuleCode("CS2103"), new ClassName("T01")));
+        modelManager.updateFilteredAcademicClassList(academicClass -> false);
+        assertEquals(Optional.empty(), modelManager.findDisplayedAcademicClass(Index.fromOneBased(1)));
+    }
+
+    @Test
+    public void findDisplayedRecords_nullIndex_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.findDisplayedPerson(null));
+        assertThrows(NullPointerException.class, () -> modelManager.findDisplayedAcademicClass(null));
+    }
+
+    @Test
+    public void assignStudentToClass_addsMembershipWithoutChangingFilterOrOtherClasses() {
+        AcademicClass first = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("F10-2"));
+        AcademicClass second = new AcademicClass(new ModuleCode("CS2101"), new ClassName("T01"));
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.addAcademicClass(first);
+        modelManager.addAcademicClass(second);
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Benson")));
+
+        assertTrue(modelManager.assignStudentToClass(ALICE, first));
+        assertFalse(modelManager.assignStudentToClass(ALICE, first));
+        assertEquals(Set.of(ALICE), first.getStudents());
+        assertTrue(second.getStudents().isEmpty());
+        assertTrue(modelManager.assignStudentToClass(BENSON, first));
+        assertTrue(modelManager.assignStudentToClass(ALICE, second));
+        assertEquals(Set.of(ALICE, BENSON), first.getStudents());
+        assertEquals(Set.of(ALICE), second.getStudents());
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+        assertEquals(List.of(ALICE, BENSON), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void assignStudentToClass_nullArguments_doNotAssignStudent() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("F10-2"));
+        assertThrows(NullPointerException.class, () -> modelManager.assignStudentToClass(null, academicClass));
+        assertThrows(NullPointerException.class, () -> modelManager.assignStudentToClass(ALICE, null));
+        assertTrue(academicClass.getStudents().isEmpty());
+    }
 
     @Test
     public void constructor() {
@@ -38,6 +162,25 @@ public class ModelManagerTest {
         UserPrefs oldUserPrefs = new UserPrefs(userPrefs);
         userPrefs.setGuiSettings(new GuiSettings(5, 6, 7, 8));
         assertEquals(oldUserPrefs, modelManager.getUserPrefs());
+    }
+
+    @Test
+    public void setAddressBook_afterStudentClassFilter_showsReplacementClassesAfterMembershipChanges() {
+        modelManager.addPerson(ALICE);
+        modelManager.updateFilteredAcademicClassListByStudent(ALICE.getStudentNumber());
+        AcademicClass replacementClass = new AcademicClass(new ModuleCode("CS2106"), new ClassName("T01"));
+        AddressBook replacement = new AddressBookBuilder().withPerson(BENSON).build();
+        replacement.addAcademicClass(replacementClass);
+        var displayedClasses = modelManager.getFilteredAcademicClassList();
+
+        modelManager.setAddressBook(replacement);
+        assertEquals(List.of(replacementClass), displayedClasses);
+
+        // Refreshing memberships must not restore the previous student's filter.
+        assertTrue(modelManager.assignStudentToClass(BENSON, replacementClass));
+        assertEquals(List.of(replacementClass), displayedClasses);
+        assertTrue(modelManager.unassignStudentFromClass(BENSON, replacementClass));
+        assertEquals(List.of(replacementClass), displayedClasses);
     }
 
     @Test
@@ -68,14 +211,192 @@ public class ModelManagerTest {
         assertTrue(modelManager.hasPerson(ALICE));
     }
 
+
+    @Test
+    public void hasEmail_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasEmail(null));
+    }
+
+    @Test
+    public void hasEmail() {
+        assertFalse(modelManager.hasEmail(ALICE));
+
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.hasEmail(ALICE));
+        assertFalse(modelManager.hasEmail(BENSON));
+    }
+
+    @Test
+    public void hasTelegram_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasTelegram(null));
+    }
+
+    @Test
+    public void hasTelegram() {
+        assertFalse(modelManager.hasTelegram(ALICE));
+
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.hasTelegram(ALICE));
+        assertFalse(modelManager.hasTelegram(BENSON));
+    }
+
+    @Test
+    public void hasAcademicClass_nullAcademicClass_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasAcademicClass(null));
+    }
+
+    @Test
+    public void hasAcademicClass_academicClassNotInAddressBook_returnsFalse() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("F10-2"));
+        assertFalse(modelManager.hasAcademicClass(academicClass));
+    }
+
+    @Test
+    public void hasAcademicClass_academicClassInAddressBook_returnsTrue() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("F10-2"));
+        modelManager.addAcademicClass(academicClass);
+        assertTrue(modelManager.hasAcademicClass(academicClass));
+        assertEquals(List.of(academicClass), modelManager.getAcademicClassList());
+    }
+
+
+    @Test
+    public void deleteAcademicClass_existingClass_updatesViewAndPreservesPersons() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        modelManager.addAcademicClass(academicClass);
+        modelManager.addPerson(ALICE);
+        var view = modelManager.getAcademicClassList();
+
+        modelManager.deleteAcademicClass(academicClass);
+
+        assertTrue(view.isEmpty());
+        assertFalse(modelManager.hasAcademicClass(academicClass));
+        assertEquals(List.of(ALICE), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void getAcademicClassList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getAcademicClassList().remove(0));
+    }
+
+    @Test
+    public void getFilteredAcademicClassList_filtersAndPreservesInsertionOrder() {
+        AcademicClass first = new AcademicClass(new ModuleCode("CS2100"), new ClassName("L03"));
+        AcademicClass second = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("T01"));
+        modelManager.addAcademicClass(first);
+        modelManager.addAcademicClass(second);
+
+        modelManager.updateFilteredAcademicClassList(academicClass -> academicClass.equals(second));
+        assertEquals(List.of(second), modelManager.getFilteredAcademicClassList());
+
+        modelManager.updateFilteredAcademicClassList(PREDICATE_SHOW_ALL_ACADEMIC_CLASSES);
+        assertEquals(List.of(first, second), modelManager.getFilteredAcademicClassList());
+    }
+
+    @Test
+    public void getFilteredAcademicClassList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () ->
+                modelManager.getFilteredAcademicClassList().remove(0));
+    }
+
+    @Test
+    public void filterPersonsByClass_invalidThreshold_throwsIllegalArgumentException() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        modelManager.addAcademicClass(academicClass);
+        assertThrows(IllegalArgumentException.class, () ->
+                modelManager.filterPersonsByClass(academicClass, Optional.of(0)));
+        assertThrows(IllegalArgumentException.class, () ->
+                modelManager.filterPersonsByClass(academicClass, Optional.of(-1)));
+    }
+
+    @Test
+    public void setAcademicClass_withActiveThreshold_preservesThresholdUntilPersonFilterReset() {
+        AcademicClass original = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.addAcademicClass(original);
+        modelManager.assignStudentToClass(ALICE, original);
+        modelManager.assignStudentToClass(BENSON, original);
+        modelManager.addAttendance(ALICE, original, LocalDate.of(2024, 1, 1));
+        modelManager.addAttendance(BENSON, original, LocalDate.of(2024, 1, 1));
+        modelManager.addAttendance(BENSON, original, LocalDate.of(2024, 1, 2));
+
+        modelManager.filterPersonsByClass(original, Optional.of(2));
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+
+        AcademicClass renamed = new AcademicClass(
+                new ModuleCode("CS2103"), new ClassName("F11-2"), original);
+        modelManager.setAcademicClass(original, renamed);
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+
+        // Resetting person filter clears active threshold
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.filterPersonsByClass(renamed);
+        AcademicClass renamedAgain = new AcademicClass(
+                new ModuleCode("CS2103"), new ClassName("F12-2"), renamed);
+        modelManager.setAcademicClass(renamed, renamedAgain);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setAcademicClass_displayedButNotFilteredClass_preservesPersonFilterAndUpdatesDisplayContext() {
+        AcademicClass displayedClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        AcademicClass filteredClass = new AcademicClass(new ModuleCode("CS2101"), new ClassName("T01"));
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.addAcademicClass(displayedClass);
+        modelManager.addAcademicClass(filteredClass);
+        modelManager.assignStudentToClass(ALICE, displayedClass);
+        modelManager.assignStudentToClass(BENSON, filteredClass);
+
+        modelManager.filterPersonsByClass(filteredClass);
+        modelManager.setAttendanceDisplayClass(displayedClass);
+        AcademicClass renamedClass = new AcademicClass(
+                displayedClass.getModuleCode(), new ClassName("F11-2"), displayedClass);
+
+        modelManager.setAcademicClass(displayedClass, renamedClass);
+
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+        assertEquals(Optional.of(renamedClass), modelManager.getAttendanceDisplayClass());
+    }
+
+    @Test
+    public void attendanceDisplayClass_canBeSetAndCleared() {
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103"), new ClassName("F10-2"));
+        modelManager.addAcademicClass(academicClass);
+
+        assertTrue(modelManager.getAttendanceDisplayClass().isEmpty());
+        modelManager.setAttendanceDisplayClass(academicClass);
+        assertEquals(Optional.of(academicClass), modelManager.getAttendanceDisplayClass());
+        modelManager.clearAttendanceDisplayClass();
+        assertTrue(modelManager.getAttendanceDisplayClass().isEmpty());
+    }
+
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
     }
 
+
+    @Test
+    public void findPersonByStudentNumber_personHiddenByFilter_returnsPersonWithoutChangingFilter() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Benson")));
+
+        assertEquals(Optional.of(ALICE), modelManager.getAddressBook()
+                .findPersonByStudentNumber(ALICE.getStudentNumber()));
+        assertEquals(Optional.empty(), modelManager.getAddressBook()
+                .findPersonByStudentNumber(new StudentNumber("A9999999Z")));
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+        assertEquals(List.of(ALICE, BENSON), modelManager.getAddressBook().getPersonList());
+    }
+
     @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        AcademicClass academicClass = new AcademicClass(new ModuleCode("CS2103T"), new ClassName("F10-2"));
+        addressBook.addAcademicClass(academicClass);
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
 
@@ -103,6 +424,11 @@ public class ModelManagerTest {
 
         // resets modelManager to initial state for upcoming tests
         modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        // different academic class filtered list -> returns false
+        modelManager.updateFilteredAcademicClassList(academic -> false);
+        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
+        modelManager.updateFilteredAcademicClassList(PREDICATE_SHOW_ALL_ACADEMIC_CLASSES);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

@@ -1,30 +1,52 @@
 ---
-layout: page
-title: Setting up and getting started
+  layout: default.md
+  title: "Setting up and getting started"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Setting up and getting started
 
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Setting up the project on your computer
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+<box type="warning" seamless>
 
-Follow the steps below precisely. The setup may fail if you skip or change a step.
-</div>
+**Caution:** Follow the steps below precisely. The setup may fail if you skip or change a step.
+</box>
 
 First, **fork** this repo, and **clone** the fork into your computer.
 
 If you plan to use IntelliJ IDEA (highly recommended):
+
 1. **Configure the JDK**: Follow the guide [_[se-edu/guides] IDEA: Configuring the JDK_](https://se-education.org/guides/tutorials/intellijJdk.html) to ensure IntelliJ is configured to use **JDK 25**.
-1. **Import the project as a Gradle project**: Follow the guide [_[se-edu/guides] IDEA: Importing a Gradle project_](https://se-education.org/guides/tutorials/intellijImportGradleProject.html) to import the project into IDEA.<br>
-  :exclamation: Note: Importing a Gradle project is slightly different from importing a normal Java project.
+1. **Import the project as a Gradle project**: Follow the guide [_[se-edu/guides] IDEA: Importing a Gradle project_](https://se-education.org/guides/tutorials/intellijImportGradleProject.html) to import the project into IDEA.
+   <box type="warning" seamless>
+   Note: Importing a Gradle project is slightly different from importing a normal Java project.
+   </box>
 1. **Verify the setup**:
    1. Run `seedu.address.Main` and try a few commands.
    1. [Run the tests](Testing.md) to ensure they all pass.
+
+### Enable assertions
+
+Assertions detect programming errors and internal invariant violations. Invalid commands and other expected user errors
+are handled with exceptions so that validation still works when assertions are disabled.
+
+* **Gradle:** `./gradlew run` and `./gradlew test` explicitly enable assertions in `build.gradle`.
+* **IntelliJ IDEA with Gradle:** Select the shared **TAssist (Gradle, assertions enabled)** run configuration,
+  or run the Gradle `run` task. The assertion setting comes from `build.gradle`.
+* **IntelliJ IDEA's Application runner:** Open **Run > Edit Configurations**, select the configuration for
+  `seedu.address.Main`, and choose **Modify options > Add VM options**. Add `-ea` and apply the change.
+  Repeat for any other Application configurations you use; the Gradle setting does not affect IDEA's own runner.
+* **Running a JAR directly:** Use `java -ea -jar build/libs/TAssist.jar` from the project root.
+  A JAR does not automatically inherit Gradle's JVM options.
+
+See the SE-EDU guides for [IDEA assertion settings](https://se-education.org/guides/tutorials/intellijUsefulSettings.html)
+and [Gradle assertion settings](https://se-education.org/guides/tutorials/gradle.html#enabling-assertions).
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -34,10 +56,11 @@ If you plan to use IntelliJ IDEA (highly recommended):
 
    If using IDEA, follow the guide [_[se-edu/guides] IDEA: Configuring the code style_](https://se-education.org/guides/tutorials/intellijCodeStyle.html) to set up IDEA's coding style to match ours.
 
-   <div markdown="span" class="alert alert-primary">:bulb: **Tip:**
+   <box type="tip" seamless>
 
-   Optionally, follow the guide [_[se-edu/guides] Using Checkstyle_](https://se-education.org/guides/tutorials/checkstyle.html) to learn how to use Checkstyle in IDEA, for example to report problems _as_ you write code.
-   </div>
+   **Tip:**
+    Optionally, follow the guide [_[se-edu/guides] Using Checkstyle_](https://se-education.org/guides/tutorials/checkstyle.html) to learn how to use Checkstyle in IDEA, for example to report problems _as_ you write code.
+   </box>
 
 1. **Set up CI**
 

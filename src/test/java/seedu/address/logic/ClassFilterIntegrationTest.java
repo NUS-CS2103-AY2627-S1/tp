@@ -1,0 +1,156 @@
+package seedu.address.logic;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.DANIEL;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ModelManager;
+
+/**
+ * Tests membership changes through parsed commands against the displayed
+ * student view.
+ */
+public class ClassFilterIntegrationTest {
+    private final ModelManager model = new ModelManager();
+    private final AddressBookParser parser = new AddressBookParser();
+
+    @BeforeEach
+    public void setUp() throws Exception {
+        model.addPerson(DANIEL);
+        model.addPerson(BENSON);
+        model.addPerson(ALICE);
+        execute("addclass m/CS2103 c/F10-2");
+        execute("assign 1 1");
+        execute("assign 2 1");
+        execute("listbyclass 1");
+    }
+
+    @Test
+    public void execute_unassignFromActiveClass_refreshesExistingView() throws Exception {
+        var displayed = model.getFilteredPersonList();
+        execute("unassign 1 1");
+        assertEquals(List.of(DANIEL), displayed);
+        execute("unassign 1 1");
+        assertEquals(List.of(), displayed);
+    }
+
+    @Test
+    public void execute_assignToActiveClass_preservesAlphabeticalOrder() throws Exception {
+        execute("list");
+        execute("assign 3 1");
+        execute("listbyclass 1");
+        assertEquals(List.of(ALICE, BENSON, DANIEL), model.getFilteredPersonList());
+        assertEquals(List.of(DANIEL, BENSON, ALICE), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_membershipChangesAfterFind_preservesSearchAndInsertionOrder() throws Exception {
+        execute("find Meier");
+        execute("unassign 2 1");
+        execute("assign 2 1");
+        assertEquals(List.of(DANIEL, BENSON), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_membershipChangesAfterList_preservesAllStudents() throws Exception {
+        execute("list");
+        execute("unassign 2 1");
+        assertEquals(List.of(DANIEL, BENSON, ALICE), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_changeOtherClass_preservesActiveClassFilter() throws Exception {
+        execute("addclass m/CS2103 c/F11-2");
+        execute("assign 1 2");
+        execute("unassign 1 2");
+        assertEquals(List.of(BENSON, DANIEL), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_failedMembershipChanges_preservesActiveView() {
+        assertThrows(CommandException.class, () -> execute("assign 1 1"));
+        assertThrows(CommandException.class, () -> execute("unassign 3 1"));
+        assertEquals(List.of(BENSON, DANIEL), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_deleteActiveClass_clearsExistingViewWithoutDeletingStudents() throws Exception {
+        var displayed = model.getFilteredPersonList();
+        execute("deleteclass 1");
+        assertEquals(List.of(), displayed);
+        assertEquals(List.of(DANIEL, BENSON, ALICE), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_deleteOtherClass_preservesActiveClassFilter() throws Exception {
+        execute("addclass m/CS2100 c/F10-2");
+        execute("assign 1 2");
+        execute("deleteclass 2");
+        assertEquals(List.of(BENSON, DANIEL), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_recreateDeletedClass_usesNewMembership() throws Exception {
+        var displayed = model.getFilteredPersonList();
+        execute("deleteclass 1");
+        execute("addclass m/CS2103 c/F10-2");
+        execute("list");
+        execute("assign 3 1");
+        execute("listbyclass 1");
+        assertEquals(List.of(ALICE), displayed);
+        execute("unassign 1 1");
+        assertEquals(List.of(), displayed);
+    }
+
+    @Test
+    public void execute_renameToDeletedViewedClass_refreshesExistingView() throws Exception {
+        var displayed = model.getFilteredPersonList();
+        execute("addclass m/CS2100 c/F11-2");
+        execute("assign 1 2");
+        execute("deleteclass 1");
+        assertEquals(List.of(), displayed);
+
+        execute("editclass 1 m/CS2103 c/F10-2");
+
+        assertEquals(List.of(BENSON), displayed);
+        assertEquals(List.of(DANIEL, BENSON, ALICE), model.getAddressBook().getPersonList());
+        execute("editclass 1 c/F12-2");
+        assertEquals(List.of(BENSON), displayed);
+        execute("unassign 1 1");
+        assertEquals(List.of(), displayed);
+    }
+
+    @Test
+    public void execute_deleteClassAfterFind_preservesSearchAndInsertionOrder() throws Exception {
+        execute("find Meier");
+        execute("deleteclass 1");
+        assertEquals(List.of(DANIEL, BENSON), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_deleteClassAfterList_preservesAllStudents() throws Exception {
+        execute("list");
+        execute("deleteclass 1");
+        assertEquals(List.of(DANIEL, BENSON, ALICE), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_deleteInvalidIndex_preservesActiveView() {
+        assertThrows(CommandException.class, () -> execute("deleteclass 2"));
+        assertEquals(List.of(BENSON, DANIEL), model.getFilteredPersonList());
+    }
+
+    private void execute(String command) throws ParseException, CommandException {
+        parser.parseCommand(command).execute(model);
+    }
+}

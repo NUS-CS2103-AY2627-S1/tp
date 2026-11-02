@@ -66,10 +66,24 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
-        // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
-        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
-                .withEmail("alice@email.com").withAddress("Main Street").build()));
+        // Keywords match student number, email and telegram, but do not match name
+        predicate = new NameContainsKeywordsPredicate(List.of("A1234567X", "alice@email.com", "alice_tg"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withStudentNumber("A1234567X")
+                .withEmail("alice@email.com").withTelegram("alice_tg").build()));
+    }
+
+    @Test
+    public void test_punctuatedNames_requiresWholeWordIncludingPunctuation() {
+        Person person = new PersonBuilder().withName("Anne-Marie O'Connor, Jr. (Alex) S/O Tan").build();
+        for (String keyword : List.of("anne-marie", "o'connor,", "jr.", "(alex)", "s/o", "tan")) {
+            assertTrue(new NameContainsKeywordsPredicate(List.of(keyword)).test(person), keyword);
+        }
+        for (String keyword : List.of("Anne", "Marie", "O'Connor", "Jr", "Alex", "S", "O")) {
+            assertFalse(new NameContainsKeywordsPredicate(List.of(keyword)).test(person), keyword);
+        }
+        Person commaName = new PersonBuilder().withName("John Tan, Jr. (Alex)").build();
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Tan")).test(commaName));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Tan,")).test(commaName));
     }
 
     @Test
