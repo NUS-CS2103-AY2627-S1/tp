@@ -1,18 +1,32 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLIENT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TIME;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.appointment.AppointmentDate;
+import seedu.address.model.appointment.AppointmentTime;
+import seedu.address.model.client.Address;
+import seedu.address.model.client.Email;
+import seedu.address.model.client.Name;
+import seedu.address.model.client.Phone;
+import seedu.address.model.pet.Breed;
+import seedu.address.model.pet.NoteType;
+import seedu.address.model.pet.PetName;
+import seedu.address.model.pet.Species;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +35,11 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_UNEXPECTED_PREFIX =
+            "This command does not accept %1$s. Remove %1$s and its value, then try again.";
+
+    // A word ending in "/" at the start of a value or after a space, such as "nt/" in "14:00 nt/Bring towels".
+    private static final Pattern UNEXPECTED_PREFIX = Pattern.compile("(?:^|\\s)(\\p{Alpha}+/)");
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,18 +55,72 @@ public class ParserUtil {
     }
 
     /**
+     * Parses the client index, date and start time shared by appointment-related commands.
+     * Callers must first check required prefixes, duplicate prefixes and command-specific syntax.
+     * Other prefixes are left untouched. Eligibility against the current time belongs to the command.
+     *
+     * @throws NullPointerException if {@code arguments} is null.
+     * @throws ParseException if a value contains a prefix the command does not accept, or if the client index,
+     *     date or time is invalid, checked in that order.
+     */
+    public static AppointmentTarget parseAppointmentTarget(ArgumentMultimap arguments) throws ParseException {
+        requireNonNull(arguments);
+        requireNoUnexpectedPrefix(arguments, PREFIX_CLIENT, PREFIX_DATE, PREFIX_TIME);
+        Index index = parseIndex(arguments.getValue(PREFIX_CLIENT).get());
+        try {
+            AppointmentDate date = new AppointmentDate(arguments.getValue(PREFIX_DATE).get());
+            AppointmentTime time = new AppointmentTime(arguments.getValue(PREFIX_TIME).get());
+            return new AppointmentTarget(index, date, time);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Ensures that the preamble and the values of {@code prefixes} contain no other prefix, such as {@code nt/} in
+     * {@code t/14:00 nt/Bring towels}. Such text is a prefix the command does not accept, which the tokenizer
+     * reads as part of the preceding value, or as the preamble if it comes first. None of these may contain a word
+     * followed by "/".
+     *
+     * @throws ParseException naming the first unexpected prefix found.
+     */
+    public static void requireNoUnexpectedPrefix(ArgumentMultimap arguments, Prefix... prefixes)
+            throws ParseException {
+        List<String> values = new ArrayList<>(List.of(arguments.getPreamble()));
+        for (Prefix prefix : prefixes) {
+            values.addAll(arguments.getAllValues(prefix));
+        }
+        for (String value : values) {
+            Matcher matcher = UNEXPECTED_PREFIX.matcher(value);
+            if (matcher.find()) {
+                throw new ParseException(String.format(MESSAGE_UNEXPECTED_PREFIX, matcher.group(1)));
+            }
+        }
+    }
+
+    /**
+     * Parsed values identifying an appointment within the displayed client list.
+     *
+     * @param clientIndex the displayed client index.
+     * @param date the appointment date.
+     * @param time the appointment start time.
+     */
+    public record AppointmentTarget(Index clientIndex, AppointmentDate date, AppointmentTime time) {
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Leading and trailing whitespaces will be trimmed, and repeated whitespace will be treated as one space.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
+        String normalizedName = name.trim().replaceAll("\\s+", " ");
+        if (!Name.isValidName(normalizedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
-        return new Name(trimmedName);
+        return new Name(normalizedName);
     }
 
     /**
@@ -120,5 +193,65 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Parses a {@code String} into a {@code PetName}.
+     * Leading, trailing, and repeated spaces are normalized.
+     *
+     * @throws ParseException if the given name is invalid.
+     */
+    public static PetName parsePetName(String name) throws ParseException {
+        requireNonNull(name);
+        return parsePetField(() -> new PetName(name));
+    }
+
+    /**
+     * Parses a note type keyword ({@code pref}, {@code sens} or {@code temp}) into a {@code NoteType},
+     * ignoring case and surrounding spaces.
+     *
+     * @throws ParseException if the keyword is not a valid note type.
+     */
+    public static NoteType parseNoteType(String keyword) throws ParseException {
+        requireNonNull(keyword);
+        if (!NoteType.isValidKeyword(keyword)) {
+            throw new ParseException(NoteType.MESSAGE_CONSTRAINTS);
+        }
+        return NoteType.fromKeyword(keyword);
+    }
+
+    /**
+     * Parses a {@code String} into a {@code Species}.
+     * Leading, trailing, and repeated spaces are normalized.
+     *
+     * @throws ParseException if the given species is invalid.
+     */
+    public static Species parseSpecies(String species) throws ParseException {
+        requireNonNull(species);
+        return parsePetField(() -> new Species(species));
+    }
+
+    /**
+     * Parses a {@code String} into a {@code Breed}.
+     * Leading, trailing, and repeated spaces are normalized.
+     *
+     * @throws ParseException if the given breed is invalid.
+     */
+    public static Breed parseBreed(String breed) throws ParseException {
+        requireNonNull(breed);
+        return parsePetField(() -> new Breed(breed));
+    }
+
+    /**
+     * Creates a pet field with {@code constructor}, which trims and collapses spaces before checking the value.
+     *
+     * @throws ParseException with the field's constraint message if the value is invalid.
+     */
+    private static <T> T parsePetField(Supplier<T> constructor) throws ParseException {
+        try {
+            return constructor.get();
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(e.getMessage(), e);
+        }
     }
 }

@@ -2,9 +2,12 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLIENT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TIME;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_CLIENT;
 
 import java.util.List;
 import java.util.Set;
@@ -12,21 +15,27 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.appointment.AppointmentDate;
+import seedu.address.model.appointment.AppointmentTime;
+import seedu.address.model.client.Address;
+import seedu.address.model.client.Email;
+import seedu.address.model.client.Name;
+import seedu.address.model.client.Phone;
+import seedu.address.model.pet.Breed;
+import seedu.address.model.pet.NoteType;
+import seedu.address.model.pet.PetName;
+import seedu.address.model.pet.Species;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "12-34";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "12345678";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
@@ -48,10 +57,50 @@ public class ParserUtilTest {
     @Test
     public void parseIndex_validInput_success() throws Exception {
         // No whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("1"));
+        assertEquals(INDEX_FIRST_CLIENT, ParserUtil.parseIndex("1"));
 
         // Leading and trailing whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+        assertEquals(INDEX_FIRST_CLIENT, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseAppointmentTarget_nullArguments_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAppointmentTarget(null));
+    }
+
+    @Test
+    public void parseAppointmentTarget_validInput_acceptsAnyOrderAndPastOrFutureDates() throws Exception {
+        for (String date : List.of("29-02-2024", "31-12-9999")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenize(" t/00:00   d/" + date + "   c/1 ",
+                    PREFIX_CLIENT, PREFIX_DATE, PREFIX_TIME);
+            ParserUtil.AppointmentTarget target = ParserUtil.parseAppointmentTarget(arguments);
+            assertEquals(INDEX_FIRST_CLIENT, target.clientIndex());
+            assertEquals(new AppointmentDate(date), target.date());
+            assertEquals(new AppointmentTime("00:00"), target.time());
+        }
+    }
+
+    @Test
+    public void parseAppointmentTarget_additionalPrefixes_remainAvailableToCaller() throws Exception {
+        Prefix notesPrefix = new Prefix("nt/");
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(" c/1 d/12-12-2026 t/14:00 nt/Teddy cut",
+                PREFIX_CLIENT, PREFIX_DATE, PREFIX_TIME, notesPrefix);
+        ParserUtil.AppointmentTarget expected = new ParserUtil.AppointmentTarget(INDEX_FIRST_CLIENT,
+                new AppointmentDate("12-12-2026"), new AppointmentTime("14:00"));
+        assertEquals(expected, ParserUtil.parseAppointmentTarget(arguments));
+        assertEquals("Teddy cut", arguments.getValue(notesPrefix).orElseThrow());
+    }
+
+    @Test
+    public void parseAppointmentTarget_invalidValues_preservesValidationOrderAndMessages() {
+        String[] inputs = {" c/0 d/invalid t/invalid", " c/1 d/31-02-2026 t/invalid",
+            " c/1 d/12-12-2026 t/24:00"};
+        String[] messages = {MESSAGE_INVALID_INDEX, AppointmentDate.MESSAGE_CONSTRAINTS,
+            AppointmentTime.MESSAGE_CONSTRAINTS};
+        for (int i = 0; i < inputs.length; i++) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenize(inputs[i], PREFIX_CLIENT, PREFIX_DATE, PREFIX_TIME);
+            assertThrows(ParseException.class, messages[i], () -> ParserUtil.parseAppointmentTarget(arguments));
+        }
     }
 
     @Test
@@ -75,6 +124,11 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_repeatedSpaces_returnsNormalizedName() throws Exception {
+        assertEquals(new Name("Alice Tan"), ParserUtil.parseName("  Alice   Tan  "));
     }
 
     @Test
@@ -190,5 +244,44 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parsePetName_repeatedSpaces_returnsNormalizedName() throws Exception {
+        String input = "  Mi" + " ".repeat(45) + "lo  ";
+
+        PetName expected = new PetName("Mi lo");
+
+        assertEquals(expected, ParserUtil.parsePetName(input));
+    }
+
+    @Test
+    public void parseSpecies_repeatedSpaces_returnsNormalizedSpecies() throws Exception {
+        String input = "  Golden" + " ".repeat(45) + "Retriever  ";
+
+        Species expected = new Species("Golden Retriever");
+
+        assertEquals(expected, ParserUtil.parseSpecies(input));
+    }
+
+    @Test
+    public void parseBreed_repeatedSpaces_returnsNormalizedBreed() throws Exception {
+        String input = "  Golden" + " ".repeat(45) + "Retriever  ";
+
+        Breed expected = new Breed("Golden Retriever");
+
+        assertEquals(expected, ParserUtil.parseBreed(input));
+    }
+
+    @Test
+    public void parseNoteType_validKeyword_returnsNoteType() throws Exception {
+        assertEquals(NoteType.PREF, ParserUtil.parseNoteType("pref"));
+        assertEquals(NoteType.TEMP, ParserUtil.parseNoteType(" TEMP "));
+    }
+
+    @Test
+    public void parseNoteType_invalidKeyword_throwsParseException() {
+        assertThrows(ParseException.class, NoteType.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseNoteType("mood"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseNoteType(null));
     }
 }

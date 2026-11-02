@@ -1,59 +1,58 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are five [National University of Singapore School of Computing](http://www.comp.nus.edu.sg) students developing PawPals, a desktop application that helps independent mobile pet groomers manage clients, pets, appointments, and grooming records.
+
+You can find our source code and project updates on
+[GitHub](https://github.com/AY2627S1-CS2103T-T14-4/tp).
 
 ## Project team
 
-### John Doe
+### Gabriel Lau Yi Jia
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/frostwrath99.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/Frostwrath99)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: `addc`, `find`, `findp`, Duplicate checks, PawPals rename, UI mockup
 
-### Jean Doe
+### Tay Pengzhi Isaac
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/isaactay9856.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/isaactay9856)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: `appt`, `cancel`, `done`, Overlap checks, Past appts, Session history, Markbind
+
+### Yi Zhe Ser
+
+<img src="images/isaacser8.png" width="200px">
+
+[[github](https://github.com/isaacser8)]
+
+* Role: Developer
+* Responsibilities: `addp`, `editp`, `delp`, `delnote`, End times, Pet links, Sample data, Releases
+
+### Marcus Goh
+
+<img src="images/mgjk04.png" width="200px">
+
+[[github](http://github.com/mgjk04)]
+
+* Role: Developer
+* Responsibilities: `editappt`, Client cards, History display, Command feedback, User stories
+
+### Joshua Lee
+
+<img src="images/currycurry11.png" width="200px">
+
+[[github](http://github.com/currycurry11)]
+
+* Role: Developer
+* Responsibilities: `note`, Storage, Display, Corrupted-data recovery, Help window

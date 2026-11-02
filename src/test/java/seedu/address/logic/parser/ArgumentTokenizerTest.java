@@ -80,6 +80,40 @@ public class ArgumentTokenizerTest {
     }
 
     @Test
+    public void tokenize_quotedValue_ignoresPrefixesAndPreservesQuotes() {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(
+                " n/\"Ravi p/o Kumar\" p/12345678", new Prefix("n/"), pSlash);
+
+        assertArgumentPresent(argMultimap, new Prefix("n/"), "\"Ravi p/o Kumar\"");
+        assertArgumentPresent(argMultimap, pSlash, "12345678");
+    }
+
+    @Test
+    public void tokenize_quotedNonNameValue_preservesQuotes() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(
+                " p/\"123/ABC\"", pSlash);
+
+        assertArgumentPresent(arguments, pSlash, "\"123/ABC\"");
+    }
+
+    @Test
+    public void tokenize_quoteDetection_shortCircuit() throws Exception {
+        ArgumentTokenizer.validateSlashQuoting(" n/", new Prefix("n/"));
+        ArgumentTokenizer.validateSlashQuoting(" n/A", new Prefix("n/"));
+        ArgumentTokenizer.validateSlashQuoting(" n/\"A", new Prefix("n/"));
+        ArgumentTokenizer.validateSlashQuoting(" n/\"A\"", new Prefix("n/"));
+    }
+
+    @Test
+    public void tokenize_partiallyQuotedValue_preservesQuotes() {
+        ArgumentMultimap startsOnly = ArgumentTokenizer.tokenize(" n/\"Ravi\" trailing", new Prefix("n/"));
+        ArgumentMultimap endsOnly = ArgumentTokenizer.tokenize(" n/Ravi\"", new Prefix("n/"));
+
+        assertArgumentPresent(startsOnly, new Prefix("n/"), "\"Ravi\" trailing");
+        assertArgumentPresent(endsOnly, new Prefix("n/"), "Ravi\"");
+    }
+
+    @Test
     public void tokenize_multipleArguments() {
         // Only two arguments are present
         String argsString = "SomePreambleString -t dashT-Value p/pSlash value";
@@ -134,6 +168,59 @@ public class ArgumentTokenizerTest {
         assertArgumentAbsent(argMultimap, pSlash);
         assertArgumentPresent(argMultimap, dashT, "not joined^Qjoined");
         assertArgumentAbsent(argMultimap, hatQ);
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_textAfterRequiredPrefixes_preservesPrefixesAndSpacing() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithTrailingText(
+                " preamble p/1 ^Q2 -t  note with p/3  and ^Q4  ", dashT, pSlash, hatQ);
+        assertPreamblePresent(arguments, "preamble");
+        assertArgumentPresent(arguments, pSlash, "1");
+        assertArgumentPresent(arguments, hatQ, "2");
+        assertArgumentPresent(arguments, dashT, "note with p/3  and ^Q4");
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_missingPrecedingPrefix_tokenizesNormally() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithTrailingText(
+                " p/1 -t note p/2 ^Q3", dashT, pSlash, hatQ);
+        assertArgumentPresent(arguments, pSlash, "1", "2");
+        assertArgumentPresent(arguments, dashT, "note");
+        assertArgumentPresent(arguments, hatQ, "3");
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_textFirst_tokenizesNormally() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithTrailingText(" -t note p/1", dashT, pSlash);
+        assertArgumentPresent(arguments, dashT, "note");
+        assertArgumentPresent(arguments, pSlash, "1");
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_repeatedPrefixes_preservesDuplicates() {
+        ArgumentMultimap repeatedText = ArgumentTokenizer.tokenizeWithTrailingText(
+                " p/1 -t note -t more", dashT, pSlash);
+        assertArgumentPresent(repeatedText, dashT, "note", "more");
+        assertArgumentPresent(repeatedText, pSlash, "1");
+
+        ArgumentMultimap repeatedTarget = ArgumentTokenizer.tokenizeWithTrailingText(
+                " p/1 p/2 -t note p/3", dashT, pSlash);
+        assertArgumentPresent(repeatedTarget, pSlash, "1", "2");
+        assertArgumentPresent(repeatedTarget, dashT, "note p/3");
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_noTextPrefix_tokenizesNormally() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithTrailingText(" p/1 p/2", dashT, pSlash);
+        assertArgumentPresent(arguments, pSlash, "1", "2");
+        assertArgumentAbsent(arguments, dashT);
+    }
+
+    @Test
+    public void tokenizeWithTrailingText_emptyText_preservesEmptyValue() {
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithTrailingText(" p/1 -t  ", dashT, pSlash);
+        assertArgumentPresent(arguments, pSlash, "1");
+        assertArgumentPresent(arguments, dashT, "");
     }
 
     @Test

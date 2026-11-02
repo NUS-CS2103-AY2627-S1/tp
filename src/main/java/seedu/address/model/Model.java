@@ -1,17 +1,21 @@
 package seedu.address.model;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.appointment.AppointmentConflictChecker.Conflict;
+import seedu.address.model.client.Client;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Client> PREDICATE_SHOW_ALL_CLIENTS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -29,43 +33,73 @@ public interface Model {
     void setGuiSettings(GuiSettings guiSettings);
 
     /**
-     * Replaces address book data with the data in {@code addressBook}.
+     * Replaces PawPals data data with the data in {@code pawPals}.
      */
-    void setAddressBook(ReadOnlyAddressBook addressBook);
+    void setPawPals(ReadOnlyPawPals pawPals);
 
-    /** Returns the AddressBook */
-    ReadOnlyAddressBook getAddressBook();
+    /** Returns the PawPals */
+    ReadOnlyPawPals getPawPals();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns an action restoring the current records, filter and display mode.
      */
-    boolean hasPerson(Person person);
+    Runnable createRollbackAction();
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Returns true if a client with the same identity as {@code client} exists in the PawPals data.
      */
-    void deletePerson(Person target);
+    boolean hasClient(Client client);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Deletes the given client.
+     * The client must exist in the PawPals data.
      */
-    void addPerson(Person person);
+    void deleteClient(Client target);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Adds the given client.
+     * {@code client} must not already exist in the PawPals data.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    void addClient(Client client);
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Replaces the given client {@code target} with {@code editedClient}.
+     * {@code target} must exist in the PawPals data.
+     * The client identity of {@code editedClient} must not be the same as another existing client in the PawPals data.
+     */
+    void setClient(Client target, Client editedClient);
+
+    /**
+     * Returns the first active booking that overlaps {@code candidate}, across all clients regardless of filtering.
+     * Completed-session history is ignored. Does not change data or the current filter.
+     *
+     * @throws NullPointerException if {@code candidate} is null.
+     */
+    Optional<Conflict> findAppointmentConflict(Appointment candidate);
+
+    /**
+     * Checks a reschedule, excluding only the original client's appointment identified by its date and start time.
+     * All other active bookings are checked, regardless of filtering; completed-session history is ignored.
+     * The caller must separately validate that the original client and appointment exist before updating them.
+     * Does not change data or the current filter.
+     *
+     * @throws NullPointerException if any argument is null.
+     */
+    Optional<Conflict> findAppointmentConflict(Appointment candidate, Client excludedClient,
+            Appointment excludedAppointment);
+
+    /** Returns an unmodifiable view of the filtered client list */
+    ObservableList<Client> getFilteredClientList();
+
+    /**
+     * Updates the filter of the filtered client list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredClientList(Predicate<Client> predicate);
+
+    /** Returns an observable view of the current client-card presentation mode. */
+    ObservableValue<ClientDisplayMode> clientDisplayModeProperty();
+
+    /** Changes how client cards present appointments and history. */
+    void setClientDisplayMode(ClientDisplayMode mode);
 }

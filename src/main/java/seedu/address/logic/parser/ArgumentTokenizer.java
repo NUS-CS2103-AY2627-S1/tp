@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.client.Name;
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
  *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
@@ -26,6 +29,71 @@ public class ArgumentTokenizer {
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
         List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
         return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Tokenizes arguments while preserving prefix-like text in a trailing free-text value.
+     * If {@code textPrefix} occurs exactly once and every other prefix appears before it, the remainder
+     * is its value. Otherwise, tokenizes normally to support other field orders and duplicate detection.
+     *
+     * @param argsString Arguments to tokenize
+     * @param textPrefix Prefix identifying the free-text field
+     * @param otherPrefixes Required prefixes that must precede the free-text field to preserve its value
+     * @return The prefixes mapped to their argument values
+     */
+    public static ArgumentMultimap tokenizeWithTrailingText(String argsString, Prefix textPrefix,
+            Prefix... otherPrefixes) {
+        int textPosition = findPrefixPosition(argsString, textPrefix.getPrefix(), 0);
+        boolean hasSingleTextPrefix = textPosition != -1
+                && findPrefixPosition(argsString, textPrefix.getPrefix(), textPosition) == -1;
+        if (hasSingleTextPrefix) {
+            ArgumentMultimap arguments = tokenize(argsString.substring(0, textPosition), otherPrefixes);
+            if (Arrays.stream(otherPrefixes).allMatch(prefix -> arguments.getValue(prefix).isPresent())) {
+                arguments.put(textPrefix, argsString.substring(textPosition + textPrefix.getPrefix().length()).trim());
+                return arguments;
+            }
+        }
+        Prefix[] prefixes = Stream.concat(Arrays.stream(otherPrefixes), Stream.of(textPrefix)).toArray(Prefix[]::new);
+        return tokenize(argsString, prefixes);
+    }
+
+    /**
+     * Ensures that slash-containing values for the supplied prefixes are enclosed in matching quotes.
+     */
+    public static void validateSlashQuoting(String argsString, Prefix valuePrefix, Prefix... delimiters)
+            throws ParseException {
+        Prefix[] prefixes = Stream.concat(Stream.of(valuePrefix), Arrays.stream(delimiters)).toArray(Prefix[]::new);
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        positions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
+        for (int i = 0; i < positions.size(); i++) {
+            PrefixPosition current = positions.get(i);
+            if (!current.getPrefix().equals(valuePrefix)) {
+                continue;
+            }
+            String value = extractValue(argsString, positions, i);
+            if (containsUnquotedSlash(value)) {
+                throw new ParseException(Name.MESSAGE_CONSTRAINTS);
+            }
+        }
+    }
+
+    /**
+     * Extracts the value belonging to the prefix at the given position.
+     */
+    private static String extractValue(String argsString, List<PrefixPosition> positions, int position) {
+        PrefixPosition current = positions.get(position);
+        int valueStart = current.getStartPosition() + current.getPrefix().getPrefix().length();
+        int valueEnd = position + 1 < positions.size()
+                ? positions.get(position + 1).getStartPosition() : argsString.length();
+        return argsString.substring(valueStart, valueEnd).trim();
+    }
+
+    /**
+     * Returns true if the value contains a slash without being enclosed in matching quotes.
+     */
+    private static boolean containsUnquotedSlash(String value) {
+        boolean isQuoted = value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"");
+        return value.contains("/") && !isQuoted;
     }
 
     /**
@@ -71,8 +139,24 @@ public class ArgumentTokenizer {
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
         int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
+        while (prefixIndex != -1 && isInsideQuotes(argsString, prefixIndex + 1)) {
+            prefixIndex = argsString.indexOf(" " + prefix, prefixIndex + 1);
+        }
         return prefixIndex == -1 ? -1
                 : prefixIndex + 1; // +1 as offset for whitespace
+    }
+
+    /**
+     * Returns true if the given position is enclosed by an unmatched quote.
+     */
+    private static boolean isInsideQuotes(String argsString, int position) {
+        boolean insideQuotes = false;
+        for (int i = 0; i < position; i++) {
+            if (argsString.charAt(i) == '"') {
+                insideQuotes = !insideQuotes;
+            }
+        }
+        return insideQuotes && argsString.indexOf('"', position) != -1;
     }
 
     /**

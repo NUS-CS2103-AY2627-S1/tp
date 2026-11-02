@@ -5,57 +5,95 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalClients.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.model.AddressBook;
+import seedu.address.model.ClientDisplayMode;
 import seedu.address.model.Model;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ModelManager;
+import seedu.address.model.PawPals;
+import seedu.address.model.ReadOnlyPawPals;
 import seedu.address.model.ReadOnlyUserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.appointment.AppointmentConflictChecker.Conflict;
+import seedu.address.model.appointment.AppointmentDate;
+import seedu.address.model.client.Client;
+import seedu.address.testutil.ClientBuilder;
 
 public class AddCommandTest {
 
     @Test
-    public void constructor_nullPerson_throwsNullPointerException() {
+    public void constructor_nullClient_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> new AddCommand(null));
     }
 
     @Test
-    public void execute_personAcceptedByModel_addSuccessful() throws Exception {
-        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
-        Person validPerson = new PersonBuilder().build();
+    public void execute_clientAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingClientAdded modelStub = new ModelStubAcceptingClientAdded();
+        Client validClient = new ClientBuilder().build();
 
-        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+        CommandResult commandResult = new AddCommand(validClient).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validClient.getName()),
                 commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals(List.of(validClient), modelStub.clientsAdded);
     }
 
     @Test
-    public void execute_duplicatePerson_throwsCommandException() {
-        Person validPerson = new PersonBuilder().build();
-        AddCommand addCommand = new AddCommand(validPerson);
-        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+    public void execute_duplicateClient_throwsCommandException() {
+        Client validClient = new ClientBuilder().build();
+        AddCommand addCommand = new AddCommand(validClient);
+        ModelStub modelStub = new ModelStubWithClient(validClient);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_CLIENT, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_successFromScheduleModes_resetsView() throws Exception {
+        for (ClientDisplayMode mode : List.of(ClientDisplayMode.SCHEDULE_CLIENT,
+                ClientDisplayMode.scheduleDate(new AppointmentDate("29-10-2026")))) {
+            Model model = new ModelManager();
+            model.setClientDisplayMode(mode);
+            model.updateFilteredClientList(client -> false);
+
+            new AddCommand(new ClientBuilder().build()).execute(model);
+
+            assertEquals(ClientDisplayMode.NORMAL, model.clientDisplayModeProperty().getValue());
+            assertEquals(1, model.getFilteredClientList().size());
+        }
+    }
+
+    @Test
+    public void execute_failureFromScheduleModes_preservesView() {
+        for (ClientDisplayMode mode : List.of(ClientDisplayMode.SCHEDULE_CLIENT,
+                ClientDisplayMode.scheduleDate(new AppointmentDate("29-10-2026")))) {
+            Model model = new ModelManager();
+            Client existing = new ClientBuilder().build();
+            model.addClient(existing);
+            model.setClientDisplayMode(mode);
+            model.updateFilteredClientList(client -> client.equals(existing));
+
+            assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_CLIENT, () ->
+                    new AddCommand(existing).execute(model));
+
+            assertEquals(mode, model.clientDisplayModeProperty().getValue());
+            assertEquals(List.of(existing), model.getFilteredClientList());
+        }
     }
 
     @Test
     public void equals() {
-        Person alice = new PersonBuilder().withName("Alice").build();
-        Person bob = new PersonBuilder().withName("Bob").build();
+        Client alice = new ClientBuilder().withName("Alice").build();
+        Client bob = new ClientBuilder().withName("Bob").build();
         AddCommand addAliceCommand = new AddCommand(alice);
         AddCommand addBobCommand = new AddCommand(bob);
 
@@ -72,7 +110,7 @@ public class AddCommandTest {
         // null -> returns false
         assertFalse(addAliceCommand.equals(null));
 
-        // different person -> returns false
+        // different client -> returns false
         assertFalse(addAliceCommand.equals(addBobCommand));
     }
 
@@ -87,6 +125,11 @@ public class AddCommandTest {
      * A default model stub that has all of the methods failing.
      */
     private class ModelStub implements Model {
+        @Override
+        public Runnable createRollbackAction() {
+            throw new AssertionError("This method should not be called.");
+        }
+
         @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
@@ -103,85 +146,107 @@ public class AddCommandTest {
         }
 
         @Override
-        public void addPerson(Person person) {
+        public void addClient(Client client) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void setAddressBook(ReadOnlyAddressBook newData) {
+        public void setPawPals(ReadOnlyPawPals newData) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
+        public ReadOnlyPawPals getPawPals() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public boolean hasPerson(Person person) {
+        public boolean hasClient(Client client) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void deletePerson(Person target) {
+        public void deleteClient(Client target) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void setPerson(Person target, Person editedPerson) {
+        public void setClient(Client target, Client editedClient) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ObservableList<Person> getFilteredPersonList() {
+        public ObservableList<Client> getFilteredClientList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
+        public Optional<Conflict> findAppointmentConflict(Appointment candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Conflict> findAppointmentConflict(Appointment candidate, Client excludedClient,
+                Appointment excludedAppointment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredClientList(Predicate<Client> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public javafx.beans.value.ObservableValue<seedu.address.model.ClientDisplayMode>
+                clientDisplayModeProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setClientDisplayMode(seedu.address.model.ClientDisplayMode mode) {
             throw new AssertionError("This method should not be called.");
         }
     }
 
     /**
-     * A Model stub that contains a single person.
+     * A Model stub that contains a single client.
      */
-    private class ModelStubWithPerson extends ModelStub {
-        private final Person person;
+    private class ModelStubWithClient extends ModelStub {
+        private final Client client;
 
-        ModelStubWithPerson(Person person) {
-            requireNonNull(person);
-            this.person = person;
+        ModelStubWithClient(Client client) {
+            requireNonNull(client);
+            this.client = client;
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public boolean hasClient(Client client) {
+            requireNonNull(client);
+            return this.client.isSameClient(client);
         }
     }
 
     /**
-     * A Model stub that always accepts the person being added.
+     * A Model stub that always accepts the client being added.
      */
-    private class ModelStubAcceptingPersonAdded extends ModelStub {
-        final ArrayList<Person> personsAdded = new ArrayList<>();
+    private class ModelStubAcceptingClientAdded extends ModelStub {
+        final ArrayList<Client> clientsAdded = new ArrayList<>();
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+        public boolean hasClient(Client client) {
+            requireNonNull(client);
+            return clientsAdded.stream().anyMatch(client::isSameClient);
         }
 
         @Override
-        public void addPerson(Person person) {
-            requireNonNull(person);
-            personsAdded.add(person);
+        public void addClient(Client client) {
+            requireNonNull(client);
+            clientsAdded.add(client);
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+        public ReadOnlyPawPals getPawPals() {
+            return new PawPals();
         }
     }
 

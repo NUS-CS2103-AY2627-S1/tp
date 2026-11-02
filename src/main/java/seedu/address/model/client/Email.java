@@ -1,0 +1,78 @@
+package seedu.address.model.client;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+
+/**
+ * Represents a Client's email in the PawPals data.
+ * Guarantees: immutable; is valid as declared in {@link #isValidEmail(String)}
+ */
+public class Email {
+
+    public static final String MESSAGE_CONSTRAINTS =
+            "Emails should be 3 to 254 characters long, contain exactly one \"@\" symbol with text before it, "
+            + "have a valid domain containing at least one \".\", and should not contain spaces.";
+    public static final String VALIDATION_REGEX;
+
+    private static final String SPECIAL_CHARACTERS = "+_.'-";
+    // Alphanumeric characters and special characters allowed in an email address.
+    private static final String ALPHANUMERIC_NO_UNDERSCORE = "[^\\W_]+";
+    private static final String LOCAL_PART_REGEX = "^" + ALPHANUMERIC_NO_UNDERSCORE + "([" + SPECIAL_CHARACTERS + "]"
+            + ALPHANUMERIC_NO_UNDERSCORE + ")*";
+    private static final String DOMAIN_PART_REGEX = ALPHANUMERIC_NO_UNDERSCORE
+            + "(-" + ALPHANUMERIC_NO_UNDERSCORE + ")*";
+    private static final String DOMAIN_LAST_PART_REGEX = "(" + DOMAIN_PART_REGEX + "){2,}$"; // At least two chars
+    private static final String DOMAIN_REGEX = "(" + DOMAIN_PART_REGEX + "\\.)*" + DOMAIN_LAST_PART_REGEX;
+    static {
+        VALIDATION_REGEX = LOCAL_PART_REGEX + "@" + DOMAIN_REGEX;
+    }
+
+    public final String value;
+
+    /**
+     * Constructs an {@code Email}.
+     *
+     * @param email A valid email address.
+     */
+    public Email(String email) {
+        requireNonNull(email);
+        checkArgument(isValidEmail(email), MESSAGE_CONSTRAINTS);
+        value = email;
+    }
+
+    /**
+     * Returns true if a given string is a valid email.
+     */
+    public static boolean isValidEmail(String test) {
+        return test.length() >= 3 && test.length() <= 254
+                && test.matches(VALIDATION_REGEX)
+                && test.indexOf('@') == test.lastIndexOf('@')
+                && test.substring(test.indexOf('@') + 1).contains(".")
+                && !test.contains(" ");
+    }
+
+    @Override
+    public String toString() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Email otherEmail)) {
+            return false;
+        }
+
+        return value.equals(otherEmail.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return value.hashCode();
+    }
+
+}

@@ -4,34 +4,38 @@ import static java.util.Objects.requireNonNull;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
+import seedu.address.model.ClientDisplayMode;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.client.ClientContainsKeywordsPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists all clients in the PawPals data whose name, phone number, or email
+ * matches any of the argument keywords.
+ * Name and email matching is case insensitive.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all clients whose names, phone numbers, or "
+            + "emails match the specified keywords and displays all matches as a list with index numbers.\n"
             + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
             + "Example: " + COMMAND_WORD + " alice bob charlie";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private final ClientContainsKeywordsPredicate predicate;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    public FindCommand(ClientContainsKeywordsPredicate predicate) {
         this.predicate = predicate;
     }
 
     @Override
     public CommandResult execute(Model model) {
+        model.setClientDisplayMode(ClientDisplayMode.NORMAL);
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
+        model.updateFilteredClientList(predicate);
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                String.format(Messages.MESSAGE_CLIENTS_LISTED_OVERVIEW, model.getFilteredClientList().size()),
+                FeedbackType.NEUTRAL);
     }
 
     @Override

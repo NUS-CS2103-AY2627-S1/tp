@@ -13,14 +13,15 @@ import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
-import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.PawPals;
+import seedu.address.model.ReadOnlyPawPals;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.util.SampleDataUtil;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.DataRecoveryInfo;
+import seedu.address.storage.JsonPawPalsStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
@@ -32,55 +33,66 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path PAW_PALS_FILE_PATH = Paths.get("data", "pawpals.json");
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private DataRecoveryInfo dataRecoveryInfo;
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("==============================[ Initializing PawPals ]==============================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        JsonPawPalsStorage pawPalsStorage = new JsonPawPalsStorage(PAW_PALS_FILE_PATH);
+        storage = new StorageManager(pawPalsStorage, userPrefsStorage);
 
         model = initModelManager(storage, userPrefs);
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getPawPalsFilePath(), Optional.ofNullable(dataRecoveryInfo));
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns a {@code ModelManager} with the data from {@code storage}'s PawPals data and {@code userPrefs}. <br>
+     * The data from the sample PawPals data will be used instead if {@code storage}'s PawPals data is not found,
+     * or an empty PawPals data will be used instead if errors occur when reading {@code storage}'s PawPals data.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
+    Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+        logger.info("Using data file : " + storage.getPawPalsFilePath());
 
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+        Optional<ReadOnlyPawPals> pawPalsOptional;
+        ReadOnlyPawPals initialData;
         try {
-            addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+            pawPalsOptional = storage.readPawPals();
+            if (pawPalsOptional.isEmpty()) {
+                logger.info("Creating a new data file " + storage.getPawPalsFilePath()
+                        + " populated with sample client data.");
             }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
+            initialData = pawPalsOptional.orElseGet(SampleDataUtil::getSamplePawPals);
         } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            logger.warning("Data file at " + storage.getPawPalsFilePath() + " could not be loaded."
+                    + " Will be starting with empty client data.");
+            Optional<Path> backupPath = Optional.empty();
+            try {
+                backupPath = Optional.of(storage.backupCorruptedData());
+                logger.warning("Preserved the rejected data file at " + backupPath.get());
+            } catch (IOException backupException) {
+                logger.warning("Could not preserve the rejected data file: "
+                        + StringUtil.getDetails(backupException));
+            }
+            dataRecoveryInfo = new DataRecoveryInfo(storage.getPawPalsFilePath(), backupPath,
+                    StringUtil.getDetails(e));
+            initialData = new PawPals();
         }
 
         return new ModelManager(initialData, userPrefs);
@@ -120,13 +132,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting PawPals " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================== [ Stopping PawPals ] ================================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

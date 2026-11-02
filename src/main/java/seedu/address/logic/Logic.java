@@ -1,11 +1,13 @@
 package seedu.address.logic;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.ClientDisplayMode;
+import seedu.address.model.client.Client;
 
 /**
  * API of the Logic component
@@ -20,8 +22,14 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered list of clients */
+    ObservableList<Client> getFilteredClientList();
+
+    /** Returns an unmodifiable observable view of all stored clients, regardless of filtering. */
+    ObservableList<Client> getClientList();
+
+    /** Returns the observable client-card presentation mode. */
+    ObservableValue<ClientDisplayMode> clientDisplayModeProperty();
 
     /**
      * Returns the user prefs' GUI settings.

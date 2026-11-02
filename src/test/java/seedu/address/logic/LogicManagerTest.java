@@ -1,37 +1,50 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_CLIENT_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalClients.AMY;
+import static seedu.address.testutil.TypicalClients.BENSON;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ConfirmationRequest;
+import seedu.address.logic.commands.DeleteClientCommand;
+import seedu.address.logic.commands.FeedbackType;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.PawPals;
+import seedu.address.model.ReadOnlyPawPals;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.appointment.AppointmentDate;
+import seedu.address.model.appointment.AppointmentTime;
+import seedu.address.model.client.Client;
+import seedu.address.storage.JsonPawPalsStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.ClientBuilder;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -42,13 +55,14 @@ public class LogicManagerTest {
 
     private Model model = new ModelManager();
     private Logic logic;
+    private CountingPawPalsStorage pawPalsStorage;
 
     @BeforeEach
     public void setUp() {
-        JsonAddressBookStorage addressBookStorage =
-                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        model = new ModelManager();
+        pawPalsStorage = new CountingPawPalsStorage(temporaryFolder.resolve("pawPals.json"));
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        StorageManager storage = new StorageManager(pawPalsStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
     }
 
@@ -59,9 +73,13 @@ public class LogicManagerTest {
     }
 
     @Test
-    public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    public void execute_invalidDeleteIndex_doesNotStartConfirmation() {
+        // Boundary Value: index 1 on an empty list, size + 1 on a populated list.
+        assertCommandException("delc c/1", MESSAGE_INVALID_CLIENT_DISPLAYED_INDEX);
+        model.addClient(AMY);
+        assertCommandException("delc c/2", MESSAGE_INVALID_CLIENT_DISPLAYED_INDEX);
+        assertParseException("y", MESSAGE_UNKNOWN_COMMAND);
+        assertEquals(0, pawPalsStorage.saveCount);
     }
 
     @Test
@@ -71,20 +89,244 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_deleteConfirmed_deletesCapturedClientAndSaves() throws Exception {
+        // Confirm must delete the previewed client even after the filter changes.
+        Client client = new ClientBuilder(AMY).withAppointments(new Appointment(
+                new AppointmentDate("01-01-2028"), new AppointmentTime("09:00"))).build();
+        model.addClient(BENSON);
+        model.addClient(client);
+        logic.execute("find Amy");
+        Model expectedBefore = new ModelManager(model.getPawPals(), new UserPrefs());
+        String prompt = "Deleting client: " + Messages.format(client) + "\nConfirm (Y/n)?";
+        assertEquals(new CommandResult(prompt, FeedbackType.NEUTRAL), logic.execute("delc c/1"));
+        assertEquals(expectedBefore.getPawPals(), model.getPawPals());
+        assertEquals(List.of(client), model.getFilteredClientList());
+        assertEquals(expectedBefore.getPawPals(), pawPalsStorage.readPawPals().orElseThrow());
+        assertEquals(1, pawPalsStorage.saveCount);
+
+        model.updateFilteredClientList(unused -> true);
+        // EP: replies whose trimmed value equals y ignoring case execute the pending command.
+        assertEquals(new CommandResult("Deleted client: " + Messages.format(client)), logic.execute(" Y "));
+        assertEquals(List.of(BENSON), model.getPawPals().getClientList());
+        assertEquals(model.getPawPals(), pawPalsStorage.readPawPals().orElseThrow());
+        assertEquals(2, pawPalsStorage.saveCount);
+        assertParseException("y", MESSAGE_UNKNOWN_COMMAND);
+    }
+
+    @Test
+    public void execute_deleteCancelled_preservesDataAndResumesParsing() throws Exception {
+        // EP: replies whose trimmed value equals n ignoring case cancel the pending command.
+        model.addClient(AMY);
+        logic.execute("list");
+        logic.execute("delc c/1");
+        assertEquals(new CommandResult(ConfirmationRequest.MESSAGE_CANCELLED, FeedbackType.NEUTRAL),
+                logic.execute(" N "));
+        assertEquals(List.of(AMY), model.getPawPals().getClientList());
+        assertEquals(model.getPawPals(), pawPalsStorage.readPawPals().orElseThrow());
+        assertEquals(1, pawPalsStorage.saveCount);
+        assertEquals(ListCommand.MESSAGE_SUCCESS, logic.execute("list").getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_invalidDeleteResponse_preservesPendingRequest() throws Exception {
+        model.addClient(AMY);
+        String prompt = logic.execute("delc c/1").getFeedbackToUser();
+        // EP: replies outside the normalized y and n groups retain the pending request.
+        for (String response : List.of("yes", "clear", "   ")) {
+            assertParseException(response, "Invalid input.\n" + prompt);
+            assertEquals(0, pawPalsStorage.saveCount);
+        }
+        assertEquals(new CommandResult("Deleted client: " + Messages.format(AMY)), logic.execute("y"));
+        assertEquals(new PawPals(), model.getPawPals());
+        assertEquals(1, pawPalsStorage.saveCount);
+    }
+
+    @Test
+    public void execute_staleDeleteTarget_rejectsAndResetsConfirmation() throws Exception {
+        // Invalid input isolation: change or remove the captured client; keep the reply and storage valid.
+        for (boolean removed : List.of(false, true)) {
+            setUp();
+            model.addClient(AMY);
+            logic.execute("delc c/1");
+            if (removed) {
+                model.deleteClient(AMY);
+            } else {
+                model.setClient(AMY, new ClientBuilder(AMY).withPhone("91234567").build());
+            }
+            assertCommandException("y", DeleteClientCommand.MESSAGE_CLIENT_CHANGED);
+            assertEquals(0, pawPalsStorage.saveCount);
+            assertParseException("y", MESSAGE_UNKNOWN_COMMAND);
+        }
+    }
+
+    @Test
+    public void execute_clear_requestsConfirmationWithoutSaving() throws Exception {
+        // Requesting clear preserves both empty and populated databases without saving.
+        for (boolean populated : List.of(false, true)) {
+            setUp();
+            if (populated) {
+                model.addClient(AMY);
+            }
+            Model expectedModel = new ModelManager(model.getPawPals(), new UserPrefs());
+            assertEquals(new CommandResult(ClearCommand.MESSAGE_CONFIRMATION, FeedbackType.NEUTRAL),
+                    logic.execute("clear extra text"));
+            assertEquals(expectedModel, model);
+            assertEquals(0, pawPalsStorage.saveCount);
+        }
+    }
+
+    @Test
+    public void execute_clearConfirmed_clearsAndSavesThenResumesParsing() throws Exception {
+        // Equivalence partitioning: affirmative replies while confirmation is pending (trimmed y, ignoring case).
+        // Case and whitespace variants additionally check normalization within this partition.
+        for (String response : List.of("y", "Y", " y ", " Y ")) {
+            setUp();
+            model.addClient(AMY);
+            logic.execute("clear");
+            assertEquals(new CommandResult(ClearCommand.MESSAGE_SUCCESS), logic.execute(response));
+            assertEquals(new PawPals(), model.getPawPals());
+            assertEquals(new PawPals(), pawPalsStorage.readPawPals().orElseThrow());
+            assertEquals(1, pawPalsStorage.saveCount);
+            assertParseException("y", MESSAGE_UNKNOWN_COMMAND);
+            assertEquals(ListCommand.MESSAGE_SUCCESS, logic.execute("list").getFeedbackToUser());
+            assertEquals(ClearCommand.MESSAGE_CONFIRMATION, logic.execute("clear").getFeedbackToUser());
+        }
+    }
+
+    @Test
+    public void execute_emptyClearConfirmed_savesEmptyDatabase() throws Exception {
+        // Confirmed clear also succeeds when there are no records to remove.
+        logic.execute("clear");
+        assertEquals(new CommandResult(ClearCommand.MESSAGE_SUCCESS), logic.execute("y"));
+        assertEquals(new PawPals(), model.getPawPals());
+        assertEquals(new PawPals(), pawPalsStorage.readPawPals().orElseThrow());
+        assertEquals(1, pawPalsStorage.saveCount);
+    }
+
+    @Test
+    public void execute_clearCancelled_preservesDataWithoutSavingThenResumesParsing() throws Exception {
+        // Equivalence partitioning: negative replies while confirmation is pending (trimmed n, ignoring case).
+        // Case and whitespace variants additionally check normalization within this partition.
+        for (String response : List.of("n", "N", " n ", " N ")) {
+            setUp();
+            model.addClient(AMY);
+            logic.execute("list");
+            Model expectedModel = new ModelManager(model.getPawPals(), new UserPrefs());
+            logic.execute("clear");
+            assertEquals(new CommandResult(ClearCommand.MESSAGE_CANCELLED, FeedbackType.NEUTRAL),
+                    logic.execute(response));
+            assertEquals(expectedModel, model);
+            assertEquals(expectedModel.getPawPals(), pawPalsStorage.readPawPals().orElseThrow());
+            assertEquals(1, pawPalsStorage.saveCount);
+            assertParseException("n", MESSAGE_UNKNOWN_COMMAND);
+            assertEquals(ListCommand.MESSAGE_SUCCESS, logic.execute("list").getFeedbackToUser());
+            assertEquals(ClearCommand.MESSAGE_CONFIRMATION, logic.execute("clear").getFeedbackToUser());
+        }
+    }
+
+    @Test
+    public void execute_invalidClearResponse_preservesDataAndPendingConfirmation() throws Exception {
+        model.addClient(AMY);
+        logic.execute("list");
+        logic.execute("clear");
+        // Equivalence partitioning: replies outside the affirmative and negative partitions while pending.
+        // Each invalid reply is tested with a valid model and functioning storage.
+        for (String response : List.of("yes", "no", "y extra", "list", "exit", "clear", "", "   ")) {
+            assertParseException(response, ClearCommand.MESSAGE_INVALID_CONFIRMATION);
+            assertEquals(List.of(AMY), model.getPawPals().getClientList());
+            assertEquals(model.getPawPals(), pawPalsStorage.readPawPals().orElseThrow());
+            assertEquals(1, pawPalsStorage.saveCount);
+        }
+        assertEquals(ClearCommand.MESSAGE_SUCCESS, logic.execute("y").getFeedbackToUser());
+        assertEquals(2, pawPalsStorage.saveCount);
+    }
+
+    @Test
+    public void execute_confirmedDeletionSaveFailure_reportsErrorAndResetsConfirmation() throws Exception {
+        // All pairs strategy: test clear and delc with both access-denied and other I/O save failures.
+        for (String command : List.of("clear", "delc c/1")) {
+            for (IOException failure : List.of(DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION)) {
+                setUp();
+                model.addClient(AMY);
+                logic.execute("list");
+                pawPalsStorage.saveFailure = failure;
+                logic.execute(command);
+                String errorFormat = failure instanceof AccessDeniedException
+                        ? LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT : LogicManager.FILE_OPS_ERROR_FORMAT;
+                String expectedMessage = String.format(errorFormat, failure.getMessage())
+                        + LogicManager.MESSAGE_SAVE_ROLLBACK;
+                assertThrows(CommandException.class, expectedMessage, () -> logic.execute("y"));
+                assertEquals(List.of(AMY), model.getPawPals().getClientList());
+                assertEquals(List.of(AMY), pawPalsStorage.readPawPals().orElseThrow().getClientList());
+                assertParseException("y", MESSAGE_UNKNOWN_COMMAND);
+                pawPalsStorage.saveFailure = null;
+                assertEquals(ListCommand.MESSAGE_SUCCESS, logic.execute("list").getFeedbackToUser());
+            }
+        }
+    }
+
+    /** Counts save attempts while retaining real temporary-file persistence. */
+    private static class CountingPawPalsStorage extends JsonPawPalsStorage {
+        private int saveCount;
+        private IOException saveFailure;
+
+        CountingPawPalsStorage(Path filePath) {
+            super(filePath);
+        }
+
+        @Override
+        public void savePawPals(ReadOnlyPawPals pawPals) throws IOException {
+            saveCount++;
+            if (saveFailure != null) {
+                throw saveFailure;
+            }
+            super.savePawPals(pawPals);
+        }
+    }
+
+    @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage())
+                + LogicManager.MESSAGE_SAVE_ROLLBACK);
     }
 
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage())
+                + LogicManager.MESSAGE_SAVE_ROLLBACK);
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    public void getFilteredClientList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredClientList().remove(0));
+    }
+
+    @Test
+    public void getClientList_modifyPopulatedList_throwsUnsupportedOperationException() {
+        model.addClient(AMY);
+        ObservableList<Client> clients = logic.getClientList();
+        assertThrows(UnsupportedOperationException.class, () -> clients.add(new ClientBuilder().build()));
+        assertThrows(UnsupportedOperationException.class, () -> clients.remove(0));
+        assertThrows(UnsupportedOperationException.class, clients::clear);
+        assertEquals(List.of(AMY), model.getPawPals().getClientList());
+    }
+
+    @Test
+    public void getClientList_modelChangesAndFiltering_observesAllStoredClients() {
+        ObservableList<Client> clients = logic.getClientList();
+        List<List<Client>> changes = new ArrayList<>();
+        clients.addListener((ListChangeListener<Client>) change -> changes.add(List.copyOf(clients)));
+
+        model.addClient(AMY);
+        assertEquals(List.of(AMY), clients);
+        model.updateFilteredClientList(unused -> false);
+        assertEquals(List.of(), logic.getFilteredClientList());
+        assertEquals(List.of(AMY), clients);
+        model.setPawPals(new PawPals());
+        assertEquals(List.of(), clients);
+        assertEquals(List.of(List.of(AMY), List.of()), changes);
     }
 
     /**
@@ -123,7 +365,7 @@ public class LogicManagerTest {
      */
     private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
             String expectedMessage) {
-        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        Model expectedModel = new ModelManager(model.getPawPals(), new UserPrefs());
         assertCommandFailure(inputCommand, expectedException, expectedMessage, expectedModel);
     }
 
@@ -149,26 +391,24 @@ public class LogicManagerTest {
     private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
-        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
+        // Inject LogicManager with a JsonPawPalsStorage that throws the IOException e when saving
+        JsonPawPalsStorage pawPalsStorage = new JsonPawPalsStorage(prefPath) {
             @Override
-            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+            public void savePawPals(ReadOnlyPawPals pawPals) throws IOException {
                 throw e;
             }
         };
 
         JsonUserPrefsStorage userPrefsStorage =
                 new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        StorageManager storage = new StorageManager(pawPalsStorage, userPrefsStorage);
 
         logic = new LogicManager(model, storage);
 
-        // Triggers the saveAddressBook method by executing an add command
+        // Triggers the savePawPals method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
                 + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
+        ModelManager expectedModel = new ModelManager(model.getPawPals(), model.getUserPrefs());
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }
