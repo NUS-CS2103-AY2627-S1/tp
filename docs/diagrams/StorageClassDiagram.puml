@@ -3,34 +3,21 @@
 skinparam arrowThickness 1.1
 skinparam arrowColor STORAGE_COLOR
 skinparam classBackgroundColor STORAGE_COLOR
+skinparam classAttributeIconSize 0
+hide members
 
-package Storage as StoragePackage {
+package "Storage (seedu.tuitionbook.storage)" as StoragePackage {
 
-Class "<<interface>>\nStorage" as Storage
+Class "<<interface>>\nStorage" as Storage {
+}
 Class StorageManager
-
-package "UserPrefs Storage" #F4F6F6{
 Class JsonUserPrefsStorage
-}
-
-package "AddressBook Storage" #F4F6F6{
-Class JsonAddressBookStorage
-Class JsonSerializableAddressBook
-Class JsonAdaptedPerson
-Class JsonAdaptedTag
-}
+Class JsonTuitionBookStorage
 
 }
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Storage
 
 StorageManager .up.|> Storage
-StorageManager -down-> "1" JsonUserPrefsStorage
-StorageManager -down-> "1" JsonAddressBookStorage
-
-JsonAddressBookStorage ..> JsonSerializableAddressBook
-JsonSerializableAddressBook --> "*" JsonAdaptedPerson
-JsonAdaptedPerson --> "*" JsonAdaptedTag
+StorageManager -down-> "1" JsonUserPrefsStorage : userPrefsStorage
+StorageManager -down-> "1" JsonTuitionBookStorage : tuitionBookStorage
 
 @enduml

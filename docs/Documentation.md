@@ -1,29 +1,35 @@
 ---
-layout: page
-title: Documentation guide
+  layout: default.md
+  title: "Documentation guide"
+  pageNav: 3
 ---
 
-**Setting up and maintaining the project website:**
+# Documentation Guide
 
-* We use [**Jekyll**](https://jekyllrb.com/) to manage documentation.
-* The `docs/` folder is used for documentation.
-* To learn how to set up and maintain the project website, follow the guide [_[se-edu/guides] **Using Jekyll for project documentation**_](https://se-education.org/guides/tutorials/jekyll.html).
-* Note these points when adapting the documentation to a different project/product:
-  * The 'Site-wide settings' section of the page linked above has information on how to update site-wide elements such as the top navigation bar.
-  * :bulb: In addition to updating content files, you might have to update the config files `docs/_config.yml` and `docs/_sass/minima/_base.scss`. The latter contains a reference to `AB-3` that is used when converting documentation pages to PDF format.
-* If you are using IntelliJ for editing documentation files, you can consider enabling 'soft wrapping' for `*.md` files, as explained in [_[se-edu/guides] **Intellij IDEA: Useful settings**_](https://se-education.org/guides/tutorials/intellijUsefulSettings.html#enabling-soft-wrapping)
-
+* We use [**MarkBind**](https://markbind.org/) to manage documentation.
+* The `docs/` folder contains the source files for the documentation website.
+* To learn how set it up and maintain the project website, follow the guide [[se-edu/guides] Working with Forked MarkBind sites](https://se-education.org/guides/tutorials/markbind-forked-sites.html) for project documentation.
 
 **Style guidance:**
 
 * Follow the [**_Google developer documentation style guide_**](https://developers.google.com/style).
+* Also relevant is the [_se-edu/guides **Markdown coding standard**_](https://se-education.org/guides/conventions/markdown.html).
 
-* Also relevant is the [_[se-edu/guides] **Markdown coding standard**_](https://se-education.org/guides/conventions/markdown.html)
 
-**Diagrams:**
+**Converting to PDF**
 
-* See the [_[se-edu/guides] **Using PlantUML**_](https://se-education.org/guides/tutorials/plantUml.html)
+* See the guide [_se-edu/guides **Saving web documents as PDF files**_](https://se-education.org/guides/tutorials/savingPdf.html).
 
-**Converting a document to the PDF format:**
+## Keeping the guides current
 
-* See the guide [_[se-edu/guides] **Saving web documents as PDF files**_](https://se-education.org/guides/tutorials/savingPdf.html)
+Update the guides in the same pull request as a command or visible behaviour change. Write the UG for tutors completing tasks and the DG for maintainers understanding the implementation.
+
+Before each release:
+
+1. Check command formats, examples, messages and recovery instructions against the release candidate. Run examples in disposable storage and record expected outcomes.
+1. Update the version notices, command summary, offline Help summary and changelog together. Keep unimplemented ideas explicitly labelled.
+1. Check screenshots against the current app. Use synthetic contacts, show the relevant UI state, and explain what readers should notice. Remove obsolete images from the guide rather than presenting them as current behaviour.
+1. Build the site with `npm --prefix docs run build`, preview both guides, and check navigation links, diagrams, code examples and narrow-window layout. A successful build alone does not prove that diagram images rendered.
+1. Ask a teammate to follow the Quick start without extra explanation. Use questions and documentation issues from the project tracker to improve unclear steps.
+
+Keep the command summary before Quick start as the team's chosen reference layout; provide a direct Quick start link for new users.

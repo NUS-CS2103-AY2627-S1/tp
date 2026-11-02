@@ -1,0 +1,320 @@
+package seedu.tuitionbook.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tuitionbook.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.tuitionbook.testutil.Assert.assertThrows;
+import static seedu.tuitionbook.testutil.TypicalPersons.ALICE;
+import static seedu.tuitionbook.testutil.TypicalPersons.BENSON;
+
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.tuitionbook.commons.core.GuiSettings;
+import seedu.tuitionbook.model.person.NameContainsKeywordsPredicate;
+import seedu.tuitionbook.model.person.Person;
+import seedu.tuitionbook.model.person.PersonMatchesListFilterPredicate;
+import seedu.tuitionbook.model.person.Role;
+import seedu.tuitionbook.model.person.exceptions.PersonNotFoundException;
+import seedu.tuitionbook.testutil.PersonBuilder;
+import seedu.tuitionbook.testutil.TuitionBookBuilder;
+
+public class ModelManagerTest {
+
+    private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void constructor() {
+        assertEquals(new UserPrefs(), modelManager.getUserPrefs());
+        assertEquals(new GuiSettings(), modelManager.getGuiSettings());
+        assertEquals(new TuitionBook(), new TuitionBook(modelManager.getTuitionBook()));
+    }
+
+    @Test
+    public void constructor_validUserPrefs_copiesUserPrefs() {
+        UserPrefs userPrefs = new UserPrefs();
+        userPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
+        modelManager = new ModelManager(new TuitionBook(), userPrefs);
+        assertEquals(userPrefs, modelManager.getUserPrefs());
+
+        // Modifying userPrefs should not modify modelManager's userPrefs
+        UserPrefs oldUserPrefs = new UserPrefs(userPrefs);
+        userPrefs.setGuiSettings(new GuiSettings(5, 6, 7, 8));
+        assertEquals(oldUserPrefs, modelManager.getUserPrefs());
+    }
+
+    @Test
+    public void setGuiSettings_nullGuiSettings_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.setGuiSettings(null));
+    }
+
+    @Test
+    public void setGuiSettings_validGuiSettings_setsGuiSettings() {
+        GuiSettings guiSettings = new GuiSettings(1, 2, 3, 4);
+        modelManager.setGuiSettings(guiSettings);
+        assertEquals(guiSettings, modelManager.getGuiSettings());
+    }
+
+    @Test
+    public void hasPerson_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    }
+
+    @Test
+    public void hasPerson_personNotInTuitionBook_returnsFalse() {
+        assertFalse(modelManager.hasPerson(ALICE));
+    }
+
+    @Test
+    public void hasPerson_personInTuitionBook_returnsTrue() {
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.hasPerson(ALICE));
+    }
+
+    @Test
+    public void hasPerson_personWithNormalizedIdentityInTuitionBook_returnsTrue() {
+        modelManager.addPerson(ALICE);
+        Person duplicateAlice = new PersonBuilder(ALICE).withName("ALICE  PAULINE ")
+                .withPhone("9435-1253").build();
+
+        assertTrue(modelManager.hasPerson(duplicateAlice));
+    }
+
+    @Test
+    public void deletePerson_guardianWithLinkedStudents_clearsGuardianLinks() {
+        Person guardian = new PersonBuilder().withName("Grace Guardian").withPhone("90000001")
+                .withRole(Role.GUARDIAN).build();
+        Person firstStudent = new PersonBuilder().withName("Sam Student").withPhone("90000002")
+                .withRole(Role.STUDENT).withGuardian(guardian).build();
+        Person secondStudent = new PersonBuilder().withName("Sally Student").withPhone("90000003")
+                .withRole(Role.STUDENT).withGuardian(guardian).build();
+        modelManager.addPerson(guardian);
+        modelManager.addPerson(firstStudent);
+        modelManager.addPerson(secondStudent);
+
+        modelManager.deletePerson(guardian);
+
+        assertFalse(modelManager.hasPerson(guardian));
+        assertEquals(List.of(firstStudent.clearGuardian(), secondStudent.clearGuardian()),
+                modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void deletePerson_missingTarget_throwsPersonNotFoundException() {
+        assertThrows(PersonNotFoundException.class, () -> modelManager.deletePerson(ALICE));
+
+        assertTrue(modelManager.getTuitionBook().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void addPerson_studentLinkedToMissingGuardian_rejectedWithoutMutation() {
+        Person orphanedStudent = new PersonBuilder().withGuardianId(UUID.randomUUID()).build();
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.addPerson(orphanedStudent));
+
+        assertTrue(modelManager.getTuitionBook().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void addPerson_studentLinkedToStudent_rejectedWithoutMutation() {
+        Person existingStudent = new PersonBuilder().withName("Existing Student").withPhone("90000001").build();
+        Person linkedStudent = new PersonBuilder().withName("Linked Student").withPhone("90000002")
+                .withGuardianId(existingStudent.getId()).build();
+        modelManager.addPerson(existingStudent);
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.addPerson(linkedStudent));
+
+        assertEquals(List.of(existingStudent), modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void addPerson_duplicateId_rejectedWithoutMutation() {
+        Person original = new PersonBuilder().withName("Original Student").withPhone("90000001").build();
+        Person duplicateId = new PersonBuilder().withName("Different Guardian").withPhone("90000002")
+                .withRole(Role.GUARDIAN).withId(original.getId()).build();
+        modelManager.addPerson(original);
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.addPerson(duplicateId));
+
+        assertEquals(List.of(original), modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void setPerson_changedGuardianRoleOrId_rejectedWithoutMutation() {
+        Person guardian = new PersonBuilder().withName("Grace Guardian").withPhone("90000001")
+                .withRole(Role.GUARDIAN).build();
+        Person student = new PersonBuilder().withName("Sam Student").withPhone("90000002")
+                .withGuardian(guardian).build();
+        modelManager.addPerson(guardian);
+        modelManager.addPerson(student);
+        List<Person> originalPersons = List.copyOf(modelManager.getTuitionBook().getPersonList());
+
+        Person changedRole = new PersonBuilder(guardian).withRole(Role.STUDENT).build();
+        Person changedId = new PersonBuilder(guardian).withId(UUID.randomUUID()).build();
+        assertThrows(IllegalArgumentException.class, () -> modelManager.setPerson(guardian, changedRole));
+        assertThrows(IllegalArgumentException.class, () -> modelManager.setPerson(guardian, changedId));
+
+        assertEquals(originalPersons, modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void setPerson_studentLinkedToMissingGuardian_rejectedWithoutMutation() {
+        Person student = new PersonBuilder().withName("Sam Student").withPhone("90000001").build();
+        modelManager.addPerson(student);
+        Person orphanedEdit = new PersonBuilder(student).withGuardianId(UUID.randomUUID()).build();
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.setPerson(student, orphanedEdit));
+
+        assertEquals(List.of(student), modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void setPerson_missingTargetWithInvalidEdit_throwsPersonNotFoundException() {
+        Person missingTarget = new PersonBuilder().build();
+        Person invalidEdit = new PersonBuilder(missingTarget).withId(UUID.randomUUID())
+                .withRole(Role.GUARDIAN).build();
+
+        assertThrows(PersonNotFoundException.class, () -> modelManager.setPerson(missingTarget, invalidEdit));
+
+        assertTrue(modelManager.getTuitionBook().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void deletePerson_equalTargetWithDifferentId_clearsActualGuardianLinks() {
+        Person guardian = new PersonBuilder().withName("Grace Guardian").withPhone("90000001")
+                .withRole(Role.GUARDIAN).build();
+        Person student = new PersonBuilder().withName("Sam Student").withPhone("90000002")
+                .withGuardian(guardian).build();
+        modelManager.addPerson(guardian);
+        modelManager.addPerson(student);
+        Person equalGuardianWithDifferentId = new PersonBuilder(guardian).withId(UUID.randomUUID()).build();
+
+        modelManager.deletePerson(equalGuardianWithDifferentId);
+
+        assertEquals(List.of(student.clearGuardian()), modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void setTuitionBook_studentLinkedToMissingGuardian_rejectedWithoutMutation() {
+        modelManager.addPerson(ALICE);
+        TuitionBook invalidReplacement = new TuitionBook();
+        invalidReplacement.addPerson(new PersonBuilder().withGuardianId(UUID.randomUUID()).build());
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.setTuitionBook(invalidReplacement));
+
+        assertEquals(List.of(ALICE), modelManager.getTuitionBook().getPersonList());
+    }
+
+    @Test
+    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void equals_sameRowsDifferentQueries_returnsFalse() {
+        Person alex = new PersonBuilder().withName("Alex Student").withTags("Active").build();
+        TuitionBook book = new TuitionBookBuilder().withPerson(alex).build();
+        ModelManager nameQuery = new ModelManager(book, new UserPrefs());
+        ModelManager tagQuery = new ModelManager(book, new UserPrefs());
+        nameQuery.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alex")), "find Alex");
+        tagQuery.updateFilteredPersonList(new PersonMatchesListFilterPredicate(null, List.of("Active")),
+                "list t/Active");
+
+        assertEquals(nameQuery.getFilteredPersonList(), tagQuery.getFilteredPersonList());
+        assertFalse(nameQuery.equals(tagQuery));
+        assertFalse(tagQuery.equals(nameQuery));
+
+        Person nextAddition = new PersonBuilder().withName("John Student").withTags("Active").build();
+        nameQuery.addPerson(nextAddition);
+        tagQuery.addPerson(nextAddition);
+        assertEquals(List.of(alex), nameQuery.getFilteredPersonList());
+        assertEquals(List.of(alex, nextAddition), tagQuery.getFilteredPersonList());
+    }
+
+    @Test
+    public void equals_sameRowsAndRefreshDifferentPredicates_returnsFalse() {
+        ModelManager allPersons = new ModelManager();
+        ModelManager nameQuery = new ModelManager();
+        nameQuery.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alex")), "list");
+
+        assertFalse(allPersons.equals(nameQuery));
+    }
+
+    @Test
+    public void equals_sameRowsAndPredicateDifferentRefresh_returnsFalse() {
+        ModelManager first = new ModelManager();
+        ModelManager second = new ModelManager();
+        first.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alex")), "find Alex");
+        second.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alex")), "find Alex Alex");
+
+        assertFalse(first.equals(second));
+    }
+
+    @Test
+    public void equals_sameContactValuesDifferentDisplayedIds_returnsFalse() {
+        Person firstContact = new PersonBuilder().build();
+        Person secondContact = new PersonBuilder().build();
+        ModelManager first = new ModelManager(new TuitionBookBuilder().withPerson(firstContact).build(),
+                new UserPrefs());
+        ModelManager second = new ModelManager(new TuitionBookBuilder().withPerson(secondContact).build(),
+                new UserPrefs());
+
+        assertEquals(first.getTuitionBook(), second.getTuitionBook());
+        assertEquals(first.getFilteredPersonList(), second.getFilteredPersonList());
+        assertFalse(first.equals(second));
+    }
+
+    @Test
+    public void equals_equivalentQueryInstancesAndOrderedIds_returnsTrue() {
+        TuitionBook book = new TuitionBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        ModelManager first = new ModelManager(book, new UserPrefs());
+        ModelManager second = new ModelManager(book, new UserPrefs());
+        first.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alice")), "find Alice");
+        second.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alice")), "find Alice");
+
+        assertTrue(first.equals(second));
+        assertTrue(second.equals(first));
+    }
+
+    @Test
+    public void equals() {
+        TuitionBook tuitionBook = new TuitionBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        TuitionBook differentTuitionBook = new TuitionBook();
+        UserPrefs userPrefs = new UserPrefs();
+
+        // same values -> returns true
+        modelManager = new ModelManager(tuitionBook, userPrefs);
+        ModelManager modelManagerCopy = new ModelManager(tuitionBook, userPrefs);
+        assertTrue(modelManager.equals(modelManagerCopy));
+        assertEquals(modelManager.hashCode(), modelManagerCopy.hashCode());
+
+        // same object -> returns true
+        assertTrue(modelManager.equals(modelManager));
+
+        // null -> returns false
+        assertFalse(modelManager.equals(null));
+
+        // different types -> returns false
+        assertFalse(modelManager.equals(5));
+
+        // different tuitionBook -> returns false
+        assertFalse(modelManager.equals(new ModelManager(differentTuitionBook, userPrefs)));
+
+        // different filteredList -> returns false
+        String[] keywords = ALICE.getName().fullName.split("\\s+");
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)),
+                "find " + String.join(" ", keywords));
+        assertFalse(modelManager.equals(new ModelManager(tuitionBook, userPrefs)));
+
+        // resets modelManager to initial state for upcoming tests
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, "list");
+
+        // different userPrefs -> returns false
+        UserPrefs differentUserPrefs = new UserPrefs();
+        differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
+        assertFalse(modelManager.equals(new ModelManager(tuitionBook, differentUserPrefs)));
+    }
+}

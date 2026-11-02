@@ -132,6 +132,23 @@
     -fx-text-fill: #010504;
 }
 
+.role_badge {
+    -fx-padding: 1 5 1 5;
+    -fx-background-radius: 3;
+    -fx-border-radius: 3;
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 11px;
+    -fx-text-fill: white;
+}
+
+.role_badge.student {
+    -fx-background-color: #3e7b91;
+}
+
+.role_badge.guardian {
+    -fx-background-color: #7a4f8f;
+}
+
 .stack-pane {
      -fx-background-color: derive(#1d1d1d, 20%);
 }
@@ -155,6 +172,18 @@
 
 .result-display .label {
     -fx-text-fill: black !important;
+}
+
+.detail-display {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: derive(#1d1d1d, 20%);
+    -fx-font-family: "Segoe UI Light";
+    -fx-font-size: 13pt;
+    -fx-text-fill: white;
+}
+
+.detail-display .content {
+    -fx-padding: 10px;
 }
 
 .status-bar .label {
@@ -196,6 +225,10 @@
     -fx-background-color: derive(#1d1d1d, 20%);
 }
 
+.menu-bar-container {
+    -fx-background-color: derive(#1d1d1d, 20%);
+}
+
 .menu-bar .label {
     -fx-font-size: 14pt;
     -fx-font-family: "Segoe UI Light";
@@ -205,6 +238,24 @@
 
 .menu .left-container {
     -fx-background-color: black;
+}
+
+#helpButton {
+    -fx-padding: 4 8 4 8;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+    -fx-font-family: "Segoe UI Light";
+    -fx-font-size: 14pt;
+    -fx-text-fill: white;
+    -fx-opacity: 0.9;
+}
+
+#helpButton:hover, #helpButton:focused {
+    -fx-background-color: derive(#1d1d1d, 50%);
+}
+
+#helpButton:pressed {
+    -fx-background-color: derive(#1d1d1d, 70%);
 }
 
 /*
@@ -279,6 +330,41 @@
     -fx-font-style: italic;
     -fx-fill: white;
     -fx-text-fill: white;
+}
+
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-body,
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-instructions,
+.dialog-pane.startup-missing-data-dialog .startup-missing-data-body {
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-font-size: 12pt;
+    -fx-font-weight: normal;
+    -fx-text-fill: white;
+}
+
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-path-label {
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-font-size: 11pt;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-path {
+    -fx-font-family: monospace;
+    -fx-font-size: 10pt;
+}
+
+.dialog-pane.startup-load-failure-dialog .titled-pane > .title {
+    -fx-background-color: derive(#1d1d1d, 25%);
+}
+
+.dialog-pane.startup-load-failure-dialog .titled-pane > .title > .text {
+    -fx-fill: white;
+}
+
+.dialog-pane.startup-load-failure-dialog .titled-pane > *.content,
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-scroll,
+.dialog-pane.startup-load-failure-dialog .startup-load-failure-scroll > .viewport {
+    -fx-background-color: #1d1d1d;
 }
 
 .scroll-bar {

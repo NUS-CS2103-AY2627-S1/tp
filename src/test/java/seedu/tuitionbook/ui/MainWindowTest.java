@@ -1,0 +1,1052 @@
+package seedu.tuitionbook.ui;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.ScrollBar;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Region;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import seedu.tuitionbook.commons.core.GuiSettings;
+import seedu.tuitionbook.commons.exceptions.DataLoadingException;
+import seedu.tuitionbook.logic.Logic;
+import seedu.tuitionbook.logic.LogicManager;
+import seedu.tuitionbook.logic.commands.CommandResult;
+import seedu.tuitionbook.logic.commands.ExitCommand;
+import seedu.tuitionbook.logic.commands.HelpCommand;
+import seedu.tuitionbook.logic.commands.exceptions.CommandException;
+import seedu.tuitionbook.logic.parser.exceptions.ParseException;
+import seedu.tuitionbook.model.ModelManager;
+import seedu.tuitionbook.model.PersonListViewState;
+import seedu.tuitionbook.model.TuitionBook;
+import seedu.tuitionbook.model.UserPrefs;
+import seedu.tuitionbook.model.person.Person;
+import seedu.tuitionbook.storage.JsonTuitionBookStorage;
+import seedu.tuitionbook.storage.JsonUserPrefsStorage;
+import seedu.tuitionbook.storage.StorageManager;
+import seedu.tuitionbook.testutil.PersonBuilder;
+
+/**
+ * Tests main window command interactions and view transitions.
+ */
+public class MainWindowTest {
+    private static final List<Integer> VIEWPORT_CONTACT_COUNTS =
+            List.of(0, 1, 2, 5, 10, 20, 50, 100, 500, 1000);
+    private static final double SCROLL_TEST_WINDOW_WIDTH = 700;
+    private static final double SCROLL_TEST_WINDOW_HEIGHT = 720;
+    private static final int REQUIRED_STABLE_VISIBLE_PULSE_COUNT = 3;
+    private static final double VIEWPORT_TOLERANCE = 2.0;
+
+    @TempDir
+    public Path temporaryFolder;
+
+    @BeforeAll
+    public static void initializeJavaFx() {
+        JavaFxTestUtil.initialize();
+    }
+
+    @Test
+    public void mainWindow_usesProductNameAsTitle() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage stage = new Stage();
+            new MainWindow(stage, new FakeLogic(), Path.of("synthetic.json"));
+            assertEquals("TuitionBook", stage.getTitle());
+        });
+    }
+
+    @Test
+    public void mainWindow_longTag_resizeCyclesStayInsideListViewport() throws Exception {
+        LongTagResizeFixture fixture = JavaFxTestUtil.callOnFxThread(() -> {
+            String longTag = "x".repeat(1000);
+            Person person = new PersonBuilder().withName("Long Tag Student")
+                    .withTags(longTag, "Additional Mathematics", "Chemistry Practical Prep",
+                            "English Language Study", "Physics Practical Prep", "Secondary Four Level")
+                    .build();
+            FakeLogic logic = new FakeLogic();
+            logic.people.add(person);
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, logic, Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+            mainWindow.show();
+            stage.setHeight(SCROLL_TEST_WINDOW_HEIGHT);
+            stage.setWidth(450);
+            return new LongTagResizeFixture(stage, getPersonListView(mainWindow), person, longTag);
+        });
+
+        try {
+            assertTrue(waitForInitialLongTagLayout(fixture, 450));
+            double narrowViewportWidth = JavaFxTestUtil.callOnFxThread(() -> listViewport(fixture).getWidth());
+            JavaFxTestUtil.runOnFxThread(() -> assertLongTagLayout(fixture));
+            for (int cycle = 0; cycle < 2; cycle++) {
+                JavaFxTestUtil.runOnFxThread(() -> fixture.stage().setWidth(700));
+                assertTrue(waitForStableLongTagLayout(fixture, narrowViewportWidth + 250));
+                JavaFxTestUtil.runOnFxThread(() -> assertLongTagLayout(fixture));
+
+                JavaFxTestUtil.runOnFxThread(() -> fixture.stage().setWidth(450));
+                assertTrue(waitForStableLongTagLayout(fixture, narrowViewportWidth));
+                JavaFxTestUtil.runOnFxThread(() -> assertLongTagLayout(fixture));
+            }
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::close);
+        }
+    }
+
+    @Test
+    public void mainWindow_savedPositionOutsideCurrentScreens_fitsWithinPrimaryScreen() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Rectangle2D primaryBounds = Screen.getPrimary().getVisualBounds();
+            FakeLogic logic = new FakeLogic();
+            logic.guiSettings = new GuiSettings(primaryBounds.getWidth() + 100,
+                    primaryBounds.getHeight() + 100, 100000, 100000);
+            Stage stage = new Stage();
+
+            new MainWindow(stage, logic, Path.of("synthetic.json"));
+
+            assertTrue(stage.getX() >= primaryBounds.getMinX());
+            assertTrue(stage.getY() >= primaryBounds.getMinY());
+            assertTrue(stage.getX() + stage.getWidth() <= primaryBounds.getMaxX());
+            assertTrue(stage.getY() + stage.getHeight() <= primaryBounds.getMaxY());
+        });
+    }
+
+    @Test
+    public void restoreWindowBounds_noSavedPosition_clampsSizeToPrimaryScreen() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Rectangle2D primaryScreen = new Rectangle2D(0, 0, 1280, 720);
+            GuiSettings oversizedSettingsWithoutPosition = new GuiSettings() {
+                @Override
+                public double getWindowWidth() {
+                    return 5000;
+                }
+
+                @Override
+                public double getWindowHeight() {
+                    return 4000;
+                }
+            };
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, new FakeLogic(), Path.of("synthetic.json"));
+            double originalX = stage.getX();
+            double originalY = stage.getY();
+
+            mainWindow.restoreWindowBounds(oversizedSettingsWithoutPosition, List.of(primaryScreen), primaryScreen);
+
+            assertEquals(1280, stage.getWidth());
+            assertEquals(720, stage.getHeight());
+            assertEquals(originalX, stage.getX());
+            assertEquals(originalY, stage.getY());
+
+            GuiSettings undersizedSettingsWithoutPosition = new GuiSettings() {
+                @Override
+                public double getWindowWidth() {
+                    return 1;
+                }
+
+                @Override
+                public double getWindowHeight() {
+                    return 1;
+                }
+            };
+            mainWindow.restoreWindowBounds(undersizedSettingsWithoutPosition, List.of(primaryScreen), primaryScreen);
+
+            assertEquals(stage.getMinWidth(), stage.getWidth());
+            assertEquals(stage.getMinHeight(), stage.getHeight());
+        });
+    }
+
+    @Test
+    public void mainWindow_savedUndersizedBoundsNearBottomRight_fitsMinimumSizeWhenShown() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Rectangle2D primaryBounds = Screen.getPrimary().getVisualBounds();
+            int x = (int) Math.floor(primaryBounds.getMaxX()) - 1;
+            int y = (int) Math.floor(primaryBounds.getMaxY()) - 1;
+            FakeLogic logic = new FakeLogic();
+            logic.guiSettings = new GuiSettings(1, 1, x, y);
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, logic, Path.of("synthetic.json"));
+
+            try {
+                mainWindow.fillInnerParts();
+                mainWindow.show();
+
+                assertTrue(stage.getWidth() >= stage.getMinWidth());
+                assertTrue(stage.getHeight() >= stage.getMinHeight());
+                assertTrue(stage.getX() >= primaryBounds.getMinX());
+                assertTrue(stage.getY() >= primaryBounds.getMinY());
+                assertTrue(stage.getX() + stage.getWidth() <= primaryBounds.getMaxX() + VIEWPORT_TOLERANCE);
+                assertTrue(stage.getY() + stage.getHeight() <= primaryBounds.getMaxY() + VIEWPORT_TOLERANCE);
+            } finally {
+                stage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void mainWindow_savedPositionOnCurrentScreen_preservesBounds() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Rectangle2D primaryBounds = Screen.getPrimary().getVisualBounds();
+            int x = (int) Math.ceil(primaryBounds.getMinX()) + 20;
+            int y = (int) Math.ceil(primaryBounds.getMinY()) + 20;
+            double width = Math.min(700, primaryBounds.getWidth() - 40);
+            double height = Math.min(500, primaryBounds.getHeight() - 40);
+            FakeLogic logic = new FakeLogic();
+            logic.guiSettings = new GuiSettings(width, height, x, y);
+            Stage stage = new Stage();
+
+            new MainWindow(stage, logic, Path.of("synthetic.json"));
+
+            assertEquals(new Rectangle2D(x, y, width, height),
+                    new Rectangle2D(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
+        });
+    }
+
+    @Test
+    public void restoreWindowBounds_savedWindowSpansScreens_usesScreenContainingTopLeft() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Rectangle2D primaryScreen = new Rectangle2D(0, 0, 1920, 1040);
+            Rectangle2D secondaryScreen = new Rectangle2D(-1280, 0, 1280, 984);
+            GuiSettings savedSettings = new GuiSettings(700, 500, -100, 100);
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, new FakeLogic(), Path.of("synthetic.json"));
+
+            mainWindow.restoreWindowBounds(savedSettings, List.of(primaryScreen, secondaryScreen), primaryScreen);
+
+            assertEquals(new Rectangle2D(-700, 100, 700, 500),
+                    new Rectangle2D(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
+        });
+    }
+
+    @Test
+    public void viewAndOtherCommands_swapMainContentView() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            MainWindow mainWindow = new MainWindow(new Stage(), new FakeLogic(), Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+
+            TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+            TextArea detailText = (TextArea) mainWindow.getRoot().getScene().lookup("#detailDisplay");
+            TextArea resultText = (TextArea) mainWindow.getRoot().getScene().lookup("#resultDisplay");
+
+            assertListVisible(mainWindow, detailText, true, false);
+
+            execute(commandBox, "view 1");
+            assertListVisible(mainWindow, detailText, false, true);
+            assertEquals("Name: Alex Lim", detailText.getText());
+            assertEquals("Viewing contact: Alex Lim", resultText.getText());
+
+            execute(commandBox, "list");
+            assertListVisible(mainWindow, detailText, true, false);
+
+            execute(commandBox, "view 1");
+            execute(commandBox, "invalid");
+            assertListVisible(mainWindow, detailText, false, true);
+            assertEquals("Invalid command", resultText.getText());
+        });
+    }
+
+    @Test
+    public void failedCommands_preserveDetailsView() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            MainWindow mainWindow = new MainWindow(new Stage(), new FakeLogic(), Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+
+            TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+            TextArea detailText = (TextArea) mainWindow.getRoot().getScene().lookup("#detailDisplay");
+            execute(commandBox, "view 1");
+
+            List<String> failedCommands = List.of(
+                    "", "   ", "unknown", "view", "view 0", "view 99", "view 1 extra",
+                    "view 1 v/details", "view 1 v/ v/", "save-failure");
+            for (String failedCommand : failedCommands) {
+                execute(commandBox, failedCommand);
+                assertListVisible(mainWindow, detailText, false, true);
+                assertEquals("Name: Alex Lim", detailText.getText());
+            }
+        });
+    }
+
+    @Test
+    public void addToLongList_scrollsToAddedPersonWithoutSelectingIt() throws Exception {
+        for (int existingContactCount : VIEWPORT_CONTACT_COUNTS) {
+            ScrollFixture fixture = JavaFxTestUtil.callOnFxThread(() -> {
+                Person addedPerson = new PersonBuilder().withName("Viewport Student").withPhone("99999999").build();
+                FakeLogic logic = new FakeLogic(addedPerson);
+                IntStream.range(0, existingContactCount)
+                        .mapToObj(index -> new PersonBuilder().withName("Existing Student " + index)
+                                .withPhone(String.format("8%07d", index)).build())
+                        .forEach(logic.people::add);
+                Stage stage = new Stage();
+                MainWindow mainWindow = new MainWindow(stage, logic, Path.of("synthetic.json"));
+                mainWindow.fillInnerParts();
+                stage.setWidth(SCROLL_TEST_WINDOW_WIDTH);
+                stage.setHeight(SCROLL_TEST_WINDOW_HEIGHT);
+                mainWindow.show();
+
+                TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+                ListView<Person> personListView = getPersonListView(mainWindow);
+                return new ScrollFixture(stage, personListView, commandBox, addedPerson);
+            });
+
+            try {
+                assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                        fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0),
+                        "Contact list should finish layout before adding a contact");
+                JavaFxTestUtil.runOnFxThread(() -> {
+                    fixture.personListView().scrollTo(0);
+                    execute(fixture.commandBox(), "add");
+                });
+                assertTrue(waitForStablePersonVisibility(fixture.personListView(), fixture.addedPerson()),
+                        "Added contact should be visible after the add command for "
+                                + existingContactCount + " existing contacts");
+                assertNull(JavaFxTestUtil.callOnFxThread(() ->
+                        fixture.personListView().getSelectionModel().getSelectedItem()));
+            } finally {
+                JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+            }
+        }
+    }
+
+    @Test
+    public void missingScrollTarget_keepsListUnselected() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            MainWindow mainWindow = new MainWindow(new Stage(), new FakeLogic(), Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+            ListView<Person> personListView = getPersonListView(mainWindow);
+
+            mainWindow.getPersonListPanel().scrollToPerson(UUID.randomUUID());
+
+            assertNull(personListView.getSelectionModel().getSelectedItem());
+        });
+    }
+
+    @Test
+    public void repeatedScrollRequests_cancelPreviousAnimation() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Person firstPerson = new PersonBuilder().withName("First Student").build();
+            Person secondPerson = new PersonBuilder().withName("Second Student").build();
+            FakeLogic logic = new FakeLogic(firstPerson);
+            logic.people.add(secondPerson);
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, logic, Path.of("synthetic.json"));
+            try {
+                mainWindow.fillInnerParts();
+
+                mainWindow.getPersonListPanel().scrollToPerson(firstPerson.getId());
+                mainWindow.getPersonListPanel().scrollToPerson(secondPerson.getId());
+
+                assertNull(getPersonListView(mainWindow).getSelectionModel().getSelectedItem());
+            } finally {
+                stage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void removedScrollTarget_stopsRetryAnimation() throws Exception {
+        Person target = new PersonBuilder().withName("Temporary Student").build();
+        FakeLogic logic = new FakeLogic(target);
+        PersonListPanel[] panel = new PersonListPanel[1];
+        Stage stage = JavaFxTestUtil.callOnFxThread(() -> {
+            Stage newStage = new Stage();
+            MainWindow mainWindow = new MainWindow(newStage, logic, Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+            newStage.show();
+            panel[0] = mainWindow.getPersonListPanel();
+            return newStage;
+        });
+        try {
+            JavaFxTestUtil.runOnFxThread(() -> {
+                panel[0].scrollToPerson(target.getId());
+                logic.people.remove(target);
+            });
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() -> !panel[0].hasPendingScrollAnimation()));
+        } finally {
+            JavaFxTestUtil.runOnFxThread(stage::hide);
+        }
+    }
+
+    @Test
+    public void targetRemovedBeforeBecomingVisible_stopsRetryAnimation() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(1000);
+        try {
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0));
+            JavaFxTestUtil.runOnFxThread(() -> {
+                fixture.personListView().scrollTo(0);
+                fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId());
+                fixture.personListView().getItems().remove(fixture.addedPerson());
+            });
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    !fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation()));
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void listNeverLaidOut_retryAnimationStopsAfterBoundedRetries() throws Exception {
+        Person target = new PersonBuilder().withName("Unreachable Student").build();
+        FakeLogic logic = new FakeLogic(target);
+        PersonListPanel[] panel = new PersonListPanel[1];
+        JavaFxTestUtil.runOnFxThread(() -> {
+            logic.people.add(target);
+            MainWindow mainWindow = new MainWindow(new Stage(), logic, Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+            panel[0] = mainWindow.getPersonListPanel();
+            panel[0].scrollToPerson(target.getId());
+            assertTrue(panel[0].hasPendingScrollAnimation());
+        });
+        boolean stopped = false;
+        for (int attempt = 0; attempt < 3 && !stopped; attempt++) {
+            stopped = JavaFxTestUtil.waitForFxCondition(() -> !panel[0].hasPendingScrollAnimation());
+        }
+        assertTrue(stopped, "Retries should stop after the bounded retry window even without layout");
+    }
+
+    @Test
+    public void retryAnimation_stopsAfterTargetBecomesVisible() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            JavaFxTestUtil.runOnFxThread(() ->
+                    fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId()));
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    !fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation()));
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void scrollToContactAboveViewport_scrollsBackUpUntilVisible() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(50);
+        try {
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0));
+            Person firstPerson = JavaFxTestUtil.callOnFxThread(() -> {
+                fixture.personListView().scrollTo(fixture.personListView().getItems().size() - 1);
+                return fixture.personListView().getItems().get(0);
+            });
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    !isPersonFullyVisible(fixture.personListView(), firstPerson)),
+                    "The first contact should leave the viewport before scrolling back to it");
+            JavaFxTestUtil.runOnFxThread(() ->
+                    fixture.mainWindow().getPersonListPanel().scrollToPerson(firstPerson.getId()));
+            assertTrue(waitForStablePersonVisibility(fixture.personListView(), firstPerson),
+                    "Automatic scrolling should bring a contact above the viewport back into view");
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void manualScroll_cancelsPendingAutomaticScroll() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0));
+            JavaFxTestUtil.runOnFxThread(() -> {
+                fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId());
+                Event.fireEvent(fixture.personListView(), new ScrollEvent(ScrollEvent.SCROLL, 0, 0, 0, 0,
+                        false, false, false, false, true, false, 0, 1, 0, 1, 1, 1, null, 0, null, 0, 1, null));
+                fixture.personListView().scrollTo(0);
+            });
+
+            assertFalse(JavaFxTestUtil.callOnFxThread(() ->
+                    fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation()));
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void navigationKey_cancelsPendingAutomaticScroll() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0));
+            JavaFxTestUtil.runOnFxThread(() -> {
+                for (KeyCode keyCode : List.of(KeyCode.UP, KeyCode.DOWN, KeyCode.PAGE_UP,
+                        KeyCode.PAGE_DOWN, KeyCode.HOME, KeyCode.END)) {
+                    fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId());
+                    Event.fireEvent(fixture.personListView(), new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode,
+                            false, false, false, false));
+                    assertFalse(fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation());
+                }
+                fixture.personListView().scrollTo(0);
+            });
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void mousePress_cancelsPendingAutomaticScroll() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            JavaFxTestUtil.runOnFxThread(() -> {
+                fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId());
+                Event.fireEvent(fixture.personListView(), new MouseEvent(MouseEvent.MOUSE_PRESSED,
+                        0, 0, 0, 0, MouseButton.PRIMARY, 1, false, false, false, false,
+                        false, false, false, false, false, false, null));
+            });
+            assertFalse(JavaFxTestUtil.callOnFxThread(() ->
+                    fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation()));
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void nonNavigationKey_doesNotCancelPendingAutomaticScroll() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            JavaFxTestUtil.runOnFxThread(() -> {
+                fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId());
+                Event.fireEvent(fixture.personListView(), new KeyEvent(KeyEvent.KEY_PRESSED, "a", "a", KeyCode.A,
+                        false, false, false, false));
+                assertTrue(fixture.mainWindow().getPersonListPanel().hasPendingScrollAnimation());
+            });
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void manualScrollAfterTargetBecomesVisible_isNotOverridden() throws Exception {
+        ManualScrollFixture fixture = createScrollFixture(20);
+        try {
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() ->
+                    fixture.personListView().getSkin() != null && fixture.personListView().getHeight() > 0));
+            JavaFxTestUtil.runOnFxThread(() ->
+                    fixture.mainWindow().getPersonListPanel().scrollToPerson(fixture.addedPerson().getId()));
+            assertTrue(waitForStablePersonVisibility(fixture.personListView(), fixture.addedPerson()),
+                    "Automatic scroll should make the target contact visible");
+
+            JavaFxTestUtil.runOnFxThread(() -> fixture.personListView().scrollTo(0));
+            AtomicInteger pulses = new AtomicInteger();
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() -> pulses.incrementAndGet() >= 3));
+            assertFalse(JavaFxTestUtil.callOnFxThread(() ->
+                    isPersonFullyVisible(fixture.personListView(), fixture.addedPerson())),
+                    "Manual scrolling should not be overridden by automatic retries");
+        } finally {
+            JavaFxTestUtil.runOnFxThread(fixture.stage()::hide);
+        }
+    }
+
+    @Test
+    public void topLevelHelpControl_opensAndReusesHelpWindowWithoutDropdown() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            Stage helpStage = null;
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json"));
+                mainWindow.show();
+
+                MenuBar menuBar = (MenuBar) mainWindow.getRoot().getScene().lookup("#menuBar");
+                Button helpButton = (Button) mainWindow.getRoot().getScene().lookup("#helpButton");
+                assertEquals(1, menuBar.getMenus().size());
+                assertEquals("File", menuBar.getMenus().get(0).getText());
+
+                helpButton.fire();
+                helpStage = findShowingHelpStage();
+                Stage firstHelpStage = helpStage;
+
+                helpButton.fire();
+                assertSame(firstHelpStage, findShowingHelpStage());
+            } finally {
+                if (helpStage != null) {
+                    helpStage.hide();
+                }
+                primaryStage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void f1WithCommandBoxFocused_opensAndReusesSameHelpWindow() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            Stage helpStage = null;
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json"));
+                mainWindow.fillInnerParts();
+                mainWindow.show();
+                TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+                commandBox.requestFocus();
+
+                fireF1(commandBox);
+                helpStage = findShowingHelpStage();
+                Stage firstHelpStage = helpStage;
+
+                fireF1(commandBox);
+                assertSame(firstHelpStage, findShowingHelpStage());
+            } finally {
+                if (helpStage != null) {
+                    helpStage.hide();
+                }
+                primaryStage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void spaceWithCommandBoxFocused_doesNotOpenHelp() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json"));
+                mainWindow.fillInnerParts();
+                mainWindow.show();
+                TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+                commandBox.requestFocus();
+
+                Event.fireEvent(commandBox, new KeyEvent(KeyEvent.KEY_PRESSED, " ", " ", KeyCode.SPACE,
+                        false, false, false, false));
+                Event.fireEvent(commandBox, new KeyEvent(KeyEvent.KEY_RELEASED, " ", " ", KeyCode.SPACE,
+                        false, false, false, false));
+
+                assertFalse(isHelpStageShowing());
+            } finally {
+                primaryStage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void nonF1KeyWithCommandBoxFocused_doesNotOpenHelpAndReachesDownstreamHandler() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json"));
+                mainWindow.fillInnerParts();
+                mainWindow.show();
+                TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+                AtomicBoolean downstreamHandlerReached = new AtomicBoolean();
+                commandBox.addEventHandler(KeyEvent.KEY_PRESSED, event -> downstreamHandlerReached.set(true));
+                commandBox.requestFocus();
+
+                Event.fireEvent(commandBox, new KeyEvent(KeyEvent.KEY_PRESSED, "a", "a", KeyCode.A,
+                        false, false, false, false));
+
+                assertTrue(downstreamHandlerReached.get());
+                assertFalse(isHelpStageShowing());
+            } finally {
+                primaryStage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void minimizedHelpWindow_helpActivationRestoresSameWindow() throws Exception {
+        Stage primaryStage = JavaFxTestUtil.callOnFxThread(Stage::new);
+        MainWindow mainWindow = JavaFxTestUtil.callOnFxThread(() ->
+                new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json")));
+        Stage helpStage = null;
+        try {
+            JavaFxTestUtil.runOnFxThread(() -> {
+                mainWindow.show();
+                Button helpButton = (Button) mainWindow.getRoot().getScene().lookup("#helpButton");
+                helpButton.fire();
+            });
+            helpStage = JavaFxTestUtil.callOnFxThread(MainWindowTest::findShowingHelpStage);
+            Stage sameHelpStage = helpStage;
+
+            JavaFxTestUtil.runOnFxThread(() -> sameHelpStage.setIconified(true));
+            Assumptions.assumeTrue(JavaFxTestUtil.waitForFxCondition(sameHelpStage::isIconified),
+                    "The window manager does not support iconification");
+
+            JavaFxTestUtil.runOnFxThread(mainWindow::handleHelp);
+            assertTrue(JavaFxTestUtil.waitForFxCondition(() -> !sameHelpStage.isIconified()),
+                    "Help window was not restored within the timeout");
+            assertSame(sameHelpStage, JavaFxTestUtil.callOnFxThread(MainWindowTest::findShowingHelpStage));
+        } finally {
+            Stage helpStageToHide = helpStage;
+            JavaFxTestUtil.runOnFxThread(() -> {
+                if (helpStageToHide != null) {
+                    helpStageToHide.hide();
+                }
+                primaryStage.hide();
+            });
+        }
+    }
+
+    @Test
+    public void fileExit_hidesMainAndHelpWindows() throws Exception {
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            Stage helpStage = null;
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, new FakeLogic(), Path.of("synthetic.json"));
+                mainWindow.show();
+                Button helpButton = (Button) mainWindow.getRoot().getScene().lookup("#helpButton");
+                helpButton.fire();
+                helpStage = findShowingHelpStage();
+
+                MenuBar menuBar = (MenuBar) mainWindow.getRoot().getScene().lookup("#menuBar");
+                menuBar.getMenus().get(0).getItems().get(0).fire();
+
+                assertFalse(primaryStage.isShowing());
+                assertFalse(helpStage.isShowing());
+            } finally {
+                if (helpStage != null) {
+                    helpStage.hide();
+                }
+                primaryStage.hide();
+            }
+        });
+    }
+
+    @Test
+    public void helpAndExit_afterMalformedContactStorageIsBackedUp_openHelpAndCloseMainWindow() throws Exception {
+        Path dataFilePath = temporaryFolder.resolve("tuitionBook.json");
+        Files.writeString(dataFilePath, "{broken");
+        byte[] originalContents = Files.readAllBytes(dataFilePath);
+        JsonTuitionBookStorage tuitionBookStorage = new JsonTuitionBookStorage(dataFilePath);
+        StorageManager storage = new StorageManager(tuitionBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        assertThrows(DataLoadingException.class, storage::readTuitionBook);
+        Logic logic = new LogicManager(new ModelManager(new TuitionBook(), new UserPrefs()), storage);
+
+        JavaFxTestUtil.runOnFxThread(() -> {
+            Stage primaryStage = new Stage();
+            Stage helpStage = null;
+            try {
+                MainWindow mainWindow = new MainWindow(primaryStage, logic, dataFilePath);
+                mainWindow.show();
+                mainWindow.fillInnerParts();
+                TextField commandBox = (TextField) mainWindow.getRoot().getScene().lookup("#commandTextField");
+                TextArea resultText = (TextArea) mainWindow.getRoot().getScene().lookup("#resultDisplay");
+                List<Window> windowsBeforeHelp = List.copyOf(Window.getWindows());
+
+                execute(commandBox, HelpCommand.COMMAND_WORD);
+                helpStage = Window.getWindows().stream()
+                        .filter(window -> !windowsBeforeHelp.contains(window))
+                        .filter(Stage.class::isInstance)
+                        .map(Stage.class::cast)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Help window did not open"));
+                assertTrue(helpStage.isShowing());
+                assertEquals(HelpCommand.SHOWING_HELP_MESSAGE, resultText.getText());
+
+                execute(commandBox, HelpCommand.COMMAND_WORD);
+                assertSame(helpStage, findShowingHelpStage());
+
+                execute(commandBox, ExitCommand.COMMAND_WORD);
+                assertEquals(ExitCommand.MESSAGE_EXIT_ACKNOWLEDGEMENT, resultText.getText());
+                assertFalse(primaryStage.isShowing());
+                assertFalse(helpStage.isShowing());
+            } finally {
+                if (helpStage != null) {
+                    helpStage.hide();
+                }
+                primaryStage.hide();
+            }
+        });
+        assertArrayEquals(originalContents, Files.readAllBytes(dataFilePath.resolveSibling(
+                dataFilePath.getFileName() + ".backup")));
+    }
+
+    private static void execute(TextField commandBox, String command) {
+        commandBox.setText(command);
+        commandBox.getOnAction().handle(new ActionEvent());
+    }
+
+    private static void fireF1(TextField commandBox) {
+        Event.fireEvent(commandBox, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.F1,
+                false, false, false, false));
+    }
+
+    private static Stage findShowingHelpStage() {
+        return Window.getWindows().stream()
+                .filter(Window::isShowing)
+                .filter(Stage.class::isInstance)
+                .map(Stage.class::cast)
+                .filter(stage -> "Help".equals(stage.getTitle()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Help window did not open"));
+    }
+
+    private static boolean isHelpStageShowing() {
+        return Window.getWindows().stream()
+                .filter(Window::isShowing)
+                .filter(Stage.class::isInstance)
+                .map(Stage.class::cast)
+                .anyMatch(stage -> "Help".equals(stage.getTitle()));
+    }
+
+    private static void assertListVisible(MainWindow mainWindow, TextArea detailText,
+                                          boolean listVisible, boolean detailVisible) {
+        assertEquals(listVisible, mainWindow.getPersonListPanel().getRoot().isVisible());
+        assertEquals(detailVisible, detailText.getParent().isVisible());
+    }
+
+    private static boolean isPersonFullyVisible(ListView<Person> personListView, Person person) {
+        Bounds listBounds = personListView.localToScene(personListView.getBoundsInLocal());
+        if (listBounds == null) {
+            return false;
+        }
+        return personListView.lookupAll(".list-cell").stream()
+                .filter(ListCell.class::isInstance)
+                .map(node -> (ListCell<?>) node)
+                .filter(cell -> person.equals(cell.getItem()))
+                .map(cell -> cell.localToScene(cell.getBoundsInLocal()))
+                .anyMatch(cellBounds -> cellBounds != null && isCellWithinViewport(listBounds, cellBounds));
+    }
+
+    private static boolean waitForStablePersonVisibility(ListView<Person> personListView, Person person) {
+        AtomicInteger consecutiveVisiblePulses = new AtomicInteger();
+        return JavaFxTestUtil.waitForFxCondition(() -> {
+            if (isPersonFullyVisible(personListView, person)) {
+                return consecutiveVisiblePulses.incrementAndGet() >= REQUIRED_STABLE_VISIBLE_PULSE_COUNT;
+            }
+            consecutiveVisiblePulses.set(0);
+            return false;
+        });
+    }
+
+    private static boolean isCellWithinViewport(Bounds viewportBounds, Bounds cellBounds) {
+        boolean fitsHorizontally = cellBounds.getMinX() >= viewportBounds.getMinX() - VIEWPORT_TOLERANCE
+                && cellBounds.getMaxX() <= viewportBounds.getMaxX() + VIEWPORT_TOLERANCE;
+        boolean fitsVertically = cellBounds.getMinY() >= viewportBounds.getMinY() - VIEWPORT_TOLERANCE
+                && cellBounds.getMaxY() <= viewportBounds.getMaxY() + VIEWPORT_TOLERANCE;
+        boolean isTallerThanViewport = cellBounds.getHeight() > viewportBounds.getHeight();
+        return fitsHorizontally && (fitsVertically
+                || (isTallerThanViewport && viewportBounds.intersects(cellBounds)));
+    }
+
+    private static boolean waitForInitialLongTagLayout(LongTagResizeFixture fixture, double expectedStageWidth) {
+        AtomicInteger stablePulses = new AtomicInteger();
+        double[] previousViewportWidth = {Double.NaN};
+        return JavaFxTestUtil.waitForFxCondition(() -> {
+            Region viewport = listViewport(fixture);
+            if (viewport == null) {
+                return false;
+            }
+            double viewportWidth = viewport.getWidth();
+            boolean reachedStageWidth = Math.abs(fixture.stage().getWidth() - expectedStageWidth)
+                    <= VIEWPORT_TOLERANCE;
+            boolean widthSettled = Math.abs(viewportWidth - previousViewportWidth[0]) <= VIEWPORT_TOLERANCE;
+            previousViewportWidth[0] = viewportWidth;
+            if (reachedStageWidth && widthSettled && longTagLayoutFits(fixture)) {
+                return stablePulses.incrementAndGet() >= REQUIRED_STABLE_VISIBLE_PULSE_COUNT;
+            }
+            stablePulses.set(0);
+            return false;
+        });
+    }
+
+    private static boolean waitForStableLongTagLayout(LongTagResizeFixture fixture, double expectedViewportWidth) {
+        AtomicInteger stablePulses = new AtomicInteger();
+        return JavaFxTestUtil.waitForFxCondition(() -> {
+            Region viewport = listViewport(fixture);
+            if (viewport == null) {
+                return false;
+            }
+            boolean reachedExpectedWidth = Math.abs(viewport.getWidth() - expectedViewportWidth)
+                    <= VIEWPORT_TOLERANCE;
+            if (reachedExpectedWidth && longTagLayoutFits(fixture)) {
+                return stablePulses.incrementAndGet() >= REQUIRED_STABLE_VISIBLE_PULSE_COUNT;
+            }
+            stablePulses.set(0);
+            return false;
+        });
+    }
+
+    private static boolean longTagLayoutFits(LongTagResizeFixture fixture) {
+        ListCell<?> cell = displayedCell(fixture);
+        Region viewport = listViewport(fixture);
+        if (cell == null || cell.getGraphic() == null || viewport == null) {
+            return false;
+        }
+        Bounds viewportBounds = viewport.localToScene(viewport.getBoundsInLocal());
+        Bounds cardBounds = cell.getGraphic().localToScene(cell.getGraphic().getBoundsInLocal());
+        return !horizontalScrollBar(fixture.personListView()).isVisible()
+                && cardBounds.getMaxX() <= viewportBounds.getMaxX() + VIEWPORT_TOLERANCE;
+    }
+
+    private static void assertLongTagLayout(LongTagResizeFixture fixture) {
+        assertTrue(longTagLayoutFits(fixture));
+        ListCell<?> cell = displayedCell(fixture);
+        assertNotNull(cell);
+        FlowPane tags = (FlowPane) cell.getGraphic().lookup("#tags");
+        Label longTag = tags.getChildren().stream()
+                .map(Label.class::cast)
+                .filter(label -> fixture.longTag().equals(label.getText()))
+                .findFirst()
+                .orElseThrow();
+        Label role = (Label) cell.getGraphic().lookup("#role");
+        Label phone = (Label) cell.getGraphic().lookup("#phone");
+        Bounds cardBounds = cell.getGraphic().localToScene(cell.getGraphic().getBoundsInLocal());
+        Bounds tagsBounds = tags.localToScene(tags.getBoundsInLocal());
+        Bounds roleBounds = role.localToScene(role.getBoundsInLocal());
+        Bounds viewportBounds = listViewport(fixture).localToScene(listViewport(fixture).getBoundsInLocal());
+        Bounds phoneBounds = phone.localToScene(phone.getBoundsInLocal());
+
+        assertTrue(longTag.getWidth() < longTag.prefWidth(-1));
+        assertEquals(fixture.longTag(), longTag.getTooltip().getText());
+        assertTrue(cardBounds.getMaxX() <= viewportBounds.getMaxX() + VIEWPORT_TOLERANCE);
+        assertTrue(tagsBounds.getMaxX() <= cardBounds.getMaxX() + VIEWPORT_TOLERANCE);
+        assertTrue(roleBounds.getMaxX() <= cardBounds.getMaxX() + VIEWPORT_TOLERANCE);
+        tags.getChildren().forEach(tag -> {
+            Bounds tagBounds = tag.localToScene(tag.getBoundsInLocal());
+            assertTrue(tagBounds.getMaxY() <= phoneBounds.getMinY() + VIEWPORT_TOLERANCE,
+                    "Tag overlaps contact details");
+        });
+    }
+
+    private static ListCell<?> displayedCell(LongTagResizeFixture fixture) {
+        return fixture.personListView().lookupAll(".list-cell").stream()
+                .filter(ListCell.class::isInstance)
+                .map(node -> (ListCell<?>) node)
+                .filter(candidate -> fixture.person().equals(candidate.getItem()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static Region listViewport(LongTagResizeFixture fixture) {
+        return (Region) fixture.personListView().lookup(".clipped-container");
+    }
+
+    private static ScrollBar horizontalScrollBar(ListView<Person> listView) {
+        return listView.lookupAll(".scroll-bar").stream()
+                .filter(ScrollBar.class::isInstance)
+                .map(ScrollBar.class::cast)
+                .filter(bar -> bar.getOrientation() == Orientation.HORIZONTAL)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ListView<Person> getPersonListView(MainWindow mainWindow) {
+        return (ListView<Person>) mainWindow.getRoot().getScene().lookup("#personListView");
+    }
+
+    private static ManualScrollFixture createScrollFixture(int contactCount) throws Exception {
+        return JavaFxTestUtil.callOnFxThread(() -> {
+            Person firstPerson = new PersonBuilder().withName("First Student").build();
+            Person addedPerson = new PersonBuilder().withName("Added Student").build();
+            FakeLogic logic = new FakeLogic(firstPerson);
+            IntStream.range(1, contactCount - 1)
+                    .mapToObj(index -> new PersonBuilder().withName("Existing Student " + index).build())
+                    .forEach(logic.people::add);
+            logic.people.add(addedPerson);
+            Stage stage = new Stage();
+            MainWindow mainWindow = new MainWindow(stage, logic, Path.of("synthetic.json"));
+            mainWindow.fillInnerParts();
+            stage.setWidth(SCROLL_TEST_WINDOW_WIDTH);
+            stage.setHeight(SCROLL_TEST_WINDOW_HEIGHT);
+            mainWindow.show();
+            return new ManualScrollFixture(stage, mainWindow, getPersonListView(mainWindow), addedPerson);
+        });
+    }
+
+    private record ScrollFixture(Stage stage, ListView<Person> personListView, TextField commandBox,
+                                 Person addedPerson) {
+    }
+
+    private record ManualScrollFixture(Stage stage, MainWindow mainWindow, ListView<Person> personListView,
+                                       Person addedPerson) {
+    }
+
+    private record LongTagResizeFixture(Stage stage, ListView<Person> personListView, Person person,
+                                        String longTag) {
+    }
+
+    private static final class FakeLogic implements Logic {
+        private final ObservableList<Person> people = FXCollections.observableArrayList();
+        private final Person personToAdd;
+        private GuiSettings guiSettings = new GuiSettings();
+
+        private FakeLogic() {
+            this(new PersonBuilder().withName("Added Student").withPhone("98888888").build());
+        }
+
+        private FakeLogic(Person personToAdd) {
+            this.personToAdd = personToAdd;
+        }
+
+        @Override
+        public PersonListViewState getPersonListViewState() {
+            return new PersonListViewState(
+                    people.stream().map(Person::getId).toList(), person -> true, "list");
+        }
+
+        @Override
+        public CommandResult execute(String commandText) throws CommandException, ParseException {
+            return switch (commandText) {
+                case "add" -> {
+                    people.add(personToAdd);
+                    yield new CommandResult("New person added", personToAdd.getId());
+                }
+                case "view 1" -> new CommandResult("Viewing contact: Alex Lim", "Name: Alex Lim");
+                case "list" -> new CommandResult("Listed all contacts");
+                case "save-failure" -> throw new CommandException("Save failed");
+                default -> throw new ParseException("Invalid command");
+            };
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return people;
+        }
+
+        /**
+         * Returns the complete person list for Logic versions that expose it.
+         *
+         * <p>This method intentionally omits {@code @Override} so the fake also compiles
+         * against Logic versions from before {@code getPersonList()} was added.</p>
+         */
+        public ObservableList<Person> getPersonList() {
+            return people;
+        }
+
+        @Override
+        public GuiSettings getGuiSettings() {
+            return guiSettings;
+        }
+
+        @Override
+        public void setGuiSettings(GuiSettings guiSettings) {
+            this.guiSettings = guiSettings;
+        }
+    }
+}

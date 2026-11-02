@@ -1,59 +1,62 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You cannot reach us at the email `seer[at]comp.nus.edu.sg`
+
+!
 
 ## Project team
 
-### John Doe
+### Max Tan Kia Lok
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kia-lok.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Kia-Lok)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities: To be confirmed
 
-### Jane Doe
+### Ooi Xuan Shan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ooixs.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ooixs)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Team Coordination/Overseeing Project Direction
 
-### Johnny Doe
+### SG Tan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/strixgoldhorn.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/strixgoldhorn)]
+[[portfolio](team/sg.md)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: SWE
+* Responsibilities: TBC
 
-### Jean Doe
+### Tan Yu Bin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/origami10004.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/origami10004)]
+[[portfolio](team/origami10004.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: TBC
+
+### Zee Ming Zan
+
+<img src="images/mingzanzee.png" width="200px">
+
+[[github](http://github.com/mingzanzee)]
+[[portfolio](team/mingzan.md)]
+
+* Role: Developer
+* Responsibilities: Code Quality and Testing. In charge of ???
