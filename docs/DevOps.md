@@ -1,10 +1,70 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
+
+## Contributing with a fork
+
+For the course's v1.1–v1.3 iterations, create each PR from a separate branch of your **personal fork** into
+the team repository. A branch created directly in the team repository does not meet the forking requirement,
+even when its PR is merged and assigned to a milestone.
+See the [course GitHub workflow](https://nus-cs2103-ay2627-s1.github.io/website/admin/appendixE-gitHub.html#d-using-prs-to-track-task-progress).
+
+After cloning your fork, run `git remote -v`. `origin` must point to `YOUR_GITHUB_USERNAME/tp`;
+`upstream` must point to `AY2627S1-CS2103T-F08-3/tp`. If `upstream` is missing, add it:
+
+```sh
+git remote add upstream https://github.com/AY2627S1-CS2103T-F08-3/tp.git
+```
+
+Set this checkout's default push destination to your fork:
+
+```sh
+git config --local remote.pushDefault origin
+git config --local push.default simple
+```
+
+Update local `master`, then create a separate branch for the task. Replace `feature/short-description`
+with your branch name, and keep any unfinished work on its existing branch before switching:
+
+```sh
+git switch master
+git fetch upstream master
+git merge --ff-only upstream/master
+git push origin master
+git switch -c feature/short-description
+```
+
+Commit the changes, run the relevant checks, and push the branch to **origin**:
+
+```sh
+git push -u origin feature/short-description
+```
+
+Open the PR in the team repository with your fork as its source. With GitHub CLI, replace
+`YOUR_GITHUB_USERNAME`, the branch name and `MILESTONE` with the intended values:
+
+```sh
+gh pr create --repo AY2627S1-CS2103T-F08-3/tp --base master \
+  --head YOUR_GITHUB_USERNAME:feature/short-description --milestone MILESTONE
+```
+
+Before merging, verify the source repository is your personal fork, the source branch is not `master`,
+and the PR has the correct milestone. Wait for CI and review, then merge using a merge commit to preserve
+the original commit timestamps. Keep the remote feature branch for course verification.
+
+The submission dashboard requires a merged PR as well as the milestone and fork conditions.
+After merging, sync `master` with the fetch/fast-forward/push steps above and wait for the next
+[dashboard update](https://nus-cs2103-ay2627-s1.github.io/dashboards/contents/tp-progress.html).
+Pushing an already-merged source branch to a fork later does not change the original PR's source repository.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,11 +75,16 @@ This project uses Gradle for **build automation and dependency management**. **W
 
 The following commands perform common Gradle tasks.
 
+* **`build`** (also the default task): Compiles, tests, checks style, and builds distributions including
+  `build/libs/tutorconnect.jar`. It checks the executable manifest and required UI resources using
+  `verifyShadowJar`. Builds are incremental; `clean` is optional, not an automatic prerequisite.
+  The Java toolchain targets an installed JDK 25 and Java source encoding is UTF-8 on every platform.
+  See [terminal setup](SettingUp.md#building-and-running-from-a-terminal) for launch instructions.
 
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/tutorconnect.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -29,7 +94,7 @@ The following commands perform common Gradle tasks.
   **`checkstyleTest`**: Runs the code style check for the test code base.
 
 * **`test`**
-  * `./gradlew test`: Runs all tests.
+  * `./gradlew test`: Runs tests; desktop groups require the F01/F06/F08 environment flags in [Testing](Testing.md).
   * `./gradlew clean test`: Cleans the project before running all tests
 
 --------------------------------------------------------------------------------------------------------------------
@@ -37,6 +102,10 @@ The following commands perform common Gradle tasks.
 ## Continuous integration (CI)
 
 This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`. No further setup is required.
+
+CI runs `build coverage` on Linux, macOS and Windows. Linux enables all three desktop groups under Xvfb;
+the other jobs do not opt into desktop tests. Each successful build uploads `tutorconnect.jar` as a
+platform-named workflow artifact. These are review/test artifacts, not automatically published releases.
 
 ### Code coverage
 
@@ -73,7 +142,7 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`TutorConnectApp.java`](https://github.com/AY2627S1-CS2103T-F08-3/tp/tree/master/src/main/java/tutorconnect/TutorConnectApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

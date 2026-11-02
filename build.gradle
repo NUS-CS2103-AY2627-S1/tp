@@ -6,18 +6,29 @@ plugins {
     id 'jacoco'
 }
 
+version = '1.5.0-ea'
+
 application {
-    mainClass = 'seedu.address.Main'
+    mainClass = 'tutorconnect.TutorConnectLauncher'
+}
+
+run {
+    // Course requirement: run the app from source with Java assertions (-ea) enabled.
+    enableAssertions = true
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
 }
 
 repositories {
     mavenCentral()
-    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/' }
 }
 
 checkstyle {
@@ -26,6 +37,11 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    // Course requirement: run tests with Java assertions (-ea) enabled.
+    enableAssertions = true
+    inputs.property('f01UiTests', System.getenv('F01_UI_TESTS') ?: 'false')
+    inputs.property('f06UiTests', System.getenv('F06_UI_TESTS') ?: 'false')
+    inputs.property('f08UiTests', System.getenv('F08_UI_TESTS') ?: 'false')
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +88,46 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'tutorconnect.jar'
+    manifest {
+        attributes 'Implementation-Title': 'TutorConnect',
+                'Implementation-Version': project.version
+    }
 }
 
-defaultTasks 'clean', 'test'
+// Keep the thin JAR distinct from the executable fat JAR when the project name matches.
+tasks.named('jar') {
+    archiveClassifier = 'plain'
+}
+
+tasks.register('verifyShadowJar') {
+    group = 'verification'
+    description = 'Checks the executable JAR manifest and essential application resources.'
+    dependsOn tasks.named('shadowJar')
+    inputs.file(tasks.named('shadowJar').flatMap { it.archiveFile })
+    inputs.property('mainClass', application.mainClass)
+    inputs.property('releaseVersion', project.version.toString())
+    doLast {
+        new java.util.jar.JarFile(inputs.files.singleFile).withCloseable { jar ->
+            String launcher = inputs.properties.mainClass
+            if (jar.manifest?.mainAttributes?.getValue('Main-Class') != launcher) {
+                throw new GradleException('The executable JAR has an incorrect Main-Class manifest entry.')
+            }
+            if (jar.manifest.mainAttributes.getValue('Implementation-Version') != inputs.properties.releaseVersion) {
+                throw new GradleException('The executable JAR has incorrect release version metadata.')
+            }
+            [launcher.replace('.', '/') + '.class', 'view/MainWindow.fxml',
+             'view/StudentListPanel.fxml', 'view/TutorConnectTheme.css'].each { entry ->
+                if (jar.getJarEntry(entry) == null) {
+                    throw new GradleException("The executable JAR is missing ${entry}.")
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyShadowJar')
+}
+
+defaultTasks 'build'
