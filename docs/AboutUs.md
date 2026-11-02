@@ -1,59 +1,54 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Marcus
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jamestorivor.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jamestorivor)]
 
-* Role: Project Advisor
+### Clarence Lau
 
-### Jane Doe
+<img src="images/unknownflow.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/Unknownflow)]
 
 * Role: Team Lead
 * Responsibilities: UI
 
-### Johnny Doe
+### Eddrick Livando
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/eddrick-23.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/eddrick-23)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Hong Yu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/hongyuuuu.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/hongyuuuu)]
+
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Nguyen Phuc Truong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/bany-nguyen.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/bany-nguyen)]
 
 * Role: Developer
-* Responsibilities: UI

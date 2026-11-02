@@ -1,67 +1,165 @@
 package seedu.address.logic;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ImportCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.StatusFilter;
 import seedu.address.model.person.Person;
+import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.Storage;
 
 /**
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    public static final String MESSAGE_SAVE_REVERTED = "\nThe command was not saved. Member records and the previous "
+            + "search filter have been restored. Resolve the saving problem and retry the command.";
+
+    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s"
+            + MESSAGE_SAVE_REVERTED;
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
-            "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
+            "Could not save data to file %s due to insufficient permissions to write to the file or the folder."
+            + MESSAGE_SAVE_REVERTED;
 
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+    private final URL applicationLocation;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
      */
     public LogicManager(Model model, Storage storage) {
+        this(model, storage, LogicManager.class.getProtectionDomain().getCodeSource().getLocation());
+    }
+
+    /**
+     * Constructs a manager using the given application code location to determine the import boundary.
+     */
+    LogicManager(Model model, Storage storage, URL applicationLocation) {
         this.model = model;
         this.storage = storage;
+        this.applicationLocation = applicationLocation;
         addressBookParser = new AddressBookParser();
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
+        return execute(commandText, () -> false);
+    }
 
+    @Override
+    public CommandResult execute(String commandText, BooleanSupplier clearConfirmation)
+            throws CommandException, ParseException {
+        requireNonNull(clearConfirmation);
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
+        logger.info("Executing " + command.getClass().getSimpleName());
+        if (!storage.isAddressBookSaveAllowed()) {
+            if (!command.isReadOnly()) {
+                throw new CommandException(JsonAddressBookStorage.MESSAGE_SAVE_DISABLED);
+            }
+            return command.execute(model);
+        }
+        if (command instanceof ClearCommand && !clearConfirmation.getAsBoolean()) {
+            return new CommandResult(ClearCommand.MESSAGE_CANCELLED);
+        }
+        if (!command.requiresSave()) {
+            return command.execute(model);
+        }
+        if (command instanceof ImportCommand importCommand) {
+            verifyImportSource(importCommand.getFilePath());
+        }
+        AddressBook previousAddressBook = new AddressBook(model.getAddressBook());
+        Predicate<? super Person> previousFilter = model.getFilteredPersonListPredicate();
         commandResult = command.execute(model);
 
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            restoreAfterSaveFailure(previousAddressBook, previousFilter, e);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
-        } catch (IOException ioe) {
+        } catch (IOException | SecurityException ioe) {
+            restoreAfterSaveFailure(previousAddressBook, previousFilter, ioe);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
         return commandResult;
     }
 
+    private void restoreAfterSaveFailure(AddressBook previousAddressBook, Predicate<? super Person> previousFilter,
+            Exception failure) {
+        model.setAddressBook(previousAddressBook);
+        model.updateFilteredPersonList(previousFilter);
+        logger.warning("Saving failed (" + failure.getClass().getSimpleName()
+                + "); restored member records and the previous search filter.");
+    }
+
+    private void verifyImportSource(Path sourceFile) throws CommandException {
+        Path dataFile = storage.getAddressBookFilePath();
+        try {
+            Path applicationHome = getApplicationHome();
+            Path realSource = sourceFile.toRealPath();
+            if (!realSource.startsWith(applicationHome)) {
+                throw new CommandException(ImportCommand.MESSAGE_SOURCE_OUTSIDE_HOME);
+            }
+            boolean isSamePath = sourceFile.toAbsolutePath().normalize().equals(dataFile.toAbsolutePath().normalize());
+            boolean isSameFile = Files.exists(dataFile) && Files.isSameFile(realSource, dataFile);
+            if (isSamePath || isSameFile) {
+                throw new CommandException(ImportCommand.MESSAGE_SOURCE_IS_DATA_FILE);
+            }
+        } catch (IOException e) {
+            throw new CommandException(String.format(ImportCommand.MESSAGE_FAILURE, sourceFile, e.getMessage()), e);
+        }
+    }
+
+    private Path getApplicationHome() throws IOException {
+        try {
+            Path location = Path.of(applicationLocation.toURI()).toRealPath();
+            // IDE and Gradle runs use class directories rather than a packaged JAR.
+            return Files.isDirectory(location) ? Path.of("").toRealPath() : location.getParent();
+        } catch (URISyntaxException e) {
+            throw new IOException("Could not determine the application home folder.", e);
+        }
+    }
+
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public void setStatusFilter(StatusFilter statusFilter) {
+        model.setStatusFilter(statusFilter);
+    }
+
+    @Override
+    public StatusFilter getStatusFilter() {
+        return model.getStatusFilter();
     }
 
     @Override

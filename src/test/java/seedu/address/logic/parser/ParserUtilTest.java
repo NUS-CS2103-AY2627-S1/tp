@@ -8,6 +8,7 @@ import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
-    private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_NAME = "Rachel!";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
@@ -28,11 +29,36 @@ public class ParserUtilTest {
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
-    private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_EMAIL = "rachel@u.nus.edu";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
     private static final String WHITESPACE = " \t\r\n";
+
+    @Test
+    public void parseFields_maximumLengthWithWhitespace_returnsTrimmedValues() throws Exception {
+        assertEquals(new Name("A".repeat(127)), ParserUtil.parseName(" \t" + "A".repeat(127) + " \t"));
+        assertEquals(new Phone("9".repeat(15)), ParserUtil.parsePhone(" \t" + "9".repeat(15) + " \t"));
+        assertEquals(new Address("A".repeat(200)), ParserUtil.parseAddress(" \t" + "A".repeat(200) + " \t"));
+        assertEquals(new Tag("a".repeat(30)), ParserUtil.parseTag(" \t" + "A".repeat(30) + " \t"));
+    }
+
+    @Test
+    public void parseFields_overlongValues_reportsLengthConstraints() {
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseName("A".repeat(128)));
+        assertThrows(ParseException.class,
+                "Phone numbers should only contain digits, and should be between 3 and 15 digits long", ()
+                -> ParserUtil.parsePhone("9".repeat(16)));
+        assertThrows(ParseException.class,
+                "Addresses must contain at least one non-whitespace character and be at most 200 characters long.", ()
+                -> ParserUtil.parseAddress("A".repeat(201)));
+        assertThrows(ParseException.class,
+                "Tag names should be alphanumeric and between 1 and 30 characters long", ()
+                -> ParserUtil.parseTag("A".repeat(31)));
+        assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseTags(List.of("valid", "A".repeat(31))));
+    }
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
@@ -75,6 +101,14 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_supportedPunctuationWithWhitespace_preservesSpelling() throws Exception {
+        for (String value : List.of("Anne-Marie Tan", "O'Connor Tan", "J. P. Tan", "Ravi S/O Kumar",
+                "Devi D/O Kumar", "Tan, Alex", "Tan (Alex)", "Tan @ Alex")) {
+            assertEquals(value, ParserUtil.parseName(WHITESPACE + value + WHITESPACE).fullName);
+        }
     }
 
     @Test
@@ -129,6 +163,16 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseEmail_localPartLimit_countsAfterTrimming() throws Exception {
+        String boundaryEmail = "A".repeat(64) + "@U.NUS.EDU";
+        assertEquals(new Email(boundaryEmail), ParserUtil.parseEmail(WHITESPACE + boundaryEmail + WHITESPACE));
+        String overlongEmail = "a".repeat(65) + "@u.nus.edu";
+        String expected = "Email local-part must contain at most 64 characters; received 65.";
+        assertThrows(ParseException.class, expected, () ->
+                ParserUtil.parseEmail(WHITESPACE + overlongEmail + WHITESPACE));
+    }
+
+    @Test
     public void parseEmail_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
     }
@@ -167,6 +211,21 @@ public class ParserUtilTest {
         String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
         Tag expectedTag = new Tag(VALID_TAG_1);
         assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    }
+
+    @Test
+    public void parseTag_mixedCaseWithWhitespace_returnsLowercaseTag() throws Exception {
+        Tag tag = ParserUtil.parseTag(WHITESPACE + "PuBliCiTy" + WHITESPACE);
+        assertEquals("publicity", tag.tagName);
+    }
+
+    @Test
+    public void parseTags_caseVariants_returnsDeduplicatedLowercaseTags() throws Exception {
+        Set<Tag> tags = ParserUtil.parseTags(List.of("Publicity", "publicity", "PUBLICITY", "Exco"));
+
+        assertEquals(Set.of(new Tag("publicity"), new Tag("exco")), tags);
+        assertEquals(Set.of("publicity", "exco"), tags.stream()
+                .map(tag -> tag.tagName).collect(Collectors.toSet()));
     }
 
     @Test

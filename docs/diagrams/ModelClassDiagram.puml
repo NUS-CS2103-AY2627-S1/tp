@@ -10,9 +10,20 @@ Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
 Class "<<interface>>\nModel" as Model
 Class AddressBook
 Class ModelManager
+enum StatusFilter {
+ALL
+ACTIVE
+ARCHIVED
+}
+enum Status {
+ACTIVE
+ARCHIVED
+}
 Class UserPrefs
 
 Class UniquePersonList
+Class "FilteredList<Person>" as FilteredList
+Class "<<interface>>\nPredicate<? super Person>" as SearchPredicate
 Class Person
 Class Address
 Class Email
@@ -33,15 +44,34 @@ Model .right.> ReadOnlyUserPrefs
 Model .left.> ReadOnlyAddressBook
 ModelManager -left-> "1" AddressBook
 ModelManager -right-> "1" UserPrefs
+ModelManager --> "1" StatusFilter : selected view
+ModelManager --> "1" SearchPredicate : searchPredicate
+ModelManager *--> "1" FilteredList : filteredPersons
 UserPrefs .up.|> ReadOnlyUserPrefs
 
 AddressBook *--> "1" UniquePersonList
 UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+Person *--> "0..1" Name
+Person *--> "0..1" Phone
+Person *--> "1" Email
+Person *--> "0..1" Address
+Person --> "0..*" Tag : tags {unique}
+Person --> "1" Status : status
+FilteredList --> "~* visible" Person
+
+note right of FilteredList
+  Visible members match both
+  searchPredicate and StatusFilter.
+end note
+
+note bottom of Tag
+  Names normalized to lowercase
+  using Locale.ROOT.
+  Equality and hash codes use
+  the normalized name.
+  Within each member's Set<Tag>,
+  case variants collapse to one tag.
+end note
 
 Person -[hidden]up--> I
 UniquePersonList -[hidden]right-> I
@@ -50,5 +80,4 @@ Name -[hidden]right-> Phone
 Phone -[hidden]right-> Address
 Address -[hidden]right-> Email
 
-ModelManager --> "~* filtered" Person
 @enduml

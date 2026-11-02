@@ -9,6 +9,19 @@ import seedu.address.model.Model;
 public abstract class Command {
 
     /**
+     * Returns whether this command can run without changing stored records.
+     * Commands default to requiring write access, so new commands cannot bypass recovery protection.
+     */
+    public boolean isReadOnly() {
+        return false;
+    }
+
+    /** Returns whether executing this command requires saving the address book. */
+    public boolean requiresSave() {
+        return true;
+    }
+
+    /**
      * Executes the command and returns the result message.
      *
      * @param model {@code Model} which the command should operate on.

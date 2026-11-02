@@ -1,18 +1,25 @@
 package seedu.address.logic;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,14 +27,23 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.TagAddCommand;
+import seedu.address.logic.commands.TagRemoveCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.StatusFilter;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Address;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Status;
+import seedu.address.model.tag.Tag;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
@@ -46,7 +62,7 @@ public class LogicManagerTest {
     @BeforeEach
     public void setUp() {
         JsonAddressBookStorage addressBookStorage =
-                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+                new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"));
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
         StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
@@ -68,6 +84,358 @@ public class LogicManagerTest {
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
         assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+    }
+
+    @Test
+    public void execute_unicodeBlankAddresses_preservesRecordsSearchStatusAndFiles() throws Exception {
+        Person target = new PersonBuilder().withEmail("target@u.nus.edu").withAddress("Kent Ridge").build();
+        Person hidden = new PersonBuilder().withEmail("hidden@u.nus.edu").build();
+        model.addPerson(target);
+        model.addPerson(hidden);
+        Predicate<Person> search = person -> person.getEmail().equals(target.getEmail());
+        model.updateFilteredPersonList(search);
+        model.setStatusFilter(StatusFilter.ACTIVE);
+        Path dataFile = temporaryFolder.resolve("nusocietydesk.json");
+
+        for (boolean hasSavedData : List.of(false, true)) {
+            if (hasSavedData) {
+                new JsonAddressBookStorage(dataFile).saveAddressBook(model.getAddressBook());
+            }
+            byte[] savedBefore = hasSavedData ? Files.readAllBytes(dataFile) : new byte[0];
+            for (String blank : List.of("\u3000", "\u2003", "\u00a0", " \t\u3000\u2003\u202f ")) {
+                for (String command : List.of("add e/new@u.nus.edu a/" + blank,
+                        "edit 1 a/" + blank, "edit 1 n/Changed Member a/" + blank)) {
+                    assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> logic.execute(command));
+                    assertEquals(List.of(target, hidden), model.getAddressBook().getPersonList());
+                    assertEquals(List.of(target), model.getFilteredPersonList());
+                    assertSame(search, model.getFilteredPersonListPredicate());
+                    assertEquals(StatusFilter.ACTIVE, model.getStatusFilter());
+                    if (hasSavedData) {
+                        assertArrayEquals(savedBefore, Files.readAllBytes(dataFile));
+                    } else {
+                        assertFalse(Files.exists(dataFile));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void execute_addressLineSeparators_preservesCommandFormatError() {
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE);
+        for (String separator : List.of("\u0085", "\u2028", "\u2029")) {
+            for (String command : List.of("add e/new@u.nus.edu a/" + separator, "edit 1 a/" + separator)) {
+                assertThrows(ParseException.class, expectedMessage, () -> logic.execute(command));
+            }
+        }
+        assertFalse(Files.exists(temporaryFolder.resolve("nusocietydesk.json")));
+    }
+
+    @Test
+    public void execute_nonblankUnicodeAddress_preservesValueThroughReload() throws Exception {
+        String address = "\u3000東京都\u3000新宿区\u2003";
+        assertEquals("New person added: Email: unicode@u.nus.edu; Address: " + address,
+                logic.execute("add e/unicode@u.nus.edu a/" + address).getFeedbackToUser());
+        assertEquals("Edited person: Email: unicode@u.nus.edu; Address: " + address,
+                logic.execute("edit 1 a/" + address).getFeedbackToUser());
+
+        ReadOnlyAddressBook reloaded = new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(address, reloaded.getPersonList().getFirst().getAddress().orElseThrow().value);
+    }
+
+    @Test
+    public void execute_help_preservesRecordsSearchAndStatusWithoutSaving() throws Exception {
+        Person active = new PersonBuilder().withEmail("active@u.nus.edu").build();
+        Person archived = new PersonBuilder().withoutName().withoutPhone().withoutAddress()
+                .withEmail("archived@u.nus.edu").withStatus(Status.ARCHIVED).build();
+        model.addPerson(active);
+        model.addPerson(archived);
+        Predicate<Person> search = person -> person.getEmail().value.equals("archived@u.nus.edu");
+        model.updateFilteredPersonList(search);
+
+        for (StatusFilter status : StatusFilter.values()) {
+            model.setStatusFilter(status);
+            List<Person> displayedMembers = List.copyOf(model.getFilteredPersonList());
+
+            assertEquals(new CommandResult(HelpCommand.SHOWING_HELP_MESSAGE, true, false), logic.execute("help"));
+
+            assertEquals(List.of(active, archived), model.getAddressBook().getPersonList());
+            assertEquals(displayedMembers, model.getFilteredPersonList());
+            assertSame(search, model.getFilteredPersonListPredicate());
+            assertEquals(status, model.getStatusFilter());
+            assertFalse(Files.exists(temporaryFolder.resolve("nusocietydesk.json")));
+        }
+    }
+
+    @Test
+    public void execute_help_skipsFailingSaveAndPreservesExistingFile() throws Exception {
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        Files.writeString(savedFile, "{\"persons\":[]}");
+        byte[] originalData = Files.readAllBytes(savedFile);
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(savedFile) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("Help must not attempt to save.");
+            }
+        };
+        logic = new LogicManager(model, new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"))));
+
+        assertEquals(new CommandResult(HelpCommand.SHOWING_HELP_MESSAGE, true, false), logic.execute("help"));
+
+        assertArrayEquals(originalData, Files.readAllBytes(savedFile));
+        assertEquals(List.of(), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_help_remainsAvailableWhenSavingIsDisabled() throws Exception {
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        Files.writeString(savedFile, "invalid JSON");
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(savedFile);
+        addressBookStorage.loadAddressBook();
+        Logic readOnlyLogic = new LogicManager(model, new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"))));
+
+        assertEquals(new CommandResult(HelpCommand.SHOWING_HELP_MESSAGE, true, false), readOnlyLogic.execute("help"));
+
+        assertEquals("invalid JSON", Files.readString(savedFile));
+        assertEquals(List.of(), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_view_changesSessionOnlyWithoutSaving() throws Exception {
+        Person person = new PersonBuilder().withEmail("member@u.nus.edu").build();
+        model.addPerson(person);
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+
+        String expectedArchivedMessage = "Showing archived view.\n"
+                + "Any existing search still applies. Use list to clear the search in this view.";
+        assertEquals(new CommandResult(expectedArchivedMessage), logic.execute("view archived"));
+        assertEquals(StatusFilter.ARCHIVED, logic.getStatusFilter());
+        assertEquals(List.of(), logic.getFilteredPersonList());
+        assertEquals(List.of(person), model.getAddressBook().getPersonList());
+        assertFalse(Files.exists(savedFile));
+
+        String expectedAllMessage = "Showing all view.\n"
+                + "Any existing search still applies. Use list to clear the search in this view.";
+        assertEquals(new CommandResult(expectedAllMessage), logic.execute("view all"));
+        assertEquals(StatusFilter.ALL, logic.getStatusFilter());
+        assertEquals(List.of(person), logic.getFilteredPersonList());
+        assertFalse(Files.exists(savedFile));
+    }
+
+    @Test
+    public void execute_view_remainsAvailableWhenSavingIsDisabled() throws Exception {
+        Person person = new PersonBuilder().withEmail("member@u.nus.edu").build();
+        model.addPerson(person);
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        Files.writeString(savedFile, "invalid JSON");
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(savedFile);
+        addressBookStorage.loadAddressBook();
+        Logic readOnlyLogic = new LogicManager(model, new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("recoveryUserPrefs.json"))));
+
+        String expectedMessage = "Showing archived view.\n"
+                + "Any existing search still applies. Use list to clear the search in this view.";
+        assertEquals(new CommandResult(expectedMessage), readOnlyLogic.execute("view archived"));
+        assertEquals(StatusFilter.ARCHIVED, readOnlyLogic.getStatusFilter());
+        assertEquals(List.of(), readOnlyLogic.getFilteredPersonList());
+        assertEquals("invalid JSON", Files.readString(savedFile));
+    }
+
+    @Test
+    public void execute_archiveAndActivate_persistsStatus() throws Exception {
+        Person person = new PersonBuilder().withEmail("member@u.nus.edu").build();
+        model.addPerson(person);
+        JsonAddressBookStorage savedData = new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"));
+
+        logic.execute("archive 1");
+        assertEquals(Status.ARCHIVED, model.getFilteredPersonList().get(0).getStatus());
+        assertEquals(Status.ARCHIVED, savedData.readAddressBook().orElseThrow().getPersonList().get(0).getStatus());
+
+        logic.execute("activate 1");
+        assertEquals(Status.ACTIVE, model.getFilteredPersonList().get(0).getStatus());
+        assertEquals(Status.ACTIVE, savedData.readAddressBook().orElseThrow().getPersonList().get(0).getStatus());
+    }
+
+    @Test
+    public void execute_emailSearch_displaysMatchesWithoutChangingRecords() throws Exception {
+        Person matchingPerson = new PersonBuilder().withName("Morgan Lee").withEmail("alice@u.nus.edu").build();
+        Person otherPerson = new PersonBuilder().withName("Alice Tan").withEmail("bob@u.nus.edu").build();
+        model.addPerson(matchingPerson);
+        model.addPerson(otherPerson);
+
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        CommandResult result = logic.execute("find e/ALICE");
+
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(List.of(matchingPerson), logic.getFilteredPersonList());
+        assertEquals(List.of(matchingPerson, otherPerson), model.getAddressBook().getPersonList());
+        assertFalse(Files.exists(savedFile));
+    }
+
+    @Test
+    public void execute_nameSearch_displaysMatchesWithoutChangingRecords() throws Exception {
+        Person alice = new PersonBuilder().withName("Alice Tan").withEmail("alice@u.nus.edu").build();
+        Person bob = new PersonBuilder().withName("Bob Lee").withEmail("bob@u.nus.edu").build();
+        model.addPerson(alice);
+        model.addPerson(bob);
+
+        CommandResult result = logic.execute("find n/aLiCe");
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(List.of(alice), logic.getFilteredPersonList());
+
+        result = logic.execute("find ALICE Bob");
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 2), result.getFeedbackToUser());
+        assertEquals(List.of(alice, bob), logic.getFilteredPersonList());
+        assertEquals(List.of(alice, bob), model.getAddressBook().getPersonList());
+        assertFalse(Files.exists(temporaryFolder.resolve("nusocietydesk.json")));
+    }
+
+    @Test
+    public void execute_multiplePrefixedNameKeywords_preservesRecordsFilterAndSavedData() throws Exception {
+        Person alice = new PersonBuilder().withName("Alice Tan").withEmail("alice@u.nus.edu").build();
+        Person bob = new PersonBuilder().withName("Bob Lee").withEmail("bob@u.nus.edu").build();
+        model.addPerson(alice);
+        model.addPerson(bob);
+        new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"))
+                .saveAddressBook(model.getAddressBook());
+        logic.execute("find n/Alice");
+        assertEquals(List.of(alice), logic.getFilteredPersonList());
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        String savedData = Files.readString(savedFile);
+
+        for (String command : List.of("find n/Alice Bob", "find n/Alice  Bob", "find n/Alice\tBob",
+                "find n/Alice\nBob", "find n/Alice\r\nBob", "find n/Alice Alice", "find n/ Alice \tBob \n")) {
+            assertThrows(ParseException.class, FindCommand.MESSAGE_MULTIPLE_NAME_KEYWORDS, () ->
+                    logic.execute(command));
+            assertEquals(List.of(alice), logic.getFilteredPersonList());
+            assertEquals(List.of(alice, bob), model.getAddressBook().getPersonList());
+            assertEquals(savedData, Files.readString(savedFile));
+        }
+    }
+
+    @Test
+    public void execute_invalidTagSearch_preservesRecordsFilterAndSavedData() throws Exception {
+        Person matchingPerson = new PersonBuilder().withEmail("alice@u.nus.edu").withTags("Publicity").build();
+        Person otherPerson = new PersonBuilder().withEmail("bob@u.nus.edu").withTags("exco").build();
+        model.addPerson(matchingPerson);
+        model.addPerson(otherPerson);
+        new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"))
+                .saveAddressBook(model.getAddressBook());
+        CommandResult result = logic.execute("find t/PUBLICITY");
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(List.of(matchingPerson), logic.getFilteredPersonList());
+        Path savedFile = temporaryFolder.resolve("nusocietydesk.json");
+        String savedData = Files.readString(savedFile);
+
+        for (String command : List.of("find t/", "find t/publicity exco", "find t/publicity t/exco",
+                "find t/publicity n/Amy", "find p/9123 t/publicity", "find t/publicity e/alice",
+                "find t/publicity!", "find Amy t/publicity", "find N/", "find P/9123", "find E/alice",
+                "find T/publicity", "find T/ E/", "find n/Amy T/publicity", "find G/ n/Amy", "find F/value n/Amy",
+                "find H/ n/Amy", "find g/value n/Amy", "find name/Amy n/Amy", "find n/Amy G/value",
+                "find t/publicity h/value")) {
+            assertThrows(ParseException.class, () -> logic.execute(command));
+            assertEquals(List.of(matchingPerson), logic.getFilteredPersonList());
+            assertEquals(List.of(matchingPerson, otherPerson), model.getAddressBook().getPersonList());
+            assertEquals(savedData, Files.readString(savedFile));
+        }
+    }
+
+    @Test
+    public void execute_invalidPhoneSearch_preservesRecordsAndFilter() throws Exception {
+        Person matchingPerson = new PersonBuilder().withPhone("91234567").withEmail("alice@u.nus.edu").build();
+        Person otherPerson = new PersonBuilder().withPhone("87654321").withEmail("bob@u.nus.edu").build();
+        model.addPerson(matchingPerson);
+        model.addPerson(otherPerson);
+        logic.execute("find p/9123");
+        assertEquals(List.of(matchingPerson), logic.getFilteredPersonList());
+
+        for (String substring : List.of("abc", "91a3", "+659123", "9123-4567", "９１２３", "٩١٢٣")) {
+            assertThrows(ParseException.class, FindCommand.MESSAGE_INVALID_PHONE_SUBSTRING, () ->
+                    logic.execute("find p/" + substring));
+            assertEquals(List.of(matchingPerson), logic.getFilteredPersonList());
+            assertEquals(List.of(matchingPerson, otherPerson), model.getAddressBook().getPersonList());
+        }
+    }
+
+    @Test
+    public void execute_invalidEmailSearch_preservesRecordsAndFilter() throws Exception {
+        model.addPerson(new PersonBuilder().withEmail("alice@u.nus.edu").build());
+        model.addPerson(new PersonBuilder().withEmail("bob@u.nus.edu").build());
+        logic.execute("find e/alice");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.getEmail().value.equals("alice@u.nus.edu"));
+
+        assertCommandFailure("find e/alice bob", ParseException.class,
+                FindCommand.MESSAGE_MULTIPLE_EMAIL_SUBSTRINGS, expectedModel);
+        assertCommandFailure("find e/alice n/Amy", ParseException.class,
+                FindCommand.MESSAGE_MULTIPLE_FIELDS, expectedModel);
+        assertCommandFailure("find e/", ParseException.class,
+                String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE), expectedModel);
+    }
+
+    @Test
+    public void execute_editWithTagArguments_throwsParseExceptionAndPreservesPerson() {
+        model.addPerson(new PersonBuilder(AMY).withTags("Publicity", "Exco").build());
+
+        assertParseException("edit 1 t/Publicity", EditCommand.MESSAGE_TAG_EDIT_NOT_SUPPORTED);
+        assertParseException("edit 1 t/", EditCommand.MESSAGE_TAG_EDIT_NOT_SUPPORTED);
+        assertParseException("edit 1 a/Kent Ridge t/Publicity", EditCommand.MESSAGE_TAG_EDIT_NOT_SUPPORTED);
+        assertParseException("edit 1 t/Publicity a/Kent Ridge", EditCommand.MESSAGE_TAG_EDIT_NOT_SUPPORTED);
+    }
+
+    @Test
+    public void execute_tagAdd_savesUpdatedTags() throws Exception {
+        Person person = new PersonBuilder(AMY).withTags("Publicity", "Exco").build();
+        model.addPerson(person);
+        Person expectedPerson = new PersonBuilder(person).withTags("Publicity", "Exco", "Volunteer").build();
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person, expectedPerson);
+        String expectedMessage = String.format(TagAddCommand.MESSAGE_SUCCESS,
+                new Tag("Volunteer"), Messages.formatProvidedDetails(expectedPerson));
+
+        assertCommandSuccess("tag 1 t/Volunteer", expectedMessage, expectedModel);
+        assertCommandException("tag 1 t/VOLUNTEER",
+                String.format(TagAddCommand.MESSAGE_TAG_NO_CHANGE, 1, new Tag("Volunteer")));
+        ReadOnlyAddressBook savedAddressBook = new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(expectedModel.getAddressBook(), savedAddressBook);
+    }
+
+    @Test
+    public void execute_tagRemove_savesUpdatedTags() throws Exception {
+        Person person = new PersonBuilder(AMY).withTags("Publicity", "Exco").build();
+        model.addPerson(person);
+        Person expectedPerson = new PersonBuilder(person).withTags("Exco").build();
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person, expectedPerson);
+        String expectedMessage = String.format(TagRemoveCommand.MESSAGE_SUCCESS,
+                new Tag("publicity"), Messages.formatProvidedDetails(expectedPerson));
+
+        assertCommandSuccess("untag 1 t/publicity", expectedMessage, expectedModel);
+        assertCommandException("untag 1 t/PUBLICITY",
+                String.format(TagRemoveCommand.MESSAGE_TAG_NOT_FOUND, new Tag("Publicity")));
+        ReadOnlyAddressBook savedAddressBook = new JsonAddressBookStorage(temporaryFolder.resolve("nusocietydesk.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(expectedModel.getAddressBook(), savedAddressBook);
+    }
+
+    @Test
+    public void execute_tagRemoveNonexistentTag_throwsCommandException() {
+        Person person = new PersonBuilder(AMY).withTags("Publicity").build();
+        model.addPerson(person);
+        String expectedMessage = String.format(TagRemoveCommand.MESSAGE_TAG_NOT_FOUND, new Tag("Exco"));
+        assertCommandException("untag 1 t/Exco", expectedMessage);
+    }
+
+    @Test
+    public void execute_multipleTags_throwsParseExceptionAndPreservesPerson() {
+        model.addPerson(new PersonBuilder(AMY).withTags("Publicity", "Exco").build());
+        String expectedMessage = Messages.getErrorMessageForDuplicatePrefixes(PREFIX_TAG);
+        assertParseException("tag 1 t/Volunteer t/Member", expectedMessage);
+        assertParseException("untag 1 t/Publicity t/Exco", expectedMessage);
     }
 
     @Test
@@ -166,9 +534,7 @@ public class LogicManagerTest {
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
                 + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

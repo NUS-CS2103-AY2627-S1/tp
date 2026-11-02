@@ -1,13 +1,18 @@
 package seedu.address.ui;
 
 import java.util.Comparator;
+import java.util.List;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Status;
 
 /**
  * A UI component that displays information of a {@code Person}.
@@ -39,6 +44,8 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label status;
+    @FXML
     private FlowPane tags;
 
     /**
@@ -48,12 +55,35 @@ public class PersonCard extends UiPart<Region> {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
-        name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        name.setText(person.getName().map(memberName -> memberName.fullName).orElse(person.getEmail().value));
+        phone.setText("Phone: " + person.getPhone().map(memberPhone -> memberPhone.value).orElse("-"));
+        address.setText("Address: " + person.getAddress().map(memberAddress -> memberAddress.value).orElse("-"));
+        email.setText("Email: " + person.getEmail().value);
+        email.setVisible(person.getName().isPresent());
+        email.setManaged(person.getName().isPresent());
+        for (Label field : List.of(name, phone, address, email)) {
+            field.setTooltip(new Tooltip(field.getText()));
+        }
+        status.setText(person.getStatus().badgeName);
+        if (person.getStatus() == Status.ARCHIVED) {
+            status.getStyleClass().add("archived");
+        }
+        tags.widthProperty().addListener((obs, oldWidth, newWidth) -> {
+            if (newWidth.doubleValue() > 0) {
+                tags.setPrefWrapLength(newWidth.doubleValue());
+            }
+        });
+        // Preserve natural tag widths when the first height calculation precedes the pane's initial sizing.
+        DoubleBinding tagMaxWidth = Bindings.when(tags.widthProperty().greaterThan(0))
+                .then(tags.widthProperty()).otherwise(Double.MAX_VALUE);
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+                .forEach(tag -> {
+                    Label label = new Label(tag.tagName);
+                    label.setMinWidth(0);
+                    label.maxWidthProperty().bind(tagMaxWidth);
+                    label.setTooltip(new Tooltip(tag.tagName));
+                    tags.getChildren().add(label);
+                });
     }
 }

@@ -1,12 +1,15 @@
 ---
-layout: page
-title: Testing guide
+  layout: default.md
+  title: "Testing guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Testing guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Running tests
 
@@ -19,8 +22,10 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
-<div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
-</div>
+<box type="info" seamless>
+
+**Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -34,3 +39,18 @@ This project has three types of tests:
    For example: `seedu.address.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
    For example: `seedu.address.logic.LogicManagerTest`
+
+## Command history checks
+
+Use JDK 25 and run `./gradlew.bat checkstyleMain checkstyleTest test commandHistoryWithoutAssertions`
+on Windows, or `./gradlew checkstyleMain checkstyleTest test commandHistoryWithoutAssertions` elsewhere.
+The regular `test` task explicitly enables Java assertions. `commandHistoryWithoutAssertions` reruns only
+`CommandHistoryTest` with assertions disabled, verifying recording, eviction, navigation and draft restoration
+without relying on `assert` for required behavior. The `check` task also includes this verification.
+Each run verifies the intended assertion mode and writes a separate HTML report under `build/reports/tests/`.
+
+`CommandHistoryTest` requires no graphical display. Its logging test temporarily captures `FINE` records
+and restores logger configuration afterward. `CommandBoxTest` and `PersonCardTest` share the JavaFX toolkit
+through `JavaFxTestUtil`; they skip on Linux without `DISPLAY`. Linux CI supplies a display through `xvfb-run`.
+On Windows and macOS, run UI tests in a graphical session. Report skipped or unavailable GUI tests explicitly.
+Manual keyboard, focus and restart checks are listed in the Developer Guide's command-history section.

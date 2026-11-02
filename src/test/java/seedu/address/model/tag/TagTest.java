@@ -1,6 +1,14 @@
 package seedu.address.model.tag;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +29,86 @@ public class TagTest {
     public void isValidTagName() {
         // null tag name
         assertThrows(NullPointerException.class, () -> Tag.isValidTagName(null));
+
+        assertFalse(Tag.isValidTagName(""));
+        assertFalse(Tag.isValidTagName(" publicity "));
+        assertFalse(Tag.isValidTagName("Publicity Team"));
+        assertFalse(Tag.isValidTagName("publicity!"));
+        assertTrue(Tag.isValidTagName("Publicity"));
+        assertTrue(Tag.isValidTagName("PUBLICITY"));
+        assertTrue(Tag.isValidTagName("Exco2026"));
+    }
+
+    @Test
+    public void validation_lengthBoundaries_acceptsAtMost30Characters() {
+        for (int length : new int[] {1, 29, 30}) {
+            String value = "A".repeat(length);
+            assertTrue(Tag.isValidTagName(value));
+            assertEquals("a".repeat(length), new Tag(value).tagName);
+        }
+        for (int length : new int[] {31, 10000}) {
+            String value = "A".repeat(length);
+            assertFalse(Tag.isValidTagName(value));
+            assertThrows(IllegalArgumentException.class, Tag.MESSAGE_CONSTRAINTS, () -> new Tag(value));
+        }
+    }
+
+    @Test
+    public void constructor_mixedCase_storesLowercaseName() {
+        Tag tag = new Tag("PuBliCiTy2026");
+        assertEquals("publicity2026", tag.tagName);
+        assertEquals("[publicity2026]", tag.toString());
+    }
+
+    @Test
+    public void constructor_turkishDefaultLocale_storesLocaleIndependentLowercaseName() {
+        Locale originalLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr"));
+            assertEquals("publicity", new Tag("PUBLICITY").tagName);
+        } finally {
+            Locale.setDefault(originalLocale);
+        }
+    }
+
+    @Test
+    public void equalsAndHashCode_caseVariants_sameIdentity() {
+        Tag lowercaseTag = new Tag("publicity");
+        Tag mixedCaseTag = new Tag("Publicity");
+        Tag uppercaseTag = new Tag("PUBLICITY");
+
+        assertEquals(lowercaseTag, mixedCaseTag);
+        assertEquals(mixedCaseTag, lowercaseTag);
+        assertEquals(mixedCaseTag, uppercaseTag);
+        assertEquals(lowercaseTag, uppercaseTag);
+        assertEquals(lowercaseTag.hashCode(), mixedCaseTag.hashCode());
+        assertEquals(lowercaseTag.hashCode(), uppercaseTag.hashCode());
+        assertFalse(lowercaseTag.equals(new Tag("exco")));
+        assertFalse(lowercaseTag.equals(null));
+        assertFalse(lowercaseTag.equals("publicity"));
+    }
+
+    @Test
+    public void hashSet_caseVariants_retainsOneTagAndMatchesCaseInsensitively() {
+        Set<Tag> tags = new HashSet<>(List.of(new Tag("Publicity"), new Tag("publicity"), new Tag("PUBLICITY")));
+
+        assertEquals(1, tags.size());
+        assertEquals("publicity", tags.iterator().next().tagName);
+        assertTrue(tags.contains(new Tag("pUbLiCiTy")));
+        assertTrue(tags.remove(new Tag("PUBLICITY")));
+        assertTrue(tags.isEmpty());
+    }
+
+    @Test
+    public void compareTo_alphabeticalOrder() {
+        Tag exco = new Tag("exco");
+        Tag publicity = new Tag("publicity");
+        Tag volunteer = new Tag("volunteer");
+
+        assertTrue(exco.compareTo(publicity) < 0);
+        assertTrue(publicity.compareTo(exco) > 0);
+        assertEquals(0, exco.compareTo(new Tag("EXCO")));
+        assertTrue(publicity.compareTo(volunteer) < 0);
     }
 
 }

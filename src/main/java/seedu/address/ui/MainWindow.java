@@ -1,22 +1,34 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.StatusFilter;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,7 +37,9 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
-
+    private static final String CLEAR_CONFIRMATION_MESSAGE = "This permanently deletes every member, including "
+            + "archived members and those outside your current search. Existing members and imported members "
+            + "will both be deleted.\n\nTo delete one member, cancel and use delete INDEX.";
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
@@ -33,7 +47,6 @@ public class MainWindow extends UiPart<Stage> {
     private Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
 
@@ -51,6 +64,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane statusbarPlaceholder;
+
+    @FXML
+    private Button statusFilterButton;
 
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
@@ -114,7 +130,8 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        updateStatusFilterButton();
+        PersonListPanel personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
@@ -131,11 +148,52 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        List<Screen> screens = Screen.getScreens();
+        int screenIndex = screenIndexWithLargestOverlap(guiSettings,
+                screens.stream().map(Screen::getBounds).toList());
+        Screen screen = screenIndex < 0 ? Screen.getPrimary() : screens.get(screenIndex);
+        fitWindowToBounds(guiSettings, screen.getVisualBounds());
+    }
+
+    /** Returns the screen containing the largest area of the saved window, or -1 if none overlaps. */
+    static int screenIndexWithLargestOverlap(GuiSettings guiSettings, List<Rectangle2D> screenBounds) {
+        Point savedPosition = guiSettings.getWindowCoordinates();
+        if (savedPosition == null) {
+            return -1;
+        }
+
+        double savedMinX = savedPosition.getX();
+        double savedMinY = savedPosition.getY();
+        double savedMaxX = savedMinX + guiSettings.getWindowWidth();
+        double savedMaxY = savedMinY + guiSettings.getWindowHeight();
+        double largestOverlap = 0;
+        int selectedIndex = -1;
+        for (int index = 0; index < screenBounds.size(); index++) {
+            Rectangle2D bounds = screenBounds.get(index);
+            double overlapWidth = Math.max(0,
+                    Math.min(savedMaxX, bounds.getMaxX()) - Math.max(savedMinX, bounds.getMinX()));
+            double overlapHeight = Math.max(0,
+                    Math.min(savedMaxY, bounds.getMaxY()) - Math.max(savedMinY, bounds.getMinY()));
+            double overlapArea = overlapWidth * overlapHeight;
+            if (overlapArea > largestOverlap) {
+                largestOverlap = overlapArea;
+                selectedIndex = index;
+            }
+        }
+        return selectedIndex;
+    }
+
+    /** Fits a saved window size and position within the usable area of its display. */
+    void fitWindowToBounds(GuiSettings guiSettings, Rectangle2D bounds) {
+        double width = Math.max(primaryStage.getMinWidth(), Math.min(guiSettings.getWindowWidth(), bounds.getWidth()));
+        double height = Math.max(primaryStage.getMinHeight(),
+                Math.min(guiSettings.getWindowHeight(), bounds.getHeight()));
+        primaryStage.setWidth(width);
+        primaryStage.setHeight(height);
+        Point savedPosition = guiSettings.getWindowCoordinates();
+        if (savedPosition != null) {
+            primaryStage.setX(Math.max(bounds.getMinX(), Math.min(savedPosition.getX(), bounds.getMaxX() - width)));
+            primaryStage.setY(Math.max(bounds.getMinY(), Math.min(savedPosition.getY(), bounds.getMaxY() - height)));
         }
     }
 
@@ -167,8 +225,43 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    @FXML
+    private void handleStatusFilterButton() {
+        StatusFilter nextStatusFilter = switch (logic.getStatusFilter()) {
+            case ALL -> StatusFilter.ACTIVE;
+            case ACTIVE -> StatusFilter.ARCHIVED;
+            case ARCHIVED -> StatusFilter.ALL;
+        };
+        logic.setStatusFilter(nextStatusFilter);
+        updateStatusFilterButton();
+        resultDisplay.setFeedbackToUser(String.format(ViewCommand.MESSAGE_SUCCESS,
+                nextStatusFilter.name().toLowerCase(Locale.ROOT)));
+    }
+
+    private void updateStatusFilterButton() {
+        StatusFilter statusFilter = logic.getStatusFilter();
+        statusFilterButton.setText(statusFilter.name());
+        statusFilterButton.getStyleClass().removeAll("active", "archived");
+        if (statusFilter != StatusFilter.ALL) {
+            statusFilterButton.getStyleClass().add(statusFilter.name().toLowerCase(Locale.ROOT));
+        }
+    }
+
+    private boolean confirmClear() {
+        ButtonType deleteAll = new ButtonType("Delete all members", ButtonData.OK_DONE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, CLEAR_CONFIRMATION_MESSAGE, ButtonType.CANCEL, deleteAll);
+        alert.initOwner(primaryStage);
+        alert.setTitle("Confirm clear");
+        alert.setHeaderText("Delete all members?");
+        alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
+        alert.getDialogPane().setId(UiManager.ALERT_DIALOG_PANE_FIELD_ID);
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        Button cancelButton = (Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL);
+        Button deleteButton = (Button) alert.getDialogPane().lookupButton(deleteAll);
+        cancelButton.setDefaultButton(true);
+        deleteButton.setDefaultButton(false);
+        alert.setOnShown(event -> cancelButton.requestFocus());
+        return alert.showAndWait().filter(deleteAll::equals).isPresent();
     }
 
     /**
@@ -178,7 +271,8 @@ public class MainWindow extends UiPart<Stage> {
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
-            CommandResult commandResult = logic.execute(commandText);
+            CommandResult commandResult = logic.execute(commandText, this::confirmClear);
+            updateStatusFilterButton();
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 

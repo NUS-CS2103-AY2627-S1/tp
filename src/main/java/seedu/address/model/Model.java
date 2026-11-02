@@ -63,9 +63,18 @@ public interface Model {
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Selects which status is shown by the list used for displayed indices. */
+    void setStatusFilter(StatusFilter statusFilter);
+
+    /** Returns the selected status view. */
+    StatusFilter getStatusFilter();
+
+    /** Returns the current filter, including a filter that matches everyone when no search is active. */
+    Predicate<? super Person> getFilteredPersonListPredicate();
+
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredPersonList(Predicate<? super Person> predicate);
 }
