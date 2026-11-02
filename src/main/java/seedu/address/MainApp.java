@@ -1,8 +1,10 @@
 package seedu.address;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.logging.Logger;
 
@@ -19,8 +21,13 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.event.EventList;
+import seedu.address.model.mapper.MapperManager;
+import seedu.address.model.mapper.ReadOnlyParticipations;
 import seedu.address.model.util.SampleDataUtil;
 import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonEventStorage;
+import seedu.address.storage.JsonParticipationStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
@@ -34,9 +41,13 @@ public class MainApp extends Application {
 
     public static final String VERSION = "V0.5.1";
 
+    static final Path DATA_DIRECTORY = Paths.get("data");
+
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = DATA_DIRECTORY.resolve("addressbook.json");
+    private static final Path EVENT_FILE_PATH = DATA_DIRECTORY.resolve("events.json");
+    private static final Path PARTICIPATION_FILE_PATH = DATA_DIRECTORY.resolve("participations.json");
 
     protected Ui ui;
     protected Logic logic;
@@ -51,7 +62,9 @@ public class MainApp extends Application {
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
         JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        JsonParticipationStorage participationStorage = new JsonParticipationStorage(PARTICIPATION_FILE_PATH);
+        storage = new StorageManager(addressBookStorage, userPrefsStorage,
+                new JsonEventStorage(EVENT_FILE_PATH), participationStorage);
 
         model = initModelManager(storage, userPrefs);
 
@@ -61,11 +74,11 @@ public class MainApp extends Application {
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns a model initialized with the stored address book and participations.
+     *
+     * @throws IOException if registrations cannot be backed up when a people or event file is missing.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+    protected Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) throws IOException {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
@@ -73,6 +86,7 @@ public class MainApp extends Application {
         try {
             addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
+                backupOrphanedParticipations(storage.getParticipationFilePath());
                 logger.info("Creating a new data file " + storage.getAddressBookFilePath()
                         + " populated with a sample AddressBook.");
             }
@@ -83,7 +97,57 @@ public class MainApp extends Application {
             initialData = new AddressBook();
         }
 
-        return new ModelManager(initialData, userPrefs);
+        AddressBook initialAddressBook = new AddressBook(initialData);
+        EventList eventList = loadEvents(storage);
+        ReadOnlyParticipations initialParticipations;
+        logger.info("Using participation data file : " + storage.getParticipationFilePath());
+        try {
+            Optional<ReadOnlyParticipations> participationsOptional =
+                    storage.readParticipations(eventList, initialAddressBook);
+            if (participationsOptional.isEmpty()) {
+                logger.info("Creating a new participation data file " + storage.getParticipationFilePath());
+            }
+            initialParticipations = participationsOptional
+                    .orElseGet(() -> new MapperManager(eventList, initialAddressBook));
+        } catch (DataLoadingException e) {
+            logger.warning("Participation data file at " + storage.getParticipationFilePath() + " could not be loaded."
+                    + " Will be starting with empty participations.");
+            initialParticipations = new MapperManager(eventList, initialAddressBook);
+        }
+
+        return new ModelManager(initialAddressBook, userPrefs, eventList, initialParticipations);
+    }
+
+    /**
+     * Preserves registrations before regenerated people or events can reuse their original IDs.
+     * A failed backup prevents startup so the original file cannot be loaded or overwritten.
+     */
+    private void backupOrphanedParticipations(Path participationFile) throws IOException {
+        if (Files.notExists(participationFile)) {
+            return;
+        }
+        if (!Files.isRegularFile(participationFile)) {
+            throw new IOException("Participation data is not a regular file: " + participationFile);
+        }
+        String timestamp = Instant.now().toString().replace(':', '-');
+        Path backup = participationFile.resolveSibling("participations.orphaned-" + timestamp + ".json");
+        Files.move(participationFile, backup);
+        logger.info("Backed up orphaned participation data to " + backup);
+    }
+
+    /** Loads events before participation IDs are resolved. */
+    private EventList loadEvents(Storage storage) throws IOException {
+        try {
+            Optional<EventList> eventsOptional = storage.readEvents();
+            if (eventsOptional.isEmpty()) {
+                backupOrphanedParticipations(storage.getParticipationFilePath());
+            }
+            return eventsOptional.orElseGet(EventList::new);
+        } catch (DataLoadingException e) {
+            logger.warning("Event data file at " + storage.getEventFilePath() + " could not be loaded."
+                    + " Will be starting with empty events.");
+            return new EventList();
+        }
     }
 
     /**

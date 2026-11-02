@@ -1,0 +1,50 @@
+package seedu.address.ui;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.FLAG_INCLUDE_ARCHIVE;
+
+/** Short status messages shown after commands complete successfully. */
+public final class CommandSuccessMessages {
+    private CommandSuccessMessages() {
+    }
+
+    /** Returns a concise status, including the event search phrase for find-event. */
+    public static String forCommand(String commandText) {
+        String[] commandParts = requireNonNull(commandText).strip().split("\\s+", 2);
+        String commandWord = commandParts[0];
+        return switch (commandWord) {
+            case "add" -> "Person added successfully.";
+            case "edit" -> "Person updated successfully.";
+            case "delete" -> "Person deleted successfully.";
+            case "clear" -> "All people cleared successfully.";
+            case "list" -> "Listing people...";
+            case "find" -> "Showing person search results...";
+            case "archive-event" -> "Event archived successfully.";
+            case "unarchive-event" -> "Event restored successfully.";
+            case "add-event" -> "Event added successfully.";
+            case "edit-event" -> "Event updated successfully.";
+            case "del-event" -> "Event deleted successfully.";
+            case "list-event" -> "Listing events...";
+            case "find-event" -> {
+                if (commandParts.length == 1) {
+                    yield "Showing event search results...";
+                }
+                String keyword = commandParts[1].replaceFirst("\\s+" + FLAG_INCLUDE_ARCHIVE + "$", "");
+                yield "Showing event search results for " + keyword + "...";
+            }
+            case "view-event" -> "Viewing event...";
+            case "add-participant" -> "Participant added successfully.";
+            case "edit-participant" -> "Participant updated successfully.";
+            case "del-participant" -> "Participant removed successfully.";
+            case "list-participants" -> "Listing participants...";
+            case "view-participant" -> "Viewing participant...";
+            case "search-participant" -> "Showing participant search results...";
+            case "search-role" -> "Showing role search results...";
+            case "mark-participant" -> "Attendance marked successfully.";
+            case "unmark-participant" -> "Attendance unmarked successfully.";
+            case "help" -> "Showing help...";
+            case "exit" -> "Exiting...";
+            default -> "Successful!";
+        };
+    }
+}

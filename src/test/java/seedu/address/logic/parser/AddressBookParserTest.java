@@ -13,17 +13,24 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddParticipantCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteParticipantCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.MarkParticipantCommand;
+import seedu.address.logic.commands.SearchRoleCommand;
+import seedu.address.logic.commands.UnmarkParticipantCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.event.EventId;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -33,6 +40,12 @@ public class AddressBookParserTest {
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void parseCommand_unmarkParticipant() throws Exception {
+        assertEquals(new UnmarkParticipantCommand(new EventId("E1"), new PersonId("P1")),
+                parser.parseCommand("unmark-participant E1 P1"));
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
         Person person = new PersonBuilder().build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
@@ -40,9 +53,23 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_addParticipant() throws Exception {
+        AddParticipantCommand command = (AddParticipantCommand) parser.parseCommand("add-participant E1 P1");
+        assertEquals(new AddParticipantCommand(new EventId("E1"), new PersonId("P1")), command);
+    }
+
+    @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+    }
+
+    @Test
+    public void parseCommand_clearWithArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                ClearCommand.MESSAGE_USAGE);
+
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand("clear unexpected"));
     }
 
     @Test
@@ -50,6 +77,45 @@ public class AddressBookParserTest {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_deleteParticipant() throws Exception {
+        DeleteParticipantCommand command =
+                (DeleteParticipantCommand) parser.parseCommand("del-participant E1 P1");
+        assertEquals(new DeleteParticipantCommand(new EventId("E1"), new PersonId("P1")), command);
+    }
+
+    @Test
+    public void parseCommand_markParticipant() throws Exception {
+        MarkParticipantCommand command =
+                (MarkParticipantCommand) parser.parseCommand("mark-participant E1 P1");
+        assertEquals(new MarkParticipantCommand(new EventId("E1"), new PersonId("P1")), command);
+    }
+
+    @Test
+    public void parseCommand_searchRole_returnsSearchRoleCommand() throws Exception {
+        assertEquals(new SearchRoleCommand(new EventId("E1"), "Best Man"),
+                parser.parseCommand("search-role Best Man /event E1"));
+        assertEquals(new SearchRoleCommand("Best Man"), parser.parseCommand("search-role Best Man"));
+    }
+
+    @Test
+    public void parseCommand_searchRoleWithWhitespace_returnsNormalizedCommand() throws Exception {
+        assertEquals(new SearchRoleCommand(new EventId("E1"), "Best Man"),
+                parser.parseCommand(" \tsearch-role\t Best \t Man \t/event\tE1 "));
+    }
+
+    @Test
+    public void parseCommand_searchRoleWithMissingEventId_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, SearchRoleCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("search-role Best Man /event"));
+    }
+
+    @Test
+    public void parseCommand_searchRoleWithInvalidId_throwsParseException() {
+        assertThrows(ParseException.class, EventId.MESSAGE_CONSTRAINTS, () ->
+                parser.parseCommand("search-role Best Man /event 1"));
     }
 
     @Test

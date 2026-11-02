@@ -1,3 +1,4 @@
+
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
@@ -9,14 +10,31 @@ import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddEventCommand;
+import seedu.address.logic.commands.AddParticipantCommand;
+import seedu.address.logic.commands.ArchiveEventCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteEventCommand;
+import seedu.address.logic.commands.DeleteParticipantCommand;
 import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.EditEventCommand;
+import seedu.address.logic.commands.EditParticipantCommand;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindEventCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListEventCommand;
+import seedu.address.logic.commands.ListParticipantsCommand;
+import seedu.address.logic.commands.MarkParticipantCommand;
+import seedu.address.logic.commands.SearchParticipantCommand;
+import seedu.address.logic.commands.SearchRoleCommand;
+import seedu.address.logic.commands.UnarchiveEventCommand;
+import seedu.address.logic.commands.UnmarkParticipantCommand;
+import seedu.address.logic.commands.ViewEventCommand;
+import seedu.address.logic.commands.ViewParticipantCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -27,7 +45,9 @@ public class AddressBookParser {
     /**
      * Used for initial separation of command word and args.
      */
-    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
+    private static final Pattern BASIC_COMMAND_FORMAT =
+            Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
+
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
 
     /**
@@ -39,6 +59,7 @@ public class AddressBookParser {
      */
     public Command parseCommand(String userInput) throws ParseException {
         final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
+
         if (!matcher.matches()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
@@ -52,13 +73,36 @@ public class AddressBookParser {
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
         return switch (commandWord) {
+            case ArchiveEventCommand.COMMAND_WORD -> new ArchiveEventCommandParser().parse(arguments);
+            case UnarchiveEventCommand.COMMAND_WORD -> new UnarchiveEventCommandParser().parse(arguments);
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case AddEventCommand.COMMAND_WORD -> new AddEventCommandParser().parse(arguments);
+            case AddParticipantCommand.COMMAND_WORD -> new AddParticipantCommandParser().parse(arguments);
+            case EditEventCommand.COMMAND_WORD -> new EditEventCommandParser().parse(arguments);
+            case EditParticipantCommand.COMMAND_WORD -> new EditParticipantCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case DeleteEventCommand.COMMAND_WORD -> new DeleteEventCommandParser().parse(arguments);
+            case DeleteParticipantCommand.COMMAND_WORD -> new DeleteParticipantCommandParser().parse(arguments);
+            case UnmarkParticipantCommand.COMMAND_WORD -> new UnmarkParticipantCommandParser().parse(arguments);
+            case MarkParticipantCommand.COMMAND_WORD -> new MarkParticipantCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(
+                            MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE));
+                }
+                yield new ClearCommand();
+            }
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case FindEventCommand.COMMAND_WORD -> new FindEventCommandParser().parse(arguments);
+            case SearchRoleCommand.COMMAND_WORD -> new SearchRoleCommandParser().parse(arguments);
+            case SearchParticipantCommand.COMMAND_WORD -> new SearchParticipantCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case ListEventCommand.COMMAND_WORD -> new ListEventCommandParser().parse(arguments);
+            case ListParticipantsCommand.COMMAND_WORD -> new ListParticipantsCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
+            case ViewParticipantCommand.COMMAND_WORD -> new ViewParticipantCommandParser().parse(arguments);
+            case ViewEventCommand.COMMAND_WORD -> new ViewEventCommandParser().parse(arguments);
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
@@ -66,5 +110,4 @@ public class AddressBookParser {
             }
         };
     }
-
 }

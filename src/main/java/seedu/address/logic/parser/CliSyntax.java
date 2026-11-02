@@ -5,11 +5,18 @@ package seedu.address.logic.parser;
  */
 public class CliSyntax {
 
+    /* Standalone flag definitions */
+    public static final String FLAG_INCLUDE_ARCHIVE = "/include-archive";
+
     /* Prefix definitions */
+    public static final Prefix PREFIX_CAPACITY = new Prefix("/cap");
+    public static final Prefix PREFIX_DESCRIPTION = new Prefix("/desc");
+    public static final Prefix PREFIX_ROLE = new Prefix("/role");
     public static final Prefix PREFIX_NAME = new Prefix("n/");
     public static final Prefix PREFIX_PHONE = new Prefix("p/");
     public static final Prefix PREFIX_EMAIL = new Prefix("e/");
     public static final Prefix PREFIX_ADDRESS = new Prefix("a/");
     public static final Prefix PREFIX_TAG = new Prefix("t/");
+    public static final Prefix PREFIX_PARTICIPANT_TAG = new Prefix("/tag");
 
 }

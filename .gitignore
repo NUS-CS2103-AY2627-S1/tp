@@ -3,6 +3,9 @@
 /build/
 src/main/resources/docs/
 
+# Build files
+/bin/
+
 # IDEA files
 /.idea/
 /out/
@@ -16,6 +19,8 @@ hs_err_pid[0-9]*.log
 
 # Test sandbox files
 src/test/data/sandbox/
+/alpha-test-results/
+/pe-review-results/
 
 # MacOS custom attributes files created by Finder
 .DS_Store
@@ -26,6 +31,11 @@ AGENTS.md
 CLAUDE.md
 /.claude/
 /.codex/
+/.agents/
 
 # Temp files
 _temp/
+docs/_markbind/logs/
+
+#VSCode files
+.VSCode

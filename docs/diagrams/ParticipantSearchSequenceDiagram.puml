@@ -1,0 +1,41 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 16
+skinparam ParticipantPadding 10
+skinparam maxMessageSize 240
+
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":SearchParticipantCommand" as Command LOGIC_COLOR
+participant "m:ModelManager" as ModelManager MODEL_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+
+LogicManager -> Command : execute(m)
+activate Command
+Command -> ModelManager : updateParticipantSearch(...)
+activate ModelManager
+note over ModelManager
+  Publish search context and event filter
+  before notifying result observers.
+end note
+ModelManager --> Command
+deactivate ModelManager
+
+Command -> ModelManager : getParticipantSearchResults()
+activate ModelManager
+ModelManager --> Command : registrations
+deactivate ModelManager
+
+Command -> ModelManager : getFilteredEventList()
+activate ModelManager
+ModelManager --> Command : matchingEvents
+deactivate ModelManager
+
+create CommandResult
+Command -> CommandResult : create result with registration/event\ncounts and Events-tab request
+activate CommandResult
+CommandResult --> Command : r
+deactivate CommandResult
+Command --> LogicManager : r
+deactivate Command
+@enduml

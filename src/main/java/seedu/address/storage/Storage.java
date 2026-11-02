@@ -1,18 +1,36 @@
 package seedu.address.storage;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.event.Event;
+import seedu.address.model.event.EventList;
+import seedu.address.model.mapper.ReadOnlyParticipations;
 
 /**
  * API of the Storage component
  */
 public interface Storage {
+
+    /** Returns the event data file path. */
+    Path getEventFilePath();
+
+    /** Loads events, or returns empty if the event file does not exist. */
+    Optional<EventList> readEvents() throws DataLoadingException;
+
+    /** Saves all events, independently of the UI filter. */
+    void saveEvents(List<Event> events) throws IOException;
+
+    /** Saves events together with the next unused event ID number. */
+    void saveEvents(List<Event> events, BigInteger nextEventId) throws IOException;
 
     /**
      * Returns the file path of the UserPrefs data file.
@@ -23,12 +41,14 @@ public interface Storage {
      * Returns UserPrefs data from storage.
      * Returns {@code Optional.empty()} if storage file is not found.
      *
-     * @throws DataLoadingException if the loading of data from preference file failed.
+     * @throws DataLoadingException if the loading of data from preference file
+     *                              failed.
      */
     Optional<UserPrefs> readUserPrefs() throws DataLoadingException;
 
     /**
      * Saves the given {@link seedu.address.model.ReadOnlyUserPrefs} to the storage.
+     *
      * @param userPrefs cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
@@ -49,9 +69,32 @@ public interface Storage {
 
     /**
      * Saves the given {@link ReadOnlyAddressBook} to the storage.
+     *
      * @param addressBook cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
     void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
+
+    /**
+     * Returns the file path of the participation data file.
+     */
+    Path getParticipationFilePath();
+
+    /**
+     * Returns participations resolved against the supplied event list and address book.
+     * Returns {@code Optional.empty()} if the storage file is not found.
+     *
+     * @throws DataLoadingException if loading the participation data failed.
+     */
+    Optional<ReadOnlyParticipations> readParticipations(EventList eventList, AddressBook addressBook)
+            throws DataLoadingException;
+
+    /**
+     * Saves the given participations to storage.
+     *
+     * @param participations cannot be null.
+     * @throws IOException if there was any problem writing to the file.
+     */
+    void saveParticipations(ReadOnlyParticipations participations) throws IOException;
 
 }
