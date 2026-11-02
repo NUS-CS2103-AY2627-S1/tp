@@ -60,7 +60,7 @@ public class PersonBuilder {
     /**
      * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
      */
-    public PersonBuilder withTags(String ... tags) {
+    public PersonBuilder withTags(Tag ... tags) {
         this.tags = SampleDataUtil.getTagSet(tags);
         return this;
     }
@@ -70,6 +70,14 @@ public class PersonBuilder {
      */
     public PersonBuilder withAddress(String address) {
         this.address = new Address(address);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Address} of the {@code Person} that we are building to be empty.
+     */
+    public PersonBuilder withoutAddress() {
+        this.address = Address.EMPTY;
         return this;
     }
 

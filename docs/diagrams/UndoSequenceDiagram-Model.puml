@@ -7,14 +7,15 @@ participant ":Model" as Model MODEL_COLOR
 participant ":VersionedAddressBook" as VersionedAddressBook MODEL_COLOR
 end box
 
-[-> Model : undoAddressBook()
+[-> Model : undo()
 activate Model
 
 Model -> VersionedAddressBook : undo()
 activate VersionedAddressBook
 
-VersionedAddressBook -> VersionedAddressBook :resetData(ReadOnlyAddressBook)
-VersionedAddressBook --> Model :
+VersionedAddressBook -> VersionedAddressBook : canUndo()
+VersionedAddressBook -> VersionedAddressBook : resetData(ReadOnlyAddressBook)
+VersionedAddressBook --> Model : comparator
 deactivate VersionedAddressBook
 
 [<-- Model

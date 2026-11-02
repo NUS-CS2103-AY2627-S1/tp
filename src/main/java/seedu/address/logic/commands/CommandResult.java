@@ -1,9 +1,12 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Objects;
+import java.util.Optional;
 
+import seedu.address.commons.core.Theme;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
@@ -12,20 +15,33 @@ import seedu.address.commons.util.ToStringBuilder;
 public class CommandResult {
 
     private final String feedbackToUser;
-
-    /** Help information should be shown to the user. */
-    private final boolean showHelp;
+    private final Optional<ExportRequest> exportRequest;
+    private final Optional<ImportRequest> importRequest;
 
     /** The application should exit. */
     private final boolean exit;
 
+    /** The theme to switch to, or null if the theme should not change. */
+    private final Theme theme;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
-    public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
-        this.feedbackToUser = requireNonNull(feedbackToUser);
-        this.showHelp = showHelp;
+    public CommandResult(String feedbackToUser, boolean exit, Theme theme) {
+
+        requireNonNull(feedbackToUser);
+        this.feedbackToUser = feedbackToUser;
+        this.exportRequest = Optional.empty();
+        this.importRequest = Optional.empty();
         this.exit = exit;
+        this.theme = theme;
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the specified fields and no theme change.
+     */
+    public CommandResult(String feedbackToUser, boolean exit) {
+        this(feedbackToUser, exit, null);
     }
 
     /**
@@ -33,19 +49,81 @@ public class CommandResult {
      * and other fields set to their default value.
      */
     public CommandResult(String feedbackToUser) {
-        this(feedbackToUser, false, false);
+        this(feedbackToUser, false);
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the specified feedback message and export request,
+     * with other fields set to their default values.
+     *
+     * @param feedbackToUser the feedback message to display to the user
+     * @param exportRequest the export request associated with this result
+     */
+    public CommandResult(String feedbackToUser, ExportRequest exportRequest) {
+        requireAllNonNull(feedbackToUser, exportRequest);
+        this.feedbackToUser = feedbackToUser;
+        this.exportRequest = Optional.of(exportRequest);
+        this.importRequest = Optional.empty();
+        this.exit = false;
+        this.theme = null;
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the specified feedback message and import request,
+     * with other fields set to their default values.
+     *
+     * @param feedbackToUser the feedback message to display to the user
+     * @param importRequest the import request associated with this result
+     */
+    public CommandResult(String feedbackToUser, ImportRequest importRequest) {
+        requireAllNonNull(feedbackToUser, importRequest);
+        this.feedbackToUser = feedbackToUser;
+        this.exportRequest = Optional.empty();
+        this.importRequest = Optional.of(importRequest);
+        this.exit = false;
+        this.theme = null;
+    }
+
+    /**
+     * Copies a command result with replacement feedback, while preserving its actions.
+     */
+    private CommandResult(CommandResult original, String feedbackToUser) {
+        requireAllNonNull(original, feedbackToUser);
+        this.feedbackToUser = feedbackToUser;
+        this.exportRequest = original.exportRequest;
+        this.importRequest = original.importRequest;
+        this.exit = original.exit;
+        this.theme = original.theme;
+    }
+
+    /**
+     * Returns a copy of the {@code CommandResult} with additional feedback provided.
+     *
+     * @param additionalFeedback the additional feedback provided.
+     */
+    public CommandResult appendAdditionalFeedback(String additionalFeedback) {
+        requireNonNull(additionalFeedback);
+        return new CommandResult(this, String.join("\n", feedbackToUser, additionalFeedback));
     }
 
     public String getFeedbackToUser() {
         return feedbackToUser;
     }
 
-    public boolean isShowHelp() {
-        return showHelp;
+    public Optional<ExportRequest> getExportRequest() {
+        return this.exportRequest;
+    }
+
+    public Optional<ImportRequest> getImportRequest() {
+        return this.importRequest;
     }
 
     public boolean isExit() {
         return exit;
+    }
+
+    public Optional<Theme> getTheme() {
+        return Optional.ofNullable(theme);
     }
 
     @Override
@@ -60,21 +138,23 @@ public class CommandResult {
         }
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
-                && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && theme == otherCommandResult.theme
+                && exportRequest.equals(otherCommandResult.exportRequest)
+                && importRequest.equals(otherCommandResult.importRequest);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, exit, theme, exportRequest, importRequest);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("feedbackToUser", feedbackToUser)
-                .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("theme", theme)
                 .toString();
     }
 

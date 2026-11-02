@@ -3,6 +3,7 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -49,6 +50,13 @@ public class UniquePersonList implements Iterable<Person> {
     }
 
     /**
+     * Sorts the persons in the address book using {@code comparator}
+     */
+    public void sort(Comparator<Person> comparator) {
+        internalList.sort(comparator);
+    }
+
+    /**
      * Replaces the person {@code target} in the list with {@code editedPerson}.
      * {@code target} must exist in the list.
      * The person identity of {@code editedPerson} must not be the same as another existing person in the list.
@@ -61,7 +69,11 @@ public class UniquePersonList implements Iterable<Person> {
             throw new PersonNotFoundException();
         }
 
-        if (!target.isSamePerson(editedPerson) && contains(editedPerson)) {
+        boolean duplicatesAnotherPerson = internalList.stream()
+                .anyMatch(person -> !person.equals(target)
+                        && person.isSamePerson(editedPerson));
+
+        if (duplicatesAnotherPerson) {
             throw new DuplicatePersonException();
         }
 

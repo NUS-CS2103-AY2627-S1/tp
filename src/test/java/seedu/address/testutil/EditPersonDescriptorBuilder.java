@@ -72,11 +72,20 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
+     * Sets the {@code Address} of the {@code EditPersonDescriptor} that we are building to be
+     * empty.
+     */
+    public EditPersonDescriptorBuilder withoutAddress() {
+        descriptor.setAddress(Address.EMPTY);
+        return this;
+    }
+
+    /**
      * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
      * that we are building.
      */
-    public EditPersonDescriptorBuilder withTags(String... tags) {
-        Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
+    public EditPersonDescriptorBuilder withTags(Tag... tags) {
+        Set<Tag> tagSet = Stream.of(tags).collect(Collectors.toSet());
         descriptor.setTags(tagSet);
         return this;
     }

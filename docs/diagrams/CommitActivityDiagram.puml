@@ -8,10 +8,22 @@ start
 'Since the beta syntax does not support placing the condition outside the
 'diamond we place it as the true branch instead.
 
-if () then ([command commits AddressBook])
-    :Purge redundant states;
-    :Save AddressBook to
-    addressBookStateList;
+if () then ([command executes
+successfully])
+    if () then ([command is not
+    undo or redo])
+        :LogicManager calls
+        Model#commit();
+        if () then ([AddressBook or
+        sort order changed])
+            :Purge redundant states;
+            :Save AddressBook and its
+            sort order to
+            addressBookStateList;
+        else ([else])
+        endif
+    else ([else])
+    endif
 else ([else])
 endif
 stop

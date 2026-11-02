@@ -1,9 +1,12 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.alias.AliasRegistry;
 import seedu.address.model.person.Person;
 
 /**
@@ -68,4 +71,62 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Sorts the persons in the address book using {@code comparator}
+     */
+    void sortAddressBook(Comparator<Person> comparator);
+
+    /**
+     * Saves the current address book state and its sort order to the history, if either has changed since
+     * the last saved state.
+     */
+    void commit();
+
+    /**
+     * Returns true if there is a previous address book state to undo to.
+     */
+    boolean canUndo();
+
+    /**
+     * Restores the address book and its sort order to the previous saved state.
+     * There must be a previous state to undo to.
+     */
+    void undo();
+
+    /**
+     * Returns true if there is an undone address book state to redo to.
+     */
+    boolean canRedo();
+
+    /**
+     * Restores the address book and its sort order to the most recently undone state.
+     * There must be an undone state to redo to.
+     */
+    void redo();
+
+    /**
+     * Returns the alias registry managed by this model.
+     */
+    AliasRegistry getAliasRegistry();
+
+    /**
+     * Registers an alias for the given command word.
+     */
+    void registerAlias(String commandWord, String alias);
+
+    /**
+     * Returns a mapping of aliases to command words.
+     */
+    Map<String, String> getAliases();
+
+    /**
+     * Removes a registered alias.
+     */
+    void deleteAlias(String alias);
+
+    /**
+     * Merges imported address book with the current Model AddressBook
+     */
+    ImportSummary mergeAddressBook(ReadOnlyAddressBook importedAddressBook);
 }

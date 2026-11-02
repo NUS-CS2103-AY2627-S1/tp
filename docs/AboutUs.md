@@ -1,59 +1,63 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Aidil
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/idealfarhand.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/idealfarhand)]
+[[portfolio](team/idealfarhand.md)]
 
-* Role: Project Advisor
+* Role: Team Contributor
+* Responsibilities: Feature Implementation
 
-### Jane Doe
 
-<img src="images/johndoe.png" width="200px">
+### Aloysius
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/alloyshoes.png" width="200px">
 
-* Role: Team Lead
-* Responsibilities: UI
+[[github](https://github.com/Alloyshoes)]
+[[portfolio](team/alloyshoes.md)]
 
-### Johnny Doe
+* Role: Team Contributor
+* Responsibilities: Feature Implementation
 
-<img src="images/johndoe.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+### Teo Shi Jie
 
-* Role: Developer
-* Responsibilities: Data
+<img src="images/shijieteo.png" width="200px">
 
-### Jean Doe
+[[github](https://github.com/shijieteo)]
+[[portfolio](team/shijieteo.md)]
 
-<img src="images/johndoe.png" width="200px">
+* Role: Team Member
+* Responsibilities: Implementing features
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+### Ryan Ng
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+<img src="images/ryanngct.png" width="200px">
 
-### James Doe
+[[github](http://github.com/RyanNgCT)]
+[[portfolio](team/RyanNgCT.md)]
 
-<img src="images/johndoe.png" width="200px">
+* Role: Team Member
+* Responsibilities: Code Review Lead
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+### Chong Kai Le
 
-* Role: Developer
-* Responsibilities: UI
+<img src="images/draxche.png" width="200px">
+
+[[github](http://github.com/draxche)] [[portfolio](team/draxche.md)]
+
+* Role: Team Member
+* Responsibilities: Feature Implementation

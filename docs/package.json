@@ -1,0 +1,14 @@
+{
+  "name": "docs",
+  "version": "1.3.0",
+  "description": "coNnectUS docs",
+  "scripts": {
+    "init": "markbind init",
+    "build": "markbind build",
+    "serve": "markbind serve",
+    "deploy": "markbind deploy"
+  },
+  "devDependencies": {
+    "markbind-cli": "^5.1.0"
+  }
+}

@@ -3,16 +3,30 @@ package seedu.address.model.tag;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Tag in the address book.
  * Guarantees: immutable; name is valid as declared in {@link #isValidTagName(String)}
  */
-public class Tag {
+public abstract class Tag {
 
-    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric";
-    public static final String VALIDATION_REGEX = "\\p{Alnum}+";
+    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric, "
+            + "only allowed to have apostrophes and should be within 30 characters";
+    public static final String MESSAGE_UNKNOWN_TAG_CATEGORY =
+            "The provided tag category is currently not supported! Supported tag categories: module, faculty, others";
+    public static final String MESSAGE_MISSING_TAG_FIELD = "A valid tag category and tag name is required! "
+            + "Format: -t [TAG_CATEGORY] [TAG_NAME]";
+    public static final String MESSAGE_TOO_MANY_TAGS = "A contact should not have more than "
+            + Tag.MAX_TAGS_PER_PERSON + " tags!";
+
+    public static final String VALIDATION_REGEX = "^[A-Za-z0-9 ']{1,30}$";
+
+    public static final int MAX_TAGS_PER_PERSON = 5;
 
     public final String tagName;
+
+
 
     /**
      * Constructs a {@code Tag}.
@@ -24,6 +38,11 @@ public class Tag {
         checkArgument(isValidTagName(tagName), MESSAGE_CONSTRAINTS);
         this.tagName = tagName;
     }
+
+    /**
+     * Returns a string describing a tag's type
+     */
+    public abstract String getTagCategory();
 
     /**
      * Returns true if a given string is a valid tag name.
@@ -43,12 +62,12 @@ public class Tag {
             return false;
         }
 
-        return tagName.equals(otherTag.tagName);
+        return tagName.equalsIgnoreCase(otherTag.tagName);
     }
 
     @Override
     public int hashCode() {
-        return tagName.hashCode();
+        return tagName.toLowerCase(Locale.ROOT).hashCode();
     }
 
     /**

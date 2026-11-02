@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.logic.Messages;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -29,6 +30,7 @@ class JsonAdaptedPerson {
     private final String email;
     private final String address;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final String isPinned;
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
@@ -36,7 +38,7 @@ class JsonAdaptedPerson {
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("tags") List<JsonAdaptedTag> tags, @JsonProperty("isPinned") String isPinned) {
         this.name = name;
         this.phone = phone;
         this.email = email;
@@ -44,6 +46,7 @@ class JsonAdaptedPerson {
         if (tags != null) {
             this.tags.addAll(tags);
         }
+        this.isPinned = isPinned;
     }
 
     /**
@@ -57,6 +60,7 @@ class JsonAdaptedPerson {
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
+        isPinned = source.isPinned() ? "true" : "false";
     }
 
     /**
@@ -72,6 +76,10 @@ class JsonAdaptedPerson {
 
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
+        }
+
+        if (!Name.isValidLength(name)) {
+            throw new IllegalValueException(Name.MESSAGE_EXCEED_MAX_LENGTH);
         }
         if (!Name.isValidName(name)) {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
@@ -91,19 +99,35 @@ class JsonAdaptedPerson {
         }
         if (!Email.isValidEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+        } else if (!Email.isValidLength(email)) {
+            throw new IllegalValueException(Email.MESSAGE_EXCEED_MAX_LENGTH);
         }
         final Email modelEmail = new Email(email);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
+        final Address modelAddress;
+        if (address == null || address.isEmpty()) {
+            modelAddress = Address.EMPTY;
+        } else if (!Address.isValidAddress(address)) {
             throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
+        } else if (!Address.isValidLength(address)) {
+            throw new IllegalValueException(Address.MESSAGE_EXCEED_MAX_LENGTH);
+        } else {
+            modelAddress = new Address(address);
         }
-        final Address modelAddress = new Address(address);
+
+        final boolean isPinned;
+        if (!("true".equals(this.isPinned) || "false".equals(this.isPinned))) {
+            throw new IllegalValueException(Messages.MESSAGE_UNKNOWN_PINNED_STATUS);
+        }
+
+        isPinned = "true".equals(this.isPinned);
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        if (modelTags.size() > Tag.MAX_TAGS_PER_PERSON) {
+            throw new IllegalValueException(Tag.MESSAGE_TOO_MANY_TAGS);
+        }
+
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags, isPinned);
     }
 
 }

@@ -4,6 +4,7 @@ import java.util.Comparator;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -40,6 +41,8 @@ public class PersonCard extends UiPart<Region> {
     private Label email;
     @FXML
     private FlowPane tags;
+    @FXML
+    private ImageView pinImage;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -51,9 +54,22 @@ public class PersonCard extends UiPart<Region> {
         name.setText(person.getName().fullName);
         phone.setText(person.getPhone().value);
         address.setText(person.getAddress().value);
+        if (person.getAddress().isEmpty()) {
+            address.setVisible(false);
+            address.setManaged(false);
+        }
         email.setText(person.getEmail().value);
+        if (!person.isPinned()) {
+            pinImage.setVisible(false);
+            pinImage.setManaged(false);
+        }
         person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+                .sorted(Comparator.comparing(tag -> tag.getTagCategory()))
+                .forEach(tag -> {
+                    Label tagLabel = new Label(tag.tagName);
+                    tagLabel.getStyleClass().add("tag-" + tag.getTagCategory());
+                    tags.getChildren().add(tagLabel);
+                }
+                );
     }
 }

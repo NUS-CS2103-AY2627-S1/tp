@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
@@ -14,13 +15,16 @@ import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.tag.TagFactory;
+import seedu.address.storage.Filename;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
  */
 public class ParserUtil {
 
-    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_INDEX =
+            "List index must be a positive integer, and cannot be blank!\n%1$s";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,6 +40,33 @@ public class ParserUtil {
     }
 
     /**
+     * Parses the given filename and returns a validated {@link Filename}.
+     *
+     * Leading and trailing whitespace is removed before validation.
+     * A {@code ParseException} is thrown if the filename exceeds the maximum
+     * allowed length or contains invalid characters.
+     *
+     * @param fileName the filename to parse
+     * @return a validated {@code Filename}
+     * @throws NullPointerException if {@code fileName} is null
+     * @throws ParseException if the filename is too long or contains invalid characters
+     */
+    public static Filename parseFilename(String fileName) throws ParseException {
+        requireNonNull(fileName);
+        String trimmedFileName = fileName.trim();
+
+        if (!Filename.isValidLength(trimmedFileName)) {
+            throw new ParseException(Filename.MESSAGE_EXCEED_MAX_LENGTH);
+        }
+
+        if (!Filename.isValidName(trimmedFileName)) {
+            throw new ParseException(Filename.MESSAGE_CONSTRAINTS);
+        }
+
+        return new Filename(trimmedFileName);
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -44,9 +75,14 @@ public class ParserUtil {
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
         String trimmedName = name.trim();
+
+        if (!Name.isValidLength(trimmedName)) {
+            throw new ParseException(Name.MESSAGE_EXCEED_MAX_LENGTH);
+        }
         if (!Name.isValidName(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
+
         return new Name(trimmedName);
     }
 
@@ -62,6 +98,7 @@ public class ParserUtil {
         if (!Phone.isValidPhone(trimmedPhone)) {
             throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
         }
+
         return new Phone(trimmedPhone);
     }
 
@@ -77,6 +114,11 @@ public class ParserUtil {
         if (!Address.isValidAddress(trimmedAddress)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
+
+        if (!Address.isValidLength(trimmedAddress)) {
+            throw new ParseException(Address.MESSAGE_EXCEED_MAX_LENGTH);
+        }
+
         return new Address(trimmedAddress);
     }
 
@@ -92,22 +134,33 @@ public class ParserUtil {
         if (!Email.isValidEmail(trimmedEmail)) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
+
+        if (!Email.isValidLength(trimmedEmail)) {
+            throw new ParseException(Email.MESSAGE_EXCEED_MAX_LENGTH);
+        }
+
         return new Email(trimmedEmail);
     }
 
     /**
      * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Strips surrounding Unicode whitespace, separates the category and name at Unicode whitespace,
+     * and normalizes whitespace within the tag name to single spaces before validation.
      *
      * @throws ParseException if the given {@code tag} is invalid.
      */
     public static Tag parseTag(String tag) throws ParseException {
         requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
+        String[] tagParts = StringUtil.stripWhitespace(tag).split("(?U)\\s+", 2);
+        if (tagParts.length < 2) {
+            throw new ParseException(Tag.MESSAGE_MISSING_TAG_FIELD);
+        }
+        String tagCategory = tagParts[0].toLowerCase(Locale.ROOT);
+        String tagName = StringUtil.stripWhitespace(tagParts[1]).replaceAll("(?U)\\s+", " ");
+        if (!Tag.isValidTagName(tagName)) {
             throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return TagFactory.create(tagCategory, tagName);
     }
 
     /**

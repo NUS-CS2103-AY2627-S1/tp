@@ -35,6 +35,13 @@ public class AddressTest {
     }
 
     @Test
+    public void isValidLength() {
+        assertTrue(Address.isValidLength("Blk 111, Bor Road"));
+        assertFalse(Address.isValidLength("Blk 111, Bor Road Blk 111, Bor Road Blk 111,"
+                + "Bor Road Blk 111, Bor Road Blk 111, Bor Road Blk 111, Bor Road Blk 111, Bor Road"));
+    }
+
+    @Test
     public void equals() {
         Address address = new Address("Valid Address");
 
@@ -52,5 +59,17 @@ public class AddressTest {
 
         // different values -> returns false
         assertFalse(address.equals(new Address("Other Valid Address")));
+
+        // empty address vs provided address -> returns false
+        assertFalse(address.equals(Address.EMPTY));
+    }
+
+    @Test
+    public void isEmpty() {
+        // empty address -> returns true
+        assertTrue(Address.EMPTY.isEmpty());
+
+        // provided address -> returns false
+        assertFalse(new Address("Blk 456, Den Road, #01-355").isEmpty());
     }
 }

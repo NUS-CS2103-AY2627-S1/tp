@@ -35,22 +35,34 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
-            + "Parameters: INDEX (must be a positive integer) "
-            + "[" + PREFIX_NAME + "NAME] "
-            + "[" + PREFIX_PHONE + "PHONE] "
-            + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+    public static final String COMMAND_DESCRIPTION = "Updates the specified fields for the contact "
+            + "at the specified list index. Existing values will be overwritten by the new input values.";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String COMMAND_SYNTAX = COMMAND_WORD + " LIST_INDEX "
+            + "[" + PREFIX_NAME + " NAME] "
+            + "[" + PREFIX_PHONE + " PHONE_NUMBER] "
+            + "[" + PREFIX_EMAIL + " EMAIL] "
+            + "[" + PREFIX_ADDRESS + " ADDRESS] "
+            + "[" + PREFIX_TAG + " TAG_CATEGORY TAG_NAME]...";
+
+    public static final String COMMAND_SAMPLE_USAGE = "Example: " + COMMAND_WORD + " 4 "
+            + PREFIX_PHONE + " 92008101 "
+            + PREFIX_TAG + " others CS1001 Groupmate";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": "
+            + COMMAND_DESCRIPTION + "\n"
+            + "Parameters: LIST_INDEX (must be a positive integer) "
+            + "[" + PREFIX_NAME + " NAME] "
+            + "[" + PREFIX_PHONE + " PHONE_NUMBER] "
+            + "[" + PREFIX_EMAIL + " EMAIL] "
+            + "[" + PREFIX_ADDRESS + " ADDRESS] "
+            + "[" + PREFIX_TAG + " TAG_CATEGORY TAG_NAME]...\n"
+            + COMMAND_SAMPLE_USAGE;
+
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Contact edited: %1$s";
+    public static final String MESSAGE_NOT_EDITED = "A field must be specified for editing.";
+    public static final String MESSAGE_INVALID_INDEX = "An invalid list index was specified."
+            + " Please check against your contact list.";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -73,14 +85,14 @@ public class EditCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            throw new CommandException(MESSAGE_INVALID_INDEX);
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
-
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        if (duplicatesAnotherPerson(model, personToEdit, editedPerson)) {
+            throw new CommandException(
+                    Messages.getDuplicateContactMessage(editedPerson, getOtherPersons(model, personToEdit)));
         }
 
         model.setPerson(personToEdit, editedPerson);
@@ -100,8 +112,23 @@ public class EditCommand extends Command {
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        boolean isPinned = personToEdit.isPinned();
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags, isPinned);
+    }
+
+    private static boolean duplicatesAnotherPerson(Model model, Person personToEdit, Person editedPerson) {
+        return getOtherPersons(model, personToEdit).stream()
+                .anyMatch(person -> editedPerson.isSamePerson(person));
+    }
+
+    /**
+     * Returns all persons in the address book except {@code personToEdit}.
+     */
+    private static List<Person> getOtherPersons(Model model, Person personToEdit) {
+        return model.getAddressBook().getPersonList().stream()
+                .filter(person -> !person.equals(personToEdit))
+                .toList();
     }
 
     @Override

@@ -4,8 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.Theme;
 
 public class CommandResultTest {
     @Test
@@ -14,8 +19,8 @@ public class CommandResultTest {
 
         // same values -> returns true
         assertTrue(commandResult.equals(new CommandResult("feedback")));
-        assertTrue(commandResult.equals(new CommandResult("feedback", false, false)));
-
+        assertTrue(commandResult.equals(new CommandResult("feedback", false)));
+        assertTrue(commandResult.equals(new CommandResult("feedback", false, null)));
         // same object -> returns true
         assertTrue(commandResult.equals(commandResult));
 
@@ -28,11 +33,23 @@ public class CommandResultTest {
         // different feedbackToUser value -> returns false
         assertFalse(commandResult.equals(new CommandResult("different")));
 
-        // different showHelp value -> returns false
-        assertFalse(commandResult.equals(new CommandResult("feedback", true, false)));
-
         // different exit value -> returns false
-        assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+        assertFalse(commandResult.equals(new CommandResult("feedback", true)));
+
+        // different theme value -> returns false
+        assertFalse(commandResult.equals(new CommandResult("feedback", false, Theme.LIGHT)));
+
+        ExportRequest exportRequest = new ExportRequest(getTypicalAddressBook(), Path.of("export.json"));
+        CommandResult exportCommandResult = new CommandResult("feedback", exportRequest);
+
+        // equivalent export request -> returns true
+        assertTrue(exportCommandResult.equals(new CommandResult("feedback",
+                new ExportRequest(getTypicalAddressBook(), Path.of("export.json")))));
+
+        // export request value -> returns false
+        assertFalse(exportCommandResult.equals(commandResult));
+        assertFalse(exportCommandResult.equals(new CommandResult("feedback",
+                new ExportRequest(getTypicalAddressBook(), Path.of("other.json")))));
     }
 
     @Test
@@ -45,19 +62,37 @@ public class CommandResultTest {
         // different feedbackToUser value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("different").hashCode());
 
-        // different showHelp value -> returns different hashcode
-        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", true, false).hashCode());
-
         // different exit value -> returns different hashcode
-        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", true).hashCode());
+
+        // different theme value -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(),
+                new CommandResult("feedback", false, Theme.LIGHT).hashCode());
+
+        ExportRequest exportRequest = new ExportRequest(getTypicalAddressBook(), Path.of("export.json"));
+        CommandResult exportCommandResult = new CommandResult("feedback", exportRequest);
+
+        // equivalent export request -> returns same hashcode
+        assertEquals(exportCommandResult.hashCode(), new CommandResult("feedback",
+                new ExportRequest(getTypicalAddressBook(), Path.of("export.json"))).hashCode());
+
+        // different export request value -> returns different hashcode
+        assertNotEquals(exportCommandResult.hashCode(), new CommandResult("feedback",
+                new ExportRequest(getTypicalAddressBook(), Path.of("other.json"))).hashCode());
+    }
+
+    @Test
+    public void getTheme() {
+        assertTrue(new CommandResult("feedback").getTheme().isEmpty());
+        assertEquals(Theme.DARK, new CommandResult("feedback", false, Theme.DARK).getTheme().get());
     }
 
     @Test
     public void toStringMethod() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
-                + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + commandResult.getFeedbackToUser()
+                + ", exit=" + commandResult.isExit() + ", theme=null}";
         assertEquals(expected, commandResult.toString());
     }
 }

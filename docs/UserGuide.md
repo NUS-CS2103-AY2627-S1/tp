@@ -1,12 +1,15 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# coNnectUS User Guide
 
-* Table of Contents
-{:toc}
+coNnectUS is a **desktop Address Book application designed for NUS students** to manage their contacts. It is **optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, coNnectUS can help you manage contacts faster than traditional GUI applications.
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,20 +18,20 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+2. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-T13-1/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+3. Copy the file to the folder you want to use as the _home folder_ for your instance of coNnectUS.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+4. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar coNnectUS.jar`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
    ![Ui](images/Ui.png)
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
+5. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press <kbd>Enter</kbd> to view the commands available.<br>
    Some example commands you can try:
 
    * `list` : Lists all contacts.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add -n John Doe -p 98765432 -e johnd@example.com -a John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
 
    * `delete 3` : Deletes the 3rd contact shown in the current list.
 
@@ -36,115 +39,457 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
    * `exit` : Exits the app.
 
-1. Refer to the [Features](#features) section below for details of each command.
+6. Refer to the [Features](#features) section below for details of each command.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `add -n NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `-n NAME [-t CATEGORY TAG]` can be used as `-n John Doe -t others friend` or as `-n John Doe`.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Items followed by `...` can appear zero or more times.<br>
+  For example, `[-t CATEGORY TAG]... ` may be omitted, or written as `-t others friend` or `-t others friend -t others family`.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+* Prefixed Parameters can be in any order.<br>
+  For example, for the add command, `-n NAME -p PHONE_NUMBER` and `-p PHONE_NUMBER -n NAME` are both accepted.
+
+* Parameters that are not prefixed must be specified in the order stated in [Command Summary](#command-summary).<br>
+  For example, `sort name asc` is accepted while `sort asc name` is not.
 
 * Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
   For example, `help 123` is interpreted as `help`.
 
+* With the exception of tags, repeated parameters in a command will result in the command being rejected. <br>
+  For example, `add -n Bob -n Alice -e Alice@gmail.com -p 91234567` will be rejected as `-n` is specified twice.
+
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
 
-### Viewing help: `help`
+<box type="info" seamless>
 
-Shows a message explaining how to access the help page.
+**Notes about accepted values for a contact's properties:**<br>
+Property        | Accepted Values | Accepted Length and Format (if any)
+----------------|--------------------------------------------------------------------------|-----------------
+Name            | English Letters (A-Z, a-z) and spaces only                               | Must contain `1-70` characters and must not start with a space.
+Email           | Alphabets, Digits and some special characters: `@`, `.`, `+`, `_` and `-`.| Must follow `local-part@domain` and contain at most **254 characters**.<br><ul><li>Local part allows letters and digits separated by single `+`, `_`, `.`, or `-` characters.</li> <li>The domain consists of dot-separated parts containing letters, digits, or hyphens. Hyphens should not be repeated consecutively and each part must start and end with a letter or digit, with the last part being at least two characters long.</li>
+Phone           | Digits only.                                                             | Must contain `3-15` digits.
+Address         | All characters are permitted.                                            | Must contain `1-105` characters and must not start with a space.
+Tag             | English Letters (A-Z, a-z), digits (0-9), spaces, and apostrophes only.   | Must contain `1-30` characters and must not start with a space.
 
-![help message](images/helpMessage.png)
+</box>
+
+### Getting help: `help`
+
+Displays a command reference in coNnectUS's result display area, including command formats, descriptions, examples where applicable, as well as a link to this User Guide.
+* Scroll through the results area to view the built-in commands available for use.
 
 Format: `help`
 
+Sample Output (truncated):
+```
+Help Menu
+========
+help
+	Displays this help menu.
 
-### Adding a person: `add`
+add -n NAME -p PHONE_NUMBER -e EMAIL [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...
+	Adds a contact to the address book.
+	Example: add -n John Doe -p 98765432 -e johnd@example.com -a 311, Clementi Ave 2, #02-25 -t others friends -t others owesMoney
 
-Adds a person to the address book.
+list
+	Displays all saved contacts.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+... more commands ...
+```
+
+<box type="info" header="****Alternative way getting help: the User Guide****" seamless>
+Before we proceed with this step, ensure that you have a <i>reliable internet connection</i>.
+<br>
+<br>
+An alternative to accessing this user guide is through the "User Guide" dialog, using the following steps:
+
+1. With coNnectUS already open, click on <kbd>User Guide</kbd> on the top ribbon and select the button to trigger the User Guide dialog. Alternatively, you can press <kbd>F1</kbd> on your keyboard.
+<br>
+
+<img src="images/user-guide-access-step-1.png" alt="user-guide-access-step-1" width="515" style="max-width: 100%; height: auto;" />
+<br>
+<br>
+
+2. Once the dialog appears, click on the <kbd>Open User Guide</kbd> button to open this User Guide with your configured default browser.
+<br>
+
+<img src="images/user-guide-access-step-2.png" alt="user-guide-access-step-2" width="506" style="max-width: 100%; height: auto;" />
+<br>
+<br>
+
+Note that if there are issues with your default browser, you would be prompted to click <kbd>Copy URL</kbd> instead and open it in a browser of your choosing.
+</box>
+
+### Adding a contact: `add`
+
+Adds a contact to the address book.
+
+Format: `add -n NAME -p PHONE_NUMBER -e EMAIL [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]... `
+
+<box type="tip" header="**Tips**" seamless>
+
+- A contact can only have a maximum of `5` unique tags.
+- Refer to [Tagging a contact](#tagging-a-contact) for more information on tags.
+- The address parameter is optional.
+- Each contact must have a phone number and email address that no other contact uses. Names do not need to be unique.
+
+</box>
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add -n John Doe -p 98765432 -e johnd@example.com -a John street, block 123, #01-01`
+* `add -n Betsy Crowe -t others friend -e betsycrowe@example.com -a Newgate Prison -p 1234567 -t others criminal`
+* `add -n Jane Tan -p 87654321 -e janetan@example.com`
 
-### Listing all persons: `list`
+### Listing all contacts: `list`
 
-Shows a list of all persons in the address book.
+Shows a list of all contacts in the address book.
 
 Format: `list`
 
-### Editing a person: `edit`
+### Editing a contact: `edit`
 
-Edits an existing person in the address book.
+Edits an existing contact in the address book.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]... `
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
+* Edits the contact at the specified `INDEX`. The index refers to the index number shown in the displayed contact list. The index **must be a positive integer** 1, 2, 3, ...
 * At least one of the optional fields must be provided.
 * Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* The new phone number or email address must not already be used by another contact.
+* When editing tags, all of the contact's existing tags are removed; adding tags is not cumulative.
+* To remove all of a contact's tags, enter `-t` without a tag after it.
+* To remove a contact's address, enter `-a` without an address after it.
+* Refer to [Tagging a contact](#tagging-a-contact) for more info on tags.
+
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+*  `edit 1 -p 91234567 -e johndoe@example.com` Edits the phone number and email address of the 1st contact to be `91234567` and `johndoe@example.com` respectively.
+*  `edit 2 -n Betsy Crower -t` Edits the name of the 2nd contact to be `Betsy Crower` and clears all existing tags.
+*  `edit 3 -a` Removes the address of the 3rd contact.
 
-### Locating persons by name: `find`
+### Locating contacts by criteria: `find`
 
-Finds persons whose names contain any of the given keywords.
+Finds contacts in the address book matching the supplied criteria.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Format: `find [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
-
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* At least one criterion must be specified.
+* Multiple tags can be supplied, but other parameters (name, phone, email, address) may only be specified once.
+* Every criterion supplied must match to find a contact.
+* Search criteria are case-insensitive. For example, `-n hans` matches `-n Hans`.
+* Contacts are matched if the search criterion is a substring of the actual field; for example `-n John` matches `John` and `Johnny`.
+* For tag criteria, both a valid category (i.e. `module`, `faculty` or `others`) and the tag name must be supplied.
+* Refer to [Tagging a contact](#tagging-a-contact) for a list of valid tag categories.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `find -n john` returns `John`, `Johnny`.
+* `find -e alice` returns `alice@example.com`, `alicelow@gmail.com`
+* `find -p 92` returns `92005000`, `88922301`
+* `find -t others Friend -t faculty Computing` returns contacts who have both tags.<br>
+  ![result for 'find -t others Friend -t faculty Computing'](images/findMultipleTagsResult.png)
+
+### Deleting a contact or multiple contacts: `delete`
+
+Deletes either the specified contact (based on list index), or removes all instances of the specified tags and deletes contacts with no remaining tags.
+
+Format: `delete INDEX` | `delete -t TAG_CATEGORY TAG_NAME...`
+
+<ins>__Index-based deletion:__</ins>
+
+* Deletes the contact at the specified `INDEX`.
+* The index refers to the index number shown in the displayed contact list.
+* The index **must be a positive integer** 1, 2, 3, ...
+
+<ins>__Tag-based deletion:__</ins>
+
+* Removes matching tags from each tagged contact. Retains the contact if any tags remain; otherwise, deletes it.
+* One or more tags can be specified.
+* Matching contacts not displayed in the active filter can still be deleted, or have their tags removed.
+* Tag categories and tag names are compared case-insensitively.
+
+Examples:
+
+* `list` followed by `delete 2` deletes the 2nd contact in the address book.
+* `find -n Betsy` followed by `delete 1` deletes the 1st contact in the results of the `find` command.
+* `delete -t faculty Science` removes the faculty tag `Science` from all contacts that have it. Contacts that have only faculty tag `Science` originally are deleted.
+* `delete -t module TJ3000 -t others Badminton` removes the module tag `TJ3000` and the others tag `Badminton` from all contacts that have it. Only contacts that originally had **either or both** of the following tags, will be deleted.
+  * `TJ3000` tag of the "module" category.
+  * `Badminton` tag of the "others" category.
+
+### Pinning and unpinning a contact
+
+Contacts can be pinned to be displayed on top of unpinned contacts, and unpinned to be displayed amongst unpinned contacts.
+
+Format: `pin INDEX`, `unpin INDEX`
+
+* Pins the contact at the specified `INDEX`.
+* The index refers to the index number specified in the displayed contact list (either using `find` or `list`).
+* Regardless of sort order, a pinned contact will always appear on top of an unpinned contact.
+* The index **must be a positive integer**.
+  * If using `pin`, the contact specified at `INDEX` **must be** an unpinned contact.
+  * If using `unpin`, the contact specified at `INDEX` **must be** a pinned contact.
+
+Examples:
+* `list` followed by `pin 3` pins the 3rd contact in the address book.
+* `find -n Bob` followed by `pin 5` pins the 5th contact in the results of the `find` command.
+* `find -e mary@gmail.com` followed by `unpin 1` unpins the 1st contact in the results of the `find` command.
+
+### Sorting contacts
+
+Contacts can be sorted according to some attributes, such as their name.
+
+Format: `sort (name | email | phone) (asc | desc)`
+
+* Attribute for sorting and sorting order are not case-sensitive (`sort nAmE dEsC` has the same effect as `sort name desc`).
+* The specified sorting order is retained after contacts are added/edited - the sort will be automatically reapplied.
+* Currently supported attributes for sorting:
+  * Name (Ascending = `A-Z`, Descending = `Z-A`).
+  * Email (Ascending = `A-Z`, Descending = `Z-A`).
+  * Phone (Ascending = Smaller numbers first, Descending = Larger numbers first).
+
+Examples:
+* `sort name desc` sorts the contacts by their name, in reverse alphabetical order (Z-A).
+* `sort phone asc` sorts the contacts by their phone number, displaying smaller phone numbers first
+
+### Tagging a contact
+
+Tags can be added to a contact through the [Edit](#editing-a-contact-edit) or the [Add](#adding-a-contact-add) commands.
+
+The following tag categories are supported, with each category being assigned a unique color code:
+- <span style="background-color:#782828; color:white">module</span>
+- <span style="background-color:#56478d; color:white">faculty</span>
+- <span style="background-color:#356644; color:white">others</span>
+
+Tag categories are not case-sensitive.
+- `add ... -t OTHERS friend` has the same effect as `add ... -t oThErS friend`.
+
+A contact can only have a maximum of `5` **unique** tags.
+- A tag is unique if the contact does not have another tag with the same `category` and _case-insensitive_ `tag name`
+- For example: `add ... -t others FrIenD -t others friend` adds a contact with only 1 tag, while `add ... -t others friend -t module friend` adds a contact with 2 tags.
+
 
 ### Clearing all entries: `clear`
 
 Clears all entries from the address book.
 
 Format: `clear`
+
+### Undoing a change: `undo`
+
+Reverses the most recent command that changed your contact list.
+
+Format: `undo`
+
+* Commands that can be undone: `add`, `edit`, `delete`, `clear`, `pin`, `unpin`, `import`, `sort`.
+* Other commands, such as `list`, `find`, `theme` and `alias`, are skipped. `undo` reverses the most recent command that changed your contact list.
+  * Using undo after a sort restores the previous sorting criteria, even if the contact list itself was unchanged.
+* You can use `undo` several times in a row to reverse earlier changes one at a time.
+* After an undo, all contacts are shown, with pinned contacts at the top.
+* The undo history is cleared when you close coNnectUS.
+
+Examples:
+* `delete 2` followed by `undo` brings back the deleted contact.
+* `pin 1`, `edit 3 -n John Doe`, then `undo` twice reverses the edit and then the pin.
+
+### Redoing an undone change: `redo`
+
+Reapplies the most recent change that was reversed by `undo`.
+
+Format: `redo`
+
+* You can use `redo` several times in a row to reapply undone changes one at a time, in the order they were made.
+* Making a new change after an `undo` (e.g. `add`, `edit` or `delete`) clears the redo history, so the undone changes can no longer be redone.
+* Commands that do not change your contact list, such as `list` and `find`, do not clear the redo history.
+* After a redo, all contacts are shown, with pinned contacts at the top.
+
+Examples:
+* `delete 2`, `undo`, then `redo` deletes the contact again.
+* `delete 2`, `undo`, `add -n Jane Tan -p 87654321 -e janetan@example.com`, then `redo` shows an error, because adding Jane Tan cleared the redo history.
+
+### Importing contacts: `import`
+
+Imports contacts from a JSON address book file and merges them into the current address book.
+
+Format: `import -f FILE_PATH`
+
+* `FILE_PATH` is the path to a JSON address book file.
+* If `FILE_PATH` contains a word starting with `-` (e.g. `contacts -backup.json`), wrap the whole path in double quotes.
+* `FILE_PATH` must not contain double quotes other than the surrounding pair.
+* Contacts with the same phone number or email address as an existing contact are skipped.
+* Imported contacts are added to the current address book; existing contacts are not replaced.
+* The command displays the number of imported and skipped contacts.
+* The imported contacts can be removed using `undo`.
+
+Example:
+* `import -f data/exports/contacts.json`
+* `import -f "data/exports/contacts -backup.json"`
+
+### Exporting contacts: `export`
+
+Exports contacts that match the specified criteria to a JSON file.
+
+The exported file is saved in the `data/exports` folder. The `.json` file extension is added automatically.
+
+Format: `export -f FILENAME [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`
+
+* `FILENAME` must contain only alphanumeric characters and spaces.
+* `FILENAME` must begin with an alphanumeric character and cannot exceed 100 characters.
+*  Do not include the `.json` file extension in `FILENAME`.
+*  If no filtering criteria is provided, all contacts present in coNnectUS at that point of time are exported by default.
+*  Multiple criteria can be specified. A contact must match **every specified criterion** to be included in the export.
+*  If a file with the same name already exists, it will be overwritten.
+*  Exporting contacts does not modify the contacts in coNnectUS and cannot be undone.
+
+Examples:
+* `export -f contacts` exports all contacts to `data/exports/contacts.json`.
+* `export -f filtered-contacts -n Alice -e example.com` exports contacts whose names contain `Alice` and whose email addresses contain `example.com`.
+
+### Changing the theme: `theme`
+
+Switches coNnectUS between a dark theme (true black, which saves power on OLED screens) and a light theme (white).
+
+Format: `theme dark` | `theme light`
+
+* The theme name is not case-sensitive. For example, `theme LIGHT` works the same as `theme light`.
+* You can also click the **Dark** / **Light** button at the right end of the menu bar to switch to the other theme.
+* The User Guide window changes to the same theme.
+* coNnectUS remembers your theme and opens with it the next time you start the app. The first time you start the app, it opens in the dark theme.
+
+Examples:
+* `theme light` switches to the light theme.
+* `theme dark` switches back to the dark theme.
+
+<div style="display:flex; flex-wrap:wrap; gap:12px">
+  <img src="images/ThemeDark.png" alt="coNnectUS in the dark theme" width="360" />
+  <img src="images/ThemeLight.png" alt="coNnectUS in the light theme" width="360" />
+</div>
+
+<br>
+
+### Adding an alias: `alias`
+
+Creates an alternative command word for a built-in command, allowing you to customize and use more memorable and intuitive commands.
+
+Format: `alias COMMAND_WORD ALIAS_TO_SET`
+* `COMMAND_WORD` must be an **existing built-in command**, written in lowercase, such as `find`, `add` or `list`.
+* `ALIAS_TO_SET` must contain only English/ASCII lowercase and uppercase letters (`a-z`, `A-Z`). Numbers, spaces and special characters are **not allowed**.
+* There is **no maximum length** imposed for aliases, giving you the flexibility to choose alias names that suit your needs. For convenience's sake, we recommend choosing an alias that is:
+    * _**shorter**_ than the original command such as `f` or `fd` for `find`; or
+    * _**easy to associate**_ with the command, such as `search` for `find`.
+<br>
+<br>
+
+* Aliases are **case-sensitive**. For example, `f` and `F` are different aliases and associating each of them with distinct commands is allowed.
+* An alias **cannot conflict** with an existing built-in command, regardless of letter case. For example, neither `list` nor `LIST`, which exists as a registered command word can be used as an alias.
+* An alias **must not already be registered**. To reassign an existing alias to a new command word, delete it first using [`delete_alias`](#deleting-an-alias-delete-alias).
+* You can register _multiple aliases_ for the same built-in command.
+* An alias **only replaces the command word**. The command word's associated parameter(s) and parameter value(s) are still necessary. E.g.,
+    ```bash
+    alias find f                   # registers "f" as an alias for the "find" command
+    f -n James -t others friend    # runs the find command with the relevant search criteria
+    ```
+
+* The original command word remains usable after an alias is added.
+* The list of aliases is viewable using the [`list_alias`](#list-all-available-aliases-list-alias) command.
+
+
+Examples:
+* `alias find f` allows you to use `f -n James` instead of `find -n James`.
+* `alias list ls` allows you to use `ls` instead of `list`.
+* `alias delete del` allows you to use `del 3` instead of `delete 3`.
+
+
+<box type="warning" header="****Alias persistence and undo behaviour****" seamless>
+
+Aliases are **saved automatically** when you add or remove them and remain available when you restart coNnectUS at `data/aliases.json`.
+
+Adding or deleting an alias **cannot be undone** using [`undo`](#undoing-a-change-undo). However, commands executed through an alias follow the same undo behavior as the original command. For example, a deletion of a particular contact performed using `del 3` can be undone.
+
+</box>
+
+### List all available aliases: `list_alias`
+
+Displays all registered aliases, grouped by corresponding built-in command.
+
+Format: `list_alias`
+
+* If no aliases have been registered, a message indicating this will be displayed.
+
+Example:
+* After running `alias find f`, `alias list l` and `alias list ls`, entering `list_alias` displays the following mappings. Their order may vary.
+
+    ```text
+    Registered alias(es):
+    find: f
+    list: l, ls
+    ```
+
+### Deleting an alias: `delete_alias`
+
+Removes a registered alias.
+
+Format: `delete_alias ALIAS_TO_DELETE`
+
+* `ALIAS_TO_DELETE` must be an **existing alias**, with the same letter-case used when it was registered.
+* Deleting an alias **does not remove** its corresponding built-in command or any other aliases corresponding to that command.
+* To change the command associated with an alias (as shown in the example below), or edit an alias corresponding to a particular command, _delete the alias_ and then _re-register it again_.
+
+    ```bash
+    alias edit e        # registers "e" as an alias for the "edit" command
+    e 1 -n John Cena    # use "e" to rename first contact in the current displayed list
+    delete_alias e      # removes the alias "e", so that it can be reassigned
+    alias exit e        # registers "e" as an alias for a different command, "exit"
+    e                   # exits coNnectUS
+    ```
+
+Examples:
+Assume that the alias `f` is registered to the built-in command, `find`.
+* `delete_alias f` removes the alias `f`. You can still use the original `find` command thereafter.
+* `delete_alias f` followed by `alias list f` reassigns `f` to the `list` command.
+
+
+### Transferring aliases to another computer
+The alias data file is located at `data/aliases.json`, relative to coNnectUS's home folder.
+
+To transfer your saved aliases to a new computer:
+1. Close the coNnectUS application on your old computer.
+2. On your old computer, open the `data` folder inside your coNnectUS home folder and copy `aliases.json`.
+3. On your new computer, download coNnectUS and place the JAR file in your preferred folder. This is known as your coNnectUS home folder.
+4. Create a `data` folder within the home folder and then paste the copied `aliases.json` into the `data` folder.
+5. Start coNnectUS on your new computer and enter `list_alias` to verify that your aliases have been transferred successfully.
+
+<box type="warning" header="****Replacing existing aliases on the new computer****" seamless>
+
+If `data/aliases.json` already exists on the new computer, replacing it will **overwrite the aliases** stored there. Back up the existing file beforehand if you want to keep a copy of those aliases.
+
+</box>
+
+<box type="info" header="****Invalid entries in the alias file****" seamless>
+
+If `data/aliases.json` contains **invalid alias entries** when coNnectUS starts up, the application **skips them** and loads the remaining valid alias entries (if any). A startup warning reports the number of loaded and skipped entries.
+
+In this situation, use [`list_alias`](#list-all-available-aliases-list-alias) to view the aliases that have been loaded and are available for use. Advanced users may correct the entries directly in the alias file while **coNnectUS is closed** and then restart the application to load the rectified alias entries.
+
+Note that coNnectUS modifies the alias file the next time that you **successfully create or delete an alias**. Once the relevant entries have been added/removed, the file will only contain valid registered aliases, while the skipped, invalid alias entries will be discarded from the alias file.
+
+In the event that `aliases.json` itself cannot be loaded, coNnectUS starts **without** any loaded aliases and displays a warning message.
+
+</box>
+
 
 ### Exiting the program: `exit`
 
@@ -154,45 +499,56 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+Data is saved automatically by coNnectUS after every successful command that modifies the contact list. You do not need to save manually.
+
+Your window size, window position and theme are saved in `[JAR file location]/preferences.json` when you close the app.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+The address book application data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+<box type="warning" seamless>
 
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
+**Caution:**
+If your changes make the data file invalid, coNnectUS starts with an empty address book at the next run.<br> The invalid file remains on disk until coNnectUS next saves the address book, including after a successful import that adds no contacts, where coNnectUS will automatically write to the data file.<br> Still, we recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause the coNnectUS to behave in unexpected ways (e.g., if a value entered is outside the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous coNnectUS home folder.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+2. **If you minimize the User Guide Window** and then use the `User Guide` menu, or the keyboard shortcut `F1` again, the original User Guide Window may remain minimized, and no new User Guide Window will appear. The remedy is to manually restore the minimized User Guide Window.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+| Action | Format and Examples |
+|---|---|
+| **Add** | `add -n NAME -p PHONE_NUMBER -e EMAIL [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`<br>e.g., `add -n James Ho -p 22224444 -e jamesho@example.com -a 123, Clementi Rd, 1234665 -t others friend -t others colleague` |
+| **Clear** | `clear` |
+| **Delete** | `delete INDEX` \| `delete -t TAG_CATEGORY TAG_NAME...`<br>e.g., `delete 3`, `delete -t faculty CDE` |
+| **Edit** | `edit INDEX [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`<br>e.g., `edit 2 -n James Lee -e jameslee@example.com` |
+| **Find** | `find [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`<br>e.g., `find -n James -p 2222 -t others friend` |
+| **Pin** | `pin INDEX` |
+| **Unpin** | `unpin INDEX` |
+| **List all contacts** | `list` |
+| **Sort** | `sort (name \| email \| phone) (asc \| desc)` |
+| **Theme** | `theme dark` \| `theme light` |
+| **Undo** | `undo` |
+| **Redo** | `redo` |
+| **Import** |  `import -f FILE_PATH`<br>e.g., `import -f data/exports/contacts.json` |
+| **Export** | `export -f FILENAME [-n NAME] [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-t TAG_CATEGORY TAG_NAME]...`<br>e.g., `export -f contacts -n Alice` |
+| **Add an alias** | `alias COMMAND_WORD ALIAS_TO_SET`<br>e.g., `alias find f` |
+| **List all available aliases** | `list_alias` |
+| **Delete an alias** | `delete_alias ALIAS_TO_DELETE`<br>e.g., `delete_alias f` |
+| **Help** | `help` |

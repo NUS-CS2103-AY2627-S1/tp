@@ -1,20 +1,26 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.core.Theme;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ThemeCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 
@@ -25,23 +31,30 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final String MESSAGE_MISSING_THEME =
+            "Could not load the %1$s theme because its stylesheet is missing.";
+
+    private static final String MESSAGE_SAVE_ERROR = "The application remains open because alias changes "
+            + "could not be saved. Resolve the save error and try closing again.";
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private Theme currentTheme;
+    private boolean isThemeMissingOnStartup;
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
+    private UserGuideAccessWindow userGuideAccessWindow;
 
     @FXML
     private StackPane commandBoxPlaceholder;
 
     @FXML
-    private MenuItem helpMenuItem;
+    private MenuItem userGuideMenuItem;
 
     @FXML
     private StackPane personListPanelPlaceholder;
@@ -51,6 +64,12 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane statusbarPlaceholder;
+
+    @FXML
+    private FlowPane tagLegend;
+
+    @FXML
+    private Button themeButton;
 
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
@@ -69,7 +88,11 @@ public class MainWindow extends UiPart<Stage> {
 
         setAccelerators();
 
-        helpWindow = new HelpWindow();
+        userGuideAccessWindow = new UserGuideAccessWindow();
+
+        // Keep the saved theme even if its stylesheet is missing, so that it is still saved on exit
+        setCurrentTheme(logic.getGuiSettings().getTheme());
+        isThemeMissingOnStartup = !applyTheme(currentTheme);
     }
 
     public Stage getPrimaryStage() {
@@ -77,7 +100,7 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     private void setAccelerators() {
-        setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
+        setAccelerator(userGuideMenuItem, KeyCombination.valueOf("F1"));
     }
 
     /**
@@ -99,7 +122,7 @@ public class MainWindow extends UiPart<Stage> {
          * the TextInputControl(s).
          *
          * For now, we add the following event filter to capture such key events and open
-         * the help window purposely so as to support accelerators even when focus is
+         * the user guide access window purposely so as to support accelerators even when focus is
          * in CommandBox or ResultDisplay.
          */
         getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -111,9 +134,11 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Fills up all the placeholders of this window.
+     * Fills the window placeholders and displays any startup warnings in the output pane.
+     *
+     * @param startupWarning the startup warning, or an empty string if there is none.
      */
-    void fillInnerParts() {
+    void fillInnerParts(String startupWarning) {
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
@@ -122,9 +147,28 @@ public class MainWindow extends UiPart<Stage> {
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
+        tagLegend.getChildren().addAll(
+                new TagCategoryLegendLabel("faculty"),
+                new TagCategoryLegendLabel("module"),
+                new TagCategoryLegendLabel("others"));
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+
+        String startupFeedback = startupWarning;
+        if (isThemeMissingOnStartup) {
+            String themeWarning = String.format(MESSAGE_MISSING_THEME, currentTheme.getDisplayName());
+
+            if (startupWarning.isBlank()) {
+                startupFeedback = themeWarning;
+            } else {
+                startupFeedback = String.join("\n\n", themeWarning, startupWarning);
+            }
+        }
+
+        if (!startupFeedback.isBlank()) {
+            resultDisplay.setFeedbackToUser(startupFeedback);
+        }
     }
 
     /**
@@ -140,14 +184,52 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Opens the help window or focuses on it if it's already opened.
+     * Switches this window and the user guide window to the given {@code theme}.
+     * Returns false and keeps the current theme if the stylesheet of {@code theme} cannot be found.
+     */
+    private boolean applyTheme(Theme theme) {
+        assert theme != null;
+        if (!ThemeStylesheet.apply(primaryStage.getScene(), theme)) {
+            logger.warning("Missing stylesheet for theme " + theme + ": " + theme.getStylesheetPath());
+            return false;
+        }
+        userGuideAccessWindow.applyTheme(theme);
+        setCurrentTheme(theme);
+        logger.info("Theme changed to " + theme);
+        return true;
+    }
+
+    private void setCurrentTheme(Theme theme) {
+        currentTheme = theme;
+        themeButton.setText(theme == Theme.LIGHT ? "Light" : "Dark");
+    }
+
+    private void showMissingThemeMessage(Theme theme) {
+        resultDisplay.setFeedbackToUser(String.format(MESSAGE_MISSING_THEME, theme.getDisplayName()));
+    }
+
+    /**
+     * Switches between the dark and light themes when the theme button is clicked.
      */
     @FXML
-    public void handleHelp() {
-        if (!helpWindow.isShowing()) {
-            helpWindow.show();
+    private void handleThemeButton() {
+        Theme newTheme = currentTheme == Theme.DARK ? Theme.LIGHT : Theme.DARK;
+        if (applyTheme(newTheme)) {
+            resultDisplay.setFeedbackToUser(ThemeCommand.getSuccessMessage(newTheme));
         } else {
-            helpWindow.focus();
+            showMissingThemeMessage(newTheme);
+        }
+    }
+
+    /**
+     * Opens the user guide access window or focuses on it if it's already opened.
+     */
+    @FXML
+    public void handleUserGuide() {
+        if (!userGuideAccessWindow.isShowing()) {
+            userGuideAccessWindow.show();
+        } else {
+            userGuideAccessWindow.focus();
         }
     }
 
@@ -160,12 +242,27 @@ public class MainWindow extends UiPart<Stage> {
      */
     @FXML
     private void handleExit() {
+        try {
+            logic.savePendingAliasChanges();
+        } catch (CommandException exception) {
+            resultDisplay.setFeedbackToUser(String.join("\n",
+                    exception.getMessage(), MESSAGE_SAVE_ERROR));
+            return;
+        }
+
         GuiSettings guiSettings = new GuiSettings(primaryStage.getWidth(), primaryStage.getHeight(),
-                (int) primaryStage.getX(), (int) primaryStage.getY());
+                (int) primaryStage.getX(), (int) primaryStage.getY(), currentTheme);
         logic.setGuiSettings(guiSettings);
-        helpWindow.hide();
+        userGuideAccessWindow.hide();
         primaryStage.hide();
     }
+
+    @FXML
+    private void handleCloseRequest(WindowEvent wEvent) {
+        wEvent.consume();
+        handleExit();
+    }
+
 
     public PersonListPanel getPersonListPanel() {
         return personListPanel;
@@ -181,9 +278,9 @@ public class MainWindow extends UiPart<Stage> {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
-
-            if (commandResult.isShowHelp()) {
-                handleHelp();
+            Optional<Theme> theme = commandResult.getTheme();
+            if (theme.isPresent() && !applyTheme(theme.get())) {
+                showMissingThemeMessage(theme.get());
             }
 
             if (commandResult.isExit()) {

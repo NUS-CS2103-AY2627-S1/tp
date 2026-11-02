@@ -5,17 +5,25 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
  * Represents a Person's address in the address book.
- * Guarantees: immutable; is valid as declared in {@link #isValidAddress(String)}
+ * Guarantees: immutable; is either valid as declared in {@link #isValidAddress(String)}
+ * or empty (see {@link #EMPTY}) if no address was provided.
  */
 public class Address {
 
-    public static final String MESSAGE_CONSTRAINTS = "Addresses can take any values, and should not be blank";
-
+    public static final String MESSAGE_CONSTRAINTS =
+            "Addresses can take any values, and should not be blank.";
+    public static final String MESSAGE_EXCEED_MAX_LENGTH = "Entered address is too long "
+            + "(Should be at most 105 characters).";
     /*
      * The first character of the address must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
      */
     public static final String VALIDATION_REGEX = "[^\\s].*";
+
+    public static final int MAXIMUM_ADDRESS_LENGTH = 105;
+
+    /** Represents an address that was not provided. */
+    public static final Address EMPTY = new Address();
 
     public final String value;
 
@@ -27,7 +35,15 @@ public class Address {
     public Address(String address) {
         requireNonNull(address);
         checkArgument(isValidAddress(address), MESSAGE_CONSTRAINTS);
+        checkArgument(isValidLength(address), MESSAGE_EXCEED_MAX_LENGTH);
         value = address;
+    }
+
+    /**
+     * Constructs an empty {@code Address}. Only used to create {@link #EMPTY}.
+     */
+    private Address() {
+        value = "";
     }
 
     /**
@@ -35,6 +51,20 @@ public class Address {
      */
     public static boolean isValidAddress(String test) {
         return test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns true if a given string is within the maximum address length.
+     */
+    public static boolean isValidLength(String test) {
+        return test.length() <= MAXIMUM_ADDRESS_LENGTH;
+    }
+
+    /**
+     * Returns true if this address was not provided.
+     */
+    public boolean isEmpty() {
+        return value.isEmpty();
     }
 
     @Override

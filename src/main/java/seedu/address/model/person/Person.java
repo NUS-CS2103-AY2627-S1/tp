@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static seedu.address.commons.util.AppUtil.checkArgument;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Collections;
@@ -24,17 +25,32 @@ public class Person {
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final boolean isPinned;
+
+    /**
+     * Every field must be present and not null.
+     * Creates a person that is not pinned
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
+        this(name, phone, email, address, tags, false);
+    }
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, boolean isPinned) {
+        requireAllNonNull(name, phone, email, address, tags, isPinned);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        checkArgument(tags.size() <= Tag.MAX_TAGS_PER_PERSON, Tag.MESSAGE_TOO_MANY_TAGS);
         this.tags.addAll(tags);
+        this.isPinned = isPinned;
+    }
+
+    private Person(Person otherPerson, boolean isPinned) {
+        this(otherPerson.name, otherPerson.phone, otherPerson.email, otherPerson.address, otherPerson.tags, isPinned);
     }
 
     public Name getName() {
@@ -53,6 +69,24 @@ public class Person {
         return address;
     }
 
+    public boolean isPinned() {
+        return isPinned;
+    }
+
+    /**
+     * Creates a copy of the person with {@code isPinned} set to true.
+     */
+    public Person pinPerson() {
+        return new Person(this, true);
+    }
+
+    /**
+     * Creates a copy of the person with {@code isPinned} set to false.
+     */
+    public Person unpinPerson() {
+        return new Person(this, false);
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,8 +96,9 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have the same phone number or email
+     * address (either one). This defines a weaker notion of equality
+     * between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
@@ -71,12 +106,14 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && (otherPerson.getPhone().equals(getPhone())
+                || otherPerson.getEmail().equals(getEmail()));
     }
 
     /**
      * Returns true if both persons have the same identity and data fields.
      * This defines a stronger notion of equality between two persons.
+     * Tag names are compared case-sensitively so changes to their displayed and stored casing are detected.
      */
     @Override
     public boolean equals(Object other) {
@@ -93,13 +130,24 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && hasSameTagData(otherPerson)
+                && isPinned == otherPerson.isPinned;
+    }
+
+    /**
+     * Compares exact tag data independently of case-insensitive tag identity and set iteration order.
+     */
+    private boolean hasSameTagData(Person otherPerson) {
+        return tags.size() == otherPerson.tags.size()
+                && tags.stream().allMatch(tag -> otherPerson.tags.stream().anyMatch(otherTag ->
+                        tag.getTagCategory().equals(otherTag.getTagCategory())
+                                && tag.tagName.equals(otherTag.tagName)));
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, isPinned);
     }
 
     @Override

@@ -8,6 +8,7 @@ import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.alias.AliasRegistry;
 
 /**
  * API of the Storage component
@@ -48,10 +49,49 @@ public interface Storage {
     Optional<ReadOnlyAddressBook> readAddressBook() throws DataLoadingException;
 
     /**
+     * Returns AddressBook data from the specified file path.
+     * Returns {@code Optional.empty()} if the storage file is not found.
+     *
+     * @param path the file path from which to read the AddressBook; cannot be null.
+     * @throws DataLoadingException if loading the data from storage failed.
+     */
+    Optional<ReadOnlyAddressBook> readAddressBook(Path path) throws DataLoadingException;
+
+    /**
      * Saves the given {@link ReadOnlyAddressBook} to the storage.
      * @param addressBook cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
     void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
+
+    /**
+     * Saves the given {@link ReadOnlyAddressBook} to the specified file path.
+     *
+     * @param addressBook the address book to save; cannot be null
+     * @param path the file path to save the address book to; cannot be null
+     * @throws IOException if there was any problem writing to the file
+     */
+    void saveAddressBook(ReadOnlyAddressBook addressBook, Path path) throws IOException;
+
+    /**
+     * Returns the {@code Path} of the alias data file.
+     */
+    Path getAliasPath();
+
+    /**
+     * Returns validated aliases and warnings for skipped mappings.
+     *
+     * @return the loading result, or {@code Optional.empty()} if the file is missing.
+     * @throws DataLoadingException if the file cannot be read or deserialized.
+     */
+    Optional<AliasLoadResult> readAliases() throws DataLoadingException;
+
+    /**
+     * Saves the given {@link AliasRegistry} to storage.
+     *
+     * @param aliases The aliases to be saved, which cannot be null.
+     * @throws IOException if there were issues writing to the data file.
+     */
+    void saveAliases(AliasRegistry aliases) throws IOException;
 
 }

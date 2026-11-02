@@ -16,21 +16,34 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.tag.OthersTag;
 import seedu.address.model.tag.Tag;
+import seedu.address.storage.Filename;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_NAME_LENGTH = "AAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBB"
+            + "AAAAAAABBBBBBBAAAAAAABBBBBBB";
     private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE_LENGTH = "111122223333444455";
     private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_ADDRESS_LENGTH = "AAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBB"
+            + "AAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAABBBBBAAAAABBBBBAAAAA";
     private static final String INVALID_EMAIL = "example.com";
+    private static final String INVALID_EMAIL_LENGTH = "AAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAA"
+            + "BBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAA"
+            + "BBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAABBBBBBBAAAAAAA"
+            + "BBBBBBBAAAAAAABBBBBBB@mail.com";
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
-    private static final String VALID_TAG_1 = "friend";
-    private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_OTHERS_TAG_INPUT_1 = "others friend";
+    private static final String VALID_OTHERS_TAG_INPUT_2 = "others neighbour";
+    private static final String VALID_OTHERS_TAG_NAME_1 = "friend";
+    private static final String VALID_OTHERS_TAG_NAME_2 = "neighbour";
 
     private static final String WHITESPACE = " \t\r\n";
 
@@ -52,6 +65,43 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseFilename_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFilename(null));
+    }
+
+    @Test
+    public void parseFilename_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Filename.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseFilename("sample@file"));
+        assertThrows(ParseException.class, Filename.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseFilename("sample.json"));
+        assertThrows(ParseException.class, Filename.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseFilename(""));
+    }
+
+    @Test
+    public void parseFilename_invalidLength_throwsParseException() {
+        String filename = "a".repeat(Filename.MAXIMUM_NAME_LENGTH + 1);
+
+        assertThrows(ParseException.class, Filename.MESSAGE_EXCEED_MAX_LENGTH, ()
+                -> ParserUtil.parseFilename(filename));
+    }
+
+    @Test
+    public void parseFilename_validValue_returnsFilename() throws Exception {
+        Filename actualFilename = ParserUtil.parseFilename("sample file 2026");
+
+        assertEquals("sample file 2026", actualFilename.fileName);
+    }
+
+    @Test
+    public void parseFilename_validValueWithWhitespace_returnsTrimmedFilename() throws Exception {
+        Filename actualFilename = ParserUtil.parseFilename("  sample file 2026  ");
+
+        assertEquals("sample file 2026", actualFilename.fileName);
     }
 
     @Test
@@ -78,6 +128,11 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_invalidLength_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseName(INVALID_NAME_LENGTH));
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -85,6 +140,11 @@ public class ParserUtilTest {
     @Test
     public void parsePhone_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parsePhone(INVALID_PHONE));
+    }
+
+    @Test
+    public void parsePhone_invalidLength_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone(INVALID_PHONE_LENGTH));
     }
 
     @Test
@@ -111,6 +171,11 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAddress_invalidLength_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS_LENGTH));
+    }
+
+    @Test
     public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
         Address expectedAddress = new Address(VALID_ADDRESS);
         assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
@@ -131,6 +196,11 @@ public class ParserUtilTest {
     @Test
     public void parseEmail_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+    }
+
+    @Test
+    public void parseEmail_invalidLength_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL_LENGTH));
     }
 
     @Test
@@ -158,15 +228,27 @@ public class ParserUtilTest {
 
     @Test
     public void parseTag_validValueWithoutWhitespace_returnsTag() throws Exception {
-        Tag expectedTag = new Tag(VALID_TAG_1);
-        assertEquals(expectedTag, ParserUtil.parseTag(VALID_TAG_1));
+        OthersTag expectedTag = new OthersTag(VALID_OTHERS_TAG_NAME_1);
+        assertEquals(expectedTag, ParserUtil.parseTag(VALID_OTHERS_TAG_INPUT_1));
     }
 
     @Test
     public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
-        String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
-        Tag expectedTag = new Tag(VALID_TAG_1);
+        String tagWithWhitespace = WHITESPACE + VALID_OTHERS_TAG_INPUT_1 + WHITESPACE;
+        OthersTag expectedTag = new OthersTag(VALID_OTHERS_TAG_NAME_1);
         assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    }
+
+    @Test
+    public void parseTag_unicodeWhitespace_returnsNormalizedTag() throws Exception {
+        assertEquals(new OthersTag("close friend"),
+                ParserUtil.parseTag("\u2003others\u00a0close\u202f\u2003friend\u3000"));
+    }
+
+    @Test
+    public void parseTag_unicodeWhitespaceWithoutName_throwsParseException() {
+        assertThrows(ParseException.class, Tag.MESSAGE_MISSING_TAG_FIELD, () ->
+                ParserUtil.parseTag("others\u00a0\u2003"));
     }
 
     @Test
@@ -176,7 +258,7 @@ public class ParserUtilTest {
 
     @Test
     public void parseTags_collectionWithInvalidTags_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseTags(List.of(VALID_TAG_1, INVALID_TAG)));
+        assertThrows(ParseException.class, () -> ParserUtil.parseTags(List.of(VALID_OTHERS_TAG_INPUT_1, INVALID_TAG)));
     }
 
     @Test
@@ -186,8 +268,10 @@ public class ParserUtilTest {
 
     @Test
     public void parseTags_collectionWithValidTags_returnsTagSet() throws Exception {
-        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2));
-        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_OTHERS_TAG_INPUT_1,
+                VALID_OTHERS_TAG_INPUT_2));
+        Set<Tag> expectedTagSet = Set.of(new OthersTag(VALID_OTHERS_TAG_NAME_1),
+                new OthersTag(VALID_OTHERS_TAG_NAME_2));
 
         assertEquals(expectedTagSet, actualTagSet);
     }

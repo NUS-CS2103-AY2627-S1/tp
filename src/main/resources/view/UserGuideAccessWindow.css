@@ -1,0 +1,20 @@
+#button, #userGuideMessage {
+    -fx-text-fill: theme-text;
+}
+
+#button {
+    -fx-background-color: theme-raised;
+    -fx-border-color: theme-border;
+}
+
+#button:hover {
+    -fx-border-color: theme-accent;
+}
+
+#button:armed {
+    -fx-background-color: theme-border;
+}
+
+#userGuideMessageContainer {
+    -fx-background-color: theme-bg;
+}
