@@ -2,36 +2,48 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonMatchesFindCriteriaPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists persons matching the supplied cyclist criteria.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds cyclists matching the supplied criteria.\n"
+            + "Parameters: [n/NAME]... [p/PHONE]... [sos/EMERGENCY_PHONE]... [e/EMAIL]... [f/MIN_FTP] "
+            + "[x/EXPERIENCE]... [l/LOCATION]...\n"
+            + "At least one search criterion is required. Names and text criteria match complete words "
+            + "case-insensitively. Multi-word values match when all words are present in order. "
+            + "e/EMAIL matches any supplied exact email address, ignoring case. "
+            + "Use multiple values within a field for OR matching; different fields use AND matching. "
+            + "f/MIN_FTP matches cyclists with FTP at least the specified value in watts.\n"
+            + "Example: " + COMMAND_WORD + " l/Punggol x/Intermediate f/250";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private static final Logger logger = LogsCenter.getLogger(FindCommand.class);
+    private final PersonMatchesFindCriteriaPredicate predicate;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
-        this.predicate = predicate;
+    /**
+     * Creates a command that displays cyclists matching the supplied criteria.
+     */
+    public FindCommand(PersonMatchesFindCriteriaPredicate predicate) {
+        this.predicate = requireNonNull(predicate);
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
-        return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+        int matchingPersons = model.getFilteredPersonList().size();
+        logger.fine("Find command matched " + matchingPersons + " person(s).");
+        return new CommandResult(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, matchingPersons));
     }
 
     @Override

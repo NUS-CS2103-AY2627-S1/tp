@@ -1,6 +1,13 @@
+.root {
+    -fx-base: #1a1a1a;
+    -fx-accent: #ffd23f;
+    -fx-focus-color: #ffd23f;
+    -fx-faint-focus-color: transparent;
+}
+
 .background {
-    -fx-background-color: derive(#1d1d1d, 20%);
-    background-color: #383838; /* Used in the default.html file */
+    -fx-background-color: #1a1a1a;
+    background-color: #1a1a1a; /* Used in the default.html file */
 }
 
 .label {
@@ -40,9 +47,9 @@
 }
 
 .table-view {
-    -fx-base: #1d1d1d;
-    -fx-control-inner-background: #1d1d1d;
-    -fx-background-color: #1d1d1d;
+    -fx-base: #1a1a1a;
+    -fx-control-inner-background: #1a1a1a;
+    -fx-background-color: #1a1a1a;
     -fx-table-cell-border-color: transparent;
     -fx-table-header-border-color: transparent;
     -fx-padding: 5;
@@ -77,42 +84,35 @@
 }
 
 .split-pane:horizontal .split-pane-divider {
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: #1a1a1a;
     -fx-border-color: transparent transparent transparent #4d4d4d;
 }
 
 .split-pane {
     -fx-border-radius: 1;
     -fx-border-width: 1;
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: #1a1a1a;
 }
 
 .list-view {
     -fx-background-insets: 0;
     -fx-padding: 0;
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: #1a1a1a;
 }
 
 .list-cell {
     -fx-label-padding: 0 0 0 0;
     -fx-graphic-text-gap : 0;
-    -fx-padding: 0 0 0 0;
+    -fx-padding: 3 0 3 0;
 }
 
-.list-cell:filled:even {
-    -fx-background-color: #3c3e3f;
-}
-
-.list-cell:filled:odd {
-    -fx-background-color: #515658;
-}
-
-.list-cell:filled:selected {
-    -fx-background-color: #424d5f;
+.list-cell:filled:even, .list-cell:filled:odd, .list-cell:filled:selected {
+    -fx-background-color: transparent;
 }
 
 .list-cell:filled:selected #cardPane {
-    -fx-border-color: #3e7b91;
+    -fx-background-color: #33322b;
+    -fx-border-color: #ffd23f;
     -fx-border-width: 1;
 }
 
@@ -132,18 +132,44 @@
     -fx-text-fill: #010504;
 }
 
+.list-cell .person-field-label, .list-cell .ride-field-label {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 11px;
+    -fx-text-fill: #b8b8b8;
+}
+
+.list-cell .person-section-heading {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 10px;
+    -fx-text-fill: #929292;
+}
+
+.list-cell .person-field-value, .list-cell .ride-field-value {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-text-fill: #f2f2f2;
+}
+
+.list-cell .experience-chip {
+    -fx-background-color: #454127;
+    -fx-background-radius: 4;
+    -fx-padding: 1 6 1 6;
+    -fx-font-size: 12px;
+    -fx-text-fill: #ffe580;
+}
+
 .stack-pane {
-     -fx-background-color: derive(#1d1d1d, 20%);
+     -fx-background-color: #1a1a1a;
 }
 
 .pane-with-border {
-     -fx-background-color: derive(#1d1d1d, 20%);
-     -fx-border-color: derive(#1d1d1d, 10%);
+     -fx-background-color: #1a1a1a;
+     -fx-border-color: #333333;
      -fx-border-top-width: 1px;
 }
 
 .status-bar {
-    -fx-background-color: derive(#1d1d1d, 30%);
+    -fx-background-color: #262626;
 }
 
 .result-display {
@@ -157,6 +183,17 @@
     -fx-text-fill: black !important;
 }
 
+.confirmation-heading, .confirmation-instructions {
+    -fx-font-family: "Segoe UI Light";
+    -fx-font-size: 13pt;
+    -fx-padding: 0 8 0 8;
+    -fx-text-fill: white;
+}
+
+.confirmation-instructions {
+    -fx-text-fill: #ffd23f;
+}
+
 .status-bar .label {
     -fx-font-family: "Segoe UI Light";
     -fx-text-fill: white;
@@ -165,8 +202,8 @@
 }
 
 .status-bar-with-border {
-    -fx-background-color: derive(#1d1d1d, 30%);
-    -fx-border-color: derive(#1d1d1d, 25%);
+    -fx-background-color: #262626;
+    -fx-border-color: #333333;
     -fx-border-width: 1px;
 }
 
@@ -175,25 +212,37 @@
 }
 
 .grid-pane {
-    -fx-background-color: derive(#1d1d1d, 30%);
-    -fx-border-color: derive(#1d1d1d, 30%);
+    -fx-background-color: #262626;
+    -fx-border-color: #262626;
     -fx-border-width: 1px;
 }
 
 .grid-pane .stack-pane {
-    -fx-background-color: derive(#1d1d1d, 30%);
+    -fx-background-color: #262626;
 }
 
 .context-menu {
-    -fx-background-color: derive(#1d1d1d, 50%);
+    -fx-background-color: #2d2d2d;
 }
 
 .context-menu .label {
     -fx-text-fill: white;
 }
 
+/*
+ * The Help menu lists every command format, and the long ones wrap onto further lines when the window is narrow.
+ * The same font size as the rest of the application and modest padding keep the whole menu inside the window.
+ */
+.context-menu .menu-item {
+    -fx-padding: 3 10 3 10;
+}
+
+.context-menu .menu-item .label {
+    -fx-font-size: 11pt;
+}
+
 .menu-bar {
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: #1a1a1a;
 }
 
 .menu-bar .label {
@@ -217,7 +266,7 @@
     -fx-border-color: #e2e2e2;
     -fx-border-width: 2;
     -fx-background-radius: 0;
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: #1a1a1a;
     -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
     -fx-font-size: 11pt;
     -fx-text-fill: #d8d8d8;
@@ -229,8 +278,8 @@
 }
 
 .button:pressed, .button:default:hover:pressed {
-  -fx-background-color: white;
-  -fx-text-fill: #1d1d1d;
+  -fx-background-color: #ffd23f;
+  -fx-text-fill: #1a1a1a;
 }
 
 .button:focused {
@@ -243,13 +292,13 @@
 
 .button:disabled, .button:default:disabled {
     -fx-opacity: 0.4;
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: #1a1a1a;
     -fx-text-fill: white;
 }
 
 .button:default {
     -fx-background-color: -fx-focus-color;
-    -fx-text-fill: #ffffff;
+    -fx-text-fill: #1a1a1a;
 }
 
 .button:default:hover {
@@ -257,11 +306,11 @@
 }
 
 .dialog-pane {
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: #1a1a1a;
 }
 
 .dialog-pane > *.button-bar > *.container {
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: #1a1a1a;
 }
 
 .dialog-pane > *.label.content {
@@ -271,7 +320,7 @@
 }
 
 .dialog-pane:header *.header-panel {
-    -fx-background-color: derive(#1d1d1d, 25%);
+    -fx-background-color: #262626;
 }
 
 .dialog-pane:header *.header-panel *.label {
@@ -282,11 +331,11 @@
 }
 
 .scroll-bar {
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: #1a1a1a;
 }
 
 .scroll-bar .thumb {
-    -fx-background-color: derive(#1d1d1d, 50%);
+    -fx-background-color: #4d4d4d;
     -fx-background-insets: 3;
 }
 
@@ -308,8 +357,11 @@
 }
 
 #cardPane {
-    -fx-background-color: transparent;
-    -fx-border-width: 0;
+    -fx-background-color: #262626;
+    -fx-background-radius: 6;
+    -fx-border-color: #333333;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
 }
 
 #commandTypeLabel {
@@ -318,35 +370,46 @@
 }
 
 #commandTextField {
-    -fx-background-color: transparent #383838 transparent #383838;
+    -fx-background-color: #262626;
     -fx-background-insets: 0;
-    -fx-border-color: #383838 #383838 #ffffff #383838;
+    -fx-border-color: transparent transparent #ffd23f transparent;
     -fx-border-insets: 0;
-    -fx-border-width: 1;
+    -fx-border-width: 0 0 2 0;
     -fx-font-family: "Segoe UI Light";
     -fx-font-size: 13pt;
-    -fx-text-fill: white;
+    -fx-prompt-text-fill: #9a9a9a;
+    -fx-text-fill: #f2f2f2;
+    -fx-min-height: 50px;
+    -fx-pref-height: 50px;
+}
+
+.list-cell .ride-title {
+    -fx-background-color: #454127;
+    -fx-background-radius: 4;
+    -fx-padding: 2 8 2 8;
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 16px;
+    -fx-text-fill: #ffe580;
+}
+
+.ride-placeholder {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 12px;
+    -fx-text-fill: #929292;
+    -fx-padding: 0 10 0 10;
 }
 
 #filterField, #personListPanel, #personWebpage {
     -fx-effect: innershadow(gaussian, black, 10, 0, 0, 0);
 }
 
-#resultDisplay .content {
-    -fx-background-color: transparent, #383838, transparent, #383838;
+#resultDisplay {
+    -fx-control-inner-background: #262626;
+    -fx-background-insets: 0;
+}
+
+#resultDisplay .content, #resultDisplay .scroll-pane, #resultDisplay .scroll-pane .viewport {
+    -fx-background: #262626;
+    -fx-background-color: #262626;
     -fx-background-radius: 0;
-}
-
-#tags {
-    -fx-hgap: 7;
-    -fx-vgap: 3;
-}
-
-#tags .label {
-    -fx-text-fill: white;
-    -fx-background-color: #3e7b91;
-    -fx-padding: 1 3 1 3;
-    -fx-border-radius: 2;
-    -fx-background-radius: 2;
-    -fx-font-size: 11;
 }

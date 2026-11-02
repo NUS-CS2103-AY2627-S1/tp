@@ -1,0 +1,240 @@
+package seedu.address.model.ride;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.Location;
+import seedu.address.model.person.Name;
+import seedu.address.testutil.RideBuilder;
+
+public class RideMatchesFindCriteriaPredicateTest {
+
+    @Test
+    public void constructor_nullCriterion_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new RideMatchesFindCriteriaPredicate(
+                null, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty()));
+    }
+
+    @Test
+    public void test_noCriteria_matchesRide() {
+        // EP: no supplied criteria represents the match-all case.
+        assertTrue(predicate().test(new RideBuilder().build()));
+    }
+
+    @Test
+    public void test_fromAndTo_areInclusiveAtRideBoundaries() {
+        // Boundary values: exact ride start 0630/end 0930 are included;
+        // moving the start to 0631 or the end to 0929 excludes the ride.
+        Ride ride = new RideBuilder().withFrom("18-10-2026 0630").withTo("18-10-2026 0930").build();
+        RideMatchesFindCriteriaPredicate predicate = predicateWithBounds("0630", "0930");
+
+        assertTrue(predicate.test(ride));
+        assertFalse(predicateWithBounds("0631", null).test(ride));
+        assertFalse(predicateWithBounds(null, "0929").test(ride));
+    }
+
+    @Test
+    public void test_allFields_requireEveryFieldToMatch() {
+        // EP: all supplied fields must match; one incorrect field rejects the ride.
+        Ride ride = new RideBuilder().withName("Evening Loop").withLocation("Tampines").withDistance("50")
+                .withMinimumPower("200").withMaxGroupSize("15").withNotes("Bring lights").build();
+        RideMatchesFindCriteriaPredicate predicate = new RideMatchesFindCriteriaPredicate(
+                Optional.of(new Name("Evening Loop")), Optional.of(ride.getFrom()), Optional.of(ride.getTo()),
+                Optional.of(new Location("Tampines")), Optional.of(new Distance("50")),
+                Optional.of(new MinimumPower("200")), Optional.of(new GroupSize("15")),
+                Optional.of(new Notes("Bring lights")));
+
+        assertTrue(predicate.test(ride));
+        assertFalse(new RideMatchesFindCriteriaPredicate(Optional.of(new Name("Morning Loop")), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty()).test(ride));
+    }
+
+    @Test
+    public void test_optionalNotes_requiresNotesWhenSpecified() {
+        // EP: a ride without notes belongs to the non-matching partition when notes are requested.
+        Ride ride = new RideBuilder().build();
+        RideMatchesFindCriteriaPredicate predicate = predicateWithNotes("Bring lights");
+
+        assertFalse(predicate.test(ride));
+    }
+
+    @Test
+    public void test_location_isCaseInsensitive() {
+        // EP: location matching is case-insensitive and supports ordered whole-word searches.
+        Ride ride = new RideBuilder().withLocation("East Coast Park").build();
+
+        // EP: one requested word matches a location word.
+        assertTrue(predicateWithLocation("east").test(ride));
+        // EP: requested words may skip intervening complete words while preserving order.
+        assertTrue(predicateWithLocation("Coast Park").test(ride));
+        assertTrue(predicateWithLocation("East Park").test(ride));
+        // EP: all requested words occur in order.
+        assertTrue(predicateWithLocation("east coast").test(ride));
+        // EP: reversed word order does not match.
+        assertFalse(predicateWithLocation("park east").test(ride));
+        // EP: a different location does not match.
+        assertFalse(predicateWithLocation("Punggol").test(ride));
+    }
+
+    @Test
+    public void test_distance_requiresExactValue() {
+        // EP: numerically equivalent values match, while a different distance does not.
+        Ride ride = new RideBuilder().withDistance("45.5").build();
+
+        assertTrue(predicateWithDistance("45.50").test(ride));
+        assertFalse(predicateWithDistance("45.51").test(ride));
+    }
+
+    @Test
+    public void test_minimumPower_isAtLeastTheSpecifiedValueAndGroupSizeIsExact() {
+        // EP: minimum power accepts values at or below the requested threshold;
+        // a different maximum group size is rejected.
+        Ride ride = new RideBuilder().withMinimumPower("600").withMaxGroupSize("1").build();
+
+        // Boundary value: stored minimum power equals the requested threshold at 600 W.
+        assertTrue(predicateWithMinimumPower("600").test(ride));
+        assertTrue(predicateWithMinimumPower("599").test(ride));
+        Ride lowerPowerRide = new RideBuilder().withMinimumPower("599").build();
+        // Boundary value: stored power 599 W is one below the requested 600 W minimum.
+        assertFalse(predicateWithMinimumPower("600").test(lowerPowerRide));
+        assertFalse(predicateWithGroupSize("2").test(ride));
+    }
+
+    @Test
+    public void test_notes_matchesOrderedWholeWordsIgnoringCase() {
+        // EP: complete words match regardless of case, while partial words and reversed order do not.
+        Ride ride = new RideBuilder().withNotes("Bring camera with aperture f/2").build();
+
+        // EP: words may be separated by other complete words when their order is preserved.
+        assertTrue(predicateWithNotes("camera aperture").test(ride));
+        assertTrue(predicateWithNotes("camera f/2").test(ride));
+        assertTrue(predicateWithNotes("aperture f/2").test(ride));
+        // EP: matching remains case-insensitive for ordered words.
+        assertTrue(predicateWithNotes("CAMERA APERTURE").test(ride));
+        assertTrue(predicateWithNotes("Bring").test(ride));
+        // EP: reversed words and partial words do not match.
+        assertFalse(predicateWithNotes("aperture camera").test(ride));
+        assertFalse(predicateWithNotes("camer").test(ride));
+        assertFalse(predicateWithNotes("camera f/3").test(ride));
+
+        // EP: punctuation remains a valid whole-word boundary for notes.
+        Ride punctuatedRide = new RideBuilder().withNotes("Bring lights! camera.aperture").build();
+        assertTrue(predicateWithNotes("lights").test(punctuatedRide));
+        assertTrue(predicateWithNotes("camera aperture").test(punctuatedRide));
+        // Boundary regression: punctuation before a later search word must not be treated as a word boundary reset.
+        assertFalse(predicateWithNotes("camera .aperture").test(punctuatedRide));
+        assertFalse(predicateWithNotes(".aperture").test(punctuatedRide));
+    }
+
+    @Test
+    public void test_name_isCaseInsensitiveAndSupportsOrderedWholeWordSearches() {
+        // EP: name matching is case-insensitive and supports ordered whole-word searches.
+        Ride ride = new RideBuilder().withName("Sunday Sunrise Ride").build();
+
+        // EP: one requested word matches a name word.
+        assertTrue(predicateWithName("sunday").test(ride));
+        // EP: requested words may skip intervening complete words while preserving order.
+        assertTrue(predicateWithName("Sunday Ride").test(ride));
+        assertTrue(predicateWithName("Sunrise Ride").test(ride));
+        assertTrue(predicateWithName("sunday sunrise").test(ride));
+        // EP: reversed word order does not match.
+        assertFalse(predicateWithName("ride sunday").test(ride));
+        // EP: a partial word fragment does not match a complete word.
+        assertFalse(predicateWithName("Rise").test(ride));
+        // EP: a different name does not match.
+        assertFalse(predicateWithName("Sunday Sunset").test(ride));
+    }
+
+    @Test
+    public void test_name_matchesPartsOfHyphenatedAndApostrophisedNames() {
+        // EP: a name without punctuation, a full punctuated word and any part of it all match.
+        Ride ride = new RideBuilder().withName("Wei-Ling's Ride").build();
+
+        for (String name : new String[] {"Wei-Ling", "Wei", "ling", "Wei-Ling's Ride", "Ling Ride"}) {
+            assertTrue(predicateWithName(name).test(ride), name);
+        }
+        // EP: reversed order, partial words and words without their separator do not match.
+        for (String name : new String[] {"Ride Wei", "Lin", "WeiLing", "Wei-Lings"}) {
+            assertFalse(predicateWithName(name).test(ride), name);
+        }
+    }
+
+    @Test
+    public void test_location_matchesPartsOfHyphenatedAndApostrophisedLocations() {
+        // EP: locations follow the same separator rule as names.
+        Ride ride = new RideBuilder().withLocation("Pasir-Ris Park").build();
+
+        for (String location : new String[] {"Pasir-Ris", "Pasir", "Ris Park", "pasir-ris park"}) {
+            assertTrue(predicateWithLocation(location).test(ride), location);
+        }
+        for (String location : new String[] {"Park Ris", "Pasi", "PasirRis"}) {
+            assertFalse(predicateWithLocation(location).test(ride), location);
+        }
+    }
+
+    @Test
+    public void test_fromOnlyAndToOnly_applyOneSidedBounds() {
+        // EP: each optional time boundary works independently of the other boundary.
+        Ride ride = new RideBuilder().withFrom("18-10-2026 0630").withTo("18-10-2026 0930").build();
+
+        assertTrue(predicateWithBounds("0630", null).test(ride));
+        assertTrue(predicateWithBounds(null, "0930").test(ride));
+        assertFalse(predicateWithBounds("0631", null).test(ride));
+        assertFalse(predicateWithBounds(null, "0929").test(ride));
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithBounds(String from, String to) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(),
+                Optional.ofNullable(from).map(value -> new RideDateTime("18-10-2026 " + value)),
+                Optional.ofNullable(to).map(value -> new RideDateTime("18-10-2026 " + value)), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicate() {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithLocation(String location) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.of(new Location(location)), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithDistance(String distance) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.of(new Distance(distance)), Optional.empty(), Optional.empty(),
+                Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithMinimumPower(String minimumPower) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.of(new MinimumPower(minimumPower)),
+                Optional.empty(), Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithGroupSize(String groupSize) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(new GroupSize(groupSize)),
+                Optional.empty());
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithNotes(String notes) {
+        return new RideMatchesFindCriteriaPredicate(Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.of(new Notes(notes)));
+    }
+
+    private RideMatchesFindCriteriaPredicate predicateWithName(String name) {
+        return new RideMatchesFindCriteriaPredicate(Optional.of(new Name(name)), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty());
+    }
+}

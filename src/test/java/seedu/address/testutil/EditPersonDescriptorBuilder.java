@@ -5,12 +5,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
 
 /**
  * A utility class to help with building EditPersonDescriptor objects.
@@ -34,9 +35,11 @@ public class EditPersonDescriptorBuilder {
         descriptor = new EditPersonDescriptor();
         descriptor.setName(person.getName());
         descriptor.setPhone(person.getPhone());
+        person.getEmergencyPhone().ifPresent(descriptor::setEmergencyPhone);
         descriptor.setEmail(person.getEmail());
-        descriptor.setAddress(person.getAddress());
-        descriptor.setTags(person.getTags());
+        descriptor.setFtp(person.getFtp());
+        descriptor.setExperienceLevel(person.getExperienceLevel());
+        descriptor.setLocations(person.getLocations());
     }
 
     /**
@@ -64,20 +67,35 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code EditPersonDescriptor} that we are building.
+     * Sets the {@code Ftp} of the {@code EditPersonDescriptor} that we are building.
      */
-    public EditPersonDescriptorBuilder withAddress(String address) {
-        descriptor.setAddress(new Address(address));
+    public EditPersonDescriptorBuilder withFtp(String ftp) {
+        descriptor.setFtp(new Ftp(ftp));
         return this;
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
-     * that we are building.
+     * Sets the {@code ExperienceLevel} of the {@code EditPersonDescriptor} that we are building.
      */
-    public EditPersonDescriptorBuilder withTags(String... tags) {
-        Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
-        descriptor.setTags(tagSet);
+    public EditPersonDescriptorBuilder withExperienceLevel(String experienceLevel) {
+        descriptor.setExperienceLevel(new ExperienceLevel(experienceLevel));
+        return this;
+    }
+
+    /**
+     * Sets the preferred cycling locations of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withLocations(String... locations) {
+        Set<Location> locationSet = Stream.of(locations).map(Location::new).collect(Collectors.toSet());
+        descriptor.setLocations(locationSet);
+        return this;
+    }
+
+    /**
+     * Sets the emergency contact number to edit.
+     */
+    public EditPersonDescriptorBuilder withEmergencyPhone(String emergencyPhone) {
+        descriptor.setEmergencyPhone(new Phone(emergencyPhone));
         return this;
     }
 

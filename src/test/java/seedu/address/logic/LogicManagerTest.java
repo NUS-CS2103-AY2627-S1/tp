@@ -1,10 +1,11 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.EXPERIENCE_LEVEL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.FTP_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.LOCATION_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -12,15 +13,20 @@ import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RideDeleteCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
@@ -28,10 +34,14 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.ride.Ride;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.PersonUtil;
+import seedu.address.testutil.RideBuilder;
+import seedu.address.testutil.RideUtil;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -53,6 +63,16 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void constructor_nullDependencies_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new LogicManager(null, null));
+        assertThrows(NullPointerException.class, () -> new LogicManager(model, null));
+        StorageManager storage = new StorageManager(
+                new JsonAddressBookStorage(temporaryFolder.resolve("book.json")),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json")));
+        assertThrows(NullPointerException.class, () -> new LogicManager(null, storage));
+    }
+
+    @Test
     public void execute_invalidCommandFormat_throwsParseException() {
         String invalidCommand = "uicfhmowqewca";
         assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
@@ -60,14 +80,185 @@ public class LogicManagerTest {
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteCommand = "delete +65 99999999";
+        assertCommandException(deleteCommand, String.format(DeleteCommand.MESSAGE_PERSON_NOT_FOUND, "+65 99999999"));
     }
 
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
         assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+    }
+
+    @Test
+    public void execute_rideAdd_addsRideAndSavesItToStorage() throws Exception {
+        Ride draft = new RideBuilder().withNotes("Bring lights").build();
+
+        logic.execute(RideUtil.getRideAddCommand(draft));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder(draft).withName("Evening Spin").build()));
+
+        assertEquals(2, model.getAddressBook().getRideList().size());
+        JsonAddressBookStorage reader = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook saved = reader.readAddressBook().get();
+        assertEquals(new RideBuilder(draft).withId(1).build(), saved.getRideList().get(0));
+        assertEquals("Evening Spin", saved.getRideList().get(1).getName().fullName);
+        assertEquals(2, saved.getRideList().get(1).getId());
+        assertEquals(3, saved.getNextRideId());
+    }
+
+    @Test
+    public void getRideList_afterRideAdd_isLiveViewOfAddedRides() throws Exception {
+        assertEquals(0, logic.getRideList().size());
+
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().build()));
+
+        assertEquals(1, logic.getRideList().size());
+        assertEquals(1, logic.getRideList().get(0).getId());
+        assertThrows(UnsupportedOperationException.class, () -> logic.getRideList().clear());
+    }
+
+    @Test
+    public void getRideList_afterRideFind_returnsAllRides() throws Exception {
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().withName("Morning Ride").build()));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().withName("Evening Ride").build()));
+
+        logic.execute("ridefind n/Morning Ride");
+
+        // EP: filtering changes only the view; the saved ride list remains complete and one ride matches.
+        assertEquals(2, logic.getRideList().size());
+        assertEquals(1, logic.getFilteredRideList().size());
+    }
+
+    @Test
+    public void execute_rideFindAll_restoresAllRides() throws Exception {
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().withName("Morning Ride").build()));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().withName("Evening Ride").build()));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().withName("Night Ride").build()));
+
+        logic.execute("ridefind n/Morning Ride");
+        // EP: a criterion matching one of several saved rides produces a one-item filtered view.
+        assertEquals(1, logic.getFilteredRideList().size());
+        logic.execute("ridefind n/Evening Ride");
+        // EP: replacing one valid criterion with another replaces, rather than accumulates, the filter.
+        assertEquals(1, logic.getFilteredRideList().size());
+
+        logic.execute("ridefind all");
+
+        // EP: the reserved all form is the match-all partition and restores every saved ride.
+        assertEquals(3, logic.getFilteredRideList().size());
+        assertEquals(3, logic.getRideList().size());
+    }
+
+    @Test
+    public void execute_clearThenRideAdd_doesNotReuseRideIdsAndSavesCounter() throws Exception {
+        Ride draft = new RideBuilder().build();
+        logic.execute(RideUtil.getRideAddCommand(draft));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder(draft).withName("Evening Spin").build()));
+
+        logic.execute("clear");
+        assertEquals(0, model.getAddressBook().getRideList().size());
+        JsonAddressBookStorage reader = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(3, reader.readAddressBook().get().getNextRideId());
+
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder(draft).withName("Night Ride").build()));
+
+        assertEquals(3, model.getAddressBook().getRideList().get(0).getId());
+        assertEquals(4, reader.readAddressBook().get().getNextRideId());
+    }
+
+    @Test
+    public void execute_clearWithExtraText_rejectedAndKeepsDataAndSavedFile() throws Exception {
+        // add requires an emergency phone, which AMY does not have
+        Person cyclist = new PersonBuilder(AMY).withEmergencyPhone("+65 99999999").build();
+        logic.execute(PersonUtil.getAddCommand(cyclist));
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().build()));
+        Path addressBookFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(addressBookFile);
+
+        assertParseException("clear 1", String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT,
+                ClearCommand.MESSAGE_USAGE));
+        assertParseException("clear n/Amy", String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT,
+                ClearCommand.MESSAGE_USAGE));
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals(1, model.getAddressBook().getRideList().size());
+        assertEquals(savedData, Files.readString(addressBookFile));
+
+        // plain clear still works
+        logic.execute("clear");
+        assertEquals(0, model.getAddressBook().getPersonList().size());
+        assertEquals(0, model.getAddressBook().getRideList().size());
+    }
+
+    @Test
+    public void execute_rideAddWithInvalidField_doesNotAddRide() {
+        assertParseException("rideadd n/Ride from/18-10-2026 0930 to/18-10-2026 0630 l/East Coast d/45 f/180 s/12",
+                Ride.MESSAGE_INVALID_PERIOD);
+        assertEquals(0, model.getAddressBook().getRideList().size());
+    }
+
+    @Test
+    public void execute_invalidOrUnknownRideId_preservesModelAndSavedData() throws Exception {
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().build()));
+        Path addressBookFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(addressBookFile);
+
+        assertParseException("ridedelete 0", String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT,
+                RideDeleteCommand.MESSAGE_USAGE));
+        assertCommandException("ridedelete 999",
+                String.format(RideDeleteCommand.MESSAGE_RIDE_NOT_FOUND, 999));
+
+        assertEquals(savedData, Files.readString(addressBookFile));
+    }
+
+    @Test
+    public void execute_rideEdit_updatesObservableListAndPersistsChangedAndPreservedFields() throws Exception {
+        Ride firstDraft = new RideBuilder().withNotes("Bring lights").build();
+        Ride secondDraft = new RideBuilder().withName("Evening Spin").build();
+        logic.execute(RideUtil.getRideAddCommand(firstDraft));
+        logic.execute(RideUtil.getRideAddCommand(secondDraft));
+        List<Ride> observedRides = logic.getRideList();
+
+        logic.execute("rideedit 1 n/Night Ride");
+        logic.execute("rideedit 1 l/Punggol d/50.5 f/250 s/20");
+
+        Ride expectedFirst = new RideBuilder(firstDraft).withId(1).withName("Night Ride").withLocation("Punggol")
+                .withDistance("50.5").withMinimumPower("250").withMaxGroupSize("20").build();
+        Ride expectedSecond = new RideBuilder(secondDraft).withId(2).build();
+        assertEquals(List.of(expectedFirst, expectedSecond), observedRides);
+        assertEquals(3, model.getAddressBook().getNextRideId());
+        JsonAddressBookStorage reader = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(model.getAddressBook(), reader.readAddressBook().get());
+    }
+
+    @Test
+    public void execute_rideEditInvalidOneSidedPeriods_preservesModelAndSavedData() throws Exception {
+        logic.execute(RideUtil.getRideAddCommand(new RideBuilder().build()));
+        String savedData = Files.readString(temporaryFolder.resolve("addressBook.json"));
+
+        assertCommandException("rideedit 1 from/18-10-2026 1000", Ride.MESSAGE_INVALID_PERIOD);
+        assertEquals(savedData, Files.readString(temporaryFolder.resolve("addressBook.json")));
+        assertCommandException("rideedit 1 to/18-10-2026 0600", Ride.MESSAGE_INVALID_PERIOD);
+        assertEquals(savedData, Files.readString(temporaryFolder.resolve("addressBook.json")));
+    }
+
+    @Test
+    public void execute_rideEditClearsNotesAndPreservesRosterAcrossReload() throws Exception {
+        model.addPerson(new PersonBuilder().withPhone("+65 91234567").build());
+        model.addPerson(new PersonBuilder().withPhone("+65 92345678").withEmail("second@example.com").build());
+        Ride storedRide = model.addRide(new RideBuilder().withNotes("Bring lights")
+                .withRoster("+65 91234567", "+65 92345678").build());
+        List<Ride> observedRides = logic.getRideList();
+
+        logic.execute("rideedit 1 notes/ n/NightRide");
+
+        Ride expectedRide = new RideBuilder().withId(storedRide.getId()).withName("NightRide")
+                .withRoster("+65 91234567", "+65 92345678").build();
+        assertEquals(List.of(expectedRide), observedRides);
+        JsonAddressBookStorage reader = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook reloaded = reader.readAddressBook().get();
+        assertEquals(List.of(expectedRide), reloaded.getRideList());
+        assertEquals(2, reloaded.getNextRideId());
     }
 
     @Test
@@ -165,8 +356,9 @@ public class LogicManagerTest {
 
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+                + " sos/+65 99999999" + EMAIL_DESC_AMY + FTP_DESC_BOB
+                + EXPERIENCE_LEVEL_DESC_AMY + LOCATION_DESC_BOB;
+        Person expectedPerson = new PersonBuilder(AMY).withEmergencyPhone("+65 99999999").build();
         ModelManager expectedModel = new ModelManager();
         expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);

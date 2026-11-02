@@ -5,33 +5,39 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
+import seedu.address.testutil.PersonBuilder;
 
-/**
- * Contains integration tests (interaction with the Model) and unit tests for
- * {@code DeleteCommand}.
- */
 public class DeleteCommandTest {
 
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+    private final Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
 
     @Test
-    public void execute_validIndexUnfilteredList_success() {
-        Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
+    public void getPersonToDelete_validPhone_resolvesWithoutChangingModelOrFilter() throws Exception {
+        model.updateFilteredPersonList(person -> person.equals(ALICE));
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.equals(ALICE));
+        assertEquals(ALICE, new DeleteCommand(ALICE.getPhone()).getPersonToDelete(model));
+        assertEquals(expectedModel, model);
+    }
 
+    @Test
+    public void execute_validPhone_success() {
+        Person personToDelete = model.getAddressBook().getPersonList().get(0);
+        DeleteCommand deleteCommand = new DeleteCommand(personToDelete.getPhone());
+
+        // EP: an existing phone belongs to a deletable person and removes exactly that person.
         String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
                 Messages.format(personToDelete));
 
@@ -42,79 +48,81 @@ public class DeleteCommandTest {
     }
 
     @Test
-    public void execute_invalidIndexUnfilteredList_throwsCommandException() {
-        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
-        DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
+    public void execute_unknownPhone_throwsCommandException() {
+        DeleteCommand deleteCommand = new DeleteCommand(new Phone("+65 99999999"));
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        // EP: a phone absent from the address book belongs to the invalid-target partition.
+        assertCommandFailure(deleteCommand, model,
+                String.format(DeleteCommand.MESSAGE_PERSON_NOT_FOUND, "+65 99999999"));
     }
 
     @Test
-    public void execute_validIndexFilteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_hiddenPhone_rejectsWithoutChangingDisplayedList() {
+        model.updateFilteredPersonList(person -> person.equals(BENSON));
+        assertCommandFailure(new DeleteCommand(ALICE.getPhone()), model,
+                String.format(DeleteCommand.MESSAGE_PERSON_NOT_FOUND, ALICE.getPhone()));
+    }
 
-        Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
+    @Test
+    public void execute_emptyDisplayedList_rejectsExistingPhone() {
+        model.updateFilteredPersonList(person -> false);
+        assertCommandFailure(new DeleteCommand(ALICE.getPhone()), model,
+                String.format(DeleteCommand.MESSAGE_PERSON_NOT_FOUND, ALICE.getPhone()));
+    }
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+    @Test
+    public void execute_filteredSameNameCyclists_deletesOnlyDisplayedPhoneMatch() {
+        Person otherAlice = new PersonBuilder(ALICE).withPhone("+65 80000000")
+                .withEmail("other.alice@example.com").build();
+        model.addPerson(otherAlice);
+        model.updateFilteredPersonList(person -> person.getPhone().equals(otherAlice.getPhone()));
+        assertCommandFailure(new DeleteCommand(ALICE.getPhone()), model,
+                String.format(DeleteCommand.MESSAGE_PERSON_NOT_FOUND, ALICE.getPhone()));
 
         Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
-        expectedModel.deletePerson(personToDelete);
-        showNoPerson(expectedModel);
-
-        assertCommandSuccess(deleteCommand, model, expectedMessage, expectedModel);
+        expectedModel.updateFilteredPersonList(person -> person.getPhone().equals(otherAlice.getPhone()));
+        expectedModel.deletePerson(otherAlice);
+        assertCommandSuccess(new DeleteCommand(otherAlice.getPhone()), model,
+                String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(otherAlice)), expectedModel);
+        assertTrue(model.getAddressBook().getPersonList().contains(ALICE));
+        assertTrue(model.getFilteredPersonList().isEmpty());
     }
 
     @Test
-    public void execute_invalidIndexFilteredList_throwsCommandException() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_sameNameCyclists_deletesOnlyExactPhoneMatch() {
+        Person personWithSameName = new PersonBuilder(ALICE).withPhone("+65 80000000")
+                .withEmail("other.alice@example.com").build();
+        model.addPerson(personWithSameName);
+        DeleteCommand deleteCommand = new DeleteCommand(ALICE.getPhone());
+        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(ALICE));
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deletePerson(ALICE);
 
-        Index outOfBoundIndex = INDEX_SECOND_PERSON;
-        // ensures that outOfBoundIndex is still in bounds of address book list
-        assertTrue(outOfBoundIndex.getZeroBased() < model.getAddressBook().getPersonList().size());
-
-        DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
-
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandSuccess(deleteCommand, model, expectedMessage, expectedModel);
+        assertFalse(model.getAddressBook().getPersonList().contains(ALICE));
+        assertTrue(model.getAddressBook().getPersonList().contains(personWithSameName));
     }
 
     @Test
     public void equals() {
-        DeleteCommand deleteFirstCommand = new DeleteCommand(INDEX_FIRST_PERSON);
-        DeleteCommand deleteSecondCommand = new DeleteCommand(INDEX_SECOND_PERSON);
+        DeleteCommand firstCommand = new DeleteCommand(new Phone("+65 111"));
+        DeleteCommand sameCommand = new DeleteCommand(new Phone("+65 111"));
+        DeleteCommand differentCommand = new DeleteCommand(new Phone("+65 222"));
 
-        // same object -> returns true
-        assertTrue(deleteFirstCommand.equals(deleteFirstCommand));
-
-        // same values -> returns true
-        DeleteCommand deleteFirstCommandCopy = new DeleteCommand(INDEX_FIRST_PERSON);
-        assertTrue(deleteFirstCommand.equals(deleteFirstCommandCopy));
-
-        // different types -> returns false
-        assertFalse(deleteFirstCommand.equals(1));
-
-        // null -> returns false
-        assertFalse(deleteFirstCommand.equals(null));
-
-        // different person -> returns false
-        assertFalse(deleteFirstCommand.equals(deleteSecondCommand));
+        // EP: equality covers the same target, a different target, null, and an unrelated object type.
+        assertTrue(firstCommand.equals(firstCommand));
+        assertTrue(firstCommand.equals(sameCommand));
+        assertFalse(firstCommand.equals(differentCommand));
+        assertFalse(firstCommand.equals(null));
+        assertFalse(firstCommand.equals(1));
     }
 
     @Test
     public void toStringMethod() {
-        Index targetIndex = Index.fromOneBased(1);
-        DeleteCommand deleteCommand = new DeleteCommand(targetIndex);
-        String expected = DeleteCommand.class.getCanonicalName() + "{targetIndex=" + targetIndex + "}";
+        DeleteCommand deleteCommand = new DeleteCommand(new Phone("+65 111"));
+
+        String expected = DeleteCommand.class.getCanonicalName() + "{targetPhone=+65 111}";
+        // EP: the textual representation must expose the command's target for debugging and messages.
         assertEquals(expected, deleteCommand.toString());
-    }
-
-    /**
-     * Updates {@code model}'s filtered list to show no one.
-     */
-    private void showNoPerson(Model model) {
-        model.updateFilteredPersonList(p -> false);
-
-        assertTrue(model.getFilteredPersonList().isEmpty());
     }
 }

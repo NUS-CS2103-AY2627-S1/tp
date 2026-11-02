@@ -3,9 +3,16 @@ package seedu.address.logic.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FTP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTES;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 public class ArgumentTokenizerTest {
 
@@ -15,7 +22,207 @@ public class ArgumentTokenizerTest {
     private final Prefix hatQ = new Prefix("^Q");
 
     @Test
+    public void tokenizeWithQuotedNotes_otherStyleQuotes_areLiteral() throws Exception {
+        // Only the outer pair is removed; the other quote style remains literal.
+        for (String[] row : new String[][] {{"“say \"hi\" there”", "say \"hi\" there"},
+            {"\"say ”hi” there\"", "say ”hi” there"},
+            // Quotes occurring after ordinary note text do not start quoting.
+            {"Bring a \"camera\"", "Bring a \"camera\""},
+            {"Bring “camera”", "Bring “camera”"}}) {
+            assertArgumentPresent(ArgumentTokenizer.tokenizeWithQuotedNotes(" notes/" + row[0], PREFIX_NOTES),
+                    PREFIX_NOTES, row[1]);
+        }
+    }
+
+    @Test
+    public void quotedNotes_specificErrors_matchExactMessages() {
+        for (String[] row : new String[][] {
+                // A closing curly mark cannot open a quoted value, even after whitespace.
+                {"”lol”", ArgumentTokenizer.MESSAGE_NOTES_START_WITH_CLOSING_QUOTE},
+                {" ”lol”", ArgumentTokenizer.MESSAGE_NOTES_START_WITH_CLOSING_QUOTE},
+                {"”lol”lol””", ArgumentTokenizer.MESSAGE_NOTES_START_WITH_CLOSING_QUOTE},
+                // Missing curly closers or additional curly openers share the unpaired-quote error.
+                {"“lol“", ArgumentTokenizer.MESSAGE_NOTES_UNPAIRED_CURLY_QUOTE},
+                {"“lol“lol““", ArgumentTokenizer.MESSAGE_NOTES_UNPAIRED_CURLY_QUOTE},
+                {"“camera", ArgumentTokenizer.MESSAGE_NOTES_UNPAIRED_CURLY_QUOTE},
+                {"“say “hi there”", ArgumentTokenizer.MESSAGE_NOTES_UNPAIRED_CURLY_QUOTE},
+                {"“lol“lol””", ArgumentTokenizer.MESSAGE_NOTES_UNPAIRED_CURLY_QUOTE},
+                // The other style's closer cannot close an otherwise unclosed quoted value.
+                {"\"hi”", ArgumentTokenizer.MESSAGE_NOTES_MISMATCHED_QUOTES},
+                {"“hi\"", ArgumentTokenizer.MESSAGE_NOTES_MISMATCHED_QUOTES}}) {
+            ParseException exception = assertThrows(ParseException.class, () ->
+                    ArgumentTokenizer.tokenizeWithQuotedNotes(" notes/" + row[0], PREFIX_NOTES, PREFIX_FTP));
+            assertEquals(row[1], exception.getMessage());
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_curlyQuotes_protectPrefixesAndRemoveDelimiters() throws Exception {
+        for (String separator : List.of(" ", "\t", "\u2003", "\u3000", "\u00a0 ", "\u202f ")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                    " 1 notes/“Bring camera f/2 n/a”" + separator + "f/200", PREFIX_NOTES, PREFIX_FTP);
+            assertPreamblePresent(arguments, "1");
+            assertArgumentPresent(arguments, PREFIX_NOTES, "Bring camera f/2 n/a");
+            assertArgumentPresent(arguments, PREFIX_FTP, "200");
+        }
+        for (String separator : List.of("\u00a0", "\u202f")) {
+            ParseException exception = assertThrows(ParseException.class, () ->
+                    ArgumentTokenizer.tokenizeWithQuotedNotes(" notes/“lens f/2”" + separator + "f/200",
+                            PREFIX_NOTES, PREFIX_FTP));
+            assertEquals(ArgumentTokenizer.MESSAGE_INVALID_QUOTED_NOTES, exception.getMessage());
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_leadingNotesWhitespace_acceptsBothQuoteStyles() throws Exception {
+        for (String separator : List.of(" ", "   ", "\t", "\u2003", "\u00a0", "\u202f", "\u3000")) {
+            for (String quoted : List.of("\"plain f/2\"", "“plain f/2”")) {
+                ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                        " notes/" + separator + quoted + " f/180", PREFIX_NOTES, PREFIX_FTP);
+                assertArgumentPresent(arguments, PREFIX_NOTES, "plain f/2");
+                assertArgumentPresent(arguments, PREFIX_FTP, "180");
+            }
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_unicodeTrailingWhitespace_acceptsEndOrRecognisedParameter() throws Exception {
+        for (String separator : List.of(" ", "\u2003", "\u00a0", "\u202f", "\u3000",
+                "\t\u2003\u00a0\u202f\u3000 ")) {
+            String quoted = " 1 notes/\"Bring camera f/2\"" + separator;
+            ArgumentMultimap atEnd = ArgumentTokenizer.tokenizeWithQuotedNotes(quoted, PREFIX_NOTES, PREFIX_FTP);
+            assertArgumentPresent(atEnd, PREFIX_NOTES, "Bring camera f/2");
+            // Keep an ASCII space immediately before the prefix: NBSP does not introduce a prefix.
+            ArgumentMultimap followed = ArgumentTokenizer.tokenizeWithQuotedNotes(quoted + " f/200",
+                    PREFIX_NOTES, PREFIX_FTP);
+            assertArgumentPresent(followed, PREFIX_NOTES, "Bring camera f/2");
+            assertArgumentPresent(followed, PREFIX_FTP, "200");
+            for (String suffix : List.of("extra", "extra f/200", "\u200b")) {
+                ParseException exception = assertThrows(ParseException.class, () ->
+                        ArgumentTokenizer.tokenizeWithQuotedNotes(quoted + suffix, PREFIX_NOTES, PREFIX_FTP));
+                assertEquals(ArgumentTokenizer.MESSAGE_INVALID_QUOTED_NOTES, exception.getMessage());
+            }
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_unicodeBeforePrefix_keepsExistingPrefixRecognition() throws Exception {
+        // EP: whitespace recognized by Character.isWhitespace versus NBSP/NARROW NBSP, which do not introduce prefixes.
+        for (String separator : List.of(" ", "\u2003", "\u3000")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                    " notes/\"camera f/2\"" + separator + "f/200", PREFIX_NOTES, PREFIX_FTP);
+            assertArgumentPresent(arguments, PREFIX_FTP, "200");
+        }
+        for (String separator : List.of("\u00a0", "\u202f")) {
+            String input = " notes/\"camera f/2\"" + separator + "f/200";
+            ParseException exception = assertThrows(ParseException.class, () ->
+                    ArgumentTokenizer.tokenizeWithQuotedNotes(input, PREFIX_NOTES, PREFIX_FTP));
+            assertEquals(ArgumentTokenizer.MESSAGE_INVALID_QUOTED_NOTES, exception.getMessage());
+            assertArgumentAbsent(ArgumentTokenizer.tokenize(" notes/camera" + separator + "f/200",
+                    PREFIX_NOTES, PREFIX_FTP), PREFIX_FTP);
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_prefixesInsideQuotes_areLiteral() throws Exception {
+        // EP: recognized prefixes inside quotes belong to notes; the same prefixes outside quotes delimit fields.
+        for (String separator : List.of(" ", "\t", "\n", "\u2003")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                    " 1 notes/\"Bring camera f/2 notes/test q/test\"" + separator + "f/200",
+                    PREFIX_NOTES, PREFIX_FTP);
+            assertPreamblePresent(arguments, "1");
+            assertArgumentPresent(arguments, PREFIX_NOTES, "Bring camera f/2 notes/test q/test");
+            assertArgumentPresent(arguments, PREFIX_FTP, "200");
+        }
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                " f/200 notes/\"  camera  f/2  \\\\path  \"   ", PREFIX_NOTES, PREFIX_FTP);
+        assertArgumentPresent(arguments, PREFIX_NOTES, "  camera  f/2  \\\\path  ");
+        assertArgumentPresent(arguments, PREFIX_FTP, "200");
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_duplicatesOutsideQuotes_remainDuplicates() throws Exception {
+        // EP: repeated notes prefixes outside the quoted region remain separate arguments.
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                " f/180 notes/\"f/2 notes/literal\" f/200 notes/second", PREFIX_NOTES, PREFIX_FTP);
+        assertArgumentPresent(arguments, PREFIX_FTP, "180", "200");
+        assertArgumentPresent(arguments, PREFIX_NOTES, "f/2 notes/literal", "second");
+        assertThrows(ParseException.class, () -> arguments.verifyNoDuplicatePrefixesFor(PREFIX_FTP));
+        assertThrows(ParseException.class, () -> arguments.verifyNoDuplicatePrefixesFor(PREFIX_NOTES));
+        ArgumentMultimap curly = ArgumentTokenizer.tokenizeWithQuotedNotes(
+                " notes/“f/2 notes/literal” notes/second", PREFIX_NOTES, PREFIX_FTP);
+        assertArgumentPresent(curly, PREFIX_NOTES, "f/2 notes/literal", "second");
+        assertThrows(ParseException.class, () -> curly.verifyNoDuplicatePrefixesFor(PREFIX_NOTES));
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_malformedQuotes_rejected() {
+        // EP: missing closing quote, blank content, embedded quotes, and non-whitespace trailing text.
+        for (String notes : List.of("\"camera f/2", "\"\"", "\"   \"", "\"\u2003\"", "\"\u00a0\"",
+                "\"\u202f\"", "\"\u3000\"", "\"camera\"tail", "\"camera\" tail f/200",
+                "\"camera\"f/200", "\"camera \"lens\"\"", "\"camera\" \"extra\"",
+                "\"camera\" q/test", "\"camera \\\"lens\"", "“”", "“ \u2003\u00a0\u202f ”",
+                "“camera”extra", "“camera” tail f/200", "“camera”f/200", "“camera” ”extra”",
+                "\"say \"hi\" there\"", " \"\"")) {
+            ParseException exception = assertThrows(ParseException.class, () ->
+                    ArgumentTokenizer.tokenizeWithQuotedNotes(" notes/" + notes, PREFIX_NOTES, PREFIX_FTP), notes);
+            assertEquals(ArgumentTokenizer.MESSAGE_INVALID_QUOTED_NOTES, exception.getMessage());
+        }
+    }
+
+    @Test
+    public void tokenizeWithQuotedNotes_unquotedAndOtherFields_keepExistingSemantics() throws Exception {
+        for (String input : List.of(" notes/Bring water f/200", " f/200 notes/Bring water",
+                " notes/Bring camera with aperture f/2", " notes/Bring \"camera\" f/200",
+                " f/\"200 notes/Bring water", " notes/‘camera’", " notes/Bring “camera”",
+                " notes/lol”", " notes/")) {
+            ArgumentMultimap expected = ArgumentTokenizer.tokenize(input, PREFIX_NOTES, PREFIX_FTP);
+            ArgumentMultimap actual = ArgumentTokenizer.tokenizeWithQuotedNotes(input, PREFIX_NOTES, PREFIX_FTP);
+            assertEquals(expected.getAllValues(PREFIX_NOTES), actual.getAllValues(PREFIX_NOTES));
+            assertEquals(expected.getAllValues(PREFIX_FTP), actual.getAllValues(PREFIX_FTP));
+        }
+        ArgumentMultimap ordinary = ArgumentTokenizer.tokenize(" notes/\"camera f/2\"", PREFIX_NOTES, PREFIX_FTP);
+        assertArgumentPresent(ordinary, PREFIX_NOTES, "\"camera");
+        assertArgumentPresent(ordinary, PREFIX_FTP, "2\"");
+    }
+
+    @Test
+    public void tokenize_whitespaceSeparators_recognisesPrefixesWithoutSplittingValues() {
+        // EP: supported ASCII/control/Unicode whitespace before prefixes; embedded prefix-like text lacks a delimiter.
+        for (String separator : List.of(" ", "  ", "\t", "\n", "\r\n", "\u2003", "\u3000")) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenize(
+                    separator + "p/" + separator + "first" + separator + "-tsecond" + separator, pSlash, dashT);
+            assertPreambleEmpty(arguments);
+            assertArgumentPresent(arguments, pSlash, "first");
+            assertArgumentPresent(arguments, dashT, "second");
+        }
+        assertPreamblePresent(ArgumentTokenizer.tokenize(" untouched ", new Prefix("")), "untouched");
+        ArgumentMultimap embedded = ArgumentTokenizer.tokenize(" p/first-tsecond", pSlash, dashT);
+        assertArgumentPresent(embedded, pSlash, "first-tsecond");
+        assertArgumentAbsent(embedded, dashT);
+    }
+
+    @Test
+    public void tokenize_nonBreakingSpaces_preservesValuesAndDoesNotIntroducePrefixes() throws Exception {
+        // EP: NBSP and NARROW NBSP are value characters rather than parameter delimiters.
+        for (String separator : List.of("\u00a0", "\u202f")) {
+            String value = separator + "first" + separator + "f/180" + separator;
+            for (ArgumentMultimap arguments : List.of(
+                    ArgumentTokenizer.tokenize(" notes/" + value, PREFIX_NOTES, PREFIX_FTP),
+                    ArgumentTokenizer.tokenizeWithQuotedNotes(" notes/" + value, PREFIX_NOTES, PREFIX_FTP))) {
+                assertArgumentPresent(arguments, PREFIX_NOTES, value);
+                assertArgumentAbsent(arguments, PREFIX_FTP);
+            }
+        }
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(" p/first\u2003\u3000second -tlast",
+                pSlash, dashT);
+        assertArgumentPresent(arguments, pSlash, "first\u2003\u3000second");
+    }
+
+    @Test
     public void tokenize_emptyArgsString_noValues() {
+        // EP: empty argument text contains no preamble or field values.
+        // Boundary value: input length 0.
         String argsString = "  ";
         ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, pSlash);
 

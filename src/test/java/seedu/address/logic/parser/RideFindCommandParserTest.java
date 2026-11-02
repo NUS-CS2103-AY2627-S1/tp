@@ -1,0 +1,174 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.RideFindCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Name;
+import seedu.address.model.ride.Notes;
+import seedu.address.model.ride.RideMatchesFindCriteriaPredicate;
+
+public class RideFindCommandParserTest {
+    private final RideFindCommandParser parser = new RideFindCommandParser();
+
+    @Test
+    public void parse_quotedNotes_protectsPrefixesAndRemovesDelimiters() throws Exception {
+        // Each recognized prefix inside either quote style must remain literal notes, not a search field.
+        for (String notes : new String[] {"aperture f/2", "camera notes/other", "n/Ride from/now to/later",
+            "l/Mandai d/40 s/5", "say 'hi'", "regex [x].*"}) {
+            RideMatchesFindCriteriaPredicate expected = new RideMatchesFindCriteriaPredicate(
+                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(new Notes(notes)));
+            assertEquals(new RideFindCommand(expected), parser.parse("notes/\"" + notes + "\""));
+            assertEquals(new RideFindCommand(expected), parser.parse("notes/“" + notes + "”"));
+        }
+        assertEquals(parser.parse("notes/camera"), parser.parse("notes/“camera”"));
+    }
+
+    @Test
+    public void parse_quotedNotesWithOtherCriteria_retainsAndMatching() throws Exception {
+        // Fields outside the quotes remain independent criteria, regardless of their order.
+        assertEquals(parser.parse("f/200 notes/\"aperture f/2\""),
+                parser.parse("notes/“aperture f/2” f/200"));
+        assertNotEquals(parser.parse("notes/\"aperture f/2\""),
+                parser.parse("notes/\"aperture f/2\" f/200"));
+        assertEquals(parser.parse("notes/camera"), parser.parse("notes/ \"camera\""));
+    }
+
+    @Test
+    public void parse_malformedOrDuplicateQuotedNotes_failure() {
+        // Blank, unclosed, mismatched, nested and trailing-text quotes follow the existing add/edit rules.
+        for (String args : new String[] {"notes/\"\"", "notes/“ ”", "notes/\"camera", "notes/“camera",
+            "notes/”camera”", "notes/\"camera”", "notes/“camera\"", "notes/“say “hi””",
+            "notes/\"camera\"extra", "notes/\"camera\" extra", "notes/\"camera\" notes/lights",
+            "notes/\"camera\" f/200 f/300", "notes/\"one two three four five six seven eight nine ten eleven\""}) {
+            assertThrows(ParseException.class, () -> parser.parse(args), args);
+        }
+    }
+
+    @Test
+    public void parse_eachCriterionAlone_success() {
+        // EP: each supported criterion is supplied individually.
+        assertDoesNotThrow(() -> parser.parse("n/Sunday Sunrise Ride"));
+        assertDoesNotThrow(() -> parser.parse("from/18-10-2026"));
+        assertDoesNotThrow(() -> parser.parse("to/18-10-2026 2359"));
+        assertDoesNotThrow(() -> parser.parse("l/East Coast"));
+        assertDoesNotThrow(() -> parser.parse("d/45"));
+        assertDoesNotThrow(() -> parser.parse("f/180"));
+        assertDoesNotThrow(() -> parser.parse("s/12"));
+        assertDoesNotThrow(() -> parser.parse("notes/Bring lights"));
+    }
+
+    @Test
+    public void parse_hyphenAndApostropheInName_keepsNameExactly() throws Exception {
+        // EP: hyphen and apostrophe each joining two letters; the parsed criterion must keep them.
+        for (String name : new String[] {"Punggol-Seletar Loop", "Mother's Day Ride"}) {
+            RideMatchesFindCriteriaPredicate expected = new RideMatchesFindCriteriaPredicate(
+                    Optional.of(new Name(name)), Optional.empty(), Optional.empty(), Optional.empty(),
+                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            assertEquals(new RideFindCommand(expected), parser.parse("n/" + name));
+        }
+    }
+
+    @Test
+    public void parse_misplacedPunctuationInName_failure() {
+        // EP: hyphen or apostrophe not between letters or digits, and "/" or "." which are never allowed.
+        for (String name : new String[] {"-Night Ride", "Night Ride-", "Tan - Ling", "Ride--Two", "Ride.2", "Ride/2"}) {
+            assertThrows(ParseException.class, () -> parser.parse("n/" + name));
+        }
+    }
+
+    @Test
+    public void parse_noCriteria_failure() {
+        // EP: empty input contains no search criteria.
+        assertThrows(ParseException.class, () -> parser.parse(" "));
+    }
+
+    @Test
+    public void parse_all_success() {
+        // EP: the special "all" keyword requests every ride.
+        assertDoesNotThrow(() -> parser.parse("all"));
+    }
+
+    @Test
+    public void parse_allWithWhitespace_success() {
+        assertDoesNotThrow(() -> parser.parse("  all  "));
+    }
+
+    @Test
+    public void parse_allWithArguments_failure() {
+        // EP: "all" cannot be combined with another criterion.
+        assertThrows(ParseException.class, () -> parser.parse("all n/Ride"));
+    }
+
+    @Test
+    public void parse_allWithDifferentCase_failure() {
+        assertThrows(ParseException.class, () -> parser.parse("ALL"));
+    }
+
+    @Test
+    public void parse_toBeforeFrom_failure() {
+        // EP: the ending boundary occurs before the starting boundary.
+        assertThrows(ParseException.class, () -> parser.parse(
+                "from/19-10-2026 0000 to/18-10-2026 2359"));
+    }
+
+    @Test
+    public void parse_dateOnlyBounds_success() {
+        // EP: date-only boundaries are expanded to the start and end of the day.
+        assertDoesNotThrow(() -> parser.parse("from/18-10-2026 to/18-10-2026"));
+    }
+
+    @Test
+    public void parse_duplicateCriterion_failure() {
+        // EP: the same criterion prefix is repeated.
+        assertThrows(ParseException.class, () -> parser.parse("l/East Coast l/Tampines"));
+    }
+
+    @Test
+    public void parse_numericBoundaryValues_success() {
+        // Valid boundaries: distance is at its minimum (0.01 km), power is at its minimum and maximum
+        // (1 W and 600 W), and group size is at its minimum (1).
+        assertDoesNotThrow(() -> parser.parse("d/0.01"));
+        assertDoesNotThrow(() -> parser.parse("f/1"));
+        assertDoesNotThrow(() -> parser.parse("f/600"));
+        assertDoesNotThrow(() -> parser.parse("s/1"));
+    }
+
+    @Test
+    public void parse_numericValuesOutsideConstraints_failure() {
+        // Invalid values just outside the boundaries: distance 0, power below 1 W or above 600 W,
+        // and group size below 1.
+        assertThrows(ParseException.class, () -> parser.parse("d/0"));
+        assertThrows(ParseException.class, () -> parser.parse("f/0"));
+        assertThrows(ParseException.class, () -> parser.parse("f/601"));
+        assertThrows(ParseException.class, () -> parser.parse("s/0"));
+    }
+
+    @Test
+    public void parse_numericValuesWithNonDigits_failure() {
+        assertThrows(ParseException.class, () -> parser.parse("f/20a"));
+        assertThrows(ParseException.class, () -> parser.parse("s/2a"));
+    }
+
+    @Test
+    public void parse_invalidDateOrTime_failure() {
+        // EP: date or time input is syntactically invalid or represents an impossible value.
+        assertThrows(ParseException.class, () -> parser.parse("from/31-02-2026"));
+        assertThrows(ParseException.class, () -> parser.parse("to/18-10-2026 2460"));
+        assertThrows(ParseException.class, () -> parser.parse("from/18-10-2026 063"));
+    }
+
+    @Test
+    public void parse_duplicateDateBounds_failure() {
+        assertThrows(ParseException.class, () -> parser.parse("from/18-10-2026 from/19-10-2026"));
+        assertThrows(ParseException.class, () -> parser.parse("to/18-10-2026 to/19-10-2026"));
+    }
+}

@@ -1,0 +1,44 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam defaultFontSize 16
+skinparam ParticipantFontSize 16
+skinparam ArrowFontSize 16
+skinparam NoteFontSize 16
+skinparam maxMessageSize 80
+hide footbox
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "c:RideEditCommand" as Command LOGIC_COLOR
+participant "m:Model" as Model MODEL_COLOR
+participant ":Storage" as Storage STORAGE_COLOR
+
+[-> Logic : execute(commandText)
+activate Logic
+note over Logic, Command : Parsing succeeds and produces c (calls omitted).
+Logic -> Command : getOverlapWarning(m)
+activate Command
+note right of Command : Validate proposal; check roster conflicts.\nNo mutation or save.
+Command --> Logic : warning or empty string
+deactivate Command
+opt overlapping time change
+    [<-- Logic : warning
+    deactivate Logic
+    ... User reviews and confirms ...
+    [-> Logic : execute(confirmation)
+    activate Logic
+    note over Logic : Consume pending request; reject stale book.
+end
+Logic -> Command : execute(m)
+activate Command
+note right of Command : Revalidate and build replacement.\nPreserve ID, roster and omitted fields.
+Command -> Model : setRide(target, replacement)
+Command --> Logic : result
+deactivate Command
+Logic -> Model : getAddressBook()
+Model --> Logic : book
+Logic -> Storage : saveAddressBook(book)
+Storage --> Logic
+[<-- Logic : result
+deactivate Logic
+
+@enduml

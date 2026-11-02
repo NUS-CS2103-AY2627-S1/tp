@@ -10,13 +10,18 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain Unicode letters, digits, combining marks, spaces, hyphens (-) "
+            + "and apostrophes ('). Names should start with a letter or digit. "
+            + "Combining marks must follow a letter or digit. Hyphens and apostrophes must join letters or digits.";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Start with a Unicode letter or digit so blank names and leading spaces are invalid.
+     * Allow combining marks only after letters or digits, including other marks in the same sequence.
+     * Allow a hyphen or apostrophe only between letter/digit sequences, including their combining marks.
+     * The preceding sequence is already valid, so punctuation only needs to exclude a preceding space.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{L}\\p{Nd}]\\p{M}*(?:[\\p{L}\\p{Nd}]\\p{M}*| "
+            + "|(?<! )[-'](?=[\\p{L}\\p{Nd}]))*";
 
     public final String fullName;
 

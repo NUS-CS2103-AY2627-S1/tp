@@ -1,59 +1,80 @@
+
 package seedu.address.model.util;
 
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.ride.Distance;
+import seedu.address.model.ride.GroupSize;
+import seedu.address.model.ride.MinimumPower;
+import seedu.address.model.ride.Notes;
+import seedu.address.model.ride.Ride;
+import seedu.address.model.ride.RideDateTime;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
+
+    /**
+     * Returns the sample cyclists shown in the User Guide's starting screen.
+     */
     public static Person[] getSamplePersons() {
         return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+            new Person(new Name("Alex Tan"), new Phone("+65 91234561"),
+                    new Email("alex@example.com"), new Ftp("280"),
+                    new ExperienceLevel("Advanced"), getLocationSet("East Coast Park", "Marina Bay"),
+                    Optional.of(new Phone("+65 90000001"))),
+
+            new Person(new Name("Bernice Lee"), new Phone("+65 91234562"),
+                    new Email("bernice@example.com"), new Ftp("220"),
+                    new ExperienceLevel("Intermediate"), getLocationSet("Punggol"),
+                    Optional.of(new Phone("+65 90000002"))),
+
+            new Person(new Name("Chloe Lim"), new Phone("+65 91234563"),
+                    new Email("chloe@example.com"), new Ftp("180"),
+                    new ExperienceLevel("Beginner"), getLocationSet("any"),
+                    Optional.of(new Phone("+65 90000003")))
         };
     }
 
+    /**
+     * Returns a fresh sample book with three cyclists and two rides with empty rosters.
+     * Existing saved books are loaded separately and do not receive this sample data.
+     */
     public static ReadOnlyAddressBook getSampleAddressBook() {
         AddressBook sampleAb = new AddressBook();
         for (Person samplePerson : getSamplePersons()) {
             sampleAb.addPerson(samplePerson);
         }
+        sampleAb.addRide(new Ride(new Name("Sunday Sunrise Ride"),
+                new RideDateTime("25-10-2026 0630"), new RideDateTime("25-10-2026 0930"),
+                new Location("East Coast Park"), new Distance("45"), new MinimumPower("180"),
+                new GroupSize("3"), Optional.of(new Notes("Bring lights and a spare tube"))));
+        sampleAb.addRide(new Ride(new Name("Evening Spin"),
+                new RideDateTime("27-10-2026 1800"), new RideDateTime("27-10-2026 1930"),
+                new Location("Punggol"), new Distance("30.5"), new MinimumPower("150"),
+                new GroupSize("8"), Optional.empty()));
         return sampleAb;
     }
 
     /**
-     * Returns a tag set containing the list of strings given.
+     * Returns a location set containing the list of strings given.
      */
-    public static Set<Tag> getTagSet(String... strings) {
+    public static Set<Location> getLocationSet(String... strings) {
         return Arrays.stream(strings)
-                .map(Tag::new)
+                .map(Location::new)
                 .collect(Collectors.toSet());
     }
 

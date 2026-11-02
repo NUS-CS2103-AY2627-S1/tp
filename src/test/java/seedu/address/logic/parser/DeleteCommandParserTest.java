@@ -1,32 +1,50 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.model.person.Phone;
 
-/**
- * As we are only doing white-box testing, our test cases do not cover path variations
- * outside of the DeleteCommand code. For example, inputs "1" and "1 abc" take the
- * same path through the DeleteCommand, and therefore we test only one of them.
- * The path variation for those two cases occurs inside the ParserUtil, and
- * therefore should be covered by the ParserUtilTest.
- */
 public class DeleteCommandParserTest {
 
-    private DeleteCommandParser parser = new DeleteCommandParser();
+    private final DeleteCommandParser parser = new DeleteCommandParser();
 
     @Test
-    public void parse_validArgs_returnsDeleteCommand() {
-        assertParseSuccess(parser, "1", new DeleteCommand(INDEX_FIRST_PERSON));
+    public void parse_validPhone_returnsDeleteCommand() {
+        // EP: a valid phone argument belongs to the successful parsing partition and produces the matching command.
+        assertParseSuccess(parser, VALID_PHONE_AMY, new DeleteCommand(new Phone(VALID_PHONE_AMY)));
     }
 
     @Test
-    public void parse_invalidArgs_throwsParseException() {
-        assertParseFailure(parser, "a", String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+    public void parse_invalidPhone_throwsParseException() {
+        // EP: nonnumeric/malformed targets, missing country code, and missing or repeated separators.
+        String[] values = {"12", "87438807", "+6587438807", "+65  87438807", "+65 12", "+65 abc"};
+        String[] messages = {Phone.MESSAGE_MISSING_COUNTRY_CODE, Phone.MESSAGE_MISSING_COUNTRY_CODE,
+            Phone.MESSAGE_MISSING_SEPARATOR, Phone.MESSAGE_MULTIPLE_SEPARATORS,
+            Phone.MESSAGE_CONSTRAINTS, Phone.MESSAGE_CONSTRAINTS};
+        for (int i = 0; i < values.length; i++) {
+            assertParseFailure(parser, values[i], messages[i]);
+        }
+    }
+
+    @Test
+    public void parse_missingPhone_throwsUsageException() {
+        // EP: absent target supplied as empty text or whitespace only.
+        // Boundary value: zero characters in the empty-input case.
+        for (String args : new String[] {"", " ", "\t\n"}) {
+            assertParseFailure(parser, args,
+                    String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+        }
+    }
+
+    @Test
+    public void parse_validPhoneWithSurroundingWhitespace_returnsDeleteCommand() {
+        assertParseSuccess(parser, " \t" + VALID_PHONE_AMY + " \n",
+                new DeleteCommand(new Phone(VALID_PHONE_AMY)));
     }
 }

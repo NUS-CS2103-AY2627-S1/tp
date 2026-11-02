@@ -1,19 +1,26 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.ride.Distance;
+import seedu.address.model.ride.GroupSize;
+import seedu.address.model.ride.MinimumPower;
+import seedu.address.model.ride.Notes;
+import seedu.address.model.ride.RideDateTime;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
@@ -21,6 +28,30 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_RIDE_ID =
+            "Ride ID should be a positive whole number no larger than 2147483647.";
+
+    /**
+     * Parses a ride ID, reporting numeric overflow separately from invalid command syntax.
+     *
+     * @param rideId The ID text, with optional surrounding whitespace.
+     * @param usage The command usage to show for missing or malformed IDs.
+     * @throws ParseException if the ID is not an unsigned integer from 1 to Integer.MAX_VALUE.
+     */
+    public static int parseRideId(String rideId, String usage) throws ParseException {
+        String trimmedId = rideId.trim();
+        try {
+            int parsedId = Integer.parseInt(trimmedId);
+            if (parsedId > 0 && !trimmedId.startsWith("+")) {
+                return parsedId;
+            }
+        } catch (NumberFormatException exception) {
+            if (trimmedId.matches("\\p{javaDigit}+")) {
+                throw new ParseException(MESSAGE_INVALID_RIDE_ID, exception);
+            }
+        }
+        throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, usage));
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -59,25 +90,22 @@ public class ParserUtil {
     public static Phone parsePhone(String phone) throws ParseException {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
+        if (!trimmedPhone.startsWith("+")) {
+            throw new ParseException(Phone.MESSAGE_MISSING_COUNTRY_CODE);
+        }
+        if (!trimmedPhone.matches("[+0-9 ]+")) {
+            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+        }
+        if (trimmedPhone.indexOf(' ') < 0) {
+            throw new ParseException(Phone.MESSAGE_MISSING_SEPARATOR);
+        }
+        if (trimmedPhone.indexOf(' ') != trimmedPhone.lastIndexOf(' ')) {
+            throw new ParseException(Phone.MESSAGE_MULTIPLE_SEPARATORS);
+        }
         if (!Phone.isValidPhone(trimmedPhone)) {
             throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
         }
         return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
     }
 
     /**
@@ -96,29 +124,145 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * Parses a {@code String} as an {@code Ftp}.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static Ftp parseFtp(String ftp) throws ParseException {
+        String trimmedFtp = ftp.trim();
+        if (trimmedFtp.isEmpty()) {
+            throw new ParseException("Please include a number for FTP. " + Ftp.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        if (!Ftp.isValidFtp(trimmedFtp)) {
+            throw new ParseException(Ftp.MESSAGE_CONSTRAINTS);
+        }
+        return new Ftp(trimmedFtp);
+    }
+
+    /** Parses location values and removes case-insensitive duplicates. */
+    public static Set<Location> parseLocations(List<String> locations) throws ParseException {
+        Set<Location> parsedLocations = new HashSet<>();
+        boolean hasAnyLocation = false;
+        for (String location : locations) {
+            String trimmedLocation = location.trim();
+            if (!Location.isValidLocation(trimmedLocation)) {
+                throw new ParseException(Location.MESSAGE_CONSTRAINTS);
+            }
+            if (trimmedLocation.equalsIgnoreCase("any")) {
+                hasAnyLocation = true;
+            }
+            parsedLocations.add(new Location(trimmedLocation));
+        }
+        if (hasAnyLocation && parsedLocations.size() > 1) {
+            throw new ParseException("Location 'any' cannot be combined with other locations.");
+        }
+        if (parsedLocations.isEmpty()) {
+            parsedLocations.add(new Location("any"));
+        }
+        assert !parsedLocations.isEmpty() : "Parsed locations must contain at least one location.";
+        return parsedLocations;
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses a {@code String location} into a single {@code Location}, as used by a ride.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code location} is invalid.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    public static Location parseLocation(String location) throws ParseException {
+        requireNonNull(location);
+        String trimmedLocation = location.trim();
+        if (!Location.isValidLocation(trimmedLocation)) {
+            throw new ParseException(Location.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new Location(trimmedLocation);
     }
+
+    /**
+     * Parses a {@code String dateTime} written as {@code DD-MM-YYYY TTTT} into a {@code RideDateTime}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code dateTime} is invalid.
+     */
+    public static RideDateTime parseRideDateTime(String dateTime) throws ParseException {
+        requireNonNull(dateTime);
+        String trimmedDateTime = dateTime.trim();
+        if (!RideDateTime.isValidRideDateTime(trimmedDateTime)) {
+            throw new ParseException(RideDateTime.MESSAGE_CONSTRAINTS);
+        }
+        return new RideDateTime(trimmedDateTime);
+    }
+
+    /**
+     * Parses a {@code String distance} into a {@code Distance}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code distance} is invalid.
+     */
+    public static Distance parseDistance(String distance) throws ParseException {
+        requireNonNull(distance);
+        String trimmedDistance = distance.trim();
+        if (!Distance.isValidDistance(trimmedDistance)) {
+            throw new ParseException(Distance.MESSAGE_CONSTRAINTS);
+        }
+        return new Distance(trimmedDistance);
+    }
+
+    /**
+     * Parses a {@code String minimumPower} into a {@code MinimumPower}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code minimumPower} is invalid.
+     */
+    public static MinimumPower parseMinimumPower(String minimumPower) throws ParseException {
+        requireNonNull(minimumPower);
+        String trimmedMinimumPower = minimumPower.trim();
+        if (!MinimumPower.isValidMinimumPower(trimmedMinimumPower)) {
+            throw new ParseException(MinimumPower.MESSAGE_CONSTRAINTS);
+        }
+        return new MinimumPower(trimmedMinimumPower);
+    }
+
+    /**
+     * Parses a {@code String groupSize} into a {@code GroupSize}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code groupSize} is invalid.
+     */
+    public static GroupSize parseGroupSize(String groupSize) throws ParseException {
+        requireNonNull(groupSize);
+        String trimmedGroupSize = groupSize.trim();
+        if (!GroupSize.isValidGroupSize(trimmedGroupSize)) {
+            throw new ParseException(GroupSize.MESSAGE_CONSTRAINTS);
+        }
+        return new GroupSize(trimmedGroupSize);
+    }
+
+    /**
+     * Parses a {@code String notes} into a {@code Notes}.
+     * Unicode whitespace is trimmed and collapsed according to {@link Notes}.
+     *
+     * @throws ParseException if the given {@code notes} is invalid.
+     */
+    public static Notes parseNotes(String notes) throws ParseException {
+        requireNonNull(notes);
+        if (!Notes.isValidNotes(notes)) {
+            throw new ParseException(Notes.MESSAGE_CONSTRAINTS);
+        }
+        return new Notes(notes);
+    }
+
+    /**
+     * Parses a {@code String experienceLevel} into an {@code ExperienceLevel}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code experienceLevel} is invalid.
+     */
+    public static ExperienceLevel parseExperienceLevel(String experienceLevel) throws ParseException {
+        requireNonNull(experienceLevel);
+        String trimmedExperienceLevel = experienceLevel.trim();
+        if (!ExperienceLevel.isValidExperienceLevel(trimmedExperienceLevel)) {
+            throw new ParseException(ExperienceLevel.MESSAGE_CONSTRAINTS);
+        }
+        return new ExperienceLevel(trimmedExperienceLevel);
+    }
+
 }

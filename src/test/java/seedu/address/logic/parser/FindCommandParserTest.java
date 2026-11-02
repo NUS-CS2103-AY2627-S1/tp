@@ -8,27 +8,142 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.FindCommand;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
+import seedu.address.model.person.PersonMatchesFindCriteriaPredicate;
+import seedu.address.model.person.Phone;
 
 public class FindCommandParserTest {
 
     private FindCommandParser parser = new FindCommandParser();
 
     @Test
+    public void parse_emergencyPhones_supportsRepeatedAndCombinedFields() {
+        List<Phone> emergencyPhones = List.of(new Phone("+65 99999999"), new Phone("+1 123"));
+        assertParseSuccess(parser, "sos/+65 99999999 sos/+1 123", new FindCommand(
+                new PersonMatchesFindCriteriaPredicate(List.of(), List.of(), emergencyPhones)));
+        FindCommand combined = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of("Alice"), List.of(new Phone("+65 91234567")), emergencyPhones));
+        assertParseSuccess(parser, "sos/+65 99999999 n/Alice p/+65 91234567 sos/+1 123", combined);
+    }
+
+    @Test
     public void parse_emptyArg_throwsParseException() {
+        // EP: input is empty, lacks a prefix, or has an empty criterion value.
         assertParseFailure(parser, "     ", String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+        assertParseFailure(parser, "alex david",
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+        assertParseFailure(parser, "n/", String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+        assertParseSuccess(parser, "n/alex david", new FindCommand(
+                new PersonMatchesFindCriteriaPredicate(List.of("alex david"), List.of())));
     }
 
     @Test
     public void parse_validArgs_returnsFindCommand() {
-        // no leading and trailing whitespaces
+        // EP: valid name criteria can be repeated, reordered, and combined with phone criteria.
         FindCommand expectedFindCommand =
-                new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice", "Bob")));
-        assertParseSuccess(parser, "Alice Bob", expectedFindCommand);
+                new FindCommand(new PersonMatchesFindCriteriaPredicate(List.of("Alice", "Bob"), List.of()));
+        assertParseSuccess(parser, "n/Alice n/Bob", expectedFindCommand);
+        assertParseSuccess(parser, " n/Alice  n/Bob ", expectedFindCommand);
 
-        // multiple whitespaces between keywords
-        assertParseSuccess(parser, " \n Alice \n \t Bob  \t", expectedFindCommand);
+        assertParseSuccess(parser, "n/John Doe", new FindCommand(
+                new PersonMatchesFindCriteriaPredicate(List.of("John Doe"), List.of())));
+        assertParseSuccess(parser, "n/John Doe n/Jane Doe", new FindCommand(
+                new PersonMatchesFindCriteriaPredicate(List.of("John Doe", "Jane Doe"), List.of())));
+
+        FindCommand phoneCommand = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of(), List.of(new Phone("+65 96320842"))));
+        assertParseSuccess(parser, "p/+65 96320842", phoneCommand);
+
+        FindCommand combinedCommand = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of("alex"), List.of(new Phone("+65 96320842"))));
+        assertParseSuccess(parser, "n/alex p/+65 96320842", combinedCommand);
+        assertParseSuccess(parser, "p/+65 96320842 n/alex", combinedCommand);
+    }
+
+    @Test
+    public void parse_emailCriterion_returnsFindCommand() {
+        // EP: a valid email is accepted alone or combined with another criterion.
+        FindCommand emailCommand = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of(), List.of(), List.of(), List.of(), java.util.Set.of(), null,
+                java.util.List.of(new Email("alice@example.com"))));
+        assertParseSuccess(parser, "e/alice@example.com", emailCommand);
+        FindCommand combined = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of("Alice"), List.of(), List.of(), List.of(), java.util.Set.of(), null,
+                java.util.List.of(new Email("alice@example.com"))));
+        FindCommand multipleEmails = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of(), List.of(), List.of(), List.of(), java.util.Set.of(), null,
+                java.util.List.of(new Email("alice@example.com"), new Email("bob@example.com"))));
+        assertParseSuccess(parser, "n/Alice e/alice@example.com", combined);
+        assertParseSuccess(parser, "e/alice@example.com e/bob@example.com", multipleEmails);
+    }
+
+    @Test
+    public void parse_invalidEmailCriterion_throwsParseException() {
+        // EP: malformed and empty email criteria are rejected without becoming valid search fields.
+        assertParseFailure(parser, "e/not-an-email", Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "e/", Email.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_invalidPhone_throwsParseException() {
+        // EP: find-specific phone validation reports the invalid part of the criterion.
+        assertParseFailure(parser, "p/+65 abc",
+                "Invalid phone number. Example of an accepted format: +65 91234567.\n"
+                        + "• Phone number must contain at least 3 digits and cannot contain non-digit characters.\n"
+                        + "• The country code must contain a non-zero digit.\n"
+                        + "• Only a single space is allowed between the country code and phone number.");
+        assertParseFailure(parser, "p/+a5 91234567",
+                "Invalid phone number. Example of an accepted format: +65 91234567.\n"
+                        + "• Phone number must contain at least 3 digits and cannot contain non-digit characters.\n"
+                        + "• The country code must contain a non-zero digit.\n"
+                        + "• Only a single space is allowed between the country code and phone number.");
+        assertParseFailure(parser, "p/+65 ! 912",
+                "Invalid phone number. Example of an accepted format: +65 91234567.\n"
+                        + "• Phone number must contain at least 3 digits and cannot contain non-digit characters.\n"
+                        + "• The country code must contain a non-zero digit.\n"
+                        + "• Only a single space is allowed between the country code and phone number.");
+        assertParseFailure(parser, "p/+65 12",
+                "Invalid phone number. Example of an accepted format: +65 91234567.\n"
+                        + "• Phone number must contain at least 3 digits and cannot contain non-digit characters.\n"
+                        + "• The country code must contain a non-zero digit.\n"
+                        + "• Only a single space is allowed between the country code and phone number.");
+        assertParseFailure(parser, "p/", Phone.MESSAGE_MISSING_COUNTRY_CODE);
+    }
+
+    @Test
+    public void parse_cyclingCriteria_returnsFindCommand() {
+        // EP: valid cycling criteria may be combined or repeated where supported.
+        FindCommand expected = new FindCommand(new PersonMatchesFindCriteriaPredicate(List.of(), List.of(), List.of(),
+                java.util.List.of(new ExperienceLevel("Intermediate")),
+                java.util.Set.of(new Location("Punggol")), new Ftp("250")));
+        // EP: valid location, experience, and FTP criteria can be combined in one search expression.
+        assertParseSuccess(parser, "l/punggol x/intermediate f/250", expected);
+        FindCommand multipleExperienceLevels = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of(), List.of(), List.of(), java.util.List.of(new ExperienceLevel("Beginner"),
+                        new ExperienceLevel("Intermediate")), java.util.Set.of(), null));
+        assertParseSuccess(parser, "x/beginner x/intermediate", multipleExperienceLevels);
+        FindCommand anyAndSpecificLocations = new FindCommand(new PersonMatchesFindCriteriaPredicate(
+                List.of(), List.of(), List.of(), java.util.List.of(),
+                java.util.Set.of(new Location("any"), new Location("Punggol")), null));
+        assertParseSuccess(parser, "l/any l/punggol", anyAndSpecificLocations);
+    }
+
+    @Test
+    public void parse_invalidCyclingCriteria_throwsParseException() {
+        // EP: cycling criteria contain invalid values or duplicate prefixes.
+        assertParseFailure(parser, "f/0", "FTP must be a whole number between 1 and 600 W.");
+        assertParseFailure(parser, "f/25a",
+                "FTP must be a whole number between 1 and 600 W and contain digits only.");
+        assertParseFailure(parser, "f/601", "FTP must be a whole number between 1 and 600 W.");
+        assertParseFailure(parser, "x/Expert", ExperienceLevel.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "l/", Location.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "f/300 x/Intermediate find l/Punggol f/300 x/Intermediate",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_FTP));
     }
 
 }

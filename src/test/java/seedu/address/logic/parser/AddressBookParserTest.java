@@ -1,11 +1,12 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,20 +22,40 @@ import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RideAddCommand;
+import seedu.address.logic.commands.RideEditCommand;
+import seedu.address.logic.commands.RideEditCommand.EditRideDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesFindCriteriaPredicate;
+import seedu.address.model.person.Phone;
+import seedu.address.model.ride.Ride;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
+import seedu.address.testutil.RideBuilder;
+import seedu.address.testutil.RideUtil;
 
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void isRecognisedCommand_identifiesCommandWordsRegardlessOfArgumentValidity() {
+        for (String word : new String[] {"add", "edit", "delete", "clear", "find", "list", "exit", "help",
+            "rideadd", "rideedit"}) {
+            assertTrue(parser.isRecognisedCommand("  " + word + "  "));
+            assertTrue(parser.isRecognisedCommand(word + " invalid arguments"));
+        }
+        for (String reply : new String[] {"", "  ", "maybe", "yes", "no", "y", "n", "LIST", "delete123"}) {
+            assertFalse(parser.isRecognisedCommand(reply));
+        }
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
+        Person person = new PersonBuilder().withEmergencyPhone("+65 99999999").build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
     }
@@ -42,23 +63,34 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        // surrounding whitespace is not extra text
+        assertTrue(parser.parseCommand("  " + ClearCommand.COMMAND_WORD + "   ") instanceof ClearCommand);
+    }
+
+    @Test
+    public void parseCommand_clearWithExtraText_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE);
+        for (String extraText : new String[] {" 3", " 1", " n/Alex", " x", " yes", " +65 91234567"}) {
+            assertThrows(ParseException.class, expectedMessage, () ->
+                    parser.parseCommand(ClearCommand.COMMAND_WORD + extraText));
+        }
     }
 
     @Test
     public void parseCommand_delete() throws Exception {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
-                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
-        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+                DeleteCommand.COMMAND_WORD + " " + VALID_PHONE_AMY);
+        // EP: a recognised delete command is dispatched to the delete parser with its phone argument intact.
+        assertEquals(new DeleteCommand(new Phone(VALID_PHONE_AMY)), command);
     }
 
     @Test
     public void parseCommand_edit() throws Exception {
-        Person person = new PersonBuilder().build();
+        Person person = new PersonBuilder().withEmergencyPhone("+65 99999999").build();
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
         EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
-                + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
-        assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+                + person.getPhone() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
+        assertEquals(new EditCommand(person.getPhone(), descriptor), command);
     }
 
     @Test
@@ -71,8 +103,9 @@ public class AddressBookParserTest {
     public void parseCommand_find() throws Exception {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+                FindCommand.COMMAND_WORD + " " + keywords.stream().map(keyword -> "n/" + keyword)
+                        .collect(Collectors.joining(" ")));
+        assertEquals(new FindCommand(new PersonMatchesFindCriteriaPredicate(keywords, List.of())), command);
     }
 
     @Test
@@ -85,6 +118,35 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_rideAdd() throws Exception {
+        Ride ride = new RideBuilder().withNotes("Bring lights").build();
+        RideAddCommand command = (RideAddCommand) parser.parseCommand(RideUtil.getRideAddCommand(ride));
+        assertEquals(new RideAddCommand(ride), command);
+    }
+
+    @Test
+    public void parseCommand_rideAddWithInvalidArguments_throwsParseException() {
+        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                RideAddCommand.MESSAGE_USAGE), () -> parser.parseCommand("rideadd"));
+    }
+
+    @Test
+    public void parseCommand_rideEdit() throws Exception {
+        EditRideDescriptor descriptor = new EditRideDescriptor();
+        descriptor.setName(new Name("Night Ride"));
+
+        RideEditCommand command = (RideEditCommand) parser.parseCommand("rideedit 101 n/Night Ride");
+
+        assertEquals(new RideEditCommand(101, descriptor), command);
+    }
+
+    @Test
+    public void parseCommand_rideEditWithInvalidArguments_throwsParseException() {
+        assertThrows(ParseException.class, RideEditCommand.MESSAGE_NOT_EDITED, () ->
+                parser.parseCommand("rideedit 101"));
     }
 
     @Test

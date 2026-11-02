@@ -3,14 +3,20 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
+import seedu.address.model.ride.Ride;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -21,6 +27,11 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Ride> filteredRides;
+    private final SortedList<Person> sortedPersons;
+    private Predicate<Ride> activeRidePredicate;
+    /** Persistent ID of the ride whose roster is actively filtering persons, or null for another filter. */
+    private Integer activeRideListId;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,8 +44,18 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        // Use stored positions to preserve the relative order of names that differ only in case.
+        sortedPersons = new SortedList<>(filteredPersons,
+                Comparator.comparing((Person person) -> person.getName().fullName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparingInt(person -> this.addressBook.getPersonList().indexOf(person)));
+        filteredRides = new FilteredList<>(this.addressBook.getRideList());
+        this.addressBook.getRideList().addListener(
+                (ListChangeListener<Ride>) change -> refreshRideListFilter());
     }
 
+    /**
+     * Initializes an empty model with default user preferences.
+     */
     public ModelManager() {
         this(new AddressBook(), new UserPrefs());
     }
@@ -61,7 +82,15 @@ public class ModelManager implements Model {
 
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
+        requireNonNull(addressBook);
+        boolean isReload = this.addressBook.equals(addressBook);
+        Predicate<? super Person> currentPersonPredicate = isReload
+                ? filteredPersons.getPredicate() : PREDICATE_SHOW_ALL_PERSONS;
+        Predicate<Ride> currentRidePredicate = isReload ? activeRidePredicate : PREDICATE_SHOW_ALL_RIDES;
         this.addressBook.resetData(addressBook);
+        filteredPersons.setPredicate(currentPersonPredicate);
+        activeRidePredicate = currentRidePredicate;
+        filteredRides.setPredicate(currentRidePredicate);
     }
 
     @Override
@@ -93,21 +122,92 @@ public class ModelManager implements Model {
         addressBook.setPerson(target, editedPerson);
     }
 
+    @Override
+    public Ride addRide(Ride ride) {
+        requireNonNull(ride);
+        Ride addedRide = addressBook.addRide(ride);
+        resetRideFilterIfHidden(addedRide);
+        return addedRide;
+    }
+
+    @Override
+    public void deleteRide(Ride target) {
+        requireNonNull(target);
+        addressBook.removeRide(target);
+    }
+
+    @Override
+    public void setRide(Ride target, Ride editedRide) {
+        requireAllNonNull(target, editedRide);
+        Predicate<Ride> currentPredicate = activeRidePredicate;
+        addressBook.setRide(target, editedRide);
+        if (currentPredicate == null) {
+            return;
+        }
+        filteredRides.setPredicate(null);
+        filteredRides.setPredicate(currentPredicate);
+    }
+
     //=========== Filtered Person List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * Returns an unmodifiable, live view of matching persons sorted by full name, ignoring case.
+     * Equal names retain their relative order in the address book.
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
+    }
+
+    @Override
+    public ObservableList<Ride> getFilteredRideList() {
+        return filteredRides;
+    }
+
+    @Override
+    public void updateFilteredRideList(Predicate<Ride> predicate) {
+        activeRidePredicate = requireNonNull(predicate);
+        filteredRides.setPredicate(predicate);
+    }
+
+    /** Resets the ride filter when a changed ride would otherwise remain hidden. */
+    private void resetRideFilterIfHidden(Ride changedRide) {
+        Predicate<? super Ride> currentPredicate = filteredRides.getPredicate();
+        if (currentPredicate != null && !currentPredicate.test(changedRide)) {
+            updateFilteredRideList(PREDICATE_SHOW_ALL_RIDES);
+        }
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        activeRideListId = null;
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public void updateFilteredPersonListForRide(int rideId) {
+        if (rideId <= Ride.UNASSIGNED_ID) {
+            throw new IllegalArgumentException("Ride ID must be a positive integer.");
+        }
+        activeRideListId = rideId;
+        refreshRideListFilter();
+    }
+
+    /**
+     * Replaces the active person predicate with one based on the selected ride's latest roster.
+     */
+    private void refreshRideListFilter() {
+        if (activeRideListId == null) {
+            return;
+        }
+
+        List<Phone> roster = addressBook.getRideList().stream()
+                .filter(ride -> ride.getId() == activeRideListId)
+                .map(Ride::getRoster)
+                .findFirst()
+                .orElse(List.of());
+        filteredPersons.setPredicate(person -> roster.contains(person.getPhone()));
     }
 
     @Override

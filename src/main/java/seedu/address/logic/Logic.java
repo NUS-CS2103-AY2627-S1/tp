@@ -6,6 +6,7 @@ import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Person;
+import seedu.address.model.ride.Ride;
 
 /**
  * API of the Logic component
@@ -22,6 +23,12 @@ public interface Logic {
 
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable, live view of the list of rides, in the order they were added */
+    ObservableList<Ride> getRideList();
+
+    /** Returns an unmodifiable view of the filtered list of rides. */
+    ObservableList<Ride> getFilteredRideList();
 
     /**
      * Returns the user prefs' GUI settings.

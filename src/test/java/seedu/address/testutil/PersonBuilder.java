@@ -1,15 +1,16 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
-import seedu.address.model.util.SampleDataUtil;
 
 /**
  * A utility class to help with building Person objects.
@@ -17,15 +18,17 @@ import seedu.address.model.util.SampleDataUtil;
 public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
-    public static final String DEFAULT_PHONE = "85355255";
+    public static final String DEFAULT_PHONE = "+65 85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_EXPERIENCE_LEVEL = "Beginner";
 
     private Name name;
     private Phone phone;
+    private Optional<Phone> emergencyPhone = Optional.empty();
     private Email email;
-    private Address address;
-    private Set<Tag> tags;
+    private ExperienceLevel experienceLevel;
+    private Ftp ftp;
+    private Set<Location> locations;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -34,8 +37,9 @@ public class PersonBuilder {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        experienceLevel = new ExperienceLevel(DEFAULT_EXPERIENCE_LEVEL);
+        ftp = new Ftp("1");
+        locations = Set.of(new Location("any"));
     }
 
     /**
@@ -44,9 +48,11 @@ public class PersonBuilder {
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
+        emergencyPhone = personToCopy.getEmergencyPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        experienceLevel = personToCopy.getExperienceLevel();
+        ftp = personToCopy.getFtp();
+        locations = new HashSet<>(personToCopy.getLocations());
     }
 
     /**
@@ -54,22 +60,6 @@ public class PersonBuilder {
      */
     public PersonBuilder withName(String name) {
         this.name = new Name(name);
-        return this;
-    }
-
-    /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
-     */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
-        return this;
-    }
-
-    /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
         return this;
     }
 
@@ -89,8 +79,39 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code ExperienceLevel} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withExperienceLevel(String experienceLevel) {
+        this.experienceLevel = new ExperienceLevel(experienceLevel);
+        return this;
+    }
+
+    /** Sets the FTP of the {@code Person} that we are building. */
+    public PersonBuilder withFtp(String ftp) {
+        this.ftp = new Ftp(ftp);
+        return this;
+    }
+
+    /** Sets the preferred cycling locations of the {@code Person} that we are building. */
+    public PersonBuilder withLocations(String... locations) {
+        this.locations = new HashSet<>();
+        for (String location : locations) {
+            this.locations.add(new Location(location));
+        }
+        return this;
+    }
+
+    /**
+     * Sets the emergency contact number of the person being built.
+     */
+    public PersonBuilder withEmergencyPhone(String emergencyPhone) {
+        this.emergencyPhone = Optional.of(new Phone(emergencyPhone));
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, ftp, experienceLevel, locations, emergencyPhone);
     }
 
 }

@@ -9,51 +9,47 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Evan Liang Song Xun
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/elsxyss.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/elsxyss)]
 
-* Role: Project Advisor
+* Role: Team Lead, Scheduling and Tracking
+* Responsibilities: Coordinates the project and tracks tasks.
 
-### Jane Doe
+### Sia Pathania
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/sia-pathania.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Sia-Pathania)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Integration, Deliverables and Deadlines, Storage Lead
+* Responsibilities: Manages integration and Storage, and ensures correct, timely submissions.
 
-### Johnny Doe
+### Tan Ji Xiang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jixiang-t.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/jixiang-t)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Testing, Logic Lead
+* Responsibilities: Oversees testing and Logic quality.
 
-### Jean Doe
+### Jayden Leung
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jaydenleungky.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/jaydenleungky)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Documentation, UI Lead
+* Responsibilities: Maintains documentation and UI quality.
 
-### James Doe
+### Juin Ron
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/juinron.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/juinron)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Code Quality, Model Lead
+* Responsibilities: Enforces coding standards and maintains Model quality.

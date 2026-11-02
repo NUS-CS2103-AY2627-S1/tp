@@ -1,12 +1,13 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EMERGENCY_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EXPERIENCE_LEVEL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FTP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LOCATION;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -15,18 +16,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.ExperienceLevel;
+import seedu.address.model.person.Ftp;
+import seedu.address.model.person.Location;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.ride.Ride;
 
 /**
  * Edits the details of an existing person in the address book.
@@ -36,56 +39,100 @@ public class EditCommand extends Command {
     public static final String COMMAND_WORD = "edit";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
-            + "Parameters: INDEX (must be a positive integer) "
+            + "by their phone number in the displayed person list. "
+            + "Existing values will be overwritten by the input values. "
+            + "The resulting phone number must not belong to another person.\n"
+            + "Parameters: PHONE "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
+            + "[" + PREFIX_EMERGENCY_PHONE + "EMERGENCY_PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
+            + "[" + PREFIX_FTP + "FTP_LEVEL] "
+            + "[" + PREFIX_EXPERIENCE_LEVEL + "EXPERIENCE_LEVEL] "
+            + "[" + PREFIX_LOCATION + "LOCATION]...\n"
+            + "Example: " + COMMAND_WORD + " +65 91234567 "
+            + PREFIX_PHONE + "+65 98765432 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
     public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "Another cyclist already has this phone number or email.";
+    public static final String MESSAGE_DUPLICATE_PHONE = "This phone number already belongs to another cyclist. "
+            + "Choose a unique phone number.";
+    public static final String MESSAGE_AMBIGUOUS_PHONE = Messages.MESSAGE_AMBIGUOUS_PHONE;
+    public static final String MESSAGE_PERSON_NOT_FOUND = Messages.MESSAGE_CYCLIST_NOT_FOUND;
+    public static final String MESSAGE_FTP_BELOW_RIDE_MINIMUM =
+            "Cannot edit cyclist: FTP %1$d W is below the minimum %2$d W for ride %3$d (%4$s).";
 
-    private final Index index;
+    private final Phone targetPhone;
     private final EditPersonDescriptor editPersonDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * Creates a command to edit the displayed person with the given phone number.
+     *
+     * @param targetPhone Phone number of the person in the filtered person list to edit.
+     * @param editPersonDescriptor Details to edit the person with.
      */
-    public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
-        requireNonNull(index);
+    public EditCommand(Phone targetPhone, EditPersonDescriptor editPersonDescriptor) {
+        requireNonNull(targetPhone);
         requireNonNull(editPersonDescriptor);
 
-        this.index = index;
+        this.targetPhone = targetPhone;
         this.editPersonDescriptor = new EditPersonDescriptor(editPersonDescriptor);
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
-
-        if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        Person personToEdit = getPersonToEdit(model);
+        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+        if (editPersonDescriptor.getFtp().isPresent()) {
+            validateRideEligibility(model, personToEdit, editedPerson);
         }
 
-        Person personToEdit = lastShownList.get(index.getZeroBased());
-        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
-
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
+        try {
+            model.setPerson(personToEdit, editedPerson);
+        } catch (DuplicatePersonException e) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
-        model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
         return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+    }
+
+    /**
+     * Resolves the unique displayed cyclist before validating or applying edits.
+     */
+    private Person getPersonToEdit(Model model) throws CommandException {
+        List<Person> matchingPersons = model.getFilteredPersonList().stream()
+                .filter(person -> person.getPhone().equals(targetPhone))
+                .toList();
+
+        if (matchingPersons.isEmpty()) {
+            throw new CommandException(String.format(MESSAGE_PERSON_NOT_FOUND, targetPhone));
+        }
+
+        if (matchingPersons.size() > 1) {
+            throw new CommandException(MESSAGE_AMBIGUOUS_PHONE);
+        }
+
+        return matchingPersons.get(0);
+    }
+
+    /**
+     * Rejects an FTP edit that would violate any existing registration before changing stored data.
+     * Uses the original phone number so a simultaneous phone edit cannot bypass validation.
+     */
+    private static void validateRideEligibility(Model model, Person originalPerson, Person editedPerson)
+            throws CommandException {
+        int updatedFtp = Integer.parseInt(editedPerson.getFtp().value);
+        for (Ride ride : model.getAddressBook().getRideList()) {
+            int minimumPower = Integer.parseInt(ride.getMinimumPower().value);
+            if (ride.getRoster().contains(originalPerson.getPhone())
+                    && updatedFtp < minimumPower) {
+                throw new CommandException(String.format(MESSAGE_FTP_BELOW_RIDE_MINIMUM, updatedFtp,
+                        minimumPower, ride.getId(), ride.getName().fullName));
+            }
+        }
     }
 
     /**
@@ -97,11 +144,16 @@ public class EditCommand extends Command {
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
+        Optional<Phone> updatedEmergencyPhone = editPersonDescriptor.getEmergencyPhone().isPresent()
+                ? editPersonDescriptor.getEmergencyPhone() : personToEdit.getEmergencyPhone();
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
-        Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Ftp updatedFtp = editPersonDescriptor.getFtp().orElse(personToEdit.getFtp());
+        ExperienceLevel updatedExperienceLevel = editPersonDescriptor.getExperienceLevel()
+                .orElse(personToEdit.getExperienceLevel());
+        Set<Location> updatedLocations = editPersonDescriptor.getLocations().orElse(personToEdit.getLocations());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedFtp,
+                updatedExperienceLevel, updatedLocations, updatedEmergencyPhone);
     }
 
     @Override
@@ -115,14 +167,14 @@ public class EditCommand extends Command {
             return false;
         }
 
-        return index.equals(otherEditCommand.index)
+        return targetPhone.equals(otherEditCommand.targetPhone)
                 && editPersonDescriptor.equals(otherEditCommand.editPersonDescriptor);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("index", index)
+                .add("targetPhone", targetPhone)
                 .add("editPersonDescriptor", editPersonDescriptor)
                 .toString();
     }
@@ -134,29 +186,36 @@ public class EditCommand extends Command {
     public static class EditPersonDescriptor {
         private Name name;
         private Phone phone;
+        private Phone emergencyPhone;
         private Email email;
-        private Address address;
-        private Set<Tag> tags;
+        private Ftp ftp;
+        private ExperienceLevel experienceLevel;
+        private Set<Location> locations;
 
+        /**
+         * Creates a descriptor with no fields selected for editing.
+         */
         public EditPersonDescriptor() {}
 
         /**
          * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
+         * Defensive copies of {@code locations} are used internally.
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
             setPhone(toCopy.phone);
+            setEmergencyPhone(toCopy.emergencyPhone);
             setEmail(toCopy.email);
-            setAddress(toCopy.address);
-            setTags(toCopy.tags);
+            setFtp(toCopy.ftp);
+            setExperienceLevel(toCopy.experienceLevel);
+            setLocations(toCopy.locations);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, emergencyPhone, email, ftp, experienceLevel, locations);
         }
 
         public void setName(Name name) {
@@ -175,6 +234,14 @@ public class EditCommand extends Command {
             return Optional.ofNullable(phone);
         }
 
+        public void setEmergencyPhone(Phone emergencyPhone) {
+            this.emergencyPhone = emergencyPhone;
+        }
+
+        public Optional<Phone> getEmergencyPhone() {
+            return Optional.ofNullable(emergencyPhone);
+        }
+
         public void setEmail(Email email) {
             this.email = email;
         }
@@ -183,29 +250,37 @@ public class EditCommand extends Command {
             return Optional.ofNullable(email);
         }
 
-        public void setAddress(Address address) {
-            this.address = address;
+        public void setFtp(Ftp ftp) {
+            this.ftp = ftp;
         }
 
-        public Optional<Address> getAddress() {
-            return Optional.ofNullable(address);
+        public Optional<Ftp> getFtp() {
+            return Optional.ofNullable(ftp);
+        }
+
+        public void setExperienceLevel(ExperienceLevel experienceLevel) {
+            this.experienceLevel = experienceLevel;
+        }
+
+        public Optional<ExperienceLevel> getExperienceLevel() {
+            return Optional.ofNullable(experienceLevel);
         }
 
         /**
-         * Sets {@code tags} to this object's {@code tags}.
-         * A defensive copy of {@code tags} is used internally.
+         * Sets {@code locations} to this object's {@code locations}.
+         * A defensive copy of {@code locations} is used internally.
          */
-        public void setTags(Set<Tag> tags) {
-            this.tags = (tags != null) ? new HashSet<>(tags) : null;
+        public void setLocations(Set<Location> locations) {
+            this.locations = (locations != null) ? new HashSet<>(locations) : null;
         }
 
         /**
-         * Returns an unmodifiable tag set, which throws {@code UnsupportedOperationException}
+         * Returns an unmodifiable location set, which throws {@code UnsupportedOperationException}
          * if modification is attempted.
-         * Returns {@code Optional#empty()} if {@code tags} is null.
+         * Returns {@code Optional#empty()} if {@code locations} is null.
          */
-        public Optional<Set<Tag>> getTags() {
-            return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+        public Optional<Set<Location>> getLocations() {
+            return (locations != null) ? Optional.of(Collections.unmodifiableSet(locations)) : Optional.empty();
         }
 
         @Override
@@ -221,9 +296,11 @@ public class EditCommand extends Command {
 
             return Objects.equals(name, otherEditPersonDescriptor.name)
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
+                    && Objects.equals(emergencyPhone, otherEditPersonDescriptor.emergencyPhone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(ftp, otherEditPersonDescriptor.ftp)
+                    && Objects.equals(experienceLevel, otherEditPersonDescriptor.experienceLevel)
+                    && Objects.equals(locations, otherEditPersonDescriptor.locations);
         }
 
         @Override
@@ -231,9 +308,11 @@ public class EditCommand extends Command {
             return new ToStringBuilder(this)
                     .add("name", name)
                     .add("phone", phone)
+                    .add("emergencyPhone", emergencyPhone)
                     .add("email", email)
-                    .add("address", address)
-                    .add("tags", tags)
+                    .add("ftp", ftp)
+                    .add("experienceLevel", experienceLevel)
+                    .add("locations", locations)
                     .toString();
         }
     }
