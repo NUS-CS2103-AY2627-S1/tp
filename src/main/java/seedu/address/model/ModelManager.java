@@ -6,37 +6,48 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
+import seedu.address.model.project.ClientProject;
+import seedu.address.model.project.Project;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of the client book data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final ClientBook clientBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final ReadOnlyObjectWrapper<ContactView> contactView =
+            new ReadOnlyObjectWrapper<>(ContactView.allContacts());
+    private Predicate<Person> personFilter = PREDICATE_SHOW_ALL_PERSONS;
 
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given clientBook and userPrefs.
      */
-    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+    public ModelManager(ReadOnlyClientBook clientBook, ReadOnlyUserPrefs userPrefs) {
+        requireAllNonNull(clientBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing with client book: " + clientBook + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.clientBook = new ClientBook(clientBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredPersons = new FilteredList<>(this.clientBook.getPersonList());
+        // Project memberships can change without a corresponding change to the person list.
+        this.clientBook.getClientProjectList().addListener((ListChangeListener<ClientProject>) change ->
+                refreshPersonFilter());
     }
 
     public ModelManager() {
-        this(new AddressBook(), new UserPrefs());
+        this(new ClientBook(), new UserPrefs());
     }
 
     //=========== UserPrefs ==================================================================================
@@ -57,47 +68,112 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
-    //=========== AddressBook ================================================================================
+    //=========== ClientBook ================================================================================
 
     @Override
-    public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+    public void setClientBook(ReadOnlyClientBook clientBook) {
+        this.clientBook.resetData(clientBook);
     }
 
     @Override
-    public ReadOnlyAddressBook getAddressBook() {
-        return addressBook;
+    public ReadOnlyClientBook getClientBook() {
+        return clientBook;
     }
 
     @Override
     public boolean hasPerson(Person person) {
         requireNonNull(person);
-        return addressBook.hasPerson(person);
+        return clientBook.hasPerson(person);
     }
 
     @Override
     public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+        clientBook.removePerson(target);
     }
 
     @Override
     public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        clientBook.addPerson(person);
+        showAllContacts();
     }
 
     @Override
     public void setPerson(Person target, Person editedPerson) {
         requireAllNonNull(target, editedPerson);
 
-        addressBook.setPerson(target, editedPerson);
+        clientBook.setPerson(target, editedPerson);
+    }
+
+    //=========== Projects ==================================================================================
+
+    @Override
+    public boolean hasProject(Project project) {
+        requireNonNull(project);
+        return clientBook.hasProject(project);
+    }
+
+    @Override
+    public void addProject(Project project) {
+        clientBook.addProject(project);
+    }
+
+    @Override
+    public boolean hasClientProject(ClientProject clientProject) {
+        requireNonNull(clientProject);
+        return clientBook.hasClientProject(clientProject);
+    }
+
+    @Override
+    public void addClientProject(ClientProject clientProject) {
+        clientBook.addClientProject(clientProject);
+    }
+
+    @Override
+    public void removeClientProject(ClientProject clientProject) {
+        clientBook.removeClientProject(clientProject);
+    }
+
+    @Override
+    public void setClientProjectRole(ClientProject clientProject, String role) {
+        clientBook.setClientProjectRole(clientProject, role);
+    }
+
+    @Override
+    public void deleteProject(Project project) {
+        requireNonNull(project);
+        boolean deletingActiveProject = contactView.get().isProject(project);
+        clientBook.removeProject(project);
+        if (deletingActiveProject) {
+            showAllContacts();
+        }
     }
 
     //=========== Filtered Person List Accessors =============================================================
 
+    @Override
+    public void showAllContacts() {
+        applyPersonFilter(PREDICATE_SHOW_ALL_PERSONS, ContactView.allContacts());
+    }
+
+    @Override
+    public void showProjectClients(Project project) {
+        requireNonNull(project);
+        applyPersonFilter(person -> hasClientProject(new ClientProject(person, project)), ContactView.project(project));
+    }
+
+    @Override
+    public ContactView getContactView() {
+        return contactView.get();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<ContactView> contactViewProperty() {
+        return contactView.getReadOnlyProperty();
+    }
+
     /**
      * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * {@code clientBook}
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
@@ -106,8 +182,20 @@ public class ModelManager implements Model {
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
+        applyPersonFilter(predicate, ContactView.filtered());
+    }
+
+    private void applyPersonFilter(Predicate<Person> predicate, ContactView newContactView) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        requireNonNull(newContactView);
+        personFilter = predicate;
+        refreshPersonFilter();
+        contactView.set(newContactView);
+    }
+
+    private void refreshPersonFilter() {
+        // A fresh predicate makes JavaFX re-evaluate the filter even when only memberships changed.
+        filteredPersons.setPredicate(personFilter::test);
     }
 
     @Override
@@ -121,7 +209,7 @@ public class ModelManager implements Model {
             return false;
         }
 
-        return addressBook.equals(otherModelManager.addressBook)
+        return clientBook.equals(otherModelManager.clientBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
     }

@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
@@ -13,15 +14,21 @@ import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.model.AddressBook;
+import seedu.address.model.ClientBook;
+import seedu.address.model.ContactView;
 import seedu.address.model.Model;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyClientBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.project.ClientProject;
+import seedu.address.model.project.Project;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -44,12 +51,126 @@ public class AddCommandTest {
     }
 
     @Test
+    public void execute_distinctContactDetails_addSuccessfulWithoutWarning() throws Exception {
+        assertAddWithWarning(List.of(ALICE), new PersonBuilder().build(), "");
+    }
+
+    @Test
+    public void execute_sharedNameIgnoringCaseAndSpacing_addSuccessfulWithNameWarning() throws Exception {
+        Person person = new PersonBuilder().withName("  aLiCe   pAuLiNe  ").build();
+        assertAddWithWarning(List.of(ALICE), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_NAME_WARNING, person.getName()));
+    }
+
+    @Test
+    public void execute_sharedNameAndEmail_addSuccessfulWithBothWarnings() throws Exception {
+        Person person = new PersonBuilder(ALICE).withPhone("11111111").build();
+        assertAddWithWarning(List.of(ALICE), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_NAME_WARNING, person.getName())
+                + "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail()));
+    }
+
+    @Test
+    public void execute_multipleContactsShareName_warnsOnceForName() throws Exception {
+        Person otherAlice = new PersonBuilder(ALICE).withPhone("11111111").build();
+        Person person = new PersonBuilder().withName(ALICE.getName().fullName).build();
+        assertAddWithWarning(List.of(ALICE, otherAlice), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_NAME_WARNING, person.getName()));
+    }
+
+    @Test
+    public void execute_sharedEmail_addSuccessfulWithEmailWarning() throws Exception {
+        Person person = new PersonBuilder().withEmail(ALICE.getEmail().value).build();
+        assertAddWithWarning(List.of(ALICE), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail()));
+    }
+
+    @Test
+    public void execute_sharedEmailIgnoringCase_addSuccessfulWithEmailWarning() throws Exception {
+        for (String email : List.of("ALICE@example.com", "alice@EXAMPLE.COM", "Alice@Example.com")) {
+            Person person = new PersonBuilder().withEmail(email).build();
+            assertAddWithWarning(List.of(ALICE), person,
+                    "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail()));
+        }
+    }
+
+    @Test
+    public void execute_multipleContactsShareEmailIgnoringCase_warnsOnceForEmail() throws Exception {
+        Person otherOwner = new PersonBuilder(ALICE).withName("Other Owner")
+                .withEmail("ALICE@EXAMPLE.COM").build();
+        Person person = new PersonBuilder().withEmail("Alice@Example.com").build();
+
+        assertAddWithWarning(List.of(ALICE, otherOwner), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail()));
+    }
+
+    @Test
+    public void execute_sharedPhone_addSuccessfulWithPhoneWarning() throws Exception {
+        Person person = new PersonBuilder().withPhone(ALICE.getPhone().value).build();
+        assertAddWithWarning(List.of(ALICE), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_PHONE_WARNING, person.getPhone()));
+    }
+
+    @Test
+    public void execute_sharedEmailAndPhone_addSuccessfulWithBothWarnings() throws Exception {
+        Person person = new PersonBuilder(ALICE).withName("New Contact").build();
+        assertAddWithWarning(List.of(ALICE), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail())
+                + "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_PHONE_WARNING, person.getPhone()));
+    }
+
+    @Test
+    public void execute_emailAndPhoneBelongToDifferentContacts_addSuccessfulWithBothWarnings() throws Exception {
+        Person emailOwner = new PersonBuilder().withName("Email Owner").withPhone("11111111").build();
+        Person phoneOwner = new PersonBuilder().withName("Phone Owner").withEmail("other@example.com").build();
+        Person person = new PersonBuilder().build();
+        assertAddWithWarning(List.of(emailOwner, phoneOwner), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail())
+                + "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_PHONE_WARNING, person.getPhone()));
+    }
+
+    @Test
+    public void execute_multipleContactsShareDetails_warnsOncePerField() throws Exception {
+        Person otherOwner = new PersonBuilder(ALICE).withName("Other Owner").build();
+        Person person = new PersonBuilder(ALICE).withName("New Contact").build();
+        assertAddWithWarning(List.of(ALICE, otherOwner), person,
+                "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL_WARNING, person.getEmail())
+                + "\n" + String.format(AddCommand.MESSAGE_DUPLICATE_PHONE_WARNING, person.getPhone()));
+    }
+
+    /**
+     * Verifies both feedback and insertion when existing contacts may share details with the new person.
+     */
+    private void assertAddWithWarning(List<Person> existingPersons, Person person, String warning) throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        modelStub.personsAdded.addAll(existingPersons);
+
+        CommandResult commandResult = new AddCommand(person).execute(modelStub);
+
+        assertEquals(new CommandResult(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(person)) + warning),
+                commandResult);
+        List<Person> expectedPersons = new ArrayList<>(existingPersons);
+        expectedPersons.add(person);
+        assertEquals(expectedPersons, modelStub.personsAdded);
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
         assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_nameDiffersInCaseAndSpacing_throwsCommandException() {
+        Model model = new ModelManager(new ClientBook(), new UserPrefs());
+        model.addPerson(ALICE);
+        for (String name : List.of("alice pauline", "Alice   Pauline", "  aLiCe   pAuLiNe  ")) {
+            Person duplicateAlice = new PersonBuilder(ALICE).withName(name).build();
+            assertCommandFailure(new AddCommand(duplicateAlice), model, AddCommand.MESSAGE_DUPLICATE_PERSON);
+        }
     }
 
     @Test
@@ -108,17 +229,72 @@ public class AddCommandTest {
         }
 
         @Override
-        public void setAddressBook(ReadOnlyAddressBook newData) {
+        public void setClientBook(ReadOnlyClientBook newData) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
+        public ReadOnlyClientBook getClientBook() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
         public boolean hasPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasProject(Project project) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addProject(Project project) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasClientProject(ClientProject clientProject) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addClientProject(ClientProject clientProject) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void removeClientProject(ClientProject clientProject) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setClientProjectRole(ClientProject clientProject, String role) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteProject(Project project) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void showAllContacts() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void showProjectClients(Project project) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ContactView getContactView() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyObjectProperty<ContactView> contactViewProperty() {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -180,8 +356,12 @@ public class AddCommandTest {
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+        public ReadOnlyClientBook getClientBook() {
+            ClientBook clientBook = new ClientBook();
+            for (Person person : personsAdded) {
+                clientBook.addPerson(person);
+            }
+            return clientBook;
         }
     }
 

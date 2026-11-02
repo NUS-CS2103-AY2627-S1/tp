@@ -9,7 +9,16 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* ClientBookThree is based on [AddressBook-Level3](https://se-education.org/addressbook-level3/) by the
+  [SE-EDU initiative](https://se-education.org). Its architecture, documentation structure, and substantial portions
+  of its original code were adapted from that project.
+* The app uses [JavaFX](https://openjfx.io/) for its UI and [Jackson](https://github.com/FasterXML/jackson) for JSON
+  storage. Tests use [JUnit 5](https://junit.org/junit5/).
+* [Gradle](https://gradle.org/), [Checkstyle](https://checkstyle.org/), and [JaCoCo](https://www.jacoco.org/jacoco/)
+  support building, code-quality checks, and test-coverage reporting.
+* Notable uses of AI:
+  * Claude (Anthropic), Codex (OpenAI) and GitHub Copilot (Microsoft) were used to help write code, tests and documentation, including the User Guide and Developer Guide, and for preliminary reviews of pull requests. All output was checked with the project's tests and human-reviewed in pull requests before being merged.
+  
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +45,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -68,13 +77,13 @@ The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
 ![Structure of the UI Component](images/UiClassDiagram.png)
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `ProjectSidebar`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
@@ -83,9 +92,11 @@ The `UI` component,
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
 * depends on some classes in the `Model` component because it displays `Person` objects from the model.
 
+The `ProjectSidebar` lists **Contacts** and every project with its number of clients. Clicking an item runs the same command a user could type (`list` or `project view PROJECT`) through `MainWindow#executeCommand`, so a click behaves exactly like the command, including its result message, and focus then returns to the `CommandBox`. To highlight the current item, the sidebar observes the `Model`'s `ContactView` (all contacts, one project, or another filter such as a `find`), which every command that changes the displayed list updates.
+
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
@@ -100,7 +111,7 @@ The sequence diagram below illustrates the interactions within the `Logic` compo
 
 How the `Logic` component works:
 
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
+1. When `Logic` is called upon to execute a command, the command is passed to a `ClientBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
 1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
 1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
    Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
@@ -111,23 +122,24 @@ Here are the other classes in `Logic` (omitted from the class diagram above) tha
 <img src="images/ParserClasses.png" width="600"/>
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
+* When called upon to parse a user command, the `ClientBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `ClientBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+<img src="images/ModelClassDiagram.png" width="760" />
 
 
 The `Model` component,
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
+* stores the client book data i.e., all `Person` objects (in a `UniquePersonList`), all `Project` objects (in a `UniqueProjectList`), and which clients are on which project, as `ClientProject` objects (in a `UniqueClientProjectList`). A client can be on many projects and a project can have many clients, so the diagram shows `ClientProject` as an association class on the `Person`–`Project` association: each `ClientProject` links one client to one project.
+* gives each `Person` an optional `Company`, a `Status` (one of none, lead, active, on hold, done) and an optional `Note`. A missing company, address or note is stored as an empty value (e.g. `Company.EMPTY`) rather than `null`, so other code never has to check for `null`.
 * stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `ClientBook`, and each `Person` references tags from that list. This lets `ClientBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
 
 <img src="images/BetterModelClassDiagram.png" width="450" />
 
@@ -136,13 +148,16 @@ The `Model` component,
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103-F09-2/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
 The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
-* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
+* can save both client book data (contacts, projects and which clients are on which project) and user preference data in JSON format, and read them back into corresponding objects.
+* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonClientBookStorage` and `JsonUserPrefsStorage` (one class per data file).
+* saves each project membership as a `JsonAdaptedClientProject` holding the client's name, phone, email, the project's
+  name, and the role. The full client identity prevents ambiguity when two contacts have the same name. Older
+  name-only memberships remain readable when the name identifies exactly one contact.
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
 
 ### Common classes
@@ -155,93 +170,85 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Project view feature
 
-#### Proposed Implementation
+#### Implementation
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+`project view PROJECT` uses `ProjectViewCommand` to find a project by name, ignoring case and extra spaces, and filter the client list to its members. The UI observes the filtered list and displays a client count or an empty-project message.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+The sequence diagram below shows the successful flow for `project view Client Portal`, including the save performed by `LogicManager` before returning a `CommandResult` to the UI.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+![Component interactions for the project view command](images/ProjectViewSequenceDiagram.png)
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+Diagram source: [PlantUML](diagrams/ProjectViewSequenceDiagram.puml).
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+### Project membership and roles
 
-![UndoRedoState0](images/UndoRedoState0.png)
+#### Implementation
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+`ClientBook` owns projects in a `UniqueProjectList` and memberships in a `UniqueClientProjectList`. Each immutable
+`ClientProject` links one `Person` to one `Project` and stores the role that person has on that project. The role belongs
+to the membership rather than either endpoint, so one contact can hold different roles on different projects.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+Project commands resolve client indexes against the currently displayed contact list and resolve project names against
+the existing project list, ignoring case and normalized spaces. They then update memberships through `Model`:
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+* `project add` and `project remove` validate all supplied indexes and the project before changing data. A single
+  duplicate or missing membership is rejected; a multi-client operation skips affected contacts and reports them.
+* `project role` replaces an existing membership with a copy containing the new role. An empty role removes only the
+  role, not the membership.
+* `ClientBook#setPerson` rewrites that person's memberships when contact details change. Deleting a contact removes
+  their memberships; deleting a project removes all memberships for that project. Neither operation deletes the other
+  endpoint.
+* Storage writes people and projects before memberships. On load, each membership is linked back to existing objects;
+  unknown, ambiguous, or duplicate references make the data file invalid instead of creating dangling links.
 
-![UndoRedoState2](images/UndoRedoState2.png)
+#### Design considerations
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+**Aspect: representing the many-to-many relationship between contacts and projects**
 
-</div>
+* **Alternative 1 (current choice):** model each relationship as a `ClientProject` association object.
+  * Pros: A role naturally belongs to one contact-project pair; both endpoints stay immutable; membership validation,
+    cleanup, and storage have one owner.
+  * Cons: Editing or deleting an endpoint requires coordinated membership updates.
+* **Alternative 2:** store a set of projects and roles inside each `Person`.
+  * Pros: Looking up a contact's projects requires no separate membership list.
+  * Cons: Project deletion must scan and rebuild every contact; shared project identity is harder to enforce; the
+    relationship data becomes coupled to `Person`.
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+### Client status, company and notes
 
-![UndoRedoState3](images/UndoRedoState3.png)
+#### Implementation
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+Each `Person` has three fields beyond AB3's: a `Status`, a `Company` and a `Note`.
 
-</div>
+* `Status` is an enum with the values `NONE`, `LEAD`, `ACTIVE`, `ON_HOLD` and `DONE`. `Status#fromText` turns what the user typed into a status, ignoring case and treating `on-hold`, `onhold` and `on   hold` the same; it returns an empty `Optional` for anything else, which `ParserUtil#parseStatus` turns into a `ParseException`.
+* `Company` and `Note` are value classes like `Address`. A contact without one holds `Company.EMPTY` or `Note.EMPTY`, never `null`, so the card, storage and `find` can use the value directly without checking for `null`.
+* `Person` stays immutable. `status` and `note` each have a command of their own, which builds the updated contact with `Person#withStatus` or `Person#withNote` and replaces the old one with `Model#setPerson`. `edit` copies the status and note across unchanged, so editing a contact's phone number never clears them.
+* `list s/STATUS` gives `ListCommand` an optional status filter, which it passes to `Model#updateFilteredPersonList` as a predicate.
+* `JsonAdaptedPerson` saves the three fields as `"status"`, `"company"` and `"note"`. A missing or blank field is read as `NONE` or empty, so data files from older versions still load.
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+The sequence diagram for `status 1 active` follows the same pattern as the [`delete 1` example](#logic-component): `ClientBookParser` creates a `StatusCommandParser`, which returns a `StatusCommand`; executing it calls `Model#setPerson` with the updated contact, and `LogicManager` then saves the client book.
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+#### Design considerations
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+**Aspect: how the status is set**
 
-</div>
+* **Alternative 1 (current choice):** a separate `status INDEX STATUS` command.
+  * Pros: Changing a client's status is the most frequent update, and the command is short. `status 1 on hold` reads naturally without a prefix.
+  * Cons: One more command to learn.
+* **Alternative 2:** an `s/STATUS` field in `add` and `edit`.
+  * Pros: Fewer commands.
+  * Cons: `edit 1 s/on hold` is longer, and `add` would need to handle a status for contacts who are not clients (e.g. a finance officer). `add` and `edit` reject `s/` with a message pointing to `status`.
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+**Aspect: how a missing company or note is represented**
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
-
-#### Design considerations:
-
-**Aspect: How undo & redo execute:**
-
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
-
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
-
-### \[Proposed\] Data archiving
-
-_{Explain here how the data archiving feature will be implemented}_
+* **Alternative 1 (current choice):** a shared empty value (`Company.EMPTY`, `Note.EMPTY`, as already done for `Address.EMPTY`).
+  * Pros: No `null` checks anywhere; the card simply hides the line when the value is empty.
+  * Cons: Code must use `isEmpty()` rather than comparing with `null`.
+* **Alternative 2:** `Optional<Company>` and `Optional<Note>` fields.
+  * Pros: The type shows that the value may be missing.
+  * Cons: Every use has to unwrap the `Optional`, and Jackson needs extra handling to save it.
 
 
 --------------------------------------------------------------------------------------------------------------------
@@ -259,73 +266,471 @@ _{Explain here how the data archiving feature will be implemented}_
 
 ### Product scope
 
-**Target user profile**:
+**Target user profile**: Freelance software developer who works with multiple different customers and collaborate with many people.
+They prefer typing to mouse interactions and are reasonably comfortable using CLI apps.
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
-
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Centralizes client management inside a desktop CLI to replace bulky customer relationship management apps, allowing them to modify client statuses, organize projects easily, and group related people/customer
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| User type | User story | Benefit | Priority |
+| --- | --- | --- | --- |
+| new user | create a new contact |  | `* * *` |
+| new user | delete a contact I no longer deal with | it keeps the client book clean | `* * *` |
+| new user | View all contacts on the app | I can see my contacts | `* * *` |
+| user ready to start for real | clear all the sample data in one command | I can begin from a clean state without deleting entries one by one | `* * *` |
+| new user | see a list of the commands available | I can learn what the app does without leaving it to read a manual | `* * *` |
+| new user | see an example of the correct format when I mistype a command | I can fix my mistake without guessing at the syntax | `* * *` |
+| freelance developer | add a client with a name, email and phone number | I stop keeping their details scattered across chats and emails | `* * *` |
+| freelance developer | add a contact who is not the client themselves, such as their finance officer | I can reach the right person for the right matter | `* * *` |
+| freelance developer | list every contact I have recorded | I can see everything in one place | `* * *` |
+| freelance developer | edit a contact's details | their record stays correct when they change number, email or job | `* * *` |
+| freelance developer | delete a contact I no longer deal with | my list does not fill up with people who are no longer relevant | `* * *` |
+| freelance developer | add a contact to a project | I can see who is involved in which piece of work | `* * *` |
+| freelance developer | add one contact to more than one project | a client I work with on several jobs is still recorded only once | `* * *` |
+| freelance developer | list only the contacts on a given project | I can see everyone involved in the job I am working on right now | `* * *` |
+| freelance developer | remove a tag from a contact | the record follows along when someone leaves a project | `* * *` |
+| freelance developer | search for a contact by part of their name | I can find them without remembering the exact spelling | `* * *` |
+| returning user | have my data saved without asking | I never lose work by forgetting to save | `* * *` |
+| potential user exploring the app | see the app already populated with sample data | I can tell what it looks like in use before committing my own records | `* *` |
+| new user | see where my data file is kept | I know what to back up | `* *` |
+| freelance developer | record the company a contact belongs to | I can tell apart two people with similar names | `* *` |
+| freelance developer | be warned when I add someone whose email is already recorded | I do not end up with the same person twice | `* *` |
+| freelance developer | search by company | I can find everyone I know at a client organisation | `* *` |
+| freelance developer | set a status on a client such as lead, active, on hold or done | I know where each engagement stands | `* *` |
+| freelance developer | list clients by status | I can see which engagements need attention this week | `* *` |
+| freelance developer | change a client's status in a single command | keeping my pipeline current is quick enough that I actually do it | `* *` |
+| freelance developer | record the role a contact plays on a project, such as product owner or designer | I know who to approach about what | `* *` |
+| long-time user | sort my contacts by name | the list is in a predictable order when I scan it | `* *` |
+| long-time user | sort clients by status | the work that needs attention appears first | `* *` |
+| cautious user | have my data kept in a plain readable file | I can back it up, inspect it, or repair it by hand | `* *` |
+| freelancer moving between machines | copy my data file to another computer | I can keep working on my laptop as well as my desktop | `* *` |
+| freelance developer | keep a short note against a contact | I remember context such as their timezone or how they prefer to be contacted | `*` |
+| freelance developer | see how many contacts each project has | I can gauge how large each engagement is | `*` |
+| expert user | type short aliases for the commands I use most | I spend less time typing the same things | `*` |
+| expert user | act on several contacts in one command | I do not repeat the same command once per person | `*` |
+| expert user | recall and edit a command I typed earlier | I can repeat or amend it without typing it out again | `*` |
+| long-time user | archive the contacts of a finished project | my working list stays short without losing the records | `*` |
+| long-time user | look at archived contacts | I can still reach someone from a past job | `*` |
+| user with a long list | page through my contacts | the display stays readable when there are hundreds of them | `*` |
+| freelance developer | export one project's contacts | I can hand the list to a collaborator | `*` |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `ClientBookThree` and the **Actor** is the `user`, a freelance software developer, unless specified otherwise)
 
-**Use case: Delete a person**
+**Use case: UC01 - Add a contact**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1.  User requests to add a contact, giving their name, phone number and email, and optionally an address, company and
+    tags.
+2.  ClientBookThree adds the contact and shows the details of the added contact.
 
     Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 1a. A required detail is missing.
+
+    * 1a1. ClientBookThree shows an error message with the expected format.
+    * 1a2. User enters the details again.
+
+      Steps 1a1-1a2 are repeated until all required details are given.<br>
+      Use case resumes from step 2.
+
+* 1b. A detail is invalid, e.g., the phone number contains fewer than three digits. Letters in phone labels such as
+  `1234 5678 (HP)` are allowed.
+
+    * 1b1. ClientBookThree shows an error message stating what is allowed for that detail.
+    * 1b2. User enters the details again.
+
+      Steps 1b1-1b2 are repeated until all details are valid.<br>
+      Use case resumes from step 2.
+
+* 1c. A contact with the same name, phone and email already exists. Name matching ignores case and normalized spaces; phone matching ignores spaces; email must match exactly.
+
+    * 1c1. ClientBookThree shows an error message saying the contact already exists, and does not add it.
+
+      Use case ends.
+
+* 1d. An existing contact shares the name, phone or email, but not all three.
+
+    * 1d1. ClientBookThree adds the contact and shows a warning for each shared field.
+
+      Use case ends.
+
+**Use case: UC02 - List all contacts**
+
+**MSS**
+
+1.  User requests to list all contacts.
+2.  ClientBookThree shows every contact, numbered in the order they were added.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. There are no contacts.
+
+    * 2a1. ClientBookThree shows an empty list.
+
+      Use case ends.
+
+**Use case: UC03 - Delete a contact**
+
+**MSS**
+
+1.  User lists contacts (UC02) or finds contacts (UC05).
+2.  User requests to delete a specific contact in the shown list.
+3.  ClientBookThree deletes the contact and shows the details of the deleted contact.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The shown list is empty.
 
   Use case ends.
 
-* 3a. The given index is invalid.
+* 2a. The given index is invalid, e.g., it is not a positive number or is larger than the number of contacts shown.
 
-    * 3a1. AddressBook shows an error message.
+    * 2a1. ClientBookThree shows an error message.
 
       Use case resumes at step 2.
 
-*{More to be added}*
+**Use case: UC04 - Edit a contact**
+
+**MSS**
+
+1.  User lists contacts (UC02) or finds contacts (UC05).
+2.  User requests to change some details of a specific contact in the shown list, giving the new values.
+3.  ClientBookThree updates the contact and shows its new details.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. No detail to change is given.
+
+    * 2b1. ClientBookThree shows an error message saying at least one detail must be given.
+
+      Use case resumes at step 2.
+
+* 2c. A new value is invalid.
+
+    * 2c1. ClientBookThree shows an error message stating what is allowed for that detail.
+
+      Use case resumes at step 2.
+
+* 2d. The edited contact has the same name, phone and email as another contact. Name matching ignores case and
+  normalized spaces; phone matching ignores spaces; email must match exactly.
+
+    * 2d1. ClientBookThree shows an error message saying that contact already exists, and does not change anything.
+
+      Use case ends.
+
+* 2e. A changed name, phone or email is shared with another contact, but the edited contact does not match all three identity fields.
+
+    * 2e1. ClientBookThree updates the contact and shows a warning for each changed, shared field.
+
+      Use case ends.
+
+**Use case: UC05 - Find contacts by name or company**
+
+**MSS**
+
+1.  User requests to find contacts, giving one or more keywords.
+2.  ClientBookThree shows the contacts whose name or company contains any of the keywords, ignoring case.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. No keyword is given.
+
+    * 1a1. ClientBookThree shows an error message with the expected format.
+
+      Use case resumes at step 1.
+
+* 2a. No contact matches any keyword.
+
+    * 2a1. ClientBookThree shows an empty list and says no contact was found.
+
+      Use case ends.
+
+**Use case: UC06 - Add contacts to a project**
+
+**MSS**
+
+1.  User lists contacts (UC02) or finds contacts (UC05).
+2.  User requests to add one or more contacts in the shown list to one existing project, optionally with a shared role.
+3.  ClientBookThree adds the contacts to the project and reports the contacts added.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. The project does not exist or its name is invalid.
+
+    * 2b1. ClientBookThree shows an error message and does not add any contact to the project.
+
+      Use case resumes at step 2.
+
+* 2c. A requested contact already belongs to the project.
+
+    * 2c1. If only one contact was requested, ClientBookThree tells the user that nothing has changed.
+
+      Use case ends.
+
+    * 2c2. If multiple contacts were requested, ClientBookThree skips existing members, adds the remaining contacts,
+      and reports both groups.
+
+      Use case ends.
+
+**Use case: UC07 - Remove contacts from a project**
+
+**MSS**
+
+1.  User lists contacts (UC02) or finds contacts (UC05).
+2.  User requests to remove one or more contacts in the shown list from one project.
+3.  ClientBookThree removes the contacts from the project and reports the contacts removed.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. A requested contact does not belong to that project.
+
+    * 2b1. If only one contact was requested, ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+    * 2b2. If multiple contacts were requested, ClientBookThree skips non-members, removes the remaining contacts,
+      and reports both groups.
+
+      Use case ends.
+
+**Use case: UC08 - View the contacts on a project**
+
+**MSS**
+
+1.  User requests to list the contacts belonging to a specific project.
+2.  ClientBookThree shows those contacts and how many there are.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The project name is invalid.
+
+    * 1a1. ClientBookThree shows an error message stating what a project name may contain.
+
+      Use case resumes at step 1.
+
+* 2a. No contact belongs to that project.
+
+    * 2a1. ClientBookThree shows an empty list and says no contact is on that project.
+
+      Use case ends.
+
+**Use case: UC09 - Update a client's engagement status**
+
+**MSS**
+
+1.  User finds the client (UC05).
+2.  User requests to set the engagement status of that client to one of lead, active, on hold or done.
+3.  ClientBookThree updates the client's status and shows the client's updated details.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. The given status is not one of the allowed statuses.
+
+    * 2b1. ClientBookThree shows an error message listing the allowed statuses.
+
+      Use case resumes at step 2.
+
+* 2c. The client already has that status.
+
+    * 2c1. ClientBookThree tells the user that nothing has changed.
+
+      Use case ends.
+
+**Use case: UC10 - Create a project**
+
+**MSS**
+
+1.  User requests to create a project with a given name.
+2.  ClientBookThree creates the project and shows it in the sidebar with no clients.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The name is blank or contains the role prefix ` r/`.
+
+    * 1a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 1.
+
+* 1b. A project with the same name, ignoring case and extra spaces, already exists.
+
+    * 1b1. ClientBookThree shows an error message saying the project already exists.
+
+      Use case ends.
+
+**Use case: UC11 - Change a client's role on a project**
+
+**MSS**
+
+1.  User finds the client (UC05).
+2.  User requests to change the client's role on a project they are in, giving the new role.
+3.  ClientBookThree updates the role and shows the client's name, the project and the new role.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. The project does not exist, or the client is not in it.
+
+    * 2b1. ClientBookThree shows an error message saying which.
+
+      Use case resumes at step 2.
+
+* 2c. The new role is empty.
+
+    * 2c1. ClientBookThree removes the client's role on that project. The client stays in the project.
+
+      Use case ends.
+
+**Use case: UC12 - Delete a project**
+
+**MSS**
+
+1.  User requests to delete a project.
+2.  ClientBookThree deletes the project, removes it from every client in it, and shows how many clients it was removed from.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The project does not exist.
+
+    * 1a1. ClientBookThree shows an error message.
+
+      Use case ends.
+
+* 2a. The user was viewing that project's clients.
+
+    * 2a1. ClientBookThree shows all contacts again.
+
+      Use case ends.
+
+**Use case: UC13 - Keep a note on a contact**
+
+**MSS**
+
+1.  User finds the contact (UC05).
+2.  User requests to keep a note against that contact, such as their timezone.
+3.  ClientBookThree saves the note, replacing any earlier note, and shows it on the contact card.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The given index is invalid.
+
+    * 2a1. ClientBookThree shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. The user gives no text.
+
+    * 2b1. ClientBookThree removes the contact's note.
+
+      Use case ends.
+
+**Use case: UC14 - List clients by engagement status**
+
+**MSS**
+
+1.  User requests to list the contacts with a given status, e.g. active.
+2.  ClientBookThree shows only the contacts with that status, and how many there are.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The given status is not one of the allowed statuses.
+
+    * 1a1. ClientBookThree shows an error message listing the allowed statuses.
+
+      Use case resumes at step 1.
+
+* 2a. No contact has that status.
+
+    * 2a1. ClientBookThree shows an empty list and says no contact has that status.
+
+      Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+1.  Should work on any _mainstream OS_ with Java `25` installed. Other Java versions are not supported.
+2.  Should be able to hold up to 1000 contacts and 100 projects without noticeable sluggishness (up to 1 second of load times) in performance for typical usage.
+3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks in their typical workflow faster using commands than using the mouse.
+4.  A new user should be able to add, delete and list contacts using the documented command syntax without assistance after reading the quick-start instructions.
+5.  After a successful change, the updated data should remain available after the application is closed and reopened.
+6.  Contact and project data should be stored locally and not transmitted elsewhere to ensure privacy of user data.
+7.  The application should be able to function as usual without needing an internet connection.
+8.  A newer version of the application should be able to read data from an older version of the application.
+9.  The application window should fit within screens with minimally 1920x1080 resolution.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Mainstream OS**: Windows, Linux, Unix, or macOS.
+* **Client**: A person or organization that engages the user to do work
+* **Contact / Person**: A person recorded in the app, such as a client’s main contact, finance contact, or collaborator.
+* **Collaborator**: A person who works with the user on a project but is not the client.
+* **Project**: A piece of work or engagement associated with a client and one or more people.
+* **Status**: A contact's engagement stage, using `none`, `lead`, `active`, `on hold`, or `done`.
+* **Project membership**: Represents a contact's involvement and optional role in a project.
+* **Typical usage**: The dataset size and command mix used to evaluate the performance NFR.
+* **Quick-start instructions**: Brief summary of the user guide, contains important information to get started using CB3.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -344,39 +749,116 @@ testers are expected to do more *exploratory* testing.
 
    1. Download the JAR file and copy it into an empty folder.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar clientbook.jar`.<br>
+      Expected: The GUI opens with six sample contacts, some with a company. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with `java -jar clientbook.jar`.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Adding and deleting a contact
 
-### Deleting a person
+1. Adding a contact
 
-1. Deleting a person while all persons are being shown
+   1. Test case: `add n/Mei Ling p/+65 9123 4567 e/meiling@acme.com c/Acme Pte Ltd`<br>
+      Expected: Mei Ling is added at the end of the list, with `Acme Pte Ltd` under her name and no address line.
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Test case: `add n/mei   LING p/91111111 e/other@example.com`<br>
+      Expected: Added with a shared-name warning because the phone and email differ.
+
+   1. Test case: `add n/mei   LING p/+65 9123 4567 e/meiling@acme.com`<br>
+      Expected: Rejected as a duplicate: name, phone and email match the first Mei Ling. Name matching ignores case and extra spaces.
+
+   1. Test case: `add n/Mei Ling p/+6591234567 e/meiling@acme.com`<br>
+      Expected: Rejected as a duplicate of the first Mei Ling because phone matching ignores spaces.
+
+   1. Test case: Add both `add n/John Tan p/91234567 e/john@test1.com c/test1` and
+      `add n/John Tan p/98765432 e/john@test2.com c/test2`. Then run `project create Identity Check`,
+      `find test1`, `project add 1 Identity Check r/tester`, `find test2`, and
+      `project add 1 Identity Check r/developer`. Close and reopen the app.<br>
+      Expected: Both contacts are added; the second addition warns about the shared name. After reopening, each John Tan retains the correct membership and role.
+
+   1. Test case: `add n/Jane Tan p/12 e/jane@example.com`<br>
+      Expected: Rejected. The message says a phone number needs 3 to 20 digits.
+
+1. Deleting a contact while all contacts are being shown
+
+   1. Prerequisites: List all contacts using the `list` command, with multiple contacts in the list.
 
    1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+      Expected: The first contact is deleted from the list, and from every project they were in. The status message shows the deleted contact's details.
 
    1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+      Expected: No contact is deleted. An error message says the index is invalid.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Other incorrect delete commands to try: `delete`, `delete x`, `delete 999` (where 999 is larger than the list size)<br>
+      Expected: No contact is deleted, and an error message is shown.
 
-1. _{ more test cases …​ }_
+### Status and notes
+
+1. Setting and listing by status
+
+   1. Test case: `status 1 active`, then `list s/active`<br>
+      Expected: The first contact's card shows `Status: active`, and the list then shows only active contacts.
+
+   1. Test case: `status 1 ON-HOLD`<br>
+      Expected: The status becomes `on hold` (case and the hyphen are ignored).
+
+   1. Test case: `status 1 pending`<br>
+      Expected: Rejected. The message lists the valid statuses.
+
+1. Keeping a note
+
+   1. Prerequisites: List all contacts using the `list` command, with at least one contact in the list.
+
+   1. Test case: `note 1 Based in London, prefers email`<br>
+      Expected: The first contact's card shows the note.
+
+   1. Test case: `note 1`<br>
+      Expected: The note is removed.
+
+### Projects
+
+1. Creating a project and adding clients
+
+   1. Prerequisites: List all contacts using the `list` command, with at least two contacts in the list.
+
+   1. Test case: `project create Client Portal`, then `project add 1,2 Client Portal r/developer`<br>
+      Expected: Both contacts' cards show `Projects: Client Portal (developer)`.
+
+   1. Test case: `project view client   portal`<br>
+      Expected: Only the clients on `Client Portal` are listed (the name matches ignoring case and extra spaces). `list` shows everyone again.
+
+   1. Test case: `project role 1 Client Portal r/Lead developer`, then `project list 1`<br>
+      Expected: The first contact's role on `Client Portal` is now `Lead developer`.
+
+   1. Test case: `project role 1 Client Portal r/`<br>
+      Expected: The first contact's role on `Client Portal` is removed, and their card shows just `Client Portal`. They stay in the project.
+
+   1. Test case: `project all`<br>
+      Expected: Every project is listed with its number of clients.
+
+1. Deleting a project
+
+   1. Test case: `project delete Client Portal`<br>
+      Expected: The project is deleted and removed from every client's card. The clients themselves stay.
+
+### Finding contacts
+
+1. Test case: `find bakery`<br>
+   Expected: With the sample data, Alex Yeoh and Roy Balakrishnan (both at Geylang Bakery) are listed: `find` matches part of a name or a company, ignoring case.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+1. Dealing with a missing data file
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+   1. Close the app, delete `data/clientbook.json`, and relaunch.<br>
+      Expected: The app starts with the sample contacts again.
 
-1. _{ more test cases …​ }_
+1. Dealing with a corrupted data file
+
+   1. Close the app, open `data/clientbook.json` in a text editor, and change a contact's `"status"` to `"pending"` (not a valid status). Relaunch.<br>
+      Expected: The file can't be loaded, so the app starts with an empty client book. The app saves after every command, so the invalid file is overwritten by the next command you run; back it up first if you want to fix it by hand.

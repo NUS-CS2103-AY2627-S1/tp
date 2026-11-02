@@ -1,11 +1,15 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.Messages.MESSAGE_INDEX_NOT_IN_LIST;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_STATUS_NOT_SET_HERE;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_EMPTY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
@@ -16,6 +20,7 @@ import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_COMPANY_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
@@ -23,11 +28,13 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_COMPANY;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
@@ -38,7 +45,6 @@ import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
@@ -47,12 +53,24 @@ import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditCommandParserTest {
 
+    private static final String ADDRESS_EMPTY = " " + PREFIX_ADDRESS;
     private static final String TAG_EMPTY = " " + PREFIX_TAG;
 
     private static final String MESSAGE_INVALID_FORMAT =
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
 
     private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_nullArgs_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+
+    @Test
+    public void parse_nameWithRepeatedSpaces_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("John Doe").build();
+        assertParseSuccess(parser, "1 n/  John   Doe  ", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
 
     @Test
     public void parse_missingParts_failure() {
@@ -69,10 +87,13 @@ public class EditCommandParserTest {
     @Test
     public void parse_invalidPreamble_failure() {
         // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INDEX_NOT_IN_LIST);
 
         // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INDEX_NOT_IN_LIST);
+
+        // index too large to be a number of contacts
+        assertParseFailure(parser, "99999999999" + NAME_DESC_AMY, MESSAGE_INDEX_NOT_IN_LIST);
 
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
@@ -86,7 +107,6 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
 
         // invalid phone followed by valid email
@@ -187,12 +207,89 @@ public class EditCommandParserTest {
         assertParseFailure(parser, userInput,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
 
-        // multiple invalid values
-        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC
-                + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC;
+        // multiple invalid values and repeated empty addresses
+        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + ADDRESS_EMPTY + INVALID_EMAIL_DESC
+                + INVALID_PHONE_DESC + ADDRESS_EMPTY + INVALID_EMAIL_DESC;
 
         assertParseFailure(parser, userInput,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+    }
+
+    @Test
+    public void parse_removeAddress_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutAddress().build();
+        EditCommand expectedCommand = new EditCommand(INDEX_THIRD_PERSON, descriptor);
+
+        assertParseSuccess(parser, INDEX_THIRD_PERSON.getOneBased() + ADDRESS_EMPTY, expectedCommand);
+        assertParseSuccess(parser, INDEX_THIRD_PERSON.getOneBased() + ADDRESS_EMPTY + " \t ", expectedCommand);
+    }
+
+    @Test
+    public void parse_removeAddressWithOtherFields_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutAddress()
+                .withPhone(VALID_PHONE_AMY).build();
+        EditCommand expectedCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+
+        assertParseSuccess(parser, "1" + ADDRESS_EMPTY + PHONE_DESC_AMY, expectedCommand);
+        assertParseSuccess(parser, "1" + PHONE_DESC_AMY + ADDRESS_EMPTY, expectedCommand);
+    }
+
+    @Test
+    public void parse_removeAddressCompanyAndTags_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutAddress()
+                .withoutCompany().withTags().build();
+
+        assertParseSuccess(parser, "1" + ADDRESS_EMPTY + COMPANY_EMPTY + TAG_EMPTY,
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_repeatedAddress_failure() {
+        String expectedMessage = Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS);
+
+        assertParseFailure(parser, "1" + ADDRESS_DESC_AMY + ADDRESS_EMPTY, expectedMessage);
+        assertParseFailure(parser, "1" + ADDRESS_EMPTY + ADDRESS_DESC_AMY, expectedMessage);
+        assertParseFailure(parser, "1" + ADDRESS_EMPTY + ADDRESS_EMPTY, expectedMessage);
+    }
+
+    @Test
+    public void parse_company_success() {
+        Index targetIndex = INDEX_THIRD_PERSON;
+
+        // set the company
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withCompany(VALID_COMPANY_AMY).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + COMPANY_DESC_AMY,
+                new EditCommand(targetIndex, descriptor));
+
+        // "c/" alone removes the company
+        descriptor = new EditPersonDescriptorBuilder().withoutCompany().build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + COMPANY_EMPTY, new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_repeatedCompany_failure() {
+        assertParseFailure(parser, INDEX_FIRST_PERSON.getOneBased() + COMPANY_DESC_AMY + COMPANY_DESC_BOB,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_COMPANY));
+    }
+
+    @Test
+    public void parse_statusPrefix_failure() {
+        String expectedMessage = String.format(MESSAGE_STATUS_NOT_SET_HERE, EditCommand.COMMAND_WORD);
+        assertParseFailure(parser, "1 s/active", expectedMessage);
+        assertParseFailure(parser, "1" + PHONE_DESC_AMY + " s/on hold", expectedMessage);
+
+        // invalid statuses and literal lower-case s/ text are rejected instead of being stored in another field
+        assertParseFailure(parser, "1 n/Alice s/pending", expectedMessage);
+        assertParseFailure(parser, "1 n/Raj s/o Kumar", expectedMessage);
+
+        // multiple status prefixes are rejected with the same guidance
+        assertParseFailure(parser, "1 n/Raj s/o Kumar s/done", expectedMessage);
+    }
+
+    @Test
+    public void parse_uppercaseSlashInName_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("Raj S/O Kumar").build();
+        assertParseSuccess(parser, "1 n/Raj S/O Kumar", new EditCommand(INDEX_FIRST_PERSON, descriptor));
     }
 
     @Test

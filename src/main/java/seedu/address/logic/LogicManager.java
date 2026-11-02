@@ -2,17 +2,21 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.ClientBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ContactView;
 import seedu.address.model.Model;
+import seedu.address.model.ReadOnlyClientBook;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -29,7 +33,7 @@ public class LogicManager implements Logic {
 
     private final Model model;
     private final Storage storage;
-    private final AddressBookParser addressBookParser;
+    private final ClientBookParser clientBookParser;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -37,24 +41,37 @@ public class LogicManager implements Logic {
     public LogicManager(Model model, Storage storage) {
         this.model = model;
         this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        clientBookParser = new ClientBookParser();
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
+        long startTime = System.nanoTime();
 
+        Command command;
         CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        try {
+            command = clientBookParser.parseCommand(commandText);
+            commandResult = command.execute(model);
+        } catch (CommandException | ParseException e) {
+            logger.info("Command failed: " + e.getMessage());
+            throw e;
+        }
 
         try {
-            storage.saveAddressBook(model.getAddressBook());
+            storage.saveClientBook(model.getClientBook());
         } catch (AccessDeniedException e) {
+            logger.log(Level.WARNING, "Failed to save client book: " + e.getMessage(), e);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            logger.log(Level.WARNING, "Failed to save client book: " + ioe.getMessage(), ioe);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
+
+        long durationMillis = (System.nanoTime() - startTime) / 1_000_000;
+        logger.info("Command succeeded: " + command.getClass().getSimpleName()
+                + " in " + durationMillis + " ms");
 
         return commandResult;
     }
@@ -62,6 +79,16 @@ public class LogicManager implements Logic {
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<ContactView> contactViewProperty() {
+        return model.contactViewProperty();
+    }
+
+    @Override
+    public ReadOnlyClientBook getClientBook() {
+        return model.getClientBook();
     }
 
     @Override

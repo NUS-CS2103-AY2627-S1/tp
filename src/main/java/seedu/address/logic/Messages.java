@@ -14,10 +14,19 @@ public class Messages {
 
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INDEX_NOT_IN_LIST =
+            "The contact index provided is invalid. Pick one of the numbers shown in the contact list, "
+            + "starting from 1.";
+    public static final String MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX =
+            "The contact index provided is invalid. Pick a number from 1 to %1$d.";
+    public static final String MESSAGE_NO_CONTACTS_DISPLAYED =
+            "The displayed contact list is empty. Use list to show all contacts.";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d contact(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_STATUS_NOT_SET_HERE =
+            "%1$s does not accept the status prefix s/. Use the status command instead, e.g. status 1 active. "
+            + "For literal text such as s/o, use uppercase S/O.";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -32,6 +41,17 @@ public class Messages {
     }
 
     /**
+     * Returns an invalid index message for a displayed contact list of {@code size}.
+     */
+    public static String getInvalidContactDisplayedIndexMessage(int size) {
+        assert size >= 0;
+
+        return size == 0
+                ? MESSAGE_NO_CONTACTS_DISPLAYED
+                : String.format(MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX, size);
+    }
+
+    /**
      * Formats the {@code person} for display to the user.
      */
     public static String format(Person person) {
@@ -40,11 +60,17 @@ public class Messages {
                 .append("; Phone: ")
                 .append(person.getPhone())
                 .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append(person.getEmail());
+        if (!person.getAddress().isEmpty()) {
+            builder.append("; Address: ").append(person.getAddress());
+        }
+        if (!person.getCompany().isEmpty()) {
+            builder.append("; Company: ").append(person.getCompany());
+        }
+        if (!person.getTags().isEmpty()) {
+            builder.append("; Tags: ");
+            person.getTags().forEach(builder::append);
+        }
         return builder.toString();
     }
 

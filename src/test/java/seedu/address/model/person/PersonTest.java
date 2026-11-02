@@ -32,23 +32,54 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
+        // same name, different contact details -> returns false
         Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
                 .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same name and email, different phone -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same name and phone, different email -> returns false
+        editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same identity, different optional details -> returns true
+        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withCompany("Acme")
+                .withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void isSamePerson_nameDiffersInCaseAndSpacing_returnsTrue() {
+        Person editedAlice = new PersonBuilder(ALICE).withName("  aLiCe   pAuLiNe  ").build();
+        assertTrue(ALICE.isSamePerson(editedAlice));
+        assertTrue(editedAlice.isSamePerson(ALICE));
+
+        Person aliceWithRepeatedSpaces = new PersonBuilder(ALICE).withName("Alice   Pauline").build();
+        assertTrue(ALICE.isSamePerson(aliceWithRepeatedSpaces));
+    }
+
+    @Test
+    public void isSamePerson_nameDiffersBeyondCaseAndSpacing_returnsFalse() {
+        Person differentPerson = new PersonBuilder(ALICE).withName("AlicePauline").build();
+        assertFalse(ALICE.isSamePerson(differentPerson));
+        differentPerson = new PersonBuilder(ALICE).withName("Alice-Pauline").build();
+        assertFalse(ALICE.isSamePerson(differentPerson));
     }
 
     @Test
@@ -73,6 +104,10 @@ public class PersonTest {
         Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // same identity with different capitalization -> returns false
+        editedAlice = new PersonBuilder(ALICE).withName("alice pauline").build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different phone -> returns false
         editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
@@ -88,12 +123,43 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // different company -> returns false
+        editedAlice = new PersonBuilder(ALICE).withCompany("Acme").build();
+        assertFalse(ALICE.equals(editedAlice));
+    }
+
+    @Test
+    public void constructor_withoutAddress_usesEmptyAddress() {
+        Person remoteClient = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getTags());
+        assertEquals(Address.EMPTY, remoteClient.getAddress());
+        assertEquals(new PersonBuilder(ALICE).withoutAddress().build(), remoteClient);
+    }
+
+    @Test
+    public void withNote_newNote_keepsOtherDetails() {
+        Person withNote = ALICE.withNote(new Note("Prefers email"));
+        assertEquals(new Note("Prefers email"), withNote.getNote());
+        assertEquals(new PersonBuilder(ALICE).withNote("Prefers email").build(), withNote);
+        assertTrue(withNote.isSamePerson(ALICE));
+        assertFalse(withNote.equals(ALICE));
+    }
+
+    @Test
+    public void withStatus_newStatus_keepsOtherDetails() {
+        Person active = ALICE.withStatus(Status.ACTIVE);
+        assertEquals(Status.ACTIVE, active.getStatus());
+        assertEquals(new PersonBuilder(ALICE).withStatus(Status.ACTIVE).build(), active);
+        assertTrue(active.isSamePerson(ALICE));
+        assertFalse(active.equals(ALICE));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", company=" + ALICE.getCompany()
+                + ", status=" + ALICE.getStatus() + ", note=" + ALICE.getNote()
+                + ", tags=" + ALICE.getTags() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

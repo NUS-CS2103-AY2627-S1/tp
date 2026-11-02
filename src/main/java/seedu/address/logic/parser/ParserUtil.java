@@ -2,17 +2,26 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
+import seedu.address.logic.parser.exceptions.InvalidIndexException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Status;
+import seedu.address.model.project.ClientProject;
+import seedu.address.model.project.Project;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +30,12 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_EMAIL_HAS_SPACE = "Emails cannot contain spaces, but the email given was "
+            + "\"%1$s\". If the text after the space is another detail, check its prefix: "
+            + "only n/, p/, e/, a/, c/ and t/ are accepted.";
+
+    /** A whole number, which may be too small (e.g. 0 or -1) or too large to be an index. */
+    private static final String WHOLE_NUMBER_REGEX = "-?\\d+";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -29,15 +44,54 @@ public class ParserUtil {
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
         String trimmedIndex = oneBasedIndex.trim();
-        if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
-            throw new ParseException(MESSAGE_INVALID_INDEX);
+        if (StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
+            return Index.fromOneBased(Integer.parseInt(trimmedIndex));
         }
-        return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+        // A number that can't be an index is a mistake in the number, not in the command's format.
+        if (trimmedIndex.matches(WHOLE_NUMBER_REGEX)) {
+            throw new InvalidIndexException(Messages.MESSAGE_INDEX_NOT_IN_LIST);
+        }
+        throw new ParseException(MESSAGE_INVALID_INDEX);
+    }
+
+    /**
+     * Parses comma-separated one-based indexes into {@code Index} objects.
+     *
+     * @throws ParseException if any index is invalid.
+     */
+    public static List<Index> parseIndexes(String oneBasedIndexes) throws ParseException {
+        requireNonNull(oneBasedIndexes);
+        List<Index> indexes = new ArrayList<>();
+        for (String oneBasedIndex : oneBasedIndexes.trim().split(",", -1)) {
+            Index index = parseIndex(oneBasedIndex);
+            if (!indexes.contains(index)) {
+                indexes.add(index);
+            }
+        }
+        return List.copyOf(indexes);
+    }
+
+    /**
+     * Throws a {@code ParseException} saying to use the status command if {@code args} contains the lower-case
+     * status prefix {@code s/}. Commands that do not set a status reserve this prefix even when its value is not a
+     * valid status, preventing invalid status input from being silently stored inside another field. Literal text
+     * such as "s/o" must use uppercase "S/O" because prefixes are case-sensitive.
+     *
+     * @param commandWord the command's word, used in the message.
+     */
+    public static void requireNoStatus(String args, String commandWord, Prefix... prefixes) throws ParseException {
+        requireNonNull(args);
+        Prefix[] prefixesWithStatus = Arrays.copyOf(prefixes, prefixes.length + 1);
+        prefixesWithStatus[prefixes.length] = CliSyntax.PREFIX_STATUS;
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, prefixesWithStatus);
+        if (!argMultimap.getAllValues(CliSyntax.PREFIX_STATUS).isEmpty()) {
+            throw new ParseException(String.format(Messages.MESSAGE_STATUS_NOT_SET_HERE, commandWord));
+        }
     }
 
     /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Leading and trailing whitespaces will be trimmed and repeated spaces will be collapsed.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
@@ -48,6 +102,29 @@ public class ParserUtil {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
         return new Name(trimmedName);
+    }
+
+    /**
+     * Parses a project name into a {@code Project}.
+     * Leading and trailing whitespaces will be trimmed and repeated spaces will be collapsed.
+     *
+     * @throws ParseException if the given project name is invalid.
+     */
+    public static Project parseProject(String name) throws ParseException {
+        requireNonNull(name);
+        if (!Project.isValidProjectName(name)) {
+            throw new ParseException(Project.MESSAGE_CONSTRAINTS);
+        }
+        return new Project(name);
+    }
+
+    /** Parses a non-blank project role. */
+    public static String parseRole(String role) throws ParseException {
+        requireNonNull(role);
+        if (!ClientProject.isValidRole(role)) {
+            throw new ParseException(ClientProject.MESSAGE_ROLE_CONSTRAINTS);
+        }
+        return role.trim().replaceAll("\\s+", " ");
     }
 
     /**
@@ -81,6 +158,21 @@ public class ParserUtil {
     }
 
     /**
+     * Parses a {@code String company} into a {@code Company}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code company} is blank.
+     */
+    public static Company parseCompany(String company) throws ParseException {
+        requireNonNull(company);
+        String trimmedCompany = company.trim();
+        if (!Company.isValidCompany(trimmedCompany)) {
+            throw new ParseException(Company.MESSAGE_CONSTRAINTS);
+        }
+        return new Company(trimmedCompany);
+    }
+
+    /**
      * Parses a {@code String email} into an {@code Email}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -90,9 +182,24 @@ public class ParserUtil {
         requireNonNull(email);
         String trimmedEmail = email.trim();
         if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
+            // A space usually means text with an unknown prefix (e.g. x/) was read as part of the email.
+            if (trimmedEmail.chars().anyMatch(Character::isWhitespace)) {
+                throw new ParseException(String.format(MESSAGE_EMAIL_HAS_SPACE, trimmedEmail));
+            }
+            throw new ParseException(Email.getValidationMessage(trimmedEmail));
         }
         return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses a {@code String status} into a {@code Status}.
+     * Case is ignored, and hyphens, underscores and repeated spaces count as one space.
+     *
+     * @throws ParseException if the given {@code status} is not a status.
+     */
+    public static Status parseStatus(String status) throws ParseException {
+        requireNonNull(status);
+        return Status.fromText(status).orElseThrow(() -> new ParseException(Status.MESSAGE_CONSTRAINTS));
     }
 
     /**

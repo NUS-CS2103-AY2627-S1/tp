@@ -1,8 +1,12 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_STATUS_NOT_SET_HERE;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.COMPANY_EMPTY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
@@ -19,12 +23,14 @@ import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_COMPANY_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_COMPANY;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
@@ -38,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
@@ -47,6 +54,13 @@ import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
     private AddCommandParser parser = new AddCommandParser();
+
+    @Test
+    public void parse_nameWithRepeatedSpaces_success() {
+        Person expectedPerson = new PersonBuilder(BOB).withName("John Doe").build();
+        assertParseSuccess(parser, " n/  John   Doe  " + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
+    }
 
     @Test
     public void parse_allFieldsPresent_success() {
@@ -130,11 +144,62 @@ public class AddCommandParserTest {
     }
 
     @Test
+    public void parse_withCompany_success() {
+        Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).withCompany(VALID_COMPANY_BOB)
+                .build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + COMPANY_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
+
+        // the company is trimmed and may come before the other fields
+        assertParseSuccess(parser, " c/  " + VALID_COMPANY_BOB + "  " + NAME_DESC_BOB + PHONE_DESC_BOB
+                + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_invalidCompany_failure() {
+        // blank company
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + COMPANY_EMPTY,
+                Company.MESSAGE_CONSTRAINTS);
+
+        // more than one company
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + COMPANY_DESC_AMY
+                + COMPANY_DESC_BOB, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_COMPANY));
+    }
+
+    @Test
+    public void parse_statusPrefix_failure() {
+        String expectedMessage = String.format(MESSAGE_STATUS_NOT_SET_HERE, AddCommand.COMMAND_WORD);
+
+        // after the other fields, where it used to be read as part of the email
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " s/active", expectedMessage);
+
+        // anywhere else, in any accepted spelling of a status
+        assertParseFailure(parser, " s/lead" + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, NAME_DESC_BOB + " s/ON-HOLD" + PHONE_DESC_BOB + EMAIL_DESC_BOB, expectedMessage);
+
+        // invalid statuses and literal lower-case s/ text are also rejected instead of being stored in another field
+        assertParseFailure(parser, " n/Alice s/pending" + PHONE_DESC_BOB + EMAIL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, " n/Raj s/o Kumar" + PHONE_DESC_BOB + EMAIL_DESC_BOB, expectedMessage);
+    }
+
+    @Test
+    public void parse_uppercaseSlashInName_success() {
+        Person expectedPerson = new PersonBuilder(BOB).withName("Raj S/O Kumar").withTags().build();
+        assertParseSuccess(parser, " n/Raj S/O Kumar" + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
     public void parse_optionalFieldsMissing_success() {
         // zero tags
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
                 new AddCommand(expectedPerson));
+
+        // no address
+        Person expectedPersonWithoutAddress = new PersonBuilder(AMY).withTags().withoutAddress().build();
+        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY,
+                new AddCommand(expectedPersonWithoutAddress));
     }
 
     @Test
@@ -153,13 +218,15 @@ public class AddCommandParserTest {
         assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
                 expectedMessage);
 
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
-
         // all prefixes missing
         assertParseFailure(parser, VALID_NAME_BOB + VALID_PHONE_BOB + VALID_EMAIL_BOB + VALID_ADDRESS_BOB,
                 expectedMessage);
+    }
+
+    @Test
+    public void parse_unknownPrefixAfterEmail_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " x/what",
+                String.format(ParserUtil.MESSAGE_EMAIL_HAS_SPACE, VALID_EMAIL_BOB + " x/what"));
     }
 
     @Test

@@ -9,51 +9,29 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Muhammad Salman Al Farisi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/salmanalfarisi5.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/SalmanAlfarisi5)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Project management (deadlines and scheduling), Code quality
 
-### Jean Doe
+### Tan Ying
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/arcs1ne.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/arcs1ne)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Code contribution and testing
+
+### Ryan Chiew
+
+<img src="images/ry-cy.png" width="200px">
+
+[[github](https://github.com/ry-cy)]
+
+* Role: Developer
+* Responsibilities: Code contribution, quality and Testing

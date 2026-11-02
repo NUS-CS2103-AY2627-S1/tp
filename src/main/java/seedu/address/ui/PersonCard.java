@@ -1,6 +1,8 @@
 package seedu.address.ui;
 
 import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -8,6 +10,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import seedu.address.model.person.Person;
+import seedu.address.model.project.ClientProject;
+import seedu.address.model.project.Project;
 
 /**
  * A UI component that displays information of a {@code Person}.
@@ -33,27 +37,73 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label id;
     @FXML
+    private Label company;
+    @FXML
     private Label phone;
     @FXML
     private Label address;
     @FXML
     private Label email;
     @FXML
+    private Label status;
+    @FXML
+    private Label note;
+    @FXML
+    private Label projects;
+    @FXML
     private FlowPane tags;
 
     /**
-     * Creates a {@code PersonCard} with the given {@code Person} and index to display.
+     * Creates a {@code PersonCard} with the given {@code Person}, index to display, and the projects the
+     * client belongs to, in the order they joined them.
      */
-    public PersonCard(Person person, int displayedIndex) {
+    public PersonCard(Person person, int displayedIndex, List<?> clientProjects) {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
+        company.setText(person.getCompany().value);
+        // A contact with no company gets no company line, rather than an empty one.
+        company.setVisible(!person.getCompany().isEmpty());
+        company.setManaged(!person.getCompany().isEmpty());
         phone.setText(person.getPhone().value);
         address.setText(person.getAddress().value);
+        // An unknown address is left out of the card, rather than shown as an empty line.
+        address.setVisible(!person.getAddress().isEmpty());
+        address.setManaged(!person.getAddress().isEmpty());
         email.setText(person.getEmail().value);
+        status.setText("Status: " + person.getStatus());
+        // A contact without a status gets no status line, rather than "Status: none".
+        status.setVisible(!person.getStatus().isNone());
+        status.setManaged(!person.getStatus().isNone());
+        note.setText("Note: " + person.getNote());
+        // A contact without a note gets no note line, rather than an empty one.
+        note.setVisible(!person.getNote().isEmpty());
+        note.setManaged(!person.getNote().isEmpty());
+        projects.setText(formatProjects(clientProjects));
+        // A client on no project gets no projects line, rather than an empty one.
+        projects.setVisible(!clientProjects.isEmpty());
+        projects.setManaged(!clientProjects.isEmpty());
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+    }
+
+    /**
+     * Returns the projects line shown on a client's card, e.g. "Projects: Client Portal, Website Redesign".
+     */
+    static String formatProjects(List<?> clientProjects) {
+        return clientProjects.stream()
+                .map(PersonCard::formatProject)
+                .collect(Collectors.joining(", ", "Projects: ", ""));
+    }
+
+    private static String formatProject(Object projectOrMembership) {
+        if (projectOrMembership instanceof ClientProject membership) {
+            String projectName = membership.getProject().getName();
+            return membership.getRole().isEmpty()
+                    ? projectName : projectName + " (" + membership.getRole() + ")";
+        }
+        return ((Project) projectOrMembership).getName();
     }
 }

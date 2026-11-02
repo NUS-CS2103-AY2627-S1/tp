@@ -11,10 +11,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Status;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -28,7 +31,17 @@ class JsonAdaptedPerson {
     private final String phone;
     private final String email;
     private final String address;
+    private final String company;
+    private final String status;
+    private final String note;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} with the given person details, and no company, status or note.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, null, null, null, tags);
+    }
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
@@ -36,11 +49,16 @@ class JsonAdaptedPerson {
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
+            @JsonProperty("company") String company, @JsonProperty("status") String status,
+            @JsonProperty("note") String note,
             @JsonProperty("tags") List<JsonAdaptedTag> tags) {
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.company = company;
+        this.status = status;
+        this.note = note;
         if (tags != null) {
             this.tags.addAll(tags);
         }
@@ -54,6 +72,9 @@ class JsonAdaptedPerson {
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        company = source.getCompany().value;
+        status = source.getStatus().toString();
+        note = source.getNote().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -67,6 +88,9 @@ class JsonAdaptedPerson {
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException("Person's tags must not contain null entries.");
+            }
             personTags.add(tag.toModelType());
         }
 
@@ -90,20 +114,45 @@ class JsonAdaptedPerson {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
         }
         if (!Email.isValidEmail(email)) {
-            throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+            throw new IllegalValueException(Email.getValidationMessage(email));
         }
         final Email modelEmail = new Email(email);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
+        // A contact without an address is saved with an empty one; a file without the field is read the same way.
+        final Address modelAddress;
+        if (address == null || address.isEmpty()) {
+            modelAddress = Address.EMPTY;
+        } else if (!Address.isValidAddress(address)) {
             throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
+        } else {
+            modelAddress = new Address(address);
         }
-        final Address modelAddress = new Address(address);
+
+        // Data files from before v1.4 have no company field, so a missing company is read as an empty one.
+        final Company modelCompany;
+        if (company == null || company.isEmpty()) {
+            modelCompany = Company.EMPTY;
+        } else if (!Company.isValidCompany(company)) {
+            throw new IllegalValueException(Company.MESSAGE_CONSTRAINTS);
+        } else {
+            modelCompany = new Company(company);
+        }
+
+        // Files saved before statuses existed have no status field, so a missing status means none.
+        final Status modelStatus;
+        if (status == null || status.isBlank()) {
+            modelStatus = Status.NONE;
+        } else {
+            modelStatus = Status.fromText(status)
+                    .orElseThrow(() -> new IllegalValueException(Status.MESSAGE_CONSTRAINTS));
+        }
+
+        // Files saved before notes existed have no note field, so a missing note means none.
+        final Note modelNote = note == null ? Note.EMPTY : new Note(note);
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelCompany, modelStatus, modelNote,
+                modelTags);
     }
 
 }

@@ -4,16 +4,30 @@ import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
- * Represents a Person's phone number in the address book.
+ * Represents a Person's phone number in the client book.
  * Guarantees: immutable; is valid as declared in {@link #isValidPhone(String)}
+ * Preserves the entered formatting, but ignores spaces when comparing numbers.
  */
 public class Phone {
 
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+    public static final int MAX_DIGITS = 20;
+
+    public static final String MESSAGE_CONSTRAINTS = "Phone numbers should start with a digit, + or (, "
+            + "contain 3 to " + MAX_DIGITS + " digits, and may also contain spaces, letters (e.g. HP, ext) "
+            + "and the characters + - ( ) . /";
+
+    /*
+     * Phone numbers are written in many ways, e.g. +65 9123 4567, (65) 9123-4567 or 1234 5678 (HP),
+     * so spaces, letters for labels, and the usual separators are allowed alongside the digits.
+     * The lookaheads require 3 to MAX_DIGITS digits, enough for an international number with an extension
+     * or two labelled numbers, and the first character must be a digit, + or (, so that blank or word-only
+     * input stays invalid.
+     */
+    public static final String VALIDATION_REGEX = "(?=(?:\\D*\\d){3})(?!(?:\\D*\\d){" + (MAX_DIGITS + 1) + "})"
+            + "[\\d+(][\\p{L}\\d +()./-]*";
     public final String value;
+    private final String normalizedValue;
 
     /**
      * Constructs a {@code Phone}.
@@ -24,6 +38,7 @@ public class Phone {
         requireNonNull(phone);
         checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
         value = phone;
+        normalizedValue = phone.replace(" ", "");
     }
 
     /**
@@ -49,12 +64,12 @@ public class Phone {
             return false;
         }
 
-        return value.equals(otherPhone.value);
+        return normalizedValue.equals(otherPhone.normalizedValue);
     }
 
     @Override
     public int hashCode() {
-        return value.hashCode();
+        return normalizedValue.hashCode();
     }
 
 }

@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -28,14 +29,26 @@ public class PhoneTest {
         assertFalse(Phone.isValidPhone("")); // empty string
         assertFalse(Phone.isValidPhone(" ")); // spaces only
         assertFalse(Phone.isValidPhone("91")); // less than 3 numbers
+        assertFalse(Phone.isValidPhone("+65")); // less than 3 numbers after the plus sign
         assertFalse(Phone.isValidPhone("phone")); // non-numeric
-        assertFalse(Phone.isValidPhone("9011p041")); // alphabets within digits
-        assertFalse(Phone.isValidPhone("9312 1534")); // spaces within digits
+        assertFalse(Phone.isValidPhone("HP 91234567")); // starts with a letter
+        assertFalse(Phone.isValidPhone("9312*1534")); // contains a character phone numbers do not use
+        assertFalse(Phone.isValidPhone("1".repeat(21))); // more than 20 digits
+        assertFalse(Phone.isValidPhone("1234 5678 9012 3456 7890 1")); // more than 20 digits, with spaces
+        assertFalse(Phone.isValidPhone("12345678901234567890123456789012345678901234567890"));
 
         // valid phone numbers
         assertTrue(Phone.isValidPhone("911")); // exactly 3 numbers
         assertTrue(Phone.isValidPhone("93121534"));
         assertTrue(Phone.isValidPhone("124293842033123")); // long phone numbers
+        assertTrue(Phone.isValidPhone("9312 1534")); // spaces within digits
+        assertTrue(Phone.isValidPhone("+65 9123 4567")); // country code
+        assertTrue(Phone.isValidPhone("(65) 9123-4567")); // brackets and hyphen
+        assertTrue(Phone.isValidPhone("1234 5678 (HP) 1111-3333 (Office)")); // labelled numbers
+        assertTrue(Phone.isValidPhone("6123 4567 ext 89")); // extension
+        assertTrue(Phone.isValidPhone("1".repeat(20))); // exactly 20 digits
+        assertTrue(Phone.isValidPhone("1234 5678 9012 3456 7890")); // exactly 20 digits, with spaces
+        assertTrue(Phone.isValidPhone("+1 (650) 253-0000 ext. 12345")); // international number with extension
     }
 
     @Test
@@ -56,5 +69,19 @@ public class PhoneTest {
 
         // different values -> returns false
         assertFalse(phone.equals(new Phone("995")));
+    }
+
+    @Test
+    public void equals_numbersDifferOnlyInSpacing_returnsTrueWithSameHashCode() {
+        Phone phone = new Phone("91234567");
+        for (String value : new String[]{"9123 4567", "91 23 45 67", "9123   4567"}) {
+            Phone spacedPhone = new Phone(value);
+            assertEquals(phone, spacedPhone);
+            assertEquals(spacedPhone, phone);
+            assertEquals(phone.hashCode(), spacedPhone.hashCode());
+            assertEquals(value, spacedPhone.value);
+            assertEquals(value, spacedPhone.toString());
+        }
+        assertFalse(phone.equals(new Phone("9123 4568")));
     }
 }
