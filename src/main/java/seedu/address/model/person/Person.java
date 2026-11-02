@@ -1,68 +1,123 @@
 package seedu.address.model.person;
 
-import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.HashSet;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Set;
 
-import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.commons.core.index.PersonIndex;
 import seedu.address.model.tag.Tag;
 
 /**
  * Represents a Person in the address book.
  * Guarantees: details are present and not null, field values are validated, immutable.
  */
-public class Person {
+public class Person extends UnindexedPerson {
 
-    // Identity fields
-    private final Name name;
-    private final Phone phone;
-    private final Email email;
-
-    // Data fields
-    private final Address address;
-    private final Set<Tag> tags = new HashSet<>();
+    // Duplicate handling fields
+    private final PersonIndex personIndex;
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
-        this.name = name;
-        this.phone = phone;
-        this.email = email;
-        this.address = address;
-        this.tags.addAll(tags);
-    }
-
-    public Name getName() {
-        return name;
-    }
-
-    public Phone getPhone() {
-        return phone;
-    }
-
-    public Email getEmail() {
-        return email;
-    }
-
-    public Address getAddress() {
-        return address;
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Set<Tag> tags,
+                  PersonIndex personIndex) {
+        super(name, role, phone, email, address, tags);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
     }
 
     /**
-     * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
-     * if modification is attempted.
+     * Additional constructor for Student: Major and Year fields are optional (may be null).
      */
-    public Set<Tag> getTags() {
-        return Collections.unmodifiableSet(tags);
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Major major, Year year,
+                  Set<Tag> tags, PersonIndex personIndex) {
+        super(name, role, phone, email, address, major, year, tags);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Additional constructor for Professor: Faculty, Department and Hours fields are optional (may be null).
+     */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Faculty faculty,
+                  Department department, Hours hours, Set<Tag> tags, PersonIndex personIndex) {
+        super(name, role, phone, email, address, faculty, department, hours, tags);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    /**
+     * Creates an indexed person with an optional photo reference.
+     */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Set<Tag> tags,
+                  PersonIndex personIndex, Photo photo) {
+        super(name, role, phone, email, address, tags, photo);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    /**
+     * Additional constructor for Student with an optional photo reference.
+     */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Major major, Year year,
+                  Set<Tag> tags, PersonIndex personIndex, Photo photo) {
+        super(name, role, phone, email, address, major, year, tags, photo);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    /**
+     * Additional constructor for Professor with an optional photo reference.
+     */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Faculty faculty,
+                  Department department, Hours hours, Set<Tag> tags, PersonIndex personIndex, Photo photo) {
+        super(name, role, phone, email, address, faculty, department, hours, tags, photo);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    /** Creates a Student with an optional photo and edit-history timestamps. */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Major major, Year year,
+                  Set<Tag> tags, PersonIndex personIndex, Photo photo, LocalDateTime createdAt,
+                  LocalDateTime lastEditedAt) {
+        super(name, role, phone, email, address, major, year, null, null, null, tags, photo,
+                createdAt, lastEditedAt);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    /** Creates a Professor with an optional photo and edit-history timestamps. */
+    public Person(Name name, Role role, Phone phone, Email email, Address address, Faculty faculty,
+                  Department department, Hours hours, Set<Tag> tags, PersonIndex personIndex, Photo photo,
+                  LocalDateTime createdAt, LocalDateTime lastEditedAt) {
+        super(name, role, phone, email, address, null, null, faculty, department, hours, tags, photo,
+                createdAt, lastEditedAt);
+        requireNonNull(personIndex);
+        this.personIndex = personIndex;
+    }
+
+    public PersonIndex getPersonIndex() {
+        return personIndex;
+    }
+
+    /**
+     * Returns the display name of this person, including the duplicate suffix if indexed > 0.
+     * (e.g. "John Tan" for index 0, "John Tan_2" for index 1).
+     */
+    @Override
+    public String getDisplayName() {
+        if (personIndex.hasNoSuffix()) {
+            return super.getDisplayName();
+        }
+        String suffix = "_" + personIndex.getOneBased();
+        Name name = getName();
+        return name.fullName + suffix;
+    }
+
+    /**
+     * Returns true if both persons have the same name & personIndex.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +126,8 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().equals(getName())
+                && Objects.equals(otherPerson.getPersonIndex(), getPersonIndex());
     }
 
     /**
@@ -89,28 +145,19 @@ public class Person {
             return false;
         }
 
-        return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+        return super.equals(otherPerson)
+                && Objects.equals(personIndex, otherPerson.personIndex);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(getName(), getRole(), getPhone(), getEmail(), getAddress(), getTags(), personIndex);
     }
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
-                .add("name", name)
-                .add("phone", phone)
-                .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
-                .toString();
+        return super.toString(); // add index later
     }
 
 }

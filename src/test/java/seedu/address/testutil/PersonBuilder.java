@@ -3,11 +3,15 @@ package seedu.address.testutil;
 import java.util.HashSet;
 import java.util.Set;
 
+import seedu.address.commons.core.index.PersonIndex;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Photo;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.UnindexedPerson;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -17,25 +21,32 @@ import seedu.address.model.util.SampleDataUtil;
 public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
+    public static final String DEFAULT_ROLE = "student";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
     private Name name;
+    private Role role;
     private Phone phone;
     private Email email;
     private Address address;
     private Set<Tag> tags;
+    private PersonIndex personIndex;
+    private Photo photo;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
+        role = new Role(DEFAULT_ROLE);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        personIndex = PersonIndex.fromZeroBased(0);
+        photo = null;
     }
 
     /**
@@ -43,10 +54,13 @@ public class PersonBuilder {
      */
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
+        role = personToCopy.getRole();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
         tags = new HashSet<>(personToCopy.getTags());
+        personIndex = personToCopy.getPersonIndex();
+        photo = personToCopy.getPhoto().orElse(null);
     }
 
     /**
@@ -54,6 +68,14 @@ public class PersonBuilder {
      */
     public PersonBuilder withName(String name) {
         this.name = new Name(name);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Role} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRole(String role) {
+        this.role = new Role(role);
         return this;
     }
 
@@ -89,8 +111,36 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code PersonIndex} of the {@code Person} that we are building in one-based.
+     */
+    public PersonBuilder withIndex(int index) {
+        this.personIndex = PersonIndex.fromOneBased(index);
+        return this;
+    }
+
+    /**
+     * Sets the {@code PersonIndex} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withIndex(PersonIndex pIndex) {
+        this.personIndex = pIndex;
+        return this;
+    }
+
+    /**
+     * Sets the relative photo path of the person being built.
+     */
+    public PersonBuilder withPhoto(String relativePath) {
+        this.photo = new Photo(relativePath);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, role, phone, email, address, tags, personIndex, photo);
+    }
+
+    public UnindexedPerson buildNoIndex() {
+        return new UnindexedPerson(name, role, phone, email, address, tags, photo);
     }
 
 }

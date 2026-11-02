@@ -88,12 +88,23 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+    }
+
+    @Test
+    public void getPhoto_personWithPhoto_returnsPhoto() {
+        Person person = new PersonBuilder().withPhoto("photos/amy.png").build();
+
+        assertEquals("photos/amy.png", person.getPhoto().get().getRelativePath());
     }
 
     @Test
     public void toStringMethod() {
-        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", role=" + ALICE.getRole()
+                + ", phone=" + ALICE.getPhone() + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress()
+                + ", major=" + ALICE.getMajor() + ", year=" + ALICE.getYear() + ", faculty=" + ALICE.getFaculty()
+                + ", department=" + ALICE.getDepartment() + ", hours=" + ALICE.getHours() + ", tags=" + ALICE.getTags()
+                + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

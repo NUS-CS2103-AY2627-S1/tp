@@ -11,13 +11,17 @@ import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import seedu.address.commons.core.index.PersonIndex;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.person.UnindexedPerson;
+import seedu.address.model.person.UniquePersonHashMap;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddressBookTest {
@@ -42,14 +46,34 @@ public class AddressBookTest {
     }
 
     @Test
-    public void resetData_withDuplicatePersons_throwsDuplicatePersonException() {
+    public void resetData_withDuplicateNames_acceptsDistinctIndices() {
         // Two persons with the same identity fields
         Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+                .buildNoIndex().withPersonIndex(PersonIndex.fromZeroBased(0));
         List<Person> newPersons = List.of(ALICE, editedAlice);
         AddressBookStub newData = new AddressBookStub(newPersons);
 
-        assertThrows(DuplicatePersonException.class, () -> addressBook.resetData(newData));
+        addressBook.resetData(newData);
+        assertEquals(2, addressBook.getPersonList().size());
+        assertEquals(1, addressBook.getPersonList().get(0).getPersonIndex().getOneBased());
+        assertEquals(2, addressBook.getPersonList().get(1).getPersonIndex().getOneBased());
+    }
+
+    @Test
+    public void resetData_withBuckets_preservesSuffixAllocationState() {
+        UnindexedPerson thirdAlice = new PersonBuilder(ALICE).withPhone("99999999").buildNoIndex();
+        UnindexedPerson replacementAlice = new PersonBuilder(ALICE).withEmail("replacement@example.com").buildNoIndex();
+        AddressBook loadedAddressBook = new AddressBook();
+        loadedAddressBook.setPersonBuckets(Map.of(ALICE.getName().fullName,
+                Map.of(0, ALICE, 2, thirdAlice.withPersonIndex(PersonIndex.fromZeroBased(2)))));
+
+        addressBook.resetData(loadedAddressBook);
+        addressBook.addPerson(replacementAlice);
+
+        assertEquals(Map.of(0, ALICE,
+                        1, replacementAlice.withPersonIndex(PersonIndex.fromZeroBased(1)),
+                        2, thirdAlice.withPersonIndex(PersonIndex.fromZeroBased(2))),
+                addressBook.getPersonBuckets().get(ALICE.getName().fullName));
     }
 
     @Test
@@ -69,11 +93,11 @@ public class AddressBookTest {
     }
 
     @Test
-    public void hasPerson_personWithSameIdentityFieldsInAddressBook_returnsTrue() {
+    public void hasPerson_personWithSameNameAndDifferentDetails_returnsFalse() {
         addressBook.addPerson(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
-        assertTrue(addressBook.hasPerson(editedAlice));
+        UnindexedPerson editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB)
+                .withTags(VALID_TAG_HUSBAND).buildNoIndex();
+        assertFalse(addressBook.hasPerson(editedAlice));
     }
 
     @Test
@@ -100,6 +124,23 @@ public class AddressBookTest {
         @Override
         public ObservableList<Person> getPersonList() {
             return persons;
+        }
+
+        @Override
+        public Map<String, Map<Integer, Person>> getPersonBuckets() {
+            UniquePersonHashMap buckets = new UniquePersonHashMap();
+            buckets.setPersons(persons);
+            return buckets.getPersonBuckets();
+        }
+
+        @Override
+        public List<String> getRecentContacts() {
+            return List.of();
+        }
+
+        @Override
+        public Set<String> getFavouriteContacts() {
+            return Set.of();
         }
     }
 

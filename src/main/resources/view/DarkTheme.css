@@ -153,6 +153,11 @@
     -fx-text-fill: white;
 }
 
+.result-display-scroll-pane,
+.result-display-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
 .result-display .label {
     -fx-text-fill: black !important;
 }
@@ -335,6 +340,11 @@
 #resultDisplay .content {
     -fx-background-color: transparent, #383838, transparent, #383838;
     -fx-background-radius: 0;
+}
+
+.result-display {
+    -fx-background-color: #383838;
+    -fx-padding: 5;
 }
 
 #tags {

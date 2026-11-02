@@ -1,12 +1,17 @@
 package seedu.address;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
@@ -20,6 +25,7 @@ import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.DataFileLock;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
@@ -32,32 +38,76 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.4";
+    public static final String CORRUPTED_DATA_WARNING = "Warning: The data file could not be loaded because it appears "
+            + "to be corrupted. The contact list was started empty. Please restore a valid backup.";
+    public static final String LEGACY_DATA_WARNING = "Warning: Legacy data was loaded. Contacts without a role were "
+            + "migrated as students. Please review their roles.";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "campuscontacts.json");
+    private static final String CORRUPTED_BACKUP_DIRECTORY = "backups";
+    private static final DateTimeFormatter CORRUPTED_BACKUP_TIMESTAMP_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private String startupMessage;
+
+    private final Path addressBookFilePath;
+    private final Path userPrefsFilePath;
+    private DataFileLock dataFileLock;
+    private String startupError;
+
+    public MainApp() {
+        this(ADDRESS_BOOK_FILE_PATH, USER_PREFS_FILE_PATH);
+    }
+
+    MainApp(Path addressBookFilePath, Path userPrefsFilePath) {
+        this.addressBookFilePath = addressBookFilePath;
+        this.userPrefsFilePath = userPrefsFilePath;
+    }
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing CampusContacts ]===========================");
         super.init();
 
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
-        UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        // Acquire ownership before even loading preferences: initPrefs also writes to disk.
+        try {
+            dataFileLock = DataFileLock.tryAcquire(addressBookFilePath).orElse(null);
+            if (dataFileLock == null) {
+                startupError = "CampusContacts is already using this data folder. "
+                        + "Close the other instance before opening it again.";
+                return;
+            }
+        } catch (IOException e) {
+            startupError = "CampusContacts could not lock its data folder. "
+                    + "Check that the folder is writable and try again.";
+            logger.severe(startupError + " " + StringUtil.getDetails(e));
+            return;
+        }
 
-        model = initModelManager(storage, userPrefs);
+        boolean initialized = false;
+        try {
+            JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(userPrefsFilePath);
+            UserPrefs userPrefs = initPrefs(userPrefsStorage);
+            JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(addressBookFilePath);
+            storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
-        logic = new LogicManager(model, storage);
+            model = initModelManager(storage, userPrefs);
+            logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+            ui = new UiManager(logic, storage.getAddressBookFilePath(), startupMessage);
+            initialized = true;
+        } finally {
+            if (!initialized) {
+                releaseDataFileLock();
+            }
+        }
     }
 
     /**
@@ -77,13 +127,55 @@ public class MainApp extends Application {
                         + " populated with a sample AddressBook.");
             }
             initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
+            if (storage.wasLegacyDataLoaded()) {
+                startupMessage = LEGACY_DATA_WARNING;
+            }
         } catch (DataLoadingException e) {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
                     + " Will be starting with an empty AddressBook.");
             initialData = new AddressBook();
+            startupMessage = createCorruptedDataWarning(storage.getAddressBookFilePath());
         }
 
         return new ModelManager(initialData, userPrefs);
+    }
+
+    /** Creates a timestamped copy of corrupted data before the application can write to the original file. */
+    private String createCorruptedDataWarning(Path dataFilePath) {
+        Path backupPath = createCorruptedDataBackup(dataFilePath);
+        if (backupPath == null) {
+            return CORRUPTED_DATA_WARNING + " A backup could not be created automatically.";
+        }
+        return CORRUPTED_DATA_WARNING + " A copy was saved to " + backupPath + ".";
+    }
+
+    /** Returns the backup path on success, or {@code null} if the corrupted file could not be copied. */
+    private Path createCorruptedDataBackup(Path dataFilePath) {
+        try {
+            if (!Files.isRegularFile(dataFilePath)) {
+                return null;
+            }
+
+            Path backupDirectory = dataFilePath.toAbsolutePath().normalize().getParent()
+                    .resolve(CORRUPTED_BACKUP_DIRECTORY);
+            Files.createDirectories(backupDirectory);
+
+            String fileName = dataFilePath.getFileName().toString();
+            String timestamp = LocalDateTime.now().format(CORRUPTED_BACKUP_TIMESTAMP_FORMATTER);
+            Path backupPath = backupDirectory.resolve(fileName + ".corrupted-" + timestamp + ".bak");
+            int suffix = 1;
+            while (Files.exists(backupPath)) {
+                backupPath = backupDirectory.resolve(fileName + ".corrupted-" + timestamp + "-" + suffix + ".bak");
+                suffix++;
+            }
+
+            Files.copy(dataFilePath, backupPath);
+            logger.warning("Preserved corrupted data file at " + backupPath);
+            return backupPath;
+        } catch (IOException | RuntimeException exception) {
+            logger.warning("Could not preserve corrupted data file: " + StringUtil.getDetails(exception));
+            return null;
+        }
     }
 
     /**
@@ -120,17 +212,51 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
-        ui.start(primaryStage);
+        if (startupError != null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("CampusContacts could not start");
+            alert.setHeaderText(startupError);
+            alert.setContentText("Data folder: " + addressBookFilePath.toAbsolutePath().normalize().getParent());
+            try {
+                alert.showAndWait();
+            } finally {
+                Platform.exit();
+            }
+            return;
+        }
+        logger.info("Starting CampusContacts " + MainApp.VERSION);
+        try {
+            ui.start(primaryStage);
+        } catch (RuntimeException | Error e) {
+            releaseDataFileLock();
+            throw e;
+        }
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping CampusContacts ] =============================");
         try {
-            storage.saveUserPrefs(model.getUserPrefs());
+            if (dataFileLock != null && model != null && storage != null) {
+                storage.saveUserPrefs(model.getUserPrefs());
+            }
         } catch (IOException e) {
             logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+        } finally {
+            releaseDataFileLock();
+        }
+    }
+
+    private void releaseDataFileLock() {
+        if (dataFileLock == null) {
+            return;
+        }
+        try {
+            dataFileLock.close();
+        } catch (IOException e) {
+            logger.severe("Failed to release data file lock " + StringUtil.getDetails(e));
+        } finally {
+            dataFileLock = null;
         }
     }
 }

@@ -3,11 +3,13 @@ package seedu.address.storage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.Set;
 
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Photo;
 
 /**
  * API of the Storage component
@@ -47,11 +49,33 @@ public interface Storage {
      */
     Optional<ReadOnlyAddressBook> readAddressBook() throws DataLoadingException;
 
+    /** Returns whether the most recently loaded address book used the legacy flat format. */
+    boolean wasLegacyDataLoaded();
+
     /**
      * Saves the given {@link ReadOnlyAddressBook} to the storage.
      * @param addressBook cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
     void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
+
+    /**
+     * Copies a source image into the application's photo directory and returns its relative reference.
+     *
+     * @param sourcePath an existing photo file
+     * @throws IOException if the photo could not be copied
+     */
+    Photo copyPhoto(Path sourcePath) throws IOException;
+
+    /**
+     * Deletes a managed photo referenced by the address book.
+     *
+     * @param photo the photo reference to remove
+     * @throws IOException if the photo could not be deleted
+     */
+    void deletePhoto(Photo photo) throws IOException;
+
+    /** Deletes managed photo files that are not referenced by the given address book. */
+    void deleteUnreferencedPhotos(Set<Photo> referencedPhotos) throws IOException;
 
 }

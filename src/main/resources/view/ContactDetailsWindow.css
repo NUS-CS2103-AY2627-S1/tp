@@ -1,0 +1,23 @@
+#contactName {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+#photoStatus {
+    -fx-font-style: italic;
+}
+
+#editHistory {
+    -fx-font-style: italic;
+    -fx-text-fill: #a0a0a0;
+}
+
+.root {
+    -fx-background-color: derive(#1d1d1d, 20%);
+}
+
+.label {
+    -fx-text-fill: white;
+    -fx-padding: 5 0 5 0;
+}

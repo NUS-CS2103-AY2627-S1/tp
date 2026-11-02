@@ -1,18 +1,21 @@
 package seedu.address.logic;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_NAME;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,10 +31,12 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.UnindexedPerson;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.PersonUtil;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -60,8 +65,8 @@ public class LogicManagerTest {
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteCommand = "delete SeeEssTwoOneOhThreeTee";
+        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_NAME);
     }
 
     @Test
@@ -71,15 +76,193 @@ public class LogicManagerTest {
     }
 
     @Test
-    public void execute_storageThrowsIoException_throwsCommandException() {
+    public void execute_addCampusContact_savesContact() throws Exception {
+        UnindexedPerson person = new PersonBuilder().withName("John Doe").withRole("student")
+                .withEmail("johnd@example.com").withPhone("98765432").withAddress("COM1 02 01").withTags()
+                .buildNoIndex();
+        Model expectedModel = new ModelManager();
+        expectedModel.addPerson(person);
+
+        assertCommandSuccess("add John Doe /role student /email johnd@example.com /phone 98765432"
+                + " /location COM1 02 01",
+                String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(person)), expectedModel);
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(expectedModel.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_addCampusContactWithPhoto_copiesPhotoAndSavesReference() throws Exception {
+        Path sourcePhoto = temporaryFolder.resolve("source.png");
+        writePng(sourcePhoto);
+
+        logic.execute("add John Doe /role student /email johnd@example.com /phone 98765432 /location COM1 "
+                + "02 01 /photo " + sourcePhoto);
+
+        Person addedPerson = model.getFilteredPersonList().get(0);
+        String relativePhotoPath = addedPerson.getPhoto().orElseThrow().getRelativePath();
+        assertTrue(Files.exists(temporaryFolder.resolve(relativePhotoPath)));
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        Person savedPerson = storage.readAddressBook().orElseThrow().getPersonList().get(0);
+        assertEquals(relativePhotoPath, savedPerson.getPhoto().orElseThrow().getRelativePath());
+    }
+
+    @Test
+    public void execute_editPhoto_replacesAndClearsManagedPhoto() throws Exception {
+        Path firstSource = temporaryFolder.resolve("first.png");
+        Path secondSource = temporaryFolder.resolve("second.png");
+        writePng(firstSource);
+        writePng(secondSource);
+        logic.execute("add Alex Tan /role student /email alex@u.nus.edu /phone 90000001"
+                + " /location COM1 /photo " + firstSource);
+        Path firstCopy = temporaryFolder.resolve(model.getAddressBook().getPersonList().get(0)
+                .getPhoto().orElseThrow().getRelativePath());
+
+        logic.execute("edit Alex Tan /photo " + secondSource);
+
+        Person editedPerson = model.getAddressBook().getPersonList().get(0);
+        Path secondCopy = temporaryFolder.resolve(editedPerson.getPhoto().orElseThrow().getRelativePath());
+        assertNotEquals(firstCopy, secondCopy);
+        assertTrue(Files.notExists(firstCopy));
+        assertTrue(Files.exists(secondCopy));
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(editedPerson.getPhoto(), storage.readAddressBook().orElseThrow()
+                .getPersonList().get(0).getPhoto());
+
+        logic.execute("edit Alex Tan /photo [blank]");
+
+        assertTrue(model.getAddressBook().getPersonList().get(0).getPhoto().isEmpty());
+        assertTrue(Files.notExists(secondCopy));
+    }
+
+    @Test
+    public void execute_sameSourcePhotoForSameNameContacts_deletingOneKeepsOtherCopy() throws Exception {
+        Path sourcePhoto = temporaryFolder.resolve("source.png");
+        writePng(sourcePhoto);
+
+        logic.execute("add John Tan /role student /email first@u.nus.edu /phone 90000001"
+                + " /location COM1 /photo " + sourcePhoto);
+        logic.execute("add John Tan /role student /email second@u.nus.edu /phone 90000002"
+                + " /location COM2 /photo " + sourcePhoto);
+
+        Person firstContact = model.getAddressBook().getPersonList().get(0);
+        Person secondContact = model.getAddressBook().getPersonList().get(1);
+        Path firstCopy = temporaryFolder.resolve(firstContact.getPhoto().orElseThrow().getRelativePath());
+        Path secondCopy = temporaryFolder.resolve(secondContact.getPhoto().orElseThrow().getRelativePath());
+
+        assertEquals("John Tan", firstContact.getDisplayName());
+        assertEquals("John Tan_2", secondContact.getDisplayName());
+        assertNotEquals(firstCopy, secondCopy);
+        assertTrue(Files.exists(sourcePhoto));
+        assertTrue(Files.exists(firstCopy));
+        assertTrue(Files.exists(secondCopy));
+
+        logic.execute("delete John Tan_2");
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("John Tan", model.getAddressBook().getPersonList().get(0).getDisplayName());
+        assertTrue(Files.exists(sourcePhoto));
+        assertTrue(Files.exists(firstCopy));
+        assertTrue(Files.notExists(secondCopy));
+    }
+
+    @Test
+    public void execute_deleteContactWithPhoto_removesCopiedPhoto() throws Exception {
+        Path sourcePhoto = temporaryFolder.resolve("source.png");
+        writePng(sourcePhoto);
+        logic.execute("add John Doe /role student /email johnd@example.com /phone 98765432 /location COM1"
+                + "02 01 /photo " + sourcePhoto);
+        Path copiedPhoto = temporaryFolder.resolve(model.getFilteredPersonList().get(0)
+                .getPhoto().orElseThrow().getRelativePath());
+
+        logic.execute("delete John Doe");
+
+        assertTrue(Files.notExists(copiedPhoto));
+        assertTrue(Files.exists(sourcePhoto));
+    }
+
+    @Test
+    public void execute_storageThrowsIoException_reportsSaveWarning() {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
     }
 
     @Test
-    public void execute_storageThrowsAdException_throwsCommandException() {
+    public void execute_storageThrowsAdException_reportsSaveWarning() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_storageRecoversOnNextCommand_retriesCompleteAddressBook() throws Exception {
+        AtomicBoolean shouldFail = new AtomicBoolean(true);
+        Path addressBookPath = temporaryFolder.resolve("retryAddressBook.json");
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(addressBookPath) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                if (shouldFail.getAndSet(false)) {
+                    throw DUMMY_IO_EXCEPTION;
+                }
+                super.saveAddressBook(addressBook);
+            }
+        };
+        StorageManager storage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("retryUserPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        CommandResult failedSave = logic.execute(PersonUtil.getAddCommand(
+                new PersonBuilder(AMY).withTags().buildNoIndex()));
+        assertTrue(failedSave.getFeedbackToUser().contains(LogicManager.MESSAGE_SAVE_RETRY_WARNING));
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertTrue(addressBookStorage.readAddressBook().isEmpty());
+
+        CommandResult recoveredSave = logic.execute(ListCommand.COMMAND_WORD);
+        assertTrue(recoveredSave.getFeedbackToUser().contains(LogicManager.MESSAGE_SAVE_RECOVERED));
+        assertEquals(model.getAddressBook(), addressBookStorage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_exitAfterFailedSave_requiresConfirmation() throws Exception {
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(
+                temporaryFolder.resolve("exitConfirmationAddressBook.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw DUMMY_IO_EXCEPTION;
+            }
+        };
+        StorageManager storage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("exitConfirmationUserPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        logic.execute(PersonUtil.getAddCommand(new PersonBuilder(AMY).withTags().buildNoIndex()));
+
+        CommandResult prompt = logic.execute("exit");
+        assertTrue(prompt.getFeedbackToUser().contains(LogicManager.MESSAGE_EXIT_UNSAVED_CHANGES));
+        assertTrue(!prompt.isExit());
+
+        CommandResult cancelled = logic.execute("no");
+        assertTrue(!cancelled.isExit());
+    }
+
+    @Test
+    public void execute_exitConfirmation_isCaseInsensitive() throws Exception {
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(
+                temporaryFolder.resolve("exitConfirmationAddressBook.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw DUMMY_IO_EXCEPTION;
+            }
+        };
+        StorageManager storage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("exitConfirmationUserPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        logic.execute(PersonUtil.getAddCommand(new PersonBuilder(AMY).withTags().buildNoIndex()));
+        logic.execute("exit");
+
+        CommandResult confirmed = logic.execute(" YeS ");
+        assertTrue(confirmed.isExit());
     }
 
     @Test
@@ -164,11 +347,20 @@ public class LogicManagerTest {
         logic = new LogicManager(model, storage);
 
         // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        String addCommand = PersonUtil.getAddCommand(new PersonBuilder(AMY).withTags().buildNoIndex());
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
         expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        CommandResult result = assertCommandFailureForSave(addCommand);
+        assertTrue(result.getFeedbackToUser().contains(expectedMessage));
+        assertEquals(expectedModel, model);
+    }
+
+    private CommandResult assertCommandFailureForSave(String inputCommand) {
+        return assertDoesNotThrow(() -> logic.execute(inputCommand));
+    }
+
+    private static void writePng(Path target) throws IOException {
+        ImageIO.write(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "png", target.toFile());
     }
 }
