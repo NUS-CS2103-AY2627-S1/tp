@@ -10,11 +10,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.order.OrderHistory;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Score;
+import seedu.address.model.reward.RedeemedMilestoneRewardHistory;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -26,24 +27,43 @@ class JsonAdaptedPerson {
 
     private final String name;
     private final String phone;
-    private final String email;
-    private final String address;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final String score;
+    private final List<JsonAdaptedOrder> orderHistory = new ArrayList<>();
+    private final List<JsonAdaptedRedeemedMilestoneReward> redeemedMilestoneRewardHistory = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+    public JsonAdaptedPerson(
+            @JsonProperty("name") String name, @JsonProperty("phone") String phone,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("score") String score,
+            @JsonProperty("orderHistory") List<JsonAdaptedOrder> orderHistory,
+            @JsonProperty("redeemedMilestoneRewardHistory")
+            List<JsonAdaptedRedeemedMilestoneReward> redeemedMilestoneRewardHistory) {
         this.name = name;
         this.phone = phone;
-        this.email = email;
-        this.address = address;
         if (tags != null) {
             this.tags.addAll(tags);
         }
+        this.score = score;
+        if (orderHistory != null) {
+            this.orderHistory.addAll(orderHistory);
+        }
+        if (redeemedMilestoneRewardHistory != null) {
+            this.redeemedMilestoneRewardHistory.addAll(redeemedMilestoneRewardHistory);
+        }
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} without redeemed milestone rewards.
+     * This supports address book data created before redeemed rewards were added.
+     */
+    public JsonAdaptedPerson(String name, String phone, List<JsonAdaptedTag> tags, String score,
+                             List<JsonAdaptedOrder> orderHistory) {
+        this(name, phone, tags, score, orderHistory, new ArrayList<>());
     }
 
     /**
@@ -52,10 +72,16 @@ class JsonAdaptedPerson {
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
         phone = source.getPhone().value;
-        email = source.getEmail().value;
-        address = source.getAddress().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+        score = source.getScore().toString();
+        orderHistory.addAll(source.getOrderHistory().getOrders().stream()
+                .map(JsonAdaptedOrder::new)
+                .collect(Collectors.toList()));
+        redeemedMilestoneRewardHistory.addAll(source.getRedeemedMilestoneRewardHistory()
+                .getRedeemedMilestoneRewards().stream()
+                .map(JsonAdaptedRedeemedMilestoneReward::new)
                 .collect(Collectors.toList()));
     }
 
@@ -65,45 +91,95 @@ class JsonAdaptedPerson {
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
-        final List<Tag> personTags = new ArrayList<>();
-        for (JsonAdaptedTag tag : tags) {
-            personTags.add(tag.toModelType());
-        }
+        return new Person(
+                toModelName(),
+                toModelPhone(),
+                toModelTags(),
+                toModelScore(),
+                toModelOrderHistory(),
+                toModelRedeemedMilestoneRewardHistory());
+    }
 
+    /**
+     * Converts and validates the adapted name.
+     */
+    private Name toModelName() throws IllegalValueException {
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
-        if (!Name.isValidName(name)) {
+        if (!Name.hasValidFormat(name)) {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
         }
-        final Name modelName = new Name(name);
+        if (!Name.containsLetter(name)) {
+            throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS_MISSING_LETTER);
+        }
+        return new Name(name);
+    }
 
+    /**
+     * Converts and validates the adapted phone number.
+     */
+    private Phone toModelPhone() throws IllegalValueException {
         if (phone == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
+        if (!Phone.isStorablePhone(phone)) {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
-
-        if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
-        }
-        if (!Email.isValidEmail(email)) {
-            throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
-        }
-        final Email modelEmail = new Email(email);
-
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
-        }
-        final Address modelAddress = new Address(address);
-
-        final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return new Phone(phone);
     }
 
+    /**
+     * Converts and validates the adapted tags.
+     */
+    private Set<Tag> toModelTags() throws IllegalValueException {
+        Set<Tag> modelTags = new HashSet<>();
+        for (JsonAdaptedTag tag : tags) {
+            modelTags.add(tag.toModelType());
+        }
+        return modelTags;
+    }
+
+    /**
+     * Converts and validates the adapted score, using the default when it is missing.
+     */
+    private Score toModelScore() throws IllegalValueException {
+        if (score == null) {
+            return Score.DEFAULT;
+        }
+        if (!Score.isValidScore(score)) {
+            throw new IllegalValueException(Score.MESSAGE_CONSTRAINTS);
+        }
+        return new Score(Integer.parseInt(score));
+    }
+
+    /**
+     * Converts the adapted orders into an order history.
+     */
+    private OrderHistory toModelOrderHistory() throws IllegalValueException {
+        OrderHistory modelOrderHistory = new OrderHistory();
+        for (JsonAdaptedOrder adaptedOrder : orderHistory) {
+            modelOrderHistory = modelOrderHistory.addOrder(adaptedOrder.toModelType());
+        }
+        return modelOrderHistory;
+    }
+
+    /**
+     * Converts the adapted rewards into a redeemed milestone reward history.
+     */
+    private RedeemedMilestoneRewardHistory toModelRedeemedMilestoneRewardHistory()
+            throws IllegalValueException {
+        RedeemedMilestoneRewardHistory modelHistory = new RedeemedMilestoneRewardHistory();
+        for (JsonAdaptedRedeemedMilestoneReward adaptedReward : redeemedMilestoneRewardHistory) {
+            if (adaptedReward == null) {
+                throw new IllegalValueException(JsonAdaptedRedeemedMilestoneReward.MESSAGE_CONSTRAINTS);
+            }
+            try {
+                modelHistory = modelHistory.addRedeemedMilestoneReward(adaptedReward.toModelType());
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalValueException(RedeemedMilestoneRewardHistory.MESSAGE_DUPLICATE_MILESTONE);
+            }
+        }
+        return modelHistory;
+    }
 }

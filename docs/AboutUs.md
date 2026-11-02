@@ -9,51 +9,51 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Zhao Yumeng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/imnotannie.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/imnotannie)]
+[[portfolio](team/imnotannie.md)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Milestone management and data integrity
 
-### Jean Doe
+### Ashin Mohamed Sunil
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ashinms.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/ashinms)] [[portfolio](team/ashinms.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Member scores, menu UI and menu item updates
+
+### Aidan Tay Ming Feng
+
+<img src="images/zaru-noodles.png" width="200px">
+
+[[github](https://github.com/zaru-noodles)]
+[[portfolio](team/aidantay.md)]
+
+* Role: Developer
+* Responsibilities: Profile UI and order-score integration
+
+### Oh Qi Xiang
+
+<img src="images/qxxd666.png" width="200px">
+
+[[github](http://github.com/qxxd666)]
+[[portfolio](team/qxxd666.md)]
+
+* Role: Developer
+* Responsibilities: Menu management and menu storage
+
+### Qi Ming
+
+<img src="images/qqnoodle.png" width="200px">
+
+[[github](http://github.com/qqnoodle)]
+[[portfolio](team/qqnoodle.md)]
+
+* Role: Developer
+* Responsibilities: Order history and reward redemption

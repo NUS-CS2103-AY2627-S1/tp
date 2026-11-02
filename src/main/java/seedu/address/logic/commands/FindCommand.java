@@ -5,24 +5,27 @@ import static java.util.Objects.requireNonNull;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonMatchesKeywordsPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists all persons in the address book who match any of the argument keywords.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds members by name keywords (case-insensitive) "
+            + "or by an exact phone entry and displays them as a list with index numbers.\n"
+            + "Parameters: KEYWORD [MORE_KEYWORDS]... or p/PHONE_NUMBER\n"
+            + "Example: " + COMMAND_WORD + " alice"
+            + " " + COMMAND_WORD + " 92345678";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private final PersonMatchesKeywordsPredicate predicate;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    /**
+     * Constructs a command that finds persons matching the given predicate.
+     */
+    public FindCommand(PersonMatchesKeywordsPredicate predicate) {
         this.predicate = predicate;
     }
 
@@ -30,6 +33,14 @@ public class FindCommand extends Command {
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
+
+        // If there is only one person found, display that person's details.
+        if (model.getFilteredPersonList().size() == 1) {
+            model.selectPerson(model.getFilteredPersonList().getFirst());
+        } else {
+            model.deselectPerson();
+        }
+
         return new CommandResult(
                 String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
     }

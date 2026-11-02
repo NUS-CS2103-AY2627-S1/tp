@@ -8,6 +8,9 @@ import java.util.Objects;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.milestone.Milestone;
+import seedu.address.model.order.OrderHistory;
+import seedu.address.model.reward.RedeemedMilestoneRewardHistory;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -19,22 +22,42 @@ public class Person {
     // Identity fields
     private final Name name;
     private final Phone phone;
-    private final Email email;
 
     // Data fields
-    private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Score score;
+    private final OrderHistory orderHistory;
+    private final RedeemedMilestoneRewardHistory redeemedMilestoneRewardHistory;
 
     /**
-     * Every field must be present and not null.
+     * Constructs a person with the given details, a default score, and empty histories.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Set<Tag> tags) {
+        this(name, phone, tags, Score.DEFAULT, new OrderHistory(), new RedeemedMilestoneRewardHistory());
+    }
+
+    /**
+     * Constructs a person with the given details, score, and histories.
+     *
+     * @param name the person's name
+     * @param phone the person's phone number
+     * @param tags the person's tags
+     * @param score the person's score
+     * @param orderHistory the person's order history
+     * @param redeemedMilestoneRewardHistory the person's redeemed milestone reward history
+     */
+    public Person(Name name, Phone phone,
+                  Set<Tag> tags,
+                  Score score,
+                  OrderHistory orderHistory,
+                  RedeemedMilestoneRewardHistory redeemedMilestoneRewardHistory) {
+        requireAllNonNull(name, phone, tags, score, orderHistory, redeemedMilestoneRewardHistory);
         this.name = name;
         this.phone = phone;
-        this.email = email;
-        this.address = address;
         this.tags.addAll(tags);
+        this.score = score;
+        this.orderHistory = orderHistory;
+        this.redeemedMilestoneRewardHistory = redeemedMilestoneRewardHistory;
     }
 
     public Name getName() {
@@ -45,14 +68,6 @@ public class Person {
         return phone;
     }
 
-    public Email getEmail() {
-        return email;
-    }
-
-    public Address getAddress() {
-        return address;
-    }
-
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -61,8 +76,36 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    public Score getScore() {
+        return score;
+    }
+
     /**
-     * Returns true if both persons have the same name.
+     * Returns the person's immutable order history.
+     */
+    public OrderHistory getOrderHistory() {
+        return orderHistory;
+    }
+
+    /**
+     * Returns the person's immutable redeemed milestone reward history.
+     */
+    public RedeemedMilestoneRewardHistory getRedeemedMilestoneRewardHistory() {
+        return redeemedMilestoneRewardHistory;
+    }
+
+    /**
+     * Returns true if this person has redeemed a milestone with the same code as {@code milestone}.
+     *
+     * @param milestone the milestone to check
+     * @return true if this person's redemption history contains the given milestone
+     */
+    public boolean hasRedeemed(Milestone milestone) {
+        return redeemedMilestoneRewardHistory.contains(milestone);
+    }
+
+    /**
+     * Returns true if both persons have the same phone number.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +114,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getPhone().equals(getPhone());
     }
 
     /**
@@ -91,15 +134,20 @@ public class Person {
 
         return name.equals(otherPerson.name)
                 && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && score.equals(otherPerson.score)
+                && orderHistory.equals(otherPerson.orderHistory)
+                && redeemedMilestoneRewardHistory.equals(otherPerson.redeemedMilestoneRewardHistory);
     }
 
     @Override
     public int hashCode() {
-        // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name,
+                phone,
+                tags,
+                score,
+                orderHistory,
+                redeemedMilestoneRewardHistory);
     }
 
     @Override
@@ -107,10 +155,10 @@ public class Person {
         return new ToStringBuilder(this)
                 .add("name", name)
                 .add("phone", phone)
-                .add("email", email)
-                .add("address", address)
                 .add("tags", tags)
+                .add("score", score)
+                .add("order history", orderHistory)
+                .add("redeemed milestone rewards", redeemedMilestoneRewardHistory)
                 .toString();
     }
-
 }

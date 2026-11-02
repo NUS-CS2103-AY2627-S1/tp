@@ -1,10 +1,14 @@
 package seedu.address.logic;
 
+import java.util.Optional;
+
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.milestone.Milestone;
 import seedu.address.model.person.Person;
 
 /**
@@ -22,6 +26,15 @@ public interface Logic {
 
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable view of the milestone list. */
+    ObservableList<Milestone> getMilestoneList();
+
+    /** Returns an unmodifiable observable view of the menu items. */
+    ObservableList<FoodItem> getFoodItemList();
+
+    /** Returns the person currently selected for display, if any. */
+    Optional<Person> getSelectedPerson();
 
     /**
      * Returns the user prefs' GUI settings.

@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MILESTONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ORDER;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_QUANTITY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SCORE_CHANGE;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
@@ -13,17 +17,32 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddMenuItemCommand;
+import seedu.address.logic.commands.AddMilestoneCommand;
+import seedu.address.logic.commands.AddOrderCommand;
+import seedu.address.logic.commands.CancelRedeemCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteMenuItemCommand;
+import seedu.address.logic.commands.DeleteMilestoneCommand;
+import seedu.address.logic.commands.DeleteOrderCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditMilestoneCommand;
+import seedu.address.logic.commands.EditMilestoneCommand.EditMilestoneDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListMilestonesCommand;
+import seedu.address.logic.commands.RedeemMilestoneCommand;
+import seedu.address.logic.commands.UpdateMenuItemCommand;
+import seedu.address.logic.commands.UpdateScoreCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.order.Order;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesKeywordsPredicate;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -31,6 +50,43 @@ import seedu.address.testutil.PersonUtil;
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
+
+    @Test
+    public void parseCommand_deleteMenuItem() throws Exception {
+        assertEquals(new DeleteMenuItemCommand("CR01"), parser.parseCommand("delete-menu-item c/CR01"));
+    }
+
+    @Test
+    public void parseCommand_addMenuItem() throws Exception {
+        assertEquals(new AddMenuItemCommand(new FoodItem("CR01", "Chicken Rice", 450)),
+                parser.parseCommand(AddMenuItemCommand.COMMAND_WORD + " c/CR01 n/Chicken Rice p/4.50"));
+    }
+
+    @Test
+    public void parseCommand_addMenuItemMissingArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddMenuItemCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(AddMenuItemCommand.COMMAND_WORD));
+    }
+
+    @Test
+    public void parseCommand_updateMenuItem() throws Exception {
+        assertEquals(new UpdateMenuItemCommand("CR01", "CR02", "Roasted Chicken Rice", 500),
+                parser.parseCommand("edit-menu-item CR01 c/CR02 n/Roasted Chicken Rice p/5.00"));
+    }
+
+    @Test
+    public void parseCommand_addMilestone() throws Exception {
+        assertTrue(parser.parseCommand(AddMilestoneCommand.COMMAND_WORD
+                + " r/Free drink s/500") instanceof AddMilestoneCommand);
+    }
+
+    @Test
+    public void parseCommand_addMilestoneMissingArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                AddMilestoneCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand(AddMilestoneCommand.COMMAND_WORD));
+    }
 
     @Test
     public void parseCommand_add() throws Exception {
@@ -62,6 +118,23 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_deleteMilestone() throws Exception {
+        assertEquals(new DeleteMilestoneCommand(INDEX_FIRST_PERSON),
+                parser.parseCommand(DeleteMilestoneCommand.COMMAND_WORD + " 1"));
+    }
+
+    @Test
+    public void parseCommand_editMilestone() throws Exception {
+        EditMilestoneDescriptor descriptor = new EditMilestoneDescriptor();
+        descriptor.setRewardDescription("Free drink and snack");
+        descriptor.setRequiredScore(600);
+
+        assertEquals(new EditMilestoneCommand(INDEX_FIRST_PERSON, descriptor),
+                parser.parseCommand(EditMilestoneCommand.COMMAND_WORD
+                        + " 1 r/Free drink and snack s/600"));
+    }
+
+    @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
@@ -72,7 +145,7 @@ public class AddressBookParserTest {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
                 FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+        assertEquals(new FindCommand(new PersonMatchesKeywordsPredicate(keywords)), command);
     }
 
     @Test
@@ -85,6 +158,119 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listMilestones() throws Exception {
+        assertTrue(parser.parseCommand(ListMilestonesCommand.COMMAND_WORD) instanceof ListMilestonesCommand);
+        assertTrue(parser.parseCommand(ListMilestonesCommand.COMMAND_WORD + " 3") instanceof ListMilestonesCommand);
+    }
+
+    @Test
+    public void parseCommand_addOrder() throws Exception {
+        AddOrderCommand command = (AddOrderCommand) parser.parseCommand(AddOrderCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_ORDER + "CR01 " + PREFIX_QUANTITY + "2");
+
+        assertEquals(INDEX_FIRST_PERSON, command.index);
+        assertEquals("CR01", command.itemCode);
+        assertEquals(2, command.quantity);
+    }
+
+    @Test
+    public void parseCommand_addOrderMissingArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddOrderCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(AddOrderCommand.COMMAND_WORD));
+    }
+
+    @Test
+    public void parseCommand_addOrderInvalidItem_throwsParseException() {
+        String input = AddOrderCommand.COMMAND_WORD + " 1 " + PREFIX_ORDER + "Chicken-Rice " + PREFIX_QUANTITY + "2";
+        assertThrows(ParseException.class, Order.ITEM_CODE_CONSTRAINTS, () -> parser.parseCommand(input));
+    }
+
+    @Test
+    public void parseCommand_addOrderInvalidQuantity_throwsParseException() {
+        String input = AddOrderCommand.COMMAND_WORD + " 1 " + PREFIX_ORDER + "CR01 " + PREFIX_QUANTITY + "abc";
+        assertThrows(ParseException.class, Order.QUANTITY_CONSTRAINTS, () -> parser.parseCommand(input));
+    }
+
+    @Test
+    public void parseCommand_deleteOrder() throws Exception {
+        DeleteOrderCommand command = (DeleteOrderCommand) parser.parseCommand(DeleteOrderCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_ORDER + "1");
+
+        assertEquals(new DeleteOrderCommand(INDEX_FIRST_PERSON, INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_deleteOrderMissingArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteOrderCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(DeleteOrderCommand.COMMAND_WORD));
+    }
+
+    @Test
+    public void parseCommand_redeemMilestone() throws Exception {
+        String command = RedeemMilestoneCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                + " " + PREFIX_MILESTONE + "2";
+        RedeemMilestoneCommand parsedCommand = (RedeemMilestoneCommand) parser.parseCommand(command);
+
+        assertEquals(INDEX_FIRST_PERSON, parsedCommand.personIndex);
+        assertEquals(2, parsedCommand.milestoneIndex.getOneBased());
+    }
+
+    @Test
+    public void parseCommand_redeemMilestoneMissingArguments_throwsParseException() {
+        String command = RedeemMilestoneCommand.COMMAND_WORD;
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                RedeemMilestoneCommand.MESSAGE_USAGE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+    }
+
+    @Test
+    public void parseCommand_redeemMilestoneInvalidIndex_throwsParseException() {
+        String command = RedeemMilestoneCommand.COMMAND_WORD + " 1 " + PREFIX_MILESTONE + "abc";
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                RedeemMilestoneCommand.MESSAGE_USAGE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+    }
+
+    @Test
+    public void parseCommand_cancelRedeem() throws Exception {
+        String command = CancelRedeemCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                + " " + PREFIX_MILESTONE + "2";
+        CancelRedeemCommand parsedCommand = (CancelRedeemCommand) parser.parseCommand(command);
+
+        assertEquals(INDEX_FIRST_PERSON, parsedCommand.personIndex);
+        assertEquals(2, parsedCommand.milestoneIndex.getOneBased());
+    }
+
+    @Test
+    public void parseCommand_cancelRedeemMissingArguments_throwsParseException() {
+        String command = CancelRedeemCommand.COMMAND_WORD;
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                CancelRedeemCommand.MESSAGE_USAGE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+    }
+
+    @Test
+    public void parseCommand_cancelRedeemInvalidIndex_throwsParseException() {
+        String command = CancelRedeemCommand.COMMAND_WORD + " 1 " + PREFIX_MILESTONE + "abc";
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                CancelRedeemCommand.MESSAGE_USAGE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+    }
+
+    @Test
+    public void parseCommand_updateScore() throws Exception {
+        UpdateScoreCommand command = (UpdateScoreCommand) parser.parseCommand(UpdateScoreCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_SCORE_CHANGE + "5");
+
+        assertEquals(INDEX_FIRST_PERSON, command.index);
+        assertEquals(5, command.scoreChange);
     }
 
     @Test

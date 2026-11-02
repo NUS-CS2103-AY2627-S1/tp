@@ -9,10 +9,11 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.order.Order;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Score;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +22,9 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_REQUIRED_SCORE =
+            "Required score must be a positive whole number no greater than 999999999.";
+    private static final String REQUIRED_SCORE_VALIDATION_REGEX = "[0-9]+";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,6 +40,30 @@ public class ParserUtil {
     }
 
     /**
+     * Parses {@code requiredScore} into a positive integer.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the specified score is not a positive integer within the supported range.
+     */
+    public static int parseRequiredScore(String requiredScore) throws ParseException {
+        requireNonNull(requiredScore);
+        String trimmedRequiredScore = requiredScore.trim();
+        if (!trimmedRequiredScore.matches(REQUIRED_SCORE_VALIDATION_REGEX)) {
+            throw new ParseException(MESSAGE_INVALID_REQUIRED_SCORE);
+        }
+
+        try {
+            int parsedRequiredScore = Integer.parseInt(trimmedRequiredScore);
+            if (parsedRequiredScore <= 0 || parsedRequiredScore > Score.MAX_SCORE) {
+                throw new ParseException(MESSAGE_INVALID_REQUIRED_SCORE);
+            }
+            return parsedRequiredScore;
+        } catch (NumberFormatException e) {
+            throw new ParseException(MESSAGE_INVALID_REQUIRED_SCORE, e);
+        }
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -44,8 +72,11 @@ public class ParserUtil {
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
         String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
+        if (!Name.hasValidFormat(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
+        }
+        if (!Name.containsLetter(trimmedName)) {
+            throw new ParseException(Name.MESSAGE_CONSTRAINTS_MISSING_LETTER);
         }
         return new Name(trimmedName);
     }
@@ -58,41 +89,13 @@ public class ParserUtil {
      */
     public static Phone parsePhone(String phone) throws ParseException {
         requireNonNull(phone);
-        String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
+        if (!Phone.isStorablePhone(phone)) {
             throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
         }
-        return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
+        if (!Phone.isValidPhone(phone)) {
+            throw new ParseException(Phone.MESSAGE_MISSING_DIGIT);
         }
-        return new Address(trimmedAddress);
-    }
-
-    /**
-     * Parses a {@code String email} into an {@code Email}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code email} is invalid.
-     */
-    public static Email parseEmail(String email) throws ParseException {
-        requireNonNull(email);
-        String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
-        }
-        return new Email(trimmedEmail);
+        return new Phone(phone);
     }
 
     /**
@@ -121,4 +124,40 @@ public class ParserUtil {
         }
         return tagSet;
     }
+
+    /**
+     * Parses and validates an item code.
+     *
+     * @throws ParseException if the item code is invalid.
+     */
+    public static String parseOrderCode(String itemCode) throws ParseException {
+        requireNonNull(itemCode);
+        String trimmedItemCode = itemCode.trim();
+        if (!FoodItem.isValidCode(trimmedItemCode)) {
+            throw new ParseException(Order.ITEM_CODE_CONSTRAINTS);
+        }
+        return trimmedItemCode;
+    }
+
+    /**
+     * Parses and validates an order quantity.
+     *
+     * @throws ParseException if the quantity is invalid.
+     */
+    public static int parseOrderQuantity(String quantity) throws ParseException {
+        requireNonNull(quantity);
+        int numericQuantity;
+        try {
+            numericQuantity = Integer.parseInt(quantity.trim());
+        } catch (NumberFormatException e) {
+            throw new ParseException(Order.QUANTITY_CONSTRAINTS, e);
+        }
+
+        if (!Order.isValidQuantity(numericQuantity)) {
+            throw new ParseException(Order.QUANTITY_CONSTRAINTS);
+        }
+
+        return numericQuantity;
+    }
+
 }

@@ -9,6 +9,7 @@ import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,12 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.menu.ReadOnlyMenu;
+import seedu.address.model.milestone.Milestone;
+import seedu.address.model.milestone.ReadOnlyMilestoneCatalog;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -41,6 +47,7 @@ public class AddCommandTest {
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals(validPerson, modelStub.personSelected);
     }
 
     @Test
@@ -49,7 +56,8 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expectedMessage = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, Messages.format(validPerson));
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -88,6 +96,36 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void setMenu(ReadOnlyMenu menu) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setMilestoneCatalog(ReadOnlyMilestoneCatalog milestoneCatalog) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteFoodItem(FoodItem target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyMenu getMenu() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasFoodItem(FoodItem foodItem) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addFoodItem(FoodItem foodItem) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -108,6 +146,11 @@ public class AddCommandTest {
         }
 
         @Override
+        public void setFoodItem(FoodItem target, FoodItem editedFoodItem) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void setAddressBook(ReadOnlyAddressBook newData) {
             throw new AssertionError("This method should not be called.");
         }
@@ -123,6 +166,16 @@ public class AddCommandTest {
         }
 
         @Override
+        public List<Person> findPersonsWithSimilarPhone(Phone phone) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> findPersonByPhone(Phone phone) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void deletePerson(Person target) {
             throw new AssertionError("This method should not be called.");
         }
@@ -133,7 +186,52 @@ public class AddCommandTest {
         }
 
         @Override
+        public boolean hasMilestone(Milestone milestone) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteMilestone(Milestone target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addMilestone(Milestone milestone) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setMilestone(Milestone target, Milestone editedMilestone) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyMilestoneCatalog getMilestoneCatalog() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void selectPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deselectPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> getSelectedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Milestone> getMilestoneList() {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -155,9 +253,9 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public Optional<Person> findPersonByPhone(Phone phone) {
+            requireNonNull(phone);
+            return person.getPhone().equals(phone) ? Optional.of(person) : Optional.empty();
         }
     }
 
@@ -166,17 +264,30 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
+        private Person personSelected;
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+        public Optional<Person> findPersonByPhone(Phone phone) {
+            requireNonNull(phone);
+            return personsAdded.stream().filter(person -> person.getPhone().equals(phone)).findFirst();
+        }
+
+        @Override
+        public List<Person> findPersonsWithSimilarPhone(Phone phone) {
+            return personsAdded.stream().filter(person -> phone.hasPossibleNumberInCommon(person.getPhone())).toList();
         }
 
         @Override
         public void addPerson(Person person) {
             requireNonNull(person);
             personsAdded.add(person);
+        }
+
+        @Override
+        public void selectPerson(Person person) {
+            requireNonNull(person);
+            assertTrue(personsAdded.contains(person));
+            personSelected = person;
         }
 
         @Override

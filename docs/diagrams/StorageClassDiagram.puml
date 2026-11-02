@@ -1,4 +1,5 @@
 @startuml
+!define OMIT_PARTICIPANT_PADDING
 !include style.puml
 skinparam arrowThickness 1.1
 skinparam arrowColor STORAGE_COLOR
@@ -18,6 +19,20 @@ Class JsonAddressBookStorage
 Class JsonSerializableAddressBook
 Class JsonAdaptedPerson
 Class JsonAdaptedTag
+Class JsonAdaptedOrder
+Class JsonAdaptedRedeemedMilestoneReward
+}
+
+package "Menu Storage" #F4F6F6{
+Class JsonMenuStorage
+Class JsonSerializableMenu
+Class JsonAdaptedFoodItem
+}
+
+package "Milestone Storage" #F4F6F6 {
+Class JsonMilestoneCatalogStorage
+Class JsonSerializableMilestoneCatalog
+Class JsonAdaptedMilestone
 }
 
 }
@@ -28,9 +43,19 @@ HiddenOutside ..> Storage
 StorageManager .up.|> Storage
 StorageManager -down-> "1" JsonUserPrefsStorage
 StorageManager -down-> "1" JsonAddressBookStorage
+StorageManager -down-> "1" JsonMenuStorage
+StorageManager -down-> "1" JsonMilestoneCatalogStorage
 
 JsonAddressBookStorage ..> JsonSerializableAddressBook
 JsonSerializableAddressBook --> "*" JsonAdaptedPerson
 JsonAdaptedPerson --> "*" JsonAdaptedTag
+JsonAdaptedPerson --> "*" JsonAdaptedOrder
+JsonAdaptedPerson --> "*" JsonAdaptedRedeemedMilestoneReward
+
+JsonMenuStorage ..> JsonSerializableMenu
+JsonSerializableMenu --> "*" JsonAdaptedFoodItem
+
+JsonMilestoneCatalogStorage ..> JsonSerializableMilestoneCatalog
+JsonSerializableMilestoneCatalog --> "*" JsonAdaptedMilestone
 
 @enduml

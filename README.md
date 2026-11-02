@@ -1,14 +1,41 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![CI status](https://github.com/AY2627S1-CS2103T-F12-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-F12-3/tp/actions/workflows/gradle.yml)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-F12-3/tp/graph/badge.svg?token=0PHLMVMJA6)](https://codecov.io/gh/AY2627S1-CS2103T-F12-3/tp)
 
 ![Ui](docs/images/Ui.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# Ratatouille
+ 
+## Purpose
+ 
+Ratatouille is a CLI-based customer management tool built for hawker stall owners who serve a high volume of customers daily and can't reliably recognize repeat customers by face or memory alone.
+ 
+It lets stall owners quickly:
+- Sign up new customers into a loyalty program using their phone number
+- Log orders against a customer using fast, custom menu-item codes
+- Look up a customer's order history and membership status
+- Identify top regulars and lapsed customers to guide re-engagement
+The tool is optimized for speed and typed input, designed to fit into the fast pace of a hawker stall during service, rather than requiring the stall owner to stop and navigate a GUI.
+ 
+## Target User
+
+
+Ratatouille is intended for hawker stall owners (e.g. Mrs. Tan) who:
+
+- want to build and maintain a loyalty program for regular customers;
+- serve many customers each day and cannot rely on memory to identify repeat customers;
+- are comfortable using typed commands; and
+- value fast data entry and retrieval over navigating a mouse-driven interface.
+
+## Status
+
+Ratatouille is under active development. 
+
+The current version supports basic customer record management, including adding, editing, deleting, finding, and
+listing customers. 
+
+A Food menu system to update and manage the products the stall is selling. 
+
+An Order management and a Milestone reward system are present for owners to manage loyalty program by creating redeemable milestone rewards with sufficient scores earned by patronising the stall.
+ 
+## Acknowledgements
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

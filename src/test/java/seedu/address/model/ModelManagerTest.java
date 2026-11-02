@@ -5,20 +5,61 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalMilestones.EDITED_FREE_DRINK;
+import static seedu.address.testutil.TypicalMilestones.FREE_DESSERT;
+import static seedu.address.testutil.TypicalMilestones.FREE_DRINK;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.menu.Menu;
+import seedu.address.model.menu.ReadOnlyMenu;
+import seedu.address.model.milestone.MilestoneCatalog;
+import seedu.address.model.milestone.ReadOnlyMilestoneCatalog;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesKeywordsPredicate;
+import seedu.address.model.person.Phone;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
     private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void setMenu_validMenu_copiesContentsIndependently() {
+        FoodItem item = new FoodItem("CR01", "Chicken Rice", 450);
+        modelManager.addFoodItem(new FoodItem("T01", "Tea", 150));
+        Menu source = new Menu();
+        source.addFoodItem(item);
+
+        modelManager.setMenu(source);
+        source.removeFoodItem(item);
+
+        assertEquals(List.of(item), modelManager.getMenu().getFoodItemList());
+        assertThrows(NullPointerException.class, () -> modelManager.setMenu(null));
+        assertEquals(List.of(item), modelManager.getMenu().getFoodItemList());
+    }
+
+    @Test
+    public void setMilestoneCatalog_validCatalog_copiesContentsIndependently() {
+        modelManager.addMilestone(FREE_DESSERT);
+        MilestoneCatalog source = new MilestoneCatalog();
+        source.addMilestone(FREE_DRINK);
+
+        modelManager.setMilestoneCatalog(source);
+        source.removeMilestone(FREE_DRINK);
+
+        assertEquals(List.of(FREE_DRINK), modelManager.getMilestoneList());
+        assertThrows(NullPointerException.class, () -> modelManager.setMilestoneCatalog(null));
+        assertEquals(List.of(FREE_DRINK), modelManager.getMilestoneList());
+    }
 
     @Test
     public void constructor() {
@@ -38,6 +79,44 @@ public class ModelManagerTest {
         UserPrefs oldUserPrefs = new UserPrefs(userPrefs);
         userPrefs.setGuiSettings(new GuiSettings(5, 6, 7, 8));
         assertEquals(oldUserPrefs, modelManager.getUserPrefs());
+    }
+
+    @Test
+    public void constructor_loadedMenu_copiesContentsIndependently() {
+        Menu source = new Menu();
+        FoodItem item = new FoodItem("CR01", "Chicken Rice", 450);
+        source.addFoodItem(item);
+        ModelManager loaded = new ModelManager(new AddressBook(), new UserPrefs(), source);
+
+        source.removeFoodItem(item);
+
+        assertEquals(List.of(item), loaded.getMenu().getFoodItemList());
+        loaded.addFoodItem(new FoodItem("CF01", "Coffee", 150));
+        assertTrue(source.getFoodItemList().isEmpty());
+    }
+
+    @Test
+    public void constructor_loadedMilestoneCatalog_copiesContentsIndependently() {
+        MilestoneCatalog source = new MilestoneCatalog();
+        source.addMilestone(FREE_DRINK);
+        ModelManager loaded = new ModelManager(new AddressBook(), new UserPrefs(), new Menu(), source);
+
+        source.removeMilestone(FREE_DRINK);
+
+        assertEquals(List.of(FREE_DRINK), loaded.getMilestoneList());
+        loaded.addMilestone(FREE_DESSERT);
+        assertTrue(source.getMilestoneList().isEmpty());
+    }
+
+    @Test
+    public void constructor_nullMenu_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new ModelManager(new AddressBook(), new UserPrefs(), null));
+    }
+
+    @Test
+    public void constructor_nullMilestoneCatalog_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                new ModelManager(new AddressBook(), new UserPrefs(), new Menu(), null));
     }
 
     @Test
@@ -69,8 +148,166 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void findPersonByPhone_nullPhone_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.findPersonByPhone(null));
+    }
+
+    @Test
+    public void findPersonByPhone_noMatchingPerson_returnsEmpty() {
+        assertEquals(Optional.empty(), modelManager.findPersonByPhone(ALICE.getPhone()));
+    }
+
+    @Test
+    public void findPersonByPhone_personHiddenByFilter_returnsPersonWithoutChangingFilter() {
+        modelManager.addPerson(ALICE);
+        modelManager.updateFilteredPersonList(person -> false);
+
+        assertEquals(Optional.of(ALICE), modelManager.findPersonByPhone(ALICE.getPhone()));
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void findPersonsWithSimilarPhone_hiddenMembers_returnsAllMatchesWithoutChangingView() {
+        Person annotated = new PersonBuilder(ALICE).withPhone(ALICE.getPhone().value + " (HP)").build();
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(annotated);
+        modelManager.selectPerson(ALICE);
+        modelManager.updateFilteredPersonList(person -> false);
+
+        assertEquals(List.of(ALICE, annotated), modelManager.findPersonsWithSimilarPhone(
+                new Phone(ALICE.getPhone().value + " ext 123")));
+        assertEquals(List.of(annotated), modelManager.findPersonsWithSimilarPhone(ALICE.getPhone()));
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+        assertEquals(Optional.of(ALICE), modelManager.getSelectedPerson());
+        assertThrows(NullPointerException.class, () -> modelManager.findPersonsWithSimilarPhone(null));
+    }
+
+    @Test
+    public void hasMilestone_nullMilestone_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasMilestone(null));
+    }
+
+    @Test
+    public void hasMilestone_milestoneNotInCatalog_returnsFalse() {
+        assertFalse(modelManager.hasMilestone(FREE_DRINK));
+    }
+
+    @Test
+    public void hasMilestone_milestoneInCatalog_returnsTrue() {
+        modelManager.addMilestone(FREE_DRINK);
+        assertTrue(modelManager.hasMilestone(FREE_DRINK));
+    }
+
+    @Test
+    public void milestoneOperations_addSetDelete_updatesSortedList() {
+        modelManager.addMilestone(FREE_DRINK);
+        modelManager.addMilestone(FREE_DESSERT);
+        assertEquals(List.of(FREE_DESSERT, FREE_DRINK), modelManager.getMilestoneList());
+
+        modelManager.setMilestone(FREE_DRINK, EDITED_FREE_DRINK);
+        assertEquals(List.of(FREE_DESSERT, EDITED_FREE_DRINK), modelManager.getMilestoneList());
+
+        modelManager.deleteMilestone(FREE_DESSERT);
+        assertEquals(List.of(EDITED_FREE_DRINK), modelManager.getMilestoneList());
+    }
+
+    @Test
+    public void getMilestoneList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getMilestoneList().add(FREE_DRINK));
+    }
+
+    @Test
+    public void getMilestoneCatalog_readOnlyView_reflectsUpdatesAndRejectsMutation() {
+        ReadOnlyMilestoneCatalog view = modelManager.getMilestoneCatalog();
+
+        modelManager.addMilestone(FREE_DRINK);
+
+        assertEquals(List.of(FREE_DRINK), view.getMilestoneList());
+        assertThrows(UnsupportedOperationException.class, () -> view.getMilestoneList().clear());
+    }
+
+    @Test
+    public void selectPerson_personInAddressBook_updatesSelection() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+
+        assertEquals(Optional.empty(), modelManager.getSelectedPerson());
+        modelManager.selectPerson(ALICE);
+        assertEquals(Optional.of(ALICE), modelManager.getSelectedPerson());
+
+        modelManager.selectPerson(BENSON);
+        assertEquals(Optional.of(BENSON), modelManager.getSelectedPerson());
+    }
+
+    @Test
+    public void selectPerson_personNotInAddressBook_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> modelManager.selectPerson(ALICE));
+    }
+
+    @Test
+    public void selectPerson_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.selectPerson(null));
+    }
+
+    @Test
+    public void deselectPerson_selectedPerson_clearsSelection() {
+        modelManager.addPerson(ALICE);
+        modelManager.selectPerson(ALICE);
+
+        modelManager.deselectPerson();
+
+        assertEquals(Optional.empty(), modelManager.getSelectedPerson());
+    }
+
+    @Test
+    public void deselectPerson_noSelectedPerson_keepsSelectionEmpty() {
+        modelManager.deselectPerson();
+
+        assertEquals(Optional.empty(), modelManager.getSelectedPerson());
+    }
+
+    @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void getMenu_readOnlyView_reflectsAdditionsAndRejectsMutation() {
+        ReadOnlyMenu view = modelManager.getMenu();
+        FoodItem item = new FoodItem("CR01", "Chicken Rice", 450);
+        assertTrue(view.getFoodItemList().isEmpty());
+
+        modelManager.addFoodItem(item);
+
+        assertEquals(List.of(item), view.getFoodItemList());
+        assertTrue(view.hasFoodItem(item));
+        assertEquals(item, view.findFoodItemByCode("CR01").orElseThrow());
+        assertTrue(view.findFoodItemByCode("cr01").isEmpty());
+        assertThrows(UnsupportedOperationException.class, () -> view.getFoodItemList().clear());
+        assertEquals(List.of(item), modelManager.getMenu().getFoodItemList());
+    }
+
+    @Test
+    public void equals_differentMenuContents_returnsFalse() {
+        ModelManager otherModel = new ModelManager();
+        FoodItem item = new FoodItem("CR01", "Chicken Rice", 450);
+        modelManager.addFoodItem(item);
+
+        assertFalse(modelManager.equals(otherModel));
+
+        otherModel.addFoodItem(item);
+        assertTrue(modelManager.equals(otherModel));
+    }
+
+    @Test
+    public void equals_differentMilestoneCatalogContents_returnsFalse() {
+        ModelManager otherModel = new ModelManager();
+        modelManager.addMilestone(FREE_DRINK);
+
+        assertFalse(modelManager.equals(otherModel));
+
+        otherModel.addMilestone(FREE_DRINK);
+        assertTrue(modelManager.equals(otherModel));
     }
 
     @Test
@@ -98,11 +335,16 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new PersonMatchesKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
         modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        // different selected person -> returns false
+        modelManager.selectPerson(ALICE);
+        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
+        modelManager = new ModelManager(addressBook, userPrefs);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

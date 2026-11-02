@@ -1,4 +1,5 @@
 @startuml
+!define OMIT_PARTICIPANT_PADDING
 !include style.puml
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
@@ -16,6 +17,5 @@ Person -up-> "*" Tag
 
 Person *--> Name
 Person *--> Phone
-Person *--> Email
-Person *--> Address
+Person *--> Score
 @enduml

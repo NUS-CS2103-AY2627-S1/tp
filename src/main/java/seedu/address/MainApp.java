@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
@@ -13,14 +14,19 @@ import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
-import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.menu.Menu;
+import seedu.address.model.menu.ReadOnlyMenu;
+import seedu.address.model.milestone.MilestoneCatalog;
+import seedu.address.model.milestone.ReadOnlyMilestoneCatalog;
 import seedu.address.model.util.SampleDataUtil;
 import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonMenuStorage;
+import seedu.address.storage.JsonMilestoneCatalogStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
@@ -32,11 +38,18 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
+
+    public static final String MESSAGE_MEMBER_LOAD_FAILURE =
+            "Member data could not be loaded. Startup was stopped to protect the saved records. "
+            + "Back up the member file, restore a valid copy or resolve invalid fields and duplicate phone entries, "
+            + "then restart. Data file: %s";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "memberlist.json");
+    private static final Path MENU_FILE_PATH = Paths.get("data", "menu.json");
+    private static final Path MILESTONE_CATALOG_FILE_PATH = Paths.get("data", "milestones.json");
 
     protected Ui ui;
     protected Logic logic;
@@ -45,13 +58,16 @@ public class MainApp extends Application {
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing Ratatouille ]===========================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
         JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        JsonMenuStorage menuStorage = new JsonMenuStorage(MENU_FILE_PATH);
+        JsonMilestoneCatalogStorage milestoneCatalogStorage =
+                new JsonMilestoneCatalogStorage(MILESTONE_CATALOG_FILE_PATH);
+        storage = new StorageManager(addressBookStorage, userPrefsStorage, menuStorage, milestoneCatalogStorage);
 
         model = initModelManager(storage, userPrefs);
 
@@ -61,11 +77,20 @@ public class MainApp extends Application {
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Initializes the model with member data, menu data, milestone data, and user preferences.
      */
     private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+        return new ModelManager(initMembers(storage), userPrefs, initMenu(storage), initMilestoneCatalog(storage));
+    }
+
+    /**
+     * Loads the saved address book.
+     * The data from the sample address book will be used instead if {@code storage}'s address book is not found.
+     * Startup is stopped on read failures so commands cannot overwrite unread member records.
+     *
+     * @throws IllegalStateException if existing member data cannot be loaded.
+     */
+    ReadOnlyAddressBook initMembers(Storage storage) {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
@@ -74,16 +99,46 @@ public class MainApp extends Application {
             addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
                 logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+                        + " populated with sample Ratatouille members.");
             }
             initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
         } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            String message = String.format(MESSAGE_MEMBER_LOAD_FAILURE, storage.getAddressBookFilePath());
+            logger.log(Level.SEVERE, message, e);
+            throw new IllegalStateException(message, e);
         }
 
-        return new ModelManager(initialData, userPrefs);
+        return initialData;
+    }
+
+    /**
+     * Loads the saved menu, or starts with a sample menu if the file is missing.
+     * An unreadable menu file results in an empty menu.
+     */
+    protected ReadOnlyMenu initMenu(Storage storage) {
+        logger.info("Using menu file : " + storage.getMenuFilePath());
+        try {
+            return storage.readMenu().orElseGet(SampleDataUtil::getSampleMenu);
+        } catch (DataLoadingException e) {
+            logger.warning("Menu file at " + storage.getMenuFilePath() + " could not be loaded."
+                    + " Will be starting with an empty menu.");
+            return new Menu();
+        }
+    }
+
+    /**
+     * Loads the saved milestone catalog, or starts with sample milestones if the file is missing.
+     * An unreadable milestone file results in an empty catalog.
+     */
+    protected ReadOnlyMilestoneCatalog initMilestoneCatalog(Storage storage) {
+        logger.info("Using milestone catalog file : " + storage.getMilestoneCatalogFilePath());
+        try {
+            return storage.readMilestoneCatalog().orElseGet(SampleDataUtil::getSampleMilestoneCatalog);
+        } catch (DataLoadingException e) {
+            logger.log(Level.WARNING, "Milestone catalog file at " + storage.getMilestoneCatalogFilePath()
+                    + " could not be loaded. Will be starting with an empty milestone catalog.", e);
+            return new MilestoneCatalog();
+        }
     }
 
     /**
@@ -120,13 +175,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting Ratatouille " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping Ratatouille ] =============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

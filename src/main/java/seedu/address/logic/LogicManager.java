@@ -2,6 +2,7 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -13,6 +14,8 @@ import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.menu.FoodItem;
+import seedu.address.model.milestone.Milestone;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -48,8 +51,14 @@ public class LogicManager implements Logic {
         Command command = addressBookParser.parseCommand(commandText);
         commandResult = command.execute(model);
 
+        if (commandResult.isShowHelp() || commandResult.isExit()) {
+            return commandResult;
+        }
+
         try {
             storage.saveAddressBook(model.getAddressBook());
+            storage.saveMenu(model.getMenu());
+            storage.saveMilestoneCatalog(model.getMilestoneCatalog());
         } catch (AccessDeniedException e) {
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
@@ -62,6 +71,21 @@ public class LogicManager implements Logic {
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Milestone> getMilestoneList() {
+        return model.getMilestoneList();
+    }
+
+    @Override
+    public ObservableList<FoodItem> getFoodItemList() {
+        return model.getMenu().getFoodItemList();
+    }
+
+    @Override
+    public Optional<Person> getSelectedPerson() {
+        return model.getSelectedPerson();
     }
 
     @Override

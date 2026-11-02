@@ -1,9 +1,5 @@
 package seedu.address.testutil;
 
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
@@ -11,48 +7,127 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import seedu.address.model.AddressBook;
+import seedu.address.model.milestone.Milestone;
+import seedu.address.model.order.Order;
+import seedu.address.model.order.OrderHistory;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Score;
+import seedu.address.model.reward.RedeemedMilestoneRewardHistory;
 
 /**
  * A utility class containing a list of {@code Person} objects to be used in tests.
  */
 public class TypicalPersons {
 
-    public static final Person ALICE = new PersonBuilder().withName("Alice Pauline")
-            .withAddress("123, Jurong West Ave 6, #08-111").withEmail("alice@example.com")
+    public static final Instant ALICE_CHICKEN_ORDER_TIME = Instant.parse("2026-01-01T00:00:00Z");
+    public static final Instant ALICE_POTATO_ORDER_TIME = Instant.parse("2026-01-02T00:00:00Z");
+    public static final Instant BENSON_POTATO_ORDER_TIME = Instant.parse("2026-01-03T00:00:00Z");
+    public static final Instant ELLE_CHICKEN_ORDER_TIME = Instant.parse("2026-01-04T00:00:00Z");
+    public static final Instant ELLE_PORK_ORDER_TIME = Instant.parse("2026-01-05T00:00:00Z");
+    public static final Instant FIONA_CHICKEN_ORDER_TIME = Instant.parse("2026-01-06T00:00:00Z");
+
+    public static final Person ALICE = new PersonBuilder()
+            .withName("Alice Pauline")
             .withPhone("94351253")
-            .withTags("friends").build();
-    public static final Person BENSON = new PersonBuilder().withName("Benson Meier")
-            .withAddress("311, Clementi Ave 2, #02-25")
-            .withEmail("johnd@example.com").withPhone("98765432")
-            .withTags("owesMoney", "friends").build();
-    public static final Person CARL = new PersonBuilder().withName("Carl Kurz").withPhone("95352563")
-            .withEmail("heinz@example.com").withAddress("wall street").build();
-    public static final Person DANIEL = new PersonBuilder().withName("Daniel Meier").withPhone("87652533")
-            .withEmail("cornelia@example.com").withAddress("10th street").withTags("friends").build();
-    public static final Person ELLE = new PersonBuilder().withName("Elle Meyer").withPhone("9482224")
-            .withEmail("werner@example.com").withAddress("michegan ave").build();
-    public static final Person FIONA = new PersonBuilder().withName("Fiona Kunz").withPhone("9482427")
-            .withEmail("lydia@example.com").withAddress("little tokyo").build();
-    public static final Person GEORGE = new PersonBuilder().withName("George Best").withPhone("9482442")
-            .withEmail("anna@example.com").withAddress("4th street").build();
+            .withTags("friends")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("Chicken", "Chicken", 2, ALICE_CHICKEN_ORDER_TIME))
+                            .addOrder(new Order("Potato", "Potato", 1, ALICE_POTATO_ORDER_TIME))
+            )
+            .build();
+    public static final Person BENSON = new PersonBuilder()
+            .withName("Benson Meier")
+            .withPhone("98765432")
+            .withTags("owesMoney", "friends")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("Potato", "Potato", 1, BENSON_POTATO_ORDER_TIME))
+            )
+            .withRedeemedMilestoneRewardHistory(
+                    new RedeemedMilestoneRewardHistory()
+                            .addRedeemedMilestoneReward(new Milestone("WELCOME", "Free drink", 10)))
+            .build();
+    public static final Person CARL = new PersonBuilder()
+            .withName("Carl Kurz")
+            .withPhone("95352563")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(new OrderHistory())
+            .build();
+    public static final Person DANIEL = new PersonBuilder()
+            .withName("Daniel Meier")
+            .withPhone("87652533")
+            .withTags("friends")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(new OrderHistory())
+            .build();
+    public static final Person ELLE = new PersonBuilder()
+            .withName("Elle Meyer")
+            .withPhone("94822240")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("Chicken", "Chicken", 2, ELLE_CHICKEN_ORDER_TIME))
+                            .addOrder(new Order("Pork", "Pork", 9, ELLE_PORK_ORDER_TIME))
+            )
+            .build();
+    public static final Person FIONA = new PersonBuilder()
+            .withName("Fiona Kunz")
+            .withPhone("94824270")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("Chicken", "Chicken", 9, FIONA_CHICKEN_ORDER_TIME))
+            )
+            .build();
+    public static final Person GEORGE = new PersonBuilder()
+            .withName("George Best")
+            .withPhone("94824420")
+            .build();
 
     // Manually added
-    public static final Person HOON = new PersonBuilder().withName("Hoon Meier").withPhone("8482424")
-            .withEmail("stefan@example.com").withAddress("little india").build();
-    public static final Person IDA = new PersonBuilder().withName("Ida Mueller").withPhone("8482131")
-            .withEmail("hans@example.com").withAddress("chicago ave").build();
+    public static final Person HOON = new PersonBuilder()
+            .withName("Hoon Meier")
+            .withPhone("84824240")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("pancake", "pancake", 1))
+            )
+            .build();
+    public static final Person IDA = new PersonBuilder()
+            .withName("Ida Mueller")
+            .withPhone("84821310")
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(
+                    new OrderHistory()
+                            .addOrder(new Order("Soup", "Soup", 1))
+            )
+            .build();
 
     // Manually added - Person's details found in {@code CommandTestUtil}
-    public static final Person AMY = new PersonBuilder().withName(VALID_NAME_AMY).withPhone(VALID_PHONE_AMY)
-            .withEmail(VALID_EMAIL_AMY).withAddress(VALID_ADDRESS_AMY).withTags(VALID_TAG_FRIEND).build();
-    public static final Person BOB = new PersonBuilder().withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB)
-            .withEmail(VALID_EMAIL_BOB).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND)
+    public static final Person AMY = new PersonBuilder()
+            .withName(VALID_NAME_AMY)
+            .withPhone(VALID_PHONE_AMY)
+            .withTags(VALID_TAG_FRIEND)
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(new OrderHistory())
+            .build();
+    public static final Person BOB = new PersonBuilder()
+            .withName(VALID_NAME_BOB)
+            .withPhone(VALID_PHONE_BOB)
+            .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND)
+            .withScore(Score.DEFAULT)
+            .withOrderHistory(new OrderHistory())
+            .withTags(VALID_TAG_FRIEND)
             .build();
 
     public static final String KEYWORD_MATCHING_MEIER = "Meier"; // A keyword that matches MEIER
