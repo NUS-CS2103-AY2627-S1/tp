@@ -5,55 +5,52 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us through our GitHub profiles below, or through the issue tracker of [our repository](https://github.com/AY2627S1-CS2103-F11-2/tp).
 
 ## Project team
 
-### John Doe
+### Jiang RongTang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jackyjiangcs.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/JackyJiangCS)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Delete Client & Edit Appointments
 
-### Jean Doe
+### Dai Koi Yim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/john-dai-88.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/John-Dai-88)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: The development of Searching Clients & Adding Appointments
+
+### Daniel Guan
+
+<img src="images/itsdanielguan.png" width="200px">
+
+[[github](https://github.com/itsDanielGuan)]
+
+* Role: Developer
+* Responsibilities: Adding, listing, and deleting appointments
+
+### Goh Wei Chong
+
+<img src="images/goh-wei-chong.png" width="200px">
+
+[[github](https://github.com/Goh-Wei-Chong)]
+
+* Role: Developer
+* Responsibilities: Adding clients; documentation of product scope and useful links
+
+### Keerthivasan152
+
+<img src="images/keerthivasan152.png" width="200px">
+
+[[homepage](https://keerthivasan152.github.io/ip/)]
+[[github](https://github.com/Keerthivasan152)]
+
+* Role: Developer
+* Responsibilities: Client records (list) and data safety

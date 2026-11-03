@@ -1,5 +1,7 @@
 package seedu.address.logic.commands;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.logic.commands.ExitCommand.MESSAGE_EXIT_ACKNOWLEDGEMENT;
 
@@ -13,8 +15,15 @@ public class ExitCommandTest {
     private Model expectedModel = new ModelManager();
 
     @Test
+    public void execute_messageNamesTheProduct() throws Exception {
+        CommandResult result = new ExitCommand().execute(model);
+        assertTrue(result.getFeedbackToUser().contains("PropTrack"));
+        assertFalse(result.getFeedbackToUser().contains("Address Book"));
+    }
+
+    @Test
     public void execute_exit_success() {
-        CommandResult expectedCommandResult = new CommandResult(MESSAGE_EXIT_ACKNOWLEDGEMENT, false, true);
+        CommandResult expectedCommandResult = CommandResult.withoutSave(MESSAGE_EXIT_ACKNOWLEDGEMENT, false, true);
         assertCommandSuccess(new ExitCommand(), model, expectedCommandResult, expectedModel);
     }
 }

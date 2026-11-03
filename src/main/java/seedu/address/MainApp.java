@@ -10,9 +10,11 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
-import seedu.address.commons.util.StringUtil;
+import seedu.address.commons.exceptions.DuplicateClientNameException;
+import seedu.address.commons.util.FileUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
+import seedu.address.logic.Messages;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
@@ -42,6 +44,7 @@ public class MainApp extends Application {
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private String startupMessage = "";
 
     @Override
     public void init() throws Exception {
@@ -57,7 +60,7 @@ public class MainApp extends Application {
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), startupMessage);
     }
 
     /**
@@ -66,24 +69,40 @@ public class MainApp extends Application {
      * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
      */
     private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
+        logger.info("Using the application data file.");
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
         ReadOnlyAddressBook initialData;
         try {
             addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+                logger.info("Creating a new application data file populated with sample data.");
             }
             initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
         } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
+            logger.warning("The application data file could not be loaded. Starting with empty data.");
+            startupMessage = Messages.formatUnreadableDataFile(storage.getAddressBookFilePath(),
+                    preserveUnreadableDataFile(), e.getCause() instanceof DuplicateClientNameException);
             initialData = new AddressBook();
         }
 
         return new ModelManager(initialData, userPrefs);
+    }
+
+    /**
+     * Moves a data file that could not be read aside, so that starting the app and then saving cannot
+     * overwrite data that is still recoverable by hand.
+     */
+    private Optional<Path> preserveUnreadableDataFile() {
+        Path dataFilePath = storage.getAddressBookFilePath();
+        try {
+            Path quarantinedFilePath = FileUtil.quarantineCorruptFile(dataFilePath);
+            logger.warning("The unreadable application data file was quarantined.");
+            return Optional.of(quarantinedFilePath);
+        } catch (IOException e) {
+            logger.warning("The unreadable application data file could not be quarantined.");
+            return Optional.empty();
+        }
     }
 
     /**
@@ -93,18 +112,17 @@ public class MainApp extends Application {
      */
     protected UserPrefs initPrefs(JsonUserPrefsStorage storage) {
         Path prefsFilePath = storage.getUserPrefsFilePath();
-        logger.info("Using preference file : " + prefsFilePath);
+        logger.info("Using the application preferences file.");
 
         UserPrefs initializedPrefs;
         try {
             Optional<UserPrefs> prefsOptional = storage.readUserPrefs();
             if (prefsOptional.isEmpty()) {
-                logger.info("Creating new preference file " + prefsFilePath);
+                logger.info("Creating a new application preferences file.");
             }
             initializedPrefs = prefsOptional.orElse(new UserPrefs());
         } catch (DataLoadingException e) {
-            logger.warning("Preference file at " + prefsFilePath + " could not be loaded."
-                    + " Using default preferences.");
+            logger.warning("The application preferences file could not be loaded. Using default preferences.");
             initializedPrefs = new UserPrefs();
         }
 
@@ -112,7 +130,7 @@ public class MainApp extends Application {
         try {
             storage.saveUserPrefs(initializedPrefs);
         } catch (IOException e) {
-            logger.warning("Failed to save preference file : " + StringUtil.getDetails(e));
+            logger.warning("Failed to save application preferences.");
         }
 
         return initializedPrefs;
@@ -130,7 +148,7 @@ public class MainApp extends Application {
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {
-            logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+            logger.severe("Failed to save application preferences during shutdown.");
         }
     }
 }

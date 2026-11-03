@@ -2,10 +2,16 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_EMPTY_APPOINTMENT_LOCATION;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_EMPTY_DATE;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_APPOINTMENT_INDEX;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_DATE;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_MISSING_CONFIRMATION;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -16,18 +22,21 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Type;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
-    private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_NAME = "!!!";
+    private static final String INVALID_PHONE = "+65-1234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_TYPE = "investor";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
+    private static final String VALID_TYPE = "buyer";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
@@ -55,6 +64,138 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAppointmentIndex_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAppointmentIndex(null));
+    }
+
+    @Test
+    public void parseAppointmentIndex_invalidInput_throwsParseException() {
+        // missing A prefix
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("1"));
+        // lowercase prefix
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("a1"));
+        // missing number
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A"));
+        // zero, negative and non-integer
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A0"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A-1"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A1.5"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("Aabc"));
+        // space between prefix and number
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A 1"));
+        // out of integer range
+        assertThrows(ParseException.class, MESSAGE_INVALID_APPOINTMENT_INDEX, ()
+            -> ParserUtil.parseAppointmentIndex("A" + Long.toString(Integer.MAX_VALUE + 1L)));
+    }
+
+    @Test
+    public void parseAppointmentIndex_validInput_success() throws Exception {
+        // No whitespaces
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseAppointmentIndex("A1"));
+
+        // Leading and trailing whitespaces
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseAppointmentIndex("  A1  "));
+    }
+
+    @Test
+    public void parseAppointmentLocation_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAppointmentLocation(null));
+    }
+
+    @Test
+    public void parseAppointmentLocation_emptyOrWhitespace_throwsParseException() {
+        for (String location : List.of("", "   ", WHITESPACE, "\u2003")) {
+            assertThrows(ParseException.class, MESSAGE_EMPTY_APPOINTMENT_LOCATION, ()
+                -> ParserUtil.parseAppointmentLocation(location));
+        }
+    }
+
+    @Test
+    public void parseAppointmentLocation_validInput_success() throws Exception {
+        assertEquals("NUS COM3", ParserUtil.parseAppointmentLocation("NUS COM3"));
+        assertEquals("NUS COM3", ParserUtil.parseAppointmentLocation(WHITESPACE + "NUS COM3" + WHITESPACE));
+        assertEquals("NUS COM3", ParserUtil.parseAppointmentLocation("\u2003NUS COM3\u2003"));
+        assertEquals("NUS  COM3 #02-01", ParserUtil.parseAppointmentLocation("  NUS  COM3 #02-01  "));
+    }
+
+    @Test
+    public void parseConfirmation_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseConfirmation(null));
+    }
+
+    @Test
+    public void parseConfirmation_invalidInput_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_MISSING_CONFIRMATION, () -> ParserUtil.parseConfirmation(""));
+        assertThrows(ParseException.class, MESSAGE_MISSING_CONFIRMATION, () -> ParserUtil.parseConfirmation("y"));
+        assertThrows(ParseException.class, MESSAGE_MISSING_CONFIRMATION, () -> ParserUtil.parseConfirmation("YES"));
+        assertThrows(ParseException.class, MESSAGE_MISSING_CONFIRMATION, ()
+            -> ParserUtil.parseConfirmation("yes confirm"));
+    }
+
+    @Test
+    public void parseConfirmation_validInput_success() throws Exception {
+        ParserUtil.parseConfirmation("yes");
+        ParserUtil.parseConfirmation("confirm");
+        ParserUtil.parseConfirmation("  yes  ");
+    }
+
+    @Test
+    public void parseDate_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDate(null));
+    }
+
+    @Test
+    public void parseDate_empty_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_EMPTY_DATE, () -> ParserUtil.parseDate(""));
+        assertThrows(ParseException.class, MESSAGE_EMPTY_DATE, () -> ParserUtil.parseDate(WHITESPACE));
+    }
+
+    @Test
+    public void parseDate_invalidFormat_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("15-10-2026"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("2026/10/15"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("tomorrow"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("1510202"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("151020260"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("1510 2026"));
+    }
+
+    @Test
+    public void parseDate_impossibleDate_throwsParseException() {
+        // 30 February
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("30022026"));
+        // 29 February in a non-leap year
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("29022026"));
+        // month 13
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("01132026"));
+        // day 0
+        assertThrows(ParseException.class, MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("00102026"));
+    }
+
+    @Test
+    public void parseDate_validDate_success() throws Exception {
+        LocalDate expected = LocalDate.of(2026, 10, 15);
+
+        // No whitespaces
+        assertEquals(expected, ParserUtil.parseDate("15102026"));
+
+        // Leading and trailing whitespaces
+        assertEquals(expected, ParserUtil.parseDate(WHITESPACE + "15102026" + WHITESPACE));
+
+        // Past date and leap day
+        assertEquals(LocalDate.of(2025, 6, 20), ParserUtil.parseDate("20062025"));
+        assertEquals(LocalDate.of(2028, 2, 29), ParserUtil.parseDate("29022028"));
+    }
+
+    @Test
     public void parseName_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
     }
@@ -75,6 +216,19 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_unicodeAndPunctuationWithSpaces_returnsNormalizedName() throws Exception {
+        Name expectedName = new Name("李 José D'Arcy");
+        assertEquals(expectedName, ParserUtil.parseName("  李   José\u00a0\u00a0D'Arcy  "));
+    }
+
+    @Test
+    public void parseName_nonPrintableOrTooLong_throwsParseException() {
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("Alex\tTan"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("Alex\u200bTan"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("A".repeat(101)));
     }
 
     @Test
@@ -124,6 +278,29 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseType_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseType((String) null));
+    }
+
+    @Test
+    public void parseType_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseType(INVALID_TYPE));
+    }
+
+    @Test
+    public void parseType_validValueWithoutWhitespace_returnsType() throws Exception {
+        Type expectedType = new Type(VALID_TYPE);
+        assertEquals(expectedType, ParserUtil.parseType(VALID_TYPE));
+    }
+
+    @Test
+    public void parseType_validValueWithWhitespace_returnsTrimmedType() throws Exception {
+        String typeWithWhitespace = WHITESPACE + VALID_TYPE + WHITESPACE;
+        Type expectedType = new Type(VALID_TYPE);
+        assertEquals(expectedType, ParserUtil.parseType(typeWithWhitespace));
+    }
+
+    @Test
     public void parseEmail_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
     }
@@ -131,6 +308,12 @@ public class ParserUtilTest {
     @Test
     public void parseEmail_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+    }
+
+    @Test
+    public void parseEmail_emptyOrBlankValue_throwsParseException() {
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail(""));
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail("   "));
     }
 
     @Test

@@ -1,9 +1,13 @@
 package seedu.address.model;
 
+import java.time.LocalDate;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.exceptions.NoRedoableStateException;
+import seedu.address.model.exceptions.NoUndoableStateException;
 import seedu.address.model.person.Person;
 
 /**
@@ -12,6 +16,15 @@ import seedu.address.model.person.Person;
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
     Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+
+    /** Opaque, in-memory state belonging to one model, used to recover from a failed save. */
+    interface Checkpoint {}
+
+    /** Captures current data, history and displayed filters before command execution. */
+    Checkpoint createCheckpoint();
+
+    /** Restores this model's checkpoint without recording a new change. */
+    void restoreCheckpoint(Checkpoint checkpoint);
 
     /**
      * Returns the user prefs.
@@ -68,4 +81,48 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Returns true if there is an earlier state of the address book to return to.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Returns true if there is an undone state of the address book to restore.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Restores the address book to the state it had before the last change to its data.
+     *
+     * @throws NoUndoableStateException if there is no earlier state to restore.
+     */
+    void undoAddressBook();
+
+    /**
+     * Restores the address book state that was undone most recently.
+     *
+     * @throws NoRedoableStateException if there is no undone state to restore.
+     */
+    void redoAddressBook();
+
+    /** Returns chronologically sorted, unmodifiable appointment results. */
+    ObservableList<Appointment> getFilteredAppointmentList();
+
+    /** Replaces the appointment filter; null client/date means no restriction for that field. */
+    void updateFilteredAppointmentList(Person client, LocalDate date);
+
+    /** Adds an appointment linked to an existing client. */
+    void addAppointment(Appointment appointment);
+
+    /**
+     * Atomically replaces an existing appointment and records one undo step if data changes.
+     * Preserves the active client and appointment filters.
+     * Invalid replacements leave data, filters and history unchanged. Future editappt commands should
+     * construct the complete replacement and call this operation once.
+     */
+    void setAppointment(Appointment target, Appointment editedAppointment);
+
+    /** Deletes an existing appointment, clears undo/redo history and shows all remaining appointments. */
+    void deleteAppointment(Appointment appointment);
 }

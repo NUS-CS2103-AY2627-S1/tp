@@ -2,6 +2,7 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,6 +10,7 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -84,6 +87,84 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_unicodeNameWithSpaces_normalizesAndPersists() throws Exception {
+        Path filePath = testFolder.resolve("UnicodeAddressBook.json");
+        Files.writeString(filePath, """
+                {
+                  "persons": [{
+                    "name": "  李   D'Arcy-Smith  ",
+                    "phone": "85355255",
+                    "email": "amy@gmail.com",
+                    "address": "123, Jurong West Ave 6, #08-111",
+                    "type": "buyer",
+                    "tags": []
+                  }]
+                }
+                """);
+        AddressBook expected = new AddressBook();
+        expected.addPerson(new PersonBuilder().withName("李 D'Arcy-Smith").build());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        ReadOnlyAddressBook readBack = storage.readAddressBook().orElseThrow();
+        assertEquals(expected, new AddressBook(readBack));
+        storage.saveAddressBook(readBack);
+        assertEquals(expected, new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_presentAndAbsentEmails_roundTrip() throws Exception {
+        Path filePath = testFolder.resolve("OptionalEmails.json");
+        AddressBook expected = getTypicalAddressBook();
+        expected.addPerson(new PersonBuilder().withNoEmail().build());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        storage.saveAddressBook(expected);
+        assertEquals(expected, new AddressBook(storage.readAddressBook().orElseThrow()));
+        assertTrue(Files.readString(filePath).matches("(?s).*\"email\"\\s*:\\s*\"\".*"));
+        assertFalse(Files.readString(filePath).contains("Not provided"));
+    }
+
+    @Test
+    public void readAddressBook_missingNullOrEmptyEmail_loadsAbsentEmail() throws Exception {
+        AddressBook expected = new AddressBook();
+        expected.addPerson(new PersonBuilder().withNoEmail().build());
+        String[] emailFields = {"", "\"email\": null,", "\"email\": \"\","};
+        Path filePath = testFolder.resolve("LegacyOptionalEmail.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        for (String emailField : emailFields) {
+            Files.writeString(filePath, """
+                    {
+                      "persons": [{
+                        "name": "Amy Bee",
+                        "phone": "85355255",
+                        %s
+                        "address": "123, Jurong West Ave 6, #08-111",
+                        "type": "buyer",
+                        "tags": []
+                      }]
+                    }
+                    """.formatted(emailField));
+            assertEquals(expected, new AddressBook(storage.readAddressBook().orElseThrow()));
+            storage.saveAddressBook(expected);
+            assertEquals(expected, new AddressBook(storage.readAddressBook().orElseThrow()));
+        }
+    }
+
+    @Test
+    public void readAddressBook_malformedNonemptyEmail_rejectsFile() throws Exception {
+        Path filePath = testFolder.resolve("InvalidOptionalEmail.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(new PersonBuilder().build());
+        storage.saveAddressBook(addressBook);
+        String validData = Files.readString(filePath);
+        for (String invalidEmail : new String[] {"not-an-email", "   "}) {
+            Files.writeString(filePath, validData.replace(PersonBuilder.DEFAULT_EMAIL, invalidEmail));
+            assertThrows(DataLoadingException.class, () -> storage.readAddressBook());
+        }
     }
 
     @Test

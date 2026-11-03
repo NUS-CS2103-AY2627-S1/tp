@@ -9,7 +9,20 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* PropTrack is built on [AddressBook Level 3 (AB3)](https://se-education.org/addressbook-level3/), the
+  sample project from the SE-EDU initiative, and reuses its architecture, build configuration and parts of
+  its code and documentation under that project's licence.
+* The libraries used are [JavaFX](https://openjfx.io/) for the interface, [Jackson](https://github.com/FasterXML/jackson)
+  for reading and writing the data file, [JUnit 5](https://junit.org/junit5/) for the tests,
+  [Gradle](https://gradle.org/) with the [Shadow plugin](https://github.com/GradleUp/shadow) for the build and the
+  fat JAR, and [Checkstyle](https://checkstyle.sourceforge.io/) for the coding standard checks.
+
+**Notable uses of AI:**
+
+* @JackyJiangCS used OpenAI Codex extensively to generate and refine most of the code for their contributions,
+  including client deletion, appointment editing, and related input validation and error handling.
+  Codex also assisted with writing and updating automated tests, debugging, and drafting and revising
+  related User Guide and Developer Guide content, including UML diagrams.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -51,7 +64,7 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete C1`.
 
 <img src="images/ArchitectureSequenceDiagram.png" width="574" />
 
@@ -91,9 +104,9 @@ Here's a (partial) class diagram of the `Logic` component:
 
 <img src="images/LogicClassDiagram.png" width="550"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete C1")` API call as an example.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+![Interactions Inside the Logic Component for the `delete C1` Command](images/DeleteSequenceDiagram.png)
 
 <div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
@@ -117,13 +130,16 @@ How the parsing works:
 ### Model component
 **API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+<img src="images/ModelClassDiagram.png" width="800" />
 
 
 The `Model` component,
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores the address book data, i.e. all `Person` objects (contained in a `UniquePersonList` object) and all `Appointment` objects.
+  Each `Appointment` refers to the `Person` it is for, so editing a client updates its appointments and deleting a client removes them.
+* holds that data in a `VersionedAddressBook`, an `AddressBook` that also keeps the snapshots used by `undo` and `redo` (see [Undo/redo feature](#undoredo-feature)).
+* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list, sorted by name and then client ID. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* similarly exposes the `Appointment` objects selected by the current client and date filter as an unmodifiable list in chronological order. The client filter holds the selected `Person` itself, not their position in the displayed list.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
@@ -142,6 +158,7 @@ The `Model` component,
 
 The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
+* saves clients and appointments in the same data file. A `JsonAdaptedAppointment` refers to its client by position in the saved client list, so the link survives a restart.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
 
@@ -153,19 +170,195 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 ## **Implementation**
 
+### Adding a client: identity, feedback and selection
+
+`AddCommand` reports `Added client C8: Alex Tan. Current position: C1 (for delete/appointment commands).`
+after creating a client. The position comes from the updated, sorted displayed list. Full contact details
+remain available in `PersonDetailsPanel`, including `Not provided` for an omitted email address.
+
+1. `Model.hasPerson` checks the complete address book for an existing normalized name, ignoring letter case
+   through `Person.isSamePerson`, including clients
+   hidden by the current filter. Only when the model reports a duplicate does the command look up the
+   existing record for its name and ID in the error message;
+   no client is added and no identifier is allocated. The same identity check rejects conflicting client edits.
+   `Name.equals` and full `Person.equals` remain case-sensitive so capitalization changes are saved and undoable.
+2. `AddressBook` assigns an immutable `ClientId` and advances its allocation counter. Editing a
+   client preserves the identifier. Deleting, clearing or undoing an addition does not make an
+   allocated identifier available to another client.
+3. `ModelManager` exposes a sorted projection of the filtered clients: names are compared without
+   regard to letter case, followed by the numeric client ID. The underlying storage order stays
+   unchanged, preserving existing appointment links.
+4. `AddCommand` returns the stored client in `CommandResult`. `LogicManager` saves the address book
+   before returning that result to the UI. If saving fails, its checkpoint restores the data, filters,
+   ID counter and undo/redo history, and no selection request reaches the UI.
+5. `MainWindow` selects and scrolls to the newly added record. Selection changes update the details
+   panel; the command box clears after successful execution.
+
+The JSON representation stores each client's numeric `clientId` and the address book's
+`nextClientId` counter. Legacy files without these fields receive IDs in stored-client order.
+When a file mixes old and identified records, explicit IDs are reserved before missing IDs are
+assigned. Duplicate IDs, invalid numeric values and counters below existing IDs are rejected.
+Undo/redo snapshots retain identifier metadata; failed-save rollback restores the exact checkpoint.
+
+Client cards label **Position** separately from **Client ID**. Existing `delete` and appointment
+commands continue to use their displayed-position references, while `edit` uses the numeric row
+position. These argument contracts are independent of the permanent ID reported by `add`.
+
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Appointment editing
 
-#### Proposed Implementation
+`editappt APPOINTMENT_INDEX [n/APPOINTMENT_NAME] [c/CLIENT_INDEX] [d/DATETIME] [loc/LOCATION] [desc/DESCRIPTION]`
+supports all five fields in the feature specification, including UC03's location change. Appointment and
+client references are numeric positions in their respective displayed lists; neither is a permanent ID.
+`EditAppointmentCommandParser` rejects missing changes, repeated/unknown prefixes and invalid values before
+execution. `ParserUtil#parseAppointmentEditDateTime` validates the exact `yyyy-MM-dd HH:mm` format and real
+calendar values independently of the creation command's date format.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+The immutable `AppointmentEditFields` distinguishes an omitted description (`null`) from an explicit clear
+(empty string). It validates the replacement name with `AppointmentName#isValid`, the same rule `appointment`
+uses on creation: 1-80 ASCII letters, digits and spaces with at least one letter or digit. Because creation
+and editing share this one rule, a name accepted by either command can be saved, reloaded and edited again.
+The rule includes the older letter-only creation names and 50-character edit names, so existing data files
+still load. `AppointmentEditFields` also checks the edit-specific location limit.
+
+`EditAppointmentCommand` resolves both references against the current filtered lists and constructs the
+complete immutable replacement before mutation. A new start time shifts the end by the original duration;
+an overflowing end is rejected. `Model#setAppointment` checks the full schedule for clashes, excluding the
+target, then replaces the stored entry and commits one history snapshot. A rejected replacement changes
+neither data nor history. Active filters are retained, so a changed client/date can hide the edited record.
+
+![Appointment edit execution, persistence and no-op behavior](images/EditAppointmentSequenceDiagram.png)
+
+If the replacement equals the target, the command returns `CommandResult.withoutSave` with a friendly
+advisory. `LogicManager` skips storage for this successful no-op, preserving the file, filters and redo
+history even if the data file cannot be written. Changed results use the existing save/checkpoint path:
+a save failure restores all fields, both filters and the history before reporting the error. Diagnostic
+logs distinguish rejected edits, no-ops, in-memory updates and completed persistence.
+
+Integration tests exercise individual and combined fields, clearing notes, filtered references, chronological
+reordering, preserved durations, hidden schedule clashes, calendar overflow, unchanged edits, legacy names,
+separate creation/edit undo steps, JSON round trips and I/O/permission failure rollback.
+
+### Appointment viewing and deletion
+
+`Appointment` is immutable and stores a linked `Person`, name, location, Singapore local start/end
+date-times, and remarks. Its constructor validates the name, location and positive duration.
+Creation uses `ParserUtil.parseAppointmentLocation` for the shared nonblank location rule and
+Unicode whitespace trimming. The model enforces the same rule when loading stored appointments.
+`AddressBook` owns the appointment list alongside clients and exposes an unmodifiable observable view.
+Replacing a client updates its appointment links. Removing a client removes its appointments.
+Resetting the address book, including `clear`, replaces both collections.
+
+`ModelManager` applies a `FilteredList` over **all** appointments, followed by a `SortedList` using
+start time, end time, appointment name and client name as deterministic ordering keys. An appointment
+date filter matches the local start date; no conversion using the computer's timezone is performed.
+The optional client filter holds the resolved client, not its displayed position, so later client-list
+filtering cannot retarget it. Editing that client updates the active appointment filter as well.
+
+`AppointmentsCommandParser` validates optional, single-valued `c/` and `d/` fields. The command resolves
+`c/C1` against the displayed client list before replacing the appointment filter. An invalid reference
+therefore leaves existing filters unchanged. Viewing returns through `LogicManager` without saving.
+`DeleteAppointmentCommandParser` checks an `A` reference and a final `yes` or `confirm` before execution.
+The command resolves that position against the sorted, filtered appointment list, removes exactly that
+appointment, and resets the appointment filter to display all remaining appointments. Displayed references
+are recalculated by the panel and are not stored as stable IDs. These commands do not change the client filter.
+
+`appointment` supplies the creation dependency for this iteration: it validates all required fields,
+resolves a displayed client reference and checks for overlaps against the complete stored schedule.
+Intervals that meet at an endpoint do not clash. The model also rejects overlapping appointments,
+including when loading saved data. Appointment editing is implemented by `editappt` as described above.
+
+The model provides `Model#setAppointment(target, editedAppointment)` for the `editappt`
+command. Construct the complete immutable replacement first, resolve its client against the current
+client list, then call this operation **once**. It validates that the target and linked client exist
+and that the replacement does not clash with another appointment, excluding the target itself.
+Validation finishes before any mutation. A changed replacement updates the observable list atomically,
+records one history entry, and preserves both active filters and chronological display ordering.
+If an edit changes a field used by a filter, the appointment may leave those results; a location-only
+edit keeps its displayed reference. An identical replacement preserves history as well as filters.
+Do not implement editing as deletion followed by addition: confirmed
+appointment deletion deliberately establishes an irreversible history boundary.
+
+JSON stores appointments in the same data file as clients. `JsonAdaptedAppointment.clientIndex` is the
+one-based position in the **saved, unfiltered** client array, resolved only when loading that file.
+This keeps linkage correct after a client is edited or removed and the file is saved again.
+Legacy files without an appointment array load with an empty schedule. Missing required appointment
+fields, invalid calendar values, non-integer or dangling client references and duplicate appointments
+reject the whole file through `DataLoadingException`; partial loading is not performed.
+Existing startup quarantine behavior also applies to unreadable appointment data.
+
+Parser, model, command and disk integration tests cover filtering, displayed deletion references,
+client lifecycle changes, backwards-compatible loading, save/restart behavior and invalid-data rejection.
+See the [appointment smoke test](Testing.md#appointment-smoke-test) for GUI verification.
+
+### Undo/redo feature
+
+#### Implementation
+
+The undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an
+undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`.
+Each snapshot contains both clients and appointments, preserving their links. Successful undo and
+redo reset both filters in `ModelManager`, so a predicate referencing an edited client cannot hide
+restored appointments. Unavailable operations leave filters unchanged.
 
 * `VersionedAddressBook#commit()` — Saves the current address book state in its history.
 * `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
 * `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+`Model#undoAddressBook()`, `Model#redoAddressBook()`, `Model#canUndoAddressBook()` and
+`Model#canRedoAddressBook()` are exposed in the `Model` interface. The model commits one new snapshot
+for a client mutation, appointment creation or appointment replacement. A commit compares the full
+data before truncating redo, so no-op edits preserve redo. Viewing and rejected commands do not
+record history. History is kept in memory only: after a restart there is nothing to undo or redo.
+
+`MainApp` builds the startup notice when the data file cannot be read: `Messages#formatUnreadableDataFile`
+names the data file and the preserved copy, and `UiManager` passes it to `MainWindow`, which shows it in
+the result box. A failed save names the data file path in the exception message, and `LogicManager`
+restores the checkpoint before reporting it, so the data, both filters and the history match the file.
+
+`list`, `search`, `help` and `exit` return `CommandResult.withoutSave(...)` because they do not change
+persisted client or appointment data. `LogicManager` returns these results without calling storage,
+so a storage failure cannot prevent viewing clients, requesting help or exiting. The overload with
+help and exit flags preserves the UI action while skipping the data write. Search/list still update
+the client filter; the appointment filter, stored data and undo/redo history are preserved.
+
+Confirmed `deleteappt` is deliberately irreversible. After removal, `VersionedAddressBook#resetHistory()`
+replaces the whole timeline with the current data as its only baseline. This clears both older undo
+and redo entries, including client changes, and prevents any old snapshot from resurrecting the
+deleted appointment. Later mutations start a fresh undoable timeline. Client deletion and `clear`
+remain undoable, restoring their linked appointments together.
+
+`BackupCommand` writes a copy of the current data with `JsonAddressBookStorage`, so the copy is a
+complete data file that `restore` can read. It changes no data and calls no `Model` mutator, which is why
+it creates no history entry, leaves both filters alone and preserves redo. `LogicManager` skips the
+automatic save for it, as it does for `appointments`, because there is nothing to save. A file that
+already exists is refused rather than overwritten, and any `IOException` is reported with the target path
+and the note that nothing was changed.
+
+The sequence diagram below shows a backup, including the temporary file that is published under the
+chosen name only once the write has finished.
+
+![Interactions for the `backup` command](images/BackupSequenceDiagram.png)
+
+`RestoreCommand` reads the named file with `JsonAddressBookStorage`, so the file is validated as a client list
+before the model is touched, and then replaces the whole book with `Model#setAddressBook`, which commits a
+single snapshot. A missing file or an unreadable one throws a `CommandException` before any mutation, so a
+rejected restore leaves the data, both filters and the redo branch untouched.
+
+The sequence diagram below shows the check-before-act flow, including the branch where the file is
+rejected before anything is changed.
+
+![Interactions for the `restore` command](images/RestoreSequenceDiagram.png)
+
+Before executing a parsed command, `LogicManager` captures an opaque `Model.Checkpoint`. It contains
+current data, the complete history (including future redo entries), its pointer, and both filters.
+If saving throws `IOException` or `AccessDeniedException`, logic restores the checkpoint before
+reporting failure. This also recovers a redo branch truncated by a failed change, or history cleared
+by a failed confirmed deletion. Checkpoints belong to their originating model and never become
+new history entries. They restore in-memory state; this mechanism does not guarantee filesystem
+recovery after a partially completed write. `editappt` uses this existing logic execution
+and save path rather than performing its own save or history commit.
 
 Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
 
@@ -173,15 +366,15 @@ Step 1. The user launches the application for the first time. The `VersionedAddr
 
 ![UndoRedoState0](images/UndoRedoState0.png)
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+Step 2. The user executes `delete C5` command to delete the 5th person in the address book. The data change is committed by the model, causing the modified state of the address book after the `delete C5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
 
 ![UndoRedoState1](images/UndoRedoState1.png)
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+Step 3. The user executes `add n/David …​` to add a new person. The `add` command changes the data too, so another modified address book state is saved into the `addressBookStateList`.
 
 ![UndoRedoState2](images/UndoRedoState2.png)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails before it changes any data, no state is committed, so nothing is saved into the `addressBookStateList`.
 
 </div>
 
@@ -212,11 +405,11 @@ The `redo` command does the opposite — it calls `Model#redoAddressBook()`,
 
 </div>
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+Step 5. The user then decides to execute the command `list`. Commands that do not change the data, such as `list`, commit nothing, so the `addressBookStateList` remains unchanged.
 
 ![UndoRedoState4](images/UndoRedoState4.png)
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+Step 6. The user executes `clear`, which changes the data and is committed. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
 
 ![UndoRedoState5](images/UndoRedoState5.png)
 
@@ -238,6 +431,45 @@ The following activity diagram summarizes what happens when a user executes a ne
   * Cons: We must ensure that the implementation of each individual command is correct.
 
 _{more aspects and alternatives to be added}_
+
+### Client addition flow
+
+The activity diagram below shows the `add` command's validation, model changes and persistence.
+
+<img src="images/AddClientActivityDiagram.png" alt="Activity diagram for adding a client, including validation, duplicate rejection and rollback after a failed save" width="650"/>
+
+`AddCommandParser` validates the required fields, rejects repeated single-value prefixes and
+validates an email only when it is supplied. Invalid input stops before a model checkpoint is
+created. After parsing, `LogicManager` captures the model's data, undo/redo history and filters.
+`AddCommand` then checks for a duplicate client before making any changes.
+
+For a new client, `ModelManager.addPerson` updates the address book, commits an undoable state and
+resets the client filter to show all clients. The command prepares a success `CommandResult`, but
+`LogicManager` returns it only after `Storage.saveAddressBook` succeeds. If saving throws an
+`IOException` (including `AccessDeniedException`), the model checkpoint is restored and a
+`CommandException` is thrown instead. This restores the previous data, history and filters so a
+failed save does not leave an added client in memory.
+
+### Client search flow
+
+The activity diagram below shows the search command’s argument validation, predicate construction
+and filtered-client-list update.
+
+<img src="images/SearchClientActivityDiagram.png" alt="Activity diagram for searching clients, including argument validation, predicate construction and filtered-list update" width="650"/>
+
+`SearchCommandParser` tokenizes the arguments, validates the supported prefixes, rejects duplicate
+prefixes and ensures that at least one search parameter is provided. It also validates supplied
+name, phone-number and client-type values. Invalid input stops the flow with a `ParseException`.
+
+For valid input, the parser creates predicates for the supplied fields. When multiple fields are
+provided, their predicates are combined so that matching clients satisfy all specified criteria.
+A `SearchCommand` is then created and executed.
+
+`SearchCommand` updates the filtered client list through `ModelManager.updateFilteredPersonList`, counts
+the matching clients and prepares a success `CommandResult` stating the number of results found. The
+command does not modify the stored address book or persist any changes.
+
+
 
 ### \[Proposed\] Data archiving
 
@@ -261,69 +493,302 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+* is an insurance or property agent managing a large, frequently changing list of clients
+* needs to add, find and update client contact details regularly
+* prefers a desktop application for managing client records
+* can type quickly and prefers typing to mouse interactions
+* is reasonably comfortable using a command-line interface
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: PropTrack helps insurance and property agents manage client contacts efficiently.
+Its command-based desktop interface lets agents add, find and update client details quickly,
+reducing time spent on contact administration.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …​                                                  | I want to …​                                                                          | So that I can…​                                                          |
+| -------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `* * *`  | user                                                     | add a client with phone, email, address and tags                                       | keep all my contacts in one place                                          |
+| `* * *`  | agent on a call with 200+ clients stored                 | find a client by typing part of their name                                             | get their details in seconds                                               |
+| `* *`    | user who cannot recall the exact command or spelling     | still reach the right client                                                           | keep going when a typo happens mid-call                                    |
+| `* *`    | user                                                     | edit a client's details                                                                | correct mistakes I made when adding them                                   |
+| `* * *`  | user                                                     | delete a client I no longer track                                                      | keep my list current                                                       |
+| `* * *`  | user who made a wrong change                             | undo my last change                                                                    | stop one wrong command from destroying my data                             |
+| `* *`    | user who deleted a client by mistake                     | get that client back                                                                   | stop one slip from costing me a client                                     |
+| `* *`    | user                                                     | tag a client                                                                           | group clients that share a location, a budget or a source                  |
+| `* *`    | user                                                     | find all clients that carry a given tag                                                | work one group at a time                                                   |
+| `* * *`  | agent tracking deals                                     | label each client with their deal stage and pull up everyone in one stage               | see at a glance who is a lead, viewing, offer or closed                    |
+| `* * *`  | user                                                     | record notes about my interactions with a client                                        | recall previous discussions before following up                            |
+| `* * *`  | forgetful agent                                          | see which clients I still owe a follow-up                                               | stop a lead going cold                                                     |
+| `* *`    | user                                                     | associate an appointment with a client's record                                         | reach their details while preparing for it                                 |
+| `* * *`  | user                                                     | see all my appointments in chronological order                                          | plan my schedule                                                           |
+| `* *`    | user                                                     | add an appointment and be warned when it clashes with an existing one                   | avoid scheduling conflicts                                                 |
+| `* *`    | user                                                     | find a specific appointment                                                            | change or remove its contents                                              |
+| `* *`    | user                                                     | mark an appointment as completed                                                        | tell past meetings from ones that still need attention                     |
+| `* *`    | user                                                     | see the appointments and follow-ups coming up when I open the app                       | not forget something that is already scheduled                             |
+| `* * *`  | user                                                     | retain my contacts and appointments when I close and reopen the program                 | continue without re-entering data                                          |
+| `* * *`  | user                                                     | rely on my changes being saved as I work                                                | know that closing the app never loses an entry                             |
+| `* * *`  | cautious user                                            | back up my client data and restore it when the data file breaks                          | never lose months of contacts                                              |
+| `* *`    | user comfortable with text files                         | hand-edit the saved data file                                                           | fix or bulk-edit data without the app                                      |
+| `* * *`  | new user                                                 | view a guided introduction to the available functions                                    | learn the app without prior command-line experience                        |
+| `* * *`  | user                                                     | get a clear explanation of invalid input and how to correct it                          | resolve mistakes without guessing                                          |
+| `* *`    | user who mistyped a command                              | be pointed at the closest valid command                                                 | recover without reading the whole help page                                |
+| `* * *`  | potential user exploring the app                         | see it populated with sample data                                                        | see how it will look in real use                                           |
+| `* * *`  | user ready to start for real                             | purge all sample data                                                                   | clear the experimental entries                                             |
+| `* *`    | expert user                                              | shorten the commands I run all day                                                      | save time on frequently performed tasks                                    |
+| `*`      | long-time user                                           | archive clients I no longer track                                                        | stop closed deals cluttering my list                                       |
+| `*`      | user                                                     | import my existing contacts in bulk                                                     | avoid entering each client manually                                        |
+| `*`      | user coming back after months away                       | pick up where I left off                                                                | avoid relearning the app                                                   |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `PropTrack` and the **Actor** is the `real estate agent`, unless specified otherwise.)
 
-**Use case: Delete a person**
+**Use case: UC01 - Register a new client and schedule a viewing**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. Agent requests to add a new client, providing the client's name, phone number, client type, and optionally email address.
+2. PropTrack adds the client and displays the client's assigned ID and details.
+3. Agent requests to create a viewing appointment for that client, providing the appointment name, location, start date and time, and end date and time.
+4. PropTrack creates the appointment and displays its details, including the associated client.
 
-    Use case ends.
+   Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 1a. The client details are invalid or required information is missing.
+
+    * 1a1. PropTrack explains the problem and the accepted values. No client is added.
+
+      Use case resumes at step 1.
+
+* 1b. The supplied name matches an existing client.
+
+    * 1b1. PropTrack identifies the existing client and reports that no client was added.
+
+      Use case ends.
+
+* 3a. The appointment details are invalid or incomplete.
+
+    * 3a1. PropTrack explains the problem. No appointment is created.
+
+      Use case resumes at step 3.
+
+* 3b. The requested appointment overlaps an existing appointment.
+
+    * 3b1. PropTrack reports the scheduling conflict and identifies the conflicting appointment or appointments. No appointment is created.
+
+      Use case resumes at step 3.
+
+**Use case: UC02 - Update a client's contact details**
+
+**MSS**
+
+1. Agent requests to search for a client using the client's name, phone number, or client type.
+2. PropTrack displays the matching clients.
+3. Agent identifies the intended client and requests to update the client's phone number, email address, or both.
+4. PropTrack updates the supplied contact details and displays the updated client record, retaining the client's ID and linked appointments.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The search criteria are invalid or empty.
+
+    * 1a1. PropTrack explains the accepted search criteria.
+
+      Use case resumes at step 1.
+
+* 2a. No clients match the search criteria.
 
   Use case ends.
 
-* 3a. The given index is invalid.
+* 3a. The supplied contact details are invalid.
 
-    * 3a1. AddressBook shows an error message.
+    * 3a1. PropTrack explains the problem and leaves the client record unchanged.
 
-      Use case resumes at step 2.
+      Use case resumes at step 3.
 
-*{More to be added}*
+* 3b. The supplied contact details are identical to the existing values.
+
+    * 3b1. PropTrack informs the agent that no changes were made.
+
+      Use case ends.
+
+* 3c. The supplied client reference is invalid or does not identify an existing client.
+
+    * 3c1. PropTrack reports the problem. No client record is changed.
+
+      Use case resumes at step 3.
+
+**Use case: UC03 - Change an appointment's meeting location**
+
+**MSS**
+
+1. Agent requests to view appointments for a specified date.
+2. PropTrack displays the matching appointments in chronological order.
+3. Agent identifies the intended appointment and requests to replace its meeting location.
+4. PropTrack updates the appointment and displays the revised details.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The supplied date is invalid.
+
+    * 1a1. PropTrack reports the problem with the date.
+
+      Use case resumes at step 1.
+
+* 2a. No appointments match the specified date.
+
+    * 2a1. PropTrack informs the agent that no appointments were found.
+
+      Use case ends.
+
+* 3a. The appointment reference does not identify an appointment in the displayed list.
+
+    * 3a1. PropTrack reports the invalid reference. No appointment is changed.
+
+      Use case resumes at step 3.
+
+* 3b. The supplied location is blank.
+
+    * 3b1. PropTrack informs the agent that the location cannot be blank. No appointment is changed.
+
+      Use case resumes at step 3.
+
+* 3c. The supplied location exceeds 100 characters after trimming leading and trailing whitespace.
+
+    * 3c1. PropTrack explains the length limit. No appointment is changed.
+
+      Use case resumes at step 3.
+
+* 3d. The supplied location is unchanged after trimming leading and trailing whitespace.
+
+    * 3d1. PropTrack informs the agent that no changes were made. The data, active filters and undo/redo
+      history remain unchanged, and no data file is written.
+
+      Use case ends.
+
+**Use case: UC04 - Remove a cancelled appointment**
+
+**MSS**
+
+1. Agent requests to view appointments for a specified date.
+2. PropTrack displays the matching appointments in chronological order.
+3. Agent identifies the cancelled appointment and requests its deletion, explicitly confirming the deletion.
+4. PropTrack deletes the appointment, confirms its removal, and displays all remaining appointments in chronological order. The associated client remains in the client directory.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The supplied date is invalid.
+
+    * 1a1. PropTrack reports the problem with the date.
+
+      Use case resumes at step 1.
+
+* 2a. No appointments match the specified date.
+
+    * 2a1. PropTrack informs the agent that no appointments were found.
+
+      Use case ends.
+
+* 3a. The appointment reference does not identify an appointment in the displayed list.
+
+    * 3a1. PropTrack reports the invalid reference. No appointment is deleted.
+
+      Use case resumes at step 3.
+
+* 3b. Agent omits the required deletion confirmation.
+
+    * 3b1. PropTrack reports that confirmation is required. No appointment is deleted.
+
+      Use case resumes at step 3.
+
+* 4a. No appointments remain after the deletion.
+
+    * 4a1. PropTrack confirms the deletion and informs the agent that no appointments were found.
+
+      Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+Environment NFRs
+1. PropTrack must be able to perform consistently on any _mainstream OS_ as long as it has Java `25` or above installed.
+2. PropTrack must be able to operate completely offline and will not require any internet connection or connection with external servers to operate normally.
+3. It must support, at minimum, the english language.
+4. PropTrack must be packaged in a Jar executable file that can be run by either double-clicking it or through the terminal.
 
-*{More to be added}*
+Performance NFRs
+1. Should be able to hold up to 1000 Clients without noticeable sluggishness in performance for typical usage.
+2. PropTrack should return the search results within a reasonable time of 1 second(s) for a data size of 100 clients.
+3. PropTrack commands should remain responsive (Do not feel clunky or hang) when executing commands on a very large but supported dataset size.
+4. During the use of PropTrack, it should not cause any excessive or noticeable lag, freezing during normal use.
+5. During auto-saving of data (when a command that modifies the data file is successfully executed), it will not cause any noticeable lag or freezing during the process.
+6. PropTrack should only rely on the CPU and Integrated GPU to run and not need any extra/special hardware to run.
+7. Normal operation of PropTrack should not cause the computer to use a tremendous amount of RAM, CPU, GPU (To the point the cooling fans start to run on a laptop).
+
+Data NFRs
+1. PropTrack is able to locate its data files without depending on the user's current directory to do so.
+2. PropTrack's data must retain its data after user closes or restarts it.
+3. Any command that makes changes in PropTrack's data files will be automatically saved without requiring a user input to manually save any change(s) made.
+4. Only successful commands will be able to modify the contents of the data file, failed commands will not be able to modify the data file at all.
+5. Once a client is assigned a client ID, it will persist throughout all commands and cannot be changed by any commands.
+6. A client's ID remains uniquely to that specific client and will not repeat else where even after deletion.
+7. PropTrack will not replace corrupted/unreadable data with an empty dataset and must inform the user that data content has issues being read.
+8. Client data and appointment must persist and remain correct throughout the use of the application.
+9. No unsuccessful command must cause the data file to become corrupted nor its data rendered unreadable.
+10. User inputting the same operation rapidly/repeatedly will not cause the client ID to duplicate, client data to be lost or produce malformed data.
+11. The background save function must protect and ensure that the data file does not become unusable/corrupted.
+
+Usability NFRs
+1. A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+2. When error messages appear, they must clearly identity what is the issue causing the error and provide a sample command/command format for the user to reference.
+3. Client and appointment ordering and indexing will remain consistent and predictable.
+4. Empty filter results must be distinguishable from application or data-loading failures when displaying search results.
+5. Commands must maintain consistent behaviour regardless of the user's previous filtering or viewing actions.
+6. User input must be standardized according to the command format, any deviation should be considered an error and flagged to the user
+7. PropTrack must be able to process other user's data file so long as they were generated by a PropTrack application.
+8. PropTrack should not crash as a result of malformed user input/data content.
+
+Security NFRs
+1. PropTrack must not transmit any data fields(Client data, appointment data, data file) over any network during normal operations
+2. No personal/identifying information must be displayed in any logs, temporary files or diagnostic output.
+3. Malformed, excessively long or unexpected user inputs should not cause PropTrack to crash or consume a tremendous amount of resources.
+4. Any malformed or unexpected data contents in the data file should not be processed and should be ignored.
+5. No client data will be shared with any third parties.
+
+Maintainability and Scalability NFRs
+1. PropTrack's data file must be portable and supported in all mainstream OSes.
+2. PropTrack must use a standard format for storing client data, appointments in its data file
+3. Modifying/updating a command's validation, format or parsing should not affect an unrelated command in any other way.
+4. JUnit tests should cover all normal, expected user operations, test if the proper error messages are returned for a given error and test for all edge cases that causes the program to crash/not respond properly.
+5. Incompatible or unsupported data file types should not be processed by PropTrack.
+6. The application should be designed such that it can easily handle and process a growing list of clients and their respective appointment data.
+7. The client class and appointment class should be designed such that additional parameters can be added smoothly without causing major code refactoring.
+
 
 ### Glossary
 
+* **Client**: A person whose contact details the property agent manages in PropTrack. A client may be a buyer, seller, landlord, or tenant.
+* **Client type**: The client's role in a property transaction: buyer, seller, landlord, or tenant.
+* **Client ID**: A unique identifier assigned to a client, written as `C` followed by a positive integer (for example, `C1`). It remains associated with that client when the displayed list changes.
+* **Displayed index**: The one-based position of a client or appointment in the list currently shown on screen. It can change when records are added, removed, sorted, or filtered, so it is distinct from a stable ID.
+* **Filtered list**: The subset of clients or appointments currently shown after a search or filter is applied.
+* **Appointment**: A scheduled meeting associated with a client, with a name, location, and date and time.
+* **Appointment reference**: In v1.3, `A` followed by the appointment's current displayed position
+  (for example, `A2`). It changes when appointments are filtered, added or removed; it is not a stable ID.
+* **Schedule clash**: An overlap between the time of a proposed appointment and an existing appointment.
+* **Data file**: The local file in which PropTrack stores client and appointment records between runs.
+* **Backup**: A separate copy of the saved data that can be used to recover records.
+* **Restore**: Replace the current records with those in a valid backup file.
+* **Undo and redo**: Reverse the latest data-changing command, or reapply a change that was undone, respectively.
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
 * **Private contact detail**: A contact detail that is not meant to be shared with others
 
@@ -342,41 +807,208 @@ testers are expected to do more *exploratory* testing.
 
 1. Initial launch
 
-   1. Download the JAR file and copy it into an empty folder.
+   1. Download the JAR file and copy it into an empty folder that you can write to.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar proptrack.jar`. Double-clicking the JAR file is
+      not reliable on every system, so use it only as a last resort.<br>
+      Expected: The GUI opens with six sample clients and no appointments. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with `java -jar proptrack.jar`.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Adding, listing, editing and searching clients
 
-### Deleting a person
+Use a fresh, writable test folder. Run these steps in order; `clear` removes all clients and appointments.
 
-1. Deleting a person while all persons are being shown
+1. Set up two clients:
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   ```text
+   clear
+   add n/Alice Tan p/91234567 a/Clementi y/buyer
+   add n/Bob Lim p/92345678 e/bob@example.com a/Tampines y/seller
+   list
+   ```
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+   Expected: Two clients appear alphabetically at positions `C1` and `C2`. Alice's email is `Not provided`.
+   Record their permanent Client IDs; these remain unchanged by the following searches and edits.
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+2. Run `search n/Alice y/buyer`, then `search p/92345678`, then `search n/Alice Lim`.<br>
+   Expected: Alice alone, Bob alone, then no clients. Name keywords must all match the same client.
+   Run `list`: both clients reappear.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+3. Run `search n/Bob`, then `edit 1 p/93456789 e/`.<br>
+   Expected: Bob's phone changes and his email becomes `Not provided`. The name search stays active, so only
+   Bob remains visible. Bob keeps his permanent Client ID, and Alice remains unchanged and hidden.
 
-1. _{ more test cases …​ }_
+4. Try `add n/bob lim p/94567890 a/Bedok y/tenant`, `edit 99 p/94567890`, and
+   `add n/Carol p/91a234567 a/Bedok y/tenant`.<br>
+   Expected: Duplicate name, invalid position, and invalid phone errors respectively. Neither client changes.
+
+5. Run `undo`, then `redo`.<br>
+   Expected: Undo restores Bob's original phone and email together; redo reapplies the edit. The rejected
+   commands did not add history entries. The full client list is displayed after each command.
+
+### Phone formatting and client feedback
+
+1. In a disposable, writable folder, run `clear`, then
+   `add n/Lim Ah Kow p/+65 9123 4567 a/Bedok y/buyer`.<br>
+   Expected: The stored/displayed phone is `6591234567`. Both `search p/6591234567` and
+   `search p/+65 9123 4567` find the client. `edit 1 p/9234 5678` stores `92345678` and reports `Edited client:`.
+
+2. Try adding a different client with `p/000` or a 16-digit phone.<br>
+   Expected: Validation fails; data and history stay unchanged. The 3-15-digit rule also applies to edit and search.
+
+3. Add `add n/Bob Lim p/93456789 a/NUS y/seller`, then run `list` and `edit 2 n/BOB LIM`.<br>
+   Expected: The duplicate error names Bob's permanent Client ID and original stored name, and no edit is applied.
+   `clear` reports `All clients and appointments have been cleared.`
+
+### Deleting a client
+
+Use a disposable, writable folder for this sequence. The setup uses `clear`, which removes all existing
+clients and appointments. Run the steps in order and keep the same folder when restarting.
+
+1. Set up two clients and their appointments:
+
+   ```text
+   clear
+   add n/Alice p/91234567 a/Clementi y/buyer
+   add n/Bob p/92345678 a/Tampines y/seller
+   appointment n/Alice Viewing c/C1 loc/NUS s/20261101-1000 e/20261101-1100
+   appointment n/Bob Signing c/C2 loc/Office s/20261101-1100 e/20261101-1200
+   appointment n/Bob Followup c/C2 loc/Office s/20261102-1100 e/20261102-1200
+   ```
+
+   Expected: Alice and Bob occupy client positions `C1` and `C2`; three appointments are displayed.
+   Record Bob's permanent Client ID to check that restoration retains it.
+
+2. Run `search n/Bob`, then `appointments c/C1 d/01112026`.<br>
+   Expected: Only Bob is in the client list, now at position `C1`. Only Bob Signing is in the appointment
+   list. Bob Followup is hidden by the date filter.
+
+3. Try `delete C0`, `delete`, `delete C1 extra`, and `delete C999`.<br>
+   Expected: Each command reports an error. Bob, his appointments and both filters remain unchanged.
+
+4. Run `delete C1`.<br>
+   Expected: Bob is deleted, even though he was `C2` in the full client list. The result begins
+   `Deleted Client: Bob`. The client search remains active, so its results are empty. Both Bob Signing
+   and the hidden Bob Followup are removed. The appointment client filter is cleared, but the date filter
+   remains, so Alice Viewing appears. Run `list` and `appointments`: only Alice and Alice Viewing remain.
+
+5. Run `undo`.<br>
+   Expected: Bob and both of his appointments are restored together, including his original permanent
+   Client ID. Both full lists are displayed. The intervening viewing commands did not add undo steps.
+
+6. Run `redo`, then `exit`, and relaunch the JAR in the same folder.<br>
+   Expected: Only Alice and Alice Viewing remain; Bob and both of his appointments stay deleted.
+   `undo` reports `Nothing to undo.` because history is not retained across restarts.
+
+### Adding and viewing appointments
+
+1. Adding an appointment
+
+   1. Prerequisites: Start with the sample data and run `list`, so `C1` is Alex Yeoh and `C2` is Bernice Yu.
+
+   1. Test case: `appointment n/Viewing c/C1 loc/Sentosa Cove s/20261105-1000 e/20261105-1100`<br>
+      Expected: `A1 Viewing` for Alex Yeoh appears in the appointment panel. The result names the appointment,
+      client, start, end and location. The client list does not change.
+
+   1. Test case: `appointment n/Signing c/C2 loc/Office s/20261105-1030 e/20261105-1130`<br>
+      Expected: Nothing is added. The result reports a schedule clash with `Viewing`.
+
+   1. Test case: `appointment n/Signing c/C2 loc/Office s/20261105-1100 e/20261105-1200`<br>
+      Expected: The appointment is added as `A2`. An appointment may start when another ends.
+
+   1. Other incorrect commands to try: a client reference without the `C` (`c/2`) or beyond the list (`c/C99`),
+      an impossible date (`s/20260230-1100`), an end before the start, and a repeated field such as `n/A n/B`.<br>
+      Expected: Nothing is added, and the result explains which field is wrong.
+
+1. Viewing appointments
+
+   1. Prerequisites: The two appointments added above.
+
+   1. Test case: `appointments d/05112026`<br>
+      Expected: Both appointments are shown as `A1` and `A2`, and the result is `Showing 2 appointments.`
+
+   1. Test case: `search n/Bernice`, then `appointments c/C1`<br>
+      Expected: Only Bernice Yu's `Signing` is shown. `C1` refers to the first client in the search results,
+      and the client list keeps showing those results.
+
+   1. Test case: `appointments d/30022026`<br>
+      Expected: The result is `Enter a valid date in DDMMYYYY format.` Both lists stay unchanged.
+
+### Deleting appointments
+
+1. Deleting a displayed appointment
+
+   1. Prerequisites: Run `appointments` with at least two appointments shown.
+
+   1. Test case: `deleteappt A1`<br>
+      Expected: Nothing is deleted. The result is `Deletion requires yes/confirm. Nothing was deleted.`
+
+   1. Test case: `deleteappt A99 yes`<br>
+      Expected: Nothing is deleted. The result says that no appointment exists at that position.
+
+   1. Test case: `deleteappt A1 yes`, then `undo`<br>
+      Expected: The first displayed appointment is deleted and the rest are renumbered from `A1`. `undo` then
+      reports `Nothing to undo.`, because a confirmed deletion clears the undo history.
+
+1. Keeping appointments after a restart
+
+   1. Close the app with `exit` and relaunch it.<br>
+      Expected: The remaining appointments are shown again with the same clients and times.
+
+### Editing appointments
+
+For a complete sequence covering combined edits, no-op edits and conflicts, follow the
+[five-field appointment edit smoke test](Testing.md#appointment-edit-smoke-test).
+Both numeric displayed positions and card references are accepted, for example `editappt A1 loc/NUS`
+and `editappt 1 c/C2`. References always resolve against the currently displayed lists.
+
+### Backing up, clearing and restoring data
+
+Use a separate, fresh, writable test folder so `manual-testing.json` does not already exist.
+
+1. Run the following setup and backup commands:
+
+   ```text
+   clear
+   add n/Alice Tan p/91234567 a/Clementi y/buyer
+   appointment n/Viewing c/C1 loc/NUS s/20261105-1000 e/20261105-1100
+   backup f/manual-testing.json
+   ```
+
+   Expected: `data/backup/manual-testing.json` exists and contains the client and appointment.
+   Both lists remain unchanged by the backup.
+
+2. Run `backup f/manual-testing.json` again, then `restore f/missing-manual-testing.json`.<br>
+   Expected: An existing-backup error, then a missing-backup error. Data and history remain unchanged,
+   and the existing backup is not overwritten.
+
+3. Run `clear`, then `list` and `appointments`.<br>
+   Expected: No clients or appointments remain. Run `restore f/manual-testing.json`: Alice and Viewing
+   return together, with the same client ID and appointment details.
+
+4. Run `undo`, then `redo`.<br>
+   Expected: Undo returns to the empty data from before the restore; redo restores both records.
+   Close and reopen the app: both records remain, while `undo` reports `Nothing to undo.`
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+Use a separate, writable test folder and close the app before changing files.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Missing data file: In a fresh folder with no `data/addressbook.json`, launch the JAR.<br>
+   Expected: Six sample clients and no appointments appear. Run `edit 1 p/91234567`, close the app,
+   then reopen it. The changed phone is retained, confirming that the data was saved.
 
-1. _{ more test cases …​ }_
+2. Corrupted data file: Close the app, copy `data/addressbook.json` to `data/original.json`, then replace
+   the contents of `data/addressbook.json` with the literal text `not json`. Relaunch the app.<br>
+   Expected: Empty client and appointment lists appear, with a startup notice identifying the unreadable
+   file and its preserved `.corrupt-TIMESTAMP` copy. That copy still contains `not json`; it is not overwritten.
+
+3. Recovery: Close the app and copy the valid `data/original.json` over `data/addressbook.json`.
+   Relaunch the app.<br>
+   Expected: The six clients and the changed phone reappear. The preserved corrupted copy remains available.

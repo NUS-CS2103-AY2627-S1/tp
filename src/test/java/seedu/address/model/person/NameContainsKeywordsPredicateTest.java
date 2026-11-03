@@ -47,8 +47,8 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("Alice", "Bob"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
-        // Only one matching keyword
-        predicate = new NameContainsKeywordsPredicate(List.of("Bob", "Carol"));
+        // Multiple keywords (all match, in different order)
+        predicate = new NameContainsKeywordsPredicate(List.of("Carol", "Alice"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Carol").build()));
 
         // Mixed-case keywords
@@ -73,11 +73,20 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void test_multipleKeywordsOneMatch_returnsFalse() {
+        NameContainsKeywordsPredicate predicate =
+                new NameContainsKeywordsPredicate(List.of("Alice", "Tan"));
+
+        Person person = new PersonBuilder().withName("Alice Lim").build();
+        assertFalse(predicate.test(person));
+    }
+
+    @Test
     public void toStringMethod() {
         List<String> keywords = List.of("keyword1", "keyword2");
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(keywords);
 
-        String expected = NameContainsKeywordsPredicate.class.getCanonicalName() + "{keywords=" + keywords + "}";
+        String expected = NameContainsKeywordsPredicate.class.getCanonicalName() + "{name keywords=" + keywords + "}";
         assertEquals(expected, predicate.toString());
     }
 }

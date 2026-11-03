@@ -5,6 +5,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
@@ -16,6 +17,9 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
+    // Stable identifier, assigned when the person is added to an address book.
+    private final ClientId clientId;
+
     // Identity fields
     private final Name name;
     private final Phone phone;
@@ -24,17 +28,34 @@ public class Person {
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Type type;
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Type type, Set<Tag> tags) {
+        this(name, phone, email, address, type, tags, null);
+    }
+
+    private Person(Name name, Phone phone, Email email, Address address, Type type, Set<Tag> tags, ClientId clientId) {
+        requireAllNonNull(name, phone, email, address, type, tags);
+        this.clientId = clientId;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.type = type;
         this.tags.addAll(tags);
+    }
+
+    /** Returns the stable identifier, or empty for a person not yet added to an address book. */
+    public Optional<ClientId> getClientId() {
+        return Optional.ofNullable(clientId);
+    }
+
+    /** Returns an immutable copy with the given stable identifier. */
+    public Person withClientId(ClientId clientId) {
+        return new Person(name, phone, email, address, type, tags, Objects.requireNonNull(clientId));
     }
 
     public Name getName() {
@@ -53,6 +74,10 @@ public class Person {
         return address;
     }
 
+    public Type getType() {
+        return type;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,7 +87,7 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same normalized name, ignoring letter case.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,11 +96,12 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().fullName.equalsIgnoreCase(getName().fullName);
     }
 
     /**
-     * Returns true if both persons have the same identity and data fields.
+     * Returns true if both persons have the same business details.
+     * Stable IDs are metadata and are compared separately by AddressBook snapshots.
      * This defines a stronger notion of equality between two persons.
      */
     @Override
@@ -93,13 +119,14 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
+                && type.equals(otherPerson.type)
                 && tags.equals(otherPerson.tags);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, type, tags);
     }
 
     @Override
@@ -109,6 +136,7 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("type", type)
                 .add("tags", tags)
                 .toString();
     }

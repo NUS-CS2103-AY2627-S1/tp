@@ -3,13 +3,18 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.appointment.Appointment;
 import seedu.address.model.person.Person;
 
 /**
@@ -17,10 +22,18 @@ import seedu.address.model.person.Person;
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
+    private static final Comparator<Person> CLIENT_ORDER = Comparator
+            .comparing((Person person) -> person.getName().fullName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparingLong(person -> person.getClientId().orElseThrow().getNumber());
 
-    private final AddressBook addressBook;
+    private final VersionedAddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final FilteredList<Appointment> filteredAppointments;
+    private final SortedList<Appointment> sortedAppointments;
+    private Person appointmentClientFilter;
+    private LocalDate appointmentDateFilter;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,15 +41,35 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing with address book and user prefs ");
 
-        this.addressBook = new AddressBook(addressBook);
+        this.addressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons, CLIENT_ORDER);
+        filteredAppointments = new FilteredList<>(this.addressBook.getAppointmentList());
+        sortedAppointments = new SortedList<>(filteredAppointments, Appointment.CHRONOLOGICAL_ORDER);
     }
 
     public ModelManager() {
         this(new AddressBook(), new UserPrefs());
+    }
+
+    @Override
+    public Checkpoint createCheckpoint() {
+        return new ModelCheckpoint(this, addressBook.captureState(), filteredPersons.getPredicate(),
+                appointmentClientFilter, appointmentDateFilter);
+    }
+
+    @Override
+    public void restoreCheckpoint(Checkpoint checkpoint) {
+        requireNonNull(checkpoint);
+        if (!(checkpoint instanceof ModelCheckpoint state) || state.owner != this) {
+            throw new IllegalArgumentException("Checkpoint belongs to a different model.");
+        }
+        addressBook.restoreState(state.history);
+        filteredPersons.setPredicate(state.clientFilter);
+        updateFilteredAppointmentList(state.appointmentClient, state.appointmentDate);
     }
 
     //=========== UserPrefs ==================================================================================
@@ -62,6 +95,9 @@ public class ModelManager implements Model {
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
         this.addressBook.resetData(addressBook);
+        this.addressBook.commit();
+
+        updateFilteredAppointmentList(null, null);
     }
 
     @Override
@@ -78,11 +114,17 @@ public class ModelManager implements Model {
     @Override
     public void deletePerson(Person target) {
         addressBook.removePerson(target);
+        addressBook.commit();
+
+        if (target.equals(appointmentClientFilter)) {
+            updateFilteredAppointmentList(null, appointmentDateFilter);
+        }
     }
 
     @Override
     public void addPerson(Person person) {
         addressBook.addPerson(person);
+        addressBook.commit();
         updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
@@ -91,6 +133,46 @@ public class ModelManager implements Model {
         requireAllNonNull(target, editedPerson);
 
         addressBook.setPerson(target, editedPerson);
+        addressBook.commit();
+
+        if (target.equals(appointmentClientFilter)) {
+            updateFilteredAppointmentList(editedPerson, appointmentDateFilter);
+        }
+    }
+
+    @Override
+    public ObservableList<Appointment> getFilteredAppointmentList() {
+        return FXCollections.unmodifiableObservableList(sortedAppointments);
+    }
+
+    @Override
+    public void updateFilteredAppointmentList(Person client, LocalDate date) {
+        appointmentClientFilter = client;
+        appointmentDateFilter = date;
+        filteredAppointments.setPredicate(appointment -> (client == null || appointment.getClient().equals(client))
+                && (date == null || appointment.getStart().toLocalDate().equals(date)));
+    }
+
+    @Override
+    public void addAppointment(Appointment appointment) {
+        addressBook.addAppointment(appointment);
+        addressBook.commit();
+        updateFilteredAppointmentList(null, null);
+    }
+
+    @Override
+    public void setAppointment(Appointment target, Appointment editedAppointment) {
+        addressBook.setAppointment(target, editedAppointment);
+        if (!target.equals(editedAppointment)) {
+            addressBook.commit();
+        }
+    }
+
+    @Override
+    public void deleteAppointment(Appointment appointment) {
+        addressBook.removeAppointment(appointment);
+        addressBook.resetHistory();
+        updateFilteredAppointmentList(null, null);
     }
 
     //=========== Filtered Person List Accessors =============================================================
@@ -101,13 +183,40 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return addressBook.canUndo();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return addressBook.canRedo();
+    }
+
+    @Override
+    public void undoAddressBook() {
+        addressBook.undo();
+        resetFilters();
+    }
+
+    @Override
+    public void redoAddressBook() {
+        addressBook.redo();
+        resetFilters();
+    }
+
+    private void resetFilters() {
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        updateFilteredAppointmentList(null, null);
     }
 
     @Override
@@ -124,6 +233,24 @@ public class ModelManager implements Model {
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
+    }
+
+    /** Captures filters along with history so a failed undo, redo or deletion can be rolled back. */
+    private static final class ModelCheckpoint implements Checkpoint {
+        private final ModelManager owner;
+        private final VersionedAddressBook.State history;
+        private final Predicate<? super Person> clientFilter;
+        private final Person appointmentClient;
+        private final LocalDate appointmentDate;
+
+        private ModelCheckpoint(ModelManager owner, VersionedAddressBook.State history,
+                Predicate<? super Person> clientFilter, Person appointmentClient, LocalDate appointmentDate) {
+            this.owner = owner;
+            this.history = history;
+            this.clientFilter = clientFilter;
+            this.appointmentClient = appointmentClient;
+            this.appointmentDate = appointmentDate;
+        }
     }
 
 }
