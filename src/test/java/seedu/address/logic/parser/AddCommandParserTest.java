@@ -45,8 +45,66 @@ import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
+/** Tests member creation syntax and field validation. */
 public class AddCommandParserTest {
     private AddCommandParser parser = new AddCommandParser();
+
+    @Test
+    public void parse_unknownOrUppercasePrefix_failure() {
+        String validArguments = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        for (String prefix : new String[] {"x/extra", "T/committee", "N/Bob", "P/12345678", "E/a@b.com",
+            "A/Main", "z/", "c/other", "c/office", "A/L", "A/P"}) {
+            assertParseFailure(parser, validArguments + " " + prefix, expectedMessage);
+            assertParseFailure(parser, validArguments + "\t" + prefix + TAG_DESC_FRIEND, expectedMessage);
+            assertParseFailure(parser, " " + prefix + validArguments, expectedMessage);
+        }
+        // Structural errors take precedence over field validation.
+        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " x/extra", expectedMessage);
+        assertParseFailure(parser, validArguments + " t/friend x/extra", expectedMessage);
+    }
+
+    @Test
+    public void parse_addressWithSlashes_success() {
+        for (String address : new String[] {"c/o Alice", "Main Road c/o Alice", "Main Road C/O Alice",
+            "https://example.com/x/extra", "Main Road https://example.com/T/committee",
+            "Block 12/3 #01/02", "Main\tRoad c/o Alice", "Main Road foo/bar", "Main Road annex/x/extra",
+            "Main Road [Unit 12/3]", "Café Road é/annex"}) {
+            Person expected = new PersonBuilder(BOB).withAddress(address).withTags(VALID_TAG_FRIEND).build();
+            assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                    + " a/" + address + TAG_DESC_FRIEND, new AddCommand(expected));
+            assertParseSuccess(parser, " a/" + address + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                    + TAG_DESC_FRIEND, new AddCommand(expected));
+        }
+    }
+
+    @Test
+    public void parse_careOfAtEndOfAddress_success() {
+        for (String address : new String[] {"c/o", "C/O", "c/O", "C/o", "Main Road c/o", "Main Road\tC/O"}) {
+            Person expected = new PersonBuilder(BOB).withAddress(address).withTags().build();
+            assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " a/" + address,
+                    new AddCommand(expected));
+        }
+    }
+
+    @Test
+    public void parse_prefixWithoutInitialSeparator_failure() {
+        String validArguments = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        for (String prefix : new String[] {"x/extra", "T/committee", "c/office"}) {
+            assertParseFailure(parser, prefix + validArguments, expectedMessage);
+        }
+    }
+
+    @Test
+    public void parse_careOfWithNonWhitespaceSuffix_failure() {
+        String validArguments = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        for (String suffix : new String[] {"c/", "c/oAlice", "C/OAlice", "c/o,", "C/O/"}) {
+            assertParseFailure(parser, validArguments + " " + suffix, expectedMessage);
+        }
+    }
 
     @Test
     public void parse_allFieldsPresent_success() {
@@ -63,6 +121,29 @@ public class AddCommandParserTest {
         assertParseSuccess(parser,
                 NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 new AddCommand(expectedPersonMultipleTags));
+    }
+
+    @Test
+    public void parse_hyphenatedTag_success() {
+        Person expectedPerson = new PersonBuilder(BOB).withTags("year-1").build();
+
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                + ADDRESS_DESC_BOB + " t/year-1", new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_tabSeparatedFields_success() {
+        String arguments = "\tn/" + VALID_NAME_BOB + "\tp/" + VALID_PHONE_BOB
+                + "\te/" + VALID_EMAIL_BOB + "\ta/" + VALID_ADDRESS_BOB + "\tt/" + VALID_TAG_FRIEND;
+        Person expected = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, arguments, new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_tabSeparatedDuplicatePrefix_failure() {
+        String arguments = NAME_DESC_BOB + "\tn/" + VALID_NAME_BOB + PHONE_DESC_BOB
+                + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        assertParseFailure(parser, arguments, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
     }
 
     @Test
@@ -90,7 +171,7 @@ public class AddCommandParserTest {
         assertParseFailure(parser,
                 validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
                         + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
+                Messages.MESSAGE_DUPLICATE_FIELDS + "n/ p/ e/ a/");
 
         // invalid value followed by valid value
 
@@ -135,6 +216,14 @@ public class AddCommandParserTest {
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
                 new AddCommand(expectedPerson));
+
+        // no address, with or without tags
+        Person withoutAddress = new PersonBuilder(BOB).withAddress("").withTags().build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB,
+                new AddCommand(withoutAddress));
+        Person withoutAddressWithTag = new PersonBuilder(withoutAddress).withTags(VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + TAG_DESC_FRIEND,
+                new AddCommand(withoutAddressWithTag));
     }
 
     @Test
@@ -151,10 +240,6 @@ public class AddCommandParserTest {
 
         // missing email prefix
         assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
                 expectedMessage);
 
         // all prefixes missing

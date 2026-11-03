@@ -1,0 +1,313 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.commons.util.FileUtil;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.person.Person;
+import seedu.address.storage.AppInstanceLock;
+import seedu.address.testutil.PersonBuilder;
+
+public class ExportCommandTest {
+
+    @TempDir
+    public Path tempDir;
+
+    private final AddressBookParser parser = new AddressBookParser();
+
+    @Test
+    public void execute_caseVariantsOfMissingStorageFiles_rejectsBeforeCreatingFiles() throws Exception {
+        Path storageDirectory = Files.createDirectory(tempDir.resolve("data"));
+        Path roster = storageDirectory.resolve("addressbook.json");
+        Path preferences = storageDirectory.resolve("preferences.json");
+        Path differentlyCasedDirectory = Files.createDirectories(tempDir.resolve("DATA"));
+        Model model = new ModelManager();
+        Person member = new PersonBuilder().build();
+        model.addPerson(member);
+
+        for (String name : List.of("ADDRESSBOOK.JSON", "ADDRESSBOOK.JSON.BAK",
+                "PREFERENCES.JSON", "PREFERENCES.JSON.BAK")) {
+            for (Path parent : List.of(storageDirectory, differentlyCasedDirectory)) {
+                Path destination = parent.resolve(name);
+                CommandException error = assertThrows(CommandException.class, () ->
+                        new ExportCommand(destination).execute(model, roster, preferences));
+                assertTrue(error.getMessage().contains(ExportCommand.MESSAGE_PROTECTED_DESTINATION));
+                assertFalse(Files.exists(destination));
+            }
+        }
+        assertFalse(Files.exists(roster));
+        assertFalse(Files.exists(preferences));
+        assertEquals(List.of(member), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_caseVariantOfApplicationLocation_rejectsReservedPath() {
+        Path application = FileUtil.getApplicationLocation();
+        Path destination = application.resolveSibling(application.getFileName().toString()
+                .toUpperCase(Locale.ROOT));
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(new ModelManager()));
+
+        assertTrue(error.getMessage().contains(ExportCommand.MESSAGE_PROTECTED_DESTINATION));
+    }
+
+    @Test
+    public void execute_caseVariantOfRecoveryDirectory_preservesRecoveryFile() throws Exception {
+        Path storageDirectory = Files.createDirectory(tempDir.resolve("data"));
+        Path roster = storageDirectory.resolve("addressbook.json");
+        Path differentlyCasedDirectory = Files.createDirectories(tempDir.resolve("DATA"));
+        Path destination = differentlyCasedDirectory.resolve("ADDRESSBOOK.JSON.CORRUPT-original.json");
+        String preservedContents = "Original damaged roster bytes";
+        Files.writeString(destination, preservedContents);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(new ModelManager(), roster));
+
+        assertTrue(error.getMessage().contains(ExportCommand.MESSAGE_PROTECTED_DESTINATION));
+        assertEquals(preservedContents, Files.readString(destination));
+        assertFalse(Files.exists(roster));
+    }
+
+    @Test
+    public void execute_rootDirectoryDestination_reportsFailureWithoutCrashing() {
+        Path destination = tempDir.toAbsolutePath().getRoot();
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(new ModelManager(), tempDir.resolve("addressbook.json")));
+
+        assertInstanceOf(IOException.class, error.getCause());
+    }
+
+    @Test
+    public void execute_reservedFileNameInDifferentDirectory_exportsNormally() throws Exception {
+        Path storageDirectory = Files.createDirectory(tempDir.resolve("data"));
+        Path exportDirectory = Files.createDirectory(tempDir.resolve("exports"));
+        Path roster = storageDirectory.resolve("addressbook.json");
+        Path destination = exportDirectory.resolve("ADDRESSBOOK.JSON");
+
+        new ExportCommand(destination).execute(new ModelManager(), roster);
+
+        assertEquals("name,phone,email,address,tags,trackcall_encoding\r\n", Files.readString(destination));
+        assertFalse(Files.exists(roster));
+    }
+
+    @Test
+    public void execute_applicationLock_rejectedWithoutReplacingLockFile() {
+        Path destination = FileUtil.getHomeFolder().resolve(AppInstanceLock.FILE_NAME);
+        CommandException failure = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(new ModelManager()));
+        assertTrue(failure.getMessage().contains(ExportCommand.MESSAGE_PROTECTED_DESTINATION));
+    }
+
+    @Test
+    public void execute_emptyDisplayedList_exportsHeaderAndPreservesModel() throws Exception {
+        Model model = new ModelManager();
+        Person person = new PersonBuilder().withName("Alice").withAddress("Block 1").build();
+        model.addPerson(person);
+        model.updateFilteredPersonList(unused -> false);
+        Path destination = tempDir.resolve("member contacts.csv");
+
+        CommandResult result = parser.parseCommand("export   " + destination + "   ").execute(model);
+
+        assertEquals("name,phone,email,address,tags,trackcall_encoding\r\n", Files.readString(destination));
+        assertEquals("Exported 0 displayed members to " + destination.toAbsolutePath().normalize()
+                + " (1 hidden member not exported).", result.getFeedbackToUser());
+        assertEquals(List.of(person), model.getAddressBook().getPersonList());
+        assertTrue(model.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_directoryDestination_reportsFailureAndPreservesModel() {
+        Model model = new ModelManager();
+        Person person = new PersonBuilder().build();
+        model.addPerson(person);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(tempDir).execute(model));
+
+        assertInstanceOf(IOException.class, error.getCause());
+        assertEquals(String.format(ExportCommand.MESSAGE_FAILURE, tempDir,
+                ExportCommand.MESSAGE_DIRECTORY_DESTINATION),
+                error.getMessage());
+        assertEquals(List.of(person), model.getAddressBook().getPersonList());
+        assertEquals(List.of(person), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_relativePath_writesInCurrentDirectoryAndReportsAbsolutePath() throws Exception {
+        Path directory = Files.createTempDirectory(Path.of("."), "csv-export-test-");
+        Path destination = directory.resolve("member contacts \u00e9.csv");
+        try {
+            CommandResult result = parser.parseCommand("export " + destination).execute(new ModelManager());
+
+            assertEquals("name,phone,email,address,tags,trackcall_encoding\r\n", Files.readString(destination));
+            assertEquals(String.format(ExportCommand.MESSAGE_SUCCESS, 0, destination.toAbsolutePath().normalize()),
+                    result.getFeedbackToUser());
+        } finally {
+            Files.deleteIfExists(destination);
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    @Test
+    public void execute_emptyAddressBook_writesHeaderAndReportsZero() throws Exception {
+        Model model = new ModelManager();
+        Path destination = tempDir.resolve("empty.csv");
+
+        CommandResult result = new ExportCommand(destination).execute(model);
+
+        assertEquals("name,phone,email,address,tags,trackcall_encoding\r\n", Files.readString(destination));
+        assertEquals(String.format(ExportCommand.MESSAGE_SUCCESS, 0, destination.toAbsolutePath().normalize()),
+                result.getFeedbackToUser());
+        assertTrue(model.getAddressBook().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_partialFilter_exportsOnlyVisiblePeople() throws Exception {
+        Model model = new ModelManager();
+        Person alice = new PersonBuilder().withName("Alice").withAddress("Block 1").build();
+        Person bob = new PersonBuilder().withName("Bob").withAddress("Block 2").build();
+        model.addPerson(bob);
+        model.addPerson(alice);
+        model.updateFilteredPersonList(person -> person.equals(alice));
+        Path destination = tempDir.resolve("members.csv");
+
+        CommandResult result = new ExportCommand(destination).execute(model);
+
+        assertEquals(List.of("name,phone,email,address,tags,trackcall_encoding",
+                "Alice,85355255,amy@gmail.com,Block 1,,apostrophe-v1"), Files.readAllLines(destination));
+        assertEquals("Exported 1 displayed member to " + destination.toAbsolutePath().normalize()
+                + " (1 hidden member not exported).", result.getFeedbackToUser());
+        assertEquals(List.of(bob, alice), model.getAddressBook().getPersonList());
+        assertEquals(List.of(alice), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_missingParent_reportsFailureAndPreservesFilter() {
+        Model model = new ModelManager();
+        Person person = new PersonBuilder().build();
+        model.addPerson(person);
+        model.updateFilteredPersonList(unused -> false);
+        Path destination = tempDir.resolve("missing").resolve("members.csv");
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(model));
+
+        assertInstanceOf(IOException.class, error.getCause());
+        assertEquals(String.format(ExportCommand.MESSAGE_FAILURE, destination,
+                ExportCommand.MESSAGE_MISSING_PARENT),
+                error.getMessage());
+        assertEquals(List.of(person), model.getAddressBook().getPersonList());
+        assertTrue(model.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_csvNamedDirectory_rejectedAndPreserved() throws Exception {
+        Path destination = Files.createDirectory(tempDir.resolve("folder.csv"));
+        Path sentinel = destination.resolve("keep.txt");
+        Files.writeString(sentinel, "Keep this data");
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                parser.parseCommand("export " + destination).execute(new ModelManager()));
+
+        assertEquals(String.format(ExportCommand.MESSAGE_FAILURE, destination,
+                ExportCommand.MESSAGE_DIRECTORY_DESTINATION), error.getMessage());
+        assertEquals("Keep this data", Files.readString(sentinel));
+        assertFalse(error.getMessage().contains(".trackcall-"));
+    }
+
+    @Test
+    public void execute_parentIsFile_reportsActionableError() throws Exception {
+        Path parent = tempDir.resolve("not-a-folder");
+        Files.writeString(parent, "Keep this data");
+        Path destination = parent.resolve("members.csv");
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                new ExportCommand(destination).execute(new ModelManager()));
+
+        assertEquals(String.format(ExportCommand.MESSAGE_FAILURE, destination,
+                ExportCommand.MESSAGE_INVALID_PARENT), error.getMessage());
+        assertEquals("Keep this data", Files.readString(parent));
+        assertFalse(error.getMessage().contains(".trackcall-"));
+    }
+
+    @Test
+    public void parseCommand_nonCsvDestination_rejectedWithoutCreatingFile() {
+        Path destination = tempDir.resolve("members.txt");
+
+        ParseException error = assertThrows(ParseException.class, () ->
+                parser.parseCommand("export " + destination).execute(new ModelManager()));
+
+        assertEquals("File must have a .csv extension.", error.getMessage());
+        assertFalse(Files.exists(destination));
+    }
+
+    @Test
+    public void execute_unwritableParent_reportsPermissionsWithoutTemporaryPath() throws Exception {
+        assumeTrue(Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null);
+        Path parent = Files.createDirectory(tempDir.resolve("read-only"));
+        Path destination = parent.resolve("members.csv");
+        Files.writeString(destination, "Previous export");
+        var permissions = Files.getPosixFilePermissions(parent);
+        try {
+            Files.setPosixFilePermissions(parent, PosixFilePermissions.fromString("r-x------"));
+            assumeTrue(!Files.isWritable(parent));
+
+            CommandException error = assertThrows(CommandException.class, () ->
+                    new ExportCommand(destination).execute(new ModelManager()));
+
+            assertEquals(String.format(ExportCommand.MESSAGE_FAILURE, destination,
+                    ExportCommand.MESSAGE_WRITE_DENIED), error.getMessage());
+            assertFalse(error.getMessage().contains(".trackcall-"));
+            assertEquals("Previous export", Files.readString(destination));
+        } finally {
+            Files.setPosixFilePermissions(parent, permissions);
+        }
+    }
+
+    @Test
+    public void equalsAndHashCode_destinationPaths_defineCommandIdentity() {
+        ExportCommand first = new ExportCommand(tempDir.resolve("members.csv"));
+        ExportCommand sameDestination = new ExportCommand(tempDir.resolve("members.csv"));
+        ExportCommand differentDestination = new ExportCommand(tempDir.resolve("other.csv"));
+
+        assertTrue(first.equals(first));
+        assertEquals(first, sameDestination);
+        assertEquals(sameDestination, first);
+        assertEquals(first.hashCode(), sameDestination.hashCode());
+        assertNotEquals(first, differentDestination);
+        assertFalse(first.equals(null));
+        assertFalse(first.equals("members.csv"));
+        Set<ExportCommand> commands = new HashSet<>(List.of(first, sameDestination, differentDestination));
+        assertEquals(2, commands.size());
+    }
+
+    @Test
+    public void parseCommand_invalidPath_throwsParseException() {
+        assertThrows(ParseException.class, () -> parser.parseCommand("export invalid\u0000path.csv"));
+    }
+}

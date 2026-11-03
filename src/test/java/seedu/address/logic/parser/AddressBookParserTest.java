@@ -7,23 +7,38 @@ import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.ExportCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindEmailCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ImportCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RenameTagCommand;
+import seedu.address.logic.commands.ShowCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.TagAllCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UntagAllCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.EmailContainsKeywordsPredicate;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -42,7 +57,7 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertTrue(parser.parseCommand(" \tclear \t") instanceof ClearCommand);
     }
 
     @Test
@@ -64,7 +79,15 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
-        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+        assertTrue(parser.parseCommand(" \texit \t") instanceof ExitCommand);
+    }
+
+    @Test
+    public void parseCommand_export_routesDefaultAndCustomPaths() throws Exception {
+        assertEquals(new ExportCommand(Path.of("addressbook.csv")), parser.parseCommand("export"));
+        assertEquals(new ExportCommand(Path.of("addressbook.csv")), parser.parseCommand("  export   "));
+        assertEquals(new ExportCommand(Path.of("backups/member contacts.csv")),
+                parser.parseCommand("export backups/member contacts.csv"));
     }
 
     @Test
@@ -76,15 +99,144 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_findEmail_routesEmailKeywords() throws Exception {
+        assertEquals(new FindEmailCommand(new EmailContainsKeywordsPredicate(List.of("@example.com", "alice+"))),
+                parser.parseCommand("  findemail   @example.com\talice+  "));
+        assertEquals(new HelpCommand("findemail"), parser.parseCommand("help findemail"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("FINDEMAIL alice"));
+    }
+
+    @Test
+    public void parseCommand_searchWhitespace_isConsistentAcrossBoundaries() throws Exception {
+        for (String separator : List.of(" ", "\t", "\n", "\u2003", "\u3000", "\u00a0", "\u2007", "\u202f")) {
+            assertEquals(new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice", "Bob"))),
+                    parser.parseCommand(separator + "find" + separator + "Alice" + separator + "Bob" + separator));
+            assertEquals(new FindEmailCommand(new EmailContainsKeywordsPredicate(List.of("alice", "bob"))),
+                    parser.parseCommand(separator + "findemail" + separator + "alice" + separator + "bob" + separator));
+        }
+    }
+
+    @Test
+    public void parseCommand_unicodeBoundary_preservesIndexAndPrefixCommands() throws Exception {
+        Person member = new PersonBuilder().build();
+        String add = PersonUtil.getAddCommand(member);
+        String fields = add.substring(AddCommand.COMMAND_WORD.length()).stripLeading();
+        for (String separator : List.of("\t", "\n", "\u2003", "\u3000", "\u00a0", "\u2007", "\u202f")) {
+            assertEquals(new AddCommand(member), parser.parseCommand("add" + separator + fields));
+            assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), parser.parseCommand("delete" + separator + "1"));
+            assertEquals(new TagCommand(INDEX_FIRST_PERSON, new Tag("committee")),
+                    parser.parseCommand("tag" + separator + "1 t/committee"));
+            assertEquals(new FilterCommand(new Tag("committee")), parser.parseCommand("filter" + separator
+                    + "t/committee"));
+            assertEquals(new HelpCommand("add"), parser.parseCommand("help" + separator + "add"));
+        }
+    }
+
+    @Test
+    public void parseCommand_unicodeOuterSpaces_preservesNoArgumentCommandsAndFieldValues() throws Exception {
+        Person member = new PersonBuilder().withName("Alice Tan").withAddress("Block\u00a0A 12").build();
+        for (String separator : List.of("\u00a0", "\u2007", "\u202f")) {
+            assertTrue(parser.parseCommand(separator + "list" + separator) instanceof ListCommand);
+            assertEquals(new HelpCommand(), parser.parseCommand(separator + "help" + separator));
+            assertEquals(new AddCommand(member),
+                    parser.parseCommand(separator + PersonUtil.getAddCommand(member)));
+            assertThrows(ParseException.class, () -> parser.parseCommand(separator));
+            assertThrows(ParseException.class, () -> parser.parseCommand("list" + separator + "extra"));
+        }
+    }
+
+    @Test
+    public void parseCommand_filter_returnsFilterCommand() throws Exception {
+        assertEquals(new FilterCommand(new Tag("committee")), parser.parseCommand("filter t/committee"));
+    }
+
+    @Test
+    public void parseCommand_tagAll_returnsTagAllCommand() throws Exception {
+        assertEquals(new TagAllCommand(new Tag("committee")), parser.parseCommand("tagall t/committee"));
+        assertEquals(new TagAllCommand(new Tag("committee")), parser.parseCommand("  tagall   t/committee  "));
+    }
+
+    @Test
+    public void parseCommand_tag_returnsTagCommand() throws Exception {
+        assertEquals(new TagCommand(Index.fromOneBased(2), new Tag("committee")),
+                parser.parseCommand("tag 2 t/committee"));
+    }
+
+    @Test
+    public void parseCommand_untagAll_returnsUntagAllCommand() throws Exception {
+        assertEquals(new UntagAllCommand(new Tag("committee")), parser.parseCommand("untagall t/committee"));
+        assertEquals(new UntagAllCommand(new Tag("committee")), parser.parseCommand("  untagall   t/committee  "));
+    }
+
+    @Test
+    public void parseCommand_untag_returnsUntagCommand() throws Exception {
+        assertEquals(new UntagCommand(Index.fromOneBased(2), new Tag("committee")),
+                parser.parseCommand("untag 2 t/committee"));
+    }
+
+    @Test
+    public void parseCommand_renameTag_returnsRenameTagCommand() throws Exception {
+        RenameTagCommand expected = new RenameTagCommand(new Tag("batch2026"), new Tag("alumni"));
+        assertEquals(expected, parser.parseCommand("renametag t/batch2026 t/alumni"));
+        assertEquals(expected, parser.parseCommand("  renametag   t/batch2026  t/alumni  "));
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
-        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
+        assertEquals(new HelpCommand("edit"), parser.parseCommand("help edit"));
+        String expectedError = String.format(HelpCommand.MESSAGE_UNKNOWN_TOPIC, "3");
+        assertThrows(ParseException.class, expectedError, () -> parser.parseCommand("help 3"));
+    }
+
+    @Test
+    public void parseCommand_import() throws Exception {
+        assertEquals(new ImportCommand(Path.of("data/members.csv")),
+                parser.parseCommand("import p/data/members.csv"));
     }
 
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertTrue(parser.parseCommand(" \tlist \t") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_show() throws Exception {
+        assertEquals(new ShowCommand(List.of(INDEX_FIRST_PERSON)), parser.parseCommand("show 1"));
+        assertEquals(new ShowCommand(List.of(INDEX_FIRST_PERSON, Index.fromOneBased(3))),
+                parser.parseCommand("show 1 3"));
+    }
+
+    @Test
+    public void parseCommand_sort() throws Exception {
+        assertTrue(parser.parseCommand(" \tsort \t") instanceof SortCommand);
+        assertThrows(ParseException.class, SortCommand.MESSAGE_USAGE, () -> parser.parseCommand("sort date"));
+    }
+
+    @Test
+    public void parseCommand_parameterlessCommandWithArguments_rejectsBeforeExecution() {
+        String clearError = ClearCommand.MESSAGE_USAGE;
+        String listError = ListCommand.MESSAGE_USAGE;
+        String exitError = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExitCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, clearError, () -> parser.parseCommand("clear accidental"));
+        assertThrows(ParseException.class, listError, () -> parser.parseCommand("list 1"));
+        assertThrows(ParseException.class, exitError, () -> parser.parseCommand("exit now"));
+    }
+
+    @Test
+    public void parseCommand_malformedDelete_rejectsBeforeExecution() {
+        String expectedError = String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE);
+        for (String input : new String[] {"delete", "delete 1 2", "delete one"}) {
+            assertThrows(ParseException.class, expectedError, () -> parser.parseCommand(input));
+        }
+    }
+
+    @Test
+    public void parseCommand_invalidNumericDelete_reportsValueError() {
+        for (String input : new String[] {"delete 0", "delete -1", "delete 99999999999999999999"}) {
+            assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX, () -> parser.parseCommand(input));
+        }
     }
 
     @Test

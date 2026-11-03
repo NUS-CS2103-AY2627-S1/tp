@@ -1,0 +1,651 @@
+mark {
+  background-color: #ff0;
+  border-radius: 5px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.indented {
+  padding-left: 20px;
+}
+
+.theme-card img {
+  width: 100%;
+}
+
+/* Scrollbar */
+
+.slim-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.slim-scroll::-webkit-scrollbar-thumb {
+  background: #808080;
+  border-radius: 20px;
+}
+
+.slim-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 20px;
+}
+
+.slim-scroll-blue::-webkit-scrollbar {
+  width: 5px;
+}
+
+.slim-scroll-blue::-webkit-scrollbar-thumb {
+  background: #00b0ef;
+  border-radius: 20px;
+}
+
+.slim-scroll-blue::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 20px;
+}
+
+/* Shared documentation layout: a readable article with compact chapter navigation. */
+:root {
+  --documentation-width: 1680px;
+  --documentation-border: #e2e8f0;
+  --documentation-muted: #64748b;
+}
+
+header .navbar {
+  max-width: var(--documentation-width);
+  margin-inline: auto;
+}
+
+header {
+  background: #212529;
+}
+
+#flex-body {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 300px;
+  align-items: start;
+  column-gap: 32px;
+  width: 100%;
+  max-width: var(--documentation-width);
+  margin-inline: auto;
+  padding: 24px;
+}
+
+#flex-body:not(:has(#mb-page-nav)) {
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+
+#content-wrapper {
+  min-width: 0;
+  width: 100%;
+  max-width: 1000px;
+  padding: 0 0 48px;
+  color: #263244;
+  line-height: 1.7;
+}
+
+#site-nav,
+#page-nav {
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: calc(var(--sticky-header-height, 64px) + 24px);
+  min-height: 0;
+  max-height: calc(100vh - var(--sticky-header-height, 64px) - 48px);
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+#site-nav {
+  padding-right: 12px;
+  border-right: 1px solid var(--documentation-border);
+}
+
+.site-nav-top {
+  margin: 0 0 12px;
+  padding: 0 12px;
+}
+
+.navigation-label {
+  color: var(--documentation-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nav-component {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* Retain the original full, indented page outline and its scrollable desktop panel. */
+#page-nav {
+  top: var(--sticky-header-height, 64px);
+  max-height: calc(100vh - var(--sticky-header-height, 64px));
+  padding: 0;
+  border-left: 1px solid lightgrey;
+  font-size: 1rem;
+}
+
+#page-nav:not(:has(#mb-page-nav)) {
+  display: none;
+}
+
+/* Preserve the full outline in MarkBind's mobile navigation menu. */
+@media screen and (max-width: 1299.98px) {
+  /* The mobile overlay owns scrolling; its full-height list must not trap wheel input. */
+  .mb-mobile-nav .nav-component {
+    overscroll-behavior: auto;
+  }
+
+  #flex-body {
+    grid-template-columns: 224px minmax(0, 1fr);
+    column-gap: 24px;
+  }
+
+  #page-nav {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 991.98px) {
+  /* The mobile Site map already contains these links. Keep the header to brand and search. */
+  header .navbar .navbar-default {
+    display: none;
+  }
+
+  #flex-body,
+  #flex-body:not(:has(#mb-page-nav)) {
+    display: block;
+    padding: 24px;
+  }
+
+  #site-nav {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 575.98px) {
+  header .navbar .navbar-form .form-control {
+    width: min(200px, 45vw);
+  }
+
+  #flex-body,
+  #flex-body:not(:has(#mb-page-nav)) {
+    padding: 20px 16px;
+  }
+
+  .indented {
+    padding-left: 10px;
+  }
+}
+
+/* Keep spacing, tables and code consistent across product and development pages. */
+#content-wrapper h1 {
+  margin: 0 0 20px;
+  color: #172033;
+  font-size: 2.1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+#content-wrapper h2 {
+  margin: 44px 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--documentation-border);
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+#content-wrapper h3 {
+  margin: 30px 0 14px;
+  font-size: 1.2rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+#content-wrapper h4 {
+  margin: 24px 0 12px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+#content-wrapper h2,
+#content-wrapper h3,
+#content-wrapper h4,
+#content-wrapper h5,
+#content-wrapper h6 {
+  color: #9a4a10;
+}
+
+#content-wrapper p,
+#content-wrapper ul,
+#content-wrapper ol {
+  margin-bottom: 16px;
+}
+
+#content-wrapper li + li {
+  margin-top: 5px;
+}
+
+#content-wrapper .table-responsive {
+  margin: 20px 0 28px;
+}
+
+#content-wrapper table {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+#content-wrapper th,
+#content-wrapper td {
+  padding: 12px 14px;
+  border-color: var(--documentation-border);
+  vertical-align: top;
+}
+
+#content-wrapper th {
+  background: #f8fafc;
+  color: #263244;
+  font-weight: 650;
+}
+
+#content-wrapper :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
+#content-wrapper pre {
+  max-width: 100%;
+  padding: 16px 20px;
+  border: 1px solid var(--documentation-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+#content-wrapper pre > code.hljs {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#content-wrapper details {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--documentation-border);
+  border-radius: 8px;
+}
+
+#content-wrapper details summary {
+  cursor: pointer;
+  color: #334155;
+  font-weight: 600;
+}
+
+#content-wrapper details[open] summary {
+  margin-bottom: 18px;
+}
+
+/* Let MarkBind supply each callout's icon and keep its title/body aligned. */
+#content-wrapper .box-container {
+  margin-block: 20px;
+}
+
+#content-wrapper .box-container .box-header-wrapper {
+  align-items: baseline;
+  padding: 14px 18px 6px;
+}
+
+#content-wrapper .box-container .box-header-wrapper .icon-wrapper {
+  flex: 0 0 1em;
+  margin: 0 10px 0 0;
+  text-align: center;
+}
+
+#content-wrapper .box-container .box-header {
+  min-width: 0;
+  font-weight: 700;
+}
+
+#content-wrapper .box-container .box-body-wrapper-with-heading {
+  padding: 0 18px 16px calc(18px + 1em + 10px);
+}
+
+#content-wrapper .box-container .contents {
+  min-width: 0;
+  padding: 0;
+}
+
+#content-wrapper .box-container .box-header > :last-child,
+#content-wrapper .box-container .contents > :last-child {
+  margin-bottom: 0;
+}
+
+#content-wrapper img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Keep Developer Guide diagram labels readable without widening the page. */
+#content-wrapper .dg-diagram {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 24px auto;
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid #000;
+  background: #fffdf8;
+}
+
+#content-wrapper .dg-diagram img {
+  display: block;
+  /* Each width scales the SVG's main labels to the surrounding text size.
+     A diagram wider than its box shrinks to fit instead of scrolling. */
+  width: min(var(--dg-diagram-width), 100%);
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0 auto;
+}
+
+#content-wrapper .dg-diagram:focus-visible {
+  outline: 2px solid #005fcc;
+  outline-offset: 4px;
+}
+
+/* Reserve each screenshot's canvas while it loads, keeping section links in place. */
+#content-wrapper img[src$="images/Ui.png"],
+#content-wrapper img[src*="/framed-"] {
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+
+/* Use one screenshot width and a fine black border without stretching cropped views. */
+#content-wrapper img[src*="images/user-guide/"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 960px;
+  height: auto;
+  margin-inline: auto;
+  border: 1px solid #000;
+}
+
+#content-wrapper p:has(> a > img),
+#content-wrapper p:has(> img) {
+  margin-block: 24px;
+}
+
+/* Give the User Guide a clear reading hierarchy without changing other guides. */
+#content-wrapper:has(> #user-guide) {
+  line-height: 1.75;
+}
+
+#content-wrapper:has(> #user-guide) h2 {
+  margin-top: 56px;
+  padding: 14px 18px;
+  border: 0;
+  border-left: 3px solid #9a4a10;
+  background: #faf6f1;
+}
+
+#content-wrapper:has(> #user-guide) h3 {
+  margin-top: 36px;
+}
+
+#content-wrapper .ug-command {
+  margin-top: 36px;
+  padding-top: 22px;
+  border-top: 1px solid #cbd5e1;
+}
+
+#content-wrapper .ug-command h4 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.15rem;
+}
+
+#content-wrapper .ug-topic {
+  margin: 24px 0 10px;
+  color: #263244;
+  font-weight: 700;
+}
+
+#content-wrapper .ug-topic > strong,
+#content-wrapper:has(> #user-guide) table td:first-child strong {
+  font-weight: inherit;
+}
+
+#content-wrapper:has(> #user-guide) ul,
+#content-wrapper:has(> #user-guide) ol {
+  padding-left: 1.5rem;
+  margin-bottom: 22px;
+}
+
+#content-wrapper:has(> #user-guide) li {
+  padding-left: 0.2rem;
+}
+
+#content-wrapper:has(> #user-guide) li + li {
+  margin-top: 10px;
+}
+
+#content-wrapper:has(> #user-guide) li > p {
+  margin-bottom: 8px;
+}
+
+#content-wrapper:has(> #user-guide) li > :last-child {
+  margin-bottom: 0;
+}
+
+#content-wrapper:has(> #user-guide) li::marker {
+  color: #705036;
+  font-weight: 700;
+}
+
+#content-wrapper:has(> #user-guide) :not(pre) > code {
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: #edf3f8;
+  color: #174e70;
+}
+
+#content-wrapper:has(> #user-guide) blockquote {
+  margin: 24px 0;
+  padding: 14px 18px;
+  border-left: 3px solid #ad712e;
+  background: #fff8ed;
+  color: #263244;
+}
+
+#content-wrapper:has(> #user-guide) blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+#content-wrapper:has(> #user-guide) table th {
+  background: #edf2f7;
+}
+
+#content-wrapper:has(> #user-guide) table td:first-child {
+  font-weight: 600;
+}
+
+#content-wrapper:has(> #user-guide) table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+#content-wrapper:has(> #user-guide) p:has(> img) + p:has(> em) {
+  margin-top: -12px;
+  color: #526175;
+  font-size: 0.9rem;
+}
+
+@media screen and (max-width: 575.98px) {
+  #content-wrapper:has(> #user-guide) h2 {
+    padding: 12px;
+  }
+
+  #content-wrapper:has(> #user-guide) blockquote {
+    padding: 12px;
+  }
+
+  #content-wrapper:has(> #user-guide) th,
+  #content-wrapper:has(> #user-guide) td {
+    padding: 10px;
+  }
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.team-member {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--documentation-border);
+  border-radius: 10px;
+}
+
+#content-wrapper .team-member h3 {
+  margin-top: 0;
+}
+
+#content-wrapper .team-member img {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+@media screen and (max-width: 575.98px) {
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #content-wrapper h1 {
+    font-size: 1.8rem;
+  }
+}
+
+footer {
+  padding: 24px;
+  border-top: 1px solid var(--documentation-border);
+  color: var(--documentation-muted);
+  font-size: 0.8rem;
+}
+
+/* Hide site navigation when printing */
+@media print {
+  #flex-body,
+  #flex-body:not(:has(#mb-page-nav)) {
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #content-wrapper {
+    max-width: none;
+    padding: 0;
+  }
+
+  #site-nav {
+    display: none;
+  }
+
+  #page-nav {
+    display: none;
+  }
+
+  /* Reduce font size when printing */
+  h1 {
+      font-size: 1.2rem !important;
+  }
+  h2 {
+      font-size: 1.0rem !important;
+  }
+  h3 {
+      font-size: 0.9rem !important;
+  }
+  h4 {
+      font-size: 0.8rem !important;
+  }
+  h5 {
+      font-size: 0.7rem !important;
+  }
+  body {
+      font-size: 0.65rem !important;
+  }
+  .btn {
+      font-size: 0.65rem !important;
+  }
+  img {
+      max-width: 100%;
+      height: auto;
+  }
+}
+
+/* Keep keyboard navigation and existing section bookmarks accessible. */
+.skip-link { position: fixed; top: -100px; left: 12px; z-index: 1100; padding: 8px 12px; background: white; }
+.skip-link:focus { top: 8px; }
+.legacy-anchor { scroll-margin-top: calc(var(--sticky-header-height, 64px) + 16px); }
+
+/* Make the generated navigation's keyboard focus visible. */
+.toggle-site-nav-button:focus-visible,
+.toggle-page-nav-button:focus-visible,
+.site-nav-dropdown-btn-icon:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Keep every User Guide screenshot on the same proportional, full-size-linked canvas. */
+#content-wrapper .ug-figure {
+  width: 100%;
+  max-width: 960px;
+  margin: 24px auto;
+}
+
+#content-wrapper .ug-screenshot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 25 / 18;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  background: #fff;
+}
+
+#content-wrapper .ug-screenshot img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  margin: 0;
+  border: 0;
+}
+
+#content-wrapper .ug-screenshot:focus-visible {
+  outline: 3px solid #005fcc;
+  outline-offset: 3px;
+}
+
+#content-wrapper .ug-figure figcaption {
+  margin-top: 8px;
+  font-size: 0.95em;
+  line-height: 1.6;
+  color: #26364f;
+}

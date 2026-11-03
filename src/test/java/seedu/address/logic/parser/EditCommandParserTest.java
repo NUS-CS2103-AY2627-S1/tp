@@ -28,6 +28,7 @@ import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
@@ -38,13 +39,13 @@ import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
+/** Tests member edit syntax and field validation. */
 public class EditCommandParserTest {
 
     private static final String TAG_EMPTY = " " + PREFIX_TAG;
@@ -53,6 +54,49 @@ public class EditCommandParserTest {
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
 
     private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_unknownOrUppercasePrefix_failure() {
+        for (String prefix : new String[] {"x/extra", "T/committee", "N/Amy", "P/12345678", "E/a@b.com",
+            "A/Main", "z/", "c/other", "c/office", "A/L", "A/P"}) {
+            assertParseFailure(parser, "1 a/Main Road " + prefix, MESSAGE_INVALID_FORMAT);
+            assertParseFailure(parser, "1 a/Main Road\t" + prefix + TAG_DESC_FRIEND, MESSAGE_INVALID_FORMAT);
+            assertParseFailure(parser, "1 " + prefix + ADDRESS_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        }
+        // Structural errors take precedence over field validation.
+        assertParseFailure(parser, "1" + INVALID_NAME_DESC + " x/extra", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + " x/extra", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_addressWithSlashes_success() {
+        for (String address : new String[] {"c/o Alice", "Main Road c/o Alice", "Main Road C/O Alice",
+            "https://example.com/x/extra", "Main Road https://example.com/T/committee",
+            "Block 12/3 #01/02", "Main\tRoad c/o Alice", "Main Road foo/bar", "Main Road annex/x/extra",
+            "Main Road [Unit 12/3]", "Café Road é/annex"}) {
+            EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress(address)
+                    .withTags(VALID_TAG_FRIEND).build();
+            assertParseSuccess(parser, "1 a/" + address + TAG_DESC_FRIEND,
+                    new EditCommand(INDEX_FIRST_PERSON, descriptor));
+            assertParseSuccess(parser, "1" + TAG_DESC_FRIEND + " a/" + address,
+                    new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        }
+    }
+
+    @Test
+    public void parse_careOfAtEndOfAddress_success() {
+        for (String address : new String[] {"c/o", "C/O", "c/O", "C/o", "Main Road c/o", "Main Road\tC/O"}) {
+            EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress(address).build();
+            assertParseSuccess(parser, "1 a/" + address, new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        }
+    }
+
+    @Test
+    public void parse_careOfWithNonWhitespaceSuffix_failure() {
+        for (String suffix : new String[] {"c/", "c/oAlice", "C/OAlice", "c/o,", "C/O/"}) {
+            assertParseFailure(parser, "1 a/Main Road " + suffix, MESSAGE_INVALID_FORMAT);
+        }
+    }
 
     @Test
     public void parse_missingParts_failure() {
@@ -67,13 +111,15 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_tabSeparatedFields_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withPhone(VALID_PHONE_AMY).withAddress(VALID_ADDRESS_AMY).build();
+        String arguments = "1\tp/" + VALID_PHONE_AMY + "\ta/" + VALID_ADDRESS_AMY;
+        assertParseSuccess(parser, arguments, new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
     public void parse_invalidPreamble_failure() {
-        // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
-        // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
@@ -82,11 +128,23 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_invalidNumericIndex_reportsValueError() {
+        for (String index : new String[] {"0", "-5", "99999999999999999999"}) {
+            assertParseFailure(parser, index + NAME_DESC_AMY, MESSAGE_INVALID_INDEX);
+        }
+    }
+
+    @Test
+    public void parse_emptyAddress_clearsOptionalAddress() {
+        EditPersonDescriptor clearedAddress = new EditPersonDescriptorBuilder().withAddress("").build();
+        assertParseSuccess(parser, "1" + INVALID_ADDRESS_DESC, new EditCommand(INDEX_FIRST_PERSON, clearedAddress));
+    }
+
+    @Test
     public void parse_invalidValue_failure() {
         assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
 
         // invalid phone followed by valid email

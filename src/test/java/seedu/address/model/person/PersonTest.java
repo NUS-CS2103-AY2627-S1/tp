@@ -19,6 +19,41 @@ import seedu.address.testutil.PersonBuilder;
 public class PersonTest {
 
     @Test
+    public void isDuplicateContactOf_unicodeCaseVariants_matchesWithoutChangingStorageIdentity() {
+        String[][] variants = {{"ΟΣ", "οσ"}, {"Σ", "ς"}, {"Ipek", "ıpek"}, {"ΟΣ  Tan", "οσ tan"}};
+        for (String[] pair : variants) {
+            Person first = new PersonBuilder(ALICE).withName(pair[0]).build();
+            Person second = new PersonBuilder(ALICE).withName(pair[1]).build();
+            assertTrue(first.isDuplicateContactOf(second));
+            assertTrue(second.isDuplicateContactOf(first));
+            assertFalse(first.isSamePerson(second));
+            assertFalse(first.isDuplicateContactOf(new PersonBuilder(second).withPhone(VALID_PHONE_BOB).build()));
+            assertEquals(pair[0], first.getName().fullName);
+        }
+    }
+
+    @Test
+    public void isDuplicateContactOf_canonicalAccentsMatch_otherSpellingRemainsDistinct() {
+        Person first = new PersonBuilder(ALICE).withName("Émile").build();
+        assertFalse(first.isDuplicateContactOf(new PersonBuilder(first).withName("Emile").build()));
+        assertTrue(first.isDuplicateContactOf(new PersonBuilder(first).withName("E\u0301mile").build()));
+        assertFalse(first.isDuplicateContactOf(new PersonBuilder(first).withName("Émile-Tan").build()));
+    }
+
+    @Test
+    public void isSamePerson_trailingContactWhitespace_ignoresPaddingWithoutChangingValues() {
+        Person padded = new PersonBuilder(BOB).withName(BOB.getName().fullName + " ")
+                .withAddress(BOB.getAddress().value + " \t").build();
+        assertTrue(BOB.isSamePerson(padded));
+        assertTrue(padded.isSamePerson(BOB));
+        assertEquals(BOB.getName().fullName + " ", padded.getName().fullName);
+        assertEquals(BOB.getAddress().value + " \t", padded.getAddress().value);
+        Person internalSpacing = new PersonBuilder(BOB)
+                .withName(BOB.getName().fullName.replace(" ", "  ")).build();
+        assertFalse(BOB.isSamePerson(internalSpacing));
+    }
+
+    @Test
     public void asObservableList_modifyList_throwsUnsupportedOperationException() {
         Person person = new PersonBuilder().build();
         assertThrows(UnsupportedOperationException.class, () -> person.getTags().remove(0));
@@ -32,23 +67,32 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
+        // same name, other contact fields different -> returns false
         Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
                 .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same contact fields, tags different -> returns true
+        editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
+        // one contact field differs -> returns false
+        assertFalse(ALICE.isSamePerson(new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build()));
+        assertFalse(ALICE.isSamePerson(new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build()));
+        assertFalse(ALICE.isSamePerson(new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build()));
+
         // name differs in case, all other attributes same -> returns false
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
         assertFalse(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true after trimming
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
     }
 
     @Test

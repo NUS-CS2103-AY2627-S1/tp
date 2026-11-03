@@ -1,0 +1,40 @@
+@startuml
+!pragma layout smetana
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam state {
+    BackgroundColor MODEL_COLOR
+    BorderColor MODEL_COLOR_T3
+    FontColor USER_COLOR
+}
+hide empty description
+
+[*] --> AllMembers
+
+state "AllMembers\n(no active conditions)" as AllMembers
+state "Narrowed\n(one or more conditions)" as Narrowed
+
+AllMembers --> Narrowed : find / filter / show / findemail
+Narrowed --> AllMembers : remove last chip
+Narrowed --> AllMembers : list, applied add,\nsuccessful clear /all, valid import
+Narrowed --> Narrowed : add or remove a condition\n[one or more conditions remain]
+
+note left of Narrowed
+Conditions combine with AND.
+Within each search or tag group,
+alternatives combine with OR.
+Repeated name/email keyword sets,
+complete tag sets, or show selections
+add no condition. Keyword/tag sets
+ignore case, order and repetition.
+end note
+
+note right of AllMembers
+sort, delete and displayed clear
+retain the active conditions.
+list preserves stored order.
+
+add/import clear conditions before saving.
+A failed save retains that cleared view.
+end note
+@enduml

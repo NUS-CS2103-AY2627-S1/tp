@@ -1,6 +1,5 @@
 package seedu.address.logic;
 
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -12,40 +11,46 @@ import seedu.address.model.person.Person;
  */
 public class Messages {
 
-    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
-    public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command. Type help for available commands.";
+    public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format.\n\n%1$s";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX =
+            "No member has that displayed index. Use list, then choose a number shown beside a member.";
+    /** Appended to bulk tag and renametag feedback when no member was updated. */
+    public static final String MESSAGE_NO_CHANGES = " No changes were made.";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
 
     /**
-     * Returns an error message indicating the duplicate prefixes.
+     * Returns an error message listing each duplicate prefix once, in the supplied order.
      */
     public static String getErrorMessageForDuplicatePrefixes(Prefix... duplicatePrefixes) {
         assert duplicatePrefixes.length > 0;
 
-        Set<String> duplicateFields =
-                Stream.of(duplicatePrefixes).map(Prefix::toString).collect(Collectors.toSet());
-
-        return MESSAGE_DUPLICATE_FIELDS + String.join(" ", duplicateFields);
+        String duplicateFields = Stream.of(duplicatePrefixes).map(Prefix::toString).distinct()
+                .collect(Collectors.joining(" "));
+        return MESSAGE_DUPLICATE_FIELDS + duplicateFields;
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Formats member details as labelled rows, with tags in a case-sensitive ASCII order.
      */
     public static String format(Person person) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
-        return builder.toString();
+        return "Name: " + person.getName()
+                + "\nPhone: " + person.getPhone()
+                + "\nEmail: " + person.getEmail()
+                + "\nAddress: " + (person.getAddress().value.isEmpty() ? "(none)" : person.getAddress())
+                + "\nTags: " + formatTags(person);
+    }
+
+    /**
+     * Formats a member's tags in a case-sensitive ASCII order, or {@code (none)} if they have no tags.
+     */
+    public static String formatTags(Person person) {
+        String tags = person.getTags().stream()
+                .map(tag -> tag.tagName)
+                .sorted()
+                .collect(Collectors.joining(", "));
+        return tags.isEmpty() ? "(none)" : tags;
     }
 
 }

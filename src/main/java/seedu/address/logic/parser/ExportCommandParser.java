@@ -1,0 +1,52 @@
+package seedu.address.logic.parser;
+
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.Locale;
+
+import seedu.address.logic.commands.ExportCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses arguments for the {@code export} command.
+ */
+public class ExportCommandParser implements Parser<ExportCommand> {
+
+    public static final String MESSAGE_QUOTED_PATH =
+            "Export paths must not contain double quotes. Choose a filename without double quotes; "
+            + "spaces are allowed without surrounding quotes.";
+
+    public static final String MESSAGE_NON_CSV_FILE = "File must have a .csv extension.";
+
+    /**
+     * Parses an optional destination path, preserving spaces within the path.
+     * Blank arguments select the default filename in the application's current directory.
+     *
+     * @param args the arguments following the export command word.
+     * @return an export command for the supplied path or the default filename.
+     * @throws ParseException if the path is invalid, contains double quotes, or lacks a CSV extension.
+     */
+    @Override
+    public ExportCommand parse(String args) throws ParseException {
+        String filePath = args.trim();
+        if (filePath.isEmpty()) {
+            filePath = ExportCommand.DEFAULT_FILE_NAME;
+        }
+
+        if (filePath.indexOf('"') >= 0) {
+            throw new ParseException(MESSAGE_QUOTED_PATH);
+        }
+
+        try {
+            Path destination = Path.of(filePath);
+            if (!filePath.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+                throw new ParseException(MESSAGE_NON_CSV_FILE);
+            }
+            return new ExportCommand(destination);
+        } catch (InvalidPathException e) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExportCommand.MESSAGE_USAGE), e);
+        }
+    }
+}

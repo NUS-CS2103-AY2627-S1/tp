@@ -1,13 +1,25 @@
 name: Java CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    tags: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
+    # Avoid the ARM64 macOS capacity queue while preserving required check names.
+    runs-on: ${{ matrix.platform == 'macos-latest' && 'macos-15-intel' || matrix.platform }}
 
     steps:
       - name: Set up repository
@@ -26,13 +38,68 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '25'
-          java-package: jdk+fx
+          # Use the same JavaFX dependencies as the packaged application on every OS.
+          # Avoid a second JavaFX runtime; the failed child JVM in #363 loaded jrt:/javafx.graphics.
+          java-package: jdk
 
-      - name: Build and check with Gradle
+      - name: Build and check with Gradle on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum ./gradlew check coverage
+
+      - name: Build and check with Gradle on macOS and Windows
+        if: runner.os != 'Linux'
         run: ./gradlew check coverage
 
       - name: Upload coverage reports to Codecov
-        if: runner.os == 'Linux'
+        # The team repository is itself a fork of the course repository, so github.event.repository.fork is
+        # always true here. Upload with the workflow's OIDC token from pushes to master and from pull requests
+        # whose branch is in this repository.
+        if: >-
+          runner.os == 'Linux' && github.repository == 'AY2627S1-CS2103T-W12-1/tp'
+          && ((github.event_name == 'push' && github.ref == 'refs/heads/master')
+          || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository))
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          # Report a failed upload without failing the build, until coverage is confirmed on codecov.io.
+          fail_ci_if_error: false
+          files: build/reports/jacoco/coverage/coverage.xml
+          disable_search: true
+
+      - name: Upload coverage reports to Codecov from a member fork
+        # Pull requests from member forks get no OIDC token or secrets, so they use Codecov's tokenless upload
+        # for forks of public repositories, which is how they uploaded before the fork check was added.
+        if: >-
+          runner.os == 'Linux' && github.repository == 'AY2627S1-CS2103T-W12-1/tp'
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name != github.repository
+        uses: codecov/codecov-action@v7
+        with:
+          fail_ci_if_error: false
+          files: build/reports/jacoco/coverage/coverage.xml
+          disable_search: true
+
+      - name: Collect macOS failure diagnostics
+        if: failure() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p build/ci-diagnostics
+          reports="$HOME/Library/Logs/DiagnosticReports"
+          if [ -d "$reports" ]; then
+            find "$reports" -maxdepth 1 -type f -name 'java*' -mmin -15 \
+              -exec cp {} build/ci-diagnostics/ \;
+          fi
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-diagnostics-${{ matrix.platform }}
+          path: |
+            build/ci-diagnostics/
+            build/test-results/test/
+            build/reports/tests/test/
+            hs_err_pid*.log
+          if-no-files-found: ignore
+          retention-days: 3

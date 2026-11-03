@@ -1,10 +1,14 @@
 package seedu.address.model;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.EmailContainsKeywordsPredicate;
+import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 
 /**
  * The API of the Model component.
@@ -63,9 +67,59 @@ public interface Model {
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Stably sorts the complete stored roster by name while retaining all active display conditions. */
+    void sortPersonsByName();
+
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Narrows the currently displayed person list using the given {@code predicate}.
+     *
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void filterFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Adds a separately removable name search unless an equivalent search is already active.
+     *
+     * @return True if added; false for a repeat, ignoring keyword case, repetition and order.
+     */
+    boolean filterFilteredPersonListByName(NameContainsKeywordsPredicate predicate);
+
+    /**
+     * Adds a separately removable email search unless an equivalent search is already active.
+     *
+     * @return True if added; false for a repeat, ignoring keyword case, repetition and order.
+     */
+    boolean filterFilteredPersonListByEmail(EmailContainsKeywordsPredicate predicate);
+
+    /**
+     * Narrows the displayed list to persons with {@code tag} and records the active tag filter.
+     */
+    void filterFilteredPersonListByTag(Tag tag);
+
+    /**
+     * Adds one removable tag condition that a person satisfies by having any one of {@code tags}.
+     * Earlier conditions still apply, so this narrows the list further.
+     *
+     * @return True if added; false if a condition over exactly the same tags is already active.
+     * @throws IllegalArgumentException If {@code tags} is empty.
+     */
+    boolean filterFilteredPersonListByTags(List<Tag> tags);
+
+    /** Returns the tags of every active tag condition, in the order they were applied. */
+    List<Tag> getActiveTagFilters();
+
+    /** Returns removable display conditions in the order they were applied. */
+    List<ActiveFilter> getActiveFilters();
+
+    /** Removes successfully deleted members from Show descriptions after a transactional clear saves. */
+    void removeDeletedPersonsFromSelections(List<Person> deletedPersons);
+
+    /** Removes exactly one active filter while retaining the others. */
+    void removeActiveFilter(ActiveFilter filter);
 }

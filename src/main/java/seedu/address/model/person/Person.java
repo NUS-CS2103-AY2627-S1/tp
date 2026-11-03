@@ -4,6 +4,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -62,8 +63,9 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have the same contact fields.
+     * Tags do not form part of a person's identity.
+     * Surrounding whitespace is ignored; case and internal spacing remain significant.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
@@ -71,7 +73,38 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().fullName.trim().equals(getName().fullName.trim())
+                && otherPerson.getPhone().value.trim().equals(getPhone().value.trim())
+                && otherPerson.getEmail().value.trim().equals(getEmail().value.trim())
+                && otherPerson.getAddress().value.trim().equals(getAddress().value.trim());
+    }
+
+    /**
+     * Checks duplicate contact input without changing stored names or the legacy storage identity rule.
+     * Name case, canonical Unicode form and repeated whitespace are ignored; phone spacing and email-domain case too.
+     * Other contact fields are trimmed and compared exactly.
+     * Tags are ignored. Existing JSON records continue to use {@link #isSamePerson(Person)} when loading.
+     */
+    public boolean isDuplicateContactOf(Person otherPerson) {
+        return otherPerson != null
+                && name.getComparisonKey().equalsIgnoreCase(otherPerson.getName().getComparisonKey())
+                && normalizePhone(phone.value).equals(normalizePhone(otherPerson.getPhone().value))
+                && normalizeEmail(email.value).equals(normalizeEmail(otherPerson.getEmail().value))
+                && address.value.trim().equals(otherPerson.getAddress().value.trim());
+    }
+
+    /** Removes ASCII spaces while retaining a phone number's optional leading plus. */
+    private static String normalizePhone(String value) {
+        return value.trim().replace(" ", "");
+    }
+
+    /** Compares the email local part exactly and folds only the domain's ASCII case. */
+    private static String normalizeEmail(String value) {
+        String trimmed = value.trim();
+        int separator = trimmed.lastIndexOf('@');
+        String localPart = trimmed.substring(0, separator);
+        String domain = trimmed.substring(separator + 1).toLowerCase(Locale.ROOT);
+        return localPart + "@" + domain;
     }
 
     /**

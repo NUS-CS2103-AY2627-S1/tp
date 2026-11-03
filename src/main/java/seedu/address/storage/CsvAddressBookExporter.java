@@ -1,0 +1,55 @@
+package seedu.address.storage;
+
+import static java.util.stream.Collectors.joining;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.apache.commons.csv.CSVPrinter;
+
+import seedu.address.commons.util.FileUtil;
+import seedu.address.model.person.Person;
+
+/**
+ * Writes address book contacts to a CSV file.
+ */
+public final class CsvAddressBookExporter {
+
+    private CsvAddressBookExporter() {
+        // Utility class.
+    }
+
+    /**
+     * Writes the given contacts using UTF-8 and RFC 4180 CSV formatting, replacing any existing destination file.
+     * The parent directory must already exist. An empty contact list produces a header-only file.
+     *
+     * @throws IOException if the destination cannot be opened or written.
+     */
+    public static void export(List<Person> people, Path filePath) throws IOException {
+        filePath = FileUtil.resolvePath(filePath);
+        FileUtil.writeAtomically(filePath, temporary -> writeCsv(people, temporary));
+    }
+
+    /** Writes the entire CSV to a temporary file, closing the encoder before the destination is replaced. */
+    private static void writeCsv(List<Person> people, Path filePath) throws IOException {
+        try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8);
+                CSVPrinter csvPrinter = new CSVPrinter(writer, CsvAddressBookCsv.FORMAT)) {
+            csvPrinter.printRecord(CsvAddressBookCsv.ENCODED_HEADERS);
+            for (Person person : people) {
+                String tags = person.getTags().stream()
+                        .map(tag -> tag.tagName)
+                        .sorted()
+                        .collect(joining(";"));
+                csvPrinter.printRecord(CsvAddressBookCsv.escapeForSpreadsheet(person.getName().toString()),
+                        CsvAddressBookCsv.escapeForSpreadsheet(person.getPhone().toString()),
+                        CsvAddressBookCsv.escapeForSpreadsheet(person.getEmail().toString()),
+                        CsvAddressBookCsv.escapeForSpreadsheet(person.getAddress().toString()),
+                        CsvAddressBookCsv.escapeForSpreadsheet(tags), CsvAddressBookCsv.SPREADSHEET_ENCODING);
+            }
+        }
+    }
+}

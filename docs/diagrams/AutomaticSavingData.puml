@@ -1,0 +1,55 @@
+@startuml
+!include style.puml
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5EFE5
+skinparam ActivityBorderColor #A48D71
+skinparam ActivityDiamondBackgroundColor #F5EFE5
+skinparam ActivityDiamondBorderColor #A48D71
+skinparam ActivityStartColor #382E25
+skinparam ActivityEndColor #382E25
+
+start
+:Parse and execute user input;
+if (Parsing and execution succeeded?) then (no)
+    :Show error;
+    note right: Roster and saved file\nare unchanged
+    stop
+else (yes)
+endif
+
+if (Read-only command, pending confirmation,\nor cancelled confirmation?) then (yes)
+    :Show result without saving;
+    stop
+else (no)
+endif
+
+:Attempt to save the complete roster;
+note right
+Check the last-read/saved baseline for outside changes.
+Validate the existing roster; rotate its backup only
+when member data differs, including tag spelling.
+Write to a sibling temporary file, then replace atomically.
+If that write fails, roll back the backup rotation.
+end note
+if (Save succeeded?) then (yes)
+    :Show result;
+    stop
+else (no)
+endif
+
+if (Was the command clear?) then (yes)
+    :Restore the previous roster and view;
+    :Show clear save error;
+else (no)
+    :Keep the change in memory only;
+    :Show save error with unsaved-change
+warning and retry instructions;
+    note right
+The previous saved roster is unchanged.
+Exiting loses unsaved changes; restore access
+and use a valid no-op to retry saving.
+end note
+endif
+stop
+@enduml

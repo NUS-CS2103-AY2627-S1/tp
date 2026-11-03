@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.commands.FindCommand;
 import seedu.address.testutil.PersonBuilder;
 
 public class NameContainsKeywordsPredicateTest {
@@ -38,6 +41,21 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void hashCode_equalPredicatesAndCommands_areFoundInHashCollections() {
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("Alice", "Bob"));
+        NameContainsKeywordsPredicate equalPredicate = new NameContainsKeywordsPredicate(List.of("Alice", "Bob"));
+        Set<NameContainsKeywordsPredicate> predicates = new HashSet<>();
+        predicates.add(predicate);
+        assertTrue(predicates.contains(equalPredicate));
+        assertFalse(predicates.add(equalPredicate));
+
+        Set<FindCommand> commands = new HashSet<>();
+        commands.add(new FindCommand(predicate));
+        assertTrue(commands.contains(new FindCommand(equalPredicate)));
+        assertFalse(commands.add(new FindCommand(equalPredicate)));
+    }
+
+    @Test
     public void test_nameContainsKeywords_returnsTrue() {
         // One keyword
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("Alice"));
@@ -57,6 +75,28 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void test_partialNameWord_returnsTrue() {
+        assertTrue(new NameContainsKeywordsPredicate(List.of("ali"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("LIC"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("ice"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("missing", "aN"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+    }
+
+    @Test
+    public void test_nonContiguousOrLongerKeyword_returnsFalse() {
+        assertFalse(new NameContainsKeywordsPredicate(List.of("alce"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Alicee"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("ceTa"))
+                .test(new PersonBuilder().withName("Alice Tan").build()));
+    }
+
+    @Test
     public void test_nameDoesNotContainKeywords_returnsFalse() {
         // Zero keywords
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of());
@@ -70,6 +110,23 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
                 .withEmail("alice@email.com").withAddress("Main Street").build()));
+    }
+
+    @Test
+    public void test_canonicalEquivalence_preservesAccentAndCompatibilityDistinctions() {
+        for (String[] pair : List.of(new String[] {"Zoë", "Zoe\u0308"},
+                new String[] {"Åke", "A\u030ake"}, new String[] {"가", "\u1100\u1161"})) {
+            for (String stored : pair) {
+                for (String query : pair) {
+                    assertTrue(new NameContainsKeywordsPredicate(List.of(query))
+                            .test(new PersonBuilder().withName(stored).build()));
+                }
+            }
+        }
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Zoe"))
+                .test(new PersonBuilder().withName("Zoë").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Alice"))
+                .test(new PersonBuilder().withName("Ａlice").build()));
     }
 
     @Test

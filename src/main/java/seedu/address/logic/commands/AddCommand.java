@@ -20,23 +20,23 @@ public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
-            + "Parameters: "
-            + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " "
-            + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
-            + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+    public static final String MESSAGE_USAGE = "Add a member\n"
+            + "Name: " + PREFIX_NAME + "NAME\n"
+            + "Phone: " + PREFIX_PHONE + "PHONE\n"
+            + "Email: " + PREFIX_EMAIL + "EMAIL\n"
+            + "Address (optional): " + PREFIX_ADDRESS + "ADDRESS\n"
+            + "Tags (optional): " + PREFIX_TAG + "TAG ...\n\n"
+            + "Example (enter as one command):\n"
+            + COMMAND_WORD + " " + PREFIX_NAME + "John Doe " + PREFIX_PHONE + "98765432 "
+            + PREFIX_EMAIL + "john@example.com " + PREFIX_ADDRESS + "Clementi Avenue 2 "
+            + PREFIX_TAG + "committee\n\n"
+            + "Type help add for field rules and more guidance.";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "Added member\n%1$s";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "A member with these contact details already exists (name case, canonical Unicode form "
+                    + "and repeated spaces are ignored). "
+            + "Use find to locate the member and edit to update it.";
 
     private final Person toAdd;
 
@@ -52,7 +52,8 @@ public class AddCommand extends Command {
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
 
-        if (model.hasPerson(toAdd)) {
+        if (model.hasPerson(toAdd)
+                || model.getAddressBook().getPersonList().stream().anyMatch(toAdd::isDuplicateContactOf)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
@@ -72,6 +73,11 @@ public class AddCommand extends Command {
         }
 
         return toAdd.equals(otherAddCommand.toAdd);
+    }
+
+    @Override
+    public int hashCode() {
+        return toAdd.hashCode();
     }
 
     @Override

@@ -1,0 +1,21 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 15
+mainframe sd ImportRoster
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":ImportCommand" as Command LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+participant "storage:Storage" as Storage STORAGE_COLOR
+[-> Logic : execute(commandText)
+activate Logic
+note over Logic,Command : Parsing has produced an ImportCommand.
+Logic -> Command : execute(model)
+activate Command
+ref over Command,Model : ValidateAndAppendCsv
+Command --> Logic : CommandResult(imported, skipped)
+deactivate Command
+ref over Logic,Storage : SaveImportedRoster
+Logic -->[ : result or failure
+deactivate Logic
+@enduml

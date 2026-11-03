@@ -2,12 +2,15 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
@@ -23,6 +26,22 @@ public class ParserUtil {
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
 
     /**
+     * Parses search keywords using Java whitespace and Unicode space separators, including nonbreaking spaces.
+     *
+     * @param args Search keywords separated by whitespace.
+     * @param usage Guidance to show when no keyword is supplied.
+     * @throws ParseException If the input contains no keywords.
+     */
+    public static List<String> parseKeywords(String args, String usage) throws ParseException {
+        List<String> keywords = Arrays.stream(requireNonNull(args).split("[\\p{javaWhitespace}\\p{Zs}]+"))
+                .filter(keyword -> !keyword.isEmpty()).toList();
+        if (keywords.isEmpty()) {
+            throw new ParseException(String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, usage));
+        }
+        return keywords;
+    }
+
+    /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
@@ -33,6 +52,18 @@ public class ParserUtil {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+    }
+
+    /** Keeps invalid numeric indexes distinct from malformed command arguments. */
+    public static Index parseCommandIndex(String input, String usage) throws ParseException {
+        try {
+            return parseIndex(input);
+        } catch (ParseException exception) {
+            if (input.trim().matches("[+-]?[0-9]+")) {
+                throw exception;
+            }
+            throw new ParseException(String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, usage), exception);
+        }
     }
 
     /**
@@ -74,7 +105,7 @@ public class ParserUtil {
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
         String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
+        if (trimmedAddress.isEmpty() || !Address.isValidAddress(trimmedAddress)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);

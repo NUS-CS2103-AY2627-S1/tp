@@ -1,0 +1,35 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 15
+mainframe sd ExportRoster
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":ExportCommand" as Command LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+participant "<<class>>\nCsvAddressBookExporter" as Exporter STORAGE_COLOR
+[-> Logic : execute(commandText)
+activate Logic
+note over Logic,Command : Parsing has produced an ExportCommand.
+Logic -> Command : execute(model, protectedFiles)
+activate Command
+Command -> Model : getFilteredPersonList()
+activate Model
+Model --> Command : displayed members in displayed order
+deactivate Model
+Command -> Model : getAddressBook()
+activate Model
+Model --> Command : roster (total count)
+deactivate Model
+Command -> Command : snapshot displayed members; count hidden members
+ref over Command : CheckExportDestination
+Command -> Exporter : export(people, targetPath)
+activate Exporter
+ref over Exporter : WriteCsvAtomically
+Exporter --> Command : return
+deactivate Exporter
+Command --> Logic : CommandResult(exported count, path, hidden count if any)
+deactivate Command
+Logic -->[ : CommandResult
+deactivate Logic
+note over Logic,Model : The roster order and active filters remain unchanged.
+@enduml

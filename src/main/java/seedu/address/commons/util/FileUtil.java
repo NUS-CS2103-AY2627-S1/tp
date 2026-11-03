@@ -1,21 +1,81 @@
 package seedu.address.commons.util;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 /**
- * Writes and reads files
+ * Resolves application paths and reads or writes files.
  */
 public class FileUtil {
 
-    private static final String CHARSET = "UTF-8";
+    private static final Path CODE_LOCATION = getCodeLocation();
+    private static final boolean IS_PACKAGED = !Files.isDirectory(CODE_LOCATION);
+    private static final Path HOME_FOLDER = IS_PACKAGED
+            ? CODE_LOCATION.getParent() : Path.of("").toAbsolutePath().normalize();
+
+    /**
+     * Returns the JAR folder, or the working directory for an unpackaged development run.
+     */
+    public static Path getHomeFolder() {
+        return HOME_FOLDER;
+    }
+
+    /**
+     * Returns the running JAR, or the classes directory during development.
+     *
+     * @return The real code location, which an export must not overwrite.
+     */
+    public static Path getApplicationLocation() {
+        return CODE_LOCATION;
+    }
+
+    /**
+     * Resolves a released application's file inside its JAR folder.
+     * Unpackaged runs retain their existing paths so development fixtures can use temporary folders.
+     *
+     * @throws IOException if a packaged path leaves the JAR folder or traverses a symbolic link.
+     */
+    public static Path resolvePath(Path file) throws IOException {
+        if (!IS_PACKAGED) {
+            return file;
+        }
+        Path target = HOME_FOLDER.resolve(file).normalize();
+        if (!target.startsWith(HOME_FOLDER)) {
+            throw new IOException("Files must stay inside the JAR folder: " + HOME_FOLDER);
+        }
+        Path current = HOME_FOLDER;
+        for (Path component : HOME_FOLDER.relativize(target)) {
+            current = current.resolve(component);
+            if (Files.isSymbolicLink(current) || (Files.exists(current, LinkOption.NOFOLLOW_LINKS)
+                    && !current.toRealPath().startsWith(HOME_FOLDER))) {
+                throw new IOException("Symbolic links are not allowed in application file paths.");
+            }
+        }
+        return target;
+    }
+
+    /** Returns the real location of the classes or JAR without depending on the launch directory. */
+    private static Path getCodeLocation() {
+        try {
+            return Path.of(FileUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath();
+        } catch (URISyntaxException | IOException e) {
+            throw new IllegalStateException("Could not locate the application folder.", e);
+        }
+    }
 
     /**
      * Creates a file if it does not exist along with its missing parent directories.
      * @throws IOException if the file or directory cannot be created.
      */
     public static void createIfMissing(Path file) throws IOException {
+        file = resolvePath(file);
         if (Files.exists(file)) {
             return;
         }
@@ -38,17 +98,69 @@ public class FileUtil {
 
     /**
      * Assumes file exists
+     *
+     * @param file File whose UTF-8 contents should be read.
+     * @return The complete decoded contents.
+     * @throws IOException If reading fails or the file contains malformed UTF-8.
      */
     public static String readFromFile(Path file) throws IOException {
-        return new String(Files.readAllBytes(file), CHARSET);
+        file = resolvePath(file);
+        return Files.readString(file);
     }
 
     /**
-     * Writes given string to a file.
-     * Will create the file if it does not exist yet.
+     * Writes UTF-8 content to a sibling temporary file and atomically replaces the target.
+     * Creates missing parent directories. A write failure leaves an existing target untouched.
+     *
+     * @throws IOException if writing or atomic replacement fails, including unsupported file systems.
      */
     public static void writeToFile(Path file, String content) throws IOException {
-        Files.write(file, content.getBytes(CHARSET));
+        Path target = resolvePath(file).toAbsolutePath();
+        createParentDirsOfFile(target);
+        writeAtomically(target, temporary -> Files.writeString(temporary, content));
+    }
+
+    /**
+     * Writes a complete replacement beside an existing destination before atomically replacing it.
+     * The parent directory must already exist. The writer must close its output before returning.
+     * Existing POSIX permission bits are preserved when supported by the destination filesystem.
+     *
+     * @param file Destination to replace only after writing succeeds.
+     * @param writer Operation that writes the replacement to the supplied temporary file.
+     * @throws IOException If writing, cleanup, or atomic replacement fails.
+     */
+    public static void writeAtomically(Path file, FileWriter writer) throws IOException {
+        Path target = resolvePath(file).toAbsolutePath();
+        Set<PosixFilePermission> permissions = Files.exists(target)
+                && Files.getFileAttributeView(target, PosixFileAttributeView.class) != null
+                ? Files.getPosixFilePermissions(target) : null;
+        Path temporary = Files.createTempFile(target.getParent(), ".trackcall-", ".tmp");
+        try {
+            writer.write(temporary);
+            if (permissions != null) {
+                Files.setPosixFilePermissions(temporary, permissions);
+            }
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | RuntimeException e) {
+            try {
+                Files.deleteIfExists(temporary);
+            } catch (IOException cleanupError) {
+                e.addSuppressed(cleanupError);
+            }
+            throw e;
+        }
+    }
+
+    /** Writes complete file contents to a temporary destination, propagating I/O failures. */
+    @FunctionalInterface
+    public interface FileWriter {
+        /**
+         * Writes and closes the replacement file before it is moved into place.
+         *
+         * @param file Temporary destination inside the final destination's parent directory.
+         * @throws IOException If the replacement cannot be fully written.
+         */
+        void write(Path file) throws IOException;
     }
 
 }

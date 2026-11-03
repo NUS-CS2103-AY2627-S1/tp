@@ -3,20 +3,25 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.text.Normalizer;
+import java.util.regex.Pattern;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
  */
 public class Name {
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+    public static final int MAX_LENGTH = 200;
 
-    /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
-     */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String MESSAGE_CONSTRAINTS =
+            "Names must start with a letter or ASCII digit and contain only Unicode letters, combining marks, "
+                    + "ASCII digits, spaces, periods, slashes, hyphens, apostrophes, commas and parentheses; at most "
+                    + MAX_LENGTH + " UTF-16 code units";
+    public static final String VALIDATION_REGEX = "[\\p{L}0-9][\\p{L}\\p{M}0-9 .,()/'\u2019-]*";
+
+    /** Shared spacing rule for new-contact duplicate matching and stored-roster sorting. */
+    private static final Pattern WHITESPACE = Pattern.compile("(?U)\\s+");
 
     public final String fullName;
 
@@ -35,9 +40,14 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.length() <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
     }
 
+
+    /** Returns an NFC- and spacing-normalized key without changing stored spelling or letter case. */
+    public String getComparisonKey() {
+        return WHITESPACE.matcher(Normalizer.normalize(fullName, Normalizer.Form.NFC)).replaceAll(" ").trim();
+    }
 
     @Override
     public String toString() {

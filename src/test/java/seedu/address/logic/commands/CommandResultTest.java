@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +37,25 @@ public class CommandResultTest {
 
         // different exit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+
+        // the selected help topic must survive result comparison
+        assertNotEquals(new CommandResult("feedback", true, false, "add"),
+                new CommandResult("feedback", true, false, "edit"));
+        assertEquals(new CommandResult("feedback", true, false, "add"),
+                new CommandResult("feedback", true, false, "add"));
+
+        // the pending deletion must survive result comparison
+        CommandResult deleteAlice = new CommandResult("feedback", new ConfirmDeleteCommand(ALICE));
+        assertEquals(deleteAlice, new CommandResult("feedback", new ConfirmDeleteCommand(ALICE)));
+        assertNotEquals(deleteAlice, new CommandResult("feedback", new ConfirmDeleteCommand(BENSON)));
+        assertNotEquals(deleteAlice, commandResult);
+    }
+
+    @Test
+    public void getPendingDeletion_withAndWithoutDeletion_returnsMatchingOptional() {
+        assertEquals(Optional.empty(), new CommandResult("feedback").getPendingDeletion());
+        assertEquals(Optional.of(new ConfirmDeleteCommand(ALICE)),
+                new CommandResult("feedback", new ConfirmDeleteCommand(ALICE)).getPendingDeletion());
     }
 
     @Test
@@ -50,6 +73,10 @@ public class CommandResultTest {
 
         // different exit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+
+        // different pending deletion -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(),
+                new CommandResult("feedback", new ConfirmDeleteCommand(ALICE)).hashCode());
     }
 
     @Test
@@ -57,7 +84,8 @@ public class CommandResultTest {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", helpTopic=" + commandResult.getHelpTopic()
+                + ", pendingDeletion=null}";
         assertEquals(expected, commandResult.toString());
     }
 }

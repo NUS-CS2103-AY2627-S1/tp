@@ -5,9 +5,31 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
+/** Tests index conversion boundaries and equality without accepting invalid input through overflow. */
 public class IndexTest {
+
+    @Test
+    public void fromOneBased_minimumInteger_throwsIndexOutOfBoundsException() {
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromOneBased(Integer.MIN_VALUE));
+    }
+
+    @Test
+    public void fromZeroBased_maximumInteger_throwsIndexOutOfBoundsException() {
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromZeroBased(Integer.MAX_VALUE));
+    }
+
+    @Test
+    public void conversion_largestRepresentableIndex_preservesBothBases() {
+        Index largest = Index.fromOneBased(Integer.MAX_VALUE);
+        assertEquals(Integer.MAX_VALUE - 1, largest.getZeroBased());
+        assertEquals(Integer.MAX_VALUE, largest.getOneBased());
+        assertEquals(largest, Index.fromZeroBased(Integer.MAX_VALUE - 1));
+    }
 
     @Test
     public void createOneBasedIndex() {
@@ -56,6 +78,17 @@ public class IndexTest {
 
         // different index -> returns false
         assertFalse(fifthPersonIndex.equals(Index.fromOneBased(1)));
+    }
+
+    @Test
+    public void hashCode_equivalentBases_retrieveTheSameMapEntry() {
+        Map<Index, String> entries = new HashMap<>();
+        entries.put(Index.fromOneBased(1), "first");
+        entries.put(Index.fromOneBased(Integer.MAX_VALUE), "last");
+        assertEquals("first", entries.get(Index.fromZeroBased(0)));
+        assertEquals("last", entries.get(Index.fromZeroBased(Integer.MAX_VALUE - 1)));
+        assertEquals("first", entries.put(Index.fromZeroBased(0), "updated"));
+        assertEquals(2, entries.size());
     }
 
     @Test

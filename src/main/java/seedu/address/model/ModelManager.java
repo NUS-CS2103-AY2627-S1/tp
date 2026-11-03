@@ -3,6 +3,9 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -10,7 +13,11 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.EmailContainsKeywordsPredicate;
+import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonSelectionPredicate;
+import seedu.address.model.tag.Tag;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -21,6 +28,10 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    /** Extra predicates used internally by commands and tests, without removable UI boxes. */
+    private final List<Predicate<Person>> additionalFilters = new ArrayList<>();
+    /** Removable name, email, tag and show conditions, kept in the order they were applied. */
+    private final List<ActiveFilter> activeFilters = new ArrayList<>();
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,7 +39,7 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing model with " + addressBook.getPersonList().size() + " member(s)");
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
@@ -78,6 +89,7 @@ public class ModelManager implements Model {
     @Override
     public void deletePerson(Person target) {
         addressBook.removePerson(target);
+        activeFilters.forEach(filter -> filter.removeSelectedPerson(target));
     }
 
     @Override
@@ -91,6 +103,15 @@ public class ModelManager implements Model {
         requireAllNonNull(target, editedPerson);
 
         addressBook.setPerson(target, editedPerson);
+        boolean selectionChanged = false;
+        for (ActiveFilter filter : activeFilters) {
+            if (filter.replaceSelectedPerson(target, editedPerson)) {
+                selectionChanged = true;
+            }
+        }
+        if (selectionChanged) {
+            refreshFilteredPersons();
+        }
     }
 
     //=========== Filtered Person List Accessors =============================================================
@@ -104,10 +125,116 @@ public class ModelManager implements Model {
         return filteredPersons;
     }
 
+    /** Reorders the complete roster without resetting searches, tags or selected members. */
+    @Override
+    public void sortPersonsByName() {
+        addressBook.sortPersonsByName();
+    }
+
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        additionalFilters.clear();
+        activeFilters.clear();
+        if (predicate instanceof NameContainsKeywordsPredicate namePredicate) {
+            activeFilters.add(ActiveFilter.createNameFilter(namePredicate));
+        } else if (predicate instanceof EmailContainsKeywordsPredicate emailPredicate) {
+            activeFilters.add(ActiveFilter.createEmailFilter(emailPredicate));
+        } else if (predicate instanceof PersonSelectionPredicate selection) {
+            activeFilters.add(ActiveFilter.createShowFilter(selection));
+        } else {
+            additionalFilters.add(predicate);
+        }
+        refreshFilteredPersons();
+    }
+
+    @Override
+    public void filterFilteredPersonList(Predicate<Person> predicate) {
+        requireNonNull(predicate);
+        if (predicate instanceof PersonSelectionPredicate selection) {
+            if (activeFilters.stream().anyMatch(filter -> filter.hasSameShowSelection(selection))) {
+                return;
+            }
+            activeFilters.add(ActiveFilter.createShowFilter(selection));
+        } else {
+            additionalFilters.add(predicate);
+        }
+        refreshFilteredPersons();
+    }
+
+    @Override
+    public boolean filterFilteredPersonListByName(NameContainsKeywordsPredicate predicate) {
+        requireNonNull(predicate);
+        return addSearchFilter(ActiveFilter.createNameFilter(predicate));
+    }
+
+    @Override
+    public boolean filterFilteredPersonListByEmail(EmailContainsKeywordsPredicate predicate) {
+        requireNonNull(predicate);
+        return addSearchFilter(ActiveFilter.createEmailFilter(predicate));
+    }
+
+    /** Adds only distinct search conditions, keeping the first query's label and position. */
+    private boolean addSearchFilter(ActiveFilter filter) {
+        if (activeFilters.stream().anyMatch(existing -> existing.hasSameSearch(filter))) {
+            return false;
+        }
+        activeFilters.add(filter);
+        refreshFilteredPersons();
+        return true;
+    }
+
+    @Override
+    public void filterFilteredPersonListByTag(Tag tag) {
+        requireNonNull(tag);
+        filterFilteredPersonListByTags(List.of(tag));
+    }
+
+    @Override
+    public boolean filterFilteredPersonListByTags(List<Tag> tags) {
+        requireNonNull(tags);
+        if (activeFilters.stream().anyMatch(filter -> filter.hasSameTags(tags))) {
+            return false;
+        }
+        activeFilters.add(ActiveFilter.createTagFilter(tags));
+        refreshFilteredPersons();
+        return true;
+    }
+
+    @Override
+    public List<Tag> getActiveTagFilters() {
+        return activeFilters.stream().filter(filter -> filter.getKind() == ActiveFilter.Kind.TAG)
+                .flatMap(filter -> filter.getTags().stream()).toList();
+    }
+
+    @Override
+    public List<ActiveFilter> getActiveFilters() {
+        return List.copyOf(activeFilters);
+    }
+
+    @Override
+    public void removeDeletedPersonsFromSelections(List<Person> deletedPersons) {
+        requireNonNull(deletedPersons);
+        deletedPersons.forEach(person -> activeFilters.forEach(filter -> filter.removeSelectedPerson(person)));
+        refreshFilteredPersons();
+    }
+
+    @Override
+    public void removeActiveFilter(ActiveFilter filter) {
+        requireNonNull(filter);
+        if (activeFilters.remove(filter)) {
+            refreshFilteredPersons();
+        }
+    }
+
+    /**
+     * Reapplies additional predicates and removable active filters to the displayed person list.
+     * A person remains visible only when it satisfies every filter in both groups.
+     */
+    private void refreshFilteredPersons() {
+        filteredPersons.setPredicate(person ->
+                additionalFilters.stream().allMatch(filter -> filter.test(person))
+                        && activeFilters.stream().allMatch(filter -> filter.test(person)));
     }
 
     @Override
@@ -124,6 +251,12 @@ public class ModelManager implements Model {
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
+    }
+
+    /** Hashes the current state used by equality; mutable model state is never cached. */
+    @Override
+    public int hashCode() {
+        return Objects.hash(addressBook, userPrefs, filteredPersons);
     }
 
 }

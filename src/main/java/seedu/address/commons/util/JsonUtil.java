@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import seedu.address.commons.exceptions.DataLoadingException;
 public class JsonUtil {
 
     private static final Logger logger = LogsCenter.getLogger(JsonUtil.class);
+    private static final char BYTE_ORDER_MARK = '\uFEFF';
 
     private static ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
@@ -37,7 +40,12 @@ public class JsonUtil {
 
     static <T> T deserializeObjectFromJsonFile(Path jsonFile, Class<T> classOfObjectToDeserialize)
             throws IOException {
-        return fromJsonString(FileUtil.readFromFile(jsonFile), classOfObjectToDeserialize);
+        String json = FileUtil.readFromFile(jsonFile);
+        // Some editors, such as Windows Notepad, start UTF-8 files with a byte order mark.
+        if (!json.isEmpty() && json.charAt(0) == BYTE_ORDER_MARK) {
+            json = json.substring(1);
+        }
+        return fromJsonString(json, classOfObjectToDeserialize);
     }
 
     /**
@@ -52,17 +60,21 @@ public class JsonUtil {
             Path filePath, Class<T> classOfObjectToDeserialize) throws DataLoadingException {
         requireNonNull(filePath);
 
-        if (!Files.exists(filePath)) {
-            return Optional.empty();
-        }
-        logger.info("JSON file " + filePath + " found.");
-
         T jsonFile;
 
         try {
+            filePath = FileUtil.resolvePath(filePath);
+            // Access failures must not trigger first-run defaults.
+            if (Files.notExists(filePath)) {
+                return Optional.empty();
+            }
+            logger.info("JSON file " + filePath + " found.");
             jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
+            if (jsonFile == null) {
+                throw new IOException("The JSON file must contain an object, not null.");
+            }
         } catch (IOException e) {
-            logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
+            logger.warning("Could not read JSON file " + filePath + " (" + e.getClass().getSimpleName() + ")");
             throw new DataLoadingException(e);
         }
 
@@ -87,10 +99,27 @@ public class JsonUtil {
     /**
      * Converts a given string representation of JSON data to an instance of a class
      * @param <T> The generic type to create an instance of
+     * @param json Complete JSON document to deserialize.
+     * @param instanceClass Type represented by the document.
      * @return The instance of T with the specified values in the JSON string
+     * @throws IOException If the document is invalid or contains content after its root value.
      */
     public static <T> T fromJsonString(String json, Class<T> instanceClass) throws IOException {
-        return objectMapper.readValue(json, instanceClass);
+        try (JsonParser parser = objectMapper.getFactory().createParser(json)) {
+            T value = objectMapper.readValue(parser, instanceClass);
+            if (parser.nextToken() != null) {
+                throw new IOException("The JSON file must contain exactly one root value.");
+            }
+            return value;
+        } catch (JsonProcessingException exception) {
+            // Jackson's message and cause can embed the input document or an invalid contact value.
+            // Keep the error type and position, but never propagate those private payloads to diagnostics.
+            JsonLocation location = exception.getLocation();
+            String position = location == null ? "" : " at line " + location.getLineNr()
+                    + ", column " + location.getColumnNr();
+            throw new IOException("Invalid JSON data" + position + " ("
+                    + exception.getClass().getSimpleName() + ").");
+        }
     }
 
     /**

@@ -8,7 +8,9 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -17,11 +19,15 @@ import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.ActiveFilter;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.person.EmailContainsKeywordsPredicate;
+import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -50,6 +56,17 @@ public class AddCommandTest {
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
         assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void hashCode_equalMemberValues_retrieveTheSameMapEntry() {
+        AddCommand original = new AddCommand(new PersonBuilder().withTags("friend", "committee").build());
+        AddCommand copy = new AddCommand(new PersonBuilder().withTags("committee", "friend").build());
+        Map<AddCommand, String> commands = new HashMap<>();
+        commands.put(original, "pending");
+        assertEquals("pending", commands.get(copy));
+        assertEquals("pending", commands.put(copy, "replaced"));
+        assertEquals(1, commands.size());
     }
 
     @Test
@@ -123,6 +140,11 @@ public class AddCommandTest {
         }
 
         @Override
+        public void removeDeletedPersonsFromSelections(List<Person> deletedPersons) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void deletePerson(Person target) {
             throw new AssertionError("This method should not be called.");
         }
@@ -138,7 +160,52 @@ public class AddCommandTest {
         }
 
         @Override
+        public void sortPersonsByName() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void filterFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean filterFilteredPersonListByName(NameContainsKeywordsPredicate predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean filterFilteredPersonListByEmail(EmailContainsKeywordsPredicate predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void filterFilteredPersonListByTag(Tag tag) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean filterFilteredPersonListByTags(List<Tag> tags) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Tag> getActiveTagFilters() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<ActiveFilter> getActiveFilters() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void removeActiveFilter(ActiveFilter filter) {
             throw new AssertionError("This method should not be called.");
         }
     }

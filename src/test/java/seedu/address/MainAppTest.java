@@ -1,0 +1,363 @@
+package seedu.address;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.JavaFxTestUtil.onJavaFxThread;
+import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.DialogPane;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.tag.Tag;
+import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.JavaFxTestUtil;
+import seedu.address.testutil.PersonBuilder;
+import seedu.address.ui.UiManager;
+
+/** Exercises startup and recovery against disposable files without exiting the shared JavaFX toolkit. */
+public class MainAppTest {
+    @TempDir
+    public Path directory;
+
+    private MainApp app;
+    private JsonAddressBookStorage roster;
+    private JsonUserPrefsStorage prefs;
+    private boolean opened;
+
+    @BeforeAll
+    public static void startJavaFx() throws InterruptedException {
+        JavaFxTestUtil.start();
+    }
+
+    @BeforeEach
+    public void setUp() {
+        roster = new JsonAddressBookStorage(directory.resolve("members.json"));
+        prefs = new JsonUserPrefsStorage(directory.resolve("preferences.json"));
+        app = new MainApp();
+        app.storage = new StorageManager(roster, prefs);
+        app.model = new ModelManager();
+        app.ui = unused -> opened = true;
+    }
+
+    /**
+     * Saves {@code content} as the data file and returns the reason shown when TrackCall cannot load it.
+     * Uses real storage and JsonUtil parsing so changes to their error format break these reason assertions.
+     */
+    private String loadFailureReasonOf(byte[] content) throws IOException {
+        Files.write(roster.getAddressBookFilePath(), content);
+        DataLoadingException failure = assertThrows(DataLoadingException.class, roster::readAddressBook);
+        return MainApp.getLoadingFailureReason(failure);
+    }
+
+    @AfterEach
+    public void closeWindows() throws Exception {
+        onJavaFxThread(() -> List.copyOf(Window.getWindows()).forEach(Window::hide));
+    }
+
+    @Test
+    public void init_wiresComponentsToSuppliedFiles_andRetainsSavedPreferences() throws Exception {
+        UserPrefs saved = new UserPrefs();
+        saved.setGuiSettings(new GuiSettings(900, 650, 20, 30));
+        prefs.saveUserPrefs(saved);
+
+        app.init(prefs.getUserPrefsFilePath(), roster.getAddressBookFilePath());
+
+        assertEquals(saved, app.model.getUserPrefs());
+        assertEquals(roster.getAddressBookFilePath(), app.storage.getAddressBookFilePath());
+        assertEquals(prefs.getUserPrefsFilePath(), app.storage.getUserPrefsFilePath());
+        assertInstanceOf(UiManager.class, app.ui);
+        app.logic.execute("add n/Alice p/12345678 e/alice@example.com a/Main Street");
+        assertEquals(app.model.getAddressBook(), roster.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void recovery_originalChangesDuringDialog_rejectsReplacementAndReportsOwnedError() throws Exception {
+        Files.writeString(roster.getAddressBookFilePath(), "damaged roster");
+        onJavaFxThread(() -> {
+            Stage owner = new Stage();
+            owner.setScene(new Scene(new StackPane()));
+            Platform.runLater(() -> {
+                assertDoesNotThrow(() -> Files.writeString(roster.getAddressBookFilePath(), "changed original"));
+                answerDialog("OK");
+            });
+            answerDialog("Start empty");
+            assertFalse(app.canStartAfterRecovery(owner, "Invalid JSON data"));
+        });
+
+        assertEquals("changed original", Files.readString(roster.getAddressBookFilePath()));
+        assertPreservedCopy();
+    }
+
+    @Test
+    public void start_validAndEmptyRosters_loadsExactlySavedMembersWithoutWriting() throws Exception {
+        for (AddressBook saved : List.of(getTypicalAddressBook(), new AddressBook())) {
+            roster.saveAddressBook(saved);
+            byte[] before = Files.readAllBytes(roster.getAddressBookFilePath());
+            opened = false;
+
+            onJavaFxThread(() -> app.start(new Stage()));
+
+            assertTrue(opened);
+            assertEquals(saved, app.model.getAddressBook());
+            assertArrayEquals(before, Files.readAllBytes(roster.getAddressBookFilePath()));
+        }
+    }
+
+    @Test
+    public void start_missingRoster_loadsSamplesWithoutCreatingFile() throws Exception {
+        onJavaFxThread(() -> app.start(new Stage()));
+
+        assertTrue(opened);
+        assertEquals(SampleDataUtil.getSampleAddressBook(), app.model.getAddressBook());
+        assertFalse(Files.exists(roster.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void start_damagedRoster_restoresBackupBeforeOpeningUi() throws Exception {
+        roster.saveAddressBook(getTypicalAddressBook());
+        roster.saveAddressBook(new AddressBook());
+        Files.writeString(roster.getAddressBookFilePath(), "damaged roster");
+
+        onJavaFxThread(() -> {
+            answerDialog("Restore backup");
+            app.start(new Stage());
+        });
+
+        assertTrue(opened);
+        assertEquals(getTypicalAddressBook(), app.model.getAddressBook());
+        assertEquals(getTypicalAddressBook(), roster.readAddressBook().orElseThrow());
+        assertEquals(getTypicalAddressBook(), roster.readBackup().orElseThrow());
+        assertPreservedCopy();
+    }
+
+    @Test
+    public void start_invalidBackup_explicitlyStartsEmptyWithoutReplacingBackup() throws Exception {
+        Files.writeString(roster.getAddressBookFilePath(), "damaged roster");
+        Path backup = JsonAddressBookStorage.getBackupFilePath(roster.getAddressBookFilePath());
+        Files.writeString(backup, "damaged backup");
+
+        onJavaFxThread(() -> {
+            answerDialog("Start empty");
+            app.start(new Stage());
+        });
+
+        assertTrue(opened);
+        assertEquals(new AddressBook(), roster.readAddressBook().orElseThrow());
+        assertEquals("damaged backup", Files.readString(backup));
+        assertPreservedCopy();
+    }
+
+    @Test
+    public void start_afterEmptyRecovery_externalEditIsRefusedBeforeFirstSave() throws Exception {
+        assertOutsideEditProtectedAfterRecovery("Start empty", new AddressBook());
+    }
+
+    @Test
+    public void start_afterBackupRecovery_externalEditIsRefusedBeforeFirstSave() throws Exception {
+        assertOutsideEditProtectedAfterRecovery("Restore backup", getTypicalAddressBook());
+    }
+
+    /** Checks the actual startup path without reading through session storage before its first save. */
+    private void assertOutsideEditProtectedAfterRecovery(String choice, AddressBook recovered) throws Exception {
+        Path file = roster.getAddressBookFilePath();
+        JsonAddressBookStorage externalWriter = new JsonAddressBookStorage(file);
+        externalWriter.saveAddressBook(getTypicalAddressBook(), JsonAddressBookStorage.getBackupFilePath(file));
+        Files.writeString(file, "damaged roster");
+        onJavaFxThread(() -> {
+            answerDialog(choice);
+            app.start(new Stage());
+        });
+        assertEquals(recovered, app.model.getAddressBook());
+        AddressBook outside = new AddressBook();
+        outside.addPerson(new PersonBuilder().withName("Outside Editor").build());
+        externalWriter.saveAddressBook(outside);
+        byte[] outsideBytes = Files.readAllBytes(file);
+        byte[] backupBytes = Files.readAllBytes(JsonAddressBookStorage.getBackupFilePath(file));
+
+        IOException failure = assertThrows(IOException.class, () ->
+                app.storage.saveAddressBook(app.model.getAddressBook()));
+
+        assertEquals(JsonAddressBookStorage.MESSAGE_CHANGED_OUTSIDE, failure.getMessage());
+        assertArrayEquals(outsideBytes, Files.readAllBytes(file));
+        assertArrayEquals(backupBytes, Files.readAllBytes(JsonAddressBookStorage.getBackupFilePath(file)));
+        app.storage.saveAddressBook(app.model.getAddressBook());
+        assertEquals(recovered, new JsonAddressBookStorage(file).readAddressBook().orElseThrow());
+        assertArrayEquals(outsideBytes, Files.readAllBytes(JsonAddressBookStorage.getBackupFilePath(file)));
+    }
+
+    @Test
+    public void getLoadingFailureReason_notUtf8File_explainsEncoding() throws Exception {
+        assertEquals(MainApp.REASON_NOT_UTF8, loadFailureReasonOf("{\"persons\":[{\"name\":\"Jos\u00e9\"}]}"
+                .getBytes(StandardCharsets.ISO_8859_1)));
+        assertEquals(MainApp.REASON_NOT_UTF8, loadFailureReasonOf("{\"persons\":[]}"
+                .getBytes(StandardCharsets.UTF_16)));
+    }
+
+    @Test
+    public void getLoadingFailureReason_invalidJson_namesPositionWithoutJavaClassNames() throws Exception {
+        assertEquals(String.format(MainApp.REASON_NOT_JSON_FORMAT, 1, 15),
+                loadFailureReasonOf("{\"persons\":[] x".getBytes(StandardCharsets.UTF_8)));
+        for (String content : new String[] {"{persons:[]}", "{\"persons\":[]"}) {
+            String reason = loadFailureReasonOf(content.getBytes(StandardCharsets.UTF_8));
+            assertTrue(reason.startsWith("The data file is not valid JSON near line 1, column "), content);
+            assertFalse(reason.contains("Exception"), content);
+        }
+    }
+
+    @Test
+    public void getLoadingFailureReason_missingPersonsList_explainsExpectedList() throws Exception {
+        for (String content : new String[] {"{}", "{\"persons\":null}", "{\"Persons\":[]}"}) {
+            assertEquals(MainApp.REASON_MISSING_PERSONS, loadFailureReasonOf(content.getBytes(StandardCharsets.UTF_8)),
+                    content);
+        }
+    }
+
+    @Test
+    public void getLoadingFailureReason_wrongValueType_explainsExpectedFormat() throws Exception {
+        String trailingComma = "{\"persons\":[{\"name\":\"Alex\",\"phone\":\"91234567\",\"email\":\"a@b.co\","
+                + "\"address\":\"\",\"tags\":[]},]}";
+        for (String content : new String[] {"[]", "{\"persons\":{}}", "{\"persons\":[{\"tags\":\"a\"}]}", "",
+            trailingComma}) {
+            String reason = loadFailureReasonOf(content.getBytes(StandardCharsets.UTF_8));
+            assertTrue(reason.startsWith("The data file is not in the expected format near line "), content);
+            assertTrue(reason.contains("missing or extra comma"), content);
+            assertFalse(reason.contains("Exception"), content);
+        }
+    }
+
+    @Test
+    public void getLoadingFailureReason_otherFailures_keepsOriginalMessage() {
+        assertEquals("The JSON file must contain exactly one root value.", MainApp.getLoadingFailureReason(
+                new DataLoadingException(new IOException("The JSON file must contain exactly one root value."))));
+        assertEquals(Tag.MESSAGE_CONSTRAINTS, MainApp.getLoadingFailureReason(
+                new DataLoadingException(new IllegalValueException(Tag.MESSAGE_CONSTRAINTS))));
+        assertEquals(null, MainApp.getLoadingFailureReason(new DataLoadingException(new IOException())));
+    }
+
+    @Test
+    public void start_invalidTag_showsReasonInRecoveryDialog() throws Exception {
+        Files.writeString(roster.getAddressBookFilePath(), "{\"persons\":[{\"name\":\"Alice\",\"phone\":\"123\","
+                + "\"email\":\"alice@example.com\",\"address\":\"\",\"tags\":[\"committee!\"]}]}");
+        AtomicReference<String> shownText = new AtomicReference<>();
+
+        onJavaFxThread(() -> {
+            Platform.runLater(() -> shownText.set(findDialogPane().getContentText()));
+            answerDialog("Start empty");
+            app.start(new Stage());
+        });
+
+        assertTrue(opened);
+        assertTrue(shownText.get().startsWith("Reason: " + Tag.MESSAGE_CONSTRAINTS + "\n\n"));
+    }
+
+    @Test
+    public void recovery_closeWithoutBackup_preservesOriginalAndDoesNotOpenUi() throws Exception {
+        Files.writeString(roster.getAddressBookFilePath(), "damaged roster");
+        onJavaFxThread(() -> {
+            answerDialog("Close");
+            assertFalse(app.canStartAfterRecovery(new Stage(), "Invalid JSON data"));
+        });
+
+        assertFalse(opened);
+        assertEquals("damaged roster", Files.readString(roster.getAddressBookFilePath()));
+        assertPreservedCopy();
+    }
+
+    @Test
+    public void recovery_preservationFailure_reportsFailureAndLeavesOriginalAlone() throws Exception {
+        Files.createDirectory(roster.getAddressBookFilePath());
+        onJavaFxThread(() -> {
+            answerDialog("OK");
+            assertFalse(app.canStartAfterRecovery(new Stage(), "Invalid JSON data"));
+        });
+
+        assertFalse(opened);
+        assertTrue(Files.isDirectory(roster.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void initPrefs_missingInvalidAndValidFiles_returnsAndSavesExpectedSettings() throws Exception {
+        assertEquals(new UserPrefs(), app.initPrefs(prefs));
+        Files.writeString(prefs.getUserPrefsFilePath(), "invalid preferences");
+        assertEquals(new UserPrefs(), app.initPrefs(prefs));
+        UserPrefs saved = new UserPrefs();
+        saved.setGuiSettings(new GuiSettings(900, 650, 20, 30));
+        prefs.saveUserPrefs(saved);
+
+        assertEquals(saved, app.initPrefs(prefs));
+        assertEquals(saved, prefs.readUserPrefs().orElseThrow());
+    }
+
+    @Test
+    public void preferences_unwritableDestination_doesNotAbortStartupOrShutdown() throws Exception {
+        Files.createDirectory(prefs.getUserPrefsFilePath());
+
+        assertEquals(new UserPrefs(), app.initPrefs(prefs));
+        assertDoesNotThrow(app::stop);
+        assertTrue(Files.isDirectory(prefs.getUserPrefsFilePath()));
+    }
+
+    @Test
+    public void stop_savesPreferencesWithoutCreatingRoster() throws Exception {
+        app.model.setGuiSettings(new GuiSettings(900, 650, 20, 30));
+        app.stop();
+
+        assertEquals(app.model.getUserPrefs(), prefs.readUserPrefs().orElseThrow());
+        assertFalse(Files.exists(roster.getAddressBookFilePath()));
+    }
+
+    private void assertPreservedCopy() throws Exception {
+        try (var files = Files.list(directory)) {
+            List<Path> copies = files.filter(path -> path.getFileName().toString().contains(".corrupt-")).toList();
+            assertEquals(1, copies.size());
+            assertEquals("damaged roster", Files.readString(copies.getFirst()));
+        }
+    }
+
+    private static DialogPane findDialogPane() {
+        return (DialogPane) Window.getWindows().stream()
+                .filter(window -> window.getScene().getRoot() instanceof DialogPane)
+                .findFirst().orElseThrow().getScene().getRoot();
+    }
+
+    private void answerDialog(String label) {
+        Platform.runLater(() -> {
+            DialogPane pane = findDialogPane();
+            var button = pane.getButtonTypes().stream().filter(type -> type.getText().equals(label))
+                    .findFirst().orElseThrow();
+            Button control = (Button) pane.lookupButton(button);
+            control.fire();
+        });
+    }
+}

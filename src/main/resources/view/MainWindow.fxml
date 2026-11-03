@@ -7,19 +7,22 @@
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <fx:root type="javafx.stage.Stage" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-         title="Address App" minWidth="450" minHeight="600" onCloseRequest="#handleExit">
+         title="TrackCall" minWidth="450" minHeight="450" onCloseRequest="#handleExit">
   <icons>
     <Image url="@/images/address_book_32.png" />
   </icons>
   <scene>
     <Scene>
       <stylesheets>
-        <URL value="@DarkTheme.css" />
+        <URL value="@LightTheme.css" />
         <URL value="@Extensions.css" />
       </stylesheets>
 
@@ -33,25 +36,35 @@
           </Menu>
         </MenuBar>
 
-        <StackPane VBox.vgrow="NEVER" fx:id="commandBoxPlaceholder" styleClass="pane-with-border">
+        <VBox spacing="8" VBox.vgrow="NEVER" styleClass="pane-with-border">
           <padding>
             <Insets top="5" right="10" bottom="5" left="10" />
           </padding>
-        </StackPane>
-
-        <StackPane VBox.vgrow="NEVER" fx:id="resultDisplayPlaceholder" styleClass="pane-with-border"
-                   minHeight="100" prefHeight="100" maxHeight="100">
-          <padding>
-            <Insets top="5" right="10" bottom="5" left="10" />
-          </padding>
-        </StackPane>
-
-        <VBox fx:id="personList" styleClass="pane-with-border" minWidth="340" prefWidth="340" VBox.vgrow="ALWAYS">
-          <padding>
-            <Insets top="10" right="10" bottom="10" left="10" />
-          </padding>
-          <StackPane fx:id="personListPanelPlaceholder" VBox.vgrow="ALWAYS"/>
+          <StackPane fx:id="commandBoxPlaceholder" />
+          <ScrollPane fx:id="activeFiltersScroll" fitToWidth="true" hbarPolicy="NEVER" prefHeight="80" maxHeight="80"
+                      minHeight="0" visible="false" managed="false" focusTraversable="true"
+                      accessibleText="Active view conditions"
+                      styleClass="active-filters-scroll">
+            <FlowPane fx:id="activeFiltersPane" hgap="8" vgap="6" minWidth="0" />
+          </ScrollPane>
         </VBox>
+
+        <SplitPane fx:id="mainSplit" orientation="VERTICAL" dividerPositions="0.22" VBox.vgrow="ALWAYS">
+          <StackPane fx:id="resultDisplayPlaceholder" styleClass="pane-with-border" minHeight="60">
+            <padding>
+              <Insets top="8" right="12" bottom="8" left="12" />
+            </padding>
+          </StackPane>
+          <SplitPane orientation="HORIZONTAL" dividerPositions="0.43" minHeight="120">
+            <VBox fx:id="personList" styleClass="pane-with-border" minWidth="145" minHeight="0">
+              <padding><Insets top="10" right="8" bottom="10" left="10" /></padding>
+              <Label fx:id="rosterHeading" text="ROSTER" styleClass="panel-heading" />
+              <StackPane fx:id="personListPanelPlaceholder" minHeight="0" VBox.vgrow="ALWAYS"/>
+            </VBox>
+            <StackPane fx:id="memberDetailsPlaceholder" styleClass="pane-with-border"
+                       minWidth="190" minHeight="0" />
+          </SplitPane>
+        </SplitPane>
 
         <StackPane fx:id="statusbarPlaceholder" VBox.vgrow="NEVER" />
       </VBox>

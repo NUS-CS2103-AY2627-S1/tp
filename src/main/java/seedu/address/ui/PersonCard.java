@@ -1,7 +1,9 @@
 package seedu.address.ui;
 
+import java.text.Normalizer;
 import java.util.Comparator;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
@@ -10,7 +12,7 @@ import javafx.scene.layout.Region;
 import seedu.address.model.person.Person;
 
 /**
- * A UI component that displays information of a {@code Person}.
+ * A compact roster row that keeps contact details out of the main list.
  */
 public class PersonCard extends UiPart<Region> {
 
@@ -23,21 +25,12 @@ public class PersonCard extends UiPart<Region> {
      *
      * @see <a href="https://github.com/se-edu/addressbook-level4/issues/336">The issue on AddressBook level 4</a>
      */
-
-    public final Person person;
-
     @FXML
     private HBox cardPane;
     @FXML
     private Label name;
     @FXML
     private Label id;
-    @FXML
-    private Label phone;
-    @FXML
-    private Label address;
-    @FXML
-    private Label email;
     @FXML
     private FlowPane tags;
 
@@ -46,14 +39,32 @@ public class PersonCard extends UiPart<Region> {
      */
     public PersonCard(Person person, int displayedIndex) {
         super(FXML);
-        this.person = person;
-        id.setText(displayedIndex + ". ");
-        name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        id.setText(Integer.toString(displayedIndex));
+        configureWrappedName();
+        tags.prefWrapLengthProperty().bind(Bindings.max(0, cardPane.prefWidthProperty().subtract(32)));
+        tags.setMinHeight(Region.USE_PREF_SIZE);
+        tags.setVisible(!person.getTags().isEmpty());
+        tags.setManaged(!person.getTags().isEmpty());
+        // Recompose combining marks to avoid the slow layout seen with CJK plus a decomposed accent.
+        name.setText(Normalizer.normalize(person.getName().fullName, Normalizer.Form.NFC));
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+                .forEach(tag -> {
+                    Label label = new Label(tag.tagName);
+                    label.setWrapText(true);
+                    label.setMinWidth(0);
+                    label.setMinHeight(Region.USE_PREF_SIZE);
+                    label.maxWidthProperty().bind(Bindings.max(0, cardPane.prefWidthProperty().subtract(32)));
+                    tags.getChildren().add(label);
+                });
+    }
+
+    /**
+     * Reserves space for the index so long names wrap inside the row.
+     */
+    private void configureWrappedName() {
+        name.prefWidthProperty().bind(Bindings.max(0, cardPane.prefWidthProperty().subtract(68)));
+        name.maxWidthProperty().bind(name.prefWidthProperty());
+        name.setMinHeight(Region.USE_PREF_SIZE);
     }
 }
