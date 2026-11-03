@@ -2,33 +2,39 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
+import seedu.address.model.label.Label;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.StudentId;
 
 /**
- * Contains utility methods used for parsing strings in the various *Parser classes.
+ * Contains utility methods for converting command parameter values into model objects.
+ * Unicode space separators are converted to ASCII spaces before trimming and validation.
  */
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_DATE = "Date must use a valid YYYY-MM-DD date.";
+    public static final String DATE_FORMAT_REGEX = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
+     *
+     * @param oneBasedIndex The non-null text representing a one-based index.
+     * @return The parsed index.
+     * @throws NullPointerException if {@code oneBasedIndex} is null.
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
-        String trimmedIndex = oneBasedIndex.trim();
+        String trimmedIndex = StringUtil.normaliseSpaces(oneBasedIndex).trim();
         if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
@@ -37,13 +43,16 @@ public class ParserUtil {
 
     /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Leading and trailing whitespace is trimmed; repeated internal spaces are collapsed by {@code Name}.
      *
+     * @param name The non-null name text.
+     * @return The validated, normalised name with capitalisation preserved.
+     * @throws NullPointerException if {@code name} is null.
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
+        String trimmedName = StringUtil.normaliseSpaces(name).trim();
         if (!Name.isValidName(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
@@ -51,44 +60,37 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String phone} into a {@code Phone}.
+     * Parses a {@code String studentId} into a {@code StudentId}.
      * Leading and trailing whitespaces will be trimmed.
+     * Student ID letters are converted to uppercase by {@code StudentId}.
      *
-     * @throws ParseException if the given {@code phone} is invalid.
+     * @param studentId The non-null student ID text.
+     * @return The validated, uppercase student ID with surrounding whitespace removed.
+     * @throws NullPointerException if {@code studentId} is null.
+     * @throws ParseException if the given {@code studentId} is invalid.
      */
-    public static Phone parsePhone(String phone) throws ParseException {
-        requireNonNull(phone);
-        String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+    public static StudentId parseStudentId(String studentId) throws ParseException {
+        requireNonNull(studentId);
+        String trimmedStudentId = StringUtil.normaliseSpaces(studentId).trim();
+        if (!StudentId.isValidStudentId(trimmedStudentId)) {
+            throw new ParseException(StudentId.MESSAGE_CONSTRAINTS);
         }
-        return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
+        return new StudentId(trimmedStudentId);
     }
 
     /**
      * Parses a {@code String email} into an {@code Email}.
      * Leading and trailing whitespaces will be trimmed.
+     * The domain is converted to lowercase by {@code Email}; local-part capitalisation is preserved.
      *
+     * @param email The non-null email text.
+     * @return The validated email with surrounding whitespace removed and its domain in lowercase.
+     * @throws NullPointerException if {@code email} is null.
      * @throws ParseException if the given {@code email} is invalid.
      */
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
-        String trimmedEmail = email.trim();
+        String trimmedEmail = StringUtil.normaliseSpaces(email).trim();
         if (!Email.isValidEmail(trimmedEmail)) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
@@ -96,29 +98,60 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
+     * Parses a {@code String label} into a {@code Label}.
      * Leading and trailing whitespaces will be trimmed.
      *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * @param label The non-null label text.
+     * @return The parsed label with surrounding whitespace removed.
+     * @throws NullPointerException if {@code label} is null.
+     * @throws ParseException if the given {@code label} is invalid.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static Label parseLabel(String label) throws ParseException {
+        requireNonNull(label);
+        String trimmedLabel = StringUtil.trimSpaces(label);
+        if (!Label.isValidLabelName(trimmedLabel)) {
+            throw new ParseException(Label.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return new Label(trimmedLabel);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses a {@code String remark} into a {@code Remark}.
+     * Trims surrounding whitespace, preserving internal spacing and case, including Unicode spaces.
+     * Empty and whitespace-only input produces an empty remark. The length limit applies after trimming.
+     *
+     * @param remark The non-null remark text.
+     * @return The parsed remark with surrounding whitespace removed.
+     * @throws NullPointerException if {@code remark} is null.
+     * @throws ParseException if the trimmed remark exceeds {@link Remark#MAX_LENGTH} Unicode code points.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    public static Remark parseRemark(String remark) throws ParseException {
+        requireNonNull(remark);
+        String trimmedRemark = StringUtil.trimSpaces(remark);
+        if (!Remark.isValidRemark(trimmedRemark)) {
+            throw new ParseException(Remark.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new Remark(trimmedRemark);
+    }
+
+    /**
+     * Parses a calendar date in strict {@code YYYY-MM-DD} format.
+     *
+     * @param date The non-null date text.
+     * @return The parsed date.
+     * @throws NullPointerException if {@code date} is null.
+     * @throws ParseException if the date is malformed or does not exist.
+     */
+    public static LocalDate parseDate(String date) throws ParseException {
+        requireNonNull(date);
+        String trimmedDate = StringUtil.normaliseSpaces(date).trim();
+        if (!trimmedDate.matches(DATE_FORMAT_REGEX)) {
+            throw new ParseException(MESSAGE_INVALID_DATE);
+        }
+        try {
+            return LocalDate.parse(trimmedDate);
+        } catch (DateTimeParseException e) {
+            throw new ParseException(MESSAGE_INVALID_DATE);
+        }
     }
 }

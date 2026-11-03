@@ -1,0 +1,32 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+title LogicManager: restore the latest available state
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "live:ModelManager" as Model MODEL_COLOR
+participant ":StorageManager" as Storage STORAGE_COLOR
+[-> Logic : executeUndo()
+activate Logic
+alt undoHistory is empty
+    [<-- Logic : CommandResult(\n"Nothing to undo.")
+else a previous state is available
+    note over Logic : previous = undoHistory.getLast()
+    Logic -> Storage : saveAddressBook(previous)
+    alt save succeeds
+        Storage --> Logic : saved
+        Logic -> Model : setAddressBook(previous)
+        Logic -> Model : updateFilteredPersonList(\nPREDICATE_SHOW_ALL_PERSONS)
+        note over Logic : undoHistory.removeLast()
+        [<-- Logic : CommandResult(\n"Undid last change.")
+    else save fails
+        Storage --> Logic : IOException
+        note over Logic, Model
+        Map the exception to the saving error.
+        Keep live records, view, and history unchanged.
+        end note
+        [<-- Logic : CommandException
+    end
+end
+deactivate Logic
+@enduml

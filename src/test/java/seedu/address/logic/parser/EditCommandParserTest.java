@@ -1,208 +1,177 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.commons.core.index.Index;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
+import seedu.address.model.label.Label;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.StudentId;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditCommandParserTest {
-
-    private static final String TAG_EMPTY = " " + PREFIX_TAG;
-
+    private static final StudentId STUDENT_ID = new StudentId("A0123456B");
+    private static final String TARGET = "i/" + STUDENT_ID;
     private static final String MESSAGE_INVALID_FORMAT =
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
 
-    private EditCommandParser parser = new EditCommandParser();
+    private final EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_null_throwsNullPointerException() {
+        // EP: null parser input
+        assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+
+    @Test
+    public void parse_tabSeparatedFields_success() {
+        // EP: tab separated fields
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withName("Amy Bee").withEmail("amy@example.com").build();
+        assertParseSuccess(parser, "i/a0123456b\tn/Amy Bee\te/amy@example.com",
+                new EditCommand(STUDENT_ID, descriptor));
+    }
 
     @Test
     public void parse_missingParts_failure() {
-        // no index specified
-        assertParseFailure(parser, VALID_NAME_AMY, MESSAGE_INVALID_FORMAT);
-
-        // no field specified
-        assertParseFailure(parser, "1", EditCommand.MESSAGE_NOT_EDITED);
-
-        // no index and no field specified
-        assertParseFailure(parser, "", MESSAGE_INVALID_FORMAT);
+        // EP: missing ID, no edit fields, or empty ID
+        // BVA: zero input characters
+        assertParseFailure(parser, "", "Missing required parameter: i/.");
+        assertParseFailure(parser, "n/Amy Bee", "Missing required parameter: i/.");
+        assertParseFailure(parser, TARGET, EditCommand.MESSAGE_NOT_EDITED);
+        assertParseFailure(parser, "i/ n/Amy Bee", "Parameter i/ cannot be empty.");
     }
 
     @Test
-    public void parse_invalidPreamble_failure() {
-        // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
-        // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
-        // invalid arguments being parsed as preamble
-        assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
-
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+    public void parse_invalidStructure_failure() {
+        // EP: preamble, repeated ID, invalid ID, or line break
+        assertParseFailure(parser, "1 n/Amy Bee", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, TARGET + " n/Amy Bee i/B0123456C",
+                seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_STUDENT_ID));
+        assertParseFailure(parser, "i/123 n/Amy Bee", StudentId.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "i/A0123456B n/Amy Bee\ne/a@example.com", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "edit " + TARGET + " n/Amy Bee", MESSAGE_INVALID_FORMAT);
     }
 
     @Test
-    public void parse_invalidValue_failure() {
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
-        assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
-        assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
-
-        // invalid phone followed by valid email
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
-
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
-        // parsing it together with a valid tag results in error
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-
-        // multiple invalid values, but only the first invalid value is captured
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + VALID_ADDRESS_AMY + VALID_PHONE_AMY,
-                Name.MESSAGE_CONSTRAINTS);
+    public void parse_invalidField_failure() {
+        // EP: invalid name or email value
+        assertParseFailure(parser, TARGET + " n/Amy2", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " e/bad", Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " n/Amy2 e/bad", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " n/", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " e/", Email.MESSAGE_CONSTRAINTS);
     }
 
     @Test
-    public void parse_allFieldsSpecified_success() {
-        Index targetIndex = INDEX_SECOND_PERSON;
-        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + TAG_DESC_HUSBAND
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + NAME_DESC_AMY + TAG_DESC_FRIEND;
-
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY)
-                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY).withAddress(VALID_ADDRESS_AMY)
-                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-
-        assertParseSuccess(parser, userInput, expectedCommand);
+    public void parse_multipleFields_success() {
+        // EP: multiple fields
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withName("Amy Bee").withEmail("amy@example.com").withRemark("Needs follow-up").build();
+        assertParseSuccess(parser, TARGET + " e/amy@example.com r/Needs follow-up n/Amy Bee",
+                new EditCommand(STUDENT_ID, descriptor));
     }
 
     @Test
-    public void parse_someFieldsSpecified_success() {
-        Index targetIndex = INDEX_FIRST_PERSON;
-        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + EMAIL_DESC_AMY;
-
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB)
-                .withEmail(VALID_EMAIL_AMY).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-
-        assertParseSuccess(parser, userInput, expectedCommand);
+    public void parse_emptyRemark_success() {
+        // EP: empty remark
+        // BVA: zero characters after trimming
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withRemark("").build();
+        assertParseSuccess(parser, TARGET + " r/   ", new EditCommand(STUDENT_ID, descriptor));
     }
 
     @Test
-    public void parse_oneFieldSpecified_success() {
-        // name
-        Index targetIndex = INDEX_THIRD_PERSON;
-        String userInput = targetIndex.getOneBased() + NAME_DESC_AMY;
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // phone
-        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // email
-        userInput = targetIndex.getOneBased() + EMAIL_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withEmail(VALID_EMAIL_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // address
-        userInput = targetIndex.getOneBased() + ADDRESS_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withAddress(VALID_ADDRESS_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // tags
-        userInput = targetIndex.getOneBased() + TAG_DESC_FRIEND;
-        descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
+    public void parse_addAndRemoveLabels_success() {
+        // EP: add and remove labels
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withLabelsToAdd("Tutorial B", "Needs Follow-up")
+                .withLabelsToRemove("Tutorial A").build();
+        assertParseSuccess(parser, TARGET + " dl/Tutorial A l/Tutorial B l/Needs Follow-up",
+                new EditCommand(STUDENT_ID, descriptor));
     }
 
     @Test
-    public void parse_multipleRepeatedFields_failure() {
-        // More extensive testing of duplicate parameter detections is done in
-        // AddCommandParserTest#parse_repeatedNonTagValue_failure()
+    public void parse_onlyAddOrRemoveLabel_success() {
+        // EP: label addition without a removal
+        EditPersonDescriptor addDescriptor = new EditPersonDescriptorBuilder()
+                .withLabelsToAdd("Tutorial A").build();
+        assertParseSuccess(parser, TARGET + " l/Tutorial A", new EditCommand(STUDENT_ID, addDescriptor));
 
-        // valid followed by invalid
-        Index targetIndex = INDEX_FIRST_PERSON;
-        String userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + PHONE_DESC_BOB;
-
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid followed by valid
-        userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + INVALID_PHONE_DESC;
-
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple valid fields repeated
-        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY
-                + TAG_DESC_FRIEND + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY + TAG_DESC_FRIEND
-                + PHONE_DESC_BOB + ADDRESS_DESC_BOB + EMAIL_DESC_BOB + TAG_DESC_HUSBAND;
-
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
-
-        // multiple invalid values
-        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC
-                + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC;
-
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+        // EP: label removal without an addition
+        EditPersonDescriptor removeDescriptor = new EditPersonDescriptorBuilder()
+                .withLabelsToRemove("Tutorial A").build();
+        assertParseSuccess(parser, TARGET + " dl/Tutorial A", new EditCommand(STUDENT_ID, removeDescriptor));
     }
 
     @Test
-    public void parse_resetTags_success() {
-        Index targetIndex = INDEX_THIRD_PERSON;
-        String userInput = targetIndex.getOneBased() + TAG_EMPTY;
+    public void parse_clearLabelsAndRemark_success() {
+        // EP: clear labels and remark
+        // BVA: zero label and remark value characters
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withClearedLabels().withRemark("").build();
+        assertParseSuccess(parser, TARGET + " l/ r/", new EditCommand(STUDENT_ID, descriptor));
+    }
 
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withTags().build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
+    @Test
+    public void parse_invalidLabelChanges_failure() {
+        // EP: empty, conflicting, repeated, or invalid label operation
+        // BVA: zero characters for the label to remove
+        assertParseFailure(parser, TARGET + " dl/", "Parameter dl/ cannot be empty.");
+        assertParseFailure(parser, TARGET + " l/ dl/Tutorial A",
+                "An empty l/ cannot be combined with other label changes.");
+        assertParseFailure(parser, TARGET + " l/ l/Tutorial B",
+                "An empty l/ cannot be combined with other label changes.");
+        assertParseFailure(parser, TARGET + " l/Tutorial A l/tutorial a",
+                "Parameter l/ repeats label \"tutorial a\".");
+        assertParseFailure(parser, TARGET + " dl/Tutorial A dl/tutorial a",
+                "Parameter dl/ repeats label \"tutorial a\".");
+        assertParseFailure(parser, TARGET + " l/Bad!", Label.MESSAGE_CONSTRAINTS);
 
-        assertParseSuccess(parser, userInput, expectedCommand);
+        // EP: invalid label supplied for removal
+        assertParseFailure(parser, TARGET + " dl/Bad!", Label.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_repeatedField_failure() {
+        // EP: repeated field
+        assertParseFailure(parser, TARGET + " n/Amy Bee n/Bob Bee",
+                seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_NAME));
+        assertParseFailure(parser, TARGET + " r/first r/second",
+                seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_REMARK));
+        assertParseFailure(parser, TARGET + " e/amy@example.com e/bob@example.com",
+                seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_EMAIL));
+    }
+
+    @Test
+    public void parse_unknownPrefix_failure() {
+        // EP: unknown prefix
+        assertParseFailure(parser, TARGET + " r/Needs help x/value", "Unknown parameter: x/.");
+        assertParseFailure(parser, TARGET + " t/friends", "Unknown parameter: t/.");
+    }
+
+    @Test
+    public void parse_unknownPrefixAndInvalidId_reportsUnknownPrefixFirst() {
+        // EP: structural and value errors occur together
+        assertParseFailure(parser, "i/123 n/Amy2 x/value", "Unknown parameter: x/.");
+    }
+
+    @Test
+    public void parse_remarkLengthBoundary_validatesLimit() {
+        // EP: valid non-empty remark
+        // BVA: maximum allowed length
+        String validRemark = "x".repeat(Remark.MAX_LENGTH);
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withRemark(validRemark).build();
+        assertParseSuccess(parser, TARGET + " r/" + validRemark, new EditCommand(STUDENT_ID, descriptor));
+
+        // EP: remark exceeds the maximum length
+        // BVA: one character above the maximum length
+        assertParseFailure(parser, TARGET + " r/" + validRemark + "x", Remark.MESSAGE_CONSTRAINTS);
     }
 }

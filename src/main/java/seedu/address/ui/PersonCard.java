@@ -1,7 +1,6 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
-
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
@@ -33,13 +32,13 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label id;
     @FXML
-    private Label phone;
-    @FXML
-    private Label address;
-    @FXML
     private Label email;
     @FXML
-    private FlowPane tags;
+    private Label remark;
+    @FXML
+    private FlowPane labels;
+    @FXML
+    private FlowPane studentIds;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -49,11 +48,31 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
         email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        remark.setText("Remark: " + person.getRemark().value);
+        remark.setVisible(!person.getRemark().value.isEmpty());
+        remark.setManaged(remark.isVisible());
+        person.getLabels().stream()
+                .sorted(seedu.address.model.label.Label.DISPLAY_ORDER)
+                .forEach(label -> {
+                    Label groupBadge = new Label(label.labelName) {
+                        @Override
+                        protected double computePrefHeight(double width) {
+                            // FlowPane asks for height without supplying the badge's constrained width.
+                            return super.computePrefHeight(width < 0 ? labels.getWidth() : width);
+                        }
+                    };
+                    groupBadge.setWrapText(true);
+                    groupBadge.setMinWidth(0);
+                    // A single long badge must fit within the row, just like multiple short badges.
+                    groupBadge.maxWidthProperty().bind(labels.widthProperty());
+                    // Recompute wrapped height after the current parent layout has finished.
+                    labels.widthProperty().addListener(unused -> Platform.runLater(groupBadge::requestLayout));
+                    groupBadge.getStyleClass().add("group_label_badge");
+                    labels.getChildren().add(groupBadge);
+                });
+        Label studentIdBadge = new Label("Student ID: " + person.getStudentId());
+        studentIdBadge.getStyleClass().add("student_id_badge");
+        studentIds.getChildren().add(studentIdBadge);
     }
 }

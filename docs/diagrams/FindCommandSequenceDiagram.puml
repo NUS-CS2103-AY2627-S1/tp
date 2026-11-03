@@ -1,0 +1,20 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+title FindCommand: apply a parsed search predicate
+participant "command:FindCommand" as Command LOGIC_COLOR
+participant "model:ModelManager" as Model MODEL_COLOR
+[-> Command : execute(model)
+activate Command
+Command -> Model : updateFilteredPersonList(predicate)
+note right of Model
+Replace the previous predicate.
+The filtered list evaluates it against
+all students in the address book.
+end note
+Command -> Model : getFilteredPersonList()
+Model --> Command : matching students
+[<-- Command : CommandResult with match count
+deactivate Command
+@enduml

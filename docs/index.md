@@ -1,19 +1,23 @@
 ---
-layout: page
-title: AddressBook Level 3
+  layout: default.md
+  title: "Home"
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+# TeachAssist
 
-![Ui](images/Ui.png)
+[![CI Status](https://github.com/AY2627S1-CS2103T-F12-1/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-F12-1/tp/actions)
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+![TeachAssist student list](images/Ui.png)
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+**TeachAssist helps Teaching Assistants manage student records, tutorial groups and follow-up notes.** It combines a keyboard-driven command-line interface with a graphical view of your students.
 
+Use TeachAssist to add, edit and remove student records; find students by name, student ID, email, remark or group label; record remarks and attendance; and organise students with group labels. Undo up to 100 saved data changes during the current session. Student records are saved between sessions.
 
-**Acknowledgements**
+* **Get started:** Follow the [User Guide's Quick Start](UserGuide.html#quick-start).
+* **Develop TeachAssist:** Read the [Developer Guide](DeveloperGuide.html).
+* **Meet the team:** Visit [About Us](AboutUs.html).
+* **Get the app or report an issue:** Visit the [TeachAssist repository](https://github.com/AY2627S1-CS2103T-F12-1/tp).
 
-* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+## Acknowledgements
+
+TeachAssist is adapted from [AddressBook Level 3](https://se-education.org/addressbook-level3/) by the [SE-EDU initiative](https://se-education.org). See the [Developer Guide acknowledgements](DeveloperGuide.html#acknowledgements) for the libraries and tools used.

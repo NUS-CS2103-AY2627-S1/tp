@@ -1,0 +1,29 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+title MainApp: initialise student data and command availability
+participant ":MainApp" as App UI_COLOR
+participant ":StorageManager" as Storage STORAGE_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+participant ":LogicManager" as Logic LOGIC_COLOR
+[-> App : init()
+activate App
+App -> Storage : readAddressBook()
+alt file loaded successfully
+    Storage --> App : Optional.of(records)
+    note over App : Use loaded records; data available.
+else file is missing
+    Storage --> App : Optional.empty()
+    note over App : Use empty records; data available.
+else loading fails
+    Storage --> App : DataLoadingException
+    note over App : Use empty fallback records; data unavailable.\nKeep the original file unchanged.
+end
+create Model
+App -> Model : new ModelManager(initialData, userPrefs)
+create Logic
+App -> Logic : new LogicManager(model, storage,\nisStudentDataAvailable, startupMessage)
+[<-- App : components initialised
+deactivate App
+@enduml

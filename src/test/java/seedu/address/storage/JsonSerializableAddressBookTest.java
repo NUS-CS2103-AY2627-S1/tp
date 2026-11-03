@@ -5,6 +5,8 @@ import static seedu.address.testutil.Assert.assertThrows;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +42,29 @@ public class JsonSerializableAddressBookTest {
     public void toModelType_duplicatePersons_throwsIllegalValueException() throws Exception {
         JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(DUPLICATE_PERSON_FILE,
                 JsonSerializableAddressBook.class).get();
-        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_PERSON,
+        assertThrows(IllegalValueException.class,
+                String.format(JsonSerializableAddressBook.MESSAGE_DUPLICATE_STUDENT_ID, "A1234567B"),
                 dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_paddedDuplicateStudentIds_throwsIllegalValueException() {
+        // EP: Student IDs differing only in surrounding Unicode spaces and case identify the same student.
+        JsonSerializableAddressBook addressBook = new JsonSerializableAddressBook(List.of(
+                new JsonAdaptedPerson("Alice", "A1234567B", "alice@example.com", List.of(), ""),
+                new JsonAdaptedPerson("Bob", "\u00a0\ta1234567b\n\u3000", "bob@example.com", List.of(), "")));
+        assertThrows(IllegalValueException.class,
+                String.format(JsonSerializableAddressBook.MESSAGE_DUPLICATE_STUDENT_ID, "A1234567B"),
+                addressBook::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullPerson_throwsIllegalValueException() {
+        List<JsonAdaptedPerson> persons = new ArrayList<>();
+        persons.add(null);
+        JsonSerializableAddressBook addressBook = new JsonSerializableAddressBook(persons);
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_NULL_PERSON,
+                addressBook::toModelType);
     }
 
 }

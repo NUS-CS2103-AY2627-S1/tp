@@ -1,12 +1,15 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LABEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_REMARK;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STUDENT_ID;
 
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -14,34 +17,41 @@ import seedu.address.model.Model;
 import seedu.address.model.person.Person;
 
 /**
- * Adds a person to the address book.
+ * Adds a student, identified by their normalised Student ID, to TeachAssist.
  */
 public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
-            + "Parameters: "
-            + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
+    public static final String COMMAND_PARAMETERS = PREFIX_NAME + "NAME "
+            + PREFIX_STUDENT_ID + "STUDENT_ID "
             + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_REMARK + "REMARK] "
+            + "[" + PREFIX_LABEL + "LABEL_NAME]";
+
+    public static final String MESSAGE_INVALID_FORMAT =
+            "Invalid command format. Usage: " + COMMAND_WORD + " " + COMMAND_PARAMETERS;
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a student to TeachAssist. "
+            + "Parameters: " + COMMAND_PARAMETERS + "\n"
             + "Example: " + COMMAND_WORD + " "
             + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
+            + PREFIX_STUDENT_ID + "A0123456B "
             + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + PREFIX_REMARK + "Needs help with recursion "
+            + PREFIX_LABEL + "Discrete Math Tutorial";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "Added student %1$s: %2$s.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "Student ID %s already exists.";
+    private static final String MESSAGE_REMARK = " Remark: %s";
+    private static final Logger logger = LogsCenter.getLogger(AddCommand.class);
 
     private final Person toAdd;
 
     /**
-     * Creates an AddCommand to add the specified {@code Person}
+     * Creates a command to add the specified student.
+     *
+     * @param person The non-null student with validated fields.
+     * @throws NullPointerException if {@code person} is null.
      */
     public AddCommand(Person person) {
         requireNonNull(person);
@@ -49,15 +59,37 @@ public class AddCommand extends Command {
     }
 
     @Override
+    public boolean isModifyingData() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     * Rejects a duplicate Student ID and reports the added student's ID, name, optional remark, and total count.
+     * Saving and publishing to the live model are managed by {@code LogicManager}.
+     */
+    @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
+        assert toAdd != null : "Student to add must not be null";
 
         if (model.hasPerson(toAdd)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+            logger.warning("Add rejected: duplicate student ID.");
+            throw new CommandException(String.format(MESSAGE_DUPLICATE_PERSON, toAdd.getStudentId()));
         }
 
         model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        assert model.hasPerson(toAdd) : "Model should contain the newly added student";
+        logger.info("Added student.");
+        return new CommandResult(formatSuccess(model.getAddressBook().getPersonList().size()));
+    }
+
+    private String formatSuccess(int studentCount) {
+        String message = String.format(MESSAGE_SUCCESS, toAdd.getStudentId(), toAdd.getName());
+        if (!toAdd.getRemark().value.isEmpty()) {
+            message += String.format(MESSAGE_REMARK, toAdd.getRemark());
+        }
+        return message + "\n" + Messages.formatStudentsListed(studentCount);
     }
 
     @Override

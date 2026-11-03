@@ -1,16 +1,13 @@
 package seedu.address.testutil;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Arrays;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
+import seedu.address.model.label.Label;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Remark;
 
 /**
  * A utility class to help with building EditPersonDescriptor objects.
@@ -33,10 +30,8 @@ public class EditPersonDescriptorBuilder {
     public EditPersonDescriptorBuilder(Person person) {
         descriptor = new EditPersonDescriptor();
         descriptor.setName(person.getName());
-        descriptor.setPhone(person.getPhone());
         descriptor.setEmail(person.getEmail());
-        descriptor.setAddress(person.getAddress());
-        descriptor.setTags(person.getTags());
+        descriptor.setRemark(person.getRemark());
     }
 
     /**
@@ -44,14 +39,6 @@ public class EditPersonDescriptorBuilder {
      */
     public EditPersonDescriptorBuilder withName(String name) {
         descriptor.setName(new Name(name));
-        return this;
-    }
-
-    /**
-     * Sets the {@code Phone} of the {@code EditPersonDescriptor} that we are building.
-     */
-    public EditPersonDescriptorBuilder withPhone(String phone) {
-        descriptor.setPhone(new Phone(phone));
         return this;
     }
 
@@ -64,20 +51,34 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code EditPersonDescriptor} that we are building.
+     * Sets the {@code Remark} of the {@code EditPersonDescriptor} that we are building.
      */
-    public EditPersonDescriptorBuilder withAddress(String address) {
-        descriptor.setAddress(new Address(address));
+    public EditPersonDescriptorBuilder withRemark(String remark) {
+        descriptor.setRemark(new Remark(remark));
         return this;
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
-     * that we are building.
+     * Adds labels to the descriptor's requested additions.
      */
-    public EditPersonDescriptorBuilder withTags(String... tags) {
-        Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
-        descriptor.setTags(tagSet);
+    public EditPersonDescriptorBuilder withLabelsToAdd(String... labelNames) {
+        descriptor.setLabelsToAdd(Arrays.stream(labelNames).map(Label::new).toList());
+        return this;
+    }
+
+    /**
+     * Adds labels to the descriptor's requested removals.
+     */
+    public EditPersonDescriptorBuilder withLabelsToRemove(String... labelNames) {
+        descriptor.setLabelsToRemove(Arrays.stream(labelNames).map(Label::new).toList());
+        return this;
+    }
+
+    /**
+     * Requests removal of every label.
+     */
+    public EditPersonDescriptorBuilder withClearedLabels() {
+        descriptor.setClearingLabels(true);
         return this;
     }
 
@@ -85,3 +86,4 @@ public class EditPersonDescriptorBuilder {
         return descriptor;
     }
 }
+

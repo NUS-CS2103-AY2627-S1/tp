@@ -1,0 +1,24 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+title FindCommandParser: construct a label search
+participant ":FindCommandParser" as Parser LOGIC_COLOR
+participant "<<class>>\nParserUtil" as Util LOGIC_COLOR
+participant "predicate:LabelMatchesPredicate" as Predicate MODEL_COLOR
+participant "command:FindCommand" as Command LOGIC_COLOR
+[-> Parser : parse(" l/Tutorial 1")
+activate Parser
+note over Parser
+Assume tokenisation and structure validation succeed:
+exactly one non-empty l/ parameter.
+end note
+Parser -> Util : parseLabel("Tutorial 1")
+Util --> Parser : label
+create Predicate
+Parser -> Predicate : new LabelMatchesPredicate(label)
+create Command
+Parser -> Command : new FindCommand(predicate)
+[<-- Parser : command
+deactivate Parser
+@enduml

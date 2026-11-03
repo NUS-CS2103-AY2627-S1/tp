@@ -2,8 +2,14 @@ package seedu.address.logic.parser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import seedu.address.commons.util.StringUtil;
 
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
@@ -12,19 +18,45 @@ import java.util.stream.Collectors;
  * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
  * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
  *    in the above example.<br>
+ * 4. Unicode space separators are recognised around prefixes; internal value characters are preserved.<br>
  */
 public class ArgumentTokenizer {
+
+    // Alphabetic prefix tokens are reserved; numeric text such as 8/10 remains an ordinary value.
+    private static final Pattern PARAMETER_PREFIX = Pattern.compile("(?:^|\\p{javaWhitespace})([A-Za-z]+/)");
+
+    /**
+     * Finds the first unsupported alphabetic prefix at the beginning of a whitespace-separated token.
+     * Comparisons are case-sensitive. Joined prefixes, numeric slash text, and URLs are not prefix tokens.
+     *
+     * @param argsString The non-null arguments to inspect.
+     * @param supportedPrefixes The prefixes accepted by the command.
+     * @return The first unknown prefix in input order, or empty if all prefix tokens are supported.
+     */
+    public static Optional<Prefix> findUnknownPrefix(String argsString, Collection<Prefix> supportedPrefixes) {
+        Matcher matcher = PARAMETER_PREFIX.matcher(StringUtil.normaliseSpaces(argsString));
+        while (matcher.find()) {
+            Prefix prefix = new Prefix(matcher.group(1));
+            if (!supportedPrefixes.contains(prefix)) {
+                return Optional.of(prefix);
+            }
+        }
+        return Optional.empty();
+    }
 
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
      * respective argument values. Only the given prefixes will be recognized in the arguments string.
+     * A prefix must occur at the beginning of the string or immediately after a whitespace character.
      *
      * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
      * @param prefixes   Prefixes to tokenize the arguments string with
      * @return           ArgumentMultimap object that maps prefixes to their arguments
      */
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
-        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        String normalisedArgs = StringUtil.normaliseSpaces(argsString);
+        List<PrefixPosition> positions = findAllPrefixPositions(normalisedArgs, prefixes);
+        // Normalisation preserves positions, so values can be extracted without changing their characters.
         return extractArguments(argsString, positions);
     }
 
@@ -51,7 +83,7 @@ public class ArgumentTokenizer {
         while (prefixPosition != -1) {
             PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
             positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition + 1);
         }
 
         return positions;
@@ -60,7 +92,7 @@ public class ArgumentTokenizer {
     /**
      * Returns the index of the first occurrence of {@code prefix} in
      * {@code argsString} starting from index {@code fromIndex}. An occurrence
-     * is valid if there is a whitespace before {@code prefix}. Returns -1 if no
+     * is valid at the beginning of the string or if there is whitespace before {@code prefix}. Returns -1 if no
      * such occurrence can be found.
      *
      * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
@@ -70,9 +102,14 @@ public class ArgumentTokenizer {
      * {@code fromIndex} = 0, this method returns 5.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        int prefixIndex = argsString.indexOf(prefix, fromIndex);
+        while (prefixIndex != -1) {
+            if (prefixIndex == 0 || Character.isWhitespace(argsString.charAt(prefixIndex - 1))) {
+                return prefixIndex;
+            }
+            prefixIndex = argsString.indexOf(prefix, prefixIndex + 1);
+        }
+        return -1;
     }
 
     /**
@@ -121,7 +158,7 @@ public class ArgumentTokenizer {
         int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
         String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
 
-        return value.trim();
+        return StringUtil.trimSpaces(value);
     }
 
     /**

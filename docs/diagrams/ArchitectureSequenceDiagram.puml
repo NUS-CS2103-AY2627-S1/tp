@@ -2,38 +2,25 @@
 !include style.puml
 skinparam ArrowFontStyle plain
 
-Actor User as user USER_COLOR
-Participant ":UI" as ui UI_COLOR
-Participant ":Logic" as logic LOGIC_COLOR
-Participant ":Model" as model MODEL_COLOR
-Participant ":Storage" as storage STORAGE_COLOR
-
-user -[USER_COLOR]> ui : "delete 1"
-activate ui UI_COLOR
-
-ui -[UI_COLOR]> logic : execute("delete 1")
-activate logic LOGIC_COLOR
-
-logic -[LOGIC_COLOR]> model : deletePerson(p)
-activate model MODEL_COLOR
-
-model -[MODEL_COLOR]-> logic
-deactivate model
-
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
-activate storage STORAGE_COLOR
-
-storage -[STORAGE_COLOR]> storage : Save to file
-activate storage STORAGE_COLOR_T1
-storage --[STORAGE_COLOR]> storage
-deactivate storage
-
-storage --[STORAGE_COLOR]> logic
-deactivate storage
-
-logic --[LOGIC_COLOR]> ui
-deactivate logic
-
-ui--[UI_COLOR]> user
-deactivate ui
+title Deleting a student: component responsibilities
+participant "UI" as UI UI_COLOR
+participant "Logic" as Logic LOGIC_COLOR
+participant "Model" as Model MODEL_COLOR
+participant "Storage" as Storage STORAGE_COLOR
+[-> UI : request deletion by Student ID
+UI -> Logic : submit deletion request
+Logic -> Model : obtain current student data
+Model --> Logic : current data
+Logic -> Logic : prepare the proposed change
+Logic -> Storage : save proposed student data
+alt save succeeds
+    Storage --> Logic : saved
+    Logic -> Model : publish the saved change
+    Logic --> UI : success and updated view
+    [<-- UI : show confirmation
+else save is rejected or fails
+    Storage --> Logic : save failure
+    Logic --> UI : failure and recovery guidance
+    [<-- UI : show error; retain current view
+end
 @enduml

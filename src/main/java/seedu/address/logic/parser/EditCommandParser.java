@@ -2,27 +2,42 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DELETE_LABEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LABEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_REMARK;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STUDENT_ID;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
-import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.label.Label;
+import seedu.address.model.person.StudentId;
 
 /**
- * Parses input arguments and creates a new EditCommand object
+ * Parses input arguments and creates a new EditCommand object.
  */
 public class EditCommandParser implements Parser<EditCommand> {
+
+    private static final List<Prefix> SUPPORTED_PREFIXES =
+            List.of(PREFIX_STUDENT_ID, PREFIX_NAME, PREFIX_EMAIL, PREFIX_REMARK,
+                    PREFIX_LABEL, PREFIX_DELETE_LABEL);
+    private static final String MESSAGE_UNKNOWN_PARAMETER = "Unknown parameter: %s.";
+    private static final String MESSAGE_MISSING_STUDENT_ID = "Missing required parameter: i/.";
+    private static final String MESSAGE_EMPTY_STUDENT_ID = "Parameter i/ cannot be empty.";
+    private static final String MESSAGE_EMPTY_DELETE_LABEL = "Parameter dl/ cannot be empty.";
+    private static final String MESSAGE_CONFLICTING_LABEL_CHANGE =
+            "An empty l/ cannot be combined with other label changes.";
+    private static final String MESSAGE_DUPLICATE_LABEL = "Parameter %1$s repeats label \"%2$s\".";
 
     /**
      * Parses the given {@code String} of arguments in the context of the EditCommand
@@ -31,55 +46,93 @@ public class EditCommandParser implements Parser<EditCommand> {
      */
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
-
-        Index index;
-
-        try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
-        }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-
-        if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
-            editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
-        }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
-        }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
+        String trimmedArgs = StringUtil.trimSpaces(args);
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(trimmedArgs,
+                PREFIX_STUDENT_ID, PREFIX_NAME, PREFIX_EMAIL, PREFIX_REMARK, PREFIX_LABEL, PREFIX_DELETE_LABEL);
+        validateStructure(trimmedArgs, arguments);
+        StudentId studentId = parseStudentId(arguments);
+        EditPersonDescriptor editPersonDescriptor = parseEditFields(arguments);
 
         if (!editPersonDescriptor.isAnyFieldEdited()) {
             throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
         }
 
-        return new EditCommand(index, editPersonDescriptor);
+        return new EditCommand(studentId, editPersonDescriptor);
     }
 
-    /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
-     */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
+    private static void validateStructure(String args, ArgumentMultimap arguments) throws ParseException {
+        if (args.contains("\n") || args.contains("\r")) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
         }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
+        rejectUnknownPrefixes(args);
+        if (!arguments.getPreamble().isEmpty()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
+        }
+        arguments.verifyNoDuplicatePrefixesFor(PREFIX_STUDENT_ID, PREFIX_NAME, PREFIX_EMAIL, PREFIX_REMARK);
+    }
+
+    private static EditPersonDescriptor parseEditFields(ArgumentMultimap arguments) throws ParseException {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        if (arguments.getValue(PREFIX_NAME).isPresent()) {
+            descriptor.setName(ParserUtil.parseName(arguments.getValue(PREFIX_NAME).orElseThrow()));
+        }
+        if (arguments.getValue(PREFIX_EMAIL).isPresent()) {
+            descriptor.setEmail(ParserUtil.parseEmail(arguments.getValue(PREFIX_EMAIL).orElseThrow()));
+        }
+        if (arguments.getValue(PREFIX_REMARK).isPresent()) {
+            descriptor.setRemark(ParserUtil.parseRemark(arguments.getValue(PREFIX_REMARK).orElseThrow()));
+        }
+        parseLabelChanges(arguments, descriptor);
+        return descriptor;
+    }
+
+    private static void parseLabelChanges(ArgumentMultimap arguments, EditPersonDescriptor descriptor)
+            throws ParseException {
+        List<String> additions = arguments.getAllValues(PREFIX_LABEL);
+        List<String> removals = arguments.getAllValues(PREFIX_DELETE_LABEL);
+        if (additions.contains("")) {
+            if (additions.size() != 1 || !removals.isEmpty()) {
+                throw new ParseException(MESSAGE_CONFLICTING_LABEL_CHANGE);
+            }
+            descriptor.setClearingLabels(true);
+            return;
+        }
+        descriptor.setLabelsToAdd(parseLabels(additions, PREFIX_LABEL));
+        descriptor.setLabelsToRemove(parseLabels(removals, PREFIX_DELETE_LABEL));
+    }
+
+    private static List<Label> parseLabels(List<String> values, Prefix prefix) throws ParseException {
+        List<Label> labels = new ArrayList<>();
+        Set<String> names = new HashSet<>();
+        for (String value : values) {
+            if (value.isEmpty()) {
+                throw new ParseException(MESSAGE_EMPTY_DELETE_LABEL);
+            }
+            Label label = ParserUtil.parseLabel(value);
+            if (!names.add(label.labelName.toLowerCase(Locale.ROOT))) {
+                throw new ParseException(String.format(MESSAGE_DUPLICATE_LABEL, prefix, label.labelName));
+            }
+            labels.add(label);
+        }
+        return labels;
+    }
+
+    private static StudentId parseStudentId(ArgumentMultimap arguments) throws ParseException {
+        Optional<String> studentId = arguments.getValue(PREFIX_STUDENT_ID);
+        if (studentId.isEmpty()) {
+            throw new ParseException(MESSAGE_MISSING_STUDENT_ID);
+        }
+        if (studentId.get().isEmpty()) {
+            throw new ParseException(MESSAGE_EMPTY_STUDENT_ID);
+        }
+        return ParserUtil.parseStudentId(studentId.get());
+    }
+
+    private static void rejectUnknownPrefixes(String args) throws ParseException {
+        Optional<Prefix> unknownPrefix = ArgumentTokenizer.findUnknownPrefix(args, SUPPORTED_PREFIXES);
+        if (unknownPrefix.isPresent()) {
+            throw new ParseException(String.format(MESSAGE_UNKNOWN_PARAMETER, unknownPrefix.get()));
+        }
     }
 
 }
