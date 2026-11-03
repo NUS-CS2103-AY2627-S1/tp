@@ -1,0 +1,46 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":InterviewCommandParser" as InterviewCommandParser LOGIC_COLOR
+participant "<<class>>\nParserUtil" as ParserUtil LOGIC_COLOR
+participant "ic:InterviewCommand" as InterviewCommand LOGIC_COLOR
+end box
+
+[-> InterviewCommandParser : parse(" 1 d/2026-10-20 14:00")
+activate InterviewCommandParser
+
+note right of InterviewCommandParser
+The index is parsed
+as for other commands.
+end note
+
+alt d/ present
+    InterviewCommandParser -> ParserUtil : parseInterview("2026-10-20 14:00")
+    activate ParserUtil
+
+    note right of ParserUtil
+    Throws a ParseException if the
+    format or the date and time is
+    invalid, including an empty d/.
+    end note
+
+    ParserUtil --> InterviewCommandParser : i
+    deactivate ParserUtil
+else d/ absent
+    note over InterviewCommandParser
+    i = Interview.NONE
+    (clears the interview)
+    end note
+end
+
+create InterviewCommand
+InterviewCommandParser -> InterviewCommand : InterviewCommand(index, i)
+activate InterviewCommand
+InterviewCommand --> InterviewCommandParser
+deactivate InterviewCommand
+
+[<-- InterviewCommandParser : ic
+deactivate InterviewCommandParser
+@enduml

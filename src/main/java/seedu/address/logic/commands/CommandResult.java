@@ -20,7 +20,7 @@ public class CommandResult {
     private final boolean exit;
 
     /**
-     * Constructs a {@code CommandResult} with the specified fields.
+     * Constructs a command result with explicit help, and exit flags.
      */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
         this.feedbackToUser = requireNonNull(feedbackToUser);

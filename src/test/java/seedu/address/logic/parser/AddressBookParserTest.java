@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_INTERVIEW_AMY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_INTERVIEW;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
@@ -13,6 +15,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddRoleCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
@@ -20,13 +23,20 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.InterviewCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Interview;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
+import seedu.address.testutil.RoleBuilder;
 
 public class AddressBookParserTest {
 
@@ -40,9 +50,25 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_addRole() throws Exception {
+        AddRoleCommand command = (AddRoleCommand) parser.parseCommand(
+                RoleCommandParser.COMMAND_WORD + " add r/Software Engineer x/2 years");
+        assertEquals(new AddRoleCommand(new RoleBuilder().build()), command);
+    }
+
+    @Test
+    public void parseCommand_roleWithoutSubcommand_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, RoleCommandParser.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand(RoleCommandParser.COMMAND_WORD));
+    }
+
+    @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertTrue(parser.parseCommand("clear \t ") instanceof ClearCommand);
+        assertThrows(ParseException.class, "Command clear does not accept arguments. Usage: clear", () ->
+                parser.parseCommand("clear 3"));
     }
 
     @Test
@@ -64,7 +90,27 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
-        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+        assertTrue(parser.parseCommand("exit \t ") instanceof ExitCommand);
+        assertThrows(ParseException.class, "Command exit does not accept arguments. Usage: exit", () ->
+                parser.parseCommand("exit 3"));
+        assertThrows(ParseException.class, "Command exit does not accept arguments. Usage: exit", () ->
+                parser.parseCommand("exit\t3"));
+    }
+
+    @Test
+    public void parseCommand_undo() throws Exception {
+        assertTrue(parser.parseCommand(UndoCommand.COMMAND_WORD) instanceof UndoCommand);
+        assertTrue(parser.parseCommand("undo \t ") instanceof UndoCommand);
+        assertThrows(ParseException.class, "Command undo does not accept arguments. Usage: undo", () ->
+                parser.parseCommand("undo 3"));
+    }
+
+    @Test
+    public void parseCommand_redo() throws Exception {
+        assertTrue(parser.parseCommand(RedoCommand.COMMAND_WORD) instanceof RedoCommand);
+        assertTrue(parser.parseCommand("redo \t ") instanceof RedoCommand);
+        assertThrows(ParseException.class, "Command redo does not accept arguments. Usage: redo", () ->
+                parser.parseCommand("redo 3"));
     }
 
     @Test
@@ -76,15 +122,55 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_note() throws Exception {
+        // prefix-like text must reach NoteCommandParser unchanged
+        String note = "Discuss t/java, Referee: n/Alice";
+        NoteCommand command = (NoteCommand) parser.parseCommand(
+                NoteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " " + note);
+        assertEquals(new NoteCommand(INDEX_FIRST_PERSON, new Note(note)), command);
+    }
+
+    @Test
+    public void parseCommand_interview() throws Exception {
+        InterviewCommand command = (InterviewCommand) parser.parseCommand(InterviewCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_INTERVIEW + VALID_INTERVIEW_AMY);
+        assertEquals(new InterviewCommand(INDEX_FIRST_PERSON, new Interview(VALID_INTERVIEW_AMY)), command);
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
-        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
+        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " add") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("HeLp AdD") instanceof HelpCommand);
+        assertThrows(ParseException.class, HelpCommand.MESSAGE_TOO_MANY_ARGUMENTS, () ->
+                parser.parseCommand("help list role"));
+    }
+
+    @Test
+    public void parseCommand_mixedCaseCommands_preserveArgumentCase() throws Exception {
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("list ROLE") instanceof ListCommand);
+        assertTrue(parser.parseCommand("UnDo") instanceof seedu.address.logic.commands.UndoCommand);
+        assertTrue(parser.parseCommand("ReDo") instanceof seedu.address.logic.commands.RedoCommand);
+        assertEquals(parser.parseCommand("find Alex"), parser.parseCommand("Find Alex"));
+        assertEquals(parser.parseCommand("role add r/Mixed Case x/Senior"),
+                parser.parseCommand("ROLE AdD r/Mixed Case x/Senior"));
+        Person person = new PersonBuilder().build();
+        assertEquals(new AddCommand(person),
+                parser.parseCommand(PersonUtil.getAddCommand(person).replaceFirst("add", "ADD")));
     }
 
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " role") instanceof ListCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_listRoleWithWhitespace_isAccepted() throws Exception {
+        assertTrue(parser.parseCommand("list\trole") instanceof ListCommand);
+        assertTrue(parser.parseCommand("list  role") instanceof ListCommand);
     }
 
     @Test

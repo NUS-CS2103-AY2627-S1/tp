@@ -3,6 +3,9 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -11,6 +14,8 @@ import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
+import seedu.address.model.role.Role;
+import seedu.address.model.role.RoleTitle;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -21,6 +26,10 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Role> filteredRoles;
+    private Predicate<Person> personPredicate = PREDICATE_SHOW_ALL_PERSONS;
+    private final Deque<AddressBook> undoStack = new ArrayDeque<>();
+    private final Deque<AddressBook> redoStack = new ArrayDeque<>();
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +42,7 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredRoles = new FilteredList<>(this.addressBook.getRoleList());
     }
 
     public ModelManager() {
@@ -62,6 +72,44 @@ public class ModelManager implements Model {
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
         this.addressBook.resetData(addressBook);
+        refreshFilteredPersonList();
+    }
+
+    @Override
+    public void recordAddressBookState() {
+        undoStack.push(new AddressBook(addressBook));
+    }
+
+    @Override
+    public void commitAddressBookState() {
+        redoStack.clear();
+    }
+
+    @Override
+    public boolean undoAddressBook() {
+        if (undoStack.isEmpty()) {
+            return false;
+        }
+        redoStack.push(new AddressBook(addressBook));
+        setAddressBook(undoStack.pop());
+        return true;
+    }
+
+    @Override
+    public boolean redoAddressBook() {
+        if (redoStack.isEmpty()) {
+            return false;
+        }
+        undoStack.push(new AddressBook(addressBook));
+        setAddressBook(redoStack.pop());
+        return true;
+    }
+
+    @Override
+    public void discardAddressBookState() {
+        if (!undoStack.isEmpty()) {
+            undoStack.pop();
+        }
     }
 
     @Override
@@ -73,6 +121,18 @@ public class ModelManager implements Model {
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
+    }
+
+    @Override
+    public Optional<Person> findSamePerson(Person person) {
+        requireNonNull(person);
+        return addressBook.findSamePerson(person);
+    }
+
+    @Override
+    public Optional<Person> findSamePersonExcluding(Person person, Person excludedPerson) {
+        requireAllNonNull(person, excludedPerson);
+        return addressBook.findSamePersonExcluding(person, excludedPerson);
     }
 
     @Override
@@ -107,7 +167,59 @@ public class ModelManager implements Model {
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        personPredicate = predicate;
         filteredPersons.setPredicate(predicate);
+    }
+
+    /** Re-evaluates the retained candidate filter after address-book data changes. */
+    private void refreshFilteredPersonList() {
+        filteredPersons.setPredicate(null);
+        filteredPersons.setPredicate(personPredicate);
+    }
+
+    //=========== Filtered Role List Accessors ===============================================================
+
+    @Override
+    public boolean hasRole(Role role) {
+        requireNonNull(role);
+        return addressBook.hasRole(role);
+    }
+
+    @Override
+    public Optional<Role> findRole(RoleTitle title) {
+        requireNonNull(title);
+        return addressBook.findRole(title);
+    }
+
+    @Override
+    public void addRole(Role role) {
+        addressBook.addRole(role);
+        updateFilteredRoleList(PREDICATE_SHOW_ALL_ROLES);
+        refreshFilteredPersonList();
+    }
+
+    @Override
+    public void setRole(Role target, Role editedRole) {
+        requireAllNonNull(target, editedRole);
+        addressBook.setRole(target, editedRole);
+        refreshFilteredPersonList();
+    }
+
+    @Override
+    public void deleteRole(Role role) {
+        addressBook.removeRole(role);
+        refreshFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Role> getFilteredRoleList() {
+        return filteredRoles;
+    }
+
+    @Override
+    public void updateFilteredRoleList(Predicate<Role> predicate) {
+        requireNonNull(predicate);
+        filteredRoles.setPredicate(predicate);
     }
 
     @Override
@@ -123,7 +235,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && filteredRoles.equals(otherModelManager.filteredRoles);
     }
 
 }

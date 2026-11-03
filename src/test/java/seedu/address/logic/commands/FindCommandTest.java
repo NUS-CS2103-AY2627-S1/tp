@@ -18,6 +18,10 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Status;
+import seedu.address.model.role.RoleStatus;
+import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.RoleBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -54,13 +58,14 @@ public class FindCommandTest {
     }
 
     @Test
-    public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+    public void execute_zeroKeywords_listsAllPersons() {
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW,
+                model.getAddressBook().getPersonList().size());
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(), model.getFilteredPersonList());
+        assertEquals(model.getAddressBook().getPersonList(), model.getFilteredPersonList());
     }
 
     @Test
@@ -79,6 +84,19 @@ public class FindCommandTest {
         FindCommand findCommand = new FindCommand(predicate);
         String expected = FindCommand.class.getCanonicalName() + "{predicate=" + predicate + "}";
         assertEquals(expected, findCommand.toString());
+    }
+
+    @Test
+    public void execute_roleFilter_returnsFilteredCandidates() {
+        Model roleModel = new ModelManager();
+        roleModel.addRole(new RoleBuilder().withTitle("Software Engineer").withStatus(RoleStatus.OPEN).build());
+        roleModel.addPerson(new PersonBuilder().withName("Alice").withTags("SoftwareEngineer").build());
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(
+                List.of("Alice"), List.of("Software"), java.util.Set.of(Status.RESUME));
+        CommandResult result = new FindCommand(predicate).execute(roleModel);
+        assertEquals(1, roleModel.getFilteredPersonList().size());
+        assertTrue(result.getFeedbackToUser().contains(
+                "List filter: Name: Alice; Role: Software; Candidate status: RESUME"));
     }
 
     /**

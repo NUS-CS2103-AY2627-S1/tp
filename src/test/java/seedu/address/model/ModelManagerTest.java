@@ -4,17 +4,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_ROLES;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalRoles.PRODUCT_ANALYST;
+import static seedu.address.testutil.TypicalRoles.SOFTWARE_ENGINEER;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.role.Role;
+import seedu.address.model.role.RoleStatus;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.RoleBuilder;
 
 public class ModelManagerTest {
 
@@ -74,6 +83,88 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void hasRole_nullRole_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasRole(null));
+    }
+
+    @Test
+    public void hasRole_roleNotInAddressBook_returnsFalse() {
+        assertFalse(modelManager.hasRole(SOFTWARE_ENGINEER));
+    }
+
+    @Test
+    public void hasRole_roleInAddressBook_returnsTrue() {
+        modelManager.addRole(SOFTWARE_ENGINEER);
+        assertTrue(modelManager.hasRole(SOFTWARE_ENGINEER));
+    }
+
+    @Test
+    public void findRole_nullTitle_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.findRole(null));
+    }
+
+    @Test
+    public void findRole_roleInAddressBook_returnsRole() {
+        modelManager.addRole(SOFTWARE_ENGINEER);
+        assertEquals(Optional.of(SOFTWARE_ENGINEER), modelManager.findRole(SOFTWARE_ENGINEER.getTitle()));
+    }
+
+    @Test
+    public void getFilteredRoleList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredRoleList().remove(0));
+    }
+
+    @Test
+    public void roleChange_refreshesRetainedPersonFilter() {
+        Person candidate = ALICE.withRole(SOFTWARE_ENGINEER.getTitle());
+        modelManager = new ModelManager(new AddressBookBuilder()
+                .withRole(SOFTWARE_ENGINEER)
+                .withPerson(candidate)
+                .build(), new UserPrefs());
+
+        Predicate<Person> softwareEngineerFilter = person -> modelManager.findRole(person.getRole())
+                .map(role -> !role.isClosed())
+                .orElse(false);
+        modelManager.updateFilteredPersonList(softwareEngineerFilter);
+        assertEquals(List.of(candidate), modelManager.getFilteredPersonList());
+
+        Role closedRole = new Role(SOFTWARE_ENGINEER.getTitle(),
+                SOFTWARE_ENGINEER.getExperienceLevel(), RoleStatus.CLOSED);
+        modelManager.setRole(SOFTWARE_ENGINEER, closedRole);
+
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void undoAndRedo_refreshRetainedPersonFilter() {
+        Person candidate = ALICE.withRole(SOFTWARE_ENGINEER.getTitle());
+        modelManager = new ModelManager(new AddressBookBuilder()
+                .withRole(SOFTWARE_ENGINEER)
+                .withPerson(candidate)
+                .build(), new UserPrefs());
+
+        Predicate<Person> openRoleFilter = person -> modelManager.findRole(person.getRole())
+                .map(role -> !role.isClosed())
+                .orElse(false);
+        modelManager.updateFilteredPersonList(openRoleFilter);
+        assertEquals(List.of(candidate), modelManager.getFilteredPersonList());
+
+        modelManager.recordAddressBookState();
+
+        Role closedRole = new Role(SOFTWARE_ENGINEER.getTitle(),
+                SOFTWARE_ENGINEER.getExperienceLevel(), RoleStatus.CLOSED);
+        modelManager.setRole(SOFTWARE_ENGINEER, closedRole);
+        modelManager.commitAddressBookState();
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+
+        assertTrue(modelManager.undoAddressBook());
+        assertEquals(List.of(candidate), modelManager.getFilteredPersonList());
+
+        assertTrue(modelManager.redoAddressBook());
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
@@ -103,6 +194,23 @@ public class ModelManagerTest {
 
         // resets modelManager to initial state for upcoming tests
         modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        // different filtered role list -> returns false
+        Role roleWithDifferentTitle = new RoleBuilder(PRODUCT_ANALYST)
+                .withTitle("Data Analyst")
+                .build();
+        AddressBook addressBookWithRoles = new AddressBookBuilder()
+                .withRole(PRODUCT_ANALYST)
+                .withRole(roleWithDifferentTitle)
+                .build();
+        modelManager = new ModelManager(addressBookWithRoles, userPrefs);
+        modelManager.updateFilteredRoleList(role -> role.isSameRole(PRODUCT_ANALYST));
+        assertFalse(modelManager.equals(new ModelManager(addressBookWithRoles, userPrefs)));
+
+        // resets modelManager to initial state for upcoming tests
+        modelManager.updateFilteredRoleList(PREDICATE_SHOW_ALL_ROLES);
+        assertTrue(modelManager.equals(new ModelManager(addressBookWithRoles, userPrefs)));
+        modelManager = new ModelManager(addressBook, userPrefs);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

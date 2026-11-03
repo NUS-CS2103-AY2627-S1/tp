@@ -1,21 +1,28 @@
 package seedu.address.model;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.role.Role;
+import seedu.address.model.role.RoleTitle;
+import seedu.address.model.role.UniqueRoleList;
 
 /**
  * Wraps all data at the address-book level.
- * Duplicates are not allowed (by .isSamePerson comparison).
+ * Duplicate persons and roles are not allowed.
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
     private final UniquePersonList persons = new UniquePersonList();
+    private final UniqueRoleList roles = new UniqueRoleList();
 
     public AddressBook() {}
 
@@ -38,12 +45,21 @@ public class AddressBook implements ReadOnlyAddressBook {
     }
 
     /**
+     * Replaces the contents of the role list with {@code roles}.
+     * {@code roles} must not contain duplicate roles.
+     */
+    public void setRoles(List<Role> roles) {
+        this.roles.setRoles(roles);
+    }
+
+    /**
      * Resets the existing data of this {@code AddressBook} with {@code newData}.
      */
     public void resetData(ReadOnlyAddressBook newData) {
         requireNonNull(newData);
 
         setPersons(newData.getPersonList());
+        setRoles(newData.getRoleList());
     }
 
     //// person-level operations
@@ -54,6 +70,20 @@ public class AddressBook implements ReadOnlyAddressBook {
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return persons.contains(person);
+    }
+
+    /**
+     * Returns a person with the same identity as {@code person}, if any.
+     */
+    public Optional<Person> findSamePerson(Person person) {
+        return persons.findSamePerson(person);
+    }
+
+    /**
+     * Returns a person other than {@code excludedPerson} with the same identity as {@code person}, if any.
+     */
+    public Optional<Person> findSamePersonExcluding(Person person, Person excludedPerson) {
+        return persons.findSamePersonExcluding(person, excludedPerson);
     }
 
     /**
@@ -83,18 +113,75 @@ public class AddressBook implements ReadOnlyAddressBook {
         persons.remove(key);
     }
 
+    //// role-level operations
+
+    /**
+     * Returns true if a role with the same identity as {@code role} exists in the address book.
+     */
+    public boolean hasRole(Role role) {
+        requireNonNull(role);
+        return roles.contains(role);
+    }
+
+    /**
+     * Returns the role whose title matches {@code title}, ignoring case, if there is one.
+     */
+    public Optional<Role> findRole(RoleTitle title) {
+        return roles.findByTitle(title);
+    }
+
+    /**
+     * Adds {@code role} to the address book.
+     * The role must not already exist in the address book.
+     */
+    public void addRole(Role role) {
+        roles.add(role);
+    }
+
+    /**
+     * Replaces {@code target} with {@code editedRole} and updates all associated candidate titles.
+     * If the title changes, every candidate with the old title is updated to the new title;
+     * their other details are unchanged. Role validation precedes all changes.
+     */
+    public void setRole(Role target, Role editedRole) {
+        requireAllNonNull(target, editedRole);
+        roles.setRole(target, editedRole);
+        if (!target.getTitle().equals(editedRole.getTitle())) {
+            List<Person> updatedPersons = persons.asUnmodifiableObservableList().stream()
+                    .map(person -> person.getRole().isSameTitle(target.getTitle())
+                            ? person.withRole(editedRole.getTitle()) : person)
+                    .toList();
+            // The existing list is unique and only role titles change, so duplicate checks still pass.
+            persons.setPersons(updatedPersons);
+        }
+    }
+
+    /**
+     * Removes {@code role} from the address book.
+     * The role must exist and have no associated candidates.
+     */
+    public void removeRole(Role role) {
+        roles.remove(role);
+    }
+
     //// util methods
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("persons", persons)
+                .add("roles", roles)
                 .toString();
     }
 
     @Override
     public ObservableList<Person> getPersonList() {
         return persons.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Role> getRoleList() {
+        return roles.asUnmodifiableObservableList();
     }
 
     @Override
@@ -108,11 +195,12 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons)
+                && roles.equals(otherAddressBook.roles);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(persons, roles);
     }
 }

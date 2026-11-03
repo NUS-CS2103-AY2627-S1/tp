@@ -5,13 +5,19 @@ import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ROLE_TITLE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
+import java.util.Optional;
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Person;
+import seedu.address.model.role.Role;
 
 /**
  * Adds a person to the address book.
@@ -20,23 +26,30 @@ public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a candidate to RecruiterBuddy. "
             + "Parameters: "
             + PREFIX_NAME + "NAME "
             + PREFIX_PHONE + "PHONE "
             + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
+            + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + PREFIX_ROLE_TITLE + "ROLE "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " "
             + PREFIX_NAME + "John Doe "
             + PREFIX_PHONE + "98765432 "
             + PREFIX_EMAIL + "johnd@example.com "
             + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + PREFIX_ROLE_TITLE + "Software Engineer "
+            + PREFIX_TAG + "referral "
+            + PREFIX_TAG + "java";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "New candidate added: %1$s";
+    public static final String MESSAGE_ROLE_NOT_FOUND =
+            "No role named “%1$s” exists. Add the role first, then add the candidate.";
+    public static final String MESSAGE_ROLE_CLOSED =
+            "The role “%1$s” is closed, so no new candidates can be added to it.";
+
+    private static final Logger logger = LogsCenter.getLogger(AddCommand.class);
 
     private final Person toAdd;
 
@@ -52,12 +65,56 @@ public class AddCommand extends Command {
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
 
-        if (model.hasPerson(toAdd)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
-        }
+        verifyNotDuplicate(model);
+        Role role = findOpenRole(model);
 
-        model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        // Saves the role's own spelling of the title, so each role is shown and stored in one way.
+        Person personToAdd = toAdd.withRole(role.getTitle());
+        model.addPerson(personToAdd);
+        logger.info("Added candidate " + personToAdd.getName());
+
+        String successMessage = String.format(MESSAGE_SUCCESS, Messages.format(personToAdd));
+        return new CommandResult(appendWarnings(successMessage, model, personToAdd));
+    }
+
+    /**
+     * Returns {@code successMessage} followed by any warnings about the phone and email of
+     * {@code addedPerson}.
+     * Unlike an edit, every field of a new candidate is newly entered, so both fields are always checked.
+     */
+    private static String appendWarnings(String successMessage, Model model, Person addedPerson) {
+        String messageWithPhoneWarnings = PhoneChecks.appendPhoneWarnings(successMessage, model, addedPerson);
+        return EmailChecks.appendEmailWarnings(messageWithPhoneWarnings, addedPerson.getEmail());
+    }
+
+    /**
+     * Checks that no candidate in {@code model} has the same email or phone number as the candidate to add.
+     *
+     * @throws CommandException if such a candidate exists, with a message naming them and the shared field.
+     */
+    private void verifyNotDuplicate(Model model) throws CommandException {
+        Optional<Person> existingPerson = model.findSamePerson(toAdd);
+        if (existingPerson.isPresent()) {
+            String message = Messages.getErrorMessageForDuplicatePerson(toAdd, existingPerson.get());
+            logger.info("Rejected duplicate candidate " + toAdd.getName() + ": " + message);
+            throw new CommandException(message);
+        }
+    }
+
+    /**
+     * Returns the open role that the candidate to add is applying for.
+     *
+     * @throws CommandException if no such role exists or the role is closed.
+     */
+    private Role findOpenRole(Model model) throws CommandException {
+        Role role = model.findRole(toAdd.getRole())
+                .orElseThrow(() -> new CommandException(
+                        String.format(MESSAGE_ROLE_NOT_FOUND, toAdd.getRole())));
+
+        if (role.isClosed()) {
+            throw new CommandException(String.format(MESSAGE_ROLE_CLOSED, role.getTitle()));
+        }
+        return role;
     }
 
     @Override
