@@ -61,6 +61,9 @@ public class JsonAddressBookStorage {
         } catch (IllegalValueException ive) {
             logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
             throw new DataLoadingException(ive);
+        } catch (RuntimeException re) {
+            logger.warning("Unexpected runtime exception reading " + filePath + ": " + re.getMessage());
+            throw new DataLoadingException(re);
         }
     }
 
@@ -84,6 +87,30 @@ public class JsonAddressBookStorage {
 
         FileUtil.createIfMissing(filePath);
         JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
+    }
+
+    /**
+     * Creates a timestamped backup of the address book file at {@link #getAddressBookFilePath()}.
+     *
+     * @return the {@code Path} of the created backup file.
+     * @throws IOException if an error occurs while creating the backup.
+     */
+    public Path backupAddressBookFile() throws IOException {
+        return backupAddressBookFile(filePath);
+    }
+
+    /**
+     * Creates a timestamped backup of the address book file at the specified {@code filePath}.
+     *
+     * @param filePath location of the data file to back up. Cannot be null.
+     * @return the {@code Path} of the created backup file.
+     * @throws IOException if an error occurs while creating the backup.
+     */
+    public Path backupAddressBookFile(Path filePath) throws IOException {
+        requireNonNull(filePath);
+        Path backupPath = FileUtil.createTimestampedBackup(filePath);
+        logger.info("Created backup of data file from " + filePath + " to " + backupPath);
+        return backupPath;
     }
 
 }

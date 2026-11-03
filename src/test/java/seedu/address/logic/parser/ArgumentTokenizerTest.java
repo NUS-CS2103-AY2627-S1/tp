@@ -1,11 +1,17 @@
 package seedu.address.logic.parser;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 public class ArgumentTokenizerTest {
 
@@ -147,4 +153,60 @@ public class ArgumentTokenizerTest {
         assertNotEquals(aaa, new Prefix("aab"));
     }
 
+    @Test
+    public void verifyNoMissingPrefixesFor() {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize("Some text p/ 12345", pSlash);
+
+        // all required prefixes present -> passes
+        assertDoesNotThrow(() -> argMultimap.verifyNoMissingPrefixesFor(pSlash));
+
+        // missing required prefix -> throws ParseException
+        assertThrows(ParseException.class, () -> argMultimap.verifyNoMissingPrefixesFor(pSlash, dashT));
+    }
+
+    @Test
+    public void verifyNoDuplicatePrefixesFor() {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize("Some text p/ 12345 p/ 67890", pSlash);
+
+        // duplicate prefix -> throws ParseException
+        assertThrows(ParseException.class, () -> argMultimap.verifyNoDuplicatePrefixesFor(pSlash));
+
+        // non-duplicated prefix -> passes
+        assertDoesNotThrow(() -> argMultimap.verifyNoDuplicatePrefixesFor(dashT));
+    }
+
+    @Test
+    public void findUnrecognizedPrefixes() {
+        // all prefixes allowed -> empty list
+        assertTrue(ArgumentTokenizer.findUnrecognizedPrefixes("p/ 12345", pSlash).isEmpty());
+
+        // unrecognized prefix at end
+        assertEquals(List.of(new Prefix("x/")),
+                ArgumentTokenizer.findUnrecognizedPrefixes("p/ 12345 x/ unknown", pSlash));
+
+        // unrecognized prefix in middle
+        assertEquals(List.of(new Prefix("x/")),
+                ArgumentTokenizer.findUnrecognizedPrefixes("x/ unknown p/ 12345", pSlash));
+
+        // multiple distinct unrecognized prefixes
+        assertEquals(List.of(new Prefix("x/"), new Prefix("y/")),
+                ArgumentTokenizer.findUnrecognizedPrefixes("p/ 12345 x/ 1 y/ 2", pSlash));
+
+        // duplicate unrecognized prefix returned once
+        assertEquals(List.of(new Prefix("x/")),
+                ArgumentTokenizer.findUnrecognizedPrefixes("p/ 12345 x/ 1 x/ 2", pSlash));
+
+        // slashes in dates, paths or URLs should not be detected as prefixes
+        assertTrue(ArgumentTokenizer.findUnrecognizedPrefixes("p/ 12/34 / http://example.com", pSlash).isEmpty());
+    }
+
+    @Test
+    public void verifyNoUnrecognizedPrefixes() {
+        // no unrecognized prefixes -> passes
+        assertDoesNotThrow(() -> ArgumentTokenizer.verifyNoUnrecognizedPrefixes("p/ 12345", pSlash));
+
+        // unrecognized prefix present -> throws ParseException
+        assertThrows(ParseException.class, () ->
+                ArgumentTokenizer.verifyNoUnrecognizedPrefixes("p/ 12345 x/ unknown", pSlash));
+    }
 }

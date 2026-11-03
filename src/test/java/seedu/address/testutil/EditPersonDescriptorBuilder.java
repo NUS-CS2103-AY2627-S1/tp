@@ -10,6 +10,7 @@ import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -36,7 +37,8 @@ public class EditPersonDescriptorBuilder {
         descriptor.setPhone(person.getPhone());
         descriptor.setEmail(person.getEmail());
         descriptor.setAddress(person.getAddress());
-        descriptor.setTags(person.getTags());
+        descriptor.setRole(person.getRole());
+        descriptor.setTagsToAdd(person.getTags());
     }
 
     /**
@@ -72,12 +74,29 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
+     * Sets the {@code Role} of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withRole(String role) {
+        descriptor.setRole(new Role(role));
+        return this;
+    }
+
+    /**
+     * Parses the {@code tags} into the set of tags to add in the {@code EditPersonDescriptor}
      * that we are building.
      */
-    public EditPersonDescriptorBuilder withTags(String... tags) {
+    public EditPersonDescriptorBuilder withTagsToAdd(String... tags) {
         Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
-        descriptor.setTags(tagSet);
+        descriptor.setTagsToAdd(tagSet);
+        return this;
+    }
+
+    /**
+     * Parses the {@code tags} into the set of tags to delete in the descriptor that we are building.
+     */
+    public EditPersonDescriptorBuilder withTagsToDelete(String... tags) {
+        Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
+        descriptor.setTagsToDelete(tagSet);
         return this;
     }
 

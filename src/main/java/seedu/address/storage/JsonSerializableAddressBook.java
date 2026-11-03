@@ -20,6 +20,7 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_NULL_PERSON = "Person entry cannot be null.";
 
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
 
@@ -28,7 +29,9 @@ class JsonSerializableAddressBook {
      */
     @JsonCreator
     public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
     }
 
     /**
@@ -48,13 +51,35 @@ class JsonSerializableAddressBook {
     public AddressBook toModelType() throws IllegalValueException {
         AddressBook addressBook = new AddressBook();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PERSON);
+            }
             Person person = jsonAdaptedPerson.toModelType();
             if (addressBook.hasPerson(person)) {
-                throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
+                throw new IllegalValueException(getDuplicatePersonMessage(addressBook, person));
             }
             addressBook.addPerson(person);
         }
         return addressBook;
+    }
+
+    private String getDuplicatePersonMessage(AddressBook addressBook, Person duplicate) {
+        for (Person existing : addressBook.getPersonList()) {
+            boolean samePhone = existing.getPhone().equals(duplicate.getPhone());
+            boolean sameEmail = existing.getEmail().equals(duplicate.getEmail());
+            if (!samePhone && !sameEmail) {
+                continue;
+            }
+            String field = samePhone && sameEmail
+                    ? "phone number " + duplicate.getPhone() + " and email address " + duplicate.getEmail()
+                    : samePhone ? "phone number " + duplicate.getPhone() : "email address " + duplicate.getEmail();
+            return existing.getName().equals(duplicate.getName())
+                    ? String.format("Duplicate contact detected: '%s' is defined multiple times with %s.",
+                            duplicate.getName(), field)
+                    : String.format("Duplicate contact detected: '%s' shares %s with '%s'.",
+                            duplicate.getName(), field, existing.getName());
+        }
+        return MESSAGE_DUPLICATE_PERSON;
     }
 
 }

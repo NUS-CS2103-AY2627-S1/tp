@@ -1,10 +1,13 @@
 package seedu.address.model;
 
+import java.util.Comparator;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.Email;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
 
 /**
  * The API of the Model component.
@@ -37,9 +40,71 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
+     * Saves the current address book state for undo/redo.
+     * Discards any remaining redo history.
+     */
+    void commitAddressBook();
+
+    /**
+     * Restores the previous address book state and resets the filter to show all persons.
+     *
+     * @throws VersionedAddressBook.NoUndoableStateException if there is no previous state.
+     */
+    void undoAddressBook();
+
+    /**
+     * Restores the next address book state and resets the filter to show all persons.
+     *
+     * @throws VersionedAddressBook.NoRedoableStateException if there is no next state.
+     */
+    void redoAddressBook();
+
+    /**
+     * Returns true if there is a previous address book state to restore.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Returns true if there is a next address book state to restore.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Discards the most recently committed address book state and restores the previous state.
+     */
+    void rollbackAddressBook();
+
+    /**
+     * Returns the current state pointer in the address book history list.
+     */
+    int getAddressBookStatePointer();
+
+    /**
      * Returns true if a person with the same identity as {@code person} exists in the address book.
      */
     boolean hasPerson(Person person);
+
+    /**
+     * Returns true if a person with the same phone number exists in the address book.
+     */
+    boolean hasPhone(Phone phone);
+
+    /**
+     * Returns true if a person with the same phone number exists in the address book,
+     * excluding {@code excludePerson} if specified.
+     */
+    boolean hasPhone(Phone phone, Person excludePerson);
+
+    /**
+     * Returns true if a person with the same email address exists in the address book.
+     */
+    boolean hasEmail(Email email);
+
+    /**
+     * Returns true if a person with the same email address exists in the address book,
+     * excluding {@code excludePerson} if specified.
+     */
+    boolean hasEmail(Email email, Person excludePerson);
 
     /**
      * Deletes the given person.
@@ -60,12 +125,18 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /** Returns an unmodifiable view of the filtered and sorted displayed person list. */
     ObservableList<Person> getFilteredPersonList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the filter applied to the displayed person list using the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the ordering of the filtered and sorted displayed person list.
+     * A null comparator restores the source address-book order.
+     */
+    void updateSortedPersonList(Comparator<Person> comparator);
 }

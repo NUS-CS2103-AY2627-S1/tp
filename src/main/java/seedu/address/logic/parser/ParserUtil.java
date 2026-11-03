@@ -2,17 +2,22 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -20,7 +25,25 @@ import seedu.address.model.tag.Tag;
  */
 public class ParserUtil {
 
-    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_INDEX = Messages.MESSAGE_INVALID_INDEX;
+
+    public static final String MESSAGE_INVALID_FOLLOW_UP_DATE =
+            "Follow-up dates must be valid calendar dates in YYYY-MM-DD format.";
+
+    // Requires exactly four year digits and two digits each for month and day.
+    private static final String FOLLOW_UP_DATE_REGEX = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
+
+    /**
+     * Replaces each {@code \/} sequence with a literal slash, preserving other backslashes.
+     *
+     * @param value the field value or search text to decode
+     * @return the decoded value
+     * @throws NullPointerException if {@code value} is null
+     */
+    public static String unescapeSlashes(String value) {
+        requireNonNull(value);
+        return value.replace("\\/", "/");
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -28,6 +51,7 @@ public class ParserUtil {
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
+        requireNonNull(oneBasedIndex);
         String trimmedIndex = oneBasedIndex.trim();
         if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
             throw new ParseException(MESSAGE_INVALID_INDEX);
@@ -43,7 +67,7 @@ public class ParserUtil {
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
+        String trimmedName = unescapeSlashes(name.trim());
         if (!Name.isValidName(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
@@ -73,7 +97,7 @@ public class ParserUtil {
      */
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
-        String trimmedAddress = address.trim();
+        String trimmedAddress = unescapeSlashes(address.trim());
         if (!Address.isValidAddress(trimmedAddress)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
@@ -96,6 +120,21 @@ public class ParserUtil {
     }
 
     /**
+     * Parses a {@code String role} into a {@code Role}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code role} is invalid.
+     */
+    public static Role parseRole(String role) throws ParseException {
+        requireNonNull(role);
+        String trimmedRole = unescapeSlashes(role.trim());
+        if (!Role.isValidRole(trimmedRole)) {
+            throw new ParseException(Role.MESSAGE_CONSTRAINTS);
+        }
+        return new Role(trimmedRole);
+    }
+
+    /**
      * Parses a {@code String tag} into a {@code Tag}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -103,7 +142,7 @@ public class ParserUtil {
      */
     public static Tag parseTag(String tag) throws ParseException {
         requireNonNull(tag);
-        String trimmedTag = tag.trim();
+        String trimmedTag = unescapeSlashes(tag.trim());
         if (!Tag.isValidTagName(trimmedTag)) {
             throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
         }
@@ -120,5 +159,27 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Parses a follow-up date in the exact format {@code YYYY-MM-DD}.
+     * Leading and trailing whitespace is removed. Past dates are accepted.
+     *
+     * @throws NullPointerException if date is null
+     * @throws ParseException if the format or calendar date is invalid
+     */
+    public static LocalDate parseFollowUpDate(String date) throws ParseException {
+        requireNonNull(date);
+        String trimmedDate = date.trim();
+
+        if (!trimmedDate.matches(FOLLOW_UP_DATE_REGEX)) {
+            throw new ParseException(MESSAGE_INVALID_FOLLOW_UP_DATE);
+        }
+
+        try {
+            return LocalDate.parse(trimmedDate, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException e) {
+            throw new ParseException(MESSAGE_INVALID_FOLLOW_UP_DATE);
+        }
     }
 }

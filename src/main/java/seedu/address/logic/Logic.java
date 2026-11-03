@@ -20,8 +20,13 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
+    /** Returns an unmodifiable view of the filtered and sorted displayed list of persons. */
     ObservableList<Person> getFilteredPersonList();
+
+    /**
+     * Returns selection changes from the most recent command attempt, including changes before a saving failure.
+     */
+    CommandSelectionChange getSelectionChange();
 
     /**
      * Returns the user prefs' GUI settings.

@@ -2,10 +2,12 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_FOLLOW_UP_DATE;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -16,33 +18,121 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
-    private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_NAME = "Ra\tchel";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_ROLE = " ";
+    private static final String INVALID_TAG = "fri\tend";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_ROLE = "Supplier";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
     private static final String WHITESPACE = " \t\r\n";
 
     @Test
-    public void parseIndex_invalidInput_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+    public void unescapeSlashes_onlyDecodesSlashEscapesOnce() {
+        // EP: null, empty, escaped slash, plain slash and unrelated backslashes.
+        assertThrows(NullPointerException.class, () -> ParserUtil.unescapeSlashes(null));
+        assertEquals("", ParserUtil.unescapeSlashes(""));
+        assertEquals("s/o and key/board", ParserUtil.unescapeSlashes("s\\/o and key\\/board"));
+        assertEquals("s/o and key/board", ParserUtil.unescapeSlashes("s/o and key/board"));
+        assertEquals("C:\\Users\\John\\", ParserUtil.unescapeSlashes("C:\\Users\\John\\"));
+        assertEquals("s\\/o", ParserUtil.unescapeSlashes("s\\\\/o"));
     }
 
     @Test
-    public void parseIndex_outOfRangeInput_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+    public void parseEscapedFields_decodesBeforeValidationAndNormalisation() throws Exception {
+        assertEquals(new Name("David s/o John"), ParserUtil.parseName(" David   s\\/o John "));
+        assertEquals(new Role("Supplier p/Manufacturer"), ParserUtil.parseRole(" Supplier   p\\/Manufacturer "));
+        assertEquals(new Tag("Parts xx/custom"), ParserUtil.parseTag(" Parts   xx\\/custom "));
+        assertEquals(Set.of(new Tag("key/board")), ParserUtil.parseTags(List.of("key\\/board", "KEY/BOARD")));
+    }
+
+    @Test
+    public void parseEscapedFields_preservesOtherBackslashes() throws Exception {
+        // EP: unrelated backslashes remain literal; only one slash escape is decoded.
+        assertEquals("David\\q John", ParserUtil.parseName("David\\q John").fullName);
+        assertEquals("Supplier\\", ParserUtil.parseRole("Supplier\\").value);
+        assertEquals("key\\/board", ParserUtil.parseTag("key\\\\/board").tagName);
+        assertEquals("C:\\Users\\John/Archive", ParserUtil.parseAddress("C:\\Users\\John\\/Archive").value);
+    }
+
+    @Test
+    public void parseTextFields_acceptsExpandedTextAndNormalizesSpacing() throws Exception {
+        // EP: Unicode, punctuation, surrounding Unicode whitespace and escaped slash-prefix text.
+        assertEquals("Jos\u00E9 \u738B. n/Junior",
+                ParserUtil.parseName("\u2003 Jos\u00E9   \u738B. n\\/Junior \u2003").fullName);
+        assertEquals("Supplier (PCB) p/Parts",
+                ParserUtil.parseRole(" Supplier  (PCB) p\\/Parts ").value);
+        assertEquals("\u738B Street  1 / Unit", ParserUtil.parseAddress(" \u738B Street  1 \\/ Unit ").value);
+        assertEquals("Switches (5-pin)", ParserUtil.parseTag(" Switches   (5-pin) ").tagName);
+    }
+
+    @Test
+    public void parseTag_lengthCheckedAfterDecodingAndNormalization() throws Exception {
+        // BVA: decoded and normalized lengths of 49, 50 and 51, despite longer raw input.
+        for (int length : new int[] {49, 50}) {
+            String normalized = "a".repeat(length - 3) + " /b";
+            assertEquals(normalized,
+                    ParserUtil.parseTag(" " + "a".repeat(length - 3) + "    \\/b ").tagName);
+        }
+        assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseTag(" " + "a".repeat(48) + "    \\/b "));
+    }
+
+    @Test
+    public void parseTextFields_internalControls_returnFieldConstraintErrors() {
+        // EP: prohibited internal characters must survive spacing normalization and be rejected.
+        for (String character : List.of("\t", "\n", "\r", "\u0000", "\u0085", "\u2028", "\u2029")) {
+            String text = "a" + character + "b";
+            assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName(text));
+            assertThrows(ParseException.class, Role.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseRole(text));
+            assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseTag(text));
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAddress(text));
+        }
+    }
+
+    @Test
+    public void parseIndex_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseIndex(null));
+    }
+
+    @Test
+    public void parseIndex_invalidInput_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("abc"));
+    }
+
+    @Test
+    public void parseIndex_zeroInput_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("0"));
+    }
+
+    @Test
+    public void parseIndex_negativeInput_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("-1"));
+    }
+
+    @Test
+    public void parseIndex_maximumValue_success() throws Exception {
+        assertEquals(Integer.MAX_VALUE,
+                ParserUtil.parseIndex(Integer.toString(Integer.MAX_VALUE)).getOneBased());
+    }
+
+    @Test
+    public void parseIndex_overflowInput_throwsParseException() {
+        String overflowValue = Long.toString((long) Integer.MAX_VALUE + 1);
+
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex(overflowValue));
     }
 
     @Test
@@ -52,6 +142,15 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseIndex_invalidFormats_throwsParseException() {
+        String[] inputs = {"", WHITESPACE, "+1", "1.5", "1 2"};
+
+        for (String input : inputs) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex(input));
+        }
     }
 
     @Test
@@ -85,6 +184,20 @@ public class ParserUtilTest {
     @Test
     public void parsePhone_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parsePhone(INVALID_PHONE));
+    }
+
+    @Test
+    public void parsePhone_lengthBoundaries_trimsValidValuesAndRejectsInvalidLengths() throws Exception {
+        // BVA: accepted minimum/maximum lengths; surrounding whitespace does not count towards the limit.
+        for (int length : new int[] {3, 20}) {
+            String phone = "0" + "9".repeat(length - 1);
+            assertEquals(phone, ParserUtil.parsePhone(WHITESPACE + phone + WHITESPACE).value);
+        }
+        // BVA: just outside both limits; EP: excessively long digit-only input must fail gracefully.
+        for (int length : new int[] {2, 21, 500}) {
+            assertThrows(ParseException.class, Phone.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parsePhone("9".repeat(length)));
+        }
     }
 
     @Test
@@ -134,6 +247,26 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseEmail_supportedSyntax_trimsAndPreservesCasing() throws Exception {
+        // EP: surrounding whitespace is trimmed while apostrophes, domain hyphens and casing are preserved.
+        for (String email : List.of("O'Connor@example.com", "Sales@Keyboard--Shop.COM", "sales/parts@example.com")) {
+            assertEquals(email, ParserUtil.parseEmail(WHITESPACE + email + WHITESPACE).value);
+        }
+        // EP: email is not one of the fields using slash escapes; a literal backslash remains invalid.
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseEmail("sales\\/parts@example.com"));
+    }
+
+    @Test
+    public void parseEmail_unsupportedSyntax_throwsConstraintError() {
+        // EP: quoted local part, raw Unicode, internal whitespace and invalid domain labels.
+        for (String email : List.of("\"sales team\"@example.com", "Jos\u00E9@example.com", "a\tb@example.com",
+                "a@-example.com", "a@" + "b".repeat(64) + ".com")) {
+            assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail(email));
+        }
+    }
+
+    @Test
     public void parseEmail_validValueWithoutWhitespace_returnsEmail() throws Exception {
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(VALID_EMAIL));
@@ -144,6 +277,29 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseRole_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseRole((String) null));
+    }
+
+    @Test
+    public void parseRole_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseRole(INVALID_ROLE));
+    }
+
+    @Test
+    public void parseRole_validValueWithoutWhitespace_returnsRole() throws Exception {
+        Role expectedRole = new Role(VALID_ROLE);
+        assertEquals(expectedRole, ParserUtil.parseRole(VALID_ROLE));
+    }
+
+    @Test
+    public void parseRole_validValueWithWhitespace_returnsTrimmedRole() throws Exception {
+        String roleWithWhitespace = WHITESPACE + VALID_ROLE + WHITESPACE;
+        Role expectedRole = new Role(VALID_ROLE);
+        assertEquals(expectedRole, ParserUtil.parseRole(roleWithWhitespace));
     }
 
     @Test
@@ -190,5 +346,84 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseFollowUpDate_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFollowUpDate(null));
+    }
+
+    @Test
+    public void parseFollowUpDate_validDate_returnsLocalDate() throws Exception {
+        assertEquals(LocalDate.parse(VALID_FOLLOW_UP_DATE),
+                ParserUtil.parseFollowUpDate(VALID_FOLLOW_UP_DATE));
+    }
+
+    @Test
+    public void parseFollowUpDate_surroundingWhitespace_returnsTrimmedDate() throws Exception {
+        assertEquals(LocalDate.parse(VALID_FOLLOW_UP_DATE),
+                ParserUtil.parseFollowUpDate(" \t" + VALID_FOLLOW_UP_DATE + "\n "));
+    }
+
+    @Test
+    public void parseFollowUpDate_supportedDates_returnsLocalDate() throws Exception {
+        String[] dates = {
+            "0000-01-01",
+            "0000-02-29",
+            "1900-02-28",
+            "2000-02-29",
+            "2001-01-01",
+            "2026-04-30",
+            "9999-12-31"
+        };
+
+        for (String date : dates) {
+            assertEquals(LocalDate.parse(date), ParserUtil.parseFollowUpDate(date));
+        }
+    }
+
+    @Test
+    public void parseFollowUpDate_invalidFormat_throwsParseException() {
+        String[] dates = {
+            "",
+            " \t\n ",
+            "not a date",
+            "26-11-01",
+            "2026-1-01",
+            "2026-11-1",
+            "20261101",
+            "2026/11/01",
+            "2026 -11-01",
+            "2026-11-01 extra",
+            "2026-11-01T00:00:00",
+            "2026-11-01Z",
+            "+02026-11-01",
+            "+10000-01-01",
+            "-0001-01-01"
+        };
+
+        for (String date : dates) {
+            assertThrows(ParseException.class,
+                    ParserUtil.MESSAGE_INVALID_FOLLOW_UP_DATE, () -> ParserUtil.parseFollowUpDate(date));
+        }
+    }
+
+    @Test
+    public void parseFollowUpDate_invalidCalendarDate_throwsParseException() {
+        String[] dates = {
+            "2026-00-01",
+            "2026-13-01",
+            "2026-01-00",
+            "2026-01-32",
+            "2026-04-31",
+            "2026-02-29",
+            "2000-02-30",
+            "1900-02-29"
+        };
+
+        for (String date : dates) {
+            assertThrows(ParseException.class,
+                    ParserUtil.MESSAGE_INVALID_FOLLOW_UP_DATE, () -> ParserUtil.parseFollowUpDate(date));
+        }
     }
 }

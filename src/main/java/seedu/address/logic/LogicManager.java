@@ -2,13 +2,19 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Logger;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -30,38 +36,90 @@ public class LogicManager implements Logic {
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+    private CommandSelectionChange selectionChange = new CommandSelectionChange(Map.of(), false);
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
      */
     public LogicManager(Model model, Storage storage) {
+        this(model, storage, new AddressBookParser());
+    }
+
+    /**
+     * Creates a logic manager with a supplied parser for command-flow testing.
+     */
+    LogicManager(Model model, Storage storage, AddressBookParser addressBookParser) {
         this.model = model;
         this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        this.addressBookParser = addressBookParser;
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
+        selectionChange = new CommandSelectionChange(Map.of(), false);
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
+        int pointerBefore = model.getAddressBookStatePointer();
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        Map<Person, Person> replacements = new IdentityHashMap<>();
+        ListChangeListener<Person> replacementListener = change -> {
+            while (change.next()) {
+                if (change.wasReplaced() && change.getRemovedSize() == 1 && change.getAddedSize() == 1) {
+                    replacements.put(change.getRemoved().get(0), change.getAddedSubList().get(0));
+                }
+            }
+        };
+        ObservableList<Person> persons = model.getAddressBook().getPersonList();
+        persons.addListener(replacementListener);
+        boolean executed = false;
+        Optional<Person> requestedPerson = Optional.empty();
+        try {
+            commandResult = command.execute(model);
+            requestedPerson = commandResult.getSelectedPerson();
+            executed = true;
+        } finally {
+            persons.removeListener(replacementListener);
+            selectionChange = new CommandSelectionChange(replacements,
+                    executed && (command instanceof UndoCommand || command instanceof RedoCommand), requestedPerson);
+        }
 
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            rollbackModel(command, pointerBefore);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            rollbackModel(command, pointerBefore);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
         return commandResult;
     }
 
+    /**
+     * Reverts changes to the model if persisting to storage fails.
+     */
+    private void rollbackModel(Command command, int pointerBefore) {
+        if (command instanceof UndoCommand || command instanceof RedoCommand) {
+            return;
+        }
+        int pointerAfter = model.getAddressBookStatePointer();
+        if (pointerAfter > pointerBefore) {
+            model.rollbackAddressBook();
+            // The edit's replacement no longer exists. Reconcile the original selection against restored data.
+            selectionChange = new CommandSelectionChange(Map.of(), false);
+        }
+    }
+
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public CommandSelectionChange getSelectionChange() {
+        return selectionChange;
     }
 
     @Override

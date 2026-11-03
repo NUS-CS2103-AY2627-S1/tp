@@ -1,6 +1,7 @@
 package seedu.address;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -32,7 +33,7 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
@@ -42,10 +43,11 @@ public class MainApp extends Application {
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private String initialStatusMessage;
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing KeyBossWarriorsPro ]===========================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
@@ -57,7 +59,15 @@ public class MainApp extends Application {
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), initialStatusMessage);
+    }
+
+    String getInitialStatusMessage() {
+        return initialStatusMessage;
+    }
+
+    private void appendInitialStatusMessage(String message) {
+        initialStatusMessage = initialStatusMessage == null ? message : initialStatusMessage + "\n" + message;
     }
 
     /**
@@ -65,7 +75,7 @@ public class MainApp extends Application {
      * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
      * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+    protected Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
@@ -81,6 +91,26 @@ public class MainApp extends Application {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
                     + " Will be starting with an empty AddressBook.");
             initialData = new AddressBook();
+            Path filePath = storage.getAddressBookFilePath();
+            if (Files.exists(filePath)) {
+                String cause = e.getCause() != null && e.getCause().getMessage() != null
+                        ? e.getCause().getMessage() : e.getMessage();
+                String causeMsg = cause != null && !cause.isBlank() ? cause : "unrecognized format error";
+                try {
+                    Path backupPath = storage.backupAddressBookFile();
+                    String warning = String.format("Warning: Data file %1$s is corrupted (%2$s). "
+                            + "A backup was created at %3$s. Starting with an empty contact book.",
+                            filePath, causeMsg, backupPath);
+                    logger.warning(warning);
+                    appendInitialStatusMessage(warning);
+                } catch (IOException ioe) {
+                    String warning = String.format("Warning: Data file %1$s is corrupted (%2$s), and creating "
+                            + "a backup failed: %3$s. Starting with an empty contact book.",
+                            filePath, causeMsg, ioe.getMessage());
+                    logger.severe(warning);
+                    appendInitialStatusMessage(warning);
+                }
+            }
         }
 
         return new ModelManager(initialData, userPrefs);
@@ -103,9 +133,29 @@ public class MainApp extends Application {
             }
             initializedPrefs = prefsOptional.orElse(new UserPrefs());
         } catch (DataLoadingException e) {
-            logger.warning("Preference file at " + prefsFilePath + " could not be loaded."
-                    + " Using default preferences.");
             initializedPrefs = new UserPrefs();
+            if (!Files.exists(prefsFilePath)) {
+                logger.warning("Preference file at " + prefsFilePath + " could not be loaded."
+                        + " Using default preferences.");
+            } else {
+                String cause = e.getCause() != null && e.getCause().getMessage() != null
+                        ? e.getCause().getMessage() : e.getMessage();
+                String causeMsg = cause != null && !cause.isBlank() ? cause : "unrecognized format";
+                try {
+                    Path backup = storage.backupUserPrefsFile();
+                    String warning = String.format("Warning: Preference file %1$s is corrupted (%2$s). "
+                            + "A backup was created at %3$s. Using default preferences.",
+                            prefsFilePath, causeMsg, backup);
+                    logger.warning(warning);
+                    appendInitialStatusMessage(warning);
+                } catch (IOException ioe) {
+                    String warning = String.format("Warning: Preference file %1$s is corrupted (%2$s), and creating "
+                            + "a backup failed: %3$s. Using default preferences.",
+                            prefsFilePath, causeMsg, ioe.getMessage());
+                    logger.severe(warning);
+                    appendInitialStatusMessage(warning);
+                }
+            }
         }
 
         //Update prefs file in case it was missing to begin with or there are new/unused fields
@@ -120,13 +170,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting KeyBossWarriorsPro " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping KeyBossWarriorsPro ] =============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

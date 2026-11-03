@@ -1,5 +1,7 @@
 package seedu.address.model.person;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -7,19 +9,35 @@ import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a {@code Person}'s {@code Name} contains at least one of the given
+ * keywords as a substring, ignoring case.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
 
+    /**
+     * Creates a predicate using a copy of the given keywords, excluding blank entries.
+     * If no keywords remain, the predicate matches no contacts.
+     *
+     * @param keywords the search keywords
+     * @throws NullPointerException if {@code keywords} or any keyword is null
+     */
     public NameContainsKeywordsPredicate(List<String> keywords) {
-        this.keywords = keywords;
+        requireNonNull(keywords);
+
+        this.keywords = keywords.stream()
+                .filter(keyword -> !keyword.isBlank())
+                .toList();
     }
 
     @Override
     public boolean test(Person person) {
+        assert person != null : "Person to test must not be null";
+
+        String name = StringUtil.normalizeCase(person.getName().fullName);
+
         return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+                .anyMatch(keyword -> name.contains(StringUtil.normalizeCase(keyword)));
     }
 
     @Override
