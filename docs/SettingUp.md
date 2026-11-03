@@ -41,11 +41,14 @@ If you plan to use IntelliJ IDEA (highly recommended):
 
 1. **Set up CI**
 
-   This project includes GitHub Actions configuration files in `.github/workflows`. GitHub runs CI automatically for every push and pull request. No setup is required.
+   This project includes GitHub Actions configuration files in `.github/workflows`. Java CI runs on
+   pushes to `master`, pull requests targeting `master`, and manual dispatches. Open a PR to test a
+   feature branch. See [CI and Pages setup](DevOps.md#continuous-integration-ci) for runner and
+   documentation deployment settings.
 
 1. **Learn the design**
 
-   When you are ready to start coding, we recommend that you get some sense of the overall design by reading about [AddressBook’s architecture](DeveloperGuide.md#architecture).
+   When you are ready to start coding, we recommend that you get some sense of the overall design by reading about [LarperBoard’s architecture](DeveloperGuide.md#architecture).
 
 1. **Do the tutorials**
    These tutorials will help you get acquainted with the codebase.

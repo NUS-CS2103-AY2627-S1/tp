@@ -1,29 +1,53 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.parser.AddressBookParser.COMMAND_WORDS;
+import static seedu.address.logic.parser.AddressBookParser.MESSAGE_UNKNOWN_COMMAND_WITH_LIST;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.GroupCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.StarCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.SortCriterion;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -76,6 +100,25 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_group() throws Exception {
+        GroupCommand command = (GroupCommand) parser.parseCommand(GroupCommand.COMMAND_WORD + " t/react");
+        assertEquals(new GroupCommand(new Tag("react")), command);
+    }
+
+    @Test
+    public void parseCommand_starAndUnstar() throws Exception {
+        assertEquals(new StarCommand(INDEX_FIRST_PERSON, true), parser.parseCommand(
+                StarCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()));
+        assertEquals(new StarCommand(INDEX_FIRST_PERSON, false), parser.parseCommand(
+                StarCommand.UNSTAR_COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()));
+    }
+
+    @Test
+    public void parseCommand_filter() throws Exception {
+        assertEquals(new FilterCommand(true), parser.parseCommand(FilterCommand.COMMAND_WORD + " starred"));
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
@@ -88,6 +131,62 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_sort() throws Exception {
+        assertEquals(new SortCommand(SortCriterion.ADDED), parser.parseCommand("sort added"));
+        assertEquals(new SortCommand(SortCriterion.ADDED), parser.parseCommand("sort Added"));
+        assertEquals(new SortCommand(SortCriterion.ADDED), parser.parseCommand("sort ADDED"));
+        assertEquals(new SortCommand(SortCriterion.EDITED), parser.parseCommand("sort EdItEd"));
+        assertEquals(new SortCommand(SortCriterion.VIEWED), parser.parseCommand("sort VIEWED"));
+    }
+
+    @Test
+    public void parseCommand_reset_throwsUnknownCommand() {
+        assertFalse(COMMAND_WORDS.contains("reset"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND_WITH_LIST, () -> parser.parseCommand("reset"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND_WITH_LIST, () -> parser.parseCommand("reset 1"));
+    }
+
+    @Test
+    public void parseCommand_tag() throws Exception {
+        TagCommand command = (TagCommand) parser.parseCommand(
+                TagCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " t/friends t/work");
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("friends"), new Tag("work"))), command);
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_undoWithoutArguments_returnsUndoCommand() throws Exception {
+        assertTrue(parser.parseCommand(UndoCommand.COMMAND_WORD) instanceof UndoCommand);
+        assertTrue(parser.parseCommand(UndoCommand.COMMAND_WORD + "   ") instanceof UndoCommand);
+    }
+
+    @Test
+    public void parseCommand_undoWithArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, UndoCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand(UndoCommand.COMMAND_WORD + " 1"));
+    }
+
+    @Test
+    public void parseCommand_redoWithoutArguments_returnsRedoCommand() throws Exception {
+        assertTrue(parser.parseCommand(RedoCommand.COMMAND_WORD) instanceof RedoCommand);
+        assertTrue(parser.parseCommand(RedoCommand.COMMAND_WORD + "   ") instanceof RedoCommand);
+    }
+
+    @Test
+    public void parseCommand_redoWithArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, RedoCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand(RedoCommand.COMMAND_WORD + " 1"));
+    }
+
+    @Test
     public void parseCommand_unrecognisedInput_throwsParseException() {
         assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
             -> parser.parseCommand(""));
@@ -95,6 +194,129 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND_WITH_LIST, () ->
+                parser.parseCommand("unknownCommand"));
+    }
+
+    @Test
+    public void parseCommand_commandWordInAnyLetterCase_isAccepted() throws Exception {
+        assertTrue(parser.parseCommand("HELP") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("Help") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("   ClEaR  ") instanceof ClearCommand);
+        assertEquals(new StarCommand(INDEX_FIRST_PERSON, true), parser.parseCommand("STAR 1"));
+        assertEquals(new StarCommand(INDEX_FIRST_PERSON, false), parser.parseCommand("UnStar 1"));
+        assertEquals(new FilterCommand(true), parser.parseCommand("FILTER STARRED"));
+        assertEquals(new SortCommand(SortCriterion.ADDED), parser.parseCommand("Sort added"));
+    }
+
+    @Test
+    public void parseCommand_everyCommandWordInUpperCase_isRecognised() {
+        for (String commandWord : COMMAND_WORDS) {
+            try {
+                parser.parseCommand(commandWord.toUpperCase(Locale.ROOT));
+            } catch (ParseException e) {
+                assertFalse(e.getMessage().startsWith(MESSAGE_UNKNOWN_COMMAND),
+                        commandWord.toUpperCase(Locale.ROOT) + " is not recognised");
+            }
+        }
+    }
+
+    @Test
+    public void parseCommand_unknownCommand_messageListsTheAvailableCommands() {
+        // fully qualified because seedu.address.testutil.Assert.assertThrows, which returns nothing, is imported
+        ParseException exception = org.junit.jupiter.api.Assertions.assertThrows(ParseException.class, () ->
+                parser.parseCommand("strar 1"));
+
+        String message = exception.getMessage();
+        assertTrue(message.startsWith(MESSAGE_UNKNOWN_COMMAND + " Available commands: add, clear, delete, "));
+        assertTrue(message.endsWith("unstar, view."));
+        for (String commandWord : COMMAND_WORDS) {
+            assertTrue(message.contains(commandWord), commandWord + " is missing from: " + message);
+        }
+    }
+
+    @Test
+    public void commandWords_areSortedWithoutDuplicates() {
+        assertEquals(COMMAND_WORDS.stream().distinct().sorted().toList(), COMMAND_WORDS);
+    }
+
+    @Test
+    public void commandWords_includeEveryCommandWordDeclaredByTheCommandClasses() throws Exception {
+        Set<String> declared = getCommandWordsDeclaredByTheCommandClasses();
+
+        // a scan that finds nothing would make this test pass for the wrong reason
+        assertFalse(declared.isEmpty());
+        for (String commandWord : declared) {
+            assertTrue(COMMAND_WORDS.contains(commandWord),
+                    "AddressBookParser.COMMAND_WORDS is missing the command word: " + commandWord);
+        }
+    }
+
+    @Test
+    public void commandWords_areAllRecognisedByTheParser() {
+        for (String commandWord : COMMAND_WORDS) {
+            try {
+                parser.parseCommand(commandWord);
+            } catch (ParseException e) {
+                // a command that needs arguments reports its usage; only an unknown command word is a failure
+                assertFalse(e.getMessage().startsWith(MESSAGE_UNKNOWN_COMMAND),
+                        commandWord + " is listed but the parser does not recognise it");
+            }
+        }
+    }
+
+    /** Returns the values of all {@code *COMMAND_WORD} constants declared by the classes in the commands package. */
+    private static Set<String> getCommandWordsDeclaredByTheCommandClasses() throws Exception {
+        Path commandsDirectory = Path.of(Command.class.getResource("Command.class").toURI()).getParent();
+        List<String> classNames;
+        try (Stream<Path> files = Files.list(commandsDirectory)) {
+            classNames = files.map(file -> file.getFileName().toString())
+                    .filter(name -> name.endsWith(".class") && !name.contains("$"))
+                    .map(name -> name.substring(0, name.length() - ".class".length()))
+                    .toList();
+        }
+
+        Set<String> declared = new TreeSet<>();
+        for (String className : classNames) {
+            Class<?> type = Class.forName(Command.class.getPackageName() + "." + className);
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) && field.getType() == String.class
+                        && field.getName().endsWith("COMMAND_WORD")) {
+                    declared.add((String) field.get(null));
+                }
+            }
+        }
+        return declared;
+    }
+
+    @Test
+    public void parseCommand_due() throws Exception {
+        assertEquals(new seedu.address.logic.commands.DueCommand(), parser.parseCommand("due"));
+    }
+
+    @Test
+    public void parseCommand_sortDue_isNotASortArgument() {
+        assertThrows(ParseException.class, () -> parser.parseCommand("sort due"));
+    }
+
+    @Test
+    public void parseCommand_followUp() throws Exception {
+        assertEquals(new seedu.address.logic.commands.FollowUpCommand(INDEX_FIRST_PERSON,
+                        java.time.LocalDate.of(2026, 10, 25)),
+                parser.parseCommand("followup " + INDEX_FIRST_PERSON.getOneBased() + " d/2026-10-25"));
+        assertEquals(new seedu.address.logic.commands.FollowUpCommand(INDEX_FIRST_PERSON, null),
+                parser.parseCommand("followup " + INDEX_FIRST_PERSON.getOneBased() + " clear"));
+    }
+
+    @Test
+    public void parseCommand_note() throws Exception {
+        NoteCommand setCommand = (NoteCommand) parser.parseCommand(
+                NoteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " nt/Met at booth 4");
+        assertEquals(new NoteCommand(INDEX_FIRST_PERSON, new Note("Met at booth 4")), setCommand);
+
+        NoteCommand clearCommand = (NoteCommand) parser.parseCommand(
+                NoteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " clear");
+        assertEquals(new NoteCommand(INDEX_FIRST_PERSON, Note.EMPTY), clearCommand);
     }
 }

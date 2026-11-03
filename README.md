@@ -1,14 +1,47 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-W12-2/tp/graph/badge.svg?token=69EYSQR3GS)](https://codecov.io/gh/AY2627S1-CS2103T-W12-2/tp)
+[![CI Status](https://github.com/AY2627S1-CS2103T-W12-2/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-W12-2/tp/actions)
 
-![Ui](docs/images/Ui.png)
+![Ui](docs/images/Ui-v1.6.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# LarperBoard
+
+**LarperBoard is a desktop app for keeping track of people you meet at hackathons.** Add contact details, LinkedIn handles, and role or tech-stack tags through short commands, then find a person by name when you want to reconnect.
+
+LarperBoard has a graphical contact list and detail panel, with command-line-style input for adding, finding, viewing, editing, and deleting contacts. Data is saved locally.
+
+The latest release is [LarperBoard v1.6](https://github.com/AY2627S1-CS2103T-W12-2/tp/releases/tag/v1.6).
+
+## Quick start
+
+Install Java 25 or later, download `larperboard.jar` from the [releases page](https://github.com/AY2627S1-CS2103T-W12-2/tp/releases), and run it from the folder where you want LarperBoard to save its data:
+
+```text
+java -jar larperboard.jar
+```
+
+Try `list`, then `add n/Aisha Rahman p/98765432 e/aisha@example.com l/aisha-rahman t/frontend`. See the [User Guide](docs/UserGuide.md#quick-start) for the full setup and command instructions.
+
+## Run LarperBoard v1.6
+
+With Java 25 installed, build the JAR from the project root using `./gradlew shadowJar`, then run `java -jar build/libs/larperboard.jar`.
+The Help menu opens the [online User Guide](https://ay2627s1-cs2103t-w12-2.github.io/tp/UserGuide.html).
+
+## Delete a contact
+
+Use `delete INDEX` with one positive index from the currently displayed contact list. For example, `delete 2` removes the second displayed contact.
+
+The command accepts only one index. `delete 1 2` shows a usage error; an invalid or oversized index reports `The person index provided is invalid.` See the [delete error cases](docs/UserGuide.md#deleting-a-contact-delete) for empty or invalid lists and indexes.
+
+See the [v1.6 release notes](docs/releases/v1.6.md) for changes, upgrade instructions, and known limitations.
+
+## Documentation
+
+* Using LarperBoard: see the [**User Guide**](docs/UserGuide.md).
+* Developing LarperBoard: see the [**Developer Guide**](docs/DeveloperGuide.md).
+* Meet the team: [**About Us**](docs/AboutUs.md).
+
+## Acknowledgements
+
+* This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+* AI tools (Anthropic's Claude through Claude Code, and OpenAI Codex) were used by team members to help write code, tests and documentation. See the [Developer Guide acknowledgements](docs/DeveloperGuide.md#acknowledgements) for the details.

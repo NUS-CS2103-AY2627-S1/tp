@@ -1,8 +1,8 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LINKEDIN;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
@@ -20,23 +20,25 @@ public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a contact. "
             + "Parameters: "
             + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
+            + "[" + PREFIX_PHONE + "PHONE] "
+            + "[" + PREFIX_EMAIL + "EMAIL] "
+            + "[" + PREFIX_LINKEDIN + "LINKEDIN_HANDLE] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " "
             + PREFIX_NAME + "John Doe "
             + PREFIX_PHONE + "98765432 "
             + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
+            + PREFIX_LINKEDIN + "john-doe-profile "
             + PREFIX_TAG + "friends "
             + PREFIX_TAG + "owesMoney";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "New contact added: %1$s";
+    public static final String MESSAGE_HIDDEN_BY_FILTER = " (hidden by the filter; use list to see all)";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "A contact with this name and phone number already exists. Edit that contact instead.";
 
     private final Person toAdd;
 
@@ -56,8 +58,14 @@ public class AddCommand extends Command {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
-        model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        Person withCreatedTime = toAdd.withActivity(toAdd.getActivity().withCreatedAt(model.now()));
+        model.addPerson(withCreatedTime);
+        String message = String.format(MESSAGE_SUCCESS, Messages.format(toAdd));
+        // an active find, group, filter or due is kept, so the new contact is saved but may not be listed
+        if (!model.getFilteredPersonList().contains(withCreatedTime)) {
+            message += MESSAGE_HIDDEN_BY_FILTER;
+        }
+        return new CommandResult(message);
     }
 
     @Override

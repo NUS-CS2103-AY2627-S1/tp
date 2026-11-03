@@ -111,9 +111,14 @@
     -fx-background-color: #424d5f;
 }
 
+.list-cell #cardPane {
+    /* Reserve the selection border so selecting a card does not resize its tag row. */
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+}
+
 .list-cell:filled:selected #cardPane {
     -fx-border-color: #3e7b91;
-    -fx-border-width: 1;
 }
 
 .list-cell .label {
@@ -328,6 +333,10 @@
     -fx-text-fill: white;
 }
 
+#personListStatus {
+    -fx-text-fill: #e6e6e6;
+}
+
 #filterField, #personListPanel, #personWebpage {
     -fx-effect: innershadow(gaussian, black, 10, 0, 0, 0);
 }
@@ -338,15 +347,101 @@
 }
 
 #tags {
+    /* Card tag rows are HBoxes and take their gap from TagRow.GAP; keep the two equal. */
     -fx-hgap: 7;
     -fx-vgap: 3;
 }
 
 #tags .label {
     -fx-text-fill: white;
-    -fx-background-color: #3e7b91;
     -fx-padding: 1 3 1 3;
     -fx-border-radius: 2;
     -fx-background-radius: 2;
     -fx-font-size: 11;
+}
+
+#tags .tag-overflow {
+    -fx-text-fill: #d0d0d0;
+    -fx-background-color: transparent;
+}
+
+#tags .tag-color-0 {
+    -fx-background-color: #285f85;
+}
+
+#tags .tag-color-1 {
+    -fx-background-color: #70519b;
+}
+
+#tags .tag-color-2 {
+    -fx-background-color: #2e704e;
+}
+
+#tags .tag-color-3 {
+    -fx-background-color: #9a4f36;
+}
+
+#tags .tag-color-4 {
+    -fx-background-color: #8a6122;
+}
+
+#tags .tag-color-5 {
+    -fx-background-color: #8d385e;
+}
+
+.detail-placeholder {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-font-style: italic;
+    -fx-text-fill: #9e9e9e;
+}
+
+.detail-name {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 24px;
+    -fx-text-fill: white;
+}
+
+.detail-heading {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 11px;
+    -fx-text-fill: #9e9e9e;
+}
+
+.detail-value {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-text-fill: white;
+}
+
+.detail-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.detail-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.label.star {
+    -fx-text-fill: #f5c542;
+    -fx-font-size: 18px;
+}
+
+.list-cell .label.star {
+    -fx-text-fill: #f5c542;
+}
+
+.cell_small_label.overdue {
+    -fx-text-fill: #ff6b6b;
+    -fx-font-weight: bold;
+}
+
+.photo-frame {
+    -fx-background-color: #2f3133;
+    -fx-background-radius: 4;
+}
+
+.photo-frame .label {
+    -fx-text-fill: #9a9a9a;
 }

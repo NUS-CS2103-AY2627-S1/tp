@@ -1,7 +1,13 @@
 package seedu.address.model;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.Person;
@@ -10,6 +16,12 @@ import seedu.address.model.person.Person;
  * The API of the Model component.
  */
 public interface Model {
+    /** Opaque copy of model state, including session history. */
+    interface Snapshot {}
+
+    /** The time zone used to display activity times and to decide what today is. */
+    ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Singapore");
+
     /** {@code Predicate} that always evaluates to true */
     Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
 
@@ -60,6 +72,38 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
+    /**
+     * Returns the clock used to record when things happen.
+     */
+    Clock getClock();
+
+    /**
+     * Returns the current time from {@link #getClock()}, in whole seconds.
+     */
+    default Instant now() {
+        return Instant.now(getClock()).truncatedTo(ChronoUnit.SECONDS);
+    }
+
+    /**
+     * Replaces {@code target} with {@code editedPerson} as a user edit, and records the edit time.
+     * This is the one place that decides when "last edited" changes, so every command that changes a
+     * contact should use it instead of {@link #setPerson(Person, Person)}:
+     * <ul>
+     * <li>If {@code editedPerson} has the same details as {@code target} (see
+     * {@link Person#hasSameDetails(Person)}), nothing happens and no time changes.</li>
+     * <li>Otherwise the stored person gets {@code target}'s activity with last edited set to now. The activity of
+     * {@code editedPerson} is ignored, so a copy built without activity cannot wipe the other times.</li>
+     * </ul>
+     * {@code target} must exist in the address book. The same identity rule as {@code setPerson} applies.
+     */
+    void editPerson(Person target, Person editedPerson);
+
+    /**
+     * Records that {@code person} was viewed (sets last viewed to now) and makes it the viewed person.
+     * {@code person} must exist in the address book.
+     */
+    void viewPerson(Person person);
+
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
@@ -68,4 +112,60 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Replaces the filter and its user-facing description together, retaining the active sort.
+     * An empty description denotes the full list; callers should use it only when showing all contacts.
+     * @throws NullPointerException if either argument is null.
+     */
+    void updateFilteredPersonList(Predicate<Person> predicate, String filterDescription);
+
+    /**
+     * Sorts the currently filtered list according to {@code sortCriterion}.
+     */
+    void sortFilteredPersonList(SortCriterion sortCriterion);
+
+    /**
+     * Clears the active sort and restores the current filtered list's original order.
+     */
+    void clearPersonListSort();
+
+    /**
+     * Returns text that describes the currently visible list's filter, order and size.
+     */
+    ReadOnlyStringProperty getPersonListStatus();
+
+    /**
+     * Returns the person currently being viewed in the detail panel.
+     * The value is null if no person is being viewed.
+     */
+    ReadOnlyObjectProperty<Person> getViewedPerson();
+
+    /**
+     * Sets the person to be viewed in the detail panel, without recording a view.
+     * A null {@code person} means that no person is being viewed.
+     * To handle a user's {@code view} command use {@link #viewPerson(Person)}, which also sets the last viewed time.
+     */
+    void setViewedPerson(Person person);
+
+    /** Captures contacts, selection, visible list, and session history for rollback. */
+    Snapshot createSnapshot();
+
+    /** Restores a snapshot exactly, including the history stacks. */
+    void restore(Snapshot snapshot);
+
+    /** Records the state before a successfully saved contact change, if the change was real. */
+    void recordSuccessfulMutation(Snapshot before);
+
+    /** Returns whether a previous saved contact state is available. */
+    boolean canUndo();
+
+    /** Restores the previous saved contact state. The caller must save the result. */
+    void undo();
+
+    /** Returns whether an undone contact state is available. */
+    boolean canRedo();
+
+    /** Restores the most recently undone contact state. The caller must save the result. */
+    void redo();
 }

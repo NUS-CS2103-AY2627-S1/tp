@@ -3,21 +3,23 @@
 skinparam ArrowFontStyle plain
 
 box Model MODEL_COLOR_T1
-participant ":Model" as Model MODEL_COLOR
-participant ":VersionedAddressBook" as VersionedAddressBook MODEL_COLOR
+participant "m:ModelManager" as Model MODEL_COLOR
+participant "undoHistory:Deque<State>" as UndoHistory MODEL_COLOR
+participant "redoHistory:Deque<State>" as RedoHistory MODEL_COLOR
 end box
 
-[-> Model : undoAddressBook()
-activate Model
-
-Model -> VersionedAddressBook : undo()
-activate VersionedAddressBook
-
-VersionedAddressBook -> VersionedAddressBook :resetData(ReadOnlyAddressBook)
-VersionedAddressBook --> Model :
-deactivate VersionedAddressBook
-
-[<-- Model
-deactivate Model
+[-> Model : undo()
+Model -> Model : captureState()
+Model --> Model : current
+note right of Model : The state includes contacts, selection, filter, filter label, and sort.
+Model -> UndoHistory : removeLast()
+UndoHistory --> Model : previous
+Model -> RedoHistory : addLast(current)
+Model -> Model : restoreState(previous, true)
+note right of Model
+  Restore contacts, activity times, filter, sort, and selection.
+  Preserve later explicit views of surviving contacts.
+  No new edit or view time is stamped.
+end note
 
 @enduml

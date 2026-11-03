@@ -3,7 +3,6 @@ package seedu.address.logic.commands;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.testutil.TypicalPersons.CARL;
 import static seedu.address.testutil.TypicalPersons.ELLE;
@@ -14,10 +13,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.TypedSearchPredicate;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -55,21 +56,65 @@ public class FindCommandTest {
 
     @Test
     public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+        String expectedMessage = "0 contact(s) listed!\n" + FindCommand.MESSAGE_PLAIN_NO_MATCH_HINT;
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredPersonList(predicate, "Find results");
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
         assertEquals(List.of(), model.getFilteredPersonList());
     }
 
     @Test
+    public void execute_plainSearchForTag_noPersonFoundWithHint() throws Exception {
+        AddressBookParser parser = new AddressBookParser();
+
+        CommandResult result = parser.parseCommand("find friends").execute(model);
+
+        assertEquals("0 contact(s) listed!\nWithout a prefix, find searches names only. "
+                        + "Search tags with find t/TAG, notes with find nt/TERM and events with find ev/TERM.",
+                result.getFeedbackToUser());
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
     public void execute_multipleKeywords_multiplePersonsFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
+        String expectedMessage = "3 contact(s) listed!";
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredPersonList(predicate, "Find results");
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_typedSearch_noPersonFound() {
+        TypedSearchPredicate predicate = new TypedSearchPredicate(List.of(), List.of("missing"), List.of(), List.of());
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPersonList(predicate, "Find results");
+
+        // a typed search already names its field, so it gets no hint
+        assertCommandSuccess(command, model, "0 contact(s) listed!", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_plainSearchWithMatch_noHint() throws Exception {
+        CommandResult result = new AddressBookParser().parseCommand("find Kurz").execute(model);
+
+        assertEquals("1 contact(s) listed!", result.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_plainAndTypedSearch_reportsContactCount() throws Exception {
+        AddressBookParser parser = new AddressBookParser();
+        for (String input : List.of("find Kurz", "find n/Kurz")) {
+            CommandResult result = parser.parseCommand(input).execute(model);
+
+            assertEquals("1 contact(s) listed!", result.getFeedbackToUser());
+            assertEquals(List.of(CARL), model.getFilteredPersonList());
+        }
+        CommandResult result = parser.parseCommand("find n/Kurz n/Elle n/Kunz").execute(model);
+        assertEquals("3 contact(s) listed!", result.getFeedbackToUser());
         assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
     }
 

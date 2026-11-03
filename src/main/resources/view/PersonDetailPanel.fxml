@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <Label fx:id="placeholder" styleClass="detail-placeholder" text="No contact selected" />
+  <ScrollPane fx:id="scrollPane" styleClass="detail-scroll" fitToWidth="true" hbarPolicy="NEVER">
+    <VBox fx:id="content" spacing="12" alignment="TOP_LEFT">
+      <padding>
+        <Insets top="15" right="20" bottom="15" left="20" />
+      </padding>
+      <GridPane fx:id="header" hgap="15" vgap="10">
+        <padding>
+          <!-- leaves room for the star in the top right corner of the panel -->
+          <Insets right="34" />
+        </padding>
+        <columnConstraints>
+          <ColumnConstraints hgrow="ALWAYS" minWidth="0" />
+          <ColumnConstraints hgrow="NEVER" />
+        </columnConstraints>
+        <Label fx:id="name" styleClass="detail-name" wrapText="true" maxWidth="Infinity"
+            GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="TOP" />
+        <!-- a fixed 4:3 frame, so photos of different shapes and the placeholder take the same space; the panel
+             moves it below the name when there is not enough width for both (see PersonDetailPanel) -->
+        <StackPane fx:id="photoFrame" styleClass="photo-frame" minWidth="160" prefWidth="160" maxWidth="160"
+            minHeight="120" prefHeight="120" maxHeight="120"
+            GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.valignment="TOP">
+          <ImageView fx:id="photo" fitWidth="160" fitHeight="120" preserveRatio="true" />
+          <Label fx:id="photoPlaceholder" text="No photo" />
+        </StackPane>
+      </GridPane>
+      <GridPane hgap="20" vgap="10">
+        <columnConstraints>
+          <ColumnConstraints minWidth="80" prefWidth="80" />
+          <ColumnConstraints hgrow="ALWAYS" />
+        </columnConstraints>
+        <Label styleClass="detail-heading" text="PHONE" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+        <Label fx:id="phone" styleClass="detail-value" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+        <Label styleClass="detail-heading" text="EMAIL" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+        <Label fx:id="email" styleClass="detail-value" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+        <Label styleClass="detail-heading" text="LINKEDIN" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+        <Label fx:id="linkedIn" styleClass="detail-value" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+      </GridPane>
+      <Label styleClass="detail-heading" text="MEETING" />
+      <Label fx:id="event" styleClass="detail-value" wrapText="true" />
+      <Label fx:id="meetingDate" styleClass="detail-value" />
+      <Label fx:id="role" styleClass="detail-value" wrapText="true" />
+      <Label styleClass="detail-heading" text="FOLLOW UP" />
+      <Label fx:id="followUp" styleClass="detail-value" />
+      <Label styleClass="detail-heading" text="TAGS" />
+      <FlowPane fx:id="tags" />
+      <!-- shown instead of the tag row when there are no tags, like the other fields; the tag row styles its
+           labels like tags, so the dash cannot go inside it -->
+      <Label fx:id="noTags" styleClass="detail-value" />
+      <Label styleClass="detail-heading" text="NOTE" />
+      <Label fx:id="note" styleClass="detail-value" wrapText="true" />
+      <GridPane hgap="20" vgap="6">
+        <columnConstraints>
+          <ColumnConstraints minWidth="80" prefWidth="80" />
+          <ColumnConstraints hgrow="ALWAYS" />
+        </columnConstraints>
+        <Label styleClass="detail-heading" text="CREATED" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+        <Label fx:id="createdAt" styleClass="detail-value" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+        <Label styleClass="detail-heading" text="LAST EDITED" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+        <Label fx:id="lastEditedAt" styleClass="detail-value" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+        <Label styleClass="detail-heading" text="LAST VIEWED" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+        <Label fx:id="lastViewedAt" styleClass="detail-value" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+      </GridPane>
+    </VBox>
+  </ScrollPane>
+  <Label fx:id="star" text="★" styleClass="star" StackPane.alignment="TOP_RIGHT">
+    <StackPane.margin>
+      <Insets top="15" right="30" />
+    </StackPane.margin>
+  </Label>
+</StackPane>

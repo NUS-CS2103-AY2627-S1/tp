@@ -1,34 +1,40 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_INDEX_TOO_LARGE;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalNotes.EMOJI;
 
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.LinkedIn;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
+    private static final String INVALID_LINKEDIN = "rachel_walker";
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
-    private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_LINKEDIN = "rachel-walker";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
@@ -36,13 +42,56 @@ public class ParserUtilTest {
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("10 a"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("0"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("-1"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("+1"));
     }
 
     @Test
     public void parseIndex_outOfRangeInput_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+        assertThrows(ParseException.class, MESSAGE_INDEX_TOO_LARGE, ()
+            -> ParserUtil.parseIndex(Long.toString((long) Integer.MAX_VALUE + 1)));
+        assertThrows(ParseException.class, MESSAGE_INDEX_TOO_LARGE, ()
+            -> ParserUtil.parseIndex("999999999999999999999999999999999999"));
+    }
+
+    @Test
+    public void parseDisplayedIndex_invalidOrOutOfRangeInput_throwsDisplayedIndexMessage() {
+        String[] invalidInputs = {"abc", "0", "-1", Long.toString((long) Integer.MAX_VALUE + 1)};
+
+        for (String input : invalidInputs) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX, ()
+                -> ParserUtil.parseDisplayedIndex(input));
+        }
+    }
+
+    @Test
+    public void isClearKeyword_clearInAnyLetterCase_returnsTrue() {
+        assertTrue(ParserUtil.isClearKeyword("clear"));
+        assertTrue(ParserUtil.isClearKeyword("CLEAR"));
+        assertTrue(ParserUtil.isClearKeyword("Clear"));
+    }
+
+    @Test
+    public void isClearKeyword_anythingElse_returnsFalse() {
+        assertFalse(ParserUtil.isClearKeyword(""));
+        assertFalse(ParserUtil.isClearKeyword("1"));
+        assertFalse(ParserUtil.isClearKeyword("clear "));
+        assertFalse(ParserUtil.isClearKeyword("cleared"));
+        assertFalse(ParserUtil.isClearKeyword("event"));
+    }
+
+    @Test
+    public void parseNote_emoji_countsEachEmojiAsOneCharacter() throws Exception {
+        assertEquals(new Note(EMOJI.repeat(Note.MAX_LENGTH)), ParserUtil.parseNote(EMOJI.repeat(Note.MAX_LENGTH)));
+        assertThrows(ParseException.class, Note.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseNote(EMOJI.repeat(Note.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseDisplayedIndex_validInput_success() throws Exception {
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseDisplayedIndex(" 1 "));
     }
 
     @Test
@@ -52,6 +101,9 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+
+        // Largest supported index
+        assertEquals(Index.fromOneBased(Integer.MAX_VALUE), ParserUtil.parseIndex(Integer.toString(Integer.MAX_VALUE)));
     }
 
     @Test
@@ -78,6 +130,48 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_validValueWithRepeatedInnerWhitespace_returnsNormalizedName() throws Exception {
+        Name expectedName = new Name("Jane Tan");
+        assertEquals(expectedName, ParserUtil.parseName("Jane   Tan"));
+    }
+
+    @Test
+    public void parseName_hyphenAndApostrophe_returnsName() throws Exception {
+        assertEquals(new Name("Mary-Jane"), ParserUtil.parseName("Mary-Jane"));
+        assertEquals(new Name("O'Brien"), ParserUtil.parseName("  O'Brien  "));
+        assertEquals(new Name("Nur-Aisyah binte Ahmad"), ParserUtil.parseName("Nur-Aisyah   binte Ahmad"));
+    }
+
+    @Test
+    public void parseName_unsupportedCharacters_throwsParseException() {
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("-Mary"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("'Al"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("John s/o Raj"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("Amy 😀"));
+    }
+
+    @Test
+    public void parseName_accentedAndNonEnglishLetters_returnsName() throws Exception {
+        assertEquals(new Name("José"), ParserUtil.parseName("José"));
+        assertEquals(new Name("李明"), ParserUtil.parseName("  李明  "));
+        assertEquals(new Name("O’Brien"), ParserUtil.parseName("O’Brien"));
+    }
+
+    @Test
+    public void parseName_accentTypedAsCombiningCharacter_isComposedSoItIsTheSameName() throws Exception {
+        Name composed = ParserUtil.parseName("José");
+        Name decomposed = ParserUtil.parseName("José");
+
+        assertEquals(composed, decomposed);
+        assertEquals("José", decomposed.fullName);
+    }
+
+    @Test
+    public void parseName_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseName("a".repeat(51)));
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -98,29 +192,6 @@ public class ParserUtilTest {
         String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
         Phone expectedPhone = new Phone(VALID_PHONE);
         assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
-    }
-
-    @Test
-    public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
-    }
-
-    @Test
-    public void parseAddress_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
     }
 
     @Test
@@ -163,6 +234,18 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseTag_mixedCaseWithAllowedSymbols_returnsLowercaseTag() throws Exception {
+        Tag expectedTag = new Tag("ui-ux+2");
+
+        assertEquals(expectedTag, ParserUtil.parseTag("UI-UX+2"));
+    }
+
+    @Test
+    public void parseTag_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTag("a".repeat(21)));
+    }
+
+    @Test
     public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
         String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
         Tag expectedTag = new Tag(VALID_TAG_1);
@@ -190,5 +273,33 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseLinkedIn_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseLinkedIn((String) null));
+    }
+
+    @Test
+    public void parseLinkedIn_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseLinkedIn(INVALID_LINKEDIN));
+    }
+
+    @Test
+    public void parseLinkedIn_validValueWithoutWhitespace_returnsLinkedIn() throws Exception {
+        LinkedIn expectedLinkedIn = new LinkedIn(VALID_LINKEDIN);
+        assertEquals(expectedLinkedIn, ParserUtil.parseLinkedIn(VALID_LINKEDIN));
+    }
+
+    @Test
+    public void parseLinkedIn_validValueWithWhitespace_returnsTrimmedLinkedIn() throws Exception {
+        String linkedInWithWhitespace = WHITESPACE + VALID_LINKEDIN + WHITESPACE;
+        LinkedIn expectedLinkedIn = new LinkedIn(VALID_LINKEDIN);
+        assertEquals(expectedLinkedIn, ParserUtil.parseLinkedIn(linkedInWithWhitespace));
+    }
+
+    @Test
+    public void parseLinkedIn_emptyValue_returnsEmptyLinkedIn() throws Exception {
+        assertEquals(new LinkedIn(""), ParserUtil.parseLinkedIn(WHITESPACE));
     }
 }

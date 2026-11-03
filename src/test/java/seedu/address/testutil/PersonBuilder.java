@@ -1,11 +1,15 @@
 package seedu.address.testutil;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
-import seedu.address.model.person.Address;
+import seedu.address.model.person.Activity;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.LinkedIn;
+import seedu.address.model.person.Meeting;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
@@ -19,13 +23,19 @@ public class PersonBuilder {
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_LINKEDIN = "";
 
     private Name name;
     private Phone phone;
     private Email email;
-    private Address address;
+    private LinkedIn linkedIn;
     private Set<Tag> tags;
+    private Note note;
+    private Activity activity;
+    private Meeting meeting;
+    private String photoPath;
+    private boolean starred;
+    private LocalDate followUpDate;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -34,8 +44,13 @@ public class PersonBuilder {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
+        linkedIn = new LinkedIn(DEFAULT_LINKEDIN);
         tags = new HashSet<>();
+        note = Note.EMPTY;
+        activity = Activity.EMPTY;
+        meeting = Meeting.EMPTY;
+        photoPath = "";
+        starred = false;
     }
 
     /**
@@ -45,8 +60,14 @@ public class PersonBuilder {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
+        linkedIn = personToCopy.getLinkedIn();
         tags = new HashSet<>(personToCopy.getTags());
+        note = personToCopy.getNote();
+        activity = personToCopy.getActivity();
+        meeting = personToCopy.getMeeting();
+        photoPath = personToCopy.getPhotoPath();
+        starred = personToCopy.isStarred();
+        followUpDate = personToCopy.getFollowUpDate().orElse(null);
     }
 
     /**
@@ -66,14 +87,6 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
-        return this;
-    }
-
-    /**
      * Sets the {@code Phone} of the {@code Person} that we are building.
      */
     public PersonBuilder withPhone(String phone) {
@@ -89,8 +102,51 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code LinkedIn} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withLinkedIn(String linkedIn) {
+        this.linkedIn = new LinkedIn(linkedIn);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Note} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withNote(String note) {
+        this.note = new Note(note);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Activity} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withActivity(Activity activity) {
+        this.activity = activity;
+        return this;
+    }
+
+    /**
+     * Sets whether the {@code Person} that we are building is starred.
+     */
+    public PersonBuilder withStarred(boolean starred) {
+        this.starred = starred;
+        return this;
+    }
+
+    /** Builds a contact while retaining all copied fields. */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, linkedIn, tags, activity, note)
+                .toBuilder().withMeeting(meeting).withPhotoPath(photoPath).withStarred(starred)
+                .withFollowUpDate(followUpDate).build();
+    }
+
+    /**
+     * Sets the follow-up date of the {@code Person} that we are building. A null date means no follow-up.
+     */
+    public PersonBuilder withFollowUpDate(LocalDate followUpDate) {
+        this.followUpDate = followUpDate;
+        return this;
     }
 
 }

@@ -6,13 +6,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalTimes.FIXED_CLOCK;
+import static seedu.address.testutil.TypicalTimes.NOW;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
@@ -21,6 +27,8 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.SortCriterion;
+import seedu.address.model.person.Activity;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
@@ -40,16 +48,46 @@ public class AddCommandTest {
 
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        // the added person records when it was created
+        assertEquals(List.of(validPerson.withActivity(new Activity(NOW, null, null))), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_personWithOnlyName_messageShowsOnlyName() throws Exception {
+        Person nameOnlyPerson = new PersonBuilder().withName("Jane Tan").withPhone("").withEmail("")
+                .withLinkedIn("").withTags().build();
+
+        CommandResult commandResult = new AddCommand(nameOnlyPerson).execute(new ModelStubAcceptingPersonAdded());
+
+        assertEquals("New contact added: Jane Tan", commandResult.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_personHiddenByActiveFilter_messageSaysSoAndPersonIsStillAdded() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded() {
+            @Override
+            public ObservableList<Person> getFilteredPersonList() {
+                return FXCollections.observableArrayList(); // the active filter shows nobody
+            }
+        };
+        Person validPerson = new PersonBuilder().build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson))
+                + AddCommand.MESSAGE_HIDDEN_BY_FILTER, commandResult.getFeedbackToUser());
+        assertEquals(1, modelStub.personsAdded.size());
     }
 
     @Test
     public void execute_duplicatePerson_throwsCommandException() {
-        Person validPerson = new PersonBuilder().build();
-        AddCommand addCommand = new AddCommand(validPerson);
-        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+        Person existingPerson = new PersonBuilder().build();
+        Person duplicatePerson = new PersonBuilder(existingPerson).withName("amy bee").build();
+        AddCommand addCommand = new AddCommand(duplicatePerson);
+        ModelStub modelStub = new ModelStubWithPerson(existingPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, "A contact with this name and phone number already exists. "
+                + "Edit that contact instead.", () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -141,6 +179,86 @@ public class AddCommandTest {
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate, String filterDescription) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void sortFilteredPersonList(SortCriterion sortCriterion) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void clearPersonListSort() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyStringProperty getPersonListStatus() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyObjectProperty<Person> getViewedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setViewedPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Clock getClock() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void editPerson(Person target, Person editedPerson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void viewPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Snapshot createSnapshot() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restore(Snapshot snapshot) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void recordSuccessfulMutation(Snapshot before) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void undo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void redo() {
+            throw new AssertionError("This method should not be called.");
+        }
     }
 
     /**
@@ -182,6 +300,16 @@ public class AddCommandTest {
         @Override
         public ReadOnlyAddressBook getAddressBook() {
             return new AddressBook();
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded); // no filter, so every person is shown
+        }
+
+        @Override
+        public Clock getClock() {
+            return FIXED_CLOCK;
         }
     }
 

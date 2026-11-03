@@ -66,10 +66,42 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
-        // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
+        // Keywords match phone and email, but do not match name
+        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
-                .withEmail("alice@email.com").withAddress("Main Street").build()));
+                .withEmail("alice@email.com").build()));
+    }
+
+    @Test
+    public void test_hyphenatedName_isOneWord() {
+        PersonBuilder jane = new PersonBuilder().withName("Mary-Jane O'Brien");
+
+        // the whole hyphenated or apostrophe word must be given
+        assertTrue(new NameContainsKeywordsPredicate(List.of("mary-jane")).test(jane.build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("O'Brien")).test(jane.build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Mary")).test(jane.build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Brien")).test(jane.build()));
+    }
+
+    @Test
+    public void test_accentedName_matchesWholeWordWithItsAccent() {
+        PersonBuilder jose = new PersonBuilder().withName("José Tan");
+
+        assertTrue(new NameContainsKeywordsPredicate(List.of("José")).test(jose.build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("JOSÉ")).test(jose.build()));
+        // the accent counts: a search without it does not find the name
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Jose")).test(jose.build()));
+    }
+
+    @Test
+    public void test_keywordWithSeparateAccent_matchesTheComposedName() {
+        PersonBuilder jose = new PersonBuilder().withName("José Tan");
+
+        assertTrue(new NameContainsKeywordsPredicate(List.of("José")).test(jose.build()));
+        // a name stored from a separate accent is the same name
+        assertTrue(new NameContainsKeywordsPredicate(List.of("José"))
+                .test(new PersonBuilder().withName("José Tan").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Jose")).test(jose.build()));
     }
 
     @Test

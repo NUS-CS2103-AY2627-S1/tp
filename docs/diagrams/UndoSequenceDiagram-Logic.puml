@@ -4,43 +4,49 @@ skinparam ArrowFontStyle plain
 
 box Logic LOGIC_COLOR_T1
 participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":AddressBookParser" as Parser LOGIC_COLOR
 participant "u:UndoCommand" as UndoCommand LOGIC_COLOR
 end box
 
 box Model MODEL_COLOR_T1
-participant ":Model" as Model MODEL_COLOR
+participant "m:ModelManager" as Model MODEL_COLOR
 end box
-[-> LogicManager : execute(undo)
-activate LogicManager
 
-LogicManager -> AddressBookParser : parseCommand(undo)
-activate AddressBookParser
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
 
+[-> LogicManager : execute("undo")
+LogicManager -> Parser : parseCommand("undo")
 create UndoCommand
-AddressBookParser -> UndoCommand
-activate UndoCommand
+Parser -> UndoCommand : new UndoCommand()
+Parser --> LogicManager : u
+LogicManager -> Model : createSnapshot()
+Model --> LogicManager : before
+LogicManager -> UndoCommand : execute(m)
+UndoCommand -> Model : canUndo()
 
-UndoCommand --> AddressBookParser
-deactivate UndoCommand
+alt undo history is empty
+    Model --> UndoCommand : false
+    UndoCommand --> LogicManager : throws CommandException("Nothing to undo.")
+    [<-- LogicManager : CommandException
+else an earlier state is available
+    Model --> UndoCommand : true
+    UndoCommand -> Model : undo()
+    UndoCommand --> LogicManager : result
+    LogicManager -> Model : getAddressBook()
+    Model --> LogicManager : book
+    LogicManager -> Storage : saveAddressBook(book)
+    alt save succeeds
+        Storage --> LogicManager : saved
+        note right of LogicManager : Undo does not record a new mutation.
+        [<-- LogicManager : result
+    else save fails
+        Storage --> LogicManager : throws IOException
+        LogicManager -> Model : restore(before)
+        note right of Model : Restore contacts and both history stacks.
+        [<-- LogicManager : CommandException
+    end
+end
 
-AddressBookParser --> LogicManager : u
-deactivate AddressBookParser
-
-LogicManager -> UndoCommand : execute()
-activate UndoCommand
-
-UndoCommand -> Model : undoAddressBook()
-activate Model
-
-Model --> UndoCommand
-deactivate Model
-
-UndoCommand --> LogicManager : result
-deactivate UndoCommand
-UndoCommand -[hidden]-> LogicManager : result
-destroy UndoCommand
-
-[<--LogicManager
-deactivate LogicManager
 @enduml

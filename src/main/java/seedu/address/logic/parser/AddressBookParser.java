@@ -3,21 +3,39 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.LogRedactor;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DueCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FollowUpCommand;
+import seedu.address.logic.commands.GroupCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.MeetingCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.PhotoCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.StarCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.storage.PhotoStorage;
 
 /**
  * Parses user input.
@@ -25,10 +43,42 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class AddressBookParser {
 
     /**
+     * Every command word that {@code parseCommand} accepts, in alphabetical order. A new command word must be
+     * added here as well as to the {@code switch} in {@code parseCommand}; {@code AddressBookParserTest} fails if
+     * a command class has a command word that is missing from this list.
+     */
+    public static final List<String> COMMAND_WORDS = Stream.of(
+            AddCommand.COMMAND_WORD, ClearCommand.COMMAND_WORD, DeleteCommand.COMMAND_WORD,
+            DueCommand.COMMAND_WORD, EditCommand.COMMAND_WORD, ExitCommand.COMMAND_WORD,
+            FilterCommand.COMMAND_WORD, FindCommand.COMMAND_WORD, FollowUpCommand.COMMAND_WORD,
+            GroupCommand.COMMAND_WORD, HelpCommand.COMMAND_WORD, ListCommand.COMMAND_WORD,
+            MeetingCommand.COMMAND_WORD, NoteCommand.COMMAND_WORD, PhotoCommand.COMMAND_WORD,
+            RedoCommand.COMMAND_WORD, SortCommand.COMMAND_WORD,
+            StarCommand.COMMAND_WORD, StarCommand.UNSTAR_COMMAND_WORD, TagCommand.COMMAND_WORD,
+            UndoCommand.COMMAND_WORD, ViewCommand.COMMAND_WORD)
+            .sorted().toList();
+
+    /** The message shown for an unknown command word. It lists every command word that can be used. */
+    public static final String MESSAGE_UNKNOWN_COMMAND_WITH_LIST =
+            MESSAGE_UNKNOWN_COMMAND + " Available commands: " + String.join(", ", COMMAND_WORDS) + ".";
+
+    /**
      * Used for initial separation of command word and args.
      */
     private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
+
+    private final PhotoStorage photos;
+
+    /** Uses the folder containing the running JAR for photo imports. */
+    public AddressBookParser() {
+        this(PhotoStorage.forApplication());
+    }
+
+    /** Injects rooted photo storage for tests and embedding. */
+    public AddressBookParser(PhotoStorage photos) {
+        this.photos = java.util.Objects.requireNonNull(photos);
+    }
 
     /**
      * Parses user input into command for execution.
@@ -43,26 +93,52 @@ public class AddressBookParser {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
-        final String commandWord = matcher.group("commandWord");
+        // command words are accepted in any letter case, like the keywords inside commands (e.g. clear, starred)
+        final String commandWord = matcher.group("commandWord").toLowerCase(Locale.ROOT);
         final String arguments = matcher.group("arguments");
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
         // log messages such as the one below.
         // Lower level log messages are used sparingly to minimize noise in the code.
-        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
+        logger.fine("Command word: " + commandWord + "; Arguments: "
+                + LogRedactor.redactArguments(commandWord, arguments));
 
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
             case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case DueCommand.COMMAND_WORD -> new DueCommand();
+            case FollowUpCommand.COMMAND_WORD -> new FollowUpCommandParser().parse(arguments);
+            case GroupCommand.COMMAND_WORD -> new GroupCommandParser().parse(arguments);
+            case MeetingCommand.COMMAND_WORD -> new MeetingCommandParser().parse(arguments);
+            case PhotoCommand.COMMAND_WORD -> new PhotoCommandParser(photos).parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case StarCommand.COMMAND_WORD -> new StarCommandParser(true).parse(arguments);
+            case StarCommand.UNSTAR_COMMAND_WORD -> new StarCommandParser(false).parse(arguments);
+            case NoteCommand.COMMAND_WORD -> new NoteCommandParser().parse(arguments);
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
+            case TagCommand.COMMAND_WORD -> new TagCommandParser().parse(arguments);
+            case UndoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, UndoCommand.MESSAGE_USAGE));
+                }
+                yield new UndoCommand();
+            }
+            case RedoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, RedoCommand.MESSAGE_USAGE));
+                }
+                yield new RedoCommand();
+            }
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {
-                logger.finer("This user input caused a ParseException: " + userInput);
-                throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
+                logger.finer("This user input caused a ParseException: " + LogRedactor.redactCommand(userInput));
+                throw new ParseException(MESSAGE_UNKNOWN_COMMAND_WITH_LIST);
             }
         };
     }

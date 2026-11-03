@@ -1,5 +1,7 @@
 package seedu.address.logic;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
@@ -22,6 +24,12 @@ public interface Logic {
 
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns text that describes the currently visible list's filter, order and size. */
+    ReadOnlyStringProperty getPersonListStatus();
+
+    /** Returns the person being viewed in the detail panel, which is null if no person is being viewed */
+    ReadOnlyObjectProperty<Person> getViewedPerson();
 
     /**
      * Returns the user prefs' GUI settings.

@@ -13,7 +13,14 @@ import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalTimes.EARLIER;
+import static seedu.address.testutil.TypicalTimes.EARLIEST;
+import static seedu.address.testutil.TypicalTimes.FIXED_CLOCK;
+import static seedu.address.testutil.TypicalTimes.NOW;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +31,8 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Activity;
+import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
@@ -33,7 +42,7 @@ import seedu.address.testutil.PersonBuilder;
  */
 public class EditCommandTest {
 
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs(), FIXED_CLOCK);
 
     @Test
     public void execute_allFieldsSpecifiedUnfilteredList_success() {
@@ -43,8 +52,8 @@ public class EditCommandTest {
 
         String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs(), FIXED_CLOCK);
+        expectedModel.editPerson(model.getFilteredPersonList().get(0), editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
     }
@@ -64,8 +73,8 @@ public class EditCommandTest {
 
         String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(lastPerson, editedPerson);
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs(), FIXED_CLOCK);
+        expectedModel.editPerson(lastPerson, editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
     }
@@ -75,9 +84,9 @@ public class EditCommandTest {
         EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
         Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format("Person unchanged: %1$s", Messages.format(editedPerson));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs(), FIXED_CLOCK);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
     }
@@ -93,8 +102,10 @@ public class EditCommandTest {
 
         String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs(), FIXED_CLOCK);
+        String keyword = personInFilteredList.getName().fullName.split("\\s+")[0];
+        expectedModel.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keyword)));
+        expectedModel.editPerson(model.getFilteredPersonList().get(0), editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
     }
@@ -105,7 +116,8 @@ public class EditCommandTest {
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(firstPerson).build();
         EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        assertCommandFailure(editCommand, model,
+                "Another contact has this name and phone number. Choose a different name or phone number.");
     }
 
     @Test
@@ -181,4 +193,74 @@ public class EditCommandTest {
         assertEquals(expected, editCommand.toString());
     }
 
+    @Test
+    public void execute_changedDetails_setsLastEditedAndKeepsOtherTimes() throws Exception {
+        Person original = model.getFilteredPersonList().get(0);
+        model.setPerson(original, original.withActivity(new Activity(EARLIEST, EARLIER, EARLIER)));
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        Person edited = model.getFilteredPersonList().get(0);
+        assertEquals(VALID_PHONE_BOB, edited.getPhone().value);
+        assertEquals(new Activity(EARLIEST, NOW, EARLIER), edited.getActivity());
+    }
+
+    @Test
+    public void execute_sameValuesAsBefore_doesNotChangeActivity() throws Exception {
+        Person original = model.getFilteredPersonList().get(0);
+        Activity activity = new Activity(EARLIEST, EARLIER, EARLIER);
+        model.setPerson(original, original.withActivity(activity));
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(original).build();
+
+        CommandResult result = new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        assertEquals(activity, model.getFilteredPersonList().get(0).getActivity());
+        assertEquals(String.format("Person unchanged: %1$s", Messages.format(model.getFilteredPersonList().get(0))),
+                result.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_editHidesViewedPerson_keepsSelection() throws Exception {
+        Person personToEdit = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        String matchingName = personToEdit.getName().fullName.split("\\s+")[0];
+        model.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(matchingName)));
+        new ViewCommand(INDEX_FIRST_PERSON).execute(model);
+
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withName("Zed Tan").build());
+        editCommand.execute(model);
+
+        assertTrue(model.getFilteredPersonList().isEmpty());
+        assertEquals("Zed Tan", model.getViewedPerson().get().getName().fullName);
+    }
+
+    @Test
+    public void execute_editDifferentPersonWhileViewedPersonHidden_keepsSelection() throws Exception {
+        new ViewCommand(INDEX_THIRD_PERSON).execute(model);
+        Person viewedPerson = model.getViewedPerson().get();
+        model.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Benson")));
+        assertFalse(model.getFilteredPersonList().contains(viewedPerson));
+
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withEmail("new@example.com").build());
+        editCommand.execute(model);
+
+        assertEquals(1, model.getFilteredPersonList().size());
+        assertEquals("new@example.com", model.getFilteredPersonList().get(0).getEmail().value);
+        assertEquals(viewedPerson, model.getViewedPerson().get());
+    }
+
+    @Test
+    public void execute_duplicatePerson_doesNotChangeActivity() {
+        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person secondBefore = model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
+        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON,
+                new EditPersonDescriptorBuilder(firstPerson).build());
+
+        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        assertEquals(secondBefore, model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased()));
+        assertEquals(Activity.EMPTY,
+                model.getFilteredPersonList().get(INDEX_SECOND_PERSON.getZeroBased()).getActivity());
+    }
 }
