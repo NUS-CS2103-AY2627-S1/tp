@@ -5,55 +5,33 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us at the email `bakebase@comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Yik Wee
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yik-wee.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/yik-wee)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Deliverables and Deadlines, Scheduling and Tracking
 
-### Johnny Doe
+### Abdo
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/godmode899.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/GODMODE899)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Testing, Integration, Component Ingredients
 
-### James Doe
+### Kia Hao
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/neokh719.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/neokh719)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Documenter and QC
+* Responsibilities: Documentation, code quality

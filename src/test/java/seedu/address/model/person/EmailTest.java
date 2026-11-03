@@ -15,7 +15,7 @@ public class EmailTest {
 
     @Test
     public void constructor_invalidEmail_throwsIllegalArgumentException() {
-        String invalidEmail = "";
+        String invalidEmail = "invalid-email";
         assertThrows(IllegalArgumentException.class, () -> new Email(invalidEmail));
     }
 
@@ -24,8 +24,8 @@ public class EmailTest {
         // null email
         assertThrows(NullPointerException.class, () -> Email.isValidEmail(null));
 
-        // blank email
-        assertFalse(Email.isValidEmail("")); // empty string
+        // an empty string represents no email; untrimmed whitespace is invalid
+        assertTrue(Email.isValidEmail(""));
         assertFalse(Email.isValidEmail(" ")); // spaces only
 
         // missing parts
@@ -64,6 +64,50 @@ public class EmailTest {
         assertTrue(Email.isValidEmail("peter_jack@very-very-very-long-example.com")); // long domain name
         assertTrue(Email.isValidEmail("if.you.dream.it_you.can.do.it@example.com")); // long local part
         assertTrue(Email.isValidEmail("e1234567@u.nus.edu")); // more than one period in domain
+    }
+
+    @Test
+    public void isValidEmail_apostropheInLocalPart_returnsTrue() {
+        assertTrue(Email.isValidEmail("o'neil@example.com"));
+        assertTrue(Email.isValidEmail("O'Neil+orders@example.com"));
+        assertTrue(Email.isValidEmail("o''neil@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_apostropheDoesNotBypassRestrictions_returnsFalse() {
+        assertFalse(Email.isValidEmail("'neil@example.com"));
+        assertFalse(Email.isValidEmail("oneil'@example.com"));
+        assertFalse(Email.isValidEmail("o'..neil@example.com"));
+        assertFalse(Email.isValidEmail("o' neil@example.com"));
+        assertFalse(Email.isValidEmail("oneil@exam'ple.com"));
+    }
+
+    @Test
+    public void isValidEmail_adjacentPermittedCharacters_returnsTrue() {
+        assertTrue(Email.isValidEmail("alice+_orders@example.com"));
+        assertTrue(Email.isValidEmail("a++b@example.com"));
+        assertTrue(Email.isValidEmail("alice.-_+orders@example.com"));
+        assertTrue(Email.isValidEmail("a.+b@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_adjacentCharactersDoNotBypassRestrictions_returnsFalse() {
+        assertFalse(Email.isValidEmail("+_alice@example.com"));
+        assertFalse(Email.isValidEmail("alice+_@example.com"));
+        assertFalse(Email.isValidEmail("alice+.._orders@example.com"));
+        assertFalse(Email.isValidEmail("alice+ _orders@example.com"));
+        assertFalse(Email.isValidEmail("alice!orders@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_internalDomainHyphens_returnsTrue() {
+        assertTrue(Email.isValidEmail("alice@xn--bcher-kva.de"));
+        assertTrue(Email.isValidEmail("alice@my--bakery.com"));
+        assertTrue(Email.isValidEmail("alice@a-b"));
+        assertTrue(Email.isValidEmail("alice@ab-c"));
+        assertFalse(Email.isValidEmail("alice@-bakery.com"));
+        assertFalse(Email.isValidEmail("alice@bakery-.com"));
+        assertFalse(Email.isValidEmail("alice@bakery.c"));
     }
 
     @Test

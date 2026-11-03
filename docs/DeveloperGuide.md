@@ -9,7 +9,18 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* BakeBase is adapted from [AddressBook Level 3 (AB3)](https://github.com/se-edu/addressbook-level3)
+  by the [SE-EDU initiative](https://se-education.org/). Its architecture, implementation, tests, and
+  documentation provide the foundation for this project.
+* Libraries used: [JavaFX](https://openjfx.io/) for the graphical user interface,
+  [Jackson](https://github.com/FasterXML/jackson) for JSON serialization, and
+  [JUnit 5](https://junit.org/junit5/) for automated testing.
+
+Notable uses of AI:
+
+* Codex was used extensively to generate or update almost all of the code and test cases.
+* Codex was used to update most of the DG and UG. This includes the `.puml` files and exported diagrams.
+* Codex was used for finding bugs, generating GitHub issues, PRs, and sometimes for PR reviews.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +47,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -51,7 +62,7 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete-client 1`.
 
 <img src="images/ArchitectureSequenceDiagram.png" width="574" />
 
@@ -68,13 +79,13 @@ The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
 ![Structure of the UI Component](images/UiClassDiagram.png)
 
 The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
@@ -85,15 +96,15 @@ The `UI` component,
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
 <img src="images/LogicClassDiagram.png" width="550"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete-client 1")` API call as an example.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+![Interactions Inside the Logic Component for the `delete-client 1` Command](images/DeleteSequenceDiagram.png)
 
 <div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
@@ -108,22 +119,29 @@ How the `Logic` component works:
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<img src="images/ParserClasses.png" width="850"/>
 
 How the parsing works:
 * When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/model/Model.java)
 
 <img src="images/ModelClassDiagram.png" width="450" />
 
+The `bakeryitem` package forms the bakery-item subcomponent of the Model component:
+
+<img src="images/BakeryItemModelClassDiagram.png" width="450" />
+
+The `order` package forms the client orders subcomponent of the Model component.
+
+<img src="images/OrderModelClassDiagram.png" width="450" />
 
 The `Model` component,
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores client (represented by `Person`), bakery-item, and order data in unique collections.
+* stores the `Person`, `BakeryItem`, and `ClientOrder` objects selected by their current filters in separate _filtered_ lists. It exposes these lists as unmodifiable observable lists that the UI can observe and bind to, so the UI updates when any of these lists changes.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
@@ -136,12 +154,12 @@ The `Model` component,
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-F14-3/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
 The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
+* can save both bakery book data and user preference data in JSON format, and read them back into corresponding objects.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
 
@@ -153,91 +171,50 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 ## **Implementation**
 
+### Clear confirmation
+
+The following class diagram shows how clear-command parsing stores the
+confirmation choice in a `ClearCommand`.
+
+<img src="images/ClearConfirmationClassDiagram.png" width="650" alt="Class diagram showing clear-command parsing and the confirmation flag" />
+
+`ClearCommandParser` accepts only no arguments or the exact token `confirm`. An unconfirmed `ClearCommand` throws a `CommandException` containing the warning before modifying the model. This also prevents the normal save path from running. A confirmed command clears the complete bakery book and resets client/item filters; the existing logic-layer save rollback restores data and filters if persistence fails.
+
+The confirmation is explicit in `clear confirm`, with no pending state or dialog. It is a one-shot command for experienced users and executes even without an earlier `clear`; there is no additional confirmation. Users cancel an unconfirmed request by continuing with another command. Both the warning and Help usage explicitly state that `clear confirm` deletes all clients, items, and orders immediately.
+
+The warning formats counts from the complete `ReadOnlyAddressBook` lists, rather than the filtered UI lists, so it includes hidden records. Counts are calculated when `clear` runs and are not a stored preview; `clear confirm` always acts on the book at execution time. Help reuses `ClearCommand.MESSAGE_USAGE`. `ClearConfirmationTest` exercises parsed commands, persistence, hidden records and counts, repeated warnings, invalid confirmations, and save-failure rollback.
+
+#### Integration with single-step undo (issue #97)
+
+Clear confirmation and single-step undo share the normal `LogicManager` persistence path. Confirmation protects against accidental deletion; undo provides one opportunity to restore a successfully cleared book.
+
+* An unconfirmed request throws before changing the model and before saving. Invalid syntax fails in the parser. Neither reaches the undo snapshot update.
+* After a confirmed clear saves successfully, the undo logic compares before/after data. If the book changed, its existing complete pre-command snapshot becomes the one undo opportunity. An already empty book produces no data change and leaves the previous snapshot intact.
+* If saving the clear fails, normal rollback restores all records and both filters. The undo snapshot must remain unchanged because it is updated only after a successful save.
+* Undo restores the complete pre-clear book, including order UUIDs, item/client associations, quantities, deadlines, statuses, and insertion order. It resets displayed filters and consumes its snapshot only after the restored data saves successfully.
+* If saving undo fails, retain the snapshot and restore the empty pre-undo book and its filters so retry remains possible. Later successful data changes replace the snapshot. Restarting discards it; redo is unsupported.
+
+No confirmation flag needs to be stored in the model, data file, or undo snapshot. Use the parsed confirmation flag only for that command execution.
+
+### Command history
+
+`CommandHistory` holds submitted text, a navigation cursor, and the unsent draft for one application session. `CommandBox` records non-empty submissions before execution, including commands that produce handled errors, and resets navigation after each submission.
+
+An event filter consumes unmodified Up/Down key presses. Up saves the draft when navigation starts and recalls older commands; Down recalls newer commands and eventually restores the draft. Recalled text is copied into the input with the caret at its end, so editing it does not modify a stored entry. Other keys and modified arrow shortcuts retain their existing behavior. History does not change the model or storage.
+
+`CommandHistoryTest` covers boundaries, draft restoration, repeat submissions, and editing. `CommandBoxTest` dispatches JavaFX key/action events to verify integration and recovery of failed commands.
+
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Single-step undo
 
-#### Proposed Implementation
+`LogicManager` keeps one in-memory `AddressBook` snapshot. After a command saves successfully, it compares the before/after data and replaces the snapshot only if data changed. Read-only commands, no-op edits, and failed commands leave it intact.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+The parser recognizes `undo` without arguments. Logic supplies the snapshot to `UndoCommand`, which restores all clients, items, and orders and resets the displayed client/item filters. The normal persistence path saves the result. Only a successful save consumes the snapshot; on save failure, the existing rollback restores pre-undo data and filters, retaining the snapshot for retry.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+Users invoke undo by typing `undo` in the command input. When no snapshot is available, the command reports an error without changing data. Snapshots preserve immutable records, their associations, order UUIDs, and insertion order. No redo or persistent history is provided.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
-
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
-
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
-
-![UndoRedoState0](images/UndoRedoState0.png)
-
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
-
-![UndoRedoState1](images/UndoRedoState1.png)
-
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
-
-![UndoRedoState2](images/UndoRedoState2.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
-
-</div>
-
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
-
-![UndoRedoState3](images/UndoRedoState3.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
-
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
-
-#### Design considerations:
-
-**Aspect: How undo & redo execute:**
-
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
-
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
+A complete snapshot keeps recovery consistent across linked entities without implementing a separate inverse for each command. It uses memory proportional to one bakery book. `UndoTest` covers persistence, linked records, duplicate orders, snapshot replacement, no-op/failed commands, and save failure. `UndoCommandUiTest` verifies command-box submission, persisted recovery, and feedback when undo succeeds or is unavailable.
 
 ### \[Proposed\] Data archiving
 
@@ -255,48 +232,175 @@ _{Explain here how the data archiving feature will be implemented}_
 
 --------------------------------------------------------------------------------------------------------------------
 
+### Client order backend
+
+`add-order CONTACT_INDEX i/ITEM_INDEX q/QUANTITY d/DEADLINE` resolves indices from the displayed
+client and bakery item lists and adds an incomplete order. Identical orders are accepted with separate UUIDs.
+Quantities remain integers from 1 to 9,999; deadlines use strict YYYY-MM-DD calendar dates, including past dates.
+Missing, repeated, malformed, overflowing, and out-of-range arguments cannot change data.
+
+`AddressBook` owns observable client, bakery item, and order collections. Orders reference immutable clients and
+items rather than displayed positions. Editing a client or bakery item updates its order references while retaining
+order IDs and the other order details.
+Deleting a referenced client or item is blocked until its orders are removed. Clearing the book clears all three
+collections together. The model exposes displayed item lists and client-local order lists; the logic exposes
+unmodifiable observable item and order lists for the teammate's list and GUI implementation.
+
+The JSON file contains `persons`, `bakeryItems`, and `orders`. Legacy AB3 files without items or orders remain
+supported. Each order stores an `id` UUID, `clientName`, `itemName`, `quantity`, `deadline`, and `complete` status.
+Client and item names reference their respective unique collection entries, preserving associations if the
+collections are reordered. In-app client and bakery item edits update both the edited record and its order
+references.
+Manual renames in JSON must update the corresponding order references too. Duplicate order UUIDs, missing
+references, invalid values, and null entries are rejected during loading; no partially loaded model is returned.
+
+Commands return success only after persistence succeeds. The storage writes a temporary JSON file beside the
+destination and replaces the destination, using an atomic move where supported. A failed save restores the
+previous model, displayed filters, and order comparator. The shared order APIs support deletion,
+completion changes, and replacement of order details in place.
+
+`add-item` from team PR #34 is integrated with the shared item model and storage so orders can reference real
+bakery goods. Order views and list commands remain the assigned teammate's GUI work.
+
+### Client order editing
+
+`edit-order CONTACT_INDEX o/ORDER_INDEX [i/ITEM_INDEX] [q/QUANTITY] [d/DEADLINE]` is dispatched
+to `EditClientOrderCommandParser`. The parser normalizes whitespace and requires a client index,
+exactly one order prefix, and at least one editable field. It rejects repeated prefixes and validates
+indices, quantity, and strict calendar dates using the existing parsers, including valid past deadlines.
+
+`EditClientOrderCommand` resolves the displayed client and its full client-local order list through
+`OrderCommandUtil#findOrder()`. An optional item index resolves against the displayed bakery item list.
+It constructs an immutable replacement, retaining omitted values, UUID, client, and completion status.
+Only after all validation succeeds does `ModelManager#setOrder()` delegate to `AddressBook#setOrder()`.
+The latter validates the existing target and the replacement's retained fields and item reference,
+then replaces the selected element at its original position. Repeat orders retain separate identities.
+
+Observable filtered/sorted views update from the replacement without resetting predicates or comparators.
+An edit can change search membership or deadline ordering while retaining the client-local order number.
+`LogicManager` saves the complete book before returning success. I/O or permission failures restore
+the snapshot, all three filters, and the order comparator, retaining any prior undo opportunity.
+A saved change becomes the single-step undo snapshot; an equal-value edit skips replacement and does
+not replace undo history. Undo restores the prior book and shows all lists, following existing behavior.
+No storage schema change is needed.
+
+### Bakery item editing
+
+`edit-item INDEX [n/ITEM_NAME] [p/PRICE]` edits an item selected from the displayed bakery item list. The
+`AddressBookParser` delegates to `EditBakeryItemCommandParser`, which parses the index and the optional name and
+price into an `EditBakeryItemDescriptor`. It rejects malformed or non-positive indices, repeated prefixes, invalid
+field values, and requests that provide neither editable field.
+
+During execution, `EditBakeryItemCommand` resolves `INDEX` against `Model#getFilteredBakeryItemList()` and creates
+an immutable replacement item. An index outside the displayed list is rejected without mutation, and omitted fields
+retain their existing values. Before mutation, the command rejects a new name that matches another item's name after
+case and whitespace normalization.
+
+For a successful edit, `ModelManager#setBakeryItem()` delegates to `AddressBook#setBakeryItem()`. The unique bakery
+item list replaces the original item, and each order that references it is replaced using `ClientOrder#withItem()`.
+This retains the order's UUID, client, quantity, deadline, and completion status while associating it with the
+edited item. The command then displays the complete bakery item list. Persistence and rollback on a save failure
+follow the same Logic transaction used by other data-changing commands.
+
+### Deleting a client order
+
+`AddressBookParser` dispatches `delete-order CONTACT_INDEX o/ORDER_INDEX` to
+`DeleteClientOrderCommandParser`, which requires a positive client index and exactly one positive
+`o/` order index. Missing, repeated, empty, malformed, overflowing, or extra arguments are rejected.
+
+`DeleteClientOrderCommand` uses `OrderCommandUtil#findOrder()` to resolve the client from the displayed
+client list and the order from that client's full order list, including orders hidden by an order filter.
+Out-of-range indices report an error before any data changes. These positions are not persistent identifiers.
+
+The command passes the selected `ClientOrder` to `Model#deleteOrder()`. Only that order is removed;
+identical repeat orders retain their separate identities. Observable order views update automatically,
+and later order numbers within the same client shift down after deletion.
+
+`LogicManager` saves the updated book before returning the `Order deleted:` success message. A save
+failure restores the previous data, displayed filters, and order comparator. A successful deletion becomes
+the single-step undo opportunity, allowing `undo` to restore the deleted order and its associations.
+
+### Order completion alias
+
+`AddressBookParser` dispatches both `mark CONTACT_INDEX o/ORDER_INDEX` and
+`mark-order-complete CONTACT_INDEX o/ORDER_INDEX` to `MarkOrderCompleteCommandParser`.
+Both produce the same `MarkOrderCompleteCommand`, so validation, client-local order selection,
+already-complete errors, persistence, save-failure rollback, and single-step undo remain shared.
+The command usage and help window list both spellings.
+
+Manual check: launch the JAR in a disposable writable folder, never a folder containing real bakery data.
+Run `clear confirm` to remove the initial sample data, then create one client, one item, and two identical
+orders for client 1. Run `mark 1 o/2` and verify that
+only the second order becomes complete. Restart to verify persistence, then run `unmark 1 o/2`,
+`mark 1 o/2`, and `undo` to verify the second order returns to incomplete. Try both command spellings
+with missing indices, `o/0`, and repeated `o/` prefixes; verify identical errors and no data changes.
+
 ## **Appendix: Requirements**
 
 ### Product scope
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
+* runs a home bakery business
+* has a need to manage a significant number of client contacts
+* has a need to manage a significant number of client order details
 * prefers desktop apps over other types of applications
 * can type fast
 * prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Help home bakers running a home bakery business manage client contacts and orders faster than with a typical mouse-driven GUI application.
 
 
 ### User stories
 
-Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
+Priorities: Must have - `* * * *`, Nice to have (high) - `* * *`, Nice to have (medium) - `* *`, Nice to have (low) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+| Priority  | As a …​            | I want to …​                                                         | So that I can…​                                                                 |
+| --------- | ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `* * * *` | Baker              | Add client contacts                                                  | keep track of client contacts                                                   |
+| `* * * *` | Baker              | Delete client contacts                                               | remove mistakes                                                                 |
+| `* * *`   | Baker              | Search specific client contacts                                      | quickly retrieve specific information                                           |
+| `* * * *` | Baker              | List all client contacts                                             | view all client information                                                     |
+| `* * *`   | Baker              | Edit client contacts                                                 | keep contact information up to date                                             |
+| `* * * *` | Baker              | Add new bakery goods                                                 | keep track of bakery goods                                                      |
+| `* * * *` | Baker              | Delete bakery goods                                                  | remove mistakes                                                                 |
+| `* * * *` | Baker              | List all bakery goods                                                | view all bakery goods                                                           |
+| `* * *`   | Baker              | Edit bakery goods                                                    | keep bakery items’ inventory up to date                                         |
+| `* * * *` | Baker              | Add client orders                                                    | keep track of client orders easily                                              |
+| `* *`     | Baker              | Add deadlines to orders                                              | track when an order is due                                                      |
+| `* *`     | Baker              | Add priorities to orders                                             | prioritise different orders easily                                              |
+| `* *`     | Popular Baker      | Add recurring orders                                                 | don’t have to repeatedly add the same orders that a customer orders recurrently |
+| `* * * *` | Baker              | Delete orders                                                        | remove mistakes                                                                 |
+| `* * *`   | Baker              | Edit orders                                                          | keep order information correct if there was a mistake                           |
+| `* *`     | Baker              | Sort orders by priority                                              | prioritise baking the most important orders first                               |
+| `* * * *` | Baker              | Mark orders as complete                                              | focus on orders that are incomplete                                             |
+| `* * * *` | Baker              | Unmark orders as complete                                            | remove mistakes                                                                 |
+| `* * * *` | Baker              | List all orders                                                      | view all orders quickly                                                         |
+| `* * *`   | Baker              | View incomplete orders                                               | focus on orders that are incomplete                                             |
+| `* * *`   | Baker              | View completed orders                                                | have a record of past orders                                                    |
+| `*`       | Professional Baker | Add membership tiers                                                 | track membership discounts / options                                            |
+| `*`       | Professional Baker | Register a client under a membership tier                            | track which clients belong to which membership tiers                            |
+| `*`       | Professional Baker | Add limited edition bakery goods                                     | track goods that are available for a limited time only                          |
+| `*`       | Baker              | Add a pick-up time to orders                                         | track when users want to pick up their order                                    |
+| `*`       | Baker              | Add notes / special instructions to orders                           | track which orders need special instructions (e.g. allergies)                   |
+| `*`       | Baker              | Add ingredients required for baking                                  | track if I have enough ingredients to complete an order                         |
+| `*`       | Baker              | Delete ingredients required for baking                               | remove mistakes                                                                 |
+| `*`       | Baker              | Automatically deduct remaining ingredients after completing an order | not be trouble with updating ingredients                                        |
 
-*{More to be added}*
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is the `BakeBase` and the **Actor** is the `user`, unless specified otherwise)
 
 **Use case: Delete a person**
 
 **MSS**
 
 1.  User requests to list persons
-2.  AddressBook shows a list of persons
+2.  BakeBase shows a list of persons
 3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+4.  BakeBase deletes the person
 
     Use case ends.
 
@@ -308,28 +412,144 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
 * 3a. The given index is invalid.
 
-    * 3a1. AddressBook shows an error message.
+    * 3a1. BakeBase shows an error message.
 
       Use case resumes at step 2.
 
+
+**Use case: Edit a bakery item**
+
+**MSS**
+
+1.  User requests to list bakery items
+2.  BakeBase shows the bakery item list
+3.  User requests to edit the name, price, or both fields of a specific bakery item in the list
+4.  BakeBase updates the bakery item and retains its existing order associations
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given index is invalid.
+
+    * 3a1. BakeBase shows an error message.
+
+      Use case resumes at step 2.
+
+* 3b. No editable field is provided, or a field value is invalid.
+
+    * 3b1. BakeBase shows an error message.
+
+      Use case resumes at step 2.
+
+* 3c. The new item name duplicates another bakery item.
+
+    * 3c1. BakeBase shows an error message and does not change the item or its orders.
+
+      Use case resumes at step 2.
+
+
+**Use case: Mark an order as complete**
+
+**MSS**
+
+1.  User requests to list orders
+2.  BakeBase shows a list of orders
+3.  User requests to mark a specific order in the list as complete
+4.  BakeBase marks the order as complete
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given index is invalid.
+
+    * 3a1. BakeBase shows an error message.
+
+      Use case resumes at step 2.
+
+* 3b. The specified order is already marked as complete
+    * 3b1. BakeBase displays a friendly reminder that the specified order is already marked as complete
+
+      Use case resumes at step 2.
+
+
+**Use case: Display incomplete orders by deadline**
+
+**MSS**
+
+1.  User requests to list incomplete orders sorted by deadline using `list-incomplete-orders by-deadline`
+2.  BakeBase shows all incomplete orders, sorted by earliest deadline
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. There are no incomplete orders.
+
+    * 2a1. BakeBase shows an empty order list.
+
+      Use case ends.
+
+
+
 *{More to be added}*
+
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+1. The application should run on any mainstream operating system with Java 25 installed.
 
-*{More to be added}*
+2. With up to 100 client contacts, 100 bakery goods and 1000 orders, the application should display the results of a list, search or filter command within 3 seconds on the project team's reference machine running Java 25.
+
+3. After a data-changing command reports success, the affected client, bakery good or order data should be retained after the application is closed and reopened, with its values and associations unchanged.
+
+4. A first-time user with basic computer literacy should be able to use the in-app help to add a client, bakery good and order within 15 minutes, without outside assistance.
+
+5. Client contact, bakery good and order data should remain on the user's computer. The application should not transmit this data over a network.
 
 ### Glossary
 
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
 * **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Baker**: The user who manages clients, bakery goods and orders in BakeBase.
+* **Client**: A customer whose contact details are stored in BakeBase.
+* **Bakery book**: The collection of client, bakery item, and order data inside BakeBase. This is represented by `AddressBook` in the code and was adapted from the address book in AB3.
+* **Bakery good**: A baked product that a baker offers and can add to a client order.
+* **Bakery item**: Another term for a bakery good. The terms are used interchangeably in this guide.
+* **Client order**: A record of a client’s request for a bakery good, with a required quantity, deadline, and completion status. New orders start incomplete.
+* **Order deadline**: The date by which a client order is due.
+* **Incomplete order**: An order that has not been marked as complete.
+* **Completed order**: An order that the baker has marked as complete.
+* **Recurring order**: An order pattern saved for reuse when a client regularly requests the same order.
+* **Membership tier**: A client category that determines the membership options or discounts available to that client.
+* **Limited-edition bakery good**: A bakery good offered for a limited period.
+* **Special instructions**: Notes associated with an order, such as allergy information or preparation requests.
+* **Ingredient inventory**: The recorded quantities of ingredients available for fulfilling orders.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Appendix: Instructions for manual testing**
+
+### Clear confirmation and undo
+
+Use a disposable data folder or back up your book before testing deletion.
+
+1. Load sample data with `populate` and note the total client, item, and order counts before searching for one client. Run `clear`: expect a warning showing those full-book counts, regardless of the search. It must state that confirmed deletion is immediate and has no additional prompt. Expect unchanged data and filters, and no file write. Repeat with `clear yes` and `clear confirm extra`: expect invalid-format errors and unchanged data.
+2. Continue with `list-clients` to cancel. No pending deletion should occur.
+3. Run `clear confirm` directly without first typing `clear`: expect all clients, items, and orders to disappear without another prompt. Restart: expect the saved book to remain empty.
+4. Load sample data, edit an item, then run `clear` and `undo`: expect the item edit to be reversed. The warning must not replace undo history.
+5. Load sample data, run `clear confirm`, then `undo` without restarting: expect the entire book and its linked orders restored. A second `undo` must be unavailable.
+6. Verify that another successful data change replaces recovery of the cleared book, and restarting removes undo availability.
+7. Simulate write failure using the storage test double in `ClearConfirmationTest`: confirmed clearing must restore data and filters, and the previous undo opportunity must remain. Simulate failure while saving undo: expect the pre-undo empty book, unchanged filters, and an available retry.
 
 Given below are instructions to test the app manually.
 
@@ -360,23 +580,128 @@ testers are expected to do more *exploratory* testing.
 
 1. Deleting a person while all persons are being shown
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Prerequisites: In a disposable writable data folder, run `populate` to load the sample book.
+      This replaces any existing data. Run `delete-order 1 o/2`, then `delete-order 1 o/1` to remove
+      both orders belonging to Alex Yeoh. Run `list-clients` to show all clients. Alex is client 1
+      and can now be deleted; clients with linked orders cannot be deleted.
 
-   1. Test case: `delete 1`<br>
+   1. Test case: `delete-client 1`<br>
       Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
 
-   1. Test case: `delete 0`<br>
+   1. Test case: `delete-client 0`<br>
       Expected: No person is deleted. The status message shows error details.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
+   1. Other incorrect delete commands to try: `delete-client`, `delete-client x`, `...` (where x is larger than the list size)<br>
       Expected: Similar to previous.
 
 1. _{ more test cases …​ }_
 
+### Editing a bakery item
+
+1. Editing a bakery item while all items are shown
+
+   1. Prerequisites: Run `populate`, followed by `list-items`. The first two items should be `Banana Muffin` and
+      `Chocolate Cake`. The sample data should contain orders for `Banana Muffin`.
+
+   1. Test case: `edit-item 1 n/Blueberry Scone p/2.50`<br>
+      Expected: The first item's name changes to `Blueberry Scone` and its price changes to `$2.50`. The status
+      message shows the edited item. Existing orders that previously showed `Banana Muffin` now show
+      `Blueberry Scone`; their clients, quantities, deadlines, order identities, and completion statuses are
+      unchanged.
+
+   1. Test case: Run `populate`, then `edit-item 1 p/3.00`.<br>
+      Expected: The first item's price changes to `$3.00`, while its name remains `Banana Muffin`.
+
+   1. Test case: Run `populate`, then `edit-item 1 n/Chocolate Cake`.<br>
+      Expected: No item or order is changed. The status message reports that the bakery item already exists.
+
+   1. Other incorrect edit commands to try: `edit-item`, `edit-item 0 p/2.50`, `edit-item 1`,
+      `edit-item 1 p/1.234`, and `edit-item 1 n/Cake n/Tart`.<br>
+      Expected: No item or order is changed. The status message shows the relevant error details.
+
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+Use a new disposable writable folder containing the downloaded JAR. Open a terminal in that folder
+and launch with `java -jar "DOWNLOADED_FILENAME.jar"`, substituting the actual downloaded filename.
+The paths below are relative to this launch folder. Run only one instance, and close the application
+before moving, replacing, or editing its data file.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Prepare a recoverable baseline
 
-1. _{ more test cases …​ }_
+   1. Run `populate`, then
+      `add-client n/Storage Test p/91234567 e/storage@example.com a/Test Road`.
+      Expected: The sample clients, items, and orders are present, together with the new client.
+   1. Close the application using the window's close button. Copy `data/addressbook.json` to
+      `baseline-backup.json` in the launch folder. Keep this backup unchanged throughout these tests.
+
+1. Missing data file
+
+   1. With the application closed, move `data/addressbook.json` to `missing-file-original.json`.
+      Relaunch from the same folder.
+      Expected: The GUI opens with sample clients, bakery items, and orders; `Storage Test` is absent.
+      The missing file does not cause a startup crash.
+   1. Run `list-orders`.
+      Expected: The command succeeds and creates `data/addressbook.json` containing the sample book.
+      Close and relaunch: the saved sample book loads successfully.
+
+1. Corrupted data file
+
+   1. Close the application. Replace the contents of `data/addressbook.json` with exactly
+      `not valid JSON`, save the file, and relaunch.
+      Expected: The GUI opens with an empty book: no clients, bakery items, or orders.
+      The application log reports that the data could not be loaded. Before entering any commands,
+      inspect the file: startup has left the invalid contents unchanged.
+   1. Run `add-client n/Recovery Test p/92345678 e/recovery@example.com a/Recovery Road`.
+      Expected: The command succeeds and replaces the invalid file with valid JSON containing the
+      new client. Close and relaunch: only `Recovery Test` is present, with no items or orders.
+   1. Close the application and repeat this corrupted-file test using exactly `null` as the file
+      contents. Expect the same empty-book fallback and successful save/reload, without a startup crash.
+
+1. Restore the backup
+
+   1. Close the application. Copy `baseline-backup.json` over `data/addressbook.json`, then relaunch.
+      Expected: `Storage Test` and all baseline sample clients, items, orders, and completion statuses
+      are restored. Neither `Recovery Test` nor the invalid file contents remain in the active book.
+
+Startup recovery does not repair an invalid book or recover its original records. A subsequent
+successful command, including a listing command, saves the current in-memory book and can overwrite
+the invalid file. To preserve it for recovery, close using the window's close button before entering
+commands and copy it elsewhere. The typed `exit` command also attempts to save. Restore backups only
+while the application is closed, so a running instance cannot overwrite the restored file.
+
+### unmark backend
+
+Restore only the selected completed order to incomplete, retaining its identity and associations. `OrderCommandUtil` resolves the displayed client and then the order's position within that client. Invalid indices and repeated status changes report specific errors without mutation. Successful changes are saved by LogicManager; save failures restore data and displayed filters.
+
+### mark-order-complete backend
+
+Mark only the selected order complete, retaining its identity and associations. `OrderCommandUtil` resolves the displayed client and then the order's position within that client. Invalid indices and repeated status changes report specific errors without mutation. Successful changes are saved by LogicManager; save failures restore data and displayed filters.
+
+### delete-order backend
+
+Delete only the selected order; subsequent client-local indices shift down. `OrderCommandUtil` resolves the displayed client and then the order's position within that client. Invalid indices and repeated status changes report specific errors without mutation. Successful changes are saved by LogicManager; save failures restore data and displayed filters.
+
+
+### Editing a client order
+
+1. In a disposable writable folder, never one containing real bakery data, verify Java 25 using
+   `java -version` and launch the release with `java -jar "addressbook.jar"`, replacing
+   `addressbook.jar` with the actual filename of the downloaded JAR.
+   Run `clear confirm` to remove the initial sample data. Create one client and two items,
+   then add two identical orders for client 1.
+2. Mark the second order complete. Run `edit-order 1 o/2 q/13` and verify only its quantity changes.
+   Its item, deadline, completed status, and client-local number must remain unchanged.
+3. Run `undo` immediately: both original orders should return, and another undo must be unavailable.
+4. Run `edit-order 1 o/2 i/2 q/9999 d/2020-02-29`. Restart and verify that all fields and the completed
+   status persist, with the same UUID and position in the JSON file.
+5. Filter clients and items, then use their displayed indices. With `list-complete-orders by-deadline`,
+   edit a deadline and verify chronological movement without changing its client-local number. Use
+   `find-orders` for the old item name, then change that item's order to the other item: it should leave
+   the search results. An order hidden by a completion filter remains addressable by its client-local index.
+6. Try `edit-order 1 o/2`, `edit-order 1 o/2 q/0`, `edit-order 1 o/2 q/10000`,
+   `edit-order 1 o/2 d/2026-02-29`, repeated `q/` prefixes, and out-of-range client/order/item indices.
+   Each must report an error without changing any data.
+7. Make a real edit, repeat the same values, then undo: the original edit must still be reversible.
+8. Automated `EditOrderTest` injects both I/O and permission failures during saving and verifies restored
+   data, client/item/order filters, sorting, and prior undo. It also checks parser boundaries, filtered
+   indices, repeat-order isolation, omitted fields, persistence after reload, and single-step undo.

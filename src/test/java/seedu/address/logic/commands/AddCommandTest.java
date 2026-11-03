@@ -9,18 +9,13 @@ import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
-import javafx.collections.ObservableList;
-import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
-import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
@@ -41,6 +36,18 @@ public class AddCommandTest {
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+
+        Person similarPerson = new PersonBuilder(validPerson).withName("aMY  bEE").build();
+        CommandResult similarResult = new AddCommand(similarPerson).execute(modelStub);
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(similarPerson))
+                + String.format(Messages.MESSAGE_SIMILAR_CLIENT_WARNING, Messages.format(validPerson)),
+                similarResult.getFeedbackToUser());
+        assertEquals(List.of(validPerson, similarPerson), modelStub.personsAdded);
+        assertEquals("aMY  bEE", similarPerson.getName().fullName);
+
+        Person distinctPerson = new PersonBuilder(validPerson).withName("AmyBee").build();
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(distinctPerson)),
+                new AddCommand(distinctPerson).execute(modelStub).getFeedbackToUser());
     }
 
     @Test
@@ -84,66 +91,6 @@ public class AddCommandTest {
     }
 
     /**
-     * A default model stub that has all of the methods failing.
-     */
-    private class ModelStub implements Model {
-        @Override
-        public ReadOnlyUserPrefs getUserPrefs() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public GuiSettings getGuiSettings() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setGuiSettings(GuiSettings guiSettings) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void addPerson(Person person) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setAddressBook(ReadOnlyAddressBook newData) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public boolean hasPerson(Person person) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void deletePerson(Person target) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setPerson(Person target, Person editedPerson) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public ObservableList<Person> getFilteredPersonList() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
-            throw new AssertionError("This method should not be called.");
-        }
-    }
-
-    /**
      * A Model stub that contains a single person.
      */
     private class ModelStubWithPerson extends ModelStub {
@@ -181,7 +128,9 @@ public class AddCommandTest {
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+            AddressBook book = new AddressBook();
+            personsAdded.forEach(book::addPerson);
+            return book;
         }
     }
 

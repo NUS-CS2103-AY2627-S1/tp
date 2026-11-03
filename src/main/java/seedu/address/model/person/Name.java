@@ -3,6 +3,8 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
@@ -10,13 +12,13 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain printable ASCII characters, and should not be blank";
 
     /*
      * The first character of the name must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\x21-\\x7E][\\x20-\\x7E]*";
 
     public final String fullName;
 
@@ -36,6 +38,19 @@ public class Name {
      */
     public static boolean isValidName(String test) {
         return test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns whether both names match after ignoring case and collapsing whitespace.
+     * This comparison does not change name identity or the stored spelling.
+     */
+    public boolean isSimilarTo(Name otherName) {
+        requireNonNull(otherName);
+        return normalize().equals(otherName.normalize());
+    }
+
+    private String normalize() {
+        return fullName.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
 
