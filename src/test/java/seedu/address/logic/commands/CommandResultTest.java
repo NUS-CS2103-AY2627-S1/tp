@@ -33,6 +33,9 @@ public class CommandResultTest {
 
         // different exit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+
+        // different clipboardText value -> returns false
+        assertFalse(commandResult.equals(new CommandResult("feedback", "copied text")));
     }
 
     @Test
@@ -50,14 +53,26 @@ public class CommandResultTest {
 
         // different exit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+
+        // different clipboardText value -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", "copied text").hashCode());
     }
 
     @Test
     public void toStringMethod() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
-                + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + commandResult.getFeedbackToUser() + ", shouldShowHelp=" + commandResult.isShowHelp()
+                + ", shouldExit=" + commandResult.isExit() + ", clipboardText="
+                + commandResult.getClipboardText() + "}";
         assertEquals(expected, commandResult.toString());
+    }
+
+    @Test
+    public void clipboardText_constructorStoresClipboardText() {
+        CommandResult commandResult = new CommandResult("feedback", "copied text");
+
+        assertEquals("copied text", commandResult.getClipboardText());
+        assertEquals(new CommandResult("feedback", "copied text"), commandResult);
     }
 }

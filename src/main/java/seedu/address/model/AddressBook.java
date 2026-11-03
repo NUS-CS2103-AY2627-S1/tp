@@ -2,11 +2,10 @@ package seedu.address.model;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.person.Person;
+import seedu.address.model.person.Client;
+import seedu.address.model.person.Jobseeker;
 import seedu.address.model.person.UniquePersonList;
 
 /**
@@ -15,12 +14,13 @@ import seedu.address.model.person.UniquePersonList;
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
-    private final UniquePersonList persons = new UniquePersonList();
+    private final UniquePersonList<Jobseeker> jobseekers = new UniquePersonList<>();
+    private final UniquePersonList<Client> clients = new UniquePersonList<>();
 
     public AddressBook() {}
 
     /**
-     * Creates an AddressBook using the Persons in the {@code toBeCopied}
+     * Creates an AddressBook using the jobseekers and clients in {@code toBeCopied}.
      */
     public AddressBook(ReadOnlyAddressBook toBeCopied) {
         this();
@@ -30,11 +30,19 @@ public class AddressBook implements ReadOnlyAddressBook {
     //// list overwrite operations
 
     /**
-     * Replaces the contents of the person list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
+     * Replaces the contents of the jobseeker list with {@code jobseekers}.
+     * {@code jobseekers} must not contain duplicate jobseekers.
      */
-    public void setPersons(List<Person> persons) {
-        this.persons.setPersons(persons);
+    public void setJobseekers(java.util.List<Jobseeker> jobseekers) {
+        this.jobseekers.setPersons(jobseekers);
+    }
+
+    /**
+     * Replaces the contents of the client list with {@code clients}.
+     * {@code clients} must not contain duplicate clients.
+     */
+    public void setClients(java.util.List<Client> clients) {
+        this.clients.setPersons(clients);
     }
 
     /**
@@ -43,44 +51,74 @@ public class AddressBook implements ReadOnlyAddressBook {
     public void resetData(ReadOnlyAddressBook newData) {
         requireNonNull(newData);
 
-        setPersons(newData.getPersonList());
-    }
-
-    //// person-level operations
-
-    /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
-     */
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return persons.contains(person);
+        setJobseekers(newData.getJobseekerList());
+        setClients(newData.getClientList());
     }
 
     /**
-     * Adds a person to the address book.
-     * The person must not already exist in the address book.
+     * Returns true if the given jobseeker exists in the address book.
      */
-    public void addPerson(Person p) {
-        persons.add(p);
+    public boolean hasJobseeker(Jobseeker jobseeker) {
+        requireNonNull(jobseeker);
+        return jobseekers.contains(jobseeker);
     }
 
     /**
-     * Replaces the given person {@code target} in the list with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Returns true if the given client exists in the address book.
      */
-    public void setPerson(Person target, Person editedPerson) {
-        requireNonNull(editedPerson);
-
-        persons.setPerson(target, editedPerson);
+    public boolean hasClient(Client client) {
+        requireNonNull(client);
+        return clients.contains(client);
     }
 
     /**
-     * Removes {@code key} from this {@code AddressBook}.
-     * {@code key} must exist in the address book.
+     * Adds the given jobseeker to the address book.
+     * The jobseeker must not already exist in the address book.
      */
-    public void removePerson(Person key) {
-        persons.remove(key);
+    public void addJobseeker(Jobseeker jobseeker) {
+        jobseekers.add(jobseeker);
+    }
+
+    /**
+     * Adds the given client to the address book.
+     * The client must not already exist in the address book.
+     */
+    public void addClient(Client client) {
+        clients.add(client);
+    }
+
+    /**
+     * Replaces the jobseeker {@code target} with {@code editedJobseeker}.
+     * {@code target} must exist in the address book, and {@code editedJobseeker} must not be the same as
+     * another existing jobseeker.
+     */
+    public void setJobseeker(Jobseeker target, Jobseeker editedJobseeker) {
+        jobseekers.setPerson(target, editedJobseeker);
+    }
+
+    /**
+     * Replaces the client {@code target} with {@code editedClient}.
+     * {@code target} must exist in the address book, and {@code editedClient} must not be the same as
+     * another existing client.
+     */
+    public void setClient(Client target, Client editedClient) {
+        clients.setPerson(target, editedClient);
+    }
+
+    /**
+     * Removes the given jobseeker from the address book.
+     * The jobseeker must exist in the address book.
+     */
+    public void removeJobseeker(Jobseeker jobseeker) {
+        jobseekers.remove(jobseeker);
+    }
+
+    /**
+     * Removes the given client from the address book.
+     * The client must exist in the address book.
+     */
+    public void removeClient(Client client) {
+        clients.remove(client);
     }
 
     //// util methods
@@ -88,13 +126,19 @@ public class AddressBook implements ReadOnlyAddressBook {
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("persons", persons)
+                .add("jobseekers", jobseekers)
+                .add("clients", clients)
                 .toString();
     }
 
     @Override
-    public ObservableList<Person> getPersonList() {
-        return persons.asUnmodifiableObservableList();
+    public ObservableList<Jobseeker> getJobseekerList() {
+        return jobseekers.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Client> getClientList() {
+        return clients.asUnmodifiableObservableList();
     }
 
     @Override
@@ -108,11 +152,12 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return jobseekers.equals(otherAddressBook.jobseekers)
+                && clients.equals(otherAddressBook.clients);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return java.util.Objects.hash(jobseekers, clients);
     }
 }

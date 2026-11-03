@@ -1,17 +1,29 @@
 package seedu.address.model;
 
+import java.util.List;
 import java.util.function.Predicate;
 
+import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.person.Client;
+import seedu.address.model.person.Jobseeker;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
-    /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    /** {@code Predicate} that keeps only unhidden jobseekers, i.e. the default jobseeker view */
+    Predicate<Jobseeker> PREDICATE_SHOW_UNHIDDEN_JOBSEEKERS = jobseeker -> !jobseeker.isHidden();
+
+    /** {@code Predicate} that keeps only unhidden clients, i.e. the default client view */
+    Predicate<Client> PREDICATE_SHOW_UNHIDDEN_CLIENTS = client -> !client.isHidden();
+
+    /** {@code Predicate} that keeps only hidden jobseekers */
+    Predicate<Jobseeker> PREDICATE_SHOW_HIDDEN_JOBSEEKERS = Jobseeker::isHidden;
+
+    /** {@code Predicate} that keeps only hidden clients */
+    Predicate<Client> PREDICATE_SHOW_HIDDEN_CLIENTS = Client::isHidden;
 
     /**
      * Returns the user prefs.
@@ -37,35 +49,68 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * @see AddressBook#setJobseekers(List)
      */
-    boolean hasPerson(Person person);
+    void setJobseekers(List<Jobseeker> jobseekers);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * @see AddressBook#setClients(List)
      */
-    void deletePerson(Person target);
+    void setClients(List<Client> clients);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * @see AddressBook#hasJobseeker(Jobseeker)
      */
-    void addPerson(Person person);
+    boolean hasJobseeker(Jobseeker jobseeker);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * @see AddressBook#hasClient(Client)
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    boolean hasClient(Client client);
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
-     * @throws NullPointerException if {@code predicate} is null.
+     * @see AddressBook#addJobseeker(Jobseeker)
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void addJobseeker(Jobseeker jobseeker);
+
+    /**
+     * @see AddressBook#addClient(Client)
+     */
+    void addClient(Client client);
+
+    /**
+     * @see AddressBook#setJobseeker(Jobseeker, Jobseeker)
+     */
+    void setJobseeker(Jobseeker target, Jobseeker editedJobseeker);
+
+    /**
+     * @see AddressBook#setClient(Client, Client)
+     */
+    void setClient(Client target, Client editedClient);
+
+    /**
+     * @see AddressBook#removeJobseeker(Jobseeker)
+     */
+    void deleteJobseeker(Jobseeker target);
+
+    /**
+     * @see AddressBook#removeClient(Client)
+     */
+    void deleteClient(Client target);
+
+    /** Returns the active jobseeker filter description. */
+    StringProperty jobseekerFilterDescriptionProperty();
+
+    /** Returns the active client filter description. */
+    StringProperty clientFilterDescriptionProperty();
+
+    /** Returns an unmodifiable view of the filtered list containing only jobseekers. */
+    ObservableList<Jobseeker> getFilteredJobseekerList();
+
+    /** Returns an unmodifiable view of the filtered list containing only clients. */
+    ObservableList<Client> getFilteredClientList();
+
+    void updateFilteredJobseekerList(Predicate<? super Jobseeker> predicate);
+
+    void updateFilteredClientList(Predicate<? super Client> predicate);
 }

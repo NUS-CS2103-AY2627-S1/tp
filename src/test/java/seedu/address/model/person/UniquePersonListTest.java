@@ -5,17 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.testutil.Assert.assertEqualWithSameHashCode;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.model.person.exceptions.DuplicatePersonException;
 import seedu.address.model.person.exceptions.PersonNotFoundException;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.JobseekerBuilder;
 
 public class UniquePersonListTest {
 
@@ -40,7 +43,7 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new JobseekerBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
                 .build();
         assertTrue(uniquePersonList.contains(editedAlice));
     }
@@ -54,6 +57,15 @@ public class UniquePersonListTest {
     public void add_duplicatePerson_throwsDuplicatePersonException() {
         uniquePersonList.add(ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(ALICE));
+    }
+
+    /** Typing the same email in a different case must not let a duplicate contact through. */
+    @Test
+    public void add_duplicatePersonWithEmailInDifferentCase_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        Person upperCaseEmailAlice = new JobseekerBuilder(ALICE)
+                .withEmail(ALICE.getEmail().value.toUpperCase(Locale.ROOT)).build();
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(upperCaseEmailAlice));
     }
 
     @Test
@@ -83,7 +95,7 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new JobseekerBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
                 .build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
@@ -169,5 +181,39 @@ public class UniquePersonListTest {
     @Test
     public void toStringMethod() {
         assertEquals(uniquePersonList.asUnmodifiableObservableList().toString(), uniquePersonList.toString());
+    }
+
+    @Test
+    public void hashCode_equalLists_sameHashCode() {
+        // EP: no people
+        assertEqualWithSameHashCode(createListOf(), createListOf()); // Boundary value
+
+        // EP: at least one person
+        assertEqualWithSameHashCode(createListOf(ALICE), createListOf(ALICE)); // Boundary value
+        assertEqualWithSameHashCode(createListOf(ALICE, BOB), createListOf(ALICE, BOB));
+    }
+
+    @Test
+    public void iterator_variousListSizes_returnsPeopleInListOrder() {
+        // EP: no people
+        assertEquals(List.of(), collectByIterating(createListOf())); // Boundary value
+
+        // EP: at least one person
+        assertEquals(List.of(ALICE), collectByIterating(createListOf(ALICE))); // Boundary value
+        assertEquals(List.of(ALICE, BOB), collectByIterating(createListOf(ALICE, BOB)));
+    }
+
+    private UniquePersonList<Person> createListOf(Person... persons) {
+        UniquePersonList<Person> list = new UniquePersonList<>();
+        list.setPersons(List.of(persons));
+        return list;
+    }
+
+    private List<Person> collectByIterating(UniquePersonList<Person> list) {
+        List<Person> persons = new ArrayList<>();
+        for (Person person : list) {
+            persons.add(person);
+        }
+        return persons;
     }
 }

@@ -3,42 +3,351 @@
 <?import java.net.URL?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Scene?>
-<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.text.TextFlow?>
 <?import javafx.stage.Stage?>
+<?import seedu.address.ui.SectionHyperlink?>
 
-<fx:root resizable="false" title="Help" type="javafx.stage.Stage" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root title="Help" type="javafx.stage.Stage" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
   <icons>
-    <Image url="@/images/help_icon.png" />
+    <Image url="@../images/help_icon.png" />
   </icons>
   <scene>
     <Scene>
       <stylesheets>
         <URL value="@HelpWindow.css" />
       </stylesheets>
-
-      <HBox alignment="CENTER" fx:id="helpMessageContainer">
-        <children>
-          <Label fx:id="helpMessage" text="Label">
-            <HBox.margin>
-              <Insets right="5.0" />
-            </HBox.margin>
-          </Label>
-          <Button fx:id="copyButton" mnemonicParsing="false" onAction="#copyUrl" text="Copy URL">
-            <HBox.margin>
-              <Insets left="5.0" />
-            </HBox.margin>
-          </Button>
-        </children>
-        <opaqueInsets>
-          <Insets bottom="10.0" left="5.0" right="10.0" top="5.0" />
-        </opaqueInsets>
-        <padding>
-          <Insets bottom="10.0" left="5.0" right="10.0" top="5.0" />
-        </padding>
-      </HBox>
+         <AnchorPane prefHeight="600.0" prefWidth="800.0">
+            <children>
+               <SplitPane dividerPositions="0.4" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                  <items>
+                     <StackPane alignment="TOP_LEFT">
+                        <children>
+                           <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vvalue="0.2">
+                              <content>
+                                 <VBox styleClass="body">
+                                    <children>
+                                       <HBox alignment="BASELINE_LEFT">
+                                          <children>
+                                             <Label styleClass="bullet" text="◦" />
+                                             <SectionHyperlink minHeight="-Infinity" text="Command utilities" wrapText="true" />
+                                          </children>
+                                       </HBox>
+                                       <HBox alignment="BASELINE_LEFT">
+                                          <children>
+                                             <Label styleClass="bullet" text="◦" />
+                                             <SectionHyperlink minHeight="-Infinity" text="FAQ and Known issues" wrapText="true" />
+                                          </children>
+                                       </HBox>
+                                       <TitledPane expanded="false">
+                                          <graphic>
+                                             <Label minHeight="-Infinity" text="Basic commands" wrapText="true" />
+                                          </graphic>
+                                          <content>
+                                             <VBox styleClass="body">
+                                                <children>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Notes about the command format" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Exiting the application" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Viewing help" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                </children>
+                                             </VBox>
+                                          </content>
+                                       </TitledPane>
+                                       <TitledPane expanded="false">
+                                          <graphic>
+                                             <Label minHeight="-Infinity" text="Adding and modifying contacts" wrapText="true" />
+                                          </graphic>
+                                          <content>
+                                             <VBox styleClass="body">
+                                                <children>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Common info about contacts" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Adding a jobseeker" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Adding a client" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Editing a jobseeker" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Editing a client" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Deleting a jobseeker" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Deleting a client" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Clearing all jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Clearing all clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                </children>
+                                             </VBox>
+                                          </content>
+                                       </TitledPane>
+                                       <TitledPane expanded="false">
+                                          <content>
+                                             <VBox styleClass="body">
+                                                <children>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Listing jobseekers and clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Listing jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Listing clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Finding jobseekers and clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Finding jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Finding clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Hiding a jobseeker" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Hiding a client" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Unhiding a jobseeker" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Unhiding a client" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Listing hidden jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Listing hidden clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Finding hidden jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Finding hidden clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                </children>
+                                             </VBox>
+                                          </content>
+                                          <graphic>
+                                             <SectionHyperlink text="Viewing contacts" />
+                                          </graphic>
+                                       </TitledPane>
+                                       <TitledPane expanded="false">
+                                          <content>
+                                             <VBox styleClass="body">
+                                                <children>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Adding jobseeker tags" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Adding client tags" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Removing jobseeker tags" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Removing client tags" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                </children>
+                                             </VBox>
+                                          </content>
+                                          <graphic>
+                                             <SectionHyperlink text="Managing tags" />
+                                          </graphic>
+                                       </TitledPane>
+                                       <TitledPane expanded="false">
+                                          <content>
+                                             <VBox styleClass="body">
+                                                <children>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Copying displayed jobseekers" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                   <HBox alignment="BASELINE_LEFT">
+                                                      <children>
+                                                         <Label styleClass="bullet" text="◦" wrapText="true" />
+                                                         <SectionHyperlink minHeight="-Infinity" text="Copying displayed clients" wrapText="true" />
+                                                      </children>
+                                                   </HBox>
+                                                </children>
+                                             </VBox>
+                                          </content>
+                                          <graphic>
+                                             <Label minHeight="-Infinity" text="Miscellaneous commands" wrapText="true" />
+                                          </graphic>
+                                       </TitledPane>
+                                    </children>
+                                    <padding>
+                                       <Insets bottom="15.0" left="15.0" right="15.0" top="75.0" />
+                                    </padding>
+                                 </VBox>
+                              </content>
+                              <StackPane.margin>
+                                 <Insets />
+                              </StackPane.margin>
+                           </ScrollPane>
+                           <VBox maxHeight="-Infinity" style="-fx-background-color: inherit;" styleClass="body">
+                              <children>
+                                 <Label style="-fx-text-fill: -text-color-1;" styleClass="h2" text="Table of Contents" />
+                                 <Separator />
+                              </children>
+                              <padding>
+                                 <Insets left="15.0" right="15.0" top="15.0" />
+                              </padding>
+                              <StackPane.margin>
+                                 <Insets right="20.0" />
+                              </StackPane.margin>
+                           </VBox>
+                        </children>
+                     </StackPane>
+                     <ScrollPane fx:id="content" fitToWidth="true" prefHeight="200.0" prefWidth="200.0">
+                        <content>
+                           <VBox styleClass="document">
+                              <children>
+                                 <Label minHeight="-Infinity" styleClass="h1" text="User Guide" wrapText="true" />
+                                 <Separator prefWidth="200.0">
+                                    <padding>
+                                       <Insets bottom="15.0" />
+                                    </padding>
+                                 </Separator>
+                                 <TextFlow prefHeight="200.0" prefWidth="200.0">
+                                    <children>
+                                       <Text strokeType="OUTSIDE" strokeWidth="0.0" text="TalentLink is a " />
+                                       <Text layoutX="10.0" layoutY="10.0" strokeType="OUTSIDE" strokeWidth="0.0" styleClass="bold" text="desktop application that HR recruiters in recruitment agencies use to manage their contacts, optimized for use through a Command Line Interface (CLI)" />
+                                       <Text layoutX="10.0" layoutY="10.0" strokeType="OUTSIDE" strokeWidth="0.0" text=" while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, TalentLink can help you manage your jobseeker/client contacts faster than traditional GUI applications. Additionally, TalentLink also provides support for many tasks that recruiters often do on a daily basis, such as recording notes on various jobseekers/clients, searching for jobseekers with particular educational qualifications and determine which jobseekers to link up with each client’s job opening." />
+                                    </children>
+                                    <VBox.margin>
+                                       <Insets bottom="15.0" />
+                                    </VBox.margin>
+                                 </TextFlow>
+                                 <Label minHeight="-Infinity" text="Blue colored texts are hyperlinks that leads to help pages. Select a help page on the left to start." wrapText="true" />
+                              </children>
+                           </VBox>
+                        </content></ScrollPane>
+                  </items>
+               </SplitPane>
+            </children>
+         </AnchorPane>
     </Scene>
   </scene>
 </fx:root>

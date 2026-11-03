@@ -10,13 +10,16 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names can contain any characters and should not be blank";
 
     /*
+     * Any character is allowed, so that names such as "Hershey's", "X Æ A-Xii", "Zoë" and "Raj s/o Kumar"
+     * can be stored as written. ArgumentTokenizer only splits on its known prefixes (e.g. " n/"), so the
+     * "s/o" in a name reaches this check intact.
      * The first character of the name must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[^\\s].*";
 
     public final String fullName;
 

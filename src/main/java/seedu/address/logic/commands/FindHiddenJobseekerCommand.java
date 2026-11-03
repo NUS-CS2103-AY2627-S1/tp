@@ -1,0 +1,51 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.Messages;
+import seedu.address.model.Model;
+import seedu.address.model.person.PersonContainsKeywordsPredicate;
+
+/**
+ * Finds and lists all hidden jobseekers in the address book whose name, phone number, email, tags or
+ * highest qualification contain any of the argument keywords. Keyword matching is case insensitive, as for
+ * {@code findj}. Unhidden jobseekers and clients are not searched.
+ */
+public class FindHiddenJobseekerCommand extends AbstractFindCommand {
+
+    public static final String COMMAND_WORD = "findhj";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all hidden jobseekers whose name, "
+            + "phone number, email, tags or highest qualification contain any of the specified keywords "
+            + "(case-insensitive) and displays them as a list with index numbers.\n"
+            + "Parameters: <keyword>...\n"
+            + "Example: " + COMMAND_WORD + " alice 94351253 alice@gmail.com";
+
+    private static final Logger logger = LogsCenter.getLogger(FindHiddenJobseekerCommand.class);
+
+    /**
+     * Creates a command that lists all hidden jobseekers that match {@code predicate}.
+     *
+     * @param predicate Predicate that decides which hidden jobseekers are listed; must not be null.
+     */
+    public FindHiddenJobseekerCommand(PersonContainsKeywordsPredicate predicate) {
+        super(predicate);
+    }
+
+    @Override
+    public CommandResult execute(Model model) {
+        requireNonNull(model);
+        model.updateFilteredJobseekerList(Model.PREDICATE_SHOW_HIDDEN_JOBSEEKERS.and(predicate));
+        model.jobseekerFilterDescriptionProperty().set(
+                "Showing hidden jobseekers matching \"" + predicate.getSearchText() + "\"");
+        int matchCount = model.getFilteredJobseekerList().size();
+        // FINE, not INFO: LogicManager already logs the command text at INFO, so this only adds detail
+        // that is useful when debugging search results.
+        logger.fine("Found " + matchCount + " hidden jobseeker(s) matching " + predicate);
+        return new CommandResult(String.format(Messages.MESSAGE_HIDDEN_JOBSEEKERS_LISTED_OVERVIEW,
+                matchCount));
+    }
+}

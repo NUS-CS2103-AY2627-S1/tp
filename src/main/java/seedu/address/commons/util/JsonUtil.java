@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
 
 /**
  * Converts a Java object instance to JSON and vice versa
@@ -66,15 +67,21 @@ public class JsonUtil {
             throw new DataLoadingException(e);
         }
 
+        // A file containing only the JSON value null parses without error, but holds no object
+        if (jsonFile == null) {
+            throw new DataLoadingException(new IllegalValueException(filePath + " contains only null"));
+        }
+
         return Optional.of(jsonFile);
     }
 
     /**
      * Saves the Json object to the specified file.
      * Overwrites existing file if it exists, creates a new file if it doesn't.
-     * @param jsonFile cannot be null
-     * @param filePath cannot be null
-     * @throws IOException if there was an error during writing to the file
+     *
+     * @param jsonFile cannot be null.
+     * @param filePath cannot be null.
+     * @throws IOException if there was an error during writing to the file.
      */
     public static <T> void saveJsonFile(T jsonFile, Path filePath) throws IOException {
         requireNonNull(filePath);
@@ -85,19 +92,21 @@ public class JsonUtil {
 
 
     /**
-     * Converts a given string representation of JSON data to an instance of a class
-     * @param <T> The generic type to create an instance of
-     * @return The instance of T with the specified values in the JSON string
+     * Converts a given string representation of JSON data to an instance of a class.
+     *
+     * @param <T> The generic type to create an instance of.
+     * @return The instance of T with the specified values in the JSON string.
      */
     public static <T> T fromJsonString(String json, Class<T> instanceClass) throws IOException {
         return objectMapper.readValue(json, instanceClass);
     }
 
     /**
-     * Converts a given instance of a class into its JSON data string representation
-     * @param instance The T object to be converted into the JSON string
-     * @param <T> The generic type to create an instance of
-     * @return JSON data representation of the given class instance, in string
+     * Converts a given instance of a class into its JSON data string representation.
+     *
+     * @param instance The T object to be converted into the JSON string.
+     * @param <T> The generic type to create an instance of.
+     * @return JSON data representation of the given class instance, in string.
      */
     public static <T> String toJsonString(T instance) throws JsonProcessingException {
         return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(instance);

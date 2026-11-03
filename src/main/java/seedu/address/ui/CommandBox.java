@@ -2,8 +2,15 @@ package seedu.address.ui;
 
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import seedu.address.commons.core.InputLimits;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -14,37 +21,239 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class CommandBox extends UiPart<Region> {
 
     public static final String ERROR_STYLE_CLASS = "error";
+    public static final String WARNING_STYLE_CLASS = "warning";
+    private static final String COMMAND_HINT = "↑/↓ command history • Type to see suggestions";
+    private static final String SUGGESTION_HINT = "Suggestions: ↑/↓ select • Tab complete • Esc dismiss";
+    private static final String OVERFLOW_WARNING = "Input truncated at " + InputLimits.MAX_COMMAND_LENGTH
+            + " characters";
     private static final String FXML = "CommandBox.fxml";
 
     private final CommandExecutor commandExecutor;
+    private final CommandHistory commandHistory = new CommandHistory();
+    private final CommandSuggestions commandSuggestions;
+    private boolean areSuggestionsSuppressed;
+    private boolean inputOverflowAttempted;
 
     @FXML
     private TextField commandTextField;
+
+    @FXML
+    private ListView<String> suggestionList;
+
+    @FXML
+    private StackPane suggestionOverlay;
+
+    @FXML
+    private Label commandHint;
 
     /**
      * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
      */
     public CommandBox(CommandExecutor commandExecutor) {
-        super(FXML);
-        this.commandExecutor = commandExecutor;
-        // calls #setStyleToDefault() whenever there is a change to the text of the command box.
-        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        this(commandExecutor, new CommandSuggestions());
     }
 
     /**
-     * Handles the Enter button pressed event.
+     * Creates a command box with a supplied suggestion source.
+     */
+    CommandBox(CommandExecutor commandExecutor, CommandSuggestions commandSuggestions) {
+        super(FXML);
+        this.commandExecutor = commandExecutor;
+        this.commandSuggestions = commandSuggestions;
+        commandTextField.setTextFormatter(new TextFormatter<String>(this::limitInputLength));
+        suggestionList.visibleProperty().addListener((observable, oldValue, newValue) -> updateCommandHint());
+        updateCommandHint();
+        suggestionOverlay.visibleProperty().bind(suggestionList.visibleProperty());
+        suggestionOverlay.layoutYProperty().bind(commandTextField.layoutYProperty()
+                .add(commandTextField.heightProperty()));
+        getRoot().widthProperty().addListener((observable, oldWidth, newWidth) ->
+                suggestionOverlay.resize(newWidth.doubleValue(), suggestionOverlay.getPrefHeight()));
+        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> {
+            setStyleToDefault();
+            if (commandTextField.getLength() < InputLimits.MAX_COMMAND_LENGTH) {
+                clearOverflowWarning();
+            }
+            if (!areSuggestionsSuppressed) {
+                updateSuggestions();
+            }
+        });
+        commandTextField.focusedProperty().addListener((observable, oldValue, isFocused) -> {
+            if (!isFocused) {
+                hideSuggestions();
+            }
+        });
+        commandTextField.addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+    }
+
+    /**
+     * Refreshes matches after an input edit and selects the first match.
+     * Shows up to three rows over the output area without occupying space in the window layout.
+     */
+    private void updateSuggestions() {
+        suggestionList.getItems().setAll(commandSuggestions.suggest(commandTextField.getText()));
+        boolean isVisible = !suggestionList.getItems().isEmpty();
+        suggestionList.setVisible(isVisible);
+        suggestionList.setManaged(isVisible);
+        suggestionList.getSelectionModel().selectFirst();
+    }
+
+    /** Truncates edits that would exceed the command limit and records the attempted overflow. */
+    private TextFormatter.Change limitInputLength(TextFormatter.Change change) {
+        if (change.getControlNewText().length() <= InputLimits.MAX_COMMAND_LENGTH) {
+            return change;
+        }
+        int permittedLength = InputLimits.MAX_COMMAND_LENGTH - change.getControlText().length()
+                + change.getRangeEnd() - change.getRangeStart();
+        String truncatedText = change.getText().substring(0, Math.max(0, permittedLength));
+        if (!truncatedText.isEmpty() && Character.isHighSurrogate(truncatedText.charAt(truncatedText.length() - 1))) {
+            truncatedText = truncatedText.substring(0, truncatedText.length() - 1);
+        }
+        change.setText(truncatedText);
+        inputOverflowAttempted = true;
+        updateCommandHint();
+        return change;
+    }
+
+    /** Updates the command hint and its warning style based on the current input state. */
+    private void updateCommandHint() {
+        if (inputOverflowAttempted) {
+            commandHint.setText(OVERFLOW_WARNING);
+            addStyleClassIfAbsent(commandHint.getStyleClass(), WARNING_STYLE_CLASS);
+        } else if (suggestionList.isVisible()) {
+            commandHint.setText(SUGGESTION_HINT);
+            commandHint.getStyleClass().remove(WARNING_STYLE_CLASS);
+        } else {
+            commandHint.setText(COMMAND_HINT);
+            commandHint.getStyleClass().remove(WARNING_STYLE_CLASS);
+        }
+    }
+
+    /** Clears the overflow warning and restores the normal command hint. */
+    private void clearOverflowWarning() {
+        if (!inputOverflowAttempted) {
+            return;
+        }
+        inputOverflowAttempted = false;
+        updateCommandHint();
+    }
+
+    /**
+     * Dismisses the overlay without changing the window layout.
+     */
+    private void hideSuggestions() {
+        suggestionList.setVisible(false);
+        suggestionList.setManaged(false);
+    }
+
+    /**
+     * Replaces the incomplete command with the selected suggestion, preserving leading whitespace.
+     * Requires a visible list with a selected match; does not execute or record the completion in history.
+     */
+    private void completeSuggestion() {
+        String selected = suggestionList.getSelectionModel().getSelectedItem();
+        String input = commandTextField.getText();
+        String leadingWhitespace = input.substring(0, input.length() - input.stripLeading().length());
+        replaceInputWithoutSuggestions(leadingWhitespace + selected);
+    }
+
+    /**
+     * Replaces input during completion or history navigation without reopening suggestions.
+     * Places the caret at the end of the replacement.
+     */
+    private void replaceInputWithoutSuggestions(String text) {
+        areSuggestionsSuppressed = true;
+        try {
+            commandTextField.setText(text);
+        } finally {
+            areSuggestionsSuppressed = false;
+        }
+        hideSuggestions();
+        commandTextField.positionCaret(commandTextField.getLength());
+    }
+
+    /**
+     * Gives visible suggestions priority over history navigation for unmodified keys.
+     * Consumes handled keys to prevent the text field from also acting on them.
+     */
+    private void handleKeyPressed(KeyEvent event) {
+        if (event.isAltDown() || event.isControlDown() || event.isMetaDown() || event.isShiftDown()) {
+            return;
+        }
+        if (suggestionList.isVisible()) {
+            switch (event.getCode()) {
+                case UP:
+                case DOWN:
+                    moveSuggestionSelection(event.getCode() == KeyCode.UP ? -1 : 1);
+                    break;
+                case TAB:
+                    completeSuggestion();
+                    break;
+                case ENTER:
+                    handleCommandEntered();
+                    break;
+                case ESCAPE:
+                    hideSuggestions();
+                    break;
+                default:
+                    return;
+            }
+            event.consume();
+            return;
+        }
+        handleHistoryNavigation(event);
+    }
+
+    /**
+     * Moves the selection by {@code offset}, stopping at the list boundaries and keeping the match visible.
+     */
+    private void moveSuggestionSelection(int offset) {
+        int requestedIndex = suggestionList.getSelectionModel().getSelectedIndex() + offset;
+        int selectedIndex = Math.max(0, Math.min(requestedIndex, suggestionList.getItems().size() - 1));
+        suggestionList.getSelectionModel().select(selectedIndex);
+        suggestionList.scrollTo(selectedIndex);
+    }
+
+    /**
+     * Recalls commands using unmodified arrow keys while the command field has focus.
+     */
+    private void handleHistoryNavigation(KeyEvent event) {
+        String currentInput = commandTextField.getText();
+        String recalledInput;
+        if (event.getCode() == KeyCode.UP) {
+            recalledInput = commandHistory.previous(currentInput);
+        } else if (event.getCode() == KeyCode.DOWN) {
+            recalledInput = commandHistory.next(currentInput);
+        } else {
+            return;
+        }
+        replaceInputWithoutSuggestions(recalledInput);
+        event.consume();
+    }
+
+    /**
+     * Submits exact commands even with suggestions visible; otherwise completes a visible suggestion.
+     * Records submitted input in session history.
+     * Failed submissions retain their input and receive error styling.
      */
     @FXML
     private void handleCommandEntered() {
+        if (suggestionList.isVisible() && !commandSuggestions.isExactCommand(commandTextField.getText())) {
+            completeSuggestion();
+            return;
+        }
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        if (commandText.isEmpty()) {
+            commandHistory.add(commandText);
             return;
         }
 
+        hideSuggestions();
+        commandHistory.add(commandText);
         try {
             commandExecutor.execute(commandText);
             commandTextField.setText("");
         } catch (CommandException | ParseException e) {
+            clearOverflowWarning();
             setStyleToIndicateCommandFailure();
         }
     }
@@ -61,12 +270,15 @@ public class CommandBox extends UiPart<Region> {
      */
     private void setStyleToIndicateCommandFailure() {
         ObservableList<String> styleClass = commandTextField.getStyleClass();
+        addStyleClassIfAbsent(styleClass, ERROR_STYLE_CLASS);
+    }
 
-        if (styleClass.contains(ERROR_STYLE_CLASS)) {
+    /** Adds a style class only when it is not already present. */
+    private static void addStyleClassIfAbsent(ObservableList<String> styleClass, String styleClassName) {
+        if (styleClass.contains(styleClassName)) {
             return;
         }
-
-        styleClass.add(ERROR_STYLE_CLASS);
+        styleClass.add(styleClassName);
     }
 
     /**

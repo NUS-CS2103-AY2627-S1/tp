@@ -3,18 +3,20 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ADRIAN;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.BRENDA;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.ClientBuilder;
+import seedu.address.testutil.JobseekerBuilder;
 
 public class ModelManagerTest {
 
@@ -53,29 +55,13 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
-    }
-
-    @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
-    }
-
-    @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
-    }
-
-    @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void getFilteredJobseekerList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredJobseekerList().remove(0));
     }
 
     @Test
     public void equals() {
-        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        AddressBook addressBook = new AddressBookBuilder().withJobseeker(ALICE).withJobseeker(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
 
@@ -96,17 +82,78 @@ public class ModelManagerTest {
         // different addressBook -> returns false
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
-        // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
-        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
-
-        // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    /**
+     * The app opens on the default view, so hidden people must be left out from the very start.
+     */
+    @Test
+    public void constructor_hiddenPeople_onlyUnhiddenShown() {
+        AddressBook addressBook = new AddressBookBuilder()
+                .withJobseeker(ALICE).withJobseeker(new JobseekerBuilder(BENSON).withHidden(true).build())
+                .withClient(ADRIAN).withClient(new ClientBuilder(BRENDA).withHidden(true).build())
+                .build();
+
+        ModelManager hiddenModelManager = new ModelManager(addressBook, new UserPrefs());
+
+        assertEquals(List.of(ALICE), hiddenModelManager.getFilteredJobseekerList());
+        assertEquals(List.of(ADRIAN), hiddenModelManager.getFilteredClientList());
+    }
+
+    @Test
+    public void setAddressBook_nullAddressBook_throwsNullPointerException() {
+        // EP: null address book
+        assertThrows(NullPointerException.class, () -> modelManager.setAddressBook(null));
+    }
+
+    @Test
+    public void setAddressBook_validAddressBook_replacesExistingData() {
+        // EP: no people
+        assertAddressBookReplacedBy(new AddressBook()); // Boundary value
+
+        // EP: only jobseekers
+        assertAddressBookReplacedBy(new AddressBookBuilder().withJobseeker(BENSON).build());
+
+        // EP: only clients
+        assertAddressBookReplacedBy(new AddressBookBuilder().withClient(BRENDA).build());
+
+        // EP: both jobseekers and clients
+        assertAddressBookReplacedBy(new AddressBookBuilder().withJobseeker(BENSON)
+                .withClient(BRENDA).build());
+    }
+
+    /**
+     * The filter set by the constructor must keep applying to the new data, or replacing the data would
+     * reveal people who were hidden.
+     */
+    @Test
+    public void setAddressBook_hiddenPeople_onlyUnhiddenShown() {
+        // EP: both hidden and unhidden people
+        modelManager.setAddressBook(new AddressBookBuilder()
+                .withJobseeker(ALICE).withJobseeker(new JobseekerBuilder(BENSON).withHidden(true).build())
+                .withClient(ADRIAN).withClient(new ClientBuilder(BRENDA).withHidden(true).build())
+                .build());
+
+        assertEquals(List.of(ALICE), modelManager.getFilteredJobseekerList());
+        assertEquals(List.of(ADRIAN), modelManager.getFilteredClientList());
+    }
+
+    /**
+     * Asserts that setting {@code replacement} on a model that already holds people removes those people,
+     * from both the address book and the filtered lists that the GUI displays.
+     */
+    private void assertAddressBookReplacedBy(AddressBook replacement) {
+        AddressBook existingData = new AddressBookBuilder().withJobseeker(ALICE).withClient(ADRIAN).build();
+        modelManager = new ModelManager(existingData, new UserPrefs());
+
+        modelManager.setAddressBook(replacement);
+
+        assertEquals(replacement, modelManager.getAddressBook());
+        assertEquals(replacement.getJobseekerList(), modelManager.getFilteredJobseekerList());
+        assertEquals(replacement.getClientList(), modelManager.getFilteredClientList());
     }
 }

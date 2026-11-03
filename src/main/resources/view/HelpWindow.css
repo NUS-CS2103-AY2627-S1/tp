@@ -1,19 +1,91 @@
-#copyButton, #helpMessage {
-    -fx-text-fill: white;
+.root {
+    -text-color-1: #111111;
+    -text-color-2: #e46c0a;
+
+    -fx-font-size: 16;
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-text-fill: -text-color-1;
 }
 
-#copyButton {
-    -fx-background-color: dimgray;
+TextFlow, Label {
+    -fx-line-spacing: 0.25em;
 }
 
-#copyButton:hover {
-    -fx-background-color: gray;
+Text {
+    -fx-fill: -fx-text-fill;
 }
 
-#copyButton:armed {
-    -fx-background-color: darkgray;
+.hyperlink:visited {
+    -fx-text-fill: -fx-accent;
 }
 
-#helpMessageContainer {
-    -fx-background-color: derive(#1d1d1d, 20%);
+.document {
+    -fx-padding: 30 30 30 30;
+    -fx-spacing: 15;
+}
+
+.h1 {
+    -fx-font-size: 2.5em;
+    -fx-text-fill: -text-color-2;
+}
+
+.h2 {
+    -fx-font-size: 2em;
+    -fx-text-fill: -text-color-2;
+}
+
+.h3 {
+    -fx-font-size: 1.5em;
+    -fx-text-fill: -text-color-1;
+}
+
+.body {
+    -fx-spacing: 0.25em;
+}
+
+.bold {
+    -fx-font-weight: bold;
+}
+
+.italic {
+    -fx-font-style: italic;
+}
+
+.code {
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-size: 0.8em;
+
+    -fx-padding: 0 0.3em 0 0.3em;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+    -fx-background-color: #eeeeff;
+
+    -fx-border-width: 1;
+    -fx-border-style: solid;
+    -fx-border-color: #e8e8e8;
+
+
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.bullet {
+    -fx-scale-x: 1.5;
+    -fx-scale-y: 1.5;
+    -fx-padding: 0 8 0 8;
+}
+
+.copy-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.copy-button:hover {
+    -fx-background-color: lightgray;
+    -fx-border-color: transparent;
+}
+
+.copy-button:armed {
+    -fx-background-color: transparent;
+    -fx-border-color: grey;
 }

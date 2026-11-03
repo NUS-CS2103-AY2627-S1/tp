@@ -2,56 +2,60 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
-import seedu.address.commons.util.ToStringBuilder;
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonContainsKeywordsPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists all unhidden jobseekers and clients in the address book whose name, phone number,
+ * email, tags, job openings (for clients) or highest qualification (for jobseekers) contain any of the
+ * argument keywords. Keyword matching is case insensitive.
+ * This has the same effect as running {@code findj} and {@code findc} with the same keywords, so a
+ * recruiter can, for example, see every contact with a given tag in one command. Hidden jobseekers
+ * and clients are not searched.
  */
-public class FindCommand extends Command {
+public class FindCommand extends AbstractFindCommand {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all jobseekers and clients whose "
+            + "name, phone number, email, tags, job openings (for clients) or highest qualification "
+            + "(for jobseekers) contain any of the specified keywords (case-insensitive) and displays them "
+            + "as two lists with index numbers.\n"
+            + "Parameters: <keyword>...\n"
+            + "Example: " + COMMAND_WORD + " finance engineer diploma";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private static final Logger logger = LogsCenter.getLogger(FindCommand.class);
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
-        this.predicate = predicate;
+    /**
+     * Creates a command that lists all jobseekers and clients that match {@code predicate}.
+     *
+     * @param predicate Predicate that decides which jobseekers and clients are listed; must not be null.
+     */
+    public FindCommand(PersonContainsKeywordsPredicate predicate) {
+        super(predicate);
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
-        return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        if (other == this) {
-            return true;
-        }
-
-        // instanceof handles nulls
-        if (!(other instanceof FindCommand otherFindCommand)) {
-            return false;
-        }
-
-        return predicate.equals(otherFindCommand.predicate);
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this)
-                .add("predicate", predicate)
-                .toString();
+        // The same predicate filters both lists, which is exactly what findj followed by findc would do.
+        model.updateFilteredJobseekerList(Model.PREDICATE_SHOW_UNHIDDEN_JOBSEEKERS.and(predicate));
+        model.jobseekerFilterDescriptionProperty().set(
+                "Showing unhidden jobseekers matching \"" + predicate.getSearchText() + "\"");
+        model.updateFilteredClientList(Model.PREDICATE_SHOW_UNHIDDEN_CLIENTS.and(predicate));
+        model.clientFilterDescriptionProperty().set(
+                "Showing unhidden clients matching \"" + predicate.getSearchText() + "\"");
+        int jobseekerMatchCount = model.getFilteredJobseekerList().size();
+        int clientMatchCount = model.getFilteredClientList().size();
+        // FINE, not INFO: LogicManager already logs the command text at INFO, so this only adds detail
+        // that is useful when debugging search results.
+        logger.fine("Found " + jobseekerMatchCount + " jobseeker(s) and " + clientMatchCount
+                + " client(s) matching " + predicate);
+        return new CommandResult(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW,
+                jobseekerMatchCount, clientMatchCount));
     }
 }

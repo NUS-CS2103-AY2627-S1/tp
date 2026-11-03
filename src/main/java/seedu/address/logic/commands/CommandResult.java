@@ -13,19 +13,34 @@ public class CommandResult {
 
     private final String feedbackToUser;
 
+    /** Text to copy to the system clipboard, or {@code null} if no clipboard action is required. */
+    private final String clipboardText;
+
     /** Help information should be shown to the user. */
-    private final boolean showHelp;
+    private final boolean shouldShowHelp;
 
     /** The application should exit. */
-    private final boolean exit;
+    private final boolean shouldExit;
 
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
-    public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+    public CommandResult(String feedbackToUser, boolean shouldShowHelp, boolean shouldExit) {
+        this(feedbackToUser, shouldShowHelp, shouldExit, null);
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with clipboard text.
+     */
+    public CommandResult(String feedbackToUser, String clipboardText) {
+        this(feedbackToUser, false, false, requireNonNull(clipboardText));
+    }
+
+    private CommandResult(String feedbackToUser, boolean shouldShowHelp, boolean shouldExit, String clipboardText) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
-        this.showHelp = showHelp;
-        this.exit = exit;
+        this.shouldShowHelp = shouldShowHelp;
+        this.shouldExit = shouldExit;
+        this.clipboardText = clipboardText;
     }
 
     /**
@@ -41,11 +56,15 @@ public class CommandResult {
     }
 
     public boolean isShowHelp() {
-        return showHelp;
+        return shouldShowHelp;
     }
 
     public boolean isExit() {
-        return exit;
+        return shouldExit;
+    }
+
+    public String getClipboardText() {
+        return clipboardText;
     }
 
     @Override
@@ -60,21 +79,23 @@ public class CommandResult {
         }
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
-                && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && shouldShowHelp == otherCommandResult.shouldShowHelp
+                && shouldExit == otherCommandResult.shouldExit
+                && Objects.equals(clipboardText, otherCommandResult.clipboardText);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, shouldShowHelp, shouldExit, clipboardText);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("feedbackToUser", feedbackToUser)
-                .add("showHelp", showHelp)
-                .add("exit", exit)
+                .add("shouldShowHelp", shouldShowHelp)
+                .add("shouldExit", shouldExit)
+                .add("clipboardText", clipboardText)
                 .toString();
     }
 

@@ -6,11 +6,14 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.person.Client;
+import seedu.address.model.person.Jobseeker;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -18,9 +21,14 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
+    private final StringProperty jobseekerFilterDescription =
+            new SimpleStringProperty("Showing all unhidden jobseekers");
+    private final StringProperty clientFilterDescription =
+            new SimpleStringProperty("Showing all unhidden clients");
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Jobseeker> filteredJobseekers;
+    private final FilteredList<Client> filteredClients;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -32,7 +40,10 @@ public class ModelManager implements Model {
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredJobseekers = new FilteredList<>(this.addressBook.getJobseekerList());
+        filteredClients = new FilteredList<>(this.addressBook.getClientList());
+        updateFilteredJobseekerList(Model.PREDICATE_SHOW_UNHIDDEN_JOBSEEKERS);
+        updateFilteredClientList(Model.PREDICATE_SHOW_UNHIDDEN_CLIENTS);
     }
 
     public ModelManager() {
@@ -44,6 +55,16 @@ public class ModelManager implements Model {
     @Override
     public ReadOnlyUserPrefs getUserPrefs() {
         return userPrefs;
+    }
+
+    @Override
+    public StringProperty jobseekerFilterDescriptionProperty() {
+        return jobseekerFilterDescription;
+    }
+
+    @Override
+    public StringProperty clientFilterDescriptionProperty() {
+        return clientFilterDescription;
     }
 
     @Override
@@ -70,44 +91,85 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public void setJobseekers(java.util.List<Jobseeker> jobseekers) {
+        this.addressBook.setJobseekers(jobseekers);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void setClients(java.util.List<Client> clients) {
+        this.addressBook.setClients(clients);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public boolean hasJobseeker(Jobseeker jobseeker) {
+        return addressBook.hasJobseeker(jobseeker);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
+    public boolean hasClient(Client client) {
+        return addressBook.hasClient(client);
+    }
 
-        addressBook.setPerson(target, editedPerson);
+    @Override
+    public void deleteJobseeker(Jobseeker target) {
+        addressBook.removeJobseeker(target);
+    }
+
+    @Override
+    public void deleteClient(Client target) {
+        addressBook.removeClient(target);
+    }
+
+    @Override
+    public void addJobseeker(Jobseeker jobseeker) {
+        addressBook.addJobseeker(jobseeker);
+    }
+
+    @Override
+    public void addClient(Client client) {
+        addressBook.addClient(client);
+    }
+
+    @Override
+    public void setJobseeker(Jobseeker target, Jobseeker editedJobseeker) {
+        addressBook.setJobseeker(target, editedJobseeker);
+    }
+
+    @Override
+    public void setClient(Client target, Client editedClient) {
+        addressBook.setClient(target, editedClient);
     }
 
     //=========== Filtered Person List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * Returns an unmodifiable view containing only the filtered jobseekers in the address book.
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    @SuppressWarnings("unchecked")
+    public ObservableList<Jobseeker> getFilteredJobseekerList() {
+        return filteredJobseekers;
+    }
+
+    /**
+     * Returns an unmodifiable view containing only the filtered clients in the address book.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public ObservableList<Client> getFilteredClientList() {
+        return filteredClients;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public void updateFilteredJobseekerList(Predicate<? super Jobseeker> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredJobseekers.setPredicate(predicate);
+    }
+
+    @Override
+    public void updateFilteredClientList(Predicate<? super Client> predicate) {
+        requireNonNull(predicate);
+        filteredClients.setPredicate(predicate);
     }
 
     @Override
@@ -122,8 +184,7 @@ public class ModelManager implements Model {
         }
 
         return addressBook.equals(otherModelManager.addressBook)
-                && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && userPrefs.equals(otherModelManager.userPrefs);
     }
 
 }
