@@ -1,0 +1,59 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "e:ExportCommand" as ExportCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":CsvExporter" as CsvExporter STORAGE_COLOR
+end box
+
+[-> LogicManager : execute(commandText)
+activate LogicManager
+
+note over ExportCommand
+Parsing produces e with immutable fields:
+[NAME, PHONE, INSTRUMENTS].
+end note
+
+LogicManager -> ExportCommand : execute(m)
+activate ExportCommand
+
+ExportCommand -> Model : getFilteredPersonList()
+activate Model
+
+Model --> ExportCommand : currentResults
+deactivate Model
+note over Model
+Current filtered results,
+in displayed sort order.
+end note
+
+ExportCommand -> CsvExporter : export(currentResults,\nexportDirectory, fields)
+activate CsvExporter
+note over CsvExporter
+Write headers and rows in field order.
+Choose the first unused numbered file.
+Empty results write only headers.
+end note
+
+CsvExporter --> ExportCommand : outputPath
+deactivate CsvExporter
+
+ExportCommand --> LogicManager : r:CommandResult
+deactivate ExportCommand
+note over LogicManager
+requiresSave() is false:
+no save or history change.
+end note
+
+[<--LogicManager
+deactivate LogicManager
+@enduml

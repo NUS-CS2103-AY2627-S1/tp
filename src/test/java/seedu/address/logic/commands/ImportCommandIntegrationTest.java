@@ -1,0 +1,260 @@
+package seedu.address.logic.commands;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.logic.Messages;
+import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+
+/**
+ * Contains integration tests (interaction with the Model and CSV files) for {@code ImportCommand}.
+ */
+public class ImportCommandIntegrationTest {
+
+    private static final String FILE_NAME = "import-command-integration-test.csv";
+    private static final String HEADER = "name,phone,email,status,memberType,role,instruments,groups";
+
+    @TempDir
+    public Path temporaryFolder;
+
+    private Path importDirectory;
+    private Path importFile;
+    private Model model;
+
+    @BeforeEach
+    public void setUp() throws IOException {
+        importDirectory = Files.createDirectory(temporaryFolder.resolve("imports"));
+        importFile = importDirectory.resolve(FILE_NAME);
+        model = new ModelManager(new AddressBook(), new UserPrefs());
+    }
+
+    @AfterEach
+    public void tearDown() throws IOException {
+        Files.deleteIfExists(importFile);
+    }
+
+    @Test
+    public void execute_validPeople_success() throws IOException {
+        Person existingPerson = new PersonBuilder().withName("Existing Person").withPhone("81111111")
+                .withEmail("existing@example.com").build();
+        Person personWithOptionalFields = new PersonBuilder().withName("Alice Tan").withPhone("91234567")
+                .withEmail("alice@example.com").withStatus("member").withMemberType("student")
+                .withRole("Section Leader").withInstruments("Violin:8", "Piano:5")
+                .withGroups("Orchestra", "Leadership Team").build();
+        Person personWithoutOptionalFields = new PersonBuilder().withName("Ben Lee").withPhone("92345678")
+                .withEmail("ben@example.com").withStatus("active-alumnus").withMemberType("teacher")
+                .withInstruments("Cello:12").build();
+        model.addPerson(existingPerson);
+        writeImportFile(
+                HEADER,
+                "\"Alice Tan\",\"91234567\",\"alice@example.com\",\"member\",\"student\","
+                        + "\"Section Leader\",\"Violin:8;Piano:5\",\"Orchestra;Leadership Team\"",
+                "\"Ben Lee\",\"92345678\",\"ben@example.com\",\"active-alumnus\",\"teacher\","
+                        + "\"\",\"Cello:12\",\"\"");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.addPerson(personWithOptionalFields);
+        expectedModel.addPerson(personWithoutOptionalFields);
+
+        assertCommandSuccess(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_SUCCESS, 2, importFile), expectedModel);
+    }
+
+    @Test
+    public void execute_validPersonWithActiveFilter_showsAllPeople() throws IOException {
+        Person existingPerson = new PersonBuilder().withName("Existing Person").withPhone("81111111")
+                .withEmail("existing@example.com").build();
+        Person importedPerson = new PersonBuilder().withName("Alice Tan").withPhone("91234567")
+                .withEmail("alice@example.com").build();
+        model.addPerson(existingPerson);
+        model.updateFilteredPersonList(person -> person.isSamePerson(existingPerson));
+        writeImportFile(HEADER, "Alice Tan,91234567,alice@example.com,member,student,,,");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.addPerson(importedPerson);
+
+        assertCommandSuccess(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_SUCCESS_SINGULAR, 1, importFile), expectedModel);
+    }
+
+    @Test
+    public void execute_rowWithWrongColumnCount_failureIsAtomic() throws IOException {
+        writeImportFile(HEADER, "Alice Tan,91234567,alice@example.com,member,student,,Violin:8");
+
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME, "Expected 8 columns at line 2."));
+    }
+
+    @Test
+    public void execute_invalidStatus_failureIsAtomic() throws IOException {
+        writeImportFile(HEADER, "Alice Tan,91234567,alice@example.com,alumnus,student,,Violin:8,");
+
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME,
+                        "Invalid value at line 2: Status should be member, active-alumnus, or inactive-alumnus"));
+    }
+
+    @Test
+    public void execute_invalidMemberType_failureIsAtomic() throws IOException {
+        writeImportFile(HEADER, "Alice Tan,91234567,alice@example.com,member,parent,,Violin:8,");
+
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME,
+                        "Invalid value at line 2: Member type should be student or teacher"));
+    }
+
+    @Test
+    public void execute_sharedNameWithDifferentDetails_success() throws IOException {
+        Person first = new PersonBuilder().withName("Alex Same").withPhone("91234567")
+                .withEmail("one@example.com").build();
+        Person second = new PersonBuilder().withName("Alex Same").withPhone("92345678")
+                .withEmail("two@example.com").build();
+        writeImportFile(HEADER, "Alex Same,91234567,one@example.com,member,student,,,",
+                "Alex Same,92345678,two@example.com,member,student,,,");
+        Model expected = new ModelManager(new AddressBook(), new UserPrefs());
+        expected.addPerson(first);
+        expected.addPerson(second);
+
+        assertCommandSuccess(new ImportCommand(FILE_NAME, importDirectory), model,
+                String.format(ImportCommand.MESSAGE_SUCCESS, 2, importFile), expected);
+    }
+
+    @Test
+    public void execute_sameCsvTwice_secondImportFailsAtomically() throws Exception {
+        writeImportFile(HEADER, "Alice Tan,91234567,alice@example.com,member,student,,,");
+        new ImportCommand(FILE_NAME, importDirectory).execute(model);
+        String expectedMessage = String.format(ImportCommand.MESSAGE_DUPLICATE_PERSON, "Alice Tan", 2);
+
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    @Test
+    public void execute_duplicateExistingPerson_failureIsAtomic() throws IOException {
+        Person existingPerson = new PersonBuilder().withName("Existing Person").withPhone("81111111")
+                .withEmail("existing@example.com").withRole("Section Leader").build();
+        model.addPerson(existingPerson);
+        writeImportFile(HEADER,
+                "Existing Person,81111111,existing@example.com,member,student,\"Section",
+                "Leader\",,");
+        String expectedMessage = String.format(ImportCommand.MESSAGE_DUPLICATE_PERSON, "Existing Person", 2);
+
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    @Test
+    public void execute_duplicateAfterMultilineRecord_reportsPhysicalLineAndFailsAtomically() throws IOException {
+        Person existingPerson = new PersonBuilder().withName("Existing Person").withPhone("81111111")
+                .withEmail("existing@example.com").build();
+        model.addPerson(existingPerson);
+        model.updateFilteredPersonList(person -> false);
+        writeImportFile(HEADER,
+                "New Person,91234567,new@example.com,member,student,\"Section",
+                "Leader\",,",
+                "Existing Person,81111111,existing@example.com,member,student,,,");
+
+        String expectedMessage = String.format(ImportCommand.MESSAGE_DUPLICATE_PERSON, "Existing Person", 4);
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    @Test
+    public void execute_duplicatePeopleInCsv_successWithWarning() throws IOException {
+        Person first = new PersonBuilder().withName("Alice Tan").withPhone("91234567")
+                .withEmail("alice@example.com").build();
+        Person second = new PersonBuilder(first).withNewId().build();
+        writeImportFile(
+                HEADER,
+                "Alice Tan,91234567,alice@example.com,member,student,,,",
+                "Alice Tan,91234567,alice@example.com,member,student,,,");
+        Model expectedModel = new ModelManager(new AddressBook(), new UserPrefs());
+        expectedModel.addPerson(first);
+        expectedModel.addPerson(second);
+        String expectedMessage = String.format(AddCommand.MESSAGE_POSSIBLE_DUPLICATE, Messages.format(second))
+                + "\n" + String.format(ImportCommand.MESSAGE_SUCCESS, 2, importFile);
+
+        assertCommandSuccess(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_defaultExportWithIdenticalPeople_preservesBothRecords() throws Exception {
+        Person first = new PersonBuilder().withName("Alice Tan").withPhone("91234567")
+                .withEmail("alice@example.com").build();
+        Person second = new PersonBuilder(first).withNewId().build();
+        new AddCommand(first).execute(model);
+        new AddCommand(second).execute(model);
+        Path exportDirectory = Files.createDirectory(temporaryFolder.resolve("exports"));
+        Path exportedFile = exportDirectory.resolve("current-results-01.csv");
+        new ExportCommand(exportDirectory).execute(model);
+        Files.copy(exportedFile, importFile);
+        new ClearCommand().execute(model);
+
+        Model expectedModel = new ModelManager(new AddressBook(), new UserPrefs());
+        expectedModel.addPerson(new PersonBuilder(first).withNewId().build());
+        expectedModel.addPerson(new PersonBuilder(second).withNewId().build());
+        String expectedMessage = String.format(AddCommand.MESSAGE_POSSIBLE_DUPLICATE, Messages.format(second))
+                + "\n" + String.format(ImportCommand.MESSAGE_SUCCESS, 2, importFile);
+
+        assertCommandSuccess(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_importFileIsSymbolicLinkOutsideImportDirectory_failureIsAtomic() throws IOException {
+        Path outsideFile = temporaryFolder.resolve("outside.csv");
+        Files.writeString(outsideFile, HEADER);
+        createSymbolicLinkOrSkip(importFile, outsideFile);
+
+        String expectedMessage = String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME,
+                "Symbolic links are not allowed.");
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    @Test
+    public void execute_importFileIsSymbolicLinkInsideImportDirectory_failureIsAtomic() throws IOException {
+        Path actualFile = importDirectory.resolve("actual.csv");
+        Files.writeString(actualFile, HEADER);
+        createSymbolicLinkOrSkip(importFile, actualFile);
+
+        String expectedMessage = String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME,
+                "Symbolic links are not allowed.");
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    @Test
+    public void execute_importDirectoryIsSymbolicLink_failureIsAtomic() throws IOException {
+        Path outsideDirectory = Files.createDirectory(temporaryFolder.resolve("outside"));
+        Files.writeString(outsideDirectory.resolve(FILE_NAME), HEADER);
+        Files.delete(importDirectory);
+        createSymbolicLinkOrSkip(importDirectory, outsideDirectory);
+
+        String expectedMessage = String.format(ImportCommand.MESSAGE_IMPORT_FAILURE, FILE_NAME,
+                "Symbolic links are not allowed.");
+        assertCommandFailure(new ImportCommand(FILE_NAME, importDirectory), model, expectedMessage);
+    }
+
+    private void writeImportFile(String... lines) throws IOException {
+        Files.write(importFile, String.join(System.lineSeparator(), lines).getBytes(UTF_8));
+    }
+
+    private void createSymbolicLinkOrSkip(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (UnsupportedOperationException | IOException exception) {
+            assumeTrue(false, "Symbolic links are unavailable: " + exception.getMessage());
+        }
+    }
+}

@@ -8,6 +8,7 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -138,7 +139,62 @@ public class AddCommandTest {
         }
 
         @Override
+        public Predicate<Person> getFilteredPersonListPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateSortedPersonList(Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public int getUndoableChangeCount() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public int getRedoableChangeCount() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String redoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void commitAddressBook(String description) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public int getAddressBookHistoryPosition() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreAddressBookHistoryPosition(int position) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -166,6 +222,11 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
+
+        @Override
+        public void commitAddressBook(String description) {
+            // called after a successful add; nothing to record
+        }
 
         @Override
         public boolean hasPerson(Person person) {

@@ -1,5 +1,6 @@
 package seedu.address.model;
 
+import java.util.Comparator;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -60,7 +61,7 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /** Returns an unmodifiable view of the filtered person list in its current display order. */
     ObservableList<Person> getFilteredPersonList();
 
     /**
@@ -68,4 +69,66 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the ordering of the displayed person list.
+     * A null comparator restores the source order.
+     */
+    void updateSortedPersonList(Comparator<Person> comparator);
+
+    /** Returns the predicate currently used to filter the person list. */
+    Predicate<Person> getFilteredPersonListPredicate();
+
+    /**
+     * Returns true if there is a change that {@link #undoAddressBook()} can revert.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Reverts the most recent change to the address book.
+     *
+     * @return the description of the reverted change, as given to {@link #commitAddressBook(String)}.
+     */
+    String undoAddressBook();
+
+    /**
+     * Returns the number of changes that {@link #undoAddressBook()} can revert one after another.
+     */
+    int getUndoableChangeCount();
+
+    /**
+     * Returns the number of undone changes that {@link #redoAddressBook()} can restore one after another.
+     */
+    int getRedoableChangeCount();
+
+    /**
+     * Returns true if there is an undone change that {@link #redoAddressBook()} can restore.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Restores the most recently undone change to the address book.
+     *
+     * @return the description of the restored change, as given to {@link #commitAddressBook(String)}.
+     */
+    String redoAddressBook();
+
+    /**
+     * Records the current address book state so that the change leading to it can be undone.
+     * Undone changes can no longer be redone afterwards, even if the address book is unchanged.
+     *
+     * @param description the change that led to the current state, reported by undo and redo.
+     */
+    void commitAddressBook(String description);
+
+    /**
+     * Returns the position of the current state in the address book's undo history.
+     */
+    int getAddressBookHistoryPosition();
+
+    /**
+     * Moves the undo history back to {@code position}, as returned by {@link #getAddressBookHistoryPosition()}.
+     * The address book data is not changed.
+     */
+    void restoreAddressBookHistoryPosition(int position);
 }

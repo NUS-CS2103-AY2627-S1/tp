@@ -10,13 +10,21 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names must start with a letter or number and contain only letters, numbers, spaces, "
+            + "apostrophes, hyphens or full stops. The markers s/o and d/o may appear between name parts";
 
-    /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+    /**
+     * Supports international letters and combining accents while excluding CLI prefix separators.
+     * Requiring a letter or number first also rejects blank or punctuation-only names.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    private static final String NAME_PART = "[\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} .'\u2019-]*";
+
+    /**
+     * Allows {@code /} only within the standalone relationship markers s/o and d/o (ASCII, any case).
+     * Neither can be a mistyped prefix, as no command uses d/ and no status starts with o, so any other slash,
+     * such as a mistyped prefix, is still rejected.
+     */
+    public static final String VALIDATION_REGEX = NAME_PART + "(?: (?i:[sd]/o) +" + NAME_PART + ")*";
 
     public final String fullName;
 

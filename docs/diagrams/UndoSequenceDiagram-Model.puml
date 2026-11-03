@@ -1,23 +1,37 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam sequenceMessageAlign left
 
 box Model MODEL_COLOR_T1
-participant ":Model" as Model MODEL_COLOR
+participant "m:Model" as Model MODEL_COLOR
 participant ":VersionedAddressBook" as VersionedAddressBook MODEL_COLOR
 end box
 
-[-> Model : undoAddressBook()
+[-> Model : undoAddressBook()<U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0>
 activate Model
-
 Model -> VersionedAddressBook : undo()
 activate VersionedAddressBook
-
-VersionedAddressBook -> VersionedAddressBook :resetData(ReadOnlyAddressBook)
-VersionedAddressBook --> Model :
+VersionedAddressBook -> VersionedAddressBook : canUndo()
+activate VersionedAddressBook
+VersionedAddressBook --> VersionedAddressBook : true
 deactivate VersionedAddressBook
-
-[<-- Model
+note right of VersionedAddressBook
+description = changeDescriptionList
+.get(currentStatePointer)
+currentStatePointer--
+end note
+VersionedAddressBook -> VersionedAddressBook : resetData(addressBookStateList\n.get(currentStatePointer))
+activate VersionedAddressBook
+VersionedAddressBook --> VersionedAddressBook
+deactivate VersionedAddressBook
+VersionedAddressBook --> Model : description
+deactivate VersionedAddressBook
+[<-- Model : description
 deactivate Model
 
+note over Model, VersionedAddressBook
+One successful undo step; Logic repeats this
+for the requested count.
+end note
 @enduml

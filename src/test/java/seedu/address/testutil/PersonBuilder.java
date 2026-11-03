@@ -1,14 +1,19 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Instrument;
+import seedu.address.model.person.MemberType;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.Status;
 import seedu.address.model.util.SampleDataUtil;
 
 /**
@@ -19,34 +24,45 @@ public class PersonBuilder {
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
+    private UUID id;
     private Name name;
     private Phone phone;
     private Email email;
-    private Address address;
-    private Set<Tag> tags;
+    private Status status;
+    private MemberType memberType;
+    private Optional<Role> role;
+    private Set<Instrument> instruments;
+    private Set<Group> groups;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
+        id = UUID.randomUUID();
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        status = Status.MEMBER;
+        memberType = MemberType.STUDENT;
+        role = Optional.empty();
+        instruments = new HashSet<>();
+        groups = new HashSet<>();
     }
 
     /**
      * Initializes the PersonBuilder with the data of {@code personToCopy}.
      */
     public PersonBuilder(Person personToCopy) {
+        id = personToCopy.getId();
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        status = personToCopy.getStatus();
+        memberType = personToCopy.getMemberType();
+        role = personToCopy.getRole();
+        instruments = new HashSet<>(personToCopy.getInstruments());
+        groups = new HashSet<>(personToCopy.getGroups());
     }
 
     /**
@@ -58,18 +74,22 @@ public class PersonBuilder {
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
+     * Parses the {@code NAME:YEARS} {@code instruments} into a {@code Set<Instrument>} and sets it to the
+     * {@code Person} that we are building.
      */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
+    public PersonBuilder withInstruments(String ... instruments) {
+        this.instruments = SampleDataUtil.getInstrumentSet(instruments);
         return this;
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
+     * Sets the participation groups of the person being built.
      */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
+    public PersonBuilder withGroups(String... groups) {
+        this.groups = new HashSet<>();
+        for (String group : groups) {
+            this.groups.add(new Group(group));
+        }
         return this;
     }
 
@@ -89,8 +109,56 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the membership status of the person being built.
+     */
+    public PersonBuilder withStatus(String status) {
+        this.status = Status.fromString(status);
+        return this;
+    }
+
+    /**
+     * Sets whether the person is a student or teacher.
+     */
+    public PersonBuilder withMemberType(String memberType) {
+        this.memberType = MemberType.fromString(memberType);
+        return this;
+    }
+
+    /**
+     * Sets the person's optional role.
+     */
+    public PersonBuilder withRole(String role) {
+        this.role = Optional.of(new Role(role));
+        return this;
+    }
+
+    /**
+     * Removes the person's role.
+     */
+    public PersonBuilder withoutRole() {
+        this.role = Optional.empty();
+        return this;
+    }
+
+    /**
+     * Gives a copied set of details a distinct member-record identity.
+     */
+    public PersonBuilder withNewId() {
+        id = UUID.randomUUID();
+        return this;
+    }
+
+    /**
+     * Keeps the identity of the selected member when building expected edited details.
+     */
+    public PersonBuilder withId(UUID id) {
+        this.id = id;
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(id, name, phone, email, status, memberType, role, instruments, groups);
     }
 
 }

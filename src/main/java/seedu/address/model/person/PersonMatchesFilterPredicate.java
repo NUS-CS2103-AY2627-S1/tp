@@ -1,0 +1,55 @@
+package seedu.address.model.person;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.Set;
+import java.util.function.Predicate;
+
+/**
+ * Tests member criteria, with OR within each field and AND between fields.
+ */
+public class PersonMatchesFilterPredicate implements Predicate<Person> {
+    private final Set<Status> statuses;
+    private final Set<InstrumentCriterion> instrumentCriteria;
+    private final Set<MemberType> memberTypes;
+    private final Set<Role> roles;
+    private final Set<Group> groups;
+
+    /**
+     * Creates a predicate with optional status, instrument, member type, and role criteria.
+     * Participation groups are unrestricted.
+     */
+    public PersonMatchesFilterPredicate(Set<Status> statuses, Set<InstrumentCriterion> instrumentCriteria,
+            Set<MemberType> memberTypes, Set<Role> roles) {
+        this(statuses, instrumentCriteria, memberTypes, roles, Set.of());
+    }
+
+    /**
+     * Creates a predicate with optional status, instrument, member type, role, and group criteria.
+     * An empty set leaves its field unrestricted. Roles match the whole name, ignoring case and surrounding whitespace.
+     * Groups match the whole name, ignoring case and extra whitespace.
+     */
+    public PersonMatchesFilterPredicate(Set<Status> statuses, Set<InstrumentCriterion> instrumentCriteria,
+            Set<MemberType> memberTypes, Set<Role> roles, Set<Group> groups) {
+        this.statuses = Set.copyOf(requireNonNull(statuses));
+        this.instrumentCriteria = Set.copyOf(requireNonNull(instrumentCriteria));
+        this.memberTypes = Set.copyOf(requireNonNull(memberTypes));
+        this.roles = Set.copyOf(requireNonNull(roles));
+        this.groups = Set.copyOf(requireNonNull(groups));
+    }
+
+    @Override
+    public boolean test(Person person) {
+        boolean matchesStatus = statuses.isEmpty() || statuses.contains(person.getStatus());
+        boolean matchesInstrument = instrumentCriteria.isEmpty() || instrumentCriteria.stream()
+                .anyMatch(criterion -> person.getInstruments().stream()
+                        .anyMatch(criterion::matches));
+        boolean matchesMemberType = memberTypes.isEmpty() || memberTypes.contains(person.getMemberType());
+        boolean matchesRole = roles.isEmpty() || person.getRole()
+                .map(role -> roles.stream().anyMatch(criterion -> criterion.value.trim()
+                        .equalsIgnoreCase(role.value.trim())))
+                .orElse(false);
+        boolean matchesGroup = groups.isEmpty() || person.getGroups().stream().anyMatch(groups::contains);
+        return matchesStatus && matchesInstrument && matchesMemberType && matchesRole && matchesGroup;
+    }
+}

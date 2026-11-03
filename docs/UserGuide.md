@@ -3,7 +3,7 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+HiveMind is a **desktop directory for Music CCA members and alumni, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). It helps coordinators view contact details, membership information, roles, and musical experience in one place. HiveMind is adapted from AddressBook Level 3 (AB3).
 
 * Table of Contents
 {:toc}
@@ -15,20 +15,23 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from the [HiveMind releases page](https://github.com/AY2627S1-CS2103T-T10-3/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for HiveMind.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar HiveMind.jar`.<br>
+   HiveMind always uses the folder containing the JAR file as its _home folder_, even if you run the command from
+   another folder. It keeps its `data`, `imports`, and `exports` folders, preferences, and application logs inside
+   this home folder.<br>
+   A GUI similar to the one below should appear in a few seconds. On first launch without a data file, the app contains sample records. The screenshot shows these sample records; existing saved records are loaded instead if a data file is present.<br>
+   ![HiveMind showing member cards with contact details, type, status, optional roles, and instruments](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Shows all members and their recorded details.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add n/John Doe p/98765432 e/johnd@example.com s/member` : Adds a current member named `John Doe`.
 
    * `delete 3` : Deletes the 3rd contact shown in the current list.
 
@@ -36,9 +39,23 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
    * `exit` : Exits the app.
 
+1. Use [Up and Down](#recalling-commands-with-arrow-keys) in the command box to recall recent submissions.
+
 1. Refer to the [Features](#features) section below for details of each command.
 
 --------------------------------------------------------------------------------------------------------------------
+
+## Empty member lists
+
+When the directory has no members, the list area guides you to enter `add` with member details and use `help` for examples. When a search or filter has no matches in a nonempty directory, it shows **No matching members. Enter list to show everyone.** Enter `list` to restore the full directory.
+
+## Member result count
+
+The count above the member list shows **Showing X of Y members**: X is the number of members currently displayed and Y is the total directory size. For a directory with one member, the label uses **member**, for example **Showing 0 of 1 member** when a search has no matches. It stays visible after commands, including when `find` or `filter` displays no matches, and updates when member data changes.
+
+## Command feedback
+
+Command feedback has a **Success** label in green when a command completes and an **Error** label in red when it fails. Startup notices use a neutral **Information** label. Feedback wraps in narrow windows; scroll vertically in the feedback box to read longer messages, or select and copy the text.
 
 ## Features
 
@@ -50,13 +67,18 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `n/NAME [r/ROLE]` can be used as `n/John Doe r/Section Leader` or as `n/John Doe`.
 
 * Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+  For example, `[i/INSTRUMENT:YEARS]…​` may be omitted, or written as `i/Violin:5` or `i/Violin:5 i/Piano:2`.
 
-* Parameters can be in any order.<br>
+* Prefixed parameters can be in any order. For `export`, their order determines the CSV column order. Positional parameters must stay in the position shown in the command format; for example, `INDEX` must precede the prefixed fields in `edit`.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+
+* A parameter value cannot contain a space followed by another prefix of the same command, as HiveMind reads that as the start of a new parameter.<br>
+  For example, `edit 1 r/Head g/Coach` sets the role to `Head` and the groups to `Coach`, and `edit 1 r/ n/a` removes the role and renames the person to `a`. Text such as `c/o` or `and/or` is fine, as it is not a prefix.
+
+* Prefixes are lowercase. Prefixes from other address book apps, such as `t/` and `a/`, are not supported.
 
 * Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
   For example, `help 123` is interpreted as `help`.
@@ -64,9 +86,24 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
+### Recalling commands with arrow keys
+
+With the command box focused, press **↑ (Up)** to recall an older submission or **↓ (Down)** to move towards newer submissions. Recalled text is editable. **Only pressing Enter executes it**; browsing does not change members or the displayed results.
+
+* HiveMind remembers the latest **100 nonblank submissions** in this app session, including failed commands and repeats. Closing the app clears this history.
+* If you have unfinished input, Up saves it while you browse. Down after the newest submission restores that input.
+* If you edit a recalled command, that edited text becomes a new draft. The next Up starts again at the newest submission; Down can restore your edited draft. Stored submissions remain unchanged.
+* Up stops at the oldest available submission; Down stops at your draft. With no history, both keys leave your input unchanged.
+* Use the arrow keys without Shift, Ctrl, Alt or Command/Meta. Modified arrow shortcuts keep their usual editing behaviour.
+* Successful submissions still clear the command box. Failed submissions stay in the box so you can correct them.
+
+For example, submit `list`, then `find Alex`. Type `find Ber` without pressing Enter. Up recalls `find Alex`; another Up recalls `list`. Press Down twice to return to `find Ber`, finish the command and press Enter when ready.
+
+Command recall is separate from `undo` and `redo`: it recalls text and does not reverse changes to member records.
+
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens a window with a link to this User Guide. Select **Copy URL** to copy the link. You can also press `F1`.
 
 ![help message](images/helpMessage.png)
 
@@ -75,60 +112,230 @@ Format: `help`
 
 ### Adding a person: `add`
 
-Adds a person to the address book.
+Adds a person to HiveMind.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add n/NAME p/PHONE_NUMBER e/EMAIL s/STATUS [ty/TYPE] [r/ROLE] [i/INSTRUMENT:YEARS]…​ [g/GROUP]…​`
+
+* `s/STATUS` is required: use `member`, `active-alumnus`, or `inactive-alumnus`. Status is case-insensitive.
+* `n/NAME` supports international letters and accents, numbers, ordinary spaces, apostrophes (`'` or `’`), hyphens and full stops. A name must start with a letter or number and cannot be blank. A name can contain `/` only in the markers `s/o` (son of) and `d/o` (daughter of), written between two name parts with a space on each side, as in `Ravi S/O Kumar`. For example, `Zoé Tan`, `张伟`, `Anne-Marie`, `O'Neil Tan` and `Priya d/o Raman` are accepted; `-Alex` and `Alex/Tan` are rejected.
+* In a command, type `s/o` in capitals, as in `n/Ravi S/O Kumar`, because a lowercase `s/` starts the status. HiveMind stores the name exactly as you type it. A CSV import accepts the marker in any case.
+* `p/PHONE_NUMBER` accepts at least three digits (`0`–`9`) with no spaces, hyphens or `+`. For example, `91234567` and `00123456789` are accepted; `12`, `ab`, `9123 4567` and `+6591234567` are rejected.
+* `e/EMAIL` must have a local part, `@`, and a domain. The local part uses letters (`A`–`Z`, `a`–`z`) and digits, with single `+`, `_`, `.`, or `-` characters allowed between alphanumeric sequences. Each domain label uses letters and digits, with single hyphens allowed between alphanumeric sequences; the final label must have at least two characters. For example, `sean@example.com` and `sean.tan+cca@example-school.sg` are accepted; `not-email`, `.sean@example.com`, `sean..tan@example.com` and `sean@example.c` are rejected.
+* If the name matches an existing member's name ignoring case, or the phone number matches, HiveMind shows a warning for each possible duplicate and still adds the new member. Even identical details can belong to separate records; check the warning to avoid accidental duplicates.
+* `ty/TYPE` is optional: use `student` or `teacher`. It defaults to `student` when omitted.
+* `r/ROLE` is optional free text, such as `Section Leader`. Invisible formatting characters are removed, and the result cannot be blank. Extra spaces are removed, so `Vice   President`{: style="white-space: pre"} (three spaces) is saved as `Vice President` (one space).
+* Type and status appear beneath the member's name on the card. If a role is supplied, it appears beneath the contact details; otherwise, the role line is hidden.
+* `i/INSTRUMENT:YEARS` records an instrument the person plays and how many whole years they have played it, from `0` to `99`. For example, `i/Violin:5` or `i/Bass Guitar:1`.
+* Instrument names cannot be blank or contain `:`. Each instrument can be listed only once per person; names are compared ignoring case, surrounding whitespace, and repeated whitespace, including Unicode spaces, so `Violin` and `violin` count as the same instrument. Invisible formatting characters, such as zero-width spaces copied from a web page, are removed from instrument names.
+* `g/GROUP` records a participation group, such as `g/Chamber Orchestra`. It may be repeated for multiple groups. Invisible formatting characters are removed, and names that become blank are rejected. Names are compared ignoring case, surrounding whitespace, and repeated whitespace, including Unicode spaces such as non-breaking spaces and en spaces, so repeated names are stored only once.
+* Recorded groups appear in the command's success message and as separate badges on the member card. A single group called `Dance, Music` has one badge; `g/Dance g/Music` produces two badges.
+* Start **each** group with the lowercase prefix `g/`, for example `g/Training g/Orchestra`. In `add`, an unrecognized prefix after a group can become part of that group's name: `g/Training gr/Orchestra` records one group named `Training gr/Orchestra`. Check the success message and correct a mistake with `edit INDEX g/Training g/Orchestra`.
+
+The name, phone and email rules also apply when editing those fields or importing a CSV file. Spaces at the start and end of a command field are removed. Within names, repeated ordinary spaces are preserved: `Alex Tan` (one space) and `Alex  Tan`{: style="white-space: pre"} (two spaces) are different name spellings. The possible-duplicate name warning ignores letter case, but does not collapse those spaces.
 
 <div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+A person can have any number of instruments, including zero.
 </div>
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add n/John Doe p/98765432 e/johnd@example.com s/member`
+* `add n/Betsy Crowe p/1234567 e/betsy@example.com s/active-alumnus ty/teacher r/Conductor i/Violin:12 i/Piano:4`
+* `add n/Jane Tan p/91234567 e/jane@example.com s/member g/Chamber Orchestra g/New Member Training`
+
+### Importing people from a CSV file: `import`
+
+Imports people from a CSV file in the `imports` folder. The imported people are added to the existing directory; import does not replace existing people.
+
+Format: `import FILE_NAME`
+
+Place the CSV file in the `imports` folder inside HiveMind's home folder, then provide its file name rather than a path. The file name must include the `.csv` extension and be a valid Windows file name. It cannot contain the reserved characters `\`, `/`, `:`, `*`, `?`, `"`, `<`, `>` or `|`, contain control characters, end with a space or period, or use a reserved name such as `CON.csv` or `COM1.csv`. For example, use `import members.csv` for a file named `members.csv` in that folder.
+
+Save the file using UTF-8 encoding. For example, when using Microsoft Excel, select the **CSV UTF-8** format rather than the plain CSV format.
+
+The CSV file must have this exact header and column order:
+
+```text
+name,phone,email,status,memberType,role,instruments,groups
+```
+
+The default `export` command produces this format. Partial exports, or exports with all eight columns in a different order,
+cannot be imported. Use `export` without field selections when preparing a file for import.
+
+Each subsequent non-empty member row must have exactly these eight columns:
+
+* `name`, `phone`, and `email` follow the same validation rules as `add`.
+* `status` must be `member`, `active-alumnus`, or `inactive-alumnus`.
+* `memberType` must be `student` or `teacher`.
+* `role`, `instruments`, and `groups` may be empty. An empty value can be represented using `""`.
+* List multiple instruments as `NAME:YEARS` values separated by semicolons, for example `Violin:8;Piano:5`.
+* List multiple groups separated by semicolons, for example `Orchestra;Leadership Team`.
+* Within an instrument or group name, write `\;` for a literal semicolon and `\\` for a literal backslash. `export` applies these escapes automatically.
+
+Example CSV file:
+
+```csv
+name,phone,email,status,memberType,role,instruments,groups
+"Alicia Tan","91234567","alicia.tan@example.com","member","student","Section Leader","Violin:8;Piano:5","Orchestra;Leadership Team"
+"Benjamin Lee","92345678","benjamin.lee@example.com","active-alumnus","teacher","","Cello:12",""
+```
+
+Blank lines and rows containing only empty fields are ignored, regardless of their number of columns. If any non-empty member row has invalid data, does not contain eight columns, or has the same recorded details as an existing member, the entire import fails and the directory remains unchanged. This prevents importing the same file twice from silently duplicating the directory. Identical rows within one CSV are imported as separate records with fresh IDs and produce a possible-duplicate warning, so a default export can restore such records after `clear`. Instrument and group names are compared ignoring case when identifying identical records.
+
+Example: `import members.csv`
 
 ### Listing all persons: `list`
 
-Shows a list of all persons in the address book.
+Shows all members and alumni in the directory, in insertion order. Use this command after `find` or `filter` to return to the full list. It also clears any ordering selected with `sort`.
 
 Format: `list`
 
+Each member card displays:
+
+* The member's displayed index and name in a prominent heading.
+* Text badges for member type (`Student` or `Teacher`) and membership status (`Member`, `Active alumnus`, or `Inactive alumnus`). The text identifies each value without relying on colour; command inputs still use the keywords listed under `add`.
+* Phone number and email address.
+* A `Role:` line when a role is recorded. No role line is shown when it is absent.
+* Recorded instruments and their years of experience, sorted alphabetically by instrument name, ignoring case. For example, `Piano (5 yrs)` and `Violin (1 yr)`. No instrument labels appear when none are recorded.
+* A `Groups:` heading with one badge per participation group, ordered alphabetically ignoring case. No groups section is shown when none are recorded.
+
+Long names, contact details, roles, instruments and groups wrap as the window narrows. If an email or role is cut off, hover over that field to see its complete text in a tooltip. Scroll down to see details or members below the visible area.
+
+The same card details are shown in `find` and `filter` results. Displayed indices start at `1` and refer to the current list, so a member's index may change after a search, filter or sort. Use the current displayed index for commands such as `edit` and `delete`.
+
+Members with matching names or contact details remain separate records. Use their current displayed indices to edit or delete the intended member.
+
+Example: after `find alex david`, enter `list` to show everyone again. The result message is `Listed all persons.`
+
 ### Editing a person: `edit`
 
-Edits an existing person in the address book.
+Edits an existing person in HiveMind.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [s/STATUS] [ty/TYPE] [r/ROLE] [i/INSTRUMENT:YEARS]…​ [g/GROUP]…​`
 
 * Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
 * At least one of the optional fields must be provided.
 * Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* `s/STATUS` and `ty/TYPE` accept the same values as in `add`.
+* `r/ROLE` replaces the person's role. To remove the role, enter `r/` without a role after it.
+* If you edit the name or phone number and it then matches another member's name ignoring case, or their phone number, HiveMind shows a possible-duplicate warning for each such member, as `add` does, and still makes the edit.
+* Fields that are not specified are preserved. For example, editing a person's status keeps their contact details, type, role, instruments, and groups.
+* When editing instruments, all of the person's existing instruments are replaced; adding instruments is not cumulative.
+* To remove all of a person's instruments, enter `i/` without an instrument after it. Mixing an empty `i/` with named instruments is invalid.
+* When editing groups, all existing groups are replaced by the supplied `g/GROUP` values. To remove all groups, enter `g/` alone. Mixing an empty `g/` with named groups is invalid.
+* After an edit, the full member list is shown, even if the list was showing the results of `find` or `filter`. Run the `find` or `filter` command again to return to those results.
 
 Examples:
 *  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+*  `edit 2 n/Betsy Crower i/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing instruments.
+*  `edit 3 i/Cello:6 i/Piano:2` Replaces the instruments of the 3rd person with Cello (6 years) and Piano (2 years).
+*  `edit 1 s/active-alumnus r/` Marks the 1st person as an active alumnus and removes their role.
+*  `edit 4 ty/teacher r/Conductor` Changes the 4th person's type to teacher and their role to `Conductor`.
+*  `edit 2 g/Chamber Orchestra g/Training` Replaces the 2nd person's groups.
+*  `edit 2 g/` Removes all groups from the 2nd person.
+
+### Sorting displayed members: `sort`
+
+Orders the currently displayed members without changing which members are shown or the order saved in the data file.
+
+Format: `sort name` or `sort status`
+
+* `sort name` orders names alphabetically, ignoring case and treating repeated whitespace as a single space. Names are displayed and saved as entered. Names with the same comparison key retain their original directory order.
+* `sort status` groups members in this order: member, active alumnus, inactive alumnus. Within each status, members retain their original directory order.
+* The attribute (`name` or `status`) is case-insensitive. Exactly one attribute is required; unsupported attributes or extra arguments show the usage message.
+* Sorting works on the full directory and on `find` or `filter` results, including empty results.
+* Subsequent `find` and `filter` commands retain the selected ordering. Adding or editing a member also retains the ordering, while showing the full directory.
+* Use the updated displayed indices for `edit` and `delete`.
+* `list` restores the full directory in insertion order. Restarting also resets the ordering; the sorting preference is not saved.
+
+Examples:
+
+* `sort name` sorts the current results by name. The success message is `Sorted displayed members by name.`
+* Run `find alex david`, then `sort status` to group the matching members by membership status. The success message is `Sorted displayed members by status.`
+* Run `sort name`, then `sort status` to switch ordering. Members with the same status return to their original directory order; the previous name ordering is not used as a secondary sort.
 
 ### Locating persons by name: `find`
 
-Finds persons whose names contain any of the given keywords.
+Finds persons whose names contain any of the given keywords, including partial words.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Format: `find KEYWORD [MORE_KEYWORDS]…`
 
 * The search is case-insensitive; for example, `hans` matches `Hans`.
 * Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
 * The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
+* Keywords can match any part of a name; for example, `ali` and `lic` both match `Alice`.
 * Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* Matching cards retain all recorded details and are numbered from `1`. The result message reports the number of matches. If nothing matches, the list is empty.
+* Use `list` to display everyone again.
+
+Examples using the built-in sample records:
+
+* `find ale` matches `Alex Yeoh`, demonstrating partial-name matching.
+* `find alex david` matches `Alex Yeoh` and `David Li`. In the example directory below, these are the only matches, so the result is `2 person(s) listed!` with cards numbered `1` and `2`.
+
+![Results for find alex david, showing Alex Yeoh and David Li with their complete member cards](images/findAlexDavidResult.png)
+
+### Filtering persons by status, instrument, type, role, and group: `filter`
+
+Format: `filter [s/STATUS]... [i/NAME[:MIN_YEARS]]... [ty/TYPE]... [r/ROLE]... [g/GROUP]...`
+
+Shows people matching the specified criteria and reports the number of matches.
+
+Provide at least one criterion. **Repeated values within a field use OR; different fields use AND.** A person must match at least one value in each specified field. Omitted fields impose no restriction.
+
+| Prefix | Accepted values | How matching works |
+| --- | --- | --- |
+| `s/STATUS` | `member`, `active-alumnus`, `inactive-alumnus` | Matches the status, ignoring case and surrounding whitespace. |
+| `i/NAME[:MIN_YEARS]` | A complete instrument name, optionally followed by `:` and a whole number from 0 to 99 | Matches the complete name, ignoring case and extra whitespace. Without a minimum, any experience qualifies; otherwise, requires **at least** that many years on that instrument. |
+| `ty/TYPE` | `student`, `teacher` | Matches the member type, ignoring case and surrounding whitespace. |
+| `r/ROLE` | A non-blank role, such as `Section Leader` | Matches the complete role, ignoring case and surrounding whitespace. `Leader` does not match `Section Leader`. People without a role do not match. |
+| `g/GROUP` | A non-blank group name, such as `Chamber Orchestra` | Matches the complete group name, ignoring case and extra whitespace. `Orchestra` does not match `Chamber Orchestra`. People without groups do not match. |
+
+Use the lowercase prefixes shown above. Invalid values produce an error explaining the accepted input.
+
+Each filter searches the full directory, including after a previous `find` or `filter`. If nobody matches, the list is empty and the result reports zero matches. Stored records are unchanged; use `list` to display everyone again.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+
+* `filter g/Chamber Orchestra` — shows everyone in Chamber Orchestra.
+* `filter i/Violin i/Viola` — shows people who play violin or viola, including those who play both.
+* `filter s/member s/active-alumnus i/Violin:3 g/Chamber Orchestra` — shows current members or active alumni who also have at least 3 years on violin and belong to Chamber Orchestra.
+* `filter ty/teacher r/Conductor` — shows teachers whose role is Conductor.
+
+### Exporting current results: `export`
+
+Exports the members currently shown in the list to a CSV file.
+
+Format: `export [f/FIELD]...`
+
+* Without field selections, `export` writes all eight columns in this order: `name`, `phone`, `email`, `status`, `memberType`, `role`, `instruments`, `groups`.
+* To choose columns, write one `f/FIELD` for each field you need. For example, `export f/name f/phone f/instruments` writes only the `name`, `phone`, and `instruments` columns, in that order.
+* Select any combination of the eight field names above, using their exact spelling and case, including the capital `T` in `memberType`. Each field may be selected only once.
+* Unsupported names (such as `f/address`), empty selections (`f/`), repeated selections (`f/name f/name`), and extra arguments are rejected with an error. No CSV file is created for an invalid command.
+* Exports only the currently displayed members, in their displayed order. Run `find` or `filter` first to choose matching members, and `sort` to choose their order. Run `list` first to export everyone in insertion order.
+* Creates a CSV file in the `exports` folder inside HiveMind’s home folder.
+* Each export receives the first unused numbered filename: `current-results-01.csv`, then `current-results-02.csv`, and so on. Existing export files are not overwritten.
+* Values are enclosed in double quotes. A double quote within a value is written as two double quotes.
+* A member with multiple instruments or groups has them recorded in one field, separated by semicolons.
+* A semicolon within an instrument or group name is escaped as `\;`, and a backslash as `\\`.
+* Values beginning with `=`, `+`, `-`, or `@` are prefixed with a space so spreadsheet applications treat them as
+  text. Importing a compatible full export removes this prefix and restores the original value.
+* Exporting an empty result list still creates a CSV file containing only the selected column headers, or all eight headers if no fields were selected.
+* Exporting does not change member records, the displayed results, or undo/redo history.
+
+**Import compatibility:** Partial exports cannot be imported using `import`. The importer requires all eight columns in
+the default order. An export containing all eight columns in a different order is also incompatible. Use `export`
+without field selections to retain the existing import-compatible format.
+
+Examples:
+
+* `export` exports all eight fields for the currently displayed members.
+* `find alex` followed by `export f/name f/phone` exports only the names and phone numbers of members whose names contain `alex`.
+* `filter s/member i/Violin` followed by `sort name`, then `export f/name f/phone f/instruments`, exports those three fields for current members who play violin, in the displayed name order.
+* `export f/groups f/name` writes the `groups` column before the `name` column.
 
 ### Deleting a person: `delete`
 
-Deletes the specified person from the address book.
+Deletes the specified person from HiveMind.
 
 Format: `delete INDEX`
 
@@ -137,14 +344,50 @@ Format: `delete INDEX`
 * The index **must be a positive integer** 1, 2, 3, …​
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
+* `list` followed by `delete 2` deletes the 2nd person in the member list.
 * `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Clears all entries from HiveMind.
 
 Format: `clear`
+
+### Undoing changes: `undo`
+
+Reverts the most recent changes made by `add`, `edit`, `delete`, `clear` or `import`.
+
+Format: `undo [COUNT]`
+
+* Reverts the `COUNT` most recent changes, most recent first. Without `COUNT`, only the most recent change is reverted.
+* The result lists the command of each reverted change as you typed it, most recent first. For example, after `delete 1` and then `delete 3`, `undo 2` shows `delete 3`, then `delete 1`.
+* `COUNT` must be a positive integer, e.g. 1, 2, 3, …​
+* You can undo changes back to when HiveMind was started. If fewer than `COUNT` changes can be undone, nothing is undone and HiveMind tells you how many can be, or that there is no change to undo.
+* Commands that do not change data (e.g. `list`, `find`, `filter`, `sort`, `export`) are not undone.
+* An `import` is a single change, so `undo` removes everyone it added.
+* After an undo, the full member list is shown.
+
+Examples:
+* `delete 2` followed by `undo` restores the deleted person.
+* `delete 1`, then `delete 1` again, then `undo 2` restores both deleted people.
+
+### Redoing undone changes: `redo`
+
+Restores the most recent changes reverted by `undo`.
+
+Format: `redo [COUNT]`
+
+* Restores the `COUNT` most recently undone changes. Without `COUNT`, only the most recently undone change is restored.
+* `COUNT` must be a positive integer, e.g. 1, 2, 3, …​
+* Changes are restored in the reverse order of undoing: the most recently undone change comes back first.
+* The result lists the command of each restored change as you typed it, in the order restored.
+* If fewer than `COUNT` undone changes can be restored, nothing is redone and HiveMind tells you how many can be, or that there is no undone change to redo.
+* Once you make a new change (e.g. `add`, `edit`, `delete`, `clear` or `import`) after an `undo`, the undone changes can no longer be redone. This also applies to an `edit` that leaves the member's details unchanged, and to a `clear` when the list is already empty.
+* After a redo, the full member list is shown.
+
+Examples:
+* `delete 2`, then `undo`, then `redo` deletes the person again.
+* `delete 1`, then `delete 1`, then `undo 2`, then `redo` deletes only the first of the two people again.
 
 ### Exiting the program: `exit`
 
@@ -154,34 +397,50 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+HiveMind automatically saves every successful change to member data. Commands that do not change member data, such as
+`list`, `find`, `filter`, `sort`, `help`, `export` and `exit`, do not rewrite the member data file. Preferences are saved
+separately when HiveMind starts and exits. You do not need to save manually.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+HiveMind data is saved automatically as the JSON file `data/addressbook.json` inside HiveMind's home folder. Advanced users are welcome to update data directly by editing that data file.
+
+Close HiveMind before editing `data/addressbook.json`. Save your edits before restarting HiveMind. Changes made while HiveMind is running may be overwritten by the next successful command that changes member data, even if the edits are valid.
+
+Keep an existing member's `id` unchanged when editing the data file. To create another member, use `add` so the new record receives its own ID.
+
+When loading saved data, HiveMind combines duplicate instruments for each member instead of treating them as an invalid file. Names are compared using the same rules as `add`, including ignoring case and normalising whitespace. HiveMind keeps the entry with the highest years of experience, including that entry's capitalisation; if the years are equal, it keeps the first entry. For example, `Piano:3` and `piano:5` become `piano:5`. This merge is recorded only in the log, with no notice in the app or backup of the file. Loading does not change the file; the next successful command that changes member data saves the combined entries.
+
+When loading saved data, HiveMind ignores group entries made only of non-breaking spaces, including mixtures with ordinary spaces or tabs. Members and their other details are preserved. Empty group names and names made only of ordinary spaces or tabs make the data file invalid. Loading does not change the file; the next successful command that changes directory data saves it without the ignored group entries.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If HiveMind finds `addressbook.json` but cannot load it, HiveMind starts with an empty directory and prevents directory
+changes from being saved. If `addressbook.json` remains a regular file, HiveMind creates a numbered backup
+alongside it (e.g., `addressbook.json.bak-01`, followed by `addressbook.json.bak-02` if another backup is needed). If
+the path is not a regular file, such as when it is a folder, HiveMind reports that a backup could not be created and
+does not create an empty backup folder. Repair or restore the original data file before restarting the app.<br>
+Furthermore, certain edits can cause HiveMind to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Close HiveMind on both computers. Copy the `data` folder from the folder containing `HiveMind.jar` on the old
+computer into the folder containing `HiveMind.jar` on the new computer. If the new installation does not have a
+`data` folder yet, copy the old folder there directly; you do not need to start HiveMind first.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+1. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+1. **If `HiveMind.jar` is in a write-protected folder** (a folder where you cannot create files), HiveMind may fail
+   to start, or may be unable to save your changes. The remedy is to move the JAR and its home-folder contents to a
+   folder you can write to, such as a new folder in your user home folder.
+1. **Double-clicking the JAR file may not start HiveMind**, or may start it with a different Java version, on some systems. The remedy is to start it from a terminal with `java -jar`, as described in the [Quick start](#quick-start).
+1. **On macOS, if the main window is in full-screen mode**, the Help Window may open in a separate full-screen space or behind the main window. The remedy is to exit full-screen mode (e.g. press `Ctrl`+`Cmd`+`F`) before running `help`.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +448,17 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL s/STATUS [ty/TYPE] [r/ROLE] [i/INSTRUMENT:YEARS]…​ [g/GROUP]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com s/member g/Chamber Orchestra`
 **Clear** | `clear`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
+**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [s/STATUS] [ty/TYPE] [r/ROLE] [i/INSTRUMENT:YEARS]…​ [g/GROUP]…​`<br> e.g., `edit 2 n/James Lee g/Chamber Orchestra`
+**Export** | `export [f/FIELD]...`<br> e.g., `export f/name f/phone f/instruments`
+**Find** | `find KEYWORD [MORE_KEYWORDS]…`<br> e.g., `find alex david`
+**Filter** | `filter [s/STATUS]... [i/NAME[:MIN_YEARS]]... [ty/TYPE]... [r/ROLE]... [g/GROUP]...`<br> e.g., `filter s/member i/Violin:3 g/Chamber Orchestra`
 **List** | `list`
+**Sort** | `sort name` or `sort status`
+**Undo** | `undo [COUNT]`<br> e.g., `undo 2`
+**Redo** | `redo [COUNT]`<br> e.g., `redo 2`
 **Help** | `help`
+**Exit** | `exit`
+**Import** | `import FILE_NAME`<br> e.g., `import members.csv`

@@ -1,0 +1,74 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam sequenceMessageAlign left
+skinparam BoxPadding 10
+<style>
+participant {
+    Padding 5
+}
+</style>
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "f:FilterCommand" as FilterCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+participant "filteredPersons:\nFilteredList" as FilteredList MODEL_COLOR
+participant "p:Predicate" as Predicate MODEL_COLOR
+participant "sortedPersons:\nSortedList" as SortedList MODEL_COLOR
+end box
+
+activate LogicManager
+LogicManager -> FilterCommand : execute(m)
+activate FilterCommand
+create Predicate
+FilterCommand -> Predicate : new PersonMatchesFilterPredicate\n(criteria)
+activate Predicate
+Predicate --> FilterCommand : p
+deactivate Predicate
+
+FilterCommand -> Model : updateFilteredPersonList(p)
+activate Model
+Model -> FilteredList : setPredicate(p)
+activate FilteredList
+loop each person in the full directory
+    FilteredList -> Predicate : test(person)
+    activate Predicate
+    Predicate --> FilteredList : matches
+    deactivate Predicate
+end
+FilteredList --> Model
+deactivate FilteredList
+Model --> FilterCommand
+deactivate Model
+
+note over FilteredList, Predicate
+OR within a field; AND between fields.
+Omitted fields impose no restriction.
+end note
+note over FilteredList, SortedList
+SortedList wraps filteredPersons
+and retains the selected ordering.
+end note
+
+FilterCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> FilterCommand : sortedPersons
+deactivate Model
+FilterCommand -> SortedList : size()
+activate SortedList
+SortedList --> FilterCommand : count
+deactivate SortedList
+FilterCommand --> LogicManager : new CommandResult(\nformatted count message)
+deactivate FilterCommand
+
+LogicManager -> FilterCommand : requiresSave()
+activate FilterCommand
+FilterCommand --> LogicManager : false
+deactivate FilterCommand
+[<-- LogicManager : result
+deactivate LogicManager
+@enduml

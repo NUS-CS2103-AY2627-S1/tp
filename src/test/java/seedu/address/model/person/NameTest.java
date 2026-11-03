@@ -6,6 +6,9 @@ import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+/**
+ * Verifies name validation, including international names and common name punctuation.
+ */
 public class NameTest {
 
     @Test
@@ -36,6 +39,39 @@ public class NameTest {
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+    }
+
+    @Test
+    public void isValidName_internationalAndPunctuatedNames_accepts() {
+        for (String name : new String[] {"Zo\u00e9 Tan", "\u5f20\u4f1f", "Anne-Marie", "O'Neil Tan",
+            "D\u2019Souza", "Zoe\u0301 Tan", "A. Rahman"}) {
+            assertTrue(Name.isValidName(name), name);
+        }
+    }
+
+    @Test
+    public void isValidName_blankOrCommandCharacters_rejects() {
+        for (String name : new String[] {"   ", "-", "'", "\u0301", " Alex", "Alex n/Other", "Alex\nTan"}) {
+            assertFalse(Name.isValidName(name), name);
+        }
+    }
+
+    @Test
+    public void isValidName_relationshipMarkers_accepts() {
+        for (String name : new String[] {"Ravi s/o Kumar", "Priya d/o Raman", "Ravi S/O Kumar", "Priya D/O Raman",
+            "Ravi s/O Kumar", "Ravi  s/o  Kumar", "Ravi s/o Kumar s/o Raj", "Zo\u00e9 d/o \u5f20\u4f1f"}) {
+            assertTrue(Name.isValidName(name), name);
+        }
+    }
+
+    @Test
+    public void isValidName_otherSlashes_rejects() {
+        for (String name : new String[] {"Alex/Tan", "Alex n/Other", "Ravi s/oKumar", "Ravi s/o",
+            "s/o Kumar", "Ravi x/y Kumar", "Ravi s/ Kumar", "Ravi /o Kumar", "Ravi s//o Kumar",
+            "Ravi so/ Kumar", "Ravi c/o Kumar", "Muthu a/l Samy", "Siti a/p Ahmad", "Ravi s/o\nKumar",
+            "Ravi\u00a0s/o Kumar"}) {
+            assertFalse(Name.isValidName(name), name);
+        }
     }
 
     @Test

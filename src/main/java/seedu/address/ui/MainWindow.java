@@ -1,15 +1,18 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -114,7 +117,7 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.getPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
@@ -128,15 +131,22 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Restores saved geometry within the visual bounds of a current display.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
-        }
+        List<WindowGeometry.ScreenBounds> screens = Screen.getScreens().stream()
+                .map(screen -> new WindowGeometry.ScreenBounds(screen.getBounds(), screen.getVisualBounds()))
+                .toList();
+        Screen primary = Screen.getPrimary();
+        Rectangle2D bounds = WindowGeometry.fit(guiSettings, screens,
+                new WindowGeometry.ScreenBounds(primary.getBounds(), primary.getVisualBounds()),
+                primaryStage.getMinWidth(), primaryStage.getMinHeight());
+        primaryStage.setMinWidth(Math.min(primaryStage.getMinWidth(), bounds.getWidth()));
+        primaryStage.setMinHeight(Math.min(primaryStage.getMinHeight(), bounds.getHeight()));
+        primaryStage.setWidth(bounds.getWidth());
+        primaryStage.setHeight(bounds.getHeight());
+        primaryStage.setX(bounds.getMinX());
+        primaryStage.setY(bounds.getMinY());
     }
 
     /**
@@ -153,6 +163,11 @@ public class MainWindow extends UiPart<Stage> {
 
     void show() {
         primaryStage.show();
+    }
+
+    /** Shows a message that was generated while the application was starting. */
+    void showStartupMessage(String message) {
+        resultDisplay.setFeedbackToUser(message);
     }
 
     /**
@@ -180,7 +195,7 @@ public class MainWindow extends UiPart<Stage> {
         try {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser(), ResultDisplay.FeedbackType.SUCCESS);
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -193,7 +208,7 @@ public class MainWindow extends UiPart<Stage> {
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            resultDisplay.setFeedbackToUser(e.getMessage(), ResultDisplay.FeedbackType.ERROR);
             throw e;
         }
     }

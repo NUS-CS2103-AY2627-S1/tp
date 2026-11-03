@@ -3,8 +3,7 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_INSTRUMENT_PIANO;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
@@ -40,7 +39,7 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new PersonBuilder(ALICE).withInstruments(VALID_INSTRUMENT_PIANO)
                 .build();
         assertTrue(uniquePersonList.contains(editedAlice));
     }
@@ -83,7 +82,7 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new PersonBuilder(ALICE).withInstruments(VALID_INSTRUMENT_PIANO)
                 .build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
@@ -123,6 +122,32 @@ public class UniquePersonListTest {
         uniquePersonList.remove(ALICE);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
         assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void remove_identicalDetails_removesOnlySelectedIdentity() {
+        Person anotherAlice = new PersonBuilder(ALICE).withNewId().build();
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(anotherAlice);
+
+        uniquePersonList.remove(anotherAlice);
+
+        assertEquals(1, uniquePersonList.asUnmodifiableObservableList().size());
+        assertTrue(uniquePersonList.contains(ALICE));
+        assertFalse(uniquePersonList.contains(anotherAlice));
+    }
+
+    @Test
+    public void setPerson_identicalDetails_replacesOnlySelectedIdentity() {
+        Person anotherAlice = new PersonBuilder(ALICE).withNewId().build();
+        Person editedAlice = new PersonBuilder(anotherAlice).withRole("Leader").build();
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(anotherAlice);
+
+        uniquePersonList.setPerson(anotherAlice, editedAlice);
+
+        assertEquals(ALICE, uniquePersonList.asUnmodifiableObservableList().get(0));
+        assertEquals(editedAlice, uniquePersonList.asUnmodifiableObservableList().get(1));
     }
 
     @Test

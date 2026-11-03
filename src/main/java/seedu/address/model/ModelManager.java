@@ -3,11 +3,17 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
@@ -18,9 +24,11 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final VersionedAddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final Map<UUID, Integer> sourcePositions = new HashMap<>();
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -30,9 +38,13 @@ public class ModelManager implements Model {
 
         logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.addressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
+        updateSourcePositions();
+        // Refresh positions before the filtered/sorted views process additions, edits or resets.
+        this.addressBook.getPersonList().addListener((ListChangeListener<Person>) change -> updateSourcePositions());
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
     }
 
     public ModelManager() {
@@ -97,17 +109,87 @@ public class ModelManager implements Model {
 
     /**
      * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * {@code addressBook}, in its current filtered and sorted display order.
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+    }
+
+    //=========== Undo/Redo ================================================================================
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return addressBook.canUndo();
+    }
+
+    @Override
+    public String undoAddressBook() {
+        return addressBook.undo();
+    }
+
+    @Override
+    public int getUndoableChangeCount() {
+        return addressBook.getUndoableCount();
+    }
+
+    @Override
+    public int getRedoableChangeCount() {
+        return addressBook.getRedoableCount();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return addressBook.canRedo();
+    }
+
+    @Override
+    public String redoAddressBook() {
+        return addressBook.redo();
+    }
+
+    @Override
+    public void commitAddressBook(String description) {
+        addressBook.commit(description);
+    }
+
+    @Override
+    public int getAddressBookHistoryPosition() {
+        return addressBook.getCurrentStatePointer();
+    }
+
+    @Override
+    public void restoreAddressBookHistoryPosition(int position) {
+        addressBook.setCurrentStatePointer(position);
+    }
+
+    @Override
+    public void updateSortedPersonList(Comparator<Person> comparator) {
+        sortedPersons.setComparator(comparator == null ? null
+                : comparator.thenComparingInt(person -> sourcePositions.get(person.getId())));
+    }
+
+    /**
+     * Caches directory positions once per source change for constant-time tie comparisons.
+     */
+    private void updateSourcePositions() {
+        sourcePositions.clear();
+        ObservableList<Person> persons = addressBook.getPersonList();
+        for (int i = 0; i < persons.size(); i++) {
+            sourcePositions.put(persons.get(i).getId(), i);
+        }
+    }
+
+    @Override
+    public Predicate<Person> getFilteredPersonListPredicate() {
+        Predicate<? super Person> predicate = filteredPersons.getPredicate();
+        return predicate == null ? PREDICATE_SHOW_ALL_PERSONS : predicate::test;
     }
 
     @Override
@@ -123,7 +205,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && sortedPersons.equals(otherModelManager.sortedPersons);
     }
 
 }

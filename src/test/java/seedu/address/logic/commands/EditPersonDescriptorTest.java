@@ -5,11 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_INSTRUMENT_PIANO;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,13 +47,32 @@ public class EditPersonDescriptorTest {
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different address -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        // different instruments -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withInstruments(VALID_INSTRUMENT_PIANO).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different tags -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
+        // different participation groups -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withGroups("Chamber Orchestra").build();
         assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different status -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withStatus("active-alumnus").build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different member type -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withMemberType("teacher").build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different role -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withRole("Conductor").build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // role cleared versus role not edited -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withoutRole().build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // copy keeps a cleared role -> returns true
+        assertTrue(editedAmy.equals(new EditPersonDescriptor(editedAmy)));
     }
 
     @Test
@@ -63,9 +81,12 @@ public class EditPersonDescriptorTest {
         String expected = EditPersonDescriptor.class.getCanonicalName() + "{name="
                 + editPersonDescriptor.getName().orElse(null) + ", phone="
                 + editPersonDescriptor.getPhone().orElse(null) + ", email="
-                + editPersonDescriptor.getEmail().orElse(null) + ", address="
-                + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getEmail().orElse(null) + ", status="
+                + editPersonDescriptor.getStatus().orElse(null) + ", memberType="
+                + editPersonDescriptor.getMemberType().orElse(null) + ", role="
+                + editPersonDescriptor.getRole().orElse(null) + ", instruments="
+                + editPersonDescriptor.getInstruments().orElse(null) + ", groups="
+                + editPersonDescriptor.getGroups().orElse(null) + "}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }

@@ -5,55 +5,49 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Tristan Ng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/trigg770.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/trigg770)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities: Code Quality
 
-### Jane Doe
+### Nahum Liow
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/liownahum.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/liownahum)]
 
-* Role: Team Lead
+* Role: Software Developer
 * Responsibilities: UI
 
-### Johnny Doe
+### Fredrick CC
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/l0pch.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/L0pch)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Chun Sheng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/cs28118.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/cs28118)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Scheduling and tracking
+
+### Irvin Tan Wei Jie
+
+<img src="images/irtan-cell.png" width="200px">
+
+[[github](http://github.com/irtan-cell)]
+
+* Role: Developer
+* Responsibilities: Integration
