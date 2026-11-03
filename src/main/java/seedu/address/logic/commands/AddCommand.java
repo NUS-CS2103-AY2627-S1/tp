@@ -2,9 +2,13 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AGE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GENDER;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RELIGION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SMOKING;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
 import seedu.address.commons.util.ToStringBuilder;
@@ -26,12 +30,23 @@ public class AddCommand extends Command {
             + PREFIX_PHONE + "PHONE "
             + PREFIX_EMAIL + "EMAIL "
             + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_GENDER + "GENDER] "
+            + "[" + PREFIX_SMOKING + "yes|no] "
+            + PREFIX_AGE + "AGE "
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_RELIGION + "RELIGION] "
+            + "[{CRITERIA}] [<CRITERIA>]\n"
+            + "Gender: m, w, nb, or empty for unspecified.\n"
+            + "Partner criteria: {...} prefers; <...> excludes (must not have). "
+            + "Use age/, g/, s/, r/, or rg/ once per block. g/, r/, and rg/ accept comma-separated values, "
+            + "and rg/ takes goal keywords, e.g. {rg/long,long-open}.\n"
+            + "Outer r/ records only the client's own religion.\n"
             + "Example: " + COMMAND_WORD + " "
             + PREFIX_NAME + "John Doe "
             + PREFIX_PHONE + "98765432 "
             + PREFIX_EMAIL + "johnd@example.com "
             + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
+            + PREFIX_AGE + "25 "
             + PREFIX_TAG + "friends "
             + PREFIX_TAG + "owesMoney";
 

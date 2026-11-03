@@ -1,6 +1,7 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RELATIONSHIP_GOAL;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -10,9 +11,14 @@ import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Age;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Gender;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.RelationshipGoal;
+import seedu.address.model.person.Religion;
+import seedu.address.model.person.SmokingStatus;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +27,47 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_REMOVED_RELIGION_CRITERIA =
+            "Partner religion prefixes (rp/, rr/, rx/) are no longer supported. "
+            + "Use outer r/ for the client's own religion, {r/RELIGION} for a partner preference, "
+            + "or <r/RELIGION> for an excluded partner religion (must not have).";
+    public static final String MESSAGE_OWN_RELATIONSHIP_GOAL =
+            "Relationship goals are partner criteria. Use {rg/GOAL} for the goals the client is open to, "
+            + "or <rg/GOAL> for goals the client rules out.";
+    public static final String MESSAGE_INVALID_SMOKING_STATUS = SmokingStatus.MESSAGE_CONSTRAINTS
+            + " s/ starts the smoking status, so to use \" s/\" inside another field, put that value in quotes,"
+            + " e.g. n/\"Ravi s/o Kumar\".";
+
+    /**
+     * Rejects removed partner-criteria prefixes before they can become part of another field's value.
+     *
+     * @throws ParseException If any obsolete partner religion prefix is supplied.
+     */
+    public static void rejectRemovedReligionCriteria(String args) throws ParseException {
+        Prefix[] removedPrefixes = {new Prefix("rp/"), new Prefix("rr/"), new Prefix("rx/")};
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize(args, removedPrefixes);
+        for (Prefix prefix : removedPrefixes) {
+            if (arguments.getValue(prefix).isPresent()) {
+                throw new ParseException(MESSAGE_REMOVED_RELIGION_CRITERIA);
+            }
+        }
+    }
+
+
+    /**
+     * Parses a smoking status, ignoring surrounding whitespace and case.
+     * Rejects empty input; {@code edit} treats an empty {@code s/} as a clear before calling this.
+     *
+     * @throws ParseException if the status is neither yes nor no.
+     */
+    public static SmokingStatus parseSmokingStatus(String status) throws ParseException {
+        requireNonNull(status);
+        String trimmedStatus = status.trim();
+        if (trimmedStatus.isEmpty() || !SmokingStatus.isValidSmokingStatus(trimmedStatus)) {
+            throw new ParseException(MESSAGE_INVALID_SMOKING_STATUS);
+        }
+        return new SmokingStatus(trimmedStatus);
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -73,11 +120,21 @@ public class ParserUtil {
      */
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
-        String trimmedAddress = address.trim();
+        String trimmedAddress = address.strip();
         if (!Address.isValidAddress(trimmedAddress)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);
+    }
+
+    /** Parses an age string into an {@code Age}. */
+    public static Age parseAge(String age) throws ParseException {
+        requireNonNull(age);
+        String trimmedAge = age.trim();
+        if (!Age.isValidAge(trimmedAge)) {
+            throw new ParseException(Age.MESSAGE_CONSTRAINTS);
+        }
+        return new Age(Integer.parseInt(trimmedAge));
     }
 
     /**
@@ -93,6 +150,19 @@ public class ParserUtil {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses an optional gender. An empty value means unspecified.
+     *
+     * @throws ParseException if the value is not a supported gender.
+     */
+    public static Gender parseGender(String gender) throws ParseException {
+        try {
+            return Gender.parseValue(gender);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(Gender.MESSAGE_CONSTRAINTS, e);
+        }
     }
 
     /**
@@ -120,5 +190,44 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Parses a supported religion category.
+     *
+     * @throws ParseException If the value is unsupported or incomplete.
+     */
+    public static Religion parseReligion(String value) throws ParseException {
+        requireNonNull(value);
+        try {
+            return new Religion(value);
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(Religion.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    /**
+     * Parses a comma-separated list of distinct relationship goal keywords.
+     *
+     * @throws ParseException if a keyword is unsupported, empty or repeated
+     */
+    public static Set<RelationshipGoal> parseRelationshipGoals(String value) throws ParseException {
+        requireNonNull(value);
+        try {
+            return RelationshipGoal.parseKeywordList(value);
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
+        }
+    }
+
+    /**
+     * Rejects a relationship goal given as one of the client's own fields, outside the partner criteria.
+     *
+     * @throws ParseException If {@code rg/} is supplied outside the preference and dealbreaker environments.
+     */
+    public static void rejectOwnRelationshipGoal(ArgumentMultimap arguments) throws ParseException {
+        if (arguments.getValue(PREFIX_RELATIONSHIP_GOAL).isPresent()) {
+            throw new ParseException(MESSAGE_OWN_RELATIONSHIP_GOAL);
+        }
     }
 }

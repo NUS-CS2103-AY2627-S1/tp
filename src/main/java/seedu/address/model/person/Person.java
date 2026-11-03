@@ -5,6 +5,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
@@ -12,7 +13,8 @@ import seedu.address.model.tag.Tag;
 
 /**
  * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * Required contact details are non-null; religion details and the relationship goal may be absent.
+ * Recorded values are validated, and person details are immutable.
  */
 public class Person {
 
@@ -23,18 +25,69 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final Gender gender;
+    private final SmokingStatus smokingStatus;
+    private final Age age;
     private final Set<Tag> tags = new HashSet<>();
+    private final Religion religion;
+    private final DatingCriteria datingCriteria;
 
     /**
-     * Every field must be present and not null.
+     * Creates a person whose smoking status has not been recorded.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Age age, Set<Tag> tags) {
+        this(name, phone, email, address, age, tags, SmokingStatus.UNSPECIFIED);
+    }
+
+    /**
+     * Creates a person whose gender has not been recorded.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Age age, Set<Tag> tags,
+            SmokingStatus smokingStatus) {
+        this(name, phone, email, address, age, tags, smokingStatus, Gender.UNSPECIFIED);
+    }
+
+    /**
+     * Creates a person with the given details. Use {@code Gender.UNSPECIFIED} for an unrecorded gender.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Age age, Set<Tag> tags,
+            SmokingStatus smokingStatus, Gender gender) {
+        this(name, phone, email, address, age, tags, smokingStatus, gender, null);
+    }
+
+    /**
+     * Creates a person with required contact details and no religion details.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(name, phone, email, address, new Age(18), tags);
+    }
+
+    /**
+     * Creates a person with all supported client characteristics but no partner criteria.
+     * A null religion means it has not been recorded.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Age age, Set<Tag> tags,
+            SmokingStatus smokingStatus, Gender gender, Religion religion) {
+        this(name, phone, email, address, age, tags, smokingStatus, gender, religion, DatingCriteria.EMPTY);
+    }
+
+    /**
+     * Creates a person with all supported characteristics and partner criteria.
+     * A null religion means it has not been recorded.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Age age, Set<Tag> tags,
+            SmokingStatus smokingStatus, Gender gender, Religion religion, DatingCriteria datingCriteria) {
+        requireAllNonNull(name, phone, email, address, age, tags, smokingStatus, gender, datingCriteria);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.gender = gender;
+        this.smokingStatus = smokingStatus;
+        this.age = age;
         this.tags.addAll(tags);
+        this.religion = religion;
+        this.datingCriteria = datingCriteria;
     }
 
     public Name getName() {
@@ -49,8 +102,40 @@ public class Person {
         return email;
     }
 
+    public Gender getGender() {
+        return gender;
+    }
+
     public Address getAddress() {
         return address;
+    }
+
+    public SmokingStatus getSmokingStatus() {
+        return smokingStatus;
+    }
+
+    public Age getAge() {
+        return age;
+    }
+
+    /**
+     * Returns the client's recorded religion, if known.
+     */
+    public Optional<Religion> getReligion() {
+        return Optional.ofNullable(religion);
+    }
+
+    /**
+     * Returns the relationship goals in the client's partner preferences, which also describe the client
+     * to potential partners. The set is empty if none are recorded.
+     */
+    public Set<RelationshipGoal> getRelationshipGoals() {
+        return datingCriteria.getRelationshipGoals();
+    }
+
+    /** Returns the client's preferences and dealbreakers for a potential partner. */
+    public DatingCriteria getDatingCriteria() {
+        return datingCriteria;
     }
 
     /**
@@ -71,7 +156,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && Objects.equals(otherPerson.getName(), getName());
     }
 
     /**
@@ -93,24 +178,43 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && smokingStatus.equals(otherPerson.smokingStatus)
+                && age.equals(otherPerson.age)
+                && tags.equals(otherPerson.tags)
+                && gender == otherPerson.gender
+                && Objects.equals(religion, otherPerson.religion)
+                && datingCriteria.equals(otherPerson.datingCriteria);
     }
 
+    /**
+     * Returns a hash code derived from the person's identity and data fields.
+     */
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, religion, age, smokingStatus, gender,
+                datingCriteria);
     }
 
+    /**
+     * Returns a string representation of the person's identity and data fields.
+     */
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
+        ToStringBuilder builder = new ToStringBuilder(this)
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("smokingStatus", smokingStatus)
+                .add("age", age)
                 .add("tags", tags)
-                .toString();
+                .add("gender", gender)
+                .add("religion", religion);
+        if (!datingCriteria.isEmpty()) {
+            builder.add("datingCriteria", datingCriteria);
+        }
+        return builder.toString();
     }
 
 }

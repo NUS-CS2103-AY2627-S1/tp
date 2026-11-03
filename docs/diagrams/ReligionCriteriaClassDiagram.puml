@@ -1,0 +1,49 @@
+@startuml
+!pragma layout smetana
+
+skinparam dpi 192
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam arrowThickness 1.1
+skinparam arrowColor #9D0012
+skinparam arrowFontColor #202020
+skinparam arrowFontSize 14
+skinparam classBackgroundColor #9D0012
+skinparam classBorderColor #FFFFFF
+skinparam classFontColor #FFFFFF
+skinparam classAttributeFontColor #FFFFFF
+skinparam classStereotypeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
+
+hide circle
+hide members
+
+class Person {
+    +getReligion(): Optional<Religion>
+    +getDatingCriteria(): DatingCriteria
+}
+class Religion
+class DatingCriteria {
+    -preferences: Map<DatingAttribute, Set<String>>
+    -dealbreakers: Map<DatingAttribute, Set<String>>
+}
+enum DatingAttribute <<enumeration>> {
+    AGE
+    GENDER
+    SMOKING
+    RELIGION
+    RELATIONSHIP_GOAL
+}
+
+show Person methods
+show DatingCriteria fields
+show DatingAttribute members
+
+Person -down-> "0..1" Religion : religion
+Person -down-> "1" DatingCriteria : datingCriteria
+DatingCriteria .down.> DatingAttribute : map key type
+DatingAttribute .left.> Religion : validates religion values
+
+Religion -[hidden]right-> DatingCriteria
+@enduml

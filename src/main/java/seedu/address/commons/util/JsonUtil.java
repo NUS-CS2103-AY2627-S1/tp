@@ -52,15 +52,18 @@ public class JsonUtil {
             Path filePath, Class<T> classOfObjectToDeserialize) throws DataLoadingException {
         requireNonNull(filePath);
 
-        if (!Files.exists(filePath)) {
-            return Optional.empty();
-        }
-        logger.info("JSON file " + filePath + " found.");
-
         T jsonFile;
 
         try {
+            filePath = AppPaths.resolveDataPath(filePath);
+            if (!Files.exists(filePath)) {
+                return Optional.empty();
+            }
+            logger.info("JSON file " + filePath + " found.");
             jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
+            if (jsonFile == null) {
+                throw new IOException("JSON file must not contain a null root.");
+            }
         } catch (IOException e) {
             logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
             throw new DataLoadingException(e);

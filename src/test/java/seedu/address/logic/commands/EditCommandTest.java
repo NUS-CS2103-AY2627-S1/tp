@@ -15,6 +15,9 @@ import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
@@ -24,6 +27,8 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.DatingAttribute;
+import seedu.address.model.person.DatingCriteria;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
@@ -97,6 +102,36 @@ public class EditCommandTest {
         expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_religion_success() {
+        Person original = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person edited = new PersonBuilder(original).withReligion("Jainism").build();
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withReligion("Jainism").build();
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(original, edited);
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(edited));
+        assertCommandSuccess(new EditCommand(INDEX_FIRST_PERSON, descriptor), model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_clearReligion_preservesOtherFields() throws Exception {
+        Person original = new PersonBuilder(model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased()))
+                .withReligion("Jainism").withSmokingStatus("no").withGender("nb").withRelationshipGoal("long").build();
+        model.setPerson(model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased()), original);
+        Person cleared = new PersonBuilder(original).build();
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withReligion(null).build();
+        EditCommand command = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+        command.execute(model);
+        Person actual = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertTrue(actual.getReligion().isEmpty());
+        assertEquals(cleared.getName(), actual.getName());
+        assertEquals(cleared.getAge(), actual.getAge());
+        assertEquals(cleared.getGender(), actual.getGender());
+        assertEquals(cleared.getSmokingStatus(), actual.getSmokingStatus());
+        assertEquals(cleared.getDatingCriteria(), actual.getDatingCriteria());
+        assertEquals(cleared.getTags(), actual.getTags());
     }
 
     @Test
@@ -181,4 +216,45 @@ public class EditCommandTest {
         assertEquals(expected, editCommand.toString());
     }
 
+    @Test
+    public void execute_criteriaEdits_existingCriteriaPreservedAndSuppliedCriteriaUpdated() {
+        Person original = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Person personWithCriteria = withDatingCriteria(original, new DatingCriteria(
+                Map.of(DatingAttribute.AGE, "20-30", DatingAttribute.SMOKING, "no"),
+                Map.of(DatingAttribute.RELIGION, "Islam", DatingAttribute.RELATIONSHIP_GOAL, "long")));
+        model.setPerson(original, personWithCriteria);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setPreferences(Map.of(DatingAttribute.AGE, "25-35", DatingAttribute.RELIGION, "Buddhism"));
+        descriptor.setDealbreakers(Map.of(DatingAttribute.RELIGION, "Hinduism", DatingAttribute.AGE, "18-24"));
+
+        Person expectedPerson = withDatingCriteria(personWithCriteria, new DatingCriteria(
+                Map.of(DatingAttribute.AGE, "25-35", DatingAttribute.SMOKING, "no",
+                        DatingAttribute.RELIGION, "Buddhism"),
+                Map.of(DatingAttribute.RELIGION, Set.of("Islam", "Hinduism"),
+                        DatingAttribute.RELATIONSHIP_GOAL, "long",
+                        DatingAttribute.AGE, "18-24")));
+
+        assertFirstPersonEditSuccess(descriptor, expectedPerson);
+    }
+
+    /** Returns a copy of {@code person} with the supplied dating criteria. */
+    private Person withDatingCriteria(Person person, DatingCriteria datingCriteria) {
+        return new Person(person.getName(), person.getPhone(), person.getEmail(), person.getAddress(), person.getAge(),
+                person.getTags(), person.getSmokingStatus(), person.getGender(), person.getReligion().orElse(null),
+                datingCriteria);
+    }
+
+    /**
+     * Asserts that editing the first person with {@code descriptor} succeeds and results in {@code editedPerson}.
+     */
+    private void assertFirstPersonEditSuccess(EditPersonDescriptor descriptor, Person editedPerson) {
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased()), editedPerson);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
 }

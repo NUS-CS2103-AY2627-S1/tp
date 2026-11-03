@@ -9,14 +9,17 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Name {
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+    public static final String MESSAGE_CONSTRAINTS = "Names should only contain Latin letters (including accented "
+            + "letters), digits, spaces, hyphens, apostrophes and slashes (as in s/o or d/o), "
+            + "should start with a letter or digit, and should not be blank";
 
     /*
      * The first character of the name must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
+     * Slashes, hyphens and apostrophes are allowed after it for names such as "Ravi s/o Kumar",
+     * "Mary-Jane Lim" and "Sean O'Brien". Letters must be Latin, so accented letters are valid.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{IsLatin}0-9][\\p{IsLatin}0-9 /'\u2019-]*";
 
     public final String fullName;
 

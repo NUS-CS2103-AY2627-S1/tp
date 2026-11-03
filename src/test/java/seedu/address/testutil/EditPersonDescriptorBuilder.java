@@ -6,10 +6,14 @@ import java.util.stream.Stream;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Age;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Gender;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Religion;
+import seedu.address.model.person.SmokingStatus;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -36,7 +40,15 @@ public class EditPersonDescriptorBuilder {
         descriptor.setPhone(person.getPhone());
         descriptor.setEmail(person.getEmail());
         descriptor.setAddress(person.getAddress());
+        descriptor.setGender(person.getGender());
+        if (!person.getSmokingStatus().value.isEmpty()) {
+            descriptor.setSmokingStatus(person.getSmokingStatus());
+        }
+        descriptor.setAge(person.getAge());
         descriptor.setTags(person.getTags());
+        descriptor.setReligion(person.getReligion().orElse(null));
+        descriptor.setPreferences(person.getDatingCriteria().getPreferences());
+        descriptor.setDealbreakers(person.getDatingCriteria().getDealbreakers());
     }
 
     /**
@@ -72,6 +84,22 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
+     * Sets the smoking status in the edit descriptor being built.
+     */
+    public EditPersonDescriptorBuilder withSmokingStatus(String status) {
+        descriptor.setSmokingStatus(new SmokingStatus(status));
+        return this;
+    }
+
+    /**
+     * Sets the {@code Age} of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withAge(int age) {
+        descriptor.setAge(new Age(age));
+        return this;
+    }
+
+    /**
      * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
      * that we are building.
      */
@@ -81,6 +109,25 @@ public class EditPersonDescriptorBuilder {
         return this;
     }
 
+    /**
+     * Sets the gender of the edit descriptor, including an explicit clear with an empty value.
+     */
+    public EditPersonDescriptorBuilder withGender(String gender) {
+        descriptor.setGender(Gender.parseValue(gender));
+        return this;
+    }
+
+    /**
+     * Sets or clears the client's religion; null means clear.
+     */
+    public EditPersonDescriptorBuilder withReligion(String value) {
+        descriptor.setReligion(value == null ? null : new Religion(value));
+        return this;
+    }
+
+    /**
+     * Returns the prepared edit descriptor.
+     */
     public EditPersonDescriptor build() {
         return descriptor;
     }

@@ -5,55 +5,51 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us at the email `e1525605@u.nus.edu`
 
 ## Project team
 
-### John Doe
+### Yu Xi Lim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yxlyx.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/yxlyx)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities: Filtering/search commands
 
-### Jane Doe
+### Zong Wei Quah
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zwqqwz123.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/zwqqwz123)]
 
-* Role: Team Lead
+* Role: Developer
 * Responsibilities: UI
 
-### Johnny Doe
+### Satapathy Pulastya
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/pulas2345.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/pulas2345)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Eric Chan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/riceric8.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/riceric8)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Dev Ops
+
+### Tharun Balaji
+
+<img src="images/codeforce233.png" width="200px">
+
+[[github](https://github.com/codeforce233)]
+
+* Role: Developer
+* Responsibilities: Integration + Code Quality

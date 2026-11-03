@@ -1,54 +1,44 @@
 @startuml
+!pragma layout smetana
 !include style.puml
-skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+skinparam classAttributeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam nodesep 40
+skinparam ranksep 50
 
-Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
-Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
-Class ModelManager
-Class UserPrefs
-
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
-
-Class I #FFFFFF
+package Model as ModelPackage {
+interface ReadOnlyAddressBook <<interface>>
+interface ReadOnlyUserPrefs <<interface>>
+interface Model <<interface>>
+class AddressBook
+class ModelManager
+class UserPrefs
+class UniquePersonList
+class Person
+class ClientGroup
+class GroupName
+class DatingCriteria {
+    -preferences: Map<DatingAttribute, Set<String>>
+    -dealbreakers: Map<DatingAttribute, Set<String>>
+}
 }
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Model
-
-AddressBook .up.|> ReadOnlyAddressBook
-
 ModelManager .up.|> Model
-Model .right.> ReadOnlyUserPrefs
 Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
-ModelManager -right-> "1" UserPrefs
+Model .right.> ReadOnlyUserPrefs
+AddressBook .up.|> ReadOnlyAddressBook
 UserPrefs .up.|> ReadOnlyUserPrefs
-
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
-
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
-
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
+ModelManager -down-> "1" AddressBook
+ModelManager -right-> "1" UserPrefs
+AddressBook *-down-> "1" UniquePersonList
+AddressBook *-right-> "*" ClientGroup
+ClientGroup -down-> "1" GroupName
+ClientGroup --> "0..*" Person : members
+UniquePersonList -down-> "0..*" Person : all clients
 ModelManager --> "~* filtered" Person
+Person -down-> "1" DatingCriteria : datingCriteria
+
+show DatingCriteria fields
 @enduml

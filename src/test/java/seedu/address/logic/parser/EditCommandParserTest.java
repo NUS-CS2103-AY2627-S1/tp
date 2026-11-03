@@ -13,6 +13,7 @@ import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.RELATIONSHIP_GOAL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
@@ -25,12 +26,16 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RELIGION;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
+
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,9 +44,12 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.DatingAttribute;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.RelationshipGoal;
+import seedu.address.model.person.Religion;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
@@ -50,7 +58,8 @@ public class EditCommandParserTest {
     private static final String TAG_EMPTY = " " + PREFIX_TAG;
 
     private static final String MESSAGE_INVALID_FORMAT =
-            String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
+            String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                    EditCommand.COMMAND_WORD, EditCommand.MESSAGE_USAGE);
 
     private EditCommandParser parser = new EditCommandParser();
 
@@ -77,8 +86,8 @@ public class EditCommandParserTest {
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        // invalid prefix is identified before parsing the index
+        assertParseFailure(parser, "1 i/ string", String.format(ArgumentTokenizer.MESSAGE_UNKNOWN_PREFIX, "i/"));
     }
 
     @Test
@@ -87,6 +96,7 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
         assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
+        assertParseFailure(parser, "1 a/\u2003", Address.MESSAGE_CONSTRAINTS); // Unicode whitespace-only address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
 
         // invalid phone followed by valid email
@@ -196,6 +206,28 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_religionEdits_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withReligion("Jainism").build();
+        assertParseSuccess(parser, "1 r/jAiNiSm", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        descriptor = new EditPersonDescriptorBuilder().withReligion(null).build();
+        assertParseSuccess(parser, "1 r/", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_invalidReligionEdit_failure() {
+        assertParseFailure(parser, "1 r/Other: Jainism", Religion.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 r/Islam r/Buddhism",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_RELIGION));
+        for (String prefix : new String[] {"rp/", "rr/", "rx/"}) {
+            assertParseFailure(parser, "1 a/New Road " + prefix + "Buddhism",
+                    ParserUtil.MESSAGE_REMOVED_RELIGION_CRITERIA);
+            assertParseFailure(parser, "1 r/Jainism " + prefix,
+                    ParserUtil.MESSAGE_REMOVED_RELIGION_CRITERIA);
+        }
+    }
+
+    @Test
     public void parse_resetTags_success() {
         Index targetIndex = INDEX_THIRD_PERSON;
         String userInput = targetIndex.getOneBased() + TAG_EMPTY;
@@ -204,5 +236,37 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_relationshipGoalCriteria_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setPreferences(Map.of(DatingAttribute.RELATIONSHIP_GOAL,
+                Set.of("Long-term relationship", "Short-term fun")));
+        descriptor.setDealbreakers(Map.of(DatingAttribute.RELATIONSHIP_GOAL, "Figuring out my goals"));
+
+        assertParseSuccess(parser, "1 {rg/short,long} <rg/unsure>", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_genderCriteria_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setPreferences(Map.of(DatingAttribute.GENDER, "m"));
+        descriptor.setDealbreakers(Map.of(DatingAttribute.GENDER, "w"));
+
+        assertParseSuccess(parser, "1 { g/m } < g/w >", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_invalidRelationshipGoalCriteria_failure() {
+        // own goal outside the criteria
+        assertParseFailure(parser, "1" + RELATIONSHIP_GOAL_DESC_AMY, ParserUtil.MESSAGE_OWN_RELATIONSHIP_GOAL);
+
+        // full names are not keywords
+        assertParseFailure(parser, "1 {rg/Long-term relationship}", RelationshipGoal.MESSAGE_CONSTRAINTS);
+
+        // repeated or empty goals in a list
+        assertParseFailure(parser, "1 {rg/long,LONG}", RelationshipGoal.MESSAGE_INVALID_LIST);
+        assertParseFailure(parser, "1 {rg/long,}", RelationshipGoal.MESSAGE_INVALID_LIST);
     }
 }

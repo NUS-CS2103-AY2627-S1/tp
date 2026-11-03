@@ -4,13 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_AGE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_RELATIONSHIP_GOAL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
+
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +55,9 @@ public class PersonTest {
         assertFalse(BOB.isSamePerson(editedBob));
     }
 
+    /**
+     * Checks equality across contact details and religion fields.
+     */
     @Test
     public void equals() {
         // same values -> returns true
@@ -85,15 +92,72 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different age -> returns false
+        editedAlice = new PersonBuilder(ALICE).withAge(VALID_AGE_BOB).build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different religion -> returns false
+        editedAlice = new PersonBuilder(ALICE).withReligion("Islam").build();
         assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
+    public void gender_affectsEqualityButNotIdentity() {
+        Person specified = new PersonBuilder(ALICE).withGender("w").build();
+        Person copy = new PersonBuilder(specified).build();
+        assertEquals(Gender.UNSPECIFIED, ALICE.getGender());
+        assertFalse(ALICE.equals(specified));
+        assertTrue(ALICE.isSamePerson(specified));
+        assertEquals(specified, copy);
+        assertEquals(specified.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void constructor_withoutCriteria_hasEmptyCriteria() {
+        Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getAge(), ALICE.getTags(), ALICE.getSmokingStatus(), ALICE.getGender(), null);
+        assertEquals(DatingCriteria.EMPTY, person.getDatingCriteria());
+        assertTrue(person.getRelationshipGoals().isEmpty());
+
+        // without a religion either
+        assertEquals(person, new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getAge(), ALICE.getTags(), ALICE.getSmokingStatus(), ALICE.getGender()));
+    }
+
+    @Test
+    public void relationshipGoals() {
+        // no goal preference -> empty
+        assertTrue(ALICE.getRelationshipGoals().isEmpty());
+
+        // goal preference -> the goals the client is open to
+        Person aliceWithGoal = new PersonBuilder(ALICE).withRelationshipGoal(VALID_RELATIONSHIP_GOAL_BOB).build();
+        assertEquals(Set.of(RelationshipGoal.fromStoredValue(VALID_RELATIONSHIP_GOAL_BOB)),
+                aliceWithGoal.getRelationshipGoals());
+
+        // different relationship goal -> returns false
+        assertFalse(ALICE.equals(aliceWithGoal));
+
+        // same relationship goal in a different letter case -> returns true
+        Person aliceWithSameGoal = new PersonBuilder(ALICE)
+                .withRelationshipGoal(VALID_RELATIONSHIP_GOAL_BOB.toUpperCase()).build();
+        assertTrue(aliceWithGoal.equals(aliceWithSameGoal));
+        assertEquals(aliceWithGoal.hashCode(), aliceWithSameGoal.hashCode());
+    }
+
+    /**
+     * Checks that the person string includes an unset religion.
+     */
+    @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", smokingStatus="
+                + ALICE.getSmokingStatus() + ", age=" + ALICE.getAge()
+                + ", tags=" + ALICE.getTags() + ", gender=" + ALICE.getGender()
+                + ", religion=null}";
         assertEquals(expected, ALICE.toString());
     }
 }

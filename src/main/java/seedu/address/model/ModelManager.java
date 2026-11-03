@@ -3,13 +3,19 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.group.ClientGroup;
+import seedu.address.model.group.GroupName;
 import seedu.address.model.person.Person;
 
 /**
@@ -21,6 +27,8 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private GroupName displayedGroup;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +41,12 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
+        this.addressBook.getGroupList().addListener((ListChangeListener<ClientGroup>) change -> {
+            if (displayedGroup != null) {
+                applyGroupFilter();
+            }
+        });
     }
 
     public ModelManager() {
@@ -70,6 +84,29 @@ public class ModelManager implements Model {
     }
 
     @Override
+    public Runnable createRestorePoint() {
+        AddressBook original = new AddressBook(addressBook);
+        Predicate<? super Person> predicate = filteredPersons.getPredicate();
+        Comparator<? super Person> comparator = sortedPersons.getComparator();
+        GroupName group = displayedGroup;
+        return () -> {
+            // Ranked comparators may only support the old shortlist. Disable them before restoring data.
+            displayedGroup = null;
+            sortedPersons.setComparator(null);
+            filteredPersons.setPredicate(null);
+            addressBook.resetData(original);
+            displayedGroup = group;
+            if (group == null) {
+                filteredPersons.setPredicate(predicate);
+            } else {
+                // Rebuild the live membership filter, not just a fixed list of previously visible clients.
+                applyGroupFilter();
+            }
+            sortedPersons.setComparator(comparator);
+        };
+    }
+
+    @Override
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
@@ -93,6 +130,29 @@ public class ModelManager implements Model {
         addressBook.setPerson(target, editedPerson);
     }
 
+    @Override
+    public void setGroups(List<ClientGroup> groups) {
+        addressBook.setGroups(groups);
+    }
+
+    @Override
+    public void showGroup(GroupName name) {
+        requireNonNull(name);
+        if (addressBook.getGroupList().stream().noneMatch(group -> group.getName().equals(name))) {
+            throw new IllegalArgumentException("Unknown group: " + name);
+        }
+        displayedGroup = name;
+        applyGroupFilter();
+    }
+
+    private void applyGroupFilter() {
+        List<Person> members = addressBook.getGroupList().stream()
+                .filter(group -> group.getName().equals(displayedGroup))
+                .flatMap(group -> group.getMembers().stream()).toList();
+        sortedPersons.setComparator(null);
+        filteredPersons.setPredicate(members::contains);
+    }
+
     //=========== Filtered Person List Accessors =============================================================
 
     /**
@@ -101,14 +161,26 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        // A normal search replaces any previously displayed group.
+        displayedGroup = null;
+        // The previous comparator may not support persons admitted by the new filter.
+        sortedPersons.setComparator(null);
         filteredPersons.setPredicate(predicate);
     }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
+        requireAllNonNull(predicate, comparator);
+        updateFilteredPersonList(predicate);
+        sortedPersons.setComparator(comparator);
+    }
+
 
     @Override
     public boolean equals(Object other) {
@@ -123,7 +195,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && sortedPersons.equals(otherModelManager.sortedPersons);
     }
 
 }

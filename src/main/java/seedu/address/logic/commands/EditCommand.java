@@ -2,18 +2,27 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AGE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GENDER;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RELIGION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SMOKING;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
@@ -22,10 +31,16 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Age;
+import seedu.address.model.person.DatingAttribute;
+import seedu.address.model.person.DatingCriteria;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Gender;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Religion;
+import seedu.address.model.person.SmokingStatus;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -35,15 +50,27 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
+    public static final String MESSAGE_DUPLICATE_CRITERIA = "Attribute already added for criteria: ";
+
     public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
             + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
+            + "Ordinary fields are overwritten; partner gender, religion and relationship-goal values are added.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_GENDER + "GENDER] "
+            + "[" + PREFIX_SMOKING + "yes|no] "
+            + "[" + PREFIX_AGE + "AGE] "
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_RELIGION + "RELIGION] "
+            + "[{CRITERIA}] [<CRITERIA>]\n"
+            + "Gender: m, w, nb, or empty for unspecified.\n"
+            + "Partner criteria: {...} prefers; <...> excludes (must not have). "
+            + "Use age/, g/, s/, r/, or rg/ once per block, each with a value. "
+            + "rg/ takes comma-separated goal keywords, e.g. {rg/long,long-open}.\n"
+            + "Supplied criteria add or update entries; {} or <> clears that entire set.\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
@@ -56,8 +83,10 @@ public class EditCommand extends Command {
     private final EditPersonDescriptor editPersonDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * Creates an edit command for a person in the displayed list.
+     *
+     * @param index Index of the person to edit.
+     * @param editPersonDescriptor Details to apply to the person.
      */
     public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
         requireNonNull(index);
@@ -67,6 +96,11 @@ public class EditCommand extends Command {
         this.editPersonDescriptor = new EditPersonDescriptor(editPersonDescriptor);
     }
 
+    /**
+     * Applies the edits to the selected person and reports the result.
+     *
+     * @throws CommandException If the index or resulting person is invalid.
+     */
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
@@ -77,7 +111,13 @@ public class EditCommand extends Command {
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
-        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+        EditOutcome editOutcome;
+        try {
+            editOutcome = createEditedPerson(personToEdit, editPersonDescriptor);
+        } catch (IllegalArgumentException exception) {
+            throw new CommandException(exception.getMessage());
+        }
+        Person editedPerson = editOutcome.person();
 
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
@@ -85,24 +125,88 @@ public class EditCommand extends Command {
 
         model.setPerson(personToEdit, editedPerson);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        String feedback = String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        if (!editOutcome.duplicates().isEmpty()) {
+            feedback += "\n" + MESSAGE_DUPLICATE_CRITERIA + String.join(", ", editOutcome.duplicates());
+        }
+        return new CommandResult(feedback);
     }
 
     /**
      * Creates and returns a {@code Person} with the details of {@code personToEdit}
      * edited with {@code editPersonDescriptor}.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
+    private static EditOutcome createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Age updatedAge = editPersonDescriptor.getAge().orElse(personToEdit.getAge());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Gender updatedGender = editPersonDescriptor.getGender().orElse(personToEdit.getGender());
+        SmokingStatus updatedSmokingStatus = editPersonDescriptor.getSmokingStatus()
+                .orElse(personToEdit.getSmokingStatus());
+        MergeResult preferencesResult = mergeCriteria(
+                personToEdit.getDatingCriteria().getPreferences(), editPersonDescriptor.getPreferences(),
+                editPersonDescriptor.getPreferencesToRemove(), editPersonDescriptor.shouldClearPreferences());
+        MergeResult dealbreakersResult = mergeCriteria(
+                personToEdit.getDatingCriteria().getDealbreakers(), editPersonDescriptor.getDealbreakers(),
+                editPersonDescriptor.getDealbreakersToRemove(), editPersonDescriptor.shouldClearDealbreakers());
+        DatingCriteria updatedDatingCriteria = new DatingCriteria(preferencesResult.criteria(),
+                dealbreakersResult.criteria());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        Religion updatedReligion = editPersonDescriptor.isReligionEdited()
+                ? editPersonDescriptor.getReligion().orElse(null) : personToEdit.getReligion().orElse(null);
+
+        Person editedPerson = new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedAge,
+                updatedTags,
+                updatedSmokingStatus, updatedGender, updatedReligion, updatedDatingCriteria);
+        List<String> duplicates = new ArrayList<>(preferencesResult.duplicates());
+        duplicates.addAll(dealbreakersResult.duplicates());
+        return new EditOutcome(editedPerson, List.copyOf(duplicates));
     }
+
+    /**
+     * Applies supplied criteria to the existing criteria and removes attributes with empty values.
+     * An explicitly empty environment clears all criteria of that type.
+     */
+    private static MergeResult mergeCriteria(Map<DatingAttribute, Set<String>> existingCriteria,
+            Optional<Map<DatingAttribute, Set<String>>> editedCriteria, Set<DatingAttribute> attributesToRemove,
+            boolean shouldClearCriteria) {
+        if (shouldClearCriteria) {
+            return new MergeResult(Map.of(), List.of());
+        }
+        Map<DatingAttribute, Set<String>> mergedCriteria = new HashMap<>();
+        existingCriteria.forEach((attribute, values) -> mergedCriteria.put(attribute, new LinkedHashSet<>(values)));
+        List<String> duplicates = new ArrayList<>();
+        editedCriteria.ifPresent(criteria -> criteria.forEach((attribute, newValues) -> {
+            Set<String> existingValues = mergedCriteria.get(attribute);
+            if (!attribute.allowsMultipleValues()) {
+                if (newValues.equals(existingValues)) {
+                    duplicates.add(formatCriterion(attribute, newValues));
+                } else {
+                    mergedCriteria.put(attribute, new LinkedHashSet<>(newValues));
+                }
+                return;
+            }
+            Set<String> values = mergedCriteria.computeIfAbsent(attribute, ignored -> new LinkedHashSet<>());
+            newValues.stream().filter(values::contains)
+                    .forEach(value -> duplicates.add(formatCriterion(attribute, Set.of(value))));
+            values.addAll(newValues);
+        }));
+        attributesToRemove.forEach(mergedCriteria::remove);
+        return new MergeResult(mergedCriteria, duplicates);
+    }
+
+    private static String formatCriterion(DatingAttribute attribute, Set<String> values) {
+        return attribute.getDisplayName() + " = " + values.stream().collect(Collectors.joining(", "));
+    }
+
+    private record MergeResult(Map<DatingAttribute, Set<String>> criteria, List<String> duplicates) {}
+
+    private record EditOutcome(Person person, List<String> duplicates) {}
 
     @Override
     public boolean equals(Object other) {
@@ -128,15 +232,30 @@ public class EditCommand extends Command {
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the details to edit a person. Supplied ordinary fields replace existing values.
+     * Non-empty criteria maps merge supplied entries; empty maps clear their respective buckets.
+     * An explicitly empty religion field clears the recorded religion.
      */
     public static class EditPersonDescriptor {
         private Name name;
         private Phone phone;
         private Email email;
         private Address address;
+        private Gender gender;
+        private SmokingStatus smokingStatus;
+        private Age age;
         private Set<Tag> tags;
+        private Religion religion;
+        // Track supplied fields separately so null can mean an explicit clear.
+        private boolean religionEdited;
+        private Map<DatingAttribute, Set<String>> preferences;
+        private Set<DatingAttribute> preferencesToRemove = Set.of();
+        private boolean clearPreferences;
+        private boolean preferencesEdited;
+        private Map<DatingAttribute, Set<String>> dealbreakers;
+        private Set<DatingAttribute> dealbreakersToRemove = Set.of();
+        private boolean clearDealbreakers;
+        private boolean dealbreakersEdited;
 
         public EditPersonDescriptor() {}
 
@@ -149,14 +268,27 @@ public class EditCommand extends Command {
             setPhone(toCopy.phone);
             setEmail(toCopy.email);
             setAddress(toCopy.address);
+            setGender(toCopy.gender);
+            setSmokingStatus(toCopy.smokingStatus);
+            setAge(toCopy.age);
             setTags(toCopy.tags);
+            if (toCopy.religionEdited) {
+                setReligion(toCopy.religion);
+            }
+            if (toCopy.preferencesEdited) {
+                setPreferences(toCopy.preferences, toCopy.preferencesToRemove);
+            }
+            if (toCopy.dealbreakersEdited) {
+                setDealbreakers(toCopy.dealbreakers, toCopy.dealbreakersToRemove);
+            }
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, age, tags, smokingStatus, gender)
+                    || religionEdited || preferencesEdited || dealbreakersEdited;
         }
 
         public void setName(Name name) {
@@ -183,12 +315,36 @@ public class EditCommand extends Command {
             return Optional.ofNullable(email);
         }
 
+        public void setGender(Gender gender) {
+            this.gender = gender;
+        }
+
+        public Optional<Gender> getGender() {
+            return Optional.ofNullable(gender);
+        }
+
         public void setAddress(Address address) {
             this.address = address;
         }
 
         public Optional<Address> getAddress() {
             return Optional.ofNullable(address);
+        }
+
+        public void setSmokingStatus(SmokingStatus smokingStatus) {
+            this.smokingStatus = smokingStatus;
+        }
+
+        public Optional<SmokingStatus> getSmokingStatus() {
+            return Optional.ofNullable(smokingStatus);
+        }
+
+        public void setAge(Age age) {
+            this.age = age;
+        }
+
+        public Optional<Age> getAge() {
+            return Optional.ofNullable(age);
         }
 
         /**
@@ -208,6 +364,107 @@ public class EditCommand extends Command {
             return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
         }
 
+        /**
+         * Sets or clears the client's religion; null explicitly clears it.
+         */
+        public void setReligion(Religion religion) {
+            this.religion = religion;
+            religionEdited = true;
+        }
+
+        /**
+         * Returns the new religion, if one was supplied rather than cleared.
+         */
+        public Optional<Religion> getReligion() {
+            return Optional.ofNullable(religion);
+        }
+
+        /**
+         * Returns whether the religion was supplied, including an explicit clear.
+         */
+        public boolean isReligionEdited() {
+            return religionEdited;
+        }
+
+        /** Records partner preferences to add or update. */
+        public void setPreferences(Map<DatingAttribute, ?> preferences) {
+            setPreferences(preferences, Set.of());
+        }
+
+        /** Records partner preferences to add, update or remove. */
+        public void setPreferences(Map<DatingAttribute, ?> preferences,
+                Set<DatingAttribute> attributesToRemove) {
+            this.preferences = copyCriteria(preferences);
+            preferencesToRemove = Set.copyOf(requireNonNull(attributesToRemove));
+            clearPreferences = preferences.isEmpty() && attributesToRemove.isEmpty();
+            preferencesEdited = true;
+        }
+
+        /** Returns preferences to add or update when the preference environment was supplied. */
+        public Optional<Map<DatingAttribute, Set<String>>> getPreferences() {
+            return Optional.ofNullable(preferences);
+        }
+
+        /** Returns the preference attributes to remove because they were supplied with an empty value. */
+        public Set<DatingAttribute> getPreferencesToRemove() {
+            return preferencesToRemove;
+        }
+
+        /** Returns whether the preference environment was explicitly empty. */
+        public boolean shouldClearPreferences() {
+            return clearPreferences;
+        }
+
+        /** Records partner dealbreakers to add or update. */
+        public void setDealbreakers(Map<DatingAttribute, ?> dealbreakers) {
+            setDealbreakers(dealbreakers, Set.of());
+        }
+
+        /** Records partner dealbreakers to add, update or remove. */
+        public void setDealbreakers(Map<DatingAttribute, ?> dealbreakers,
+                Set<DatingAttribute> attributesToRemove) {
+            this.dealbreakers = copyCriteria(dealbreakers);
+            dealbreakersToRemove = Set.copyOf(requireNonNull(attributesToRemove));
+            clearDealbreakers = dealbreakers.isEmpty() && attributesToRemove.isEmpty();
+            dealbreakersEdited = true;
+        }
+
+        /** Returns dealbreakers to add or update when the dealbreaker environment was supplied. */
+        public Optional<Map<DatingAttribute, Set<String>>> getDealbreakers() {
+            return Optional.ofNullable(dealbreakers);
+        }
+
+        /** Returns the dealbreaker attributes to remove because they were supplied with an empty value. */
+        public Set<DatingAttribute> getDealbreakersToRemove() {
+            return dealbreakersToRemove;
+        }
+
+        /** Returns whether the dealbreaker environment was explicitly empty. */
+        public boolean shouldClearDealbreakers() {
+            return clearDealbreakers;
+        }
+
+        private static Map<DatingAttribute, Set<String>> copyCriteria(Map<DatingAttribute, ?> criteria) {
+            Map<DatingAttribute, Set<String>> copied = new HashMap<>();
+            requireNonNull(criteria).forEach((attribute, rawValues) -> {
+                if (rawValues instanceof String value) {
+                    copied.put(attribute, Set.of(value));
+                } else if (rawValues instanceof Set<?> values) {
+                    Set<String> strings = new LinkedHashSet<>();
+                    for (Object value : values) {
+                        if (!(value instanceof String string)) {
+                            throw new IllegalArgumentException(DatingAttribute.MESSAGE_EMPTY_VALUE);
+                        }
+                        strings.add(string);
+                    }
+                    copied.put(attribute, Collections.unmodifiableSet(strings));
+                } else {
+                    throw new IllegalArgumentException(DatingAttribute.MESSAGE_EMPTY_VALUE);
+                }
+            });
+            return Map.copyOf(copied);
+        }
+
         @Override
         public boolean equals(Object other) {
             if (other == this) {
@@ -223,18 +480,49 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(gender, otherEditPersonDescriptor.gender)
+                    && Objects.equals(smokingStatus, otherEditPersonDescriptor.smokingStatus)
+                    && Objects.equals(age, otherEditPersonDescriptor.age)
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(religion, otherEditPersonDescriptor.religion)
+                    && religionEdited == otherEditPersonDescriptor.religionEdited
+                    && Objects.equals(preferences, otherEditPersonDescriptor.preferences)
+                    && preferencesToRemove.equals(otherEditPersonDescriptor.preferencesToRemove)
+                    && clearPreferences == otherEditPersonDescriptor.clearPreferences
+                    && preferencesEdited == otherEditPersonDescriptor.preferencesEdited
+                    && Objects.equals(dealbreakers, otherEditPersonDescriptor.dealbreakers)
+                    && dealbreakersToRemove.equals(otherEditPersonDescriptor.dealbreakersToRemove)
+                    && clearDealbreakers == otherEditPersonDescriptor.clearDealbreakers
+                    && dealbreakersEdited == otherEditPersonDescriptor.dealbreakersEdited;
         }
 
+        /**
+         * Returns a string representation of the supplied fields and edit flags.
+         */
         @Override
         public String toString() {
-            return new ToStringBuilder(this)
+            ToStringBuilder builder = new ToStringBuilder(this)
                     .add("name", name)
                     .add("phone", phone)
                     .add("email", email)
                     .add("address", address)
+                    .add("smokingStatus", smokingStatus)
+                    .add("age", age)
                     .add("tags", tags)
-                    .toString();
+                    .add("gender", gender)
+                    .add("religion", religion)
+                    .add("religionEdited", religionEdited);
+            if (preferencesEdited) {
+                builder.add("preferences", preferences)
+                        .add("preferencesToRemove", preferencesToRemove)
+                        .add("preferencesEdited", true);
+            }
+            if (dealbreakersEdited) {
+                builder.add("dealbreakers", dealbreakers)
+                        .add("dealbreakersToRemove", dealbreakersToRemove)
+                        .add("dealbreakersEdited", true);
+            }
+            return builder.toString();
         }
     }
 }

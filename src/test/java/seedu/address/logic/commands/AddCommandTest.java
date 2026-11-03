@@ -8,6 +8,7 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -88,6 +89,21 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public Runnable createRestorePoint() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setGroups(java.util.List<seedu.address.model.group.ClientGroup> groups) {
+            throw new AssertionError("Unexpected group mutation.");
+        }
+
+        @Override
+        public void showGroup(seedu.address.model.group.GroupName name) {
+            throw new AssertionError("Unexpected group display.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -139,6 +155,11 @@ public class AddCommandTest {
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
             throw new AssertionError("This method should not be called.");
         }
     }
