@@ -29,3 +29,8 @@ CLAUDE.md
 
 # Temp files
 _temp/
+docs/_markbind/logs/
+/bin/
+
+# Local project agent skills
+/.agents/

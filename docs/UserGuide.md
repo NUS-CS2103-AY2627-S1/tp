@@ -1,12 +1,15 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# TutorBroPro User Guide
 
-* Table of Contents
-{:toc}
+TutorBroPro is a **desktop application for freelance private tutors to manage student profiles and lesson records**, optimized for use through a Command Line Interface (CLI) while retaining the benefits of a Graphical User Interface (GUI). It keeps student details, parent contacts and lesson history in one place so tutors can retrieve and update records quickly without relying on scattered notes.
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,24 +18,37 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-F11-4/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for your TutorBroPro.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+   <box type="warning" seamless>
+
+   Keep the JAR in a folder where you have permission to create and modify files. TutorBroPro saves its data and preferences beside the JAR. Double-clicking the JAR might not work on some systems; use the terminal command below instead.
+   </box>
+
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar "[CS2103T-F11-4][TutorBroPro].jar"`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+   ![TutorBroPro main window showing student cards and lesson history](images/Ui.png)
+
+   Each student card shows up to the three most recent lesson notes. Longer note text is shortened with `...`, and the `+ N more` line indicates additional notes; use `history INDEX` to see the complete notes.
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all students.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `addstudent n/John Doe lvl/Sec 2 s/Math pn/91234567 pe/johnd@example.com` : Adds a student named `John Doe`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `view 1` : Shows the full profile of the 1st student shown in the current list.
 
-   * `clear` : Deletes all contacts.
+   * `addnote 1 d/2026-10-01 s/Math note/Revised simultaneous equations.` : Adds a lesson note.
+
+   * `history 1` : Shows the history for lesson notes of the 1st student shown in the current list.
+
+   * `deletestudent 3` : Deletes the 3rd student shown in the current list.
+
+   * `deletenote 1 ln/1` : Deletes the 1st lesson note of the 1st student.
 
    * `exit` : Exits the app.
 
@@ -42,139 +58,286 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `addstudent n/NAME`, replace `NAME` with a value such as `John Doe`.
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+* Items followed by `...` can appear multiple times; whether they are optional depends on the command.<br>
+  For example, `s/SUBJECT...` may be written as `s/Math` or `s/Math s/Science`, and `addstudent` requires at least one subject.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
-
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
-
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Prefixed parameters can generally appear in any order. However, for `addnote` and `editnote`, `note/` must come last when provided: everything after it is treated as note text, including text resembling other parameters.<br>
+  For example, `addnote 1 s/Math d/2026-10-01 note/Revised algebra`
+  is valid because `note/` comes after the other parameters.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
 
-### Viewing help: `help`
+### Adding a student: `addstudent`
 
-Shows a message explaining how to access the help page.
+Adds a student profile with the student's name, academic level, subjects, and parent contact details.
 
-![help message](images/helpMessage.png)
+Format: `addstudent n/NAME lvl/LEVEL s/SUBJECT... pn/PARENT_PHONE pe/PARENT_EMAIL`
 
-Format: `help`
+* `NAME`, `LEVEL`, at least one `SUBJECT`, `PARENT_PHONE`, and `PARENT_EMAIL` are compulsory.
+* `NAME` may contain Unicode letters, accent marks, digits, spaces, apostrophes, `-`, and `/`, must contain at least one letter or digit, and must be at most 60 characters long. Punctuation-only names such as `---` and `/` are rejected.
+* A word in `NAME` cannot start with a lowercase prefix such as `s/` or `n/`, because it is read as a new field.
+* `LEVEL` must be one of `Pri 1` to `Pri 6`, `Sec 1` to `Sec 5`, or `JC 1` to `JC 2`.
+* `SUBJECT` must contain only letters and spaces and must be 2 to 30 characters long.
+* Duplicate subjects are merged case-insensitively and consecutive spaces are treated as a single space. If a duplicate is entered, the application displays a warning naming the ignored subject.
+* Duplicate students are not allowed. A student is considered a duplicate only when both the name and parent phone number match an existing student.
+* `PARENT_PHONE` must contain exactly 8 digits and start with `8` or `9`.
+* `PARENT_EMAIL` must be a valid email address in the form `example@domain` and must be at most 60 characters long.
+* The part before `@` supports apostrophes and consecutive underscores, for example `o'connor@example.com` and `alex__parent@example.com`. It must start and end with a letter or digit. Spaces and consecutive dots are not allowed.
 
+Example:
+* `addstudent n/John Doe lvl/Sec 2 s/Math s/Science pn/91234567 pe/johnd@example.com`
 
-### Adding a person: `add`
+### Editing a student: `edit`
 
-Adds a person to the address book.
+Edits an existing student in the address book.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `edit INDEX [n/NAME] [lvl/LEVEL] [s/SUBJECT]... [pn/PARENT_PHONE] [pe/PARENT_EMAIL]`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+* Edits the student at the specified `INDEX`. The index refers to the index number shown in the displayed student list. The index **must be a positive integer** 1, 2, 3, ...
+* At least one of the optional fields must be provided.
+* Supplied fields are updated; omitted fields remain unchanged.
+* Invalid edits leave all student profiles and lesson notes unchanged.
+* An edit cannot create another student with the same name and parent phone number.
+* After a successful edit, the full student list is displayed.
+* When editing subjects, all of the student's existing subjects are replaced; adding subjects is not cumulative. To replace them, list every subject you want the student to keep.
+* Duplicate subjects are merged case-insensitively and consecutive spaces are treated as a single space. The application warns when a duplicate subject is ignored.
+* The edited student must retain at least one subject. Empty subject entries such as `edit 1 s/` are rejected.
+* Each supplied field follows the same validation rules as `addstudent`.
+* Editing a student's profile does not change or delete existing lesson notes. Removing a subject from the profile does not remove historical notes recorded for that subject.
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `edit 1 pn/91234567 pe/johndoe@example.com` Edits the parent phone and parent email of the 1st student.
+* `edit 2 n/Betsy Crower s/Math s/Science` Edits the name of the 2nd student and replaces their subjects with `Math` and `Science`.
 
-### Listing all persons: `list`
+### Viewing a student's profile: `view`
 
-Shows a list of all persons in the address book.
+Shows the full profile of a student, including their academic level, subjects, parent contact details, and number of recorded lessons.
+
+Format: `view INDEX`
+
+* `INDEX` refers to the student number shown in the displayed student list and must be a positive integer.
+
+Example:
+* `view 1` shows the full profile of the 1st student.
+
+### Listing all students: `list`
+
+Shows a list of all students in the address book, clearing any filter applied by `find` or `filter`.
 
 Format: `list`
 
-### Editing a person: `edit`
+### Finding students: `find`
 
-Edits an existing person in the address book.
+Searches all students by name and displays the matches with new index numbers.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `find KEYWORD [MORE_KEYWORDS]...`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* Matching is case-insensitive. Each keyword matches a name component that starts with that keyword.
+* Partial name searching is supported. For example, `J`, `Ja`, and `JA` all match a student named `Jack Neo`.
+* When multiple keywords are supplied, a student is shown if any name component starts with any of the keywords.
+* If there are no matches, an empty student list is displayed.
+* Use `list` to display all students again.
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+Example:
+* `find Alex`
 
-### Locating persons by name: `find`
+### Filtering students: `filter`
 
-Finds persons whose names contain any of the given keywords.
+Filters all students by academic level, subject, or both, and displays the matches with new index numbers.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Format: `filter [s/SUBJECT]... [lvl/LEVEL]`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
-
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* At least one `s/` or `lvl/` criterion must be provided.
+* Subject and academic-level matching is case-insensitive.
+* Repeated spaces between words in subject names are treated as a single space when filtering.
+  For example, `s/Additional  Mathematics` matches `Additional Mathematics`.
+* A student must match the specified academic level, if one is provided.
+* When multiple subjects are specified, a student must take every specified subject.
+* Students may take additional subjects not specified in the command.
+* If there are no matches, an empty student list is displayed.
+* Use `list` to display all students again.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+
+* `filter s/Math` displays students who take Math.
+* `filter lvl/Sec 2` displays students in Secondary 2.
+* `filter s/Math s/Science lvl/Sec 2` displays Secondary 2 students who take both Math and Science.
+
+### Adding a lesson note: `addnote`
+
+Adds a lesson note to an existing student in the address book.
+
+Format: `addnote INDEX d/DATE s/SUBJECT note/NOTE_TEXT`
+
+* Adds the lesson note to the student at the specified `INDEX`. The index refers to the index number shown in the displayed student list. The index **must be a positive integer** 1, 2, 3, ...
+* All three of `d/`, `s/` and `note/` are compulsory.
+* `note/` must be the final parameter. Everything after `note/`, including text such as `d/`, `s/`, `ln/`, or
+  another `note/`, is saved as part of `NOTE_TEXT`.
+* `DATE` must be a real calendar date in `YYYY-MM-DD` format, must not be before `2000-01-01`, and cannot be a future date.
+* `SUBJECT` must contain only letters and spaces and must be 2 to 30 characters long.
+* `SUBJECT` must match one of the student's current subjects, ignoring letter case. The note stores the subject using the spelling shown in the student's profile.
+* `NOTE_TEXT` cannot be blank, must not exceed 500 characters, and must be on a single line.
+* A student cannot have two lesson notes with the same date, subject and note text.
+* Lesson notes are kept sorted from the most recent date to the earliest.
+
+Examples:
+* `addnote 1 d/2026-10-01 s/Math note/Revised simultaneous equations.`
+* `addnote 2 d/2026-09-20 s/Science note/Covered photosynthesis, needs more practice on diagrams.`
+
+### Editing a lesson note: `editnote`
+
+Edits an existing lesson note of a student in the address book.
+
+Format: `editnote INDEX ln/LESSON_INDEX [d/DATE] [s/SUBJECT] [note/NOTE_TEXT]`
+
+* Edits a lesson note of the student at the specified `INDEX`. The index refers to the index number shown in the displayed student list.
+* `LESSON_INDEX` refers to the number shown next to the note in the output of `history INDEX`.
+* Both indexes **must be positive integers** 1, 2, 3, ...
+* At least one of `d/`, `s/` and `note/` must be provided.
+* If provided, `note/` must be the final parameter. Everything after `note/`, including text such as `d/`, `s/`,
+  `ln/`, or another `note/`, is saved as part of `NOTE_TEXT`.
+* Only the fields you provide are changed; the rest of the note is left as it was.
+* `DATE`, `SUBJECT` and `NOTE_TEXT` follow the same rules as in `addnote`.
+* If `SUBJECT` is provided, it must match one of the student's current subjects. If it is omitted, the note keeps its existing subject even if that subject has since been removed from the student's profile.
+* The command is rejected if the resulting date, subject and note text are all unchanged.
+* Changing the date re-sorts the student's notes, so a note's number may change. Run `history INDEX` again before editing or deleting another note, replacing `INDEX` with the student's current displayed index.
+
+Examples:
+* `editnote 1 ln/2 note/Recapped photosynthesis.` rewrites the text of the 2nd lesson note of the 1st student.
+* `editnote 1 ln/1 d/2026-09-28 s/Science` changes the date and subject of the most recent lesson note of the 1st student.
+
+### Viewing lesson history: `history`
+
+Shows all lesson notes recorded for a student, from the most recent date to the earliest.
+
+Format: `history INDEX`
+
+* Shows the lesson notes of the student at the specified `INDEX`. The index refers to the index number shown in the displayed student list. The index **must be a positive integer** 1, 2, 3, ...
+* Each note is numbered. Use that number as `LESSON_INDEX` in `editnote` or `deletenote`.
+* `INDEX` selects a student from the currently displayed student list; 
+`LESSON_INDEX` selects a note from that student's history.
+* If the student has no lesson notes, a message saying so is shown instead.
+
+Examples:
+* `history 1` shows the lesson history of the 1st student, for example:
+
+```
+Lesson history for John Doe:
+1. 2026-10-01 | Math | Revised simultaneous equations.
+2. 2026-09-20 | Science | Covered photosynthesis.
+```
+
+### Deleting a lesson note: `deletenote`
+
+Deletes one lesson note from an existing student in the address book.
+
+Format: `deletenote INDEX ln/LESSON_INDEX`
+
+* Deletes a lesson note from the student at the specified `INDEX`. The index refers to the index number shown in the displayed student list.
+* `LESSON_INDEX` refers to the number shown next to the note in the output of `history INDEX`.
+* Both indexes **must be positive integers** 1, 2, 3, ...
+* Deleting a note shifts subsequent notes up by one position. Run `history INDEX` again before editing or deleting another note; do not reuse note numbers from an earlier history output.
+
+Examples:
+* `deletenote 1 ln/2` deletes the 2nd lesson note of the 1st student.
+* `deletenote 3 ln/1` deletes the most recent lesson note of the 3rd student.
+
+### Deleting a student: `deletestudent`
+
+Deletes the specified student and all their associated lesson notes from the address book.
+
+Format: `deletestudent INDEX`
+
+* Deletes the student at the specified `INDEX`.
+* The index refers to the index number shown in the displayed student list.
+* The index **must be a positive integer** 1, 2, 3, ...
+
+Examples:
+* `deletestudent 2` deletes the 2nd student in the displayed student list.
+
+The success message reports the student name and the number of lesson notes removed, for example:
+`Deleted student: Alex Yeoh, and their 3 lesson note(s).`
+A student with no notes can also be deleted; the reported count is `0`.
+
+Deletion is immediate, without a confirmation prompt, and cannot be undone. Other students and their notes remain unchanged.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Removes every student, together with all their lesson notes, from the address book.
 
 Format: `clear`
 
+This command does not accept an index or other arguments. Inputs such as `clear 2` are rejected without changing any data.
+
+This safeguard helps prevent accidentally deleting all students when confusing `clear` with `deletestudent`.
+For example, to delete only the student at displayed index 2, use `deletestudent 2`.
+Typing `clear 2` by mistake does not delete anything. Typing `clear` alone still removes all students and their lesson notes.
+
+<box type="warning" seamless>
+
+**Caution:** This cannot be undone, and you are not asked to confirm. The change is saved to the data file immediately.
+</box>
+
+### Viewing help: `help`
+
+Opens a window with a link to this user guide. Help does not save student data and remains available
+even when saving fails.
+
+Format: `help`
+
 ### Exiting the program: `exit`
 
-Exits the program.
+Exits the application without attempting another save.
+
+If your current student data contains unsaved changes, a confirmation appears:
+
+* **Cancel** keeps the app open and retains the current data in this session.
+* **Exit anyway** closes the app and discards unsaved changes.
+
+Closing the confirmation also cancels exiting. The same protection applies to **File → Exit** and
+closing the main window. If there are no unsaved changes, the app closes immediately.
 
 Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+TutorBroPro attempts to save the entire current student dataset after each successfully executed command,
+except `help` and `exit`. There is no separate save command.
+
+If saving fails, an error appears in the command result area. A change may already be visible in the app
+but has not been saved to disk; the app does not undo it automatically. Keep the app open, resolve the
+reported save problem, then run `list` to retry saving. A successful save includes all current students
+and notes, including earlier unsaved changes that you have not since changed or deleted.
+
+For example, if adding a note succeeds in the app but saving fails, a later successful save preserves
+that note. If you delete the note before that save, the saved dataset reflects its deletion.
+`help` and `exit` do not retry saving. Exiting with unsaved changes requires confirmation.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+TutorBroPro data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+<box type="warning" seamless>
 
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
+**Caution:**
+If your changes make the data file invalid, TutorBroPro starts with an empty address book at the next run. The invalid file is moved to `data/addressbook.corrupted-1.json` (the number increases if that file already exists), and a warning shows where it was saved. Still, we recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause TutorBroPro to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous TutorBroPro home folder.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -182,17 +345,25 @@ _Details coming soon ..._
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
 2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+3. **On macOS, using fullscreen mode** while a secondary dialog such as the Help Window is open might cause unexpected behavior. Exit fullscreen mode before opening or using secondary dialogs if this occurs.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+Action     | Format, Examples
+-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Add student** | `addstudent n/NAME lvl/LEVEL s/SUBJECT... pn/PARENT_PHONE pe/PARENT_EMAIL`<br> e.g., `addstudent n/James Ho lvl/Sec 2 s/Math s/Science pn/91234567 pe/jamesho@example.com`
+**Edit student** | `edit INDEX [n/NAME] [lvl/LEVEL] [s/SUBJECT]... [pn/PARENT_PHONE] [pe/PARENT_EMAIL]`<br> e.g., `edit 2 n/James Lee pe/jameslee@example.com`
+**View profile** | `view INDEX`<br> e.g., `view 1`
+**List students** | `list`
+**Find students** | `find KEYWORD [MORE_KEYWORDS]...`<br> e.g., `find Ja` or `find James Jake`
+**Filter students** | `filter [s/SUBJECT]... [lvl/LEVEL]`<br> e.g., `filter s/Math s/Science lvl/Sec 2`
+**Add lesson note** | `addnote INDEX d/DATE s/SUBJECT note/NOTE_TEXT`<br> e.g., `addnote 1 d/2026-10-01 s/Math note/Revised simultaneous equations.`
+**Edit lesson note** | `editnote INDEX ln/LESSON_INDEX [d/DATE] [s/SUBJECT] [note/NOTE_TEXT]`<br> e.g., `editnote 1 ln/2 note/Recapped photosynthesis.`
+**View lesson history** | `history INDEX`<br> e.g., `history 1`
+**Delete lesson note** | `deletenote INDEX ln/LESSON_INDEX`<br> e.g., `deletenote 1 ln/2`
+**Delete student** | `deletestudent INDEX`<br> e.g., `deletestudent 3`
 **Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
 **Help** | `help`
+**Exit** | `exit`

@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 
 import org.junit.jupiter.api.Test;
 
@@ -127,6 +130,28 @@ public class ArgumentTokenizerTest {
     }
 
     @Test
+    public void tokenizeWithTerminalPrefix_prefixLikeTextAfterTerminalPrefix_retainedInTerminalValue() {
+        String argsString = "SomePreambleString -t dashT-Value p/terminal -t text p/again";
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithTerminalPrefix(
+                argsString, pSlash, dashT);
+
+        assertPreamblePresent(argMultimap, "SomePreambleString");
+        assertArgumentPresent(argMultimap, dashT, "dashT-Value");
+        assertArgumentPresent(argMultimap, pSlash, "terminal -t text p/again");
+    }
+
+    @Test
+    public void tokenizeWithTerminalPrefix_terminalPrefixAbsent_otherPrefixesTokenized() {
+        String argsString = "SomePreambleString -t dashT-Value";
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenizeWithTerminalPrefix(
+                argsString, pSlash, dashT);
+
+        assertPreamblePresent(argMultimap, "SomePreambleString");
+        assertArgumentPresent(argMultimap, dashT, "dashT-Value");
+        assertArgumentAbsent(argMultimap, pSlash);
+    }
+
+    @Test
     public void tokenize_multipleArgumentsJoined() {
         String argsString = "SomePreambleStringp/ pSlash joined-tjoined -t not joined^Qjoined";
         ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, pSlash, dashT, hatQ);
@@ -134,6 +159,21 @@ public class ArgumentTokenizerTest {
         assertArgumentAbsent(argMultimap, pSlash);
         assertArgumentPresent(argMultimap, dashT, "not joined^Qjoined");
         assertArgumentAbsent(argMultimap, hatQ);
+    }
+
+    @Test
+    public void tokenize_lowercaseSubjectStartingWithO_parsedAsSubject() {
+        // "s/o" followed by whitespace after a name starts a subject
+        String argsString = " n/John s/o level s/Math";
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, PREFIX_NAME, PREFIX_SUBJECT);
+        assertArgumentPresent(argMultimap, PREFIX_NAME, "John");
+        assertArgumentPresent(argMultimap, PREFIX_SUBJECT, "o level", "Math");
+
+        // "s/o" followed by whitespace after another field starts a subject
+        argsString = " n/John lvl/Sec 2 s/o level";
+        argMultimap = ArgumentTokenizer.tokenize(argsString, PREFIX_NAME, PREFIX_LEVEL, PREFIX_SUBJECT);
+        assertArgumentPresent(argMultimap, PREFIX_LEVEL, "Sec 2");
+        assertArgumentPresent(argMultimap, PREFIX_SUBJECT, "o level");
     }
 
     @Test

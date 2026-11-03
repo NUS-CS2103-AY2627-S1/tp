@@ -1,59 +1,56 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Tay Zhong Xian
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zxtay3.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/zxtay3)]
 
 * Role: Project Advisor
 
-### Jane Doe
+### Park An Kai
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/parkankai.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/parkankai)]
 
 * Role: Team Lead
 * Responsibilities: UI
 
-### Johnny Doe
+### Lim Jun Hong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/sealfromdowntown.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/sealfromdowntown)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Khaw Zi Xiang Stuart
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/skhaw2004.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/skhaw2004)]
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Tristan Lyn
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/tristan914684.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Tristan914684)]
 
 * Role: Developer
 * Responsibilities: UI

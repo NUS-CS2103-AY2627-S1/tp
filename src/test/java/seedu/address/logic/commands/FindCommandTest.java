@@ -54,13 +54,21 @@ public class FindCommandTest {
     }
 
     @Test
-    public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+    public void execute_zeroKeywords_displaysEmptyList() {
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(), model.getFilteredPersonList());
+        expectedModel.updateFilteredStudentList(predicate);
+        assertCommandSuccess(command, model, FindCommand.MESSAGE_NO_STUDENTS_FOUND, expectedModel);
+        assertTrue(model.getFilteredStudentList().isEmpty());
+    }
+
+    @Test
+    public void execute_noMatches_displaysEmptyList() {
+        NameContainsKeywordsPredicate predicate = preparePredicate("NonexistentStudentName");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredStudentList(predicate);
+        assertCommandSuccess(command, model, FindCommand.MESSAGE_NO_STUDENTS_FOUND, expectedModel);
+        assertTrue(model.getFilteredStudentList().isEmpty());
     }
 
     @Test
@@ -68,9 +76,9 @@ public class FindCommandTest {
         String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredStudentList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredStudentList());
     }
 
     @Test

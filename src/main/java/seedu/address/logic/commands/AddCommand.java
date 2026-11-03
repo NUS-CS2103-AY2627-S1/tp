@@ -1,63 +1,77 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PARENT_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PARENT_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.person.Student;
 
 /**
- * Adds a person to the address book.
+ * Adds a student to the address book.
  */
 public class AddCommand extends Command {
 
-    public static final String COMMAND_WORD = "add";
+    public static final String COMMAND_WORD = "addstudent";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a student to the address book. "
             + "Parameters: "
             + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + PREFIX_LEVEL + "LEVEL "
+            + PREFIX_SUBJECT + "SUBJECT... "
+            + PREFIX_PARENT_PHONE + "PARENT_PHONE "
+            + PREFIX_PARENT_EMAIL + "PARENT_EMAIL\n"
             + "Example: " + COMMAND_WORD + " "
             + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
-            + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + PREFIX_LEVEL + "Sec 2 "
+            + PREFIX_SUBJECT + "Math "
+            + PREFIX_PARENT_PHONE + "98765432 "
+            + PREFIX_PARENT_EMAIL + "johnd@example.com";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_WRONG_FORMAT =
+            String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, MESSAGE_USAGE);
 
-    private final Person toAdd;
+    public static final String MESSAGE_SUCCESS = "New student added: %1$s";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This student already exists in the address book.";
+
+    private final Student toAdd;
+    private final String duplicateSubjectWarning;
 
     /**
-     * Creates an AddCommand to add the specified {@code Person}
+     * Creates an AddCommand to add the specified {@code Student}
      */
-    public AddCommand(Person person) {
-        requireNonNull(person);
-        toAdd = person;
+    public AddCommand(Student student) {
+        this(student, "");
+    }
+
+    /**
+     * Creates an AddCommand with an optional warning about duplicate subjects in the input.
+     */
+    public AddCommand(Student student, String duplicateSubjectWarning) {
+        requireNonNull(student);
+        requireNonNull(duplicateSubjectWarning);
+        toAdd = student;
+        this.duplicateSubjectWarning = duplicateSubjectWarning;
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
 
-        if (model.hasPerson(toAdd)) {
+        if (model.hasStudent(toAdd)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
-        model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        model.addStudent(toAdd);
+        String successMessage = String.format(MESSAGE_SUCCESS, Messages.format(toAdd));
+        return new CommandResult(duplicateSubjectWarning.isEmpty()
+                ? successMessage : successMessage + "\n" + duplicateSubjectWarning);
     }
 
     @Override
@@ -71,7 +85,8 @@ public class AddCommand extends Command {
             return false;
         }
 
-        return toAdd.equals(otherAddCommand.toAdd);
+        return toAdd.equals(otherAddCommand.toAdd)
+                && duplicateSubjectWarning.equals(otherAddCommand.duplicateSubjectWarning);
     }
 
     @Override

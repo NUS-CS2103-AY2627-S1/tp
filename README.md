@@ -1,14 +1,42 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![Build Status](https://github.com/AY2627S1-CS2103T-F11-4/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-F11-4/tp/actions)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-F11-4/tp/graph/badge.svg?token=CB27POSDL7)](https://codecov.io/gh/AY2627S1-CS2103T-F11-4/tp)
 
 ![Ui](docs/images/Ui.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+**TutorBroPro is a desktop app for freelance private tutors to manage their students and lesson records.** It is optimised for use via a Command Line Interface (CLI) while still having the benefits of a Graphical User Interface (GUI).
+
+* **Purpose**: TutorBroPro keeps each student's profile and lesson history in one place, so a tutor can look up a student and review past lessons before the next one.
+* **Target users**: Freelance private tutors who teach many students across different academic levels and subjects, can type fast, and prefer a lightweight, offline app.
+* **Problem solved**: Tutors often keep student details, parent contacts and lesson notes scattered across chat messages, notebooks and memory, which makes it hard to recall what was covered with each student or to reach a parent quickly.
+* **Value proposition**: TutorBroPro lets tutors manage students and their associated information faster and more intuitively than with scattered notes or a typical mouse-driven app.
+
+## **Features**
+
+Use the commands below to manage student profiles and lesson records.
+
+| Command | Format | Example |
+|---|---|---|
+| Add a student | `addstudent n/NAME lvl/LEVEL s/SUBJECT... pn/PARENT_PHONE pe/PARENT_EMAIL` | `addstudent n/Alex Yeoh lvl/Sec 2 s/Math s/Science pn/91234567 pe/parent_alex@example.com` |
+| Edit a student | `edit INDEX [n/NAME] [lvl/LEVEL] [s/SUBJECT]... [pn/PARENT_PHONE] [pe/PARENT_EMAIL]` | `edit 2 n/James Lee pe/jameslee@example.com` |
+| Delete a student | `deletestudent INDEX` | `deletestudent 3` |
+| View a student's profile | `view INDEX` | `view 2` |
+| List all students | `list` | `list` |
+| Find students by name | `find KEYWORD [MORE_KEYWORDS]` | `find James Jake` |
+| Filter students by subject or level | `filter [s/SUBJECT]... [lvl/LEVEL]` | `filter s/Math lvl/Sec 2` |
+| Add a lesson note | `addnote INDEX d/DATE s/SUBJECT note/NOTE_TEXT` | `addnote 1 d/2026-09-18 s/Math note/Covered quadratic equations` |
+| Edit a lesson note | `editnote INDEX ln/LESSON_INDEX [d/DATE] [s/SUBJECT] [note/NOTE_TEXT]` | `editnote 1 ln/2 note/Recapped photosynthesis` |
+| Delete a lesson note | `deletenote INDEX ln/LESSON_INDEX` | `deletenote 1 ln/2` |
+| View a student's lesson history | `history INDEX` | `history 1` |
+| Clear all entries | `clear` | `clear` |
+| View help | `help` | `help` |
+| Exit the app | `exit` | `exit` |
+
+## **Documentation and Resources**
+
+- [User Guide](https://ay2627s1-cs2103t-f11-4.github.io/tp/UserGuide.html)
+- [Developer Guide](https://ay2627s1-cs2103t-f11-4.github.io/tp/DeveloperGuide.html)
+- [About Us](https://ay2627s1-cs2103t-f11-4.github.io/tp/AboutUs.html)
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

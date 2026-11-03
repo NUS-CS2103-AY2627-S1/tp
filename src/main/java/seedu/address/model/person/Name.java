@@ -3,20 +3,28 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
  */
 public class Name {
 
+    /** Error message shown when a student name fail. */
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain letters, accent marks, digits, spaces, apostrophes, - and /, "
+                    + "must contain at least one letter or digit, and should be at most 60 characters long.";
+
+    public static final int MAX_LENGTH = 60;
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * The lookahead requires at least one letter or digit anywhere in the name.
+     * Allows Unicode letters, combining accent marks, and straight or curly apostrophes.
+     * The first character must be a letter, an ASCII digit, a slash, or a hyphen.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX =
+            "(?=.*[\\p{L}0-9])[\\p{L}0-9/\\-][\\p{L}\\p{M}0-9/\\- '\u2019]*";
 
     public final String fullName;
 
@@ -27,15 +35,16 @@ public class Name {
      */
     public Name(String name) {
         requireNonNull(name);
-        checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
-        fullName = name;
+        String normalisedName = name.trim().replaceAll("\\s+", " ");
+        checkArgument(isValidName(normalisedName), MESSAGE_CONSTRAINTS);
+        fullName = normalisedName;
     }
 
     /**
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.length() <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
     }
 
 
@@ -55,12 +64,12 @@ public class Name {
             return false;
         }
 
-        return fullName.equals(otherName.fullName);
+        return fullName.equalsIgnoreCase(otherName.fullName);
     }
 
     @Override
     public int hashCode() {
-        return fullName.hashCode();
+        return fullName.toLowerCase(Locale.ROOT).hashCode();
     }
 
 }
