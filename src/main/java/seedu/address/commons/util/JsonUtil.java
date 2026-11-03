@@ -62,8 +62,12 @@ public class JsonUtil {
         try {
             jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
         } catch (IOException e) {
-            logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
+            logger.warning("Could not read JSON file " + filePath + " (" + e.getClass().getSimpleName() + ").");
             throw new DataLoadingException(e);
+        }
+
+        if (jsonFile == null) {
+            throw new DataLoadingException(new IOException("JSON root must not be null."));
         }
 
         return Optional.of(jsonFile);

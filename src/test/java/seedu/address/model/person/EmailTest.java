@@ -42,6 +42,8 @@ public class EmailTest {
         assertFalse(Email.isValidEmail("peterjack@example.com ")); // trailing space
         assertFalse(Email.isValidEmail("peterjack@@example.com")); // double '@' symbol
         assertFalse(Email.isValidEmail("peter@jack@example.com")); // '@' symbol in local part
+        assertFalse(Email.isValidEmail("'peterjack@example.com")); // local part starts with an apostrophe
+        assertFalse(Email.isValidEmail("peterjack'@example.com")); // local part ends with an apostrophe
         assertFalse(Email.isValidEmail("-peterjack@example.com")); // local part starts with a hyphen
         assertFalse(Email.isValidEmail("peterjack-@example.com")); // local part ends with a hyphen
         assertFalse(Email.isValidEmail("peter..jack@example.com")); // local part has two consecutive periods
@@ -57,6 +59,7 @@ public class EmailTest {
         assertTrue(Email.isValidEmail("PeterJack.1190@example.com")); // period in local part
         assertTrue(Email.isValidEmail("PeterJack+1190@example.com")); // '+' symbol in local part
         assertTrue(Email.isValidEmail("PeterJack-1190@example.com")); // hyphen in local part
+        assertTrue(Email.isValidEmail("o'connor@example.com")); // apostrophe inside local part
         assertTrue(Email.isValidEmail("a@bc")); // minimal
         assertTrue(Email.isValidEmail("test@localhost")); // alphabets only
         assertTrue(Email.isValidEmail("123@145")); // numeric local part and domain name
@@ -64,6 +67,41 @@ public class EmailTest {
         assertTrue(Email.isValidEmail("peter_jack@very-very-very-long-example.com")); // long domain name
         assertTrue(Email.isValidEmail("if.you.dream.it_you.can.do.it@example.com")); // long local part
         assertTrue(Email.isValidEmail("e1234567@u.nus.edu")); // more than one period in domain
+    }
+
+    @Test
+    public void isValidEmail_consecutiveApostrophes_validatesOnlyInternally() {
+        assertTrue(Email.isValidEmail("o''connor@example.com"));
+        assertFalse(Email.isValidEmail("''connor@example.com"));
+        assertFalse(Email.isValidEmail("o''@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_longInput_validatesWithoutRecursiveMatching() {
+        assertTrue(Email.isValidEmail("a.".repeat(10000) + "a@example.com"));
+        assertTrue(Email.isValidEmail("person@" + "a".repeat(20000) + ".com"));
+        assertFalse(Email.isValidEmail("person@" + "a".repeat(20000) + "!"));
+        assertFalse(Email.isValidEmail("a.".repeat(10000) + "@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_consecutiveDomainHyphens_acceptsPunycode() {
+        assertTrue(Email.isValidEmail("person@xn--bcher-kva.de"));
+        assertTrue(Email.isValidEmail("person@example.xn--p1ai"));
+        assertTrue(Email.isValidEmail("person@a--b.com"));
+        assertFalse(Email.isValidEmail("person@-xn--bcher-kva.de"));
+        assertFalse(Email.isValidEmail("person@xn--bcher-kva-.de"));
+        assertFalse(Email.isValidEmail("person@xn--bcher-kva..de"));
+    }
+
+    @Test
+    public void isValidEmail_labelBoundariesAndNonAsciiCharacters_rejectsInvalidParts() {
+        for (String email : new String[] {"person@-example.com", "person@example-.com", "person@.com",
+            "person@example..com", "person@example.", "person@example.c", "person@example.-com",
+            "person@example.com-", "peter{jack@example.com", "person@ex{ample.com", "person@bücher.de"}) {
+            assertFalse(Email.isValidEmail(email));
+        }
+        assertTrue(Email.isValidEmail("AZaz09@AZaz09.AZaz09"));
     }
 
     @Test

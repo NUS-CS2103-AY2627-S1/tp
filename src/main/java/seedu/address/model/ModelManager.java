@@ -3,24 +3,35 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonSort;
 
 /**
  * Represents the in-memory model of the address book data.
  */
 public class ModelManager implements Model {
+    private static final int MAX_HISTORY_SIZE = 100;
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final List<AddressBook> addressBookHistory = new ArrayList<>();
+    private int historyPointer;
+    private Predicate<Person> personListPredicate = PREDICATE_SHOW_ALL_PERSONS;
+    private Comparator<Person> personListComparator = PersonSort.DEFAULT_COMPARATOR;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,11 +39,13 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing model with " + addressBook.getPersonList().size() + " address book entries");
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons, PersonSort.DEFAULT_COMPARATOR);
+        addressBookHistory.add(new AddressBook(this.addressBook));
     }
 
     public ModelManager() {
@@ -81,9 +94,10 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public Person addPerson(Person person) {
+        Person addedPerson = addressBook.addPerson(person);
+        updatePersonView(PREDICATE_SHOW_ALL_PERSONS, PersonSort.DEFAULT_COMPARATOR);
+        return addedPerson;
     }
 
     @Override
@@ -101,13 +115,108 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        personListPredicate = predicate;
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public void commitAddressBook() {
+        AddressBook current = new AddressBook(addressBook);
+        AddressBook latest = addressBookHistory.get(historyPointer);
+        if (latest.equals(current) && latest.getNextDebtorId() == current.getNextDebtorId()) {
+            return;
+        }
+        while (addressBookHistory.size() > historyPointer + 1) {
+            addressBookHistory.removeLast();
+        }
+        addressBookHistory.add(current);
+        historyPointer++;
+        if (addressBookHistory.size() > MAX_HISTORY_SIZE) {
+            addressBookHistory.removeFirst();
+            historyPointer--;
+        }
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return historyPointer > 0;
+    }
+
+    @Override
+    public void undoAddressBook() {
+        if (!canUndoAddressBook()) {
+            throw new IllegalStateException("No address-book state to undo.");
+        }
+        addressBook.resetData(addressBookHistory.get(--historyPointer));
+        resetView();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return historyPointer < addressBookHistory.size() - 1;
+    }
+
+    @Override
+    public void redoAddressBook() {
+        if (!canRedoAddressBook()) {
+            throw new IllegalStateException("No address-book state to redo.");
+        }
+        addressBook.resetData(addressBookHistory.get(++historyPointer));
+        resetView();
+    }
+
+    /** Shows every debtor in persistent-ID order, discarding any active filter. */
+    private void resetView() {
+        updatePersonView(PREDICATE_SHOW_ALL_PERSONS, PersonSort.DEFAULT_COMPARATOR);
+    }
+
+    @Override
+    public void updateSortedPersonList(Comparator<Person> comparator) {
+        requireNonNull(comparator);
+        personListComparator = comparator;
+        sortedPersons.setComparator(comparator);
+    }
+
+    @Override
+    public void updatePersonView(Predicate<Person> predicate, Comparator<Person> comparator) {
+        requireAllNonNull(predicate, comparator);
+        personListPredicate = predicate;
+        personListComparator = comparator;
+        filteredPersons.setPredicate(predicate);
+        sortedPersons.setComparator(comparator);
+    }
+
+    @Override
+    public Model createTransactionCopy() {
+        ModelManager candidate = new ModelManager(addressBook, userPrefs);
+        // Snapshots are never mutated after they are recorded, so the candidate can share them.
+        candidate.addressBookHistory.clear();
+        candidate.addressBookHistory.addAll(addressBookHistory);
+        candidate.historyPointer = historyPointer;
+        candidate.updatePersonView(personListPredicate, personListComparator);
+        return candidate;
+    }
+
+    @Override
+    public void publishTransaction(Model candidate) {
+        requireNonNull(candidate);
+        if (!(candidate instanceof ModelManager candidateManager)) {
+            throw new IllegalArgumentException("Transaction candidate must be a ModelManager.");
+        }
+        if (!addressBook.equals(candidateManager.addressBook)
+                || addressBook.getNextDebtorId() != candidateManager.addressBook.getNextDebtorId()) {
+            addressBook.resetData(candidateManager.addressBook);
+        }
+        addressBookHistory.clear();
+        addressBookHistory.addAll(candidateManager.addressBookHistory);
+        historyPointer = candidateManager.historyPointer;
+        updatePersonView(candidateManager.personListPredicate, candidateManager.personListComparator);
     }
 
     @Override
@@ -123,7 +232,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && sortedPersons.equals(otherModelManager.sortedPersons);
     }
 
 }

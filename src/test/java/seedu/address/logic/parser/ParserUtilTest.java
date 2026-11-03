@@ -55,6 +55,39 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseDebtorId_validBoundaries_returnsPersistentId() throws Exception {
+        assertEquals(1, ParserUtil.parseDebtorId("1"));
+        assertEquals(7, ParserUtil.parseDebtorId("0007"));
+        assertEquals(Integer.MAX_VALUE, ParserUtil.parseDebtorId("2147483647"));
+    }
+
+    @Test
+    public void parseDebtorId_invalidToken_throwsConsistentParseException() {
+        for (String token : List.of("", "0", "-1", "+1", " 1", "1 ", "1 2", "1.0", "2147483648")) {
+            assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DEBTOR_ID, () ->
+                    ParserUtil.parseDebtorId(token));
+        }
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDebtorId(null));
+    }
+
+    @Test
+    public void parseIndexAndId_nonAsciiDecimalDigits_preserveTargets() throws Exception {
+        for (String token : List.of("\uff11", "\u0661", "\u0967", "1\uff10", "\uff101")) {
+            assertEquals(Integer.parseInt(token), ParserUtil.parseIndex(token).getOneBased());
+            assertEquals(Integer.parseInt(token), ParserUtil.parseDebtorId(token));
+        }
+    }
+
+    @Test
+    public void parseIndex_asciiBoundaryAndLeadingZeroes_preserved() throws Exception {
+        assertEquals(1, ParserUtil.parseIndex("0001").getOneBased());
+        assertEquals(Integer.MAX_VALUE, ParserUtil.parseIndex("2147483647").getOneBased());
+        for (String token : List.of("+1", "-1", "0", "000", "2147483648", "9".repeat(200))) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex(token));
+        }
+    }
+
+    @Test
     public void parseName_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
     }

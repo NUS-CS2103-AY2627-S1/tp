@@ -17,7 +17,8 @@ public class FindCommandParserTest {
 
     @Test
     public void parse_emptyArg_throwsParseException() {
-        assertParseFailure(parser, "     ", String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+        assertParseFailure(parser, " \t \n ",
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
     }
 
     @Test
@@ -29,6 +30,25 @@ public class FindCommandParserTest {
 
         // multiple whitespaces between keywords
         assertParseSuccess(parser, " \n Alice \n \t Bob  \t", expectedFindCommand);
+    }
+
+    @Test
+    public void parse_literalPunctuation_returnsFindCommandWithoutRegexInterpretation() {
+        FindCommand expectedFindCommand =
+                new FindCommand(new NameContainsKeywordsPredicate(List.of("(Priority)", "[A]", ".*")));
+
+        assertParseSuccess(parser, "(Priority) [A] .*", expectedFindCommand);
+    }
+
+    @Test
+    public void parse_unicodeWhitespace_separatesKeywordsAndRejectsBlankInput() {
+        FindCommand expected = new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice", "82222222")));
+        for (String separator : List.of("\u00a0", "\u2003", "\u202f", "\u3000", "\u2028", "\t")) {
+            assertParseSuccess(parser, separator + "Alice" + separator + separator + "82222222" + separator,
+                    expected);
+            assertParseFailure(parser, separator + " " + separator,
+                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
+        }
     }
 
 }

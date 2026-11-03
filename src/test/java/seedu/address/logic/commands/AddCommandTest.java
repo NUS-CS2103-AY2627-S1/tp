@@ -8,6 +8,7 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -35,12 +36,13 @@ public class AddCommandTest {
     public void execute_personAcceptedByModel_addSuccessful() throws Exception {
         ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
         Person validPerson = new PersonBuilder().build();
+        Person addedPerson = validPerson.withDebtorId(1);
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(addedPerson)),
                 commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals(List.of(addedPerson), modelStub.personsAdded);
     }
 
     @Test
@@ -50,6 +52,27 @@ public class AddCommandTest {
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
         assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_exhaustedDebtorIds_throwsCommandExceptionWithoutChangingModel() {
+        AddressBook addressBook = new AddressBook();
+        Person highestAssignablePerson = new PersonBuilder()
+                .withDebtorId(Integer.MAX_VALUE - 1)
+                .build();
+        addressBook.addPerson(highestAssignablePerson);
+
+        Person newPerson = new PersonBuilder()
+                .withName("Bob")
+                .withPhone("91234567")
+                .withEmail("bob@example.com")
+                .build();
+        ModelStubWithAddressBook modelStub = new ModelStubWithAddressBook(addressBook);
+
+        assertThrows(CommandException.class, AddCommand.MESSAGE_ID_EXHAUSTED, (
+                ) -> new AddCommand(newPerson).execute(modelStub));
+        assertEquals(List.of(highestAssignablePerson), addressBook.getPersonList());
+        assertEquals(Integer.MAX_VALUE, addressBook.getNextDebtorId());
     }
 
     @Test
@@ -103,7 +126,7 @@ public class AddCommandTest {
         }
 
         @Override
-        public void addPerson(Person person) {
+        public Person addPerson(Person person) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -141,6 +164,16 @@ public class AddCommandTest {
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
+
+        @Override
+        public void updateSortedPersonList(Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updatePersonView(Predicate<Person> predicate, Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
     }
 
     /**
@@ -162,6 +195,32 @@ public class AddCommandTest {
     }
 
     /**
+     * A Model stub backed by an address book.
+     */
+    private class ModelStubWithAddressBook extends ModelStub {
+        private final AddressBook addressBook;
+
+        ModelStubWithAddressBook(AddressBook addressBook) {
+            this.addressBook = addressBook;
+        }
+
+        @Override
+        public boolean hasPerson(Person person) {
+            return addressBook.hasPerson(person);
+        }
+
+        @Override
+        public Person addPerson(Person person) {
+            return addressBook.addPerson(person);
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            return addressBook;
+        }
+    }
+
+    /**
      * A Model stub that always accepts the person being added.
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
@@ -174,9 +233,11 @@ public class AddCommandTest {
         }
 
         @Override
-        public void addPerson(Person person) {
+        public Person addPerson(Person person) {
             requireNonNull(person);
-            personsAdded.add(person);
+            Person assignedPerson = person.getDebtorId() == 0 ? person.withDebtorId(1) : person;
+            personsAdded.add(assignedPerson);
+            return assignedPerson;
         }
 
         @Override

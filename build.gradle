@@ -10,9 +10,14 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
 
 repositories {
@@ -25,6 +30,7 @@ checkstyle {
 }
 
 test {
+    dependsOn tasks.named('shadowJar')
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
@@ -72,7 +78,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'osps.jar'
 }
 
 defaultTasks 'clean', 'test'

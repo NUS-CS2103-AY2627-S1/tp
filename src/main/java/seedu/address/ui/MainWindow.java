@@ -1,18 +1,23 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import seedu.address.MainApp;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.CommandLogFormatter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -23,6 +28,8 @@ import seedu.address.logic.parser.exceptions.ParseException;
  * a menu bar and space where other JavaFX elements can be placed.
  */
 public class MainWindow extends UiPart<Stage> {
+
+    public static final String APP_TITLE = MainApp.APP_NAME + " " + MainApp.VERSION;
 
     private static final String FXML = "MainWindow.fxml";
 
@@ -128,14 +135,19 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Sets the default size and position based on {@code guiSettings}, adjusted to the screens currently available.
+     * The window's minimum size is lowered if needed so that it can fit on a small screen.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        List<Rectangle2D> screens = Screen.getScreens().stream().map(Screen::getVisualBounds).toList();
+        GuiSettings fitted = WindowBounds.fit(guiSettings, screens);
+        primaryStage.setMinWidth(Math.min(primaryStage.getMinWidth(), fitted.getWindowWidth()));
+        primaryStage.setMinHeight(Math.min(primaryStage.getMinHeight(), fitted.getWindowHeight()));
+        primaryStage.setHeight(fitted.getWindowHeight());
+        primaryStage.setWidth(fitted.getWindowWidth());
+        if (fitted.getWindowCoordinates() != null) {
+            primaryStage.setX(fitted.getWindowCoordinates().getX());
+            primaryStage.setY(fitted.getWindowCoordinates().getY());
         }
     }
 
@@ -177,9 +189,10 @@ public class MainWindow extends UiPart<Stage> {
      * @see seedu.address.logic.Logic#execute(String)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        String commandWord = CommandLogFormatter.getCommandWord(commandText);
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+            logger.info("Command completed successfully: " + commandWord);
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
@@ -192,7 +205,7 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            logger.info("Command failed: " + commandWord + "; error type: " + e.getClass().getSimpleName());
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }

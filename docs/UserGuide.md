@@ -3,7 +3,18 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+Orchestration and Scheduling of Payment Scheme (OSPS) is a **desktop application for debt recovery agents**.
+It manages debtor contact details, outstanding balances, and interaction histories through keyboard-driven commands
+while retaining the benefits of a graphical user interface (GUI).
+
+> **v1.6 guide.** The published [v1.6 release](https://github.com/AY2627S1-CS2103T-F08-1/tp/releases/tag/v1.6)
+> identifies its source commit and JAR SHA-256. This page follows the current source, which may change after release.
+> For the refreshed v1.5 download, use the
+> [guide pinned to its source commit](https://github.com/AY2627S1-CS2103T-F08-1/tp/blob/e5c7066959164fb720843a8b06c6d9f4080b6089/docs/UserGuide.md)
+> and verify the JAR SHA-256 in the [v1.5 release notes](https://github.com/AY2627S1-CS2103T-F08-1/tp/releases/tag/v1.5).
+> For an older JAR saved before that refresh, use the
+> [original v1.5 guide](https://github.com/AY2627S1-CS2103T-F08-1/tp/blob/v1.5/docs/UserGuide.md).
+> The window title identifies the version, not the exact build. Check the release notes when verifying a JAR.
 
 * Table of Contents
 {:toc}
@@ -15,24 +26,62 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download `osps.jar` from the [v1.6 release](https://github.com/AY2627S1-CS2103T-F08-1/tp/releases/tag/v1.6).
+   Verify its SHA-256 against the release notes. If you build from source instead, follow
+   [the setup guide](SettingUp.md) and run `gradlew.bat shadowJar` on Windows or `./gradlew shadowJar` on macOS/Linux;
+   the output is `build/libs/osps.jar`. Record the source commit and JAR SHA-256 when sharing your build.
+   Keep a backup of your existing data before replacing an older JAR. To try the app without existing records,
+   put the JAR in a new, writable folder.
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for OSPS.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar osps.jar`.<br>
+   OSPS stores its data, preferences, logs and exports in the folder containing the JAR, wherever you launch it from.<br>
+   The OSPS window should appear in a few seconds with sample debtor data on a first run.
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
+   OSPS allows one instance per home folder. If another instance is already using that folder, close it before
+   starting OSPS again. Older OSPS versions do not enforce this lock, so close them too before starting this version.
 
-   * `list` : Lists all contacts.
+   ![OSPS showing Maya Tan's debtor profile and matching debtor card](images/Ui.png)
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+1. To try the following commands, use a new folder with the sample data described above. Enter each command in the
+   command box and press Enter:
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `list` shows the sample debtors.
+   * `add n/Maya Tan p/91234567 e/maya.tan@example.com a/12 Orchid Road o/1250.00 t/priority` adds a fictional debtor.
+     Note the persistent ID in the confirmation message.
+   * `note --id 7 --outcome reached --text Called Maya to discuss the outstanding balance.` records an interaction.
+     Replace `7` with Maya's actual ID from the confirmation.
+   * `find Maya` filters the list; `show --id 7` displays her profile and history. Again, replace `7` with her actual ID.
+   * `help` opens the in-app command reference; close it to return to the main window.
+   * When you are finished, `exit` closes OSPS.
 
-   * `clear` : Deletes all contacts.
+   The number before a card is its current displayed index, which can change when the list is filtered or sorted.
+   Commands with `--id` use the persistent ID shown in `[ID ...]`; `edit` and `delete` use the displayed index.
+   See [Choosing the correct debtor number](#choosing-the-correct-debtor-number).
+
+   Other commands you can try before exiting (check the displayed IDs and indexes first):
+
+   * `list` : Lists all active debtors.
+
+   * `add n/Olaf Go p/91234567 e/olaf.letnonego@example.com a/H4M8+3J3, Kunlun Station, Antarctica o/S$1,250.00` : Adds a debtor named `Olaf Go` to OSPS.
+
+   * `note --id 1 --outcome payment-promised --text Called debtor, promised payment on Friday.` : Adds an
+     interaction note with a structured outcome to debtor ID 1.
+
+   * `followup --id 1 --date 2026-11-03` : Schedules a follow-up for debtor ID 1.
+
+   * `promise --id 1 --date 2026-11-05` : Records the date debtor ID 1 promised to pay.
+
+   * `show --id 1` : Shows the complete profile and interaction history of debtor ID 1.
+
+   * `delete 3` : Deletes the 3rd debtor shown in the current list.
+
+   * `clear` : Deletes all debtor records.
+
+   * `undo` : Reverses the most recent saved change in this session.
+
+   * `redo` : Reapplies the most recently undone change in this session.
 
    * `exit` : Exits the app.
 
@@ -41,6 +90,12 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 --------------------------------------------------------------------------------------------------------------------
 
 ## Features
+
+OSPS commands form one debt-recovery workflow: capture a case, prioritise the current worklist, record recovery work,
+then review or report progress. Read-only worklist commands never modify debtor records, while data-changing commands
+are saved automatically.
+
+![OSPS workflow from case capture through prioritisation and recovery work to review](images/WorkflowOverview.svg)
 
 <div markdown="block" class="alert alert-info">
 
@@ -58,93 +113,497 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 * Parameters can be in any order.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
+* In `add` and `edit`, a parameter prefix (`n/`, `p/`, `e/`, `a/`, `o/`, `t/`) starts a new parameter whenever it
+  follows a space, tab or line break, so no value (name, address and so on) can contain a space followed by a prefix.<br>
+  For example, `a/Unit 12 t/road` is read as the address `Unit 12` and the tag `road`. Write the address without the
+  prefix-like text, such as `a/Unit 12 road`. This is a known limitation of the command format; text without a space
+  before the slash, such as `a/Block 4/6`, is kept as written.
+
+* OSPS warns after saving if an address contains some common mistyped prefixes, such as `0/500`, `O/500`, or
+  `o /500`. Check the saved values and use `undo` if they are incorrect. The warning can also appear for a legitimate
+  address; it does not prevent saving. Other typos may not be detected.
+
+* Extraneous parameters for `help` and `exit` are ignored. `clear` and `list` reject them with an error message.<br>
   For example, `help 123` is interpreted as `help`.
+
+* The `list` command accepts no parameters. Unexpected parameters are rejected with an error message so that typing
+  mistakes are not silently ignored.
+
+* `undo` and `redo` also reject extra parameters. Their history lasts only until the app closes. A new saved change
+  after `undo` clears the redo history. A change that fails to save is not applied and does not enter history.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
+### Choosing the correct debtor number
+
+Each debtor card shows both a displayed index and a persistent debtor ID. In a heading such as `2. [ID 7] Alex Tan`,
+`2` is the debtor's current displayed index while `7` is the debtor's persistent ID.
+
+![How displayed index 2 and persistent debtor ID 7 target the same example debtor](images/IdentifierGuide.svg)
+
+Number to use | Commands | How to recognise it | Stability
+--------------|----------|---------------------|----------
+**Persistent debtor ID** | `show`, `note`, `followup`, `promise`, `stage`, `contact`, `export` | The command contains `--id`; use the number inside `[ID ...]` | Stays with the same debtor until deletion
+**Displayed index** | `edit`, `delete`, `preview edit`, `preview delete` | The syntax says `INDEX`; use the number before `[ID ...]` | Can change whenever the visible worklist changes
+
+Write both kinds of number as positive decimal integers without a sign. Decimal digit forms such as `1` and full-width
+`１` refer to the same number. Leading zeroes are accepted, but a value of zero is invalid.
+
+For example, if a card reads `2. [ID 7] Alex Tan`, use `show --id 7` to view Alex and `delete 2` to delete the
+currently displayed Alex card. Before an index-based edit or deletion, confirm the visible name and `[ID ...]` on
+that card. You can run `preview edit INDEX ...` or `preview delete INDEX` first when you want an additional check.
+
+Filtering and sorting can change displayed indexes without changing persistent IDs. Commands such as `find`, `sort`,
+`list-amount`, `list-stage`, `due`, and `contactable` replace or reorder the visible worklist. After using one of them,
+read the displayed list again before running `edit INDEX` or `delete INDEX`.
+
+Running `list`, or completing `add`, `edit`, `delete`, `undo`, or `redo`, can also refresh the visible worklist and
+change displayed indexes. Re-read the list after any of these commands before using an index again.
+
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens a scrollable, keyboard-accessible in-app command reference. It includes the syntax and a short example for
+each supported command in that build. The window also retains a button to copy the link to this online User Guide.
 
-![help message](images/helpMessage.png)
+![OSPS Help window showing the in-app command reference](images/helpMessage.png)
 
 Format: `help`
 
 
-### Adding a person: `add`
+### Adding a debtor: `add`
 
-Adds a person to the address book.
+Adds a debtor to OSPS. The outstanding amount is optional, may be zero, and defaults to `S$0.00`.
+Each debtor is assigned a unique ID, which is shown in the debtor list. New ID are assigned in increasing numerical order and are not reused after deletion or `clear`.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [o/OUTSTANDING_AMOUNT] [t/TAG]…​`
 
 <div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+A debtor can have any number of tags, including zero.
 </div>
 
+* `OUTSTANDING_AMOUNT` must be a non-negative number with at most two decimal places. An optional `S$` or `$` prefix
+  and correctly grouped comma separators are accepted; for example, `0`, `S$0.00`, `$1250.5`, and `S$1,250.00`.
+* Negative values, malformed currency, and values with more than two decimal places are rejected.
+* Names must start with an alphanumeric Unicode character. Unicode letters, numbers, combining marks, spaces,
+  hyphens, straight apostrophes, and typographic apostrophes are accepted. Combining marks must follow an
+  alphanumeric character. For example, `Anne-Marie`, `O'Neil`, `O’Connor`, `José Tan`, `陈小明`, and `குமார்` are valid.
+  Canonically equivalent spellings, such as composed and decomposed `José`, are stored in the same composed form.
+* Phone numbers and email addresses must be unique across active debtors. Debtors may share the same name.
+* Leading and trailing spaces around command values are removed. Phone numbers accept digits only (at least
+  three); spaces within a number, hyphens and `+` are rejected. Country codes and leading zeroes are not
+  normalised, so `6591234567` and `91234567` are treated as different numbers.
+* Email local parts may contain an apostrophe, such as `o'connor@example.com`, but not at the start or end.
+* Email addresses accept ASCII Punycode domain labels such as `person@xn--bcher-kva.de`. Domain labels may
+  contain consecutive internal hyphens but must start and end with letters or digits.
+* New or edited addresses must contain a visible base character. Addresses containing only Unicode spaces,
+  formatting characters, combining marks, or invisible fillers are rejected. Legitimate combining marks within
+  visible text are accepted. Invisible-only addresses saved by an earlier OSPS version remain loadable unchanged.
+* Email duplicate checks ignore domain case: `alice@example.com` and `alice@EXAMPLE.COM` identify the same contact.
+  Local-part case remains significant: `Alice@example.com` and `alice@example.com` are different addresses.
+  Aliases such as `alice+work@example.com` are not matched to `alice@example.com`.
+  Check existing records before adding a debtor under a different spelling of the same contact.
+  If an older data file contains domain-case duplicates, loading is rejected and saving is blocked to preserve it.
+  OSPS starts with no debtor records and shows a save error on the next data-changing command.
+  Keep a backup, correct the conflicting email addresses in the data file, and restart OSPS before saving changes.
+* Deleted IDs are not reused after saving and restarting, even when the last debtor is deleted.
+
 Examples:
+* `add n/Olaf Go p/91234567 e/olaf.letnonego@example.com a/H4M8+3J3, Kunlun Station, Antarctica o/S$1,250.00`
 * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
 * `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
 
-### Listing all persons: `list`
+### Listing all debtors: `list`
 
-Shows a list of all persons in the address book.
+Shows every active debtor in ascending debtor ID order. Each debtor card shows the ID, name, phone number,
+outstanding amount, email address, address, and tags. The result reports the active-debtor count and displays
+a helpful message when there are no active debtors. Running `list` also clears an active `find` filter and restores
+the complete debtor list. The number before `[ID ...]` is the current displayed index; the value inside `[ID ...]`
+is the debtor's persistent ID.
 
 Format: `list`
 
-### Editing a person: `edit`
+The command does not accept any parameters.
 
-Edits an existing person in the address book.
+Examples of result messages:
+* `No debtors found in the current session (0 listed).`
+* `1 active debtor listed.`
+* `5 active debtors listed.`
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+### Sorting the displayed debtor worklist: `sort`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+Sorts the debtors currently shown in the list. It does not add, remove, or modify debtor records, and it does not
+change which debtors an active `find` filter includes.
+
+Format: `sort --by id|name|amount [--order asc|desc]`
+
+* `--by` is required. Choose `id`, `name`, or `amount`.
+* `--order` is optional and defaults to `asc`. Choose `asc` or `desc`.
+* Field and order values are case-insensitive. Options may be written in either order, but each option may appear
+  only once. Unknown options and extra values are rejected without changing the displayed list.
+* Names are compared case-insensitively. Outstanding amounts are compared by their numeric value, not their
+  formatted text.
+* When two debtors have the same name or amount, the lower persistent debtor ID is shown first. This ID tie-breaker
+  remains ascending even when the chosen field is descending.
+* Sorting changes displayed indexes. A following `edit INDEX` or `delete INDEX` acts on the debtor shown at that
+  index after sorting. Check the visible ID before running an index-based command.
+* `sort` preserves the current filtered set. Running `find` starts a new filtered view in ascending ID order.
+  Running `list` restores all active debtors in ascending ID order. A successful `add` also restores that normal
+  list. Edit and delete keep the active filter and sort, and the list refreshes if a changed field affects its order.
+* Sort settings last only for the current session and are not written to the data file.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* `sort --by amount --order desc` shows the largest outstanding amount first.
+* `find Alice` followed by `sort --by name` sorts only the matching debtors by name.
+* `sort --order DESC --by ID` shows the highest persistent debtor ID first.
 
-### Locating persons by name: `find`
+### Adding an interaction note: `note`
 
-Finds persons whose names contain any of the given keywords.
+Adds a timestamped interaction note to the debtor identified by debtor ID.
+
+Format: `note --id DEBTOR_ID [--outcome OUTCOME] --text NOTE_TEXT`
+
+* `DEBTOR_ID` must be a positive integer shown as the debtor's ID in the debtor list.
+* `OUTCOME` is optional and is case-insensitive. It must be one of `reached`, `callback-requested`, `unreachable`, or
+  `payment-promised`. If omitted, the note is displayed with the outcome `unspecified`.
+* New `NOTE_TEXT` must not consist only of whitespace, control or formatting characters, such as zero-width spaces.
+  Ordinary punctuation, Chinese text and emoji are allowed, and there is no arbitrary note-length limit.
+  Previously saved notes remain loadable, including older invisible-only entries.
+* `--outcome`, when used, must appear before `--text`. The `--id` and `--text` parameters can be provided in either
+  order. Text after `--text`, including `--outcome`, is treated as note text unless it is a reserved `--id` or
+  `--text` parameter.
+* The tokens `--id` and `--text` are reserved for command parameters and cannot appear inside `NOTE_TEXT`.
+  Other words beginning with `--`, such as `--identifier`, are kept as part of the note text after `--text`.
+  Unknown options before `--text` or in the `--id` value are rejected.
+* The note is saved with the debtor and is preserved after restarting the application.
+* Repeating the same note records a separate interaction each time. Editing the debtor preserves all existing notes.
+* Recording an outcome does not change the debtor's outstanding amount or any other debtor field.
+* If saving fails, OSPS reports an error and does not add the note to the in-memory record or replace the saved file.
+  Resolve the save problem, then run the note command again. The `exit` command does not retry a failed command.
+
+Example:
+* `note --id 1 --outcome reached --text Confirmed the debtor's identity.`
+* `note --outcome callback-requested --id 1 --text Debtor requested a call tomorrow morning.`
+* `note --id 1 --text Sent a written reminder.` records a note with an `unspecified` outcome.
+
+### Scheduling a debtor follow-up: `followup`
+
+Schedules or reschedules the next follow-up date, clears a pending date, or marks a pending follow-up complete.
+Each change is timestamped in the debtor's follow-up history.
+
+Formats:
+* `followup --id DEBTOR_ID --date YYYY-MM-DD`
+* `followup --id DEBTOR_ID --clear`
+* `followup --id DEBTOR_ID --done`
+
+* `DEBTOR_ID` must be a positive persistent debtor ID.
+* Dates must be real calendar dates in exactly `YYYY-MM-DD` format, with years from `0001` through `9999`.
+* Setting the current date again is a no-op and adds no history event.
+* `--clear` and `--done` require a pending follow-up. Both clear the pending date and record the date that was cleared
+  or completed in history.
+* Scheduling a new date after `--clear` or `--done` starts a new `SCHEDULED` history event.
+* Unknown, duplicate, or conflicting options are rejected without changing debtor data.
+* Follow-up dates and history are preserved when the debtor is edited and after restarting the application. Legacy
+  data without follow-up fields loads with no pending date and an empty history.
+* If saving fails, the change is not applied to memory or disk. Resolve the storage problem and run the command again.
+
+Examples:
+* `followup --id 1 --date 2026-11-03`
+* `followup --id 1 --date 2026-11-05` reschedules a pending date.
+* `followup --id 1 --done` marks the pending follow-up complete.
+
+### Listing follow-ups by date: `due`
+
+Use `due` for follow-ups on or before today, or `due YYYY-MM-DD` for an inclusive cutoff. Use
+`due --from YYYY-MM-DD --to YYYY-MM-DD` for an inclusive range. For the next seven days, enter today as the start and
+six days later as the end. Results are ordered by date then persistent debtor ID; overdue, due-today and upcoming
+labels compare with the computer's local today. `list` restores the complete list. The view does not modify or save
+records.
+
+Details:
+* `due` replaces any current `find`, `list-amount`, `list-stage` or `sort` view with its own list, in follow-up date
+  then persistent-ID order. Displayed indexes used by `edit` and `delete` then refer to that list.
+* Debtors without a pending follow-up are never listed. If nothing matches, OSPS reports `No matching follow-ups.`
+* Dates must be real calendar dates in `YYYY-MM-DD` format, with years from `0001` to `9999`, as for `followup`.
+  Missing, repeated or extra arguments and a start date after the end date are rejected, and the current list stays
+  unchanged.
+* `due` does not change or save debtor data and is not added to the undo history.
+
+Format: `due [YYYY-MM-DD]` or `due --from YYYY-MM-DD --to YYYY-MM-DD`
+
+Examples:
+* `due` lists follow-ups due today or overdue.
+* `due 2026-11-10` lists follow-ups on or before 10 November 2026.
+* `due --from 2026-11-01 --to 2026-11-07` lists follow-ups from 1 to 7 November 2026, both included.
+
+### Tracking a promised payment date: `promise`
+
+Sets or clears the calendar date on which a debtor promised to pay. This date is separate from the follow-up date.
+
+Formats:
+* `promise --id DEBTOR_ID --date YYYY-MM-DD`
+* `promise --id DEBTOR_ID --clear`
+
+* `DEBTOR_ID` is the positive persistent ID shown in the debtor list. The command still finds a debtor hidden by a
+  `find` filter.
+* The date must be a real calendar date in exactly `YYYY-MM-DD` format, from `0001-01-01` to `9999-12-31`. Past dates
+  are accepted because OSPS may record an existing agreement.
+* Provide exactly one of `--date` or `--clear`. Unknown, missing, duplicate, and conflicting options are rejected
+  without changing debtor data.
+* Setting the existing date or clearing an unset date reports that no change was made and does not rewrite the data.
+* The promised payment date remains independent of follow-ups, notes, and the outstanding amount. It does not infer a
+  payment or change any other field.
+* The date is preserved through edits and restarts. Legacy data without the field loads with the date unset.
+
+Examples:
+* `promise --id 1 --date 2026-11-05`
+* `promise --id 1 --clear`
+
+### Setting contact preferences: `contact`
+
+Updates a debtor's contact preferences using their persistent ID. Provide at least one change. Methods are `call`,
+`sms`, `email`, and `letter`. Hours are local,
+same-day, start-inclusive and end-exclusive, and the start must be before the end. The command records preferences;
+it does not contact the debtor.
+
+Format: `contact --id DEBTOR_ID [--method METHOD | --clear-method] [--hours HH:mm-HH:mm | --clear-hours]`
+
+Examples:
+
+* `contact --id 3 --method sms --hours 09:00-17:30`
+* `contact --id 3 --clear-method`
+* `contact --id 3 --clear-hours`
+
+Unchanged fields retain their previous values. Use `show --id 3` to see the preferences.
+Changing preferences does not add an interaction note or send a message. Record an actual interaction separately
+using `note`. A change is saved and can be undone; supplying the same preferences makes no data change.
+
+### Finding contactable debtors: `contactable`
+
+Finds debtors with a configured contact window that
+includes the given local time. Omit `--at` to use the current local time. The start is included and the end is
+excluded. Debtors without hours are excluded; when a method is specified, only debtors with that explicit preference
+match. This is a scheduling aid, not a permission check, and does not contact anyone.
+
+Format: `contactable [--at HH:mm] [--method call|sms|email|letter]`
+
+Example: `contactable --at 09:30 --method sms`. The command replaces the displayed list; use `list` to restore all
+debtors. It searches all active debtors, rather than narrowing the previous filter, and orders matches by ascending
+persistent ID. It does not save data or add an undo step.
+
+### Updating recovery stage: `stage`
+
+Sets the manual recovery stage of the debtor identified by persistent ID. Available stages are `new`, `contacted`,
+`negotiating`, `disputed`, `broken-promise`, and `settled`. A settled debtor remains visible and retains its balance,
+contact details, and history.
+
+Format: `stage --id DEBTOR_ID --value STAGE`
+
+Example: `stage --id 3 --value contacted`
+
+### Summarising the workload: `summary`
+
+Shows the current displayed workload's debtor count, outstanding total, zero-balance count, and stage counts. Use
+`summary --all` to include every active debtor. The command does not change the displayed list or save data.
+
+Formats: `summary` or `summary --all`
+
+### Viewing a debtor profile: `show`
+
+Shows the complete profile of the active debtor identified by persistent debtor ID. The profile includes the
+debtor's name, phone number, email address, address, outstanding amount, tags, contact preferences, pending follow-up
+date, promised payment date, interaction history, and follow-up history. An unset date is shown as `None`.
+Interaction notes are shown latest recorded first, with each note's timestamp, outcome, and text. Follow-up events are
+shown in recorded order, oldest first. These timestamps are local times with no stored time zone or offset, so their
+displayed clock times can appear out of order after a system time-zone change. If the debtor has no notes, the profile
+states that no interaction notes are recorded.
+If two notes have exactly the same timestamp, the later-added note is shown first; neither note is removed.
+Displayed times have minute precision, so two notes showing the same time may have different stored timestamps.
+
+Format: `show --id DEBTOR_ID`
+
+* `DEBTOR_ID` must be a positive integer shown as the debtor's ID in the debtor list.
+* Debtor IDs remain associated with the same debtor when the displayed list is filtered or reordered.
+* A deleted debtor cannot be viewed. The command reports that no active debtor with that ID exists.
+* The command accepts exactly one `--id` parameter. For example, `show 3` is not supported.
+
+Example:
+* `show --id 3` shows the complete profile of the active debtor with ID 3.
+
+### Exporting a debtor profile: `export`
+
+Writes the profile and interaction history as UTF-8 text inside the `exports` folder in the OSPS home folder (the
+folder containing `osps.jar`). The file is named `debtor-ID.txt`; for example, debtor ID 3 is exported as
+`debtor-3.txt`. An existing export is never overwritten; move or rename it before exporting the same ID again. The file
+contains sensitive debtor information, so share and store it carefully.
+Exporting does not change debtor data, record a contact, or add an undo step; `undo` does not remove exported files.
+The report is not a restorable JSON backup. A write is completed in a temporary file before the final filename is
+created. If export reports a failure, check the error and retry after resolving the cause. A process interruption may
+leave a hidden `.osps-export-*.tmp` file; close OSPS before removing such leftover temporary files.
+
+Format: `export --id DEBTOR_ID`
+
+Example: `export --id 3` exports the active debtor with persistent ID 3.
+
+### Previewing an edit or deletion: `preview`
+
+Shows the result of a proposed edit or deletion without changing or saving data. `INDEX`
+refers to the current displayed list, including filtering and sorting. Check the previewed name and persistent ID, then
+run the original `edit` or `delete` command to apply the change.
+Preview does not reserve that index or add an undo step. If the worklist changes before you apply the command,
+check the displayed index again and repeat the preview.
+
+Format: `preview edit INDEX [FIELDS]` or `preview delete INDEX`
+
+Examples:
+* `preview edit 2 o/S$500.00` shows the proposed balance change for the 2nd displayed debtor.
+* `preview delete 2` identifies the 2nd displayed debtor without deleting the record.
+
+### Editing a debtor: `edit`
+
+Edits an existing debtor in OSPS.
+
+Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [o/OUTSTANDING_AMOUNT] [t/TAG]…​`
+
+* Edits the debtor at the specified `INDEX`. The index refers to the index number shown in the displayed debtor list.
+  The index **must be a positive integer** 1, 2, 3, …​
+* At least one of the optional fields must be provided.
+* Existing values will be updated to the input values.
+* Supplying only values that the debtor already has reports that no change was made. It does not rewrite the data or
+  add an undo step. A preview of the same input also reports that no data would change.
+* Updated names follow the same rules as names provided to `add`.
+* Use `o/OUTSTANDING_AMOUNT` to replace the outstanding amount. It accepts the same non-negative currency values as
+  `add`, such as `o/S$1,250.00` and `o/0`.
+* Changing a phone number or email to one already used by another active debtor is rejected, including when
+  that other debtor is hidden by a search. Phone numbers use exact matching; email domains ignore case.
+  Country codes, leading zeroes, email local-part case, and email aliases are not normalised.
+* The persistent debtor ID and interaction notes are preserved.
+* An active `find` filter remains applied after the edit. If an edited name no longer matches the active search,
+  that debtor leaves the filtered results; run `list` to restore every active debtor.
+* When editing tags, all of the debtor's existing tags are removed; adding tags is not cumulative.
+* To remove all of a debtor's tags, enter `t/` without a tag after it.
+
+Examples:
+* `edit 1 p/91234567 e/johndoe@example.com` edits the phone number and email address of the 1st displayed debtor.
+* `edit 2 n/Betsy Crower t/` edits the name of the 2nd displayed debtor and clears all existing tags.
+* `edit 2 o/S$500.00` updates only the outstanding amount of the 2nd displayed debtor.
+
+### Locating debtors by name or phone: `find`
+
+Finds debtors using one or more name or phone search terms.
 
 Format: `find KEYWORD [MORE_KEYWORDS]`
 
 * The search is case-insensitive; for example, `hans` matches `Hans`.
 * Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* Name searches use literal substrings; for example, `Han` matches `Hans` and `lex` matches `Alex Yeoh`.
+  Punctuation and symbols are matched as ordinary text rather than as regular expressions.
+* A phone search must provide the complete phone number. For example, `91234567` matches that exact phone number,
+  but `9123` does not match a phone number such as `91234567`. As every keyword also searches names, `9123` can
+  still match a debtor whose name contains the literal substring `9123`.
+* Debtors matching at least one name or phone keyword are returned (an `OR` search). For example,
+  `Alice 98765432` returns debtors whose names contain `Alice` as a substring as well as the debtor whose phone is
+  exactly `98765432`.
+* Within the keyword arguments after `find `, leading, trailing, and repeated whitespace is ignored, including copied
+  non-breaking spaces and EM spaces. A whitespace-only search is rejected without changing the current results.
+* Results are displayed in ascending persistent debtor ID order. If nothing matches, OSPS reports that no debtors
+  matched the supplied name or phone keywords.
+* Run `list` to clear the search filter and restore every active debtor.
 
 Examples:
-* `find John` returns `john` and `John Doe`
+* `find Joh` returns `john` and `John Doe`.
+* `find lex` returns names such as `Alex Yeoh` and `Alexandra Tan`.
+* `find 91234567` returns the debtor whose phone number is exactly `91234567`.
+* `find Alice 98765432` returns matches from either the name or phone search term.
 * `find alex david` returns `Alex Yeoh`, `David Li`<br>
   ![result for 'find alex david'](images/findAlexDavidResult.png)
 
-### Deleting a person: `delete`
+### Filtering debtors by outstanding amount: `list-amount`
 
-Deletes the specified person from the address book.
+Displays debtors whose outstanding amounts fall within an inclusive range. This is useful for focusing on high-value
+accounts or a particular collection band without changing any debtor record.
+
+Format: `list-amount [min/AMOUNT] [max/AMOUNT]`
+
+* Provide at least one of `min/` and `max/`.
+* Amounts use the same non-negative currency format as `add` and `edit`, including values such as `0`, `S$500.00`,
+  and `2,000.00`.
+* Bounds are inclusive: a balance equal to `min/` or `max/` is included.
+* When both bounds are present, the minimum cannot exceed the maximum.
+* Results replace an existing `find` or amount filter and appear in ascending persistent debtor-ID order.
+* The displayed index refers to the filtered list. For example, `delete 1` acts on the first debtor currently shown.
+* `list-amount` is read-only and does not change or save debtor data. Run `list` to restore every active debtor.
+
+Examples:
+* `list-amount min/1000` displays debtors owing at least `S$1,000.00`.
+* `list-amount max/S$500.00` displays debtors owing at most `S$500.00`, including zero balances.
+* `list-amount min/250 max/2,000.00` displays balances from `S$250.00` to `S$2,000.00`, inclusive.
+
+### Filtering debtors by recovery stage: `list-stage`
+
+Displays debtors in one recovery stage so you can focus on a particular group of cases.
+
+Format: `list-stage STAGE`
+
+* Supply exactly one of `new`, `contacted`, `negotiating`, `disputed`, `broken-promise`, or `settled`.
+  Stage names are case-insensitive; for example, `list-stage CONTACTED` is valid.
+* This replaces the current filter and sort order. Matching debtors appear in ascending persistent debtor-ID order.
+* The stage is set manually with `stage`; it is independent of the outstanding balance. A `settled` debtor can still
+  have a non-zero recorded balance, and is included by `list-stage settled`.
+* Changing a debtor's stage refreshes the filtered list. The displayed index always refers to that current list:
+  `edit 1` or `delete 1` targets the first visible debtor, while `stage --id ID --value STAGE` uses a persistent ID.
+* If there are no matches, OSPS reports `No debtors are in recovery stage STAGE. Use list to see all debtors.`
+  Otherwise, it reports the number of matches and the selected stage.
+* Missing, unknown, or additional arguments are rejected without changing the current view or debtor records.
+* This command does not change or save debtor data. Run `list` to restore all active debtors in persistent-ID order.
+  `undo`, `redo` and a restart also restore the full list.
+
+Examples:
+* `list-stage contacted` displays every debtor whose stage is `contacted`.
+* `list-stage broken-promise` displays cases marked as having a broken promise.
+* After `list-stage disputed`, `summary` summarises only the matching debtors; `summary --all` covers all debtors.
+
+### Deleting a debtor: `delete`
+
+Deletes the specified debtor from OSPS.
 
 Format: `delete INDEX`
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
+* Leading zeros are accepted. Very large indexes are rejected with the displayed list's valid range;
+  indexes longer than 100 significant digits are abbreviated in feedback. There is no input digit cap.
+
+* Deletes the debtor at the specified `INDEX`.
+* The index refers to the one-based position in the currently displayed debtor list, including `find` results.
+* After deletion, the list refreshes and the current filter remains active.
+* Deleting a debtor also removes that debtor's interaction notes. Other debtors keep their persistent IDs,
+  outstanding amounts, and notes; their displayed indexes may change as the list closes the gap.
 * The index **must be a positive integer** 1, 2, 3, …​
+* For an index outside the displayed list, the error gives the displayed count and valid range. If no debtors are shown,
+  run `list` or adjust the `find` query.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `list` followed by `delete 2` deletes the 2nd displayed debtor.
+* `find Betsy` followed by `delete 1` deletes the 1st displayed debtor in the `find` results.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Clears all debtor records from OSPS. The clear can be reversed with `undo` during the current session.
+
+The `clear` operation will be rejected if additional arguments are supplied
 
 Format: `clear`
+
+### Undoing and redoing changes: `undo`, `redo`
+
+`undo` restores the previous successfully saved debtor data. `redo` reapplies an undone change. These commands cover
+adds, edits, notes, deletes, and clears. The history is session-only and keeps at most 100 states, so you can undo up to 99 changes. Undoing or redoing
+does not rewind the next debtor ID, so IDs are never reused. After every successful `undo` or `redo`, OSPS clears any
+`find` filter and lists all debtors in ID order, so displayed indices refer to the full list.
+After undo, a new saved change discards redo history. If a change, `undo` or `redo` cannot be saved, OSPS reports an
+error and leaves your records, the undo and redo history, and the saved file exactly as they were. Resolve the problem
+and run the command again. `exit` does not retry a failed command.
+
+Format: `undo` or `redo`
 
 ### Exiting the program: `exit`
 
@@ -154,34 +613,56 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+OSPS automatically saves data after every successful data-changing command. You do not need to save manually.
+
+If a data-changing command cannot be saved, OSPS reports an error and leaves the in-memory records and existing data
+file unchanged. Resolve the problem and re-enter that command. OSPS replaces the data file only when the file system
+supports an atomic replacement; otherwise the save fails without overwriting the existing file.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+OSPS keeps all of its files in the **home folder**, the folder that contains `osps.jar`. This does not depend on the
+folder your terminal is in when you launch OSPS. Records are saved to `data/addressbook.json`, and `preferences.json`,
+the log file `osps.log.0` and the `exports` folder are in the same home folder. For example, if the JAR is at
+`~/Downloads/osps/osps.jar`, records are saved to `~/Downloads/osps/data/addressbook.json`.
+
+Close all OSPS instances using a home folder before backing up, restoring, migrating or manually editing its data.
+OSPS prevents another instance of this version from opening the same home, but older versions do not respect this lock.
+Do not remove or replace the `.osps.lock` file while OSPS is running. Copy the `data` folder to a separate location
+for a backup; to restore, preserve the current data, replace the folder with the backup, and restart OSPS.
+
+To keep your records when you move to a newer JAR, close both OSPS instances and back up any destination data before
+copying the `data` folder (and `preferences.json` if you want your window settings) into the folder that contains the
+new JAR. Reopen OSPS and verify the debtor IDs, balances and history. Do not replace data while OSPS is running: its
+next save can overwrite the copied records. If you used an earlier version and launched it from a
+different folder than the one containing the JAR (for example by following an older instruction to `cd` into a separate
+data folder), copy that folder's `data` and `preferences.json` into the JAR's folder. The folder containing the JAR
+must be writable, otherwise OSPS cannot save your records or preferences. Advanced users may update data directly by editing the JSON file.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If OSPS detects that the data file cannot be loaded, it starts with no debtor records. Some unsupported manual edits
+may prevent startup; restore a backup if this happens. When OSPS starts with no debtor records after a loading error,
+OSPS will not save over the invalid file: data-changing commands fail until you restore valid JSON and restart OSPS.
+Back up the file before editing it.<br>
+Furthermore, certain edits can cause OSPS to behave unexpectedly (for example, if a value is outside the accepted
+range). Edit the data file only if you are confident that you can update it correctly.
+Malformed JSON can also cause OSPS to fail to start.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
-
---------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install OSPS on the other computer, then close OSPS on both computers. Back up the destination data before
+replacing it with `data/addressbook.json` from your previous OSPS home folder. Place the file at
+`data/addressbook.json` inside the folder containing the destination `osps.jar`. Reopen OSPS and verify the debtor
+IDs, balances and history. Never replace this file while OSPS is running: a later save can overwrite the imported
+records with the old in-memory data.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, OSPS detects that the saved window position is no longer on a connected screen and opens centred on a connected screen (the primary screen if none matches). A saved position is kept only if most of the window and its title bar are on a connected screen. A saved size that is too small is replaced with the default size, and one that is too large is reduced to fit your screens. You do not need to delete `preferences.json`; your new window size and position are saved when you next exit OSPS.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +670,27 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [o/OUTSTANDING_AMOUNT] [t/TAG]…​` <br> e.g., `add n/Olaf Go p/91234567 e/olaf.letnonego@example.com a/H4M8+3J3, Kunlun Station, Antarctica o/S$1,250.00`
 **Clear** | `clear`
+**Contact preferences** | `contact --id DEBTOR_ID [--method METHOD \| --clear-method] [--hours HH:mm-HH:mm \| --clear-hours]`<br> e.g., `contact --id 3 --method sms --hours 09:00-17:30`
+**Contactable** | `contactable [--at HH:mm] [--method call\|sms\|email\|letter]`<br> e.g., `contactable --at 09:30 --method sms`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
+**Due** | `due [YYYY-MM-DD]` or `due --from YYYY-MM-DD --to YYYY-MM-DD`<br> e.g., `due 2026-11-10`
+**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [o/OUTSTANDING_AMOUNT] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
+**Exit** | `exit`
+**Export** | `export --id DEBTOR_ID`<br> e.g., `export --id 3`
+**Filter by amount** | `list-amount [min/AMOUNT] [max/AMOUNT]`<br> e.g., `list-amount min/500 max/2,000`
+**Filter by stage** | `list-stage STAGE`<br> e.g., `list-stage contacted`
+**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find Alice 98765432`
+**Follow-up** | `followup --id DEBTOR_ID --date YYYY-MM-DD` or `--clear` or `--done`<br> e.g., `followup --id 1 --date 2026-11-03`
 **Help** | `help`
+**List** | `list`
+**Note** | `note --id DEBTOR_ID [--outcome OUTCOME] --text NOTE_TEXT`<br> e.g., `note --id 1 --outcome reached --text Called debtor.`
+**Preview** | `preview edit INDEX [FIELDS]` or `preview delete INDEX`<br> e.g., `preview delete 2`
+**Promise** | `promise --id DEBTOR_ID (--date YYYY-MM-DD \| --clear)`<br> e.g., `promise --id 1 --date 2026-11-05`
+**Redo** | `redo`
+**Show** | `show --id DEBTOR_ID`<br> e.g., `show --id 3`
+**Sort** | `sort --by id\|name\|amount [--order asc\|desc]`<br> e.g., `sort --by amount --order desc`
+**Stage** | `stage --id DEBTOR_ID --value STAGE`<br> e.g., `stage --id 3 --value contacted`
+**Summary** | `summary` or `summary --all`
+**Undo** | `undo`

@@ -7,11 +7,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
-import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
@@ -21,6 +21,7 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_DEBTOR_ID = "Debtor ID must be a positive integer.";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -28,11 +29,30 @@ public class ParserUtil {
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
-        String trimmedIndex = oneBasedIndex.trim();
-        if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
-            throw new ParseException(MESSAGE_INVALID_INDEX);
+        return Index.fromOneBased(parsePositiveInteger(oneBasedIndex.trim(), MESSAGE_INVALID_INDEX));
+    }
+
+    /**
+     * Parses a single persistent debtor-ID token without trimming it.
+     * Leading zeroes are accepted; zero, signs, whitespace and integer overflow are rejected.
+     *
+     * @throws ParseException if {@code debtorId} is not a supported positive integer
+     */
+    public static int parseDebtorId(String debtorId) throws ParseException {
+        return parsePositiveInteger(debtorId, MESSAGE_INVALID_DEBTOR_ID);
+    }
+
+    private static int parsePositiveInteger(String value, String errorMessage) throws ParseException {
+        requireNonNull(value);
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed > 0 && !value.startsWith("+")) {
+                return parsed;
+            }
+        } catch (NumberFormatException exception) {
+            throw new ParseException(errorMessage);
         }
-        return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+        throw new ParseException(errorMessage);
     }
 
     /**
@@ -74,7 +94,7 @@ public class ParserUtil {
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
         String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
+        if (!Address.isValidUserInput(trimmedAddress)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);
@@ -120,5 +140,15 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /** Parses an outstanding amount. */
+    public static OutstandingAmount parseOutstandingAmount(String amount) throws ParseException {
+        requireNonNull(amount);
+        try {
+            return new OutstandingAmount(amount);
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(OutstandingAmount.MESSAGE_CONSTRAINTS);
+        }
     }
 }

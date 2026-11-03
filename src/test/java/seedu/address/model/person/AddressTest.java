@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -32,6 +33,37 @@ public class AddressTest {
         assertTrue(Address.isValidAddress("Blk 456, Den Road, #01-355"));
         assertTrue(Address.isValidAddress("-")); // one character
         assertTrue(Address.isValidAddress("Leng Inc; 1234 Market St; San Francisco CA 2349879; USA")); // long address
+    }
+
+    @Test
+    public void isValidAddress_unicodeWhitespace_rejectsBlankAddresses() {
+        for (String blank : new String[] {"\u2003", "\u00a0", "\u202f", "\u3000", " \t\u2003\u00a0"}) {
+            assertFalse(Address.isValidAddress(blank));
+            assertThrows(IllegalArgumentException.class, () -> new Address(blank));
+        }
+        assertTrue(Address.isValidAddress("Block\u2003123"));
+        assertTrue(Address.isValidAddress("裕廊西大街 123"));
+    }
+
+    @Test
+    public void isValidUserInput_invisibleFormattingCharacters_rejectsBlankAddresses() {
+        for (String blank : new String[] {"\u200b", "\ufeff", "\u0000", "\u200b\ufeff"}) {
+            assertTrue(Address.isValidAddress(blank));
+            assertFalse(Address.isValidUserInput(blank));
+            assertEquals(blank, new Address(blank).toString());
+        }
+        assertTrue(Address.isValidUserInput("Block\u200b123"));
+    }
+
+    @Test
+    public void isValidUserInput_standaloneMarksAndFillers_rejectsBlankAddresses() {
+        for (String blank : new String[] {"\u0000", "\u200b", "\u034f", "\u0903", "\u20dd",
+            "\ufe0f", "\udb40\udd00", "\u115f", "\u1160", "\u2800", "\u3164", "\uffa0", "\u200b\t",
+            "\u200b\u00a0"}) {
+            assertFalse(Address.isValidUserInput(blank));
+        }
+        assertTrue(Address.isValidUserInput("Cafe\u0301 Road"));
+        assertTrue(Address.isValidUserInput("地址\ufe0f"));
     }
 
     @Test

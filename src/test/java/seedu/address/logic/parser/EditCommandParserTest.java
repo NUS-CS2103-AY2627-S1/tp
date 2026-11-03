@@ -24,6 +24,7 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_OUTSTANDING_AMOUNT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -41,6 +42,7 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
@@ -88,6 +90,13 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
         assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+        assertParseFailure(parser, "1 o/", OutstandingAmount.MESSAGE_CONSTRAINTS); // blank amount
+        assertParseFailure(parser, "1 o/-1", OutstandingAmount.MESSAGE_CONSTRAINTS); // negative amount
+        assertParseFailure(parser, "1 o/1.234", OutstandingAmount.MESSAGE_CONSTRAINTS); // too many decimals
+        assertParseFailure(parser, "1 o/one", OutstandingAmount.MESSAGE_CONSTRAINTS); // malformed amount
+        assertParseFailure(parser, "1 a/\u200b", Address.MESSAGE_CONSTRAINTS); // invisible-only address
+        assertParseFailure(parser, "1 a/\ufe0f", Address.MESSAGE_CONSTRAINTS); // standalone variation selector
+        assertParseFailure(parser, "1 a/\u2800", Address.MESSAGE_CONSTRAINTS); // blank braille pattern
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
@@ -130,6 +139,20 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_internationalName_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("José 陈").build();
+        EditPersonDescriptor typographicApostropheDescriptor =
+                new EditPersonDescriptorBuilder().withName("D’Arcy").build();
+        EditPersonDescriptor combiningMarksDescriptor =
+                new EditPersonDescriptorBuilder().withName("குமார்").build();
+
+        assertParseSuccess(parser, "1 n/Jose\u0301 陈", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 n/D’Arcy",
+                new EditCommand(INDEX_FIRST_PERSON, typographicApostropheDescriptor));
+        assertParseSuccess(parser, "1 n/குமார்", new EditCommand(INDEX_FIRST_PERSON, combiningMarksDescriptor));
+    }
+
+    @Test
     public void parse_oneFieldSpecified_success() {
         // name
         Index targetIndex = INDEX_THIRD_PERSON;
@@ -144,6 +167,18 @@ public class EditCommandParserTest {
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
 
+        // outstanding amount
+        userInput = targetIndex.getOneBased() + " o/S$1,250.50";
+        descriptor = new EditPersonDescriptorBuilder().withOutstandingAmount("S$1,250.50").build();
+        expectedCommand = new EditCommand(targetIndex, descriptor);
+        assertParseSuccess(parser, userInput, expectedCommand);
+
+        // zero outstanding amount combined with another field
+        userInput = targetIndex.getOneBased() + " o/0 n/Alice";
+        descriptor = new EditPersonDescriptorBuilder().withOutstandingAmount("0").withName("Alice").build();
+        expectedCommand = new EditCommand(targetIndex, descriptor);
+        assertParseSuccess(parser, userInput, expectedCommand);
+
         // email
         userInput = targetIndex.getOneBased() + EMAIL_DESC_AMY;
         descriptor = new EditPersonDescriptorBuilder().withEmail(VALID_EMAIL_AMY).build();
@@ -153,6 +188,12 @@ public class EditCommandParserTest {
         // address
         userInput = targetIndex.getOneBased() + ADDRESS_DESC_AMY;
         descriptor = new EditPersonDescriptorBuilder().withAddress(VALID_ADDRESS_AMY).build();
+        expectedCommand = new EditCommand(targetIndex, descriptor);
+        assertParseSuccess(parser, userInput, expectedCommand);
+
+        // address with a combining mark
+        userInput = targetIndex.getOneBased() + " a/Cafe\u0301 Road";
+        descriptor = new EditPersonDescriptorBuilder().withAddress("Cafe\u0301 Road").build();
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
 
@@ -186,6 +227,10 @@ public class EditCommandParserTest {
 
         assertParseFailure(parser, userInput,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+
+        userInput = targetIndex.getOneBased() + " o/0 o/10";
+        assertParseFailure(parser, userInput,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_OUTSTANDING_AMOUNT));
 
         // multiple invalid values
         userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC

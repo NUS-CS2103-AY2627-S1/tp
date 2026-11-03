@@ -5,11 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 public class ArgumentTokenizerTest {
 
     private final Prefix unknownPrefix = new Prefix("--u");
+    private final Prefix longId = new Prefix("--id");
     private final Prefix pSlash = new Prefix("p/");
     private final Prefix dashT = new Prefix("-t");
     private final Prefix hatQ = new Prefix("^Q");
@@ -80,6 +83,40 @@ public class ArgumentTokenizerTest {
     }
 
     @Test
+    public void tokenize_nonSpaceWhitespaceBeforePrefix_prefixRecognised() {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize("a/Unit 12\tp/100\np/200", pSlash);
+        assertEquals(List.of("100", "200"), argMultimap.getAllValues(pSlash));
+
+        // a tab before the prefix ends the preamble
+        argMultimap = ArgumentTokenizer.tokenize("x\tp/100", pSlash);
+        assertArgumentPresent(argMultimap, pSlash, "100");
+        assertPreamblePresent(argMultimap, "x");
+
+        // a prefix at the very start has no whitespace before it
+        argMultimap = ArgumentTokenizer.tokenize("p/100", pSlash);
+        assertPreamblePresent(argMultimap, "p/100");
+        assertFalse(argMultimap.getValue(pSlash).isPresent());
+
+        // other Unicode spaces are ordinary text, not separators
+        argMultimap = ArgumentTokenizer.tokenize("n/Alice p/123", pSlash);
+        assertFalse(argMultimap.getValue(pSlash).isPresent());
+
+        // a carriage return is a separator
+        argMultimap = ArgumentTokenizer.tokenize("x\rp/100", pSlash);
+        assertArgumentPresent(argMultimap, pSlash, "100");
+    }
+
+    @Test
+    public void tokenize_tabBeforeLongOption_boundaryStillChecked() {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize("x\t--id\t5", longId);
+        assertPreamblePresent(argMultimap, "x");
+        assertArgumentPresent(argMultimap, longId, "5");
+
+        argMultimap = ArgumentTokenizer.tokenize("x\t--idx 5", longId);
+        assertFalse(argMultimap.getValue(longId).isPresent());
+    }
+
+    @Test
     public void tokenize_multipleArguments() {
         // Only two arguments are present
         String argsString = "SomePreambleString -t dashT-Value p/pSlash value";
@@ -134,6 +171,26 @@ public class ArgumentTokenizerTest {
         assertArgumentAbsent(argMultimap, pSlash);
         assertArgumentPresent(argMultimap, dashT, "not joined^Qjoined");
         assertArgumentAbsent(argMultimap, hatQ);
+    }
+
+    @Test
+    public void tokenize_longOptionPrefixWithoutTrailingBoundary_notRecognized() {
+        String argsString = " --identifier portal";
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, longId);
+
+        assertPreamblePresent(argMultimap, "--identifier portal");
+        assertArgumentAbsent(argMultimap, longId);
+    }
+
+    @Test
+    public void tokenize_longOptionPrefixWithTrailingBoundary_recognized() {
+        String argsString = " --id 42";
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, longId);
+
+        assertPreambleEmpty(argMultimap);
+        assertArgumentPresent(argMultimap, longId, "42");
     }
 
     @Test

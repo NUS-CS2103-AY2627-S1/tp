@@ -1,0 +1,128 @@
+package seedu.address.model.person;
+
+import static java.util.Objects.requireNonNull;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * Represents a timestamped note about an interaction with a debtor.
+ */
+public final class InteractionNote {
+
+    public static final String MESSAGE_CONSTRAINTS = "Interaction note text must not be blank.";
+    public static final DateTimeFormatter STORAGE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    public static final DateTimeFormatter DISPLAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    private final LocalDateTime timestamp;
+    private final String text;
+    private final Optional<ContactOutcome> outcome;
+
+    /**
+     * Creates an interaction note with the supplied timestamp and text.
+     */
+    public InteractionNote(LocalDateTime timestamp, String text) {
+        this(timestamp, text, Optional.empty());
+    }
+
+    /**
+     * Creates an interaction note with optional structured outcome metadata.
+     */
+    public InteractionNote(LocalDateTime timestamp, String text, Optional<ContactOutcome> outcome) {
+        requireNonNull(timestamp);
+        requireNonNull(text);
+        requireNonNull(outcome);
+        String trimmedText = text.trim();
+        if (!isValidText(trimmedText)) {
+            throw new IllegalArgumentException(MESSAGE_CONSTRAINTS);
+        }
+        this.timestamp = timestamp;
+        this.text = trimmedText;
+        this.outcome = outcome;
+    }
+
+    /**
+     * Creates an interaction note from a timestamp stored in ISO local date-time format.
+     */
+    public static InteractionNote fromStorage(String timestamp, String text) {
+        return fromStorage(timestamp, text, null);
+    }
+
+    /**
+     * Creates an interaction note from stored values. A missing outcome represents a legacy unspecified outcome.
+     */
+    public static InteractionNote fromStorage(String timestamp, String text, String outcome) {
+        requireNonNull(timestamp);
+        try {
+            Optional<ContactOutcome> parsedOutcome = Optional.ofNullable(outcome)
+                    .map(value -> ContactOutcome.fromToken(value)
+                            .orElseThrow(() -> new IllegalArgumentException(ContactOutcome.MESSAGE_CONSTRAINTS)));
+            return new InteractionNote(LocalDateTime.parse(timestamp, STORAGE_FORMATTER), text, parsedOutcome);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("Interaction note timestamp must be a valid ISO local date-time.",
+                    exception);
+        }
+    }
+
+    /** Rejects whitespace-only text, including Unicode non-breaking spaces, without altering valid note content. */
+    public static boolean isValidText(String text) {
+        return text != null && text.codePoints()
+                .anyMatch(character -> !Character.isWhitespace(character) && !Character.isSpaceChar(character));
+    }
+
+    /**
+     * Requires content in new notes while preserving the validation used to load older notes.
+     * Formatting characters remain unchanged when they accompany content.
+     */
+    public static boolean isValidNewText(String text) {
+        return text != null && text.codePoints().anyMatch(character -> switch (Character.getType(character)) {
+            case Character.CONTROL, Character.FORMAT -> false;
+            default -> !Character.isWhitespace(character) && !Character.isSpaceChar(character);
+        });
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    /**
+     * Returns the structured contact outcome, or an empty value for a legacy or unspecified note.
+     */
+    public Optional<ContactOutcome> getOutcome() {
+        return outcome;
+    }
+
+    public String getStorageTimestamp() {
+        return timestamp.format(STORAGE_FORMATTER);
+    }
+
+    @Override
+    public String toString() {
+        String formattedOutcome = outcome.map(ContactOutcome::toString).orElse("unspecified");
+        return "[" + timestamp.format(DISPLAY_FORMATTER) + "] [" + formattedOutcome + "] " + text;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+        if (!(other instanceof InteractionNote otherNote)) {
+            return false;
+        }
+        return timestamp.equals(otherNote.timestamp) && text.equals(otherNote.text)
+                && outcome.equals(otherNote.outcome);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(timestamp, text, outcome);
+    }
+}

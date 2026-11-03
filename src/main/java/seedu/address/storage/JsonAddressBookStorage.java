@@ -3,7 +3,13 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 import java.util.logging.Logger;
 
@@ -21,7 +27,7 @@ public class JsonAddressBookStorage {
 
     private static final Logger logger = LogsCenter.getLogger(JsonAddressBookStorage.class);
 
-    private Path filePath;
+    private final Path filePath;
 
     public JsonAddressBookStorage(Path filePath) {
         this.filePath = filePath;
@@ -50,6 +56,14 @@ public class JsonAddressBookStorage {
     public Optional<ReadOnlyAddressBook> readAddressBook(Path filePath) throws DataLoadingException {
         requireNonNull(filePath);
 
+        try {
+            if (FileUtil.hasRedirectedPath(managedHome(filePath), filePath)) {
+                throw new IOException("Refusing redirected managed path: " + filePath);
+            }
+        } catch (IOException e) {
+            throw new DataLoadingException(e);
+        }
+
         Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFile(
                 filePath, JsonSerializableAddressBook.class);
         if (!jsonAddressBook.isPresent()) {
@@ -59,7 +73,7 @@ public class JsonAddressBookStorage {
         try {
             return Optional.of(jsonAddressBook.get().toModelType());
         } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
+            logger.warning("Invalid stored address book values in " + filePath + ".");
             throw new DataLoadingException(ive);
         }
     }
@@ -81,9 +95,48 @@ public class JsonAddressBookStorage {
     public void saveAddressBook(ReadOnlyAddressBook addressBook, Path filePath) throws IOException {
         requireNonNull(addressBook);
         requireNonNull(filePath);
+        if (FileUtil.hasRedirectedPath(managedHome(filePath), filePath)) {
+            throw new IOException("Refusing redirected managed path: " + filePath);
+        }
 
-        FileUtil.createIfMissing(filePath);
-        JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
+        Path target = filePath.toAbsolutePath();
+        Path parent = target.getParent();
+        byte[] jsonBytes = JsonUtil.toJsonString(new JsonSerializableAddressBook(addressBook))
+                .getBytes(StandardCharsets.UTF_8);
+        Files.createDirectories(parent);
+        Path temporaryFile = Files.createTempFile(parent, target.getFileName().toString() + ".", ".tmp");
+        try {
+            try (FileChannel channel = FileChannel.open(temporaryFile, StandardOpenOption.WRITE,
+                    StandardOpenOption.TRUNCATE_EXISTING, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                ByteBuffer buffer = ByteBuffer.wrap(jsonBytes);
+                while (buffer.hasRemaining()) {
+                    channel.write(buffer);
+                }
+                channel.force(true);
+            }
+            moveAtomically(temporaryFile, target);
+        } finally {
+            try {
+                deleteTemporaryFile(temporaryFile);
+            } catch (IOException ignored) {
+                // Temporary-file cleanup is best-effort and must not turn a completed replacement into a failure.
+            }
+        }
+    }
+
+    /** Removes the temporary file left behind by a save, if any. */
+    void deleteTemporaryFile(Path temporaryFile) throws IOException {
+        Files.deleteIfExists(temporaryFile);
+    }
+
+    /** Replaces the destination only when the file system supports an atomic move. */
+    void moveAtomically(Path source, Path target) throws IOException {
+        Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    static Path managedHome(Path filePath) {
+        Path dataDirectory = filePath.toAbsolutePath().normalize().getParent();
+        return dataDirectory.getParent() != null ? dataDirectory.getParent() : dataDirectory;
     }
 
 }

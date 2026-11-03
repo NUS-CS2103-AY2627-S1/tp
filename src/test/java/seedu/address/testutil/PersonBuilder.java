@@ -1,13 +1,21 @@
 package seedu.address.testutil;
 
+import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.model.person.Address;
+import seedu.address.model.person.ContactPreferences;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpEvent;
+import seedu.address.model.person.InteractionNote;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.RecoveryStage;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -25,6 +33,14 @@ public class PersonBuilder {
     private Phone phone;
     private Email email;
     private Address address;
+    private OutstandingAmount outstandingAmount;
+    private List<InteractionNote> interactionNotes;
+    private RecoveryStage recoveryStage;
+    private Optional<LocalDate> followUpDate;
+    private List<FollowUpEvent> followUpHistory;
+    private Optional<LocalDate> promisedPaymentDate;
+    private ContactPreferences contactPreferences;
+    private int debtorId;
     private Set<Tag> tags;
 
     /**
@@ -35,6 +51,14 @@ public class PersonBuilder {
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
+        outstandingAmount = new OutstandingAmount();
+        interactionNotes = List.of();
+        recoveryStage = RecoveryStage.NEW;
+        followUpDate = Optional.empty();
+        followUpHistory = List.of();
+        promisedPaymentDate = Optional.empty();
+        contactPreferences = new ContactPreferences(null, null);
+        debtorId = 0;
         tags = new HashSet<>();
     }
 
@@ -46,6 +70,14 @@ public class PersonBuilder {
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        outstandingAmount = personToCopy.getOutstandingAmount();
+        interactionNotes = personToCopy.getInteractionNotes();
+        recoveryStage = personToCopy.getRecoveryStage();
+        followUpDate = personToCopy.getFollowUpDate();
+        followUpHistory = personToCopy.getFollowUpHistory();
+        promisedPaymentDate = personToCopy.getPromisedPaymentDate();
+        contactPreferences = personToCopy.getContactPreferences();
+        debtorId = personToCopy.getDebtorId();
         tags = new HashSet<>(personToCopy.getTags());
     }
 
@@ -89,8 +121,64 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the outstanding amount of the person being built.
+     */
+    public PersonBuilder withOutstandingAmount(String amount) {
+        outstandingAmount = new OutstandingAmount(amount);
+        return this;
+    }
+
+    /**
+     * Sets the persistent debtor ID of the person being built.
+     */
+    public PersonBuilder withDebtorId(int debtorId) {
+        this.debtorId = debtorId;
+        return this;
+    }
+
+    /**
+     * Sets the interaction notes of the person being built.
+     */
+    public PersonBuilder withInteractionNotes(List<InteractionNote> interactionNotes) {
+        this.interactionNotes = List.copyOf(interactionNotes);
+        return this;
+    }
+
+    /** Sets the recovery stage. */
+    public PersonBuilder withRecoveryStage(RecoveryStage recoveryStage) {
+        this.recoveryStage = recoveryStage;
+        return this;
+    }
+
+    /** Sets the pending follow-up date. */
+    public PersonBuilder withFollowUpDate(Optional<LocalDate> followUpDate) {
+        this.followUpDate = followUpDate;
+        return this;
+    }
+
+    /** Sets the follow-up history. */
+    public PersonBuilder withFollowUpHistory(List<FollowUpEvent> followUpHistory) {
+        this.followUpHistory = List.copyOf(followUpHistory);
+        return this;
+    }
+
+    /** Sets the promised payment date. */
+    public PersonBuilder withPromisedPaymentDate(Optional<LocalDate> promisedPaymentDate) {
+        this.promisedPaymentDate = promisedPaymentDate;
+        return this;
+    }
+
+    /** Sets the contact preferences. */
+    public PersonBuilder withContactPreferences(ContactPreferences contactPreferences) {
+        this.contactPreferences = contactPreferences;
+        return this;
+    }
+
+    /** Builds a person using the configured field values. */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, debtorId, outstandingAmount, interactionNotes,
+                recoveryStage, followUpDate, followUpHistory, promisedPaymentDate, tags, contactPreferences);
     }
 
 }

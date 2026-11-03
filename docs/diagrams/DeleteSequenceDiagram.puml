@@ -1,17 +1,25 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam ParticipantPadding 10
 
 box Logic LOGIC_COLOR_T1
 participant ":LogicManager" as LogicManager LOGIC_COLOR
 participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
 participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
 participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
+participant ":Messages" as Messages LOGIC_COLOR
 participant "r:CommandResult" as CommandResult LOGIC_COLOR
 end box
 
 box Model MODEL_COLOR_T1
-participant "m:Model" as Model MODEL_COLOR
+participant "m:ModelManager" as Model MODEL_COLOR
+participant "c:ModelManager\n(candidate copy)" as Candidate MODEL_COLOR
+participant "a:AddressBook\n(of c)" as AddressBook MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant "s:Storage" as Storage STORAGE_COLOR
 end box
 
 [-> LogicManager : execute("delete 1")
@@ -21,50 +29,109 @@ LogicManager -> AddressBookParser : parseCommand("delete 1")
 activate AddressBookParser
 
 create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
+AddressBookParser -> DeleteCommandParser : new DeleteCommandParser()
+activate DeleteCommandParser
+DeleteCommandParser --> AddressBookParser : parser
+deactivate DeleteCommandParser
+AddressBookParser -> DeleteCommandParser : parse(INDEX)
 activate DeleteCommandParser
 
-DeleteCommandParser --> AddressBookParser
-deactivate DeleteCommandParser
+alt INDEX is empty, non-numeric, zero, or negative
+    DeleteCommandParser --> AddressBookParser : throws ParseException\ninvalid format with usage
+    deactivate DeleteCommandParser
+    AddressBookParser --> LogicManager : throws ParseException
+    deactivate AddressBookParser
+    [<--LogicManager : throws ParseException
+    deactivate LogicManager
+else INDEX is a positive decimal integer
+    create DeleteCommand
+    DeleteCommandParser -> DeleteCommand : fromOneBasedDecimal(normalized INDEX)
+    activate DeleteCommand
+    DeleteCommand --> DeleteCommandParser
+    deactivate DeleteCommand
 
-AddressBookParser -> DeleteCommandParser : parse("1")
-activate DeleteCommandParser
+    DeleteCommandParser --> AddressBookParser : d
+    deactivate DeleteCommandParser
+    'Hidden arrow to position the destroy marker below the end of the activation bar.
+    DeleteCommandParser -[hidden]-> AddressBookParser
+    destroy DeleteCommandParser
 
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
-activate DeleteCommand
+    AddressBookParser --> LogicManager : d
+    deactivate AddressBookParser
 
-DeleteCommand --> DeleteCommandParser :
-deactivate DeleteCommand
+    LogicManager -> Model : createTransactionCopy()
+    activate Model
+    Model --> LogicManager : c
+    deactivate Model
 
-DeleteCommandParser --> AddressBookParser : d
-deactivate DeleteCommandParser
-'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
-destroy DeleteCommandParser
+    LogicManager -> DeleteCommand : execute(c)
+    activate DeleteCommand
 
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
+    DeleteCommand -> Candidate : getFilteredPersonList()
+    activate Candidate
+    Candidate --> DeleteCommand : displayed list
+    deactivate Candidate
+    note right of DeleteCommand
+        INDEX is one-based in the currently displayed list.
+        A find filter or sort changes which person each index selects;
+        the default order is ascending debtor ID.
+    end note
 
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
+    alt INDEX is greater than displayed list size
+        DeleteCommand -> Messages : getInvalidPersonDisplayedIndexMessage(displayIndex, size)
+        Messages --> DeleteCommand : range error or empty-list guidance
+        DeleteCommand --> LogicManager : throws CommandException
+        deactivate DeleteCommand
+        [<--LogicManager : throws CommandException\n(candidate discarded, m unchanged)
+        deactivate LogicManager
+    else INDEX is within displayed list
+        DeleteCommand -> Candidate : deletePerson(person at INDEX - 1)
+        activate Candidate
+        Candidate -> AddressBook : removePerson(person)
+        activate AddressBook
+        AddressBook --> Candidate
+        deactivate AddressBook
+        Candidate --> DeleteCommand
+        deactivate Candidate
 
-DeleteCommand -> Model : deletePerson(1)
-activate Model
+        create CommandResult
+        DeleteCommand -> CommandResult : success with formatted debtor details
+        activate CommandResult
+        CommandResult --> DeleteCommand : r
+        deactivate CommandResult
+        DeleteCommand --> LogicManager : r
+        deactivate DeleteCommand
 
-Model --> DeleteCommand
-deactivate Model
+        LogicManager -> Candidate : commitAddressBook()
+        Candidate --> LogicManager
+        note right of Candidate
+            The undo history entry lives on the candidate,
+            so a failed save discards it too.
+        end note
+        LogicManager -> Storage : saveAddressBook(c's address book)
+        activate Storage
+        alt save succeeds
+            Storage --> LogicManager : saved
+            deactivate Storage
+            LogicManager -> Model : publishTransaction(c)
+            activate Model
+            Model --> LogicManager
+            deactivate Model
+            [<--LogicManager : r
+            deactivate LogicManager
+        else save fails
+            Storage --> LogicManager : IOException / AccessDeniedException
+            deactivate Storage
+            [<--LogicManager : throws CommandException\n(c discarded: data, history and view in m unchanged)
+            deactivate LogicManager
+        end
+    end
+end
 
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
+note over Model, Storage
+    The removed Person includes the debtor profile and interaction notes.
+    A successful save removes the complete record from persisted data, and undo can restore it
+    during the current session. show --id cannot find a deleted debtor.
+end note
 
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
-
-[<--LogicManager
-deactivate LogicManager
 @enduml

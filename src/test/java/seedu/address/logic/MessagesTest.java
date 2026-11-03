@@ -1,0 +1,96 @@
+package seedu.address.logic;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.ContactOutcome;
+import seedu.address.model.person.InteractionNote;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+
+public class MessagesTest {
+
+    @Test
+    public void formatProfile_allFieldsAndNotes_returnsDeterministicProfile() {
+        InteractionNote olderNote = new InteractionNote(LocalDateTime.of(2026, 10, 9, 14, 30),
+                "Called debtor, promised payment.");
+        InteractionNote newerNote = new InteractionNote(LocalDateTime.of(2026, 10, 10, 9, 15),
+                "Sent follow-up email.", Optional.of(ContactOutcome.REACHED));
+        Person debtor = new PersonBuilder().withDebtorId(17).withName("Alice Tan")
+                .withPhone("91234567").withEmail("alice@example.com")
+                .withAddress("1 Example Road, #02-03").withOutstandingAmount("1,250.50")
+                .withTags("zeta", "alpha").withInteractionNotes(List.of(olderNote, newerNote)).build();
+
+        String expected = """
+                Debtor profile
+                ID: 17
+                Name: Alice Tan
+                Phone: 91234567
+                Email: alice@example.com
+                Address: 1 Example Road, #02-03
+                Outstanding: S$1,250.50
+                Recovery stage: new
+                Tags: [alpha], [zeta]
+                Preferred contact method: Not set
+                Contact hours: Not set
+                Follow-up: None
+                Promised payment: None
+                History timestamps are local times; no time zone is stored.
+                Interaction history (latest recorded first):
+                - [2026-10-10 09:15] [reached] Sent follow-up email.
+                - [2026-10-09 14:30] [unspecified] Called debtor, promised payment.
+                Follow-up history (recorded order, oldest first):
+                No follow-up history recorded.""";
+
+        assertEquals(expected, Messages.formatProfile(debtor));
+    }
+
+    @Test
+    public void formatProfile_noTagsOrNotes_showsExplicitEmptyValues() {
+        Person debtor = new PersonBuilder().withDebtorId(1).build();
+
+        String profile = Messages.formatProfile(debtor);
+
+        assertTrue(profile.contains("Tags: None"));
+        assertTrue(profile.contains("Interaction history (latest recorded first):\nNo interaction notes recorded."));
+        assertTrue(profile.endsWith("Follow-up history (recorded order, oldest first):\n"
+                + "No follow-up history recorded."));
+    }
+
+    @Test
+    public void formatProfile_longNote_doesNotTruncateText() {
+        String longText = "Discussed a detailed repayment arrangement with punctuation; follow up? ".repeat(30);
+        InteractionNote longNote = new InteractionNote(LocalDateTime.of(2026, 10, 10, 10, 0), longText);
+        Person debtor = new PersonBuilder().withDebtorId(2).withInteractionNotes(List.of(longNote)).build();
+
+        assertTrue(Messages.formatProfile(debtor).contains(longText.trim()));
+    }
+
+    @Test
+    public void formatProfile_equalTimestamps_showsLaterInsertedNoteFirst() {
+        LocalDateTime sharedTimestamp = LocalDateTime.of(2026, 10, 10, 10, 0);
+        InteractionNote firstNote = new InteractionNote(sharedTimestamp, "First inserted note.");
+        InteractionNote secondNote = new InteractionNote(sharedTimestamp, "Second inserted note.");
+        Person debtor = new PersonBuilder().withDebtorId(3)
+                .withInteractionNotes(List.of(firstNote, secondNote)).build();
+
+        String profile = Messages.formatProfile(debtor);
+
+        assertTrue(profile.indexOf(secondNote.getText()) < profile.indexOf(firstNote.getText()));
+    }
+
+    @Test
+    public void formatProfile_identicalNotes_showsBoth() {
+        InteractionNote note = new InteractionNote(LocalDateTime.of(2026, 10, 10, 10, 0), "Called debtor.");
+        Person debtor = new PersonBuilder().withInteractionNotes(List.of(note, note)).build();
+
+        assertTrue(Messages.formatProfile(debtor).contains("\n- " + note + "\n- " + note
+                + "\nFollow-up history (recorded order, oldest first):"));
+    }
+}

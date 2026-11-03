@@ -20,10 +20,20 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ListAmountCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.ShowCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.OutstandingAmount;
+import seedu.address.model.person.OutstandingAmountRange;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonSort.Direction;
+import seedu.address.model.person.PersonSort.Field;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -42,7 +52,13 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+    }
+
+    @Test
+    public void parseCommand_clearWithUnexpectedArguments_throwsParseException() {
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE), () ->
+                        parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
@@ -84,7 +100,55 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listWithUnexpectedArguments_throwsParseException() {
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE), ()
+                    -> parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_listAmount() throws Exception {
+        ListAmountCommand command = (ListAmountCommand) parser.parseCommand(
+                ListAmountCommand.COMMAND_WORD + " min/100 max/500");
+        OutstandingAmountRange expectedRange = new OutstandingAmountRange(
+                java.util.Optional.of(new OutstandingAmount("100")),
+                java.util.Optional.of(new OutstandingAmount("500")));
+        assertEquals(new ListAmountCommand(expectedRange), command);
+    }
+
+    @Test
+    public void parseCommand_note() throws Exception {
+        NoteCommand command = (NoteCommand) parser.parseCommand(
+                NoteCommand.COMMAND_WORD + " --id 1 --text Called debtor.");
+        assertEquals(new NoteCommand(1, "Called debtor."), command);
+    }
+
+    @Test
+    public void parseCommand_show() throws Exception {
+        ShowCommand command = (ShowCommand) parser.parseCommand(ShowCommand.COMMAND_WORD + " --id 3");
+        assertEquals(new ShowCommand(3), command);
+    }
+
+    @Test
+    public void parseCommand_undoRedo() throws Exception {
+        assertTrue(parser.parseCommand("undo") instanceof UndoCommand);
+        assertTrue(parser.parseCommand("redo") instanceof RedoCommand);
+    }
+
+    @Test
+    public void parseCommand_undoRedoWithArguments_throwsParseException() {
+        assertThrows(ParseException.class, () -> parser.parseCommand("undo 1"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("redo 1"));
+    }
+
+    @Test
+    public void parseCommand_sort() throws Exception {
+        SortCommand command = (SortCommand) parser.parseCommand(
+                SortCommand.COMMAND_WORD + " --by amount --order desc");
+        assertEquals(new SortCommand(Field.AMOUNT, Direction.DESCENDING), command);
     }
 
     @Test
