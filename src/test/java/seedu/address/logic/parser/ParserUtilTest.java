@@ -13,9 +13,13 @@ import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.EducationLevel;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.LearningFocus;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.NextAction;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
@@ -24,6 +28,8 @@ public class ParserUtilTest {
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_SUBJECT = " ";
+    private static final String INVALID_EDUCATION_LEVEL = "University";
 
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
@@ -31,6 +37,8 @@ public class ParserUtilTest {
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_SUBJECT = "H2 Mathematics";
+    private static final String VALID_EDUCATION_LEVEL = "jc2";
 
     private static final String WHITESPACE = " \t\r\n";
 
@@ -144,6 +152,64 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseSubject_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseSubject(INVALID_SUBJECT));
+    }
+
+    @Test
+    public void parseSubject_validValueWithWhitespace_returnsTrimmedSubject() throws Exception {
+        Subject expectedSubject = new Subject(VALID_SUBJECT);
+        assertEquals(expectedSubject, ParserUtil.parseSubject(WHITESPACE + VALID_SUBJECT + WHITESPACE));
+    }
+
+    @Test
+    public void parseSubject_controlCharacterInsideValue_throwsParseException() {
+        assertThrows(ParseException.class, Subject.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSubject("Math\tPhysics"));
+        assertThrows(ParseException.class, Subject.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSubject("Math\nPhysics"));
+        assertThrows(ParseException.class, Subject.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSubject("Math\u0007"));
+    }
+
+    @Test
+    public void parseSubject_repeatedSpaces_collapsesSpaces() throws Exception {
+        assertEquals(new Subject(VALID_SUBJECT), ParserUtil.parseSubject("H2   Mathematics"));
+    }
+
+    @Test
+    public void parseEducationLevel_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseEducationLevel(INVALID_EDUCATION_LEVEL));
+    }
+
+    @Test
+    public void parseEducationLevel_validValue_returnsNormalizedEducationLevel() throws Exception {
+        EducationLevel expectedEducationLevel = new EducationLevel("JC2");
+        assertEquals(expectedEducationLevel, ParserUtil.parseEducationLevel(VALID_EDUCATION_LEVEL));
+    }
+
+    @Test
+    public void parseLearningFocus_normalizesOrdinarySpaces() throws Exception {
+        assertEquals(new LearningFocus("Fractions and ratios"),
+                ParserUtil.parseLearningFocus("  Fractions   and ratios  "));
+    }
+
+    @Test
+    public void parseLearningFocus_controlCharacter_throwsParseException() {
+        assertThrows(ParseException.class, LearningFocus.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseLearningFocus("Fractions\nand ratios"));
+    }
+
+    @Test
+    public void parseNextAction_normalizesOrdinarySpaces() throws Exception {
+        assertEquals(new NextAction("Complete worksheet 2"),
+                ParserUtil.parseNextAction("  Complete   worksheet 2  "));
+    }
+
+    @Test
+    public void parseNextAction_controlCharacter_throwsParseException() {
+        assertThrows(ParseException.class, NextAction.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseNextAction("Call\tguardian"));
     }
 
     @Test

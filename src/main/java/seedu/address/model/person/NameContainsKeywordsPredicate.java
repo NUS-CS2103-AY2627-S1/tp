@@ -1,25 +1,34 @@
 package seedu.address.model.person;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Predicate;
 
-import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a {@code Person}'s {@code Name} contains any of the keywords given.
+ * Matching is case-insensitive and partial keywords are accepted.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
 
+    /**
+     * Creates a predicate for {@code keywords}. The list is copied, so later changes to it do not affect the search.
+     */
     public NameContainsKeywordsPredicate(List<String> keywords) {
-        this.keywords = keywords;
+        requireNonNull(keywords);
+        this.keywords = List.copyOf(keywords);
     }
 
     @Override
     public boolean test(Person person) {
+        String normalizedName = person.getName().fullName.toLowerCase(Locale.ROOT);
         return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+                .map(keyword -> keyword.toLowerCase(Locale.ROOT))
+                .anyMatch(normalizedName::contains);
     }
 
     @Override
@@ -34,6 +43,11 @@ public class NameContainsKeywordsPredicate implements Predicate<Person> {
         }
 
         return keywords.equals(otherNameContainsKeywordsPredicate.keywords);
+    }
+
+    @Override
+    public int hashCode() {
+        return keywords.hashCode();
     }
 
     @Override

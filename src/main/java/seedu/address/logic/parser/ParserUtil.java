@@ -4,15 +4,22 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.EducationLevel;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Guardian;
+import seedu.address.model.person.LearningFocus;
+import seedu.address.model.person.Lesson;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.NextAction;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -93,6 +100,90 @@ public class ParserUtil {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses a guardian name and optional contact values into a {@code Guardian}.
+     */
+    public static Guardian parseGuardian(String name, Optional<String> phone, Optional<String> email)
+            throws ParseException {
+        requireNonNull(name);
+        requireNonNull(phone);
+        requireNonNull(email);
+        Name parsedName = parseName(name);
+        Optional<Phone> parsedPhone = phone.isPresent()
+                ? Optional.of(parsePhone(phone.get())) : Optional.empty();
+        Optional<Email> parsedEmail = email.isPresent()
+                ? Optional.of(parseEmail(email.get())) : Optional.empty();
+        return new Guardian(parsedName, parsedPhone, parsedEmail);
+    }
+
+    /**
+     * Parses a {@code String subject} into a {@code Subject}.
+     * Leading and trailing whitespace is trimmed, and repeated ordinary spaces are collapsed. Tabs and other control
+     * characters inside the value are kept, so they are rejected instead of being silently converted to spaces.
+     *
+     * @throws ParseException if the given {@code subject} is invalid.
+     */
+    public static Subject parseSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        String normalizedSubject = normalizeOrdinarySpaces(subject);
+        if (!Subject.isValidSubject(normalizedSubject)) {
+            throw new ParseException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        return new Subject(normalizedSubject);
+    }
+
+    /**
+     * Parses a {@code String educationLevel} into an {@code EducationLevel}.
+     */
+    public static EducationLevel parseEducationLevel(String educationLevel) throws ParseException {
+        requireNonNull(educationLevel);
+        String trimmedEducationLevel = educationLevel.trim();
+        if (!EducationLevel.isValidEducationLevel(trimmedEducationLevel)) {
+            throw new ParseException(EducationLevel.MESSAGE_CONSTRAINTS);
+        }
+        return new EducationLevel(trimmedEducationLevel);
+    }
+
+    /** Parses and normalizes a learning-focus value. */
+    public static LearningFocus parseLearningFocus(String learningFocus) throws ParseException {
+        requireNonNull(learningFocus);
+        String normalizedLearningFocus = normalizeOrdinarySpaces(learningFocus);
+        if (!LearningFocus.isValidLearningFocus(normalizedLearningFocus)) {
+            throw new ParseException(LearningFocus.MESSAGE_CONSTRAINTS);
+        }
+        return new LearningFocus(normalizedLearningFocus);
+    }
+
+    /** Parses and normalizes a next-action value. */
+    public static NextAction parseNextAction(String nextAction) throws ParseException {
+        requireNonNull(nextAction);
+        String normalizedNextAction = normalizeOrdinarySpaces(nextAction);
+        if (!NextAction.isValidNextAction(normalizedNextAction)) {
+            throw new ParseException(NextAction.MESSAGE_CONSTRAINTS);
+        }
+        return new NextAction(normalizedNextAction);
+    }
+
+    /**
+     * Parses a {@code String lesson} into a {@code Lesson}.
+     * Leading and trailing whitespace is trimmed, and repeated spaces between the date and time are collapsed.
+     *
+     * @throws ParseException if the given {@code lesson} is not a valid date and time.
+     */
+    public static Lesson parseLesson(String lesson) throws ParseException {
+        requireNonNull(lesson);
+        String normalizedLesson = normalizeOrdinarySpaces(lesson);
+        if (!Lesson.isValidLesson(normalizedLesson)) {
+            throw new ParseException(Lesson.MESSAGE_CONSTRAINTS);
+        }
+        return new Lesson(normalizedLesson);
+    }
+
+    /** Trims field boundaries and collapses repeated ordinary spaces. */
+    private static String normalizeOrdinarySpaces(String value) {
+        return value.strip().replaceAll(" +", " ");
     }
 
     /**

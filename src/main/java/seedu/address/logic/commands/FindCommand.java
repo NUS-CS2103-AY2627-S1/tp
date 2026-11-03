@@ -2,34 +2,53 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists active students whose name contains any of the argument keywords.
+ * Partial keyword matching is case-insensitive.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
+    public static final String MESSAGE_NO_MATCHES = "No students found.";
+    public static final String MESSAGE_NO_MATCHES_PREFIX_HINT = MESSAGE_NO_MATCHES
+            + " `find` takes plain name keywords, e.g. `find alex`. "
+            + "Use `filter` for subjects and education levels, e.g. `filter s/Mathematics`.";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all students whose names partially match any "
+            + "specified keyword (case-insensitive) and displays them as a list with index numbers.\n\n"
+            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n\n"
             + "Example: " + COMMAND_WORD + " alice bob charlie";
 
     private final NameContainsKeywordsPredicate predicate;
+    private final boolean hasPrefixLikeKeyword;
 
     public FindCommand(NameContainsKeywordsPredicate predicate) {
-        this.predicate = predicate;
+        this(predicate, false);
+    }
+
+    /**
+     * Creates a FindCommand that adds a usage hint to an empty result when {@code hasPrefixLikeKeyword} is true.
+     * Such keywords are still matched, because names may contain markers such as {@code s/o}.
+     */
+    public FindCommand(NameContainsKeywordsPredicate predicate, boolean hasPrefixLikeKeyword) {
+        this.predicate = requireNonNull(predicate);
+        this.hasPrefixLikeKeyword = hasPrefixLikeKeyword;
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
+        if (model.getFilteredPersonList().isEmpty()) {
+            return new CommandResult(hasPrefixLikeKeyword ? MESSAGE_NO_MATCHES_PREFIX_HINT : MESSAGE_NO_MATCHES);
+        }
         return new CommandResult(
                 String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
     }
@@ -45,13 +64,20 @@ public class FindCommand extends Command {
             return false;
         }
 
-        return predicate.equals(otherFindCommand.predicate);
+        return predicate.equals(otherFindCommand.predicate)
+                && hasPrefixLikeKeyword == otherFindCommand.hasPrefixLikeKeyword;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(predicate, hasPrefixLikeKeyword);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("predicate", predicate)
+                .add("hasPrefixLikeKeyword", hasPrefixLikeKeyword)
                 .toString();
     }
 }

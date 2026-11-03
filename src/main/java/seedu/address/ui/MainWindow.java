@@ -1,15 +1,21 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Logger;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Button;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -26,6 +32,10 @@ public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
 
+    enum NavigationSelection {
+        ACTIVE, UPCOMING, ARCHIVED, UNCHANGED
+    }
+
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
@@ -34,8 +44,10 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private PersonDetailsPanel personDetailsPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandBox commandBox;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -47,10 +59,22 @@ public class MainWindow extends UiPart<Stage> {
     private StackPane personListPanelPlaceholder;
 
     @FXML
+    private StackPane personDetailsPanelPlaceholder;
+
+    @FXML
     private StackPane resultDisplayPlaceholder;
 
     @FXML
     private StackPane statusbarPlaceholder;
+
+    @FXML
+    private Button activeStudentsButton;
+
+    @FXML
+    private Button upcomingLessonsButton;
+
+    @FXML
+    private Button archivedStudentsButton;
 
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
@@ -114,8 +138,11 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.getPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+
+        personDetailsPanel = new PersonDetailsPanel(personListPanel.selectedPersonProperty());
+        personDetailsPanelPlaceholder.getChildren().add(personDetailsPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -123,20 +150,120 @@ public class MainWindow extends UiPart<Stage> {
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        // Defer the request until JavaFX completes the initial layout and focus traversal.
+        Platform.runLater(commandBox::requestFocus);
+    }
+
+    @FXML
+    private void handleActiveStudents() {
+        executeNavigationCommand("list");
+    }
+
+    @FXML
+    private void handleUpcomingLessons() {
+        executeNavigationCommand("upcoming");
+    }
+
+    @FXML
+    private void handleArchivedStudents() {
+        executeNavigationCommand("list archived");
+    }
+
+    private void executeNavigationCommand(String command) {
+        try {
+            executeCommand(command);
+        } catch (CommandException | ParseException e) {
+            logger.warning("Navigation command failed: " + command);
+        } finally {
+            commandBox.requestFocus();
+        }
+    }
+
+    private void selectNavigationButton(Button selectedButton) {
+        Button[] buttons = {activeStudentsButton, upcomingLessonsButton, archivedStudentsButton};
+        for (Button button : buttons) {
+            button.getStyleClass().remove("view-row-active");
+        }
+        selectedButton.getStyleClass().add("view-row-active");
+    }
+
+    private void updateNavigationSelection(String commandText) {
+        switch (navigationSelectionFor(commandText)) {
+            case ACTIVE -> {
+                selectNavigationButton(activeStudentsButton);
+                personListPanel.setUpcomingView(false);
+            }
+            case UPCOMING -> {
+                selectNavigationButton(upcomingLessonsButton);
+                personListPanel.setUpcomingView(true);
+            }
+            case ARCHIVED -> {
+                selectNavigationButton(archivedStudentsButton);
+                personListPanel.setUpcomingView(false);
+            }
+            case UNCHANGED -> { }
+            default -> throw new AssertionError("Unknown navigation selection");
+        }
+    }
+
+    static NavigationSelection navigationSelectionFor(String commandText) {
+        String normalizedCommand = commandText.strip().replaceAll("\\s+", " ");
+        if (normalizedCommand.equals("list")) {
+            return NavigationSelection.ACTIVE;
+        }
+        if (normalizedCommand.equals("list archived")) {
+            return NavigationSelection.ARCHIVED;
+        }
+        if (normalizedCommand.equals("upcoming")) {
+            return NavigationSelection.UPCOMING;
+        }
+        // add, find, and filter show active students only, so Active Students becomes selected.
+        if (hasCommandWord(normalizedCommand, "add") || hasCommandWord(normalizedCommand, "find")
+                || hasCommandWord(normalizedCommand, "filter")) {
+            return NavigationSelection.ACTIVE;
+        }
+        return NavigationSelection.UNCHANGED;
+    }
+
+    private static boolean hasCommandWord(String commandText, String commandWord) {
+        return commandText.equals(commandWord) || commandText.startsWith(commandWord + " ");
     }
 
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Sets the default size and position based on {@code guiSettings}, keeping the window within the visible
+     * bounds of the screen that holds the saved position, or of the primary screen if no screen does.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        Point coordinates = guiSettings.getWindowCoordinates();
+        Rectangle2D screenBounds = findScreenBounds(coordinates);
+        double width = Math.min(guiSettings.getWindowWidth(), screenBounds.getWidth());
+        double height = Math.min(guiSettings.getWindowHeight(), screenBounds.getHeight());
+        primaryStage.setHeight(height);
+        primaryStage.setWidth(width);
+        if (coordinates != null) {
+            primaryStage.setX(fitWithin(coordinates.getX(), width, screenBounds.getMinX(), screenBounds.getMaxX()));
+            primaryStage.setY(fitWithin(coordinates.getY(), height, screenBounds.getMinY(), screenBounds.getMaxY()));
         }
+    }
+
+    private static Rectangle2D findScreenBounds(Point coordinates) {
+        if (coordinates != null) {
+            List<Screen> screens = Screen.getScreensForRectangle(coordinates.getX(), coordinates.getY(), 1, 1);
+            if (!screens.isEmpty()) {
+                return screens.get(0).getVisualBounds();
+            }
+        }
+        return Screen.getPrimary().getVisualBounds();
+    }
+
+    /**
+     * Returns the position closest to {@code position} at which something of the given {@code size} fits between
+     * {@code boundsStart} and {@code boundsEnd}. If it cannot fit, it starts at {@code boundsStart}.
+     */
+    static double fitWithin(double position, double size, double boundsStart, double boundsEnd) {
+        return Math.max(boundsStart, Math.min(position, boundsEnd - size));
     }
 
     /**
@@ -153,6 +280,13 @@ public class MainWindow extends UiPart<Stage> {
 
     void show() {
         primaryStage.show();
+    }
+
+    /**
+     * Shows {@code feedback} in the result panel without running a command.
+     */
+    void showFeedback(String feedback) {
+        resultDisplay.setFeedbackToUser(feedback);
     }
 
     /**
@@ -181,6 +315,7 @@ public class MainWindow extends UiPart<Stage> {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            updateNavigationSelection(commandText);
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -195,6 +330,10 @@ public class MainWindow extends UiPart<Stage> {
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
+        } finally {
+            // Keeps time-dependent card details, such as overdue lessons, current after every command.
+            personListPanel.refreshCards();
+            personDetailsPanel.refresh();
         }
     }
 }

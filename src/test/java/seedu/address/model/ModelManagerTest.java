@@ -8,13 +8,16 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
@@ -25,6 +28,31 @@ public class ModelManagerTest {
         assertEquals(new UserPrefs(), modelManager.getUserPrefs());
         assertEquals(new GuiSettings(), modelManager.getGuiSettings());
         assertEquals(new AddressBook(), new AddressBook(modelManager.getAddressBook()));
+        assertEquals(ResultViewScope.ACTIVE, modelManager.getResultViewScope());
+    }
+
+    @Test
+    public void updateFilteredPersonList_archivedScope_showsOnlyArchivedStudents() {
+        Person archivedAlice = new PersonBuilder(ALICE).withArchived(true).build();
+        AddressBook addressBook = new AddressBookBuilder().withPerson(archivedAlice).withPerson(BENSON).build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, ResultViewScope.ARCHIVED);
+
+        assertEquals(List.of(archivedAlice), modelManager.getFilteredPersonList());
+        assertEquals(ResultViewScope.ARCHIVED, modelManager.getResultViewScope());
+    }
+
+    @Test
+    public void updateFilteredPersonList_activeScope_excludesArchivedStudents() {
+        Person archivedAlice = new PersonBuilder(ALICE).withArchived(true).build();
+        AddressBook addressBook = new AddressBookBuilder().withPerson(archivedAlice).withPerson(BENSON).build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+        assertEquals(ResultViewScope.ACTIVE, modelManager.getResultViewScope());
     }
 
     @Test
@@ -71,6 +99,24 @@ public class ModelManagerTest {
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void updateSortedPersonList_nullComparator_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateSortedPersonList(null));
+    }
+
+    @Test
+    public void updateSortedPersonList_thenUpdateFilter_restoresSavedOrder() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+
+        modelManager.updateSortedPersonList(Comparator.comparing((Person person) -> person.getName().fullName)
+                .reversed());
+        assertEquals(List.of(BENSON, ALICE), modelManager.getFilteredPersonList());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
     }
 
     @Test

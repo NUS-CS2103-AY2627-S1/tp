@@ -1,6 +1,7 @@
 package seedu.address;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -13,6 +14,7 @@ import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
+import seedu.address.logic.Messages;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
@@ -32,20 +34,37 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "v1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final String ADDRESS_BOOK_FILE_NAME = "tutorcontacts.json";
+    private static final String LEGACY_ADDRESS_BOOK_FILE_NAME = "addressbook.json";
+    private static final Path DATA_DIRECTORY = Paths.get("data");
+    private static final Path ADDRESS_BOOK_FILE_PATH = resolveAddressBookFilePath(DATA_DIRECTORY);
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private Optional<String> startupWarning = Optional.empty();
+
+    /**
+     * Returns the TutorContacts data path, unless only the legacy AddressBook data file exists.
+     * When both files exist, the TutorContacts data file takes precedence and the legacy file is left untouched.
+     */
+    static Path resolveAddressBookFilePath(Path dataDirectory) {
+        Path addressBookFilePath = dataDirectory.resolve(ADDRESS_BOOK_FILE_NAME);
+        Path legacyAddressBookFilePath = dataDirectory.resolve(LEGACY_ADDRESS_BOOK_FILE_NAME);
+        if (Files.exists(addressBookFilePath) || !Files.exists(legacyAddressBookFilePath)) {
+            return addressBookFilePath;
+        }
+        return legacyAddressBookFilePath;
+    }
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing TutorContacts ]==========================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
@@ -57,7 +76,7 @@ public class MainApp extends Application {
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), startupWarning);
     }
 
     /**
@@ -68,8 +87,16 @@ public class MainApp extends Application {
     private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
+        InitialData initialData = loadInitialData(storage);
+        startupWarning = initialData.warning();
+        return new ModelManager(initialData.addressBook(), userPrefs);
+    }
+
+    /** Loads the initial student data and any warning that must be shown when the UI starts. */
+    static InitialData loadInitialData(Storage storage) {
         Optional<ReadOnlyAddressBook> addressBookOptional;
         ReadOnlyAddressBook initialData;
+        Optional<String> warning = Optional.empty();
         try {
             addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
@@ -80,11 +107,16 @@ public class MainApp extends Application {
         } catch (DataLoadingException e) {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
                     + " Will be starting with an empty AddressBook.");
+            warning = Optional.of(
+                    String.format(Messages.MESSAGE_DATA_LOAD_FAILED, storage.getAddressBookFilePath()));
             initialData = new AddressBook();
         }
 
-        return new ModelManager(initialData, userPrefs);
+        return new InitialData(initialData, warning);
     }
+
+    /** Student data and optional feedback produced while loading the application. */
+    record InitialData(ReadOnlyAddressBook addressBook, Optional<String> warning) {}
 
     /**
      * Returns a {@code UserPrefs} using the file at {@code storage}'s user prefs file path,
@@ -120,13 +152,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting TutorContacts " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping TutorContacts ] ============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

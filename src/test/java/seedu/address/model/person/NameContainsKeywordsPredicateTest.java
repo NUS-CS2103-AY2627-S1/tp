@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.testutil.Assert;
 import seedu.address.testutil.PersonBuilder;
 
 public class NameContainsKeywordsPredicateTest {
@@ -38,22 +40,57 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void hashCode_equalPredicates_sameHashCode() {
+        assertEquals(new NameContainsKeywordsPredicate(List.of("Alice", "Bob")).hashCode(),
+                new NameContainsKeywordsPredicate(new ArrayList<>(List.of("Alice", "Bob"))).hashCode());
+    }
+
+    @Test
+    public void constructor_keywordsChangedLater_searchUnchanged() {
+        List<String> keywords = new ArrayList<>(List.of("Alice"));
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(keywords);
+
+        keywords.set(0, "Bob");
+
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Pauline").build()));
+        assertFalse(predicate.test(new PersonBuilder().withName("Bob Choo").build()));
+    }
+
+    @Test
+    public void constructor_nullKeywords_throwsNullPointerException() {
+        Assert.assertThrows(NullPointerException.class, () -> new NameContainsKeywordsPredicate(null));
+    }
+
+    @Test
     public void test_nameContainsKeywords_returnsTrue() {
-        // One keyword
-        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("Alice"));
+        // Partial keyword at the start of the name
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("Ali"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
-        // Multiple keywords
-        predicate = new NameContainsKeywordsPredicate(List.of("Alice", "Bob"));
+        // Partial keyword in the middle of a name
+        predicate = new NameContainsKeywordsPredicate(List.of("ice"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
-        // Only one matching keyword
-        predicate = new NameContainsKeywordsPredicate(List.of("Bob", "Carol"));
+        // Partial keyword at the end of the name
+        predicate = new NameContainsKeywordsPredicate(List.of("ob"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Only one of multiple keywords matches
+        predicate = new NameContainsKeywordsPredicate(List.of("not-present", "car"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Carol").build()));
 
-        // Mixed-case keywords
-        predicate = new NameContainsKeywordsPredicate(List.of("aLIce", "bOB"));
+        // Mixed-case partial keyword
+        predicate = new NameContainsKeywordsPredicate(List.of("LIcE"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Accented letters match case-insensitively
+        predicate = new NameContainsKeywordsPredicate(List.of("ZOË"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Zoë Tan").build()));
+
+        // Name punctuation is matched as part of the keyword
+        predicate = new NameContainsKeywordsPredicate(List.of("o'b", "s/o"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Liam O'Brien").build()));
+        assertTrue(predicate.test(new PersonBuilder().withName("Raj s/o Kumar").build()));
     }
 
     @Test
@@ -64,6 +101,10 @@ public class NameContainsKeywordsPredicateTest {
 
         // Non-matching keyword
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Keyword longer than the matching part of the name
+        predicate = new NameContainsKeywordsPredicate(List.of("Alicee"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
         // Keywords match phone, email and address, but do not match name

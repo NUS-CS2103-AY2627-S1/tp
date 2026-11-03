@@ -3,6 +3,7 @@ package seedu.address.storage;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -11,10 +12,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.EducationLevel;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Guardian;
+import seedu.address.model.person.LearningFocus;
+import seedu.address.model.person.Lesson;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.NextAction;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -28,6 +35,15 @@ class JsonAdaptedPerson {
     private final String phone;
     private final String email;
     private final String address;
+    private final String guardianName;
+    private final String guardianPhone;
+    private final String guardianEmail;
+    private final String subject;
+    private final String educationLevel;
+    private final String learningFocus;
+    private final String nextAction;
+    private final String lesson;
+    private final Boolean archived;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
 
     /**
@@ -36,14 +52,48 @@ class JsonAdaptedPerson {
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("guardianName") String guardianName,
+            @JsonProperty("guardianPhone") String guardianPhone,
+            @JsonProperty("guardianEmail") String guardianEmail,
+            @JsonProperty("subject") String subject,
+            @JsonProperty("educationLevel") String educationLevel,
+            @JsonProperty("learningFocus") String learningFocus,
+            @JsonProperty("nextAction") String nextAction,
+            @JsonProperty("lesson") String lesson,
+            @JsonProperty("archived") Boolean archived) {
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.guardianName = guardianName;
+        this.guardianPhone = guardianPhone;
+        this.guardianEmail = guardianEmail;
+        this.subject = subject;
+        this.educationLevel = educationLevel;
+        this.learningFocus = learningFocus;
+        this.nextAction = nextAction;
+        this.lesson = lesson;
+        this.archived = archived;
         if (tags != null) {
             this.tags.addAll(tags);
         }
+    }
+
+    /**
+     * Constructs a person without learning-context fields, for older focused tests.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags,
+            String guardianName, String guardianPhone, String guardianEmail, String subject, String educationLevel) {
+        this(name, phone, email, address, tags, guardianName, guardianPhone, guardianEmail, subject,
+                educationLevel, null, null, null, null);
+    }
+
+    /**
+     * Constructs a person without guardian fields, for older saved data and focused tests.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, tags, null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -51,9 +101,18 @@ class JsonAdaptedPerson {
      */
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
-        phone = source.getPhone().value;
-        email = source.getEmail().value;
-        address = source.getAddress().value;
+        phone = source.getPhone().map(value -> value.value).orElse(null);
+        email = source.getEmail().map(value -> value.value).orElse(null);
+        address = source.getAddress().map(value -> value.value).orElse(null);
+        guardianName = source.getGuardian().map(value -> value.getName().fullName).orElse(null);
+        guardianPhone = source.getGuardian().flatMap(Guardian::getPhone).map(value -> value.value).orElse(null);
+        guardianEmail = source.getGuardian().flatMap(Guardian::getEmail).map(value -> value.value).orElse(null);
+        subject = source.getSubject().map(Subject::getValue).orElse(null);
+        educationLevel = source.getEducationLevel().map(EducationLevel::getValue).orElse(null);
+        learningFocus = source.getLearningFocus().map(LearningFocus::getValue).orElse(null);
+        nextAction = source.getNextAction().map(NextAction::getValue).orElse(null);
+        lesson = source.getLesson().map(Lesson::getValue).orElse(null);
+        archived = source.isArchived();
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -78,32 +137,73 @@ class JsonAdaptedPerson {
         }
         final Name modelName = new Name(name);
 
-        if (phone == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
-        }
-        if (!Phone.isValidPhone(phone)) {
+        if (phone != null && !Phone.isValidPhone(phone)) {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
+        final Optional<Phone> modelPhone = Optional.ofNullable(phone).map(Phone::new);
 
-        if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
-        }
-        if (!Email.isValidEmail(email)) {
+        if (email != null && !Email.isValidEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
         }
-        final Email modelEmail = new Email(email);
+        final Optional<Email> modelEmail = Optional.ofNullable(email).map(Email::new);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
+        if (address != null && !Address.isValidAddress(address)) {
             throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
         }
-        final Address modelAddress = new Address(address);
+        final Optional<Address> modelAddress = Optional.ofNullable(address).map(Address::new);
+
+        if (guardianName == null && (guardianPhone != null || guardianEmail != null)) {
+            throw new IllegalValueException("Guardian name is required when guardian contact details are provided.");
+        }
+        final Optional<Guardian> modelGuardian;
+        if (guardianName == null) {
+            modelGuardian = Optional.empty();
+        } else {
+            if (!Name.isValidName(guardianName)) {
+                throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
+            }
+            if (guardianPhone != null && !Phone.isValidPhone(guardianPhone)) {
+                throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
+            }
+            if (guardianEmail != null && !Email.isValidEmail(guardianEmail)) {
+                throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+            }
+            modelGuardian = Optional.of(new Guardian(new Name(guardianName),
+                    Optional.ofNullable(guardianPhone).map(Phone::new),
+                    Optional.ofNullable(guardianEmail).map(Email::new)));
+        }
+
+        if (subject != null && !Subject.isValidSubject(subject)) {
+            throw new IllegalValueException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Subject> modelSubject = Optional.ofNullable(subject).map(Subject::new);
+
+        if (educationLevel != null && !EducationLevel.isValidEducationLevel(educationLevel)) {
+            throw new IllegalValueException(EducationLevel.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<EducationLevel> modelEducationLevel = Optional.ofNullable(educationLevel)
+                .map(EducationLevel::new);
+
+        if (learningFocus != null && !LearningFocus.isValidLearningFocus(learningFocus)) {
+            throw new IllegalValueException(LearningFocus.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<LearningFocus> modelLearningFocus = Optional.ofNullable(learningFocus)
+                .map(LearningFocus::new);
+
+        if (nextAction != null && !NextAction.isValidNextAction(nextAction)) {
+            throw new IllegalValueException(NextAction.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<NextAction> modelNextAction = Optional.ofNullable(nextAction).map(NextAction::new);
+
+        if (lesson != null && !Lesson.isValidLesson(lesson)) {
+            throw new IllegalValueException(Lesson.MESSAGE_CONSTRAINTS);
+        }
+        final Optional<Lesson> modelLesson = Optional.ofNullable(lesson).map(Lesson::new);
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelGuardian, modelSubject,
+                modelEducationLevel, modelLearningFocus, modelNextAction, modelLesson, Boolean.TRUE.equals(archived),
+                modelTags);
     }
 
 }

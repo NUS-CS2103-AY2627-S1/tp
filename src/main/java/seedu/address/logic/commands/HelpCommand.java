@@ -3,16 +3,17 @@ package seedu.address.logic.commands;
 import seedu.address.model.Model;
 
 /**
- * Formats full help instructions for every command for display.
+ * Opens the offline Help window, which describes every command.
  */
 public class HelpCommand extends Command {
 
     public static final String COMMAND_WORD = "help";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Shows program usage instructions.\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Shows program usage instructions. "
+            + "Takes no parameters.\n\n"
             + "Example: " + COMMAND_WORD;
 
-    public static final String SHOWING_HELP_MESSAGE = "Opened help window.";
+    public static final String SHOWING_HELP_MESSAGE = "Opened Help window.";
 
     @Override
     public CommandResult execute(Model model) {

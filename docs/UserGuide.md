@@ -3,7 +3,20 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+TutorContacts is an **offline desktop application for private tutors to manage student and guardian contact details, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI).
+
+New to TutorContacts? Start with [Quick start](#quick-start) and [The main window](#the-main-window), then use the
+table below to jump to the task you need.
+
+| I want to… | Use | Read |
+|------------|-----|------|
+| Record a new student | `add` | [Adding a student](#adding-a-student-add) |
+| Update or clear a student's details | `edit` | [Editing a student](#editing-a-student-edit) |
+| Find students by name, subject, or level | `find`, `filter` | [Locating students](#locating-students-by-name-find), [Filtering students](#filtering-students-by-tutoring-details-filter) |
+| Plan the next lesson | `schedule`, `unschedule`, `upcoming` | [Scheduling a lesson](#scheduling-a-lesson-schedule) |
+| Keep a former student without deleting them | `archive`, `list archived`, `unarchive` | [Archiving a student](#archiving-a-student-archive) |
+| Remove records permanently | `delete`, `clear` | [Deleting a student](#deleting-a-student-delete), [Clearing all entries](#clearing-all-entries-clear) |
+| See every command format | `help` | [Command summary](#command-summary) |
 
 * Table of Contents
 {:toc}
@@ -15,28 +28,57 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-W10-3/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for TutorContacts.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar TutorContacts.jar`.<br>
+   The TutorContacts window appears in a few seconds. On the first run it contains sample students so that you can try
+   commands safely. [The main window](#the-main-window) explains each part of the window.<br>
+   ![TutorContacts main window showing the views sidebar, student list, selected student's details, result panel, and command box](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all active students.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `filter s/Mathematics l/S3` : Shows S3 Mathematics students.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `add n/John Doe p/98765432 gn/Jane Doe gp/91234567` : Adds a student named `John Doe` with optional student and guardian contact details.
 
-   * `clear` : Deletes all contacts.
+   * `add n/Jane Tan lf/Fractions na/Complete worksheet 2` : Adds a student with optional learning context.
+
+   * `archive 1` : Moves the 1st student shown out of active workflows without deleting the record.
+
+   * `delete 3` : Deletes the 3rd student shown in the current list.
+
+   * `clear` : Deletes all student records.
 
    * `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
+
+--------------------------------------------------------------------------------------------------------------------
+
+## The main window
+
+The window has five areas. You can do everything by typing commands; the mouse is optional.
+
+| Area | Where | What it does |
+|------|-------|--------------|
+| Command box | Bottom | Type a command and press Enter. The box keeps keyboard focus after each command, so you can type the next one immediately. |
+| Result panel | Top of the centre column | Shows the outcome of the last command, or the reason it was rejected. Two lines are visible at once; scroll the panel to read longer messages. |
+| Student list | Centre | Shows the current result view. Each card shows the displayed index, name, tags, subject, education level, and next lesson. Tags wrap onto extra rows. In a narrow window, or for very long values, a card shortens the text with `...`; the details panel shows it in full, except that very long tags stay shortened there too. Index-based commands use the index shown here. |
+| Details panel | Right | Shows every detail of the selected student: contact, learning, schedule, and guardian information. Click another card, or focus the list and use the arrow keys, to view another student. If the selected student leaves the current view, the first student is selected. |
+| Views sidebar | Left | **Active Students**, **Upcoming Lessons**, and **Archived Students** run `list`, `upcoming`, and `list archived` respectively. The highlighted button shows the current view; `find`, `filter`, and `add` highlight **Active Students** because they show active students, and `edit` keeps the current view highlighted. |
+
+The status bar below the command box shows where your data is saved. The **Help** menu, and the `F1` key, open the
+same Help window as the `help` command.
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:**
+Fields that were never recorded are shown as `Not provided`, and a student without a lesson is shown as
+`Not scheduled`. A lesson whose time has passed is marked `(overdue)` in bold red.
+</div>
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -46,105 +88,390 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 **:information_source: Notes about the command format:**<br>
 
+* Command words are case-sensitive and must be in lower case.<br>
+  For example, `list` is accepted but `LIST` is rejected as an unknown command.
+
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `n/NAME [t/TAG]…​` can be used as `n/John Doe t/friend t/online` or as `n/John Doe`.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* The prefixes in `add` can be in any order, with whitespace between fields.<br>
+  For example, `add p/81234567 n/Alex Tan` is accepted. Every `add` prefix except `t/` can appear only once.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+* Prefixes contain one or two lower-case characters followed by `/`. If a field value contains separate text that
+  looks like a prefix, wrap the complete value in double quotes.<br>
+  For example, use `a/"Block n/7"`. The quotes are not stored. Longer words such as `Level/` do not need quotes.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Commands that take no parameters, namely `help`, `exit`, `clear`, and `upcoming`, reject any extra text.<br>
+  For example, `help 123`, `clear 3`, and `upcoming 3` are rejected without changing any data.
+  `list` accepts only no argument or the exact argument `archived`; for example, `list 1` is rejected.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
-
-![help message](images/helpMessage.png)
+Opens the offline Help window, and the result panel confirms that it opened.
 
 Format: `help`
 
+* The Help window groups the commands into **Overview**, **Student management**, **Search & filter**,
+  **Scheduling**, and **Archiving**. Click a group on the left to see its command formats, examples, and key rules.
+* **Copy User Guide URL** copies the link to this guide, which has the complete validation rules and more examples.
+* The help text is bundled with TutorContacts, so `help` works without internet access and even when the data file
+  cannot be loaded. It does not write to the data file.
+* The **Help** menu and the `F1` key open the same window.
+* `help` takes no parameters. Extra text, such as `help me`, is rejected.
 
-### Adding a person: `add`
+![TutorContacts offline Help window with command categories on the left and overview content on the right](images/HelpWindow.png)
 
-Adds a person to the address book.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+### Adding a student: `add`
+
+Adds a student to TutorContacts. Only the student name is required; the remaining fields are optional.
+
+Format: `add n/NAME [p/PHONE] [e/EMAIL] [a/ADDRESS] [s/SUBJECT] [l/EDUCATION_LEVEL] [gn/GUARDIAN_NAME] [gp/GUARDIAN_PHONE] [ge/GUARDIAN_EMAIL] [lf/LEARNING_FOCUS] [na/NEXT_ACTION] [t/TAG]…​`
 
 <div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+Only `n/` is required. Every other prefix is optional. Prefixes may appear in any order, and `t/` may repeat.
 </div>
 
+| Prefix | Meaning and validation |
+|--------|------------------------|
+| `n/` | Student name. Required; starts with a letter or digit; may contain letters (including accented letters), digits, spaces, hyphens (`-`), apostrophes (`'`), full stops (`.`), and slashes (`/`). `s/o`, `d/o`, `a/l`, and `a/p` in a name stay part of the name, for example `n/Raj s/o Kumar`. |
+| `p/` | Student phone. Optional; digits only, 3 to 15 digits. |
+| `e/` | Student email. Optional; a valid email address. |
+| `a/` | Address. Optional; nonblank text. |
+| `s/` | Tutoring subject. Optional; nonblank text of at most 100 characters, without control characters. |
+| `l/` | Education level. Optional; `P1`–`P6`, `S1`–`S5`, or `JC1`–`JC2`, regardless of input case. Displayed in uppercase. |
+| `gn/` | Guardian name. Optional; uses the student-name rules. |
+| `gp/` | Guardian phone. Optional; uses the student-phone rules and requires `gn/`. |
+| `ge/` | Guardian email. Optional; uses the student-email rules and requires `gn/`. |
+| `lf/` | Current learning focus. Optional; 1–200 characters without control characters. |
+| `na/` | Next action. Optional; 1–200 characters without control characters. |
+| `t/` | Optional tag; letters and digits only. Repeat `t/` to add more than one tag. |
+
+Subject and education level may be supplied independently. Education levels are case-insensitive when entered and are
+displayed in uppercase. If either field is omitted, the student card displays `Not provided` for that field.
+
+Learning focus and next action may also be supplied independently. Ordinary spaces and punctuation are accepted.
+Leading and trailing whitespace is removed, and repeated ordinary spaces are stored as one space. Control characters
+within a value, including tabs and line breaks, are rejected, as are blank values and values longer than 200
+characters. An omitted learning field is displayed as `Not provided`.
+
+Leading and trailing whitespace around field values is ignored. Repeated whitespace inside names, guardian names,
+and addresses is stored as one space. Repeated spaces inside subjects are stored as one space, but a tab, line break,
+or other control character inside a subject is rejected. Whitespace within phone numbers, email addresses, education levels, and
+tags is not accepted. Text before the first prefix and unknown prefix-like tokens such as `x/value` are rejected.
+If a subject or address contains a separate one- or two-character token followed by `/`, enclose the complete value in
+double quotes. For example, `add n/Alex s/"A l/Mathematics" a/"Block n/7"` stores the values without the quotes.
+Words such as `Level/` are ordinary value text and do not need quotes. An unquoted unsupported token is still rejected.
+When an input breaks several rules, TutorContacts reports one error predictably: unexpected preamble, unsupported
+prefix, missing `n/`, repeated prefix, missing guardian name, then invalid field value. Repeated prefixes are listed in
+alphabetical order in the error.
+
+Student names are unique regardless of letter case and repeated spaces, and archived students count too. For example,
+after adding `Alex Tan`, `add n/ alex   tan` is rejected as a duplicate. Different students may share phone, email, and guardian details.
+A guardian name may be supplied without guardian contact information.
+
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* Name only: `add n/Alex Tan`
+* Prefix-like text in values: `add n/Alice s/A Level/Mathematics a/"Block n/7"`
+* Names with hyphens, apostrophes, accents, or `s/o`: `add n/Jean-Luc O'Brien`, `add n/José Tan`, `add n/Raj s/o Kumar s/Mathematics`
+* All tutoring and guardian details, in a different prefix order: `add l/jc1 gn/Mary Tan s/H2 Mathematics p/98765432 ge/mary@example.com gp/81234567 e/alex@example.com n/Alex Tan`
+* Learning context: `add n/Alex Tan lf/Quadratic graphs na/Complete worksheet 4`
+* Two students may share contacts: `add n/Ben Tan p/81234567 gn/Mary Tan gp/91234567` followed by `add n/Chloe Tan p/81234567 gn/Mary Tan gp/91234567`
+* Invalid, because `gn/` is missing: `add n/Sam Lee gp/81234567`
+* Multiple tags: `add n/Sam Lee t/mathematics t/online`
+* Invalid, because a single-valued prefix repeats: `add n/Sam Lee p/81234567 p/92345678`
+* Invalid, because the education level is unsupported: `add n/Sam Lee l/University`
+* Invalid, because the subject is empty: `add n/Eva Lim s/ l/P6`
+* Invalid, because a learning focus supplied to `add` cannot be empty: `add n/Eva Lim lf/`
+* Invalid guardian email: `add n/Sam Lee gn/Pat Lee ge/pat.example.com`
+* Invalid, because of unexpected text: `add surprise n/Sam Lee` or `add n/Sam Lee x/value`
 
-### Listing all persons: `list`
+Rejected `add` commands leave the displayed records and saved data unchanged. A successful `add` shows the complete
+active-student list, so you can see the new student.
 
-Shows a list of all persons in the address book.
+### Listing active students: `list`
+
+Shows all active student records in their saved order. Archived students are excluded. If there are no records,
+TutorContacts shows guidance for adding one. If records exist only in the archive, it suggests `list archived` instead.
+Each student card shows a summary: name, tags, subject, education level, and next lesson. The details panel shows the
+selected student's complete contact, learning, schedule, and guardian details. Omitted details are shown as
+`Not provided`, and a student without a lesson is shown as `Not scheduled`.
+
+After a command is submitted, the command box retains keyboard focus so you can type the next command immediately.
+Use the mouse or Tab to focus the list when you want to scroll it or use its normal list navigation keys.
 
 Format: `list`
 
-### Editing a person: `edit`
+Example: `list`
 
-Edits an existing person in the address book.
+`list` also resets any `find` or `filter` result and restores the complete active-student list.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+### Understanding result views and indices
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+`list`, `find`, `filter`, and `upcoming` display an active-student result view, while `list archived` displays the
+archived-student result view. Every result view is numbered consecutively from 1 in the order shown. An index-based
+command acts on the student currently displayed with that index, rather than the student at the same position in the
+complete saved data. `upcoming` orders its results by lesson time; the other views use saved order.
+
+`edit`, `archive`, `schedule`, and `unschedule` are active-only commands. If the archived view is showing, run `list`
+before using one of them. `unarchive` works only in the archived view. `delete` works in either view and permanently
+removes the displayed record. A new `list`, `find`, `filter`, `upcoming`, or `add` command replaces the previous result view;
+`edit` keeps it.
+Run `list` whenever you want to restore the complete active-student view in saved order.
+
+### Editing a student: `edit`
+
+Updates or clears details of an existing student without recreating the record.
+
+Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [s/SUBJECT] [l/EDUCATION_LEVEL] [gn/GUARDIAN_NAME] [gp/GUARDIAN_PHONE] [ge/GUARDIAN_EMAIL] [lf/LEARNING_FOCUS] [na/NEXT_ACTION] [t/TAG]…​`
+
+* `INDEX` refers to the index shown in the current result view, including a view produced by `find` or `filter`.
+  It **must be a positive integer** 1, 2, 3, …​
+* Supply at least one field prefix. A prefix with a value replaces that field; an omitted prefix leaves its field
+  unchanged.
+* Leave an optional prefix empty to clear that field, for example `e/` to clear the student's email. `n/` cannot be
+  empty because every student must have a name.
+* Clearing `gn/` removes the guardian name, phone, and email together. `gp/` or `ge/` cannot contain a value unless a
+  guardian name already exists or is supplied in the same command.
+* Supplying one or more `t/` prefixes replaces all existing tags. Use `t/` by itself to clear all tags.
+* Repeated single-valued prefixes, unsupported prefixes, invalid values, and edits that would create a duplicate
+  normalized student name are rejected without changing displayed or saved data.
+* Enclose a free-text value in double quotes if it contains separate prefix-like text, for example
+  `a/"Block n/7"` or `s/"English l/Literature"`.
+* After a successful edit, the current result view stays on screen, so you can make several updates within the same
+  `find`, `filter`, or `upcoming` results. For example, `filter s/Mathematics` followed by `edit 1 lf/Differentiation`
+  still shows only Mathematics students.
+* If the edited student no longer matches the current view, for example after `filter s/Mathematics` followed by
+  `edit 1 s/English`, the student leaves the view. If this, or a changed name in the upcoming list, moves other
+  students, the result panel says that the displayed list has been updated, so check the indices before the next
+  command. Run `list` to see every active student again.
+* If every supplied value already matches the student's current details, TutorContacts reports that no changes were
+  made.
+* `edit` works only on the active student list. If `list archived` is showing, run `list` first to return to an active
+  view.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* `edit 1 p/91234567 s/H2 Mathematics l/JC2` updates three fields of the first displayed student while preserving
+  every omitted field.
+* `find Bernice` followed by `edit 1 lf/Quadratic equations na/Complete worksheet 4` updates the first student in the
+  search results.
+* `edit 2 e/ a/ lf/ na/ t/` clears the email, address, learning focus, next action, and tags of the second displayed
+  student.
+* `edit 1 gn/` clears the guardian and both guardian contact fields.
+* Invalid, because the name is required: `edit 1 n/`
+* Invalid, because a guardian phone requires a guardian name: `edit 1 gn/ gp/91234567`
+* Invalid if `Alex Tan` already belongs to another student: `edit 1 n/Alex Tan`
+* Invalid, because the archived list is showing: `list archived` followed by `edit 1 p/91234567`
 
-### Locating persons by name: `find`
+### Locating students by name: `find`
 
-Finds persons whose names contain any of the given keywords.
+Finds students whose names contain any of the given keywords.
 
 Format: `find KEYWORD [MORE_KEYWORDS]`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* Matching is case-insensitive and partial; for example, `han` matches `Hans` and `Johanna`.
+* Keyword order does not matter; each supplied keyword is matched independently.
+* The search considers only the names of active students; archived students are not searched.
+* Students matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* Each matching student appears once in the same order as the complete active list, even if several or repeated
+  keywords match that student.
+* If no student matches, TutorContacts displays `No students found.` and shows an empty result view.
+* `find` does not use prefixes such as `n/` or `s/`. A keyword such as `n/alex` is searched as plain text, because names
+  may contain markers such as `s/o`. If such a keyword finds no student, the result panel suggests plain keywords and
+  `filter` instead.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+* `find jo` returns `John Doe` and `Marjorie Tan`
+* `find alex david` returns `Alex Yeoh`, `David Li`
 
-### Deleting a person: `delete`
+### Filtering students by tutoring details: `filter`
 
-Deletes the specified person from the address book.
+Filters active students by subject, education level, or both.
+
+Format: `filter [s/SUBJECT] [l/EDUCATION_LEVEL]`
+
+* At least one of `s/` or `l/` must be supplied, and each can appear only once.
+* Subject and education-level matching is case-insensitive and uses the complete normalized value. For example,
+  `s/math` does not match `Mathematics`, while `s/mathematics` does.
+* When both fields are supplied, a student must match both (`AND`).
+* A student without a supplied filter field does not match that filter.
+* Results remain in the same order as the complete active list and receive consecutive displayed indices.
+* If no student matches, TutorContacts displays `No students match the filters.`
+* Run `list` to restore the complete active-student list.
+
+Examples:
+* `filter s/H2 Mathematics` shows students whose subject is H2 Mathematics.
+* `filter l/jc1` shows JC1 students; education-level input is case-insensitive.
+* `filter s/H2 Mathematics l/JC1` shows only students matching both criteria.
+* `filter`, `filter s/`, and `filter l/University` are rejected.
+
+### Archiving a student: `archive`
+
+Moves a former student out of active workflows while preserving the complete record and its saved position.
+
+Format: `archive INDEX`
+
+* `INDEX` refers to the student shown in the current active result view, including `list`, `find`, `filter`, or
+  `upcoming` results.
+* Archived students do not appear in active `list`, `find`, `filter`, or `upcoming` results.
+* The command is rejected from the archived view. Run `list` first to return to an active view.
+* Archiving is reversible and is different from permanent `delete`.
+
+Example: `find Alex` followed by `archive 1` archives the first student in those results.
+
+### Listing archived students: `list archived`
+
+Shows every archived student in saved order with consecutive displayed indices. If none exist, TutorContacts explains
+that `archive INDEX` can be used from an active view.
+
+Format: `list archived`
+
+### Restoring an archived student: `unarchive`
+
+Restores a student from the archived view to active workflows without changing the student's recorded fields.
+
+Format: `unarchive INDEX`
+
+* Run `list archived` first; `INDEX` refers to that displayed archived list.
+* The command is rejected from an active view.
+* The restored student returns to the original saved-order position in active results.
+* A restored future lesson appears in `upcoming`. A restored lesson whose time has passed remains recorded and is
+  displayed as overdue.
+
+Example: `list archived` followed by `unarchive 1` restores the first archived student.
+
+Complete lifecycle example:
+
+1. Run `list` and note the student shown at index 1.
+1. Run `archive 1`; that student disappears from active results.
+1. Run `list archived`; the archived student appears with a consecutive archived-view index.
+1. Run `unarchive 1`, then `list`; the complete record returns to its original saved-order position.
+
+### Deleting a student: `delete`
+
+Permanently deletes the specified student from TutorContacts. The result panel names the deleted student.
+
+<div markdown="span" class="alert alert-danger">:warning: **Permanent:**
+A deleted student cannot be recovered. To hide a former student while keeping their record, use
+[`archive`](#archiving-a-student-archive) instead.
+</div>
 
 Format: `delete INDEX`
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
+* Deletes the student at the specified `INDEX`.
+* The index refers to the index number shown in the displayed student list.
+* Deletion works in both active and archived views. Unlike archive, it cannot be reversed.
 * The index **must be a positive integer** 1, 2, 3, …​
+* Missing, malformed, zero, negative, extra, or out-of-range indices are rejected.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `list` followed by `delete 2` deletes the 2nd student in TutorContacts.
+* `find Bernice` followed by `delete 1` deletes the 1st student in the results of the `find` command.
+* `list archived` followed by `delete 1` permanently deletes the 1st archived student instead of restoring it.
+* `delete 0` and `delete 1 2` are rejected.
+
+### Scheduling a lesson: `schedule`
+
+Sets the next lesson for the specified student. Each student has at most one scheduled lesson.
+
+Format: `schedule INDEX at/YYYY-MM-DD HH:mm`
+
+* Schedules a lesson for the student at the specified `INDEX`, which refers to the index number shown in the displayed
+  student list. The index **must be a positive integer** 1, 2, 3, …​
+* Works only on the active student list. If `list archived` is showing, run `list` first.
+* The date and time use this computer's local time, with a 24-hour clock. For example, `2099-10-30 16:00` is 4pm on
+  30 October 2099.
+* The lesson must be in the future. A time in the current minute or earlier is rejected.
+* If the student already has a lesson, the new lesson replaces it. The result panel shows the previous lesson time.
+  If the new time is the same as the current lesson, nothing changes and the result panel says that the student
+  already has that lesson.
+* Dates that do not exist, such as `2099-02-30`, and times outside `00:00`–`23:59` are rejected.
+* Extra spaces around the value and between the date and time are ignored.
+* The student card and the details panel show the lesson under **Next lesson**, for example `2099-10-30 16:00`, or
+  `Not scheduled` when the student has no lesson.
+* Once the lesson time is reached, the lesson is shown in bold red as `2099-10-30 16:00 (overdue)`. The lesson is
+  kept, so you can reschedule it with `schedule` or clear it with `unschedule`. The marker is updated each time you
+  enter a command.
+* Archiving a student keeps their lesson. The lesson is shown again when the student is restored with `unarchive`.
+
+Examples:
+* `list` followed by `schedule 2 at/2099-10-30 16:00` schedules a lesson for the 2nd student.
+* `find Bernice` followed by `schedule 1 at/2099-11-02 09:30` schedules a lesson for the 1st student in the results of
+  the `find` command.
+* Invalid, because the time has passed: `schedule 1 at/2020-01-01 10:00`
+* Invalid, because the date does not exist: `schedule 1 at/2099-02-30 10:00`
+* Invalid, because the format is different: `schedule 1 at/30-10-2099 16:00` or `schedule 1 at/2099-10-30 4pm`
+* Invalid, because the time is missing: `schedule 1 at/2099-10-30`
+* Invalid, because the archived list is showing: `list archived` followed by `schedule 1 at/2099-10-30 16:00`
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:**
+TutorContacts records at most one lesson per student, which may be upcoming or overdue. Recurring lessons, reminders, lesson history, attendance,
+calendar integration, and time-zone conversion are not supported.
+</div>
+
+### Clearing a lesson: `unschedule`
+
+Clears the scheduled lesson of the specified student.
+
+Format: `unschedule INDEX`
+
+* Clears the lesson of the student at the specified `INDEX` in the displayed student list.
+* Works only on the active student list. If `list archived` is showing, run `list` first.
+* The index **must be a positive integer** 1, 2, 3, …​
+* The result panel shows the lesson time that was cleared. If the student has no scheduled lesson, TutorContacts
+  reports this and nothing changes.
+
+Examples:
+* `list` followed by `unschedule 2` clears the lesson of the 2nd student.
+* `unschedule 0` and `unschedule 1 2` are rejected.
+
+### Listing upcoming lessons: `upcoming`
+
+Shows the active students whose lessons are still to come, with the soonest lesson first.
+
+Format: `upcoming`
+
+* Only lessons later than the current time are shown. A lesson that has started, including one in the current
+  minute, is overdue and is not shown.
+* Students without a lesson and archived students are not shown.
+* Lessons at the same time are ordered by student name, ignoring case.
+* The indices follow this order, so `schedule`, `unschedule`, `archive`, and `delete` act on the student shown at that
+  index in the upcoming list.
+* `upcoming` takes no parameters. Extra text, such as `upcoming 3`, is rejected.
+* The list shows the lessons that were upcoming when you ran `upcoming`. If a lesson's time passes while the list is
+  showing, that student stays in the list and is marked overdue. Run `upcoming` again, or click **Upcoming Lessons**
+  in the sidebar, to update the list.
+* The list does update after your own commands. Rescheduling a student moves them to their new place in the order,
+  and `unschedule` removes them from the list. When this moves other students or removes one, the result panel says
+  that the displayed list has been updated, so check the indices before your next command.
+* If no lessons are upcoming, the result panel suggests `schedule` instead.
+
+Examples:
+* With the sample data, `schedule 1 at/2099-11-02 09:30`, then `schedule 2 at/2099-10-30 16:00`, then `upcoming`
+  lists `Bernice Yu` first and `Alex Yeoh` second, because Bernice's lesson is sooner.
+* `upcoming` followed by `unschedule 1` clears the soonest upcoming lesson and removes that student from the list.
+* Invalid, because `upcoming` takes no parameters: `upcoming 3`
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Permanently deletes every student record from TutorContacts, including archived students.
 
 Format: `clear`
+
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+`clear` takes effect immediately without asking for confirmation, and it cannot be undone. Archived students are
+deleted as well. To keep a former student's record, use `archive INDEX` instead, and use `delete INDEX` to remove a
+single student. Back up the data file described in [Editing the data file](#editing-the-data-file) first if you may
+need the records later.
+</div>
+
+`clear` takes no parameters. Extra text, such as `clear 3`, is rejected and no records are changed.
 
 ### Exiting the program: `exit`
 
@@ -152,36 +479,43 @@ Exits the program.
 
 Format: `exit`
 
+`exit` takes no parameters. Extra text, such as `exit now`, is rejected.
+
+Example: `exit`
+
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+TutorContacts automatically saves data changes. You do not need to save manually. Commands that do not change any
+student, such as `list`, `find`, `upcoming`, `help`, and `exit`, do not write the data file. `help` can be used even
+when the data file cannot be read or written.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+TutorContacts data is saved automatically as a JSON file `[JAR file location]/data/tutorcontacts.json`. Advanced users are welcome to update data directly by editing that data file.
+
+For compatibility, TutorContacts continues using `data/addressbook.json` when that legacy file exists and
+`data/tutorcontacts.json` does not. If both files exist, TutorContacts uses `data/tutorcontacts.json` and leaves the
+legacy file unchanged.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If your changes make the data file invalid, TutorContacts starts with an empty student list at the next run and shows a warning that names the file. The invalid file remains on disk until you use a command that changes data, such as `add` or `edit`, which replaces it. We recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause TutorContacts to behave unexpectedly if a value does not satisfy its validation rules. Edit the data file only if you are confident that you can update it correctly.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install TutorContacts on the other computer, close it, and replace its `data/tutorcontacts.json` file with the file from your previous TutorContacts home folder.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+1. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+2. **Exceptionally long student details may be truncated in the student list.** This display limitation does not affect
+   the stored value.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +523,17 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+**Add** | `add n/NAME [p/PHONE] [e/EMAIL] [a/ADDRESS] [s/SUBJECT] [l/EDUCATION_LEVEL] [gn/GUARDIAN_NAME] [gp/GUARDIAN_PHONE] [ge/GUARDIAN_EMAIL] [lf/LEARNING_FOCUS] [na/NEXT_ACTION] [t/TAG]…​` <br> e.g., `add n/James Ho lf/Fractions na/Complete worksheet 2 t/mathematics t/online`
+**Archive** | `archive INDEX`<br> e.g., `archive 1`
 **Clear** | `clear`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
+**Edit** | `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [s/SUBJECT] [l/EDUCATION_LEVEL] [gn/GUARDIAN_NAME] [gp/GUARDIAN_PHONE] [ge/GUARDIAN_EMAIL] [lf/LEARNING_FOCUS] [na/NEXT_ACTION] [t/TAG]…​`<br> e.g., `edit 2 p/91234567 s/Mathematics l/S3`
 **Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
+**Filter** | `filter [s/SUBJECT] [l/EDUCATION_LEVEL]`<br> e.g., `filter s/Mathematics l/S3`
+**List** | `list` or `list archived`
+**Unarchive** | `unarchive INDEX`<br> e.g., `unarchive 1`
+**Schedule** | `schedule INDEX at/YYYY-MM-DD HH:mm`<br> e.g., `schedule 1 at/2099-10-30 16:00`
+**Unschedule** | `unschedule INDEX`<br> e.g., `unschedule 1`
+**Upcoming** | `upcoming`
 **Help** | `help`
+**Exit** | `exit`

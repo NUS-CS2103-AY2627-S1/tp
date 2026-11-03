@@ -5,55 +5,41 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Zhai Jiayi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jiayizhai.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/JiayiZhai)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Learning-context and archive lifecycle features, command validation, documentation, and pull
+  request reviews
 
-### Jean Doe
+### Wang Yanrong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yanrong-wang.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Yanrong-Wang)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Documentation and testing
+
+### Siu Lok Yin
+
+<img src="images/bedrockfake.png" width="200px">
+
+[[github](https://github.com/bedrockfake)]
+
+* Role: Developer
+* Responsibilities: Deliverables and deadlines
+
+### Aykhan Damirli
+
+<img src="images/dmraykhan.png" width="200px">
+
+[[github](https://github.com/dmraykhan)]
+
+* Role: Developer
+* Responsibilities: Implementing assigned features and reviewing pull requests

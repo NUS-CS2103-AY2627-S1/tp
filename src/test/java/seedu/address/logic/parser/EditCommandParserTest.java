@@ -3,27 +3,43 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.EDUCATION_LEVEL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.GUARDIAN_EMAIL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.GUARDIAN_NAME_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.GUARDIAN_PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_EDUCATION_LEVEL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_GUARDIAN_EMAIL_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_GUARDIAN_NAME_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_GUARDIAN_PHONE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.SUBJECT_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EDUCATION_LEVEL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GUARDIAN_EMAIL_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GUARDIAN_NAME_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GUARDIAN_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SUBJECT_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEARNING_FOCUS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NEXT_ACTION;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -37,11 +53,13 @@ import org.junit.jupiter.api.Test;
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
+import seedu.address.logic.commands.EditPersonDescriptor;
+import seedu.address.model.person.EducationLevel;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.NextAction;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
@@ -77,30 +95,46 @@ public class EditCommandParserTest {
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        // unsupported prefix
+        assertParseFailure(parser, "1 i/string", "Unsupported prefix in edit command: i/");
     }
 
     @Test
     public void parse_invalidValue_failure() {
+        assertParseFailure(parser, "1 n/", Name.MESSAGE_CONSTRAINTS);
         assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
+        assertParseFailure(parser, "1" + INVALID_GUARDIAN_NAME_DESC, Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_GUARDIAN_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_GUARDIAN_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_EDUCATION_LEVEL_DESC, EducationLevel.MESSAGE_CONSTRAINTS);
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+
+        // phone numbers longer than 15 digits
+        assertParseFailure(parser, "2 p/" + "9".repeat(50), Phone.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "2 gn/Jane Doe gp/" + "9".repeat(16), Phone.MESSAGE_CONSTRAINTS);
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
 
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
-        // parsing it together with a valid tag results in error
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-
         // multiple invalid values, but only the first invalid value is captured
         assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + VALID_ADDRESS_AMY + VALID_PHONE_AMY,
                 Name.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_emptyTagWithTagValue_failure() {
+        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY,
+                EditCommandParser.MESSAGE_CONFLICTING_TAG_EDIT);
+        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND,
+                EditCommandParser.MESSAGE_CONFLICTING_TAG_EDIT);
+        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND,
+                EditCommandParser.MESSAGE_CONFLICTING_TAG_EDIT);
+
+        // Regression test for issue #115.
+        assertParseFailure(parser, "1 t/ t/math", EditCommandParser.MESSAGE_CONFLICTING_TAG_EDIT);
+        assertParseFailure(parser, "1 s/Physics t/math t/", EditCommandParser.MESSAGE_CONFLICTING_TAG_EDIT);
     }
 
     @Test
@@ -118,6 +152,21 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_guardianAndTutoringFields_success() {
+        String userInput = "1" + GUARDIAN_NAME_DESC_AMY + GUARDIAN_PHONE_DESC_AMY
+                + GUARDIAN_EMAIL_DESC_AMY + SUBJECT_DESC_AMY + EDUCATION_LEVEL_DESC_AMY;
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withGuardianName(VALID_GUARDIAN_NAME_AMY)
+                .withGuardianPhone(VALID_GUARDIAN_PHONE_AMY)
+                .withGuardianEmail(VALID_GUARDIAN_EMAIL_AMY)
+                .withSubject(VALID_SUBJECT_AMY)
+                .withEducationLevel(VALID_EDUCATION_LEVEL_AMY)
+                .build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
     public void parse_someFieldsSpecified_success() {
         Index targetIndex = INDEX_FIRST_PERSON;
         String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + EMAIL_DESC_AMY;
@@ -127,6 +176,15 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_setClearAndOmittedFields_preservesEachOperation() {
+        String userInput = "1 p/91234567 e/ s/H2 Mathematics";
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withPhone("91234567").withoutEmail().withSubject("H2 Mathematics").build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(INDEX_FIRST_PERSON, descriptor));
     }
 
     @Test
@@ -164,6 +222,64 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_subjectWithControlCharacter_failure() {
+        assertParseFailure(parser, "1 s/Math\tPhysics", Subject.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_nameWithRepeatedSpaces_normalizesName() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName("Alex Tan").build();
+
+        assertParseSuccess(parser, "1 n/ Alex    Tan ",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_prefixLikeTextInsideAddress_success() {
+        EditPersonDescriptor longPrefixDescriptor = new EditPersonDescriptorBuilder()
+                .withAddress("A Level/Mathematics Centre").build();
+        assertParseSuccess(parser, "1 a/A Level/Mathematics Centre",
+                new EditCommand(INDEX_FIRST_PERSON, longPrefixDescriptor));
+
+        EditPersonDescriptor quotedPrefixDescriptor = new EditPersonDescriptorBuilder()
+                .withAddress("Block n/7 x/West").build();
+        assertParseSuccess(parser, "1 a/\"Block n/7 x/West\"",
+                new EditCommand(INDEX_FIRST_PERSON, quotedPrefixDescriptor));
+    }
+
+    @Test
+    public void parse_learningContextSpecified_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+        String userInput = targetIndex.getOneBased() + " na/ Complete   worksheet 2"
+                + " lf/ Fractions   and ratios";
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withLearningFocus("Fractions and ratios").withNextAction("Complete worksheet 2").build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_emptyOptionalPrefixes_createsClearRequests() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withoutPhone().withoutEmail().withoutAddress()
+                .withoutGuardianName().withoutGuardianPhone().withoutGuardianEmail()
+                .withoutSubject().withoutEducationLevel()
+                .withoutLearningFocus().withoutNextAction().withTags().build();
+
+        assertParseSuccess(parser, "1 p/ e/ a/ gn/ gp/ ge/ s/ l/ lf/ na/ t/",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_invalidOrRepeatedLearningContext_failure() {
+        assertParseFailure(parser, "1 lf/Fractions lf/Algebra",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_LEARNING_FOCUS));
+        assertParseFailure(parser, "1 na/Worksheet 1 na/Worksheet 2",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NEXT_ACTION));
+        assertParseFailure(parser, "1 na/Call\tguardian", NextAction.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
     public void parse_multipleRepeatedFields_failure() {
         // More extensive testing of duplicate parameter detections is done in
         // AddCommandParserTest#parse_repeatedNonTagValue_failure()
@@ -173,6 +289,9 @@ public class EditCommandParserTest {
         String userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + PHONE_DESC_BOB;
 
         assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
+
+        assertParseFailure(parser, "1 p/ p/91234567",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
 
         // invalid followed by valid
         userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + INVALID_PHONE_DESC;
