@@ -1,0 +1,137 @@
+// @@author Austin-Chia
+package trackflow.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.math.BigInteger;
+import java.util.Comparator;
+import java.util.regex.Pattern;
+
+import trackflow.commons.util.ToStringBuilder;
+import trackflow.model.Model;
+import trackflow.model.person.Person;
+
+/**
+ * Sorts the displayed athlete list by a selected field and order, preserving its current filter.
+ * Changes only the display order; the stored roster order is unchanged.
+ */
+public class SortCommand extends Command {
+
+    public static final String COMMAND_WORD = "sort";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Sorts the displayed athlete list.\n"
+            + "Parameters: FIELD [ORDER]\n"
+            + "Available fields: name, age, phone, email, address\n"
+            + "Available orders: asc, ascending, desc, descending (default: asc)\n"
+            + "Example: " + COMMAND_WORD + " age desc";
+    public static final String MESSAGE_INVALID_FIELD =
+            "Unknown sort field: %1$s. Available fields: name, age, phone, email, address.";
+    public static final String MESSAGE_INVALID_ORDER =
+            "Unknown sort order: %1$s. Use asc, ascending, desc, or descending.";
+    public static final String MESSAGE_SUCCESS =
+            "Sorted the displayed athlete list by %1$s in %2$s order.";
+
+    private static final Comparator<String> CASE_INSENSITIVE_TEXT_COMPARATOR = String.CASE_INSENSITIVE_ORDER;
+    private static final Pattern REPEATED_NAME_SPACES = Pattern.compile(" {2,}");
+
+    private final SortField field;
+    private final SortOrder order;
+
+    /**
+     * Creates a command that sorts by {@code field} in {@code order}.
+     */
+    public SortCommand(SortField field, SortOrder order) {
+        this.field = requireNonNull(field);
+        this.order = requireNonNull(order);
+    }
+
+    @Override
+    public CommandResult execute(Model model) {
+        requireNonNull(model);
+        Comparator<Person> comparator = getComparator(field);
+        if (order == SortOrder.DESCENDING) {
+            comparator = comparator.reversed();
+        }
+        model.updateSortedPersonList(comparator);
+        return new CommandResult(String.format(MESSAGE_SUCCESS, field.displayName, order.displayName));
+    }
+
+    /**
+     * Returns an ascending comparator: case-insensitive text, numeric phone values, or competition category rank.
+     * Name comparison collapses repeated ordinary spaces in the comparison key without changing stored names.
+     * Phone comparison uses significant digits, retaining country codes and excluding bracketed notes.
+     */
+    private static Comparator<Person> getComparator(SortField field) {
+        return switch (field) {
+            case NAME -> Comparator.comparing(
+                    person -> REPEATED_NAME_SPACES.matcher(person.getName().fullName).replaceAll(" "),
+                    CASE_INSENSITIVE_TEXT_COMPARATOR);
+            case AGE -> Comparator.comparingInt(person -> getAgeCategoryRank(person.getAgeCategory().value));
+            case PHONE -> Comparator.comparing(person -> new BigInteger(person.getPhone().getSignificantDigits()));
+            case EMAIL -> Comparator.comparing(person -> person.getEmail().value, CASE_INSENSITIVE_TEXT_COMPARATOR);
+            case ADDRESS -> Comparator.comparing(person -> person.getAddress().value, CASE_INSENSITIVE_TEXT_COMPARATOR);
+        };
+    }
+
+    /**
+     * Returns the competition order of a canonical category, with Open after the Under 20 category.
+     *
+     * @throws IllegalArgumentException If {@code ageCategory} is not a canonical supported category.
+     */
+    private static int getAgeCategoryRank(String ageCategory) {
+        return switch (ageCategory) {
+            case "Under 14" -> 0;
+            case "Under 16" -> 1;
+            case "Under 18" -> 2;
+            case "Under 20" -> 3;
+            case "Open" -> 4;
+            default -> throw new IllegalArgumentException("Unsupported age category: " + ageCategory);
+        };
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other == this || other instanceof SortCommand otherCommand
+                && field == otherCommand.field
+                && order == otherCommand.order;
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("field", field)
+                .add("order", order)
+                .toString();
+    }
+
+    /**
+     * Fields supported by the sort command.
+     */
+    public enum SortField {
+        NAME("name"),
+        AGE("age"),
+        PHONE("phone"),
+        EMAIL("email"),
+        ADDRESS("address");
+
+        private final String displayName;
+
+        SortField(String displayName) {
+            this.displayName = displayName;
+        }
+    }
+
+    /**
+     * Directions supported by the sort command.
+     */
+    public enum SortOrder {
+        ASCENDING("ascending"),
+        DESCENDING("descending");
+
+        private final String displayName;
+
+        SortOrder(String displayName) {
+            this.displayName = displayName;
+        }
+    }
+}

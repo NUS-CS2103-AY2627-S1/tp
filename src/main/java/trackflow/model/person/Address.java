@@ -1,0 +1,72 @@
+// @@author qiyuannn
+package trackflow.model.person;
+// @@author
+
+import static java.util.Objects.requireNonNull;
+// @@author qiyuannn
+import static trackflow.commons.util.AppUtil.checkArgument;
+// @@author
+
+/**
+ * Represents an optional address. An empty value denotes no recorded address.
+ * Guarantees: immutable; is valid as declared in {@link #isValidAddress(String)}
+ */
+public class Address {
+
+    public static final String MESSAGE_CONSTRAINTS =
+            "Addresses supplied to add or edit must be nonblank single-line text. Any characters are allowed "
+                    + "except line breaks, including line or paragraph separators.";
+
+    /*
+     * The first character must not be whitespace, including Unicode spaces. Every character must be checked for
+     * line breaks: a separate first-character class followed by dot-star would otherwise admit a leading NEL,
+     * line separator, or paragraph separator. Empty values remain supported for older saved athletes.
+     */
+    public static final String VALIDATION_REGEX =
+            "[^\\p{javaWhitespace}\\p{javaSpaceChar}\\u0085][^\\r\\n\\u000B\\f\\u0085\\u2028\\u2029]*";
+
+    public final String value;
+
+    /**
+     * Constructs an {@code Address}.
+     *
+     * @param address A valid address.
+     */
+    public Address(String address) {
+        requireNonNull(address);
+        checkArgument(isValidAddress(address), MESSAGE_CONSTRAINTS);
+        value = address;
+    }
+
+    /**
+     * Returns true if a given string is a valid address.
+     */
+    public static boolean isValidAddress(String test) {
+        return test.isEmpty() || test.matches(VALIDATION_REGEX);
+    }
+
+    @Override
+    public String toString() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Address otherAddress)) {
+            return false;
+        }
+
+        return value.equals(otherAddress.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return value.hashCode();
+    }
+
+}

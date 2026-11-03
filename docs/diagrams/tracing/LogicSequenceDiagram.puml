@@ -1,22 +1,43 @@
 @startuml
 !include ../style.puml
 skinparam ArrowFontStyle plain
+skinparam maxMessageSize 180
+skinparam SequenceReferenceBackgroundColor #F8FAFC
 
-Participant ":LogicManager" as logic LOGIC_COLOR
-Participant ":AddressBookParser" as abp LOGIC_COLOR
-Participant ":EditCommandParser" as ecp LOGIC_COLOR
-Participant "command:EditCommand" as ec LOGIC_COLOR
+participant ":LogicManager" as logic LOGIC_COLOR
+participant ":TrackFlowParser" as parser LOGIC_COLOR
+participant ":EditCommandParser" as editParser LOGIC_COLOR
+participant "command:EditCommand" as command LOGIC_COLOR
 
-[-> logic : execute
-activate logic
-logic -> abp ++: parseCommand(commandText)
-create ecp
-abp -> ecp
-abp -> ecp ++: parse(arguments)
-create ec
-ecp -> ec ++: index, editPersonDescriptor
-ec --> ecp --
-ecp --> abp --: command
-abp --> logic --: command
+activate logic LOGIC_COLOR
+logic -> parser : parseCommand("edit 1 addr/Block A~/~/B")
+activate parser LOGIC_COLOR
+create editParser
+parser -> editParser : new EditCommandParser()
+activate editParser LOGIC_COLOR
+editParser --> parser
+deactivate editParser
 
+parser -> editParser : parse(" 1 addr/Block A~/~/B")
+activate editParser LOGIC_COLOR
+ref over editParser
+  Validate edit arguments
+  (next diagram)
+end ref
+
+create command
+editParser -> command : new EditCommand(index, descriptor)
+activate command LOGIC_COLOR
+command --> editParser
+deactivate command
+editParser --> parser : command
+deactivate editParser
+parser --> logic : command
+deactivate parser
+deactivate logic
+
+legend bottom
+  Successful parsing only; the descriptor contains address "Block A/B".
+  The command has not executed or saved any data yet.
+endlegend
 @enduml

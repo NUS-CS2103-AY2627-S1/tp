@@ -1,0 +1,110 @@
+// @@author Austin-Chia
+package trackflow.logic.commands;
+
+import static trackflow.commons.util.CollectionUtil.requireAllNonNull;
+import static trackflow.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+
+import java.util.List;
+
+import trackflow.commons.core.index.Index;
+import trackflow.logic.Messages;
+import trackflow.logic.commands.exceptions.CommandException;
+import trackflow.model.Model;
+import trackflow.model.person.Person;
+import trackflow.model.person.Remark;
+
+/**
+ * Changes the remark of an existing athlete in the athlete roster.
+ */
+public class RemarkCommand extends Command {
+
+    public static final String COMMAND_WORD = "remark";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Edits the remark of the athlete identified "
+            + "by the index number shown in the displayed athlete list. "
+            + "The existing remark is overwritten by the input.\n"
+            + "Parameters: INDEX (must be a positive integer) "
+            + "r/[REMARK]\n"
+            + "Example: " + COMMAND_WORD + " 1 "
+            + "r/100m PB 12.34s";
+
+    public static final String MESSAGE_ADD_REMARK_SUCCESS = "Added remark to athlete: %1$s";
+    public static final String MESSAGE_UPDATE_REMARK_SUCCESS = "Updated remark for athlete: %1$s";
+    public static final String MESSAGE_UNCHANGED_REMARK = "This athlete already has that remark: %1$s";
+    public static final String MESSAGE_DELETE_REMARK_SUCCESS = "Removed remark from athlete: %1$s";
+    public static final String MESSAGE_NO_REMARK = "Athlete has no remark to remove: %1$s";
+
+    private final Index index;
+    private final Remark remark;
+
+    /**
+     * Creates a command that replaces the remark of the athlete at the displayed {@code index}.
+     *
+     * @param index Index in the current filtered and sorted list, resolved during execution.
+     * @param remark Replacement remark; an empty value removes the recorded remark.
+     * @throws NullPointerException If either argument is null.
+     */
+    public RemarkCommand(Index index, Remark remark) {
+        requireAllNonNull(index, remark);
+
+        this.index = index;
+        this.remark = remark;
+    }
+
+    @Override
+    public boolean changesRoster() {
+        return true;
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        List<Person> lastShownList = model.getFilteredPersonList();
+
+        if (index.getZeroBased() >= lastShownList.size()) {
+            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        }
+
+        Person personToEdit = lastShownList.get(index.getZeroBased());
+        if (remark.value.isEmpty() && personToEdit.getRemark().value.isEmpty()) {
+            throw new CommandException(String.format(MESSAGE_NO_REMARK, Messages.formatAthlete(personToEdit)));
+        }
+        if (remark.equals(personToEdit.getRemark())) {
+            throw new CommandException(String.format(MESSAGE_UNCHANGED_REMARK, Messages.formatAthlete(personToEdit)));
+        }
+        Person editedPerson = new Person(
+                personToEdit.getName(), personToEdit.getAgeCategory(), personToEdit.getPhone(), personToEdit.getEmail(),
+                personToEdit.getAddress(), remark, personToEdit.getTags());
+
+        model.setPerson(personToEdit, editedPerson);
+        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        return new CommandResult(generateSuccessMessage(personToEdit, editedPerson));
+    }
+
+    /**
+     * Generates a command execution success message based on whether the remark is added to or removed from
+     * {@code personToEdit}.
+     */
+    private String generateSuccessMessage(Person original, Person edited) {
+        String message = remark.value.isEmpty() ? MESSAGE_DELETE_REMARK_SUCCESS
+                : original.getRemark().value.isEmpty() ? MESSAGE_ADD_REMARK_SUCCESS : MESSAGE_UPDATE_REMARK_SUCCESS;
+        return String.format(message, Messages.formatAthlete(edited));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof RemarkCommand)) {
+            return false;
+        }
+
+        RemarkCommand e = (RemarkCommand) other;
+        return index.equals(e.index)
+                && remark.equals(e.remark);
+    }
+}

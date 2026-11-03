@@ -1,59 +1,60 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us through our [project repository](https://github.com/AY2627S1-CS2103T-T17-2/tp).
 
 ## Project team
 
-### John Doe
+### Kenil
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ken2k7.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ken2k7)] [[portfolio](team/ken2k7.html)]
 
-* Role: Project Advisor
+* Role: UI
+* Responsibilities: Looks after the design and implementation of the user interface.
 
-### Jane Doe
+### Kong Qi Yuan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/qiyuannn.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/qiyuannn)] [[portfolio](team/qiyuannn.html)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Testing
+<!-- @@author qiyuannn -->
+* Responsibilities: Ensures the testing of the project is done properly and on time.
+<!-- @@author -->
 
-### Johnny Doe
+### Chetan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/chetangent.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/chetangent)] [[portfolio](team/chetangent.html)]
+* Role: Team lead
+* Responsibilities: Responsible for overall project coordination.
 
-* Role: Developer
-* Responsibilities: Data
+### Austin Chia
 
-### Jean Doe
+<img src="images/austin-chia.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
+[[github](https://github.com/austin-chia)] [[portfolio](team/austin-chia.html)]
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<!-- @@author Austin-Chia -->
+* Role: Documentation
+* Responsibilities: Decides how documentation work is divided and ensures that project documents use the correct format and remain consistent.
+<!-- @@author -->
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+### Antony Dennis Chakola
 
-### James Doe
+<img src="images/antonydchakola-hub.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
+[[github](https://github.com/antonydchakola-hub)] [[portfolio](team/antonydchakola-hub.html)]
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+* Role: Deliverables and deadlines expert
+* Responsibilities: Ensures project deliverables are done on time and in the right format.

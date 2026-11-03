@@ -22,10 +22,10 @@ src/test/data/sandbox/
 docs/_site/
 
 # AI Agents
-AGENTS.md
-CLAUDE.md
-/.claude/
-/.codex/
+/.agents/
+
 
 # Temp files
 _temp/
+docs/_markbind/logs/
+output/

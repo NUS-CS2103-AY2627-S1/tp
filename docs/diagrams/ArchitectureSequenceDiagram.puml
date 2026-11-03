@@ -1,39 +1,45 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam maxMessageSize 180
+skinparam SequenceReferenceBackgroundColor #F8FAFC
 
-Actor User as user USER_COLOR
-Participant ":UI" as ui UI_COLOR
-Participant ":Logic" as logic LOGIC_COLOR
-Participant ":Model" as model MODEL_COLOR
-Participant ":Storage" as storage STORAGE_COLOR
+actor Coach as coach
+participant ":MainWindow" as ui UI_COLOR
+participant ":LogicManager" as logic LOGIC_COLOR
+participant "live:ModelManager" as live MODEL_COLOR
+participant ":StorageManager" as storage STORAGE_COLOR
 
-user -[USER_COLOR]> ui : "delete 1"
+coach -> ui : submits "delete 1"
 activate ui UI_COLOR
-
-ui -[UI_COLOR]> logic : execute("delete 1")
+ui -> logic : execute("delete 1")
 activate logic LOGIC_COLOR
 
-logic -[LOGIC_COLOR]> model : deletePerson(p)
-activate model MODEL_COLOR
+ref over logic
+  Parse command and execute delete
+  on a staged model
+end ref
 
-model -[MODEL_COLOR]-> logic
-deactivate model
-
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
+logic -> storage : saveRoster(updatedRoster)
 activate storage STORAGE_COLOR
-
-storage -[STORAGE_COLOR]> storage : Save to file
-activate storage STORAGE_COLOR_T1
-storage --[STORAGE_COLOR]> storage
+storage --> logic
 deactivate storage
 
-storage --[STORAGE_COLOR]> logic
-deactivate storage
+logic -> live : setRoster(updatedRoster)
+activate live MODEL_COLOR
+live --> logic
+deactivate live
+logic -> live : updateFilteredPersonList(predicate)
+activate live MODEL_COLOR
+live --> logic
+deactivate live
 
-logic --[LOGIC_COLOR]> ui
+logic --> ui : savedResult
 deactivate logic
-
-ui--[UI_COLOR]> user
 deactivate ui
+
+legend bottom
+  Success path: save the staged change before updating the live model.
+  See the delete-execution and save-failure diagrams for those details.
+endlegend
 @enduml

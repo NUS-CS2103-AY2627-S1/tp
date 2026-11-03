@@ -1,0 +1,44 @@
+package trackflow.logic.parser;
+
+/**
+ * A prefix that marks the beginning of an argument in an arguments string.
+ * For example, {@code n/} in {@code add n/Avery Tan ...}.
+ */
+public class Prefix {
+    private final String prefix;
+
+    /**
+     * Constructs a prefix using the supplied text. An empty prefix represents the argument preamble.
+     */
+    public Prefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    public String getPrefix() {
+        return prefix;
+    }
+
+    @Override
+    public String toString() {
+        return getPrefix();
+    }
+
+    @Override
+    public int hashCode() {
+        return prefix == null ? 0 : prefix.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Prefix otherPrefix)) {
+            return false;
+        }
+
+        return prefix.equals(otherPrefix.prefix);
+    }
+}

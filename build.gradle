@@ -6,8 +6,11 @@ plugins {
     id 'jacoco'
 }
 
+version = '1.6'
+group = 'trackflow'
+
 application {
-    mainClass = 'seedu.address.Main'
+    mainClass = 'trackflow.Main'
 }
 
 java {
@@ -27,6 +30,26 @@ checkstyle {
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
+}
+
+tasks.withType(Test).configureEach {
+    systemProperty 'verification.seed', providers.gradleProperty('verificationSeed').getOrElse('2103')
+    jvmArgs "-XX:ErrorFile=${layout.buildDirectory.file('hs_err_pid%p.log').get().asFile}"
+    if (System.getenv('CI') == 'true') {
+        testLogging {
+            events 'started', 'failed', 'skipped'
+            exceptionFormat = 'full'
+        }
+    }
+}
+
+tasks.register('verifyInvariants', Test) {
+    description = 'Runs bounded state exploration and generated invariant checks.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/verification/**'
+    useJUnitPlatform()
 }
 
 task coverage(type: JacocoReport) {
@@ -71,8 +94,18 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.14.4'
 }
 
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'TrackFlow', 'Implementation-Version': project.version
+    }
+}
+
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'TrackFlow.jar'
 }
 
 defaultTasks 'clean', 'test'
+
+run {
+    enableAssertions = true
+}

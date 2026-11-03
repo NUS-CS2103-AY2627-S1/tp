@@ -1,25 +1,28 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
 This project uses Gradle for **build automation and dependency management**. **We recommend reading [this Gradle tutorial from se-edu/guides](https://se-education.org/guides/tutorials/gradle.html).**
 
 
-The following commands perform common Gradle tasks.
+Use the [Zulu JDK 25 setup](SettingUp.md#runtime-and-build-requirements). The following commands perform common Gradle tasks.
 
 
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/TrackFlow.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -36,13 +39,20 @@ The following commands perform common Gradle tasks.
 
 ## Continuous integration (CI)
 
-This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`. No further setup is required.
+The workflow files are in `.github/workflows`. `docs.yml` runs MarkBind deployment on pushes to `master`
+and supports manual runs through `workflow_dispatch`. Java CI has separate triggers in `gradle.yml`:
+pushes and pull requests, with jobs on Linux, macOS, and Windows. Java CI does not declare `workflow_dispatch`.
 
 ### Code coverage
 
 As part of CI, Gradle generates JaCoCo coverage reports from the tests, and CI uploads the coverage data to Codecov. Codecov then provides information about test coverage.
 
-However, because Codecov is known to run into intermittent problems (e.g., report upload fails) due to issues on the Codecov service side, the CI is configured to pass even if the Codecov task failed. Therefore, developers are advised to check the code coverage levels periodically and take corrective actions if the coverage level falls below desired levels.
+The Linux coverage upload uses `codecov/codecov-action@v7`. Its
+[`fail_ci_if_error` input](https://github.com/codecov/codecov-action/blob/v7/action.yml) defaults to `false`,
+and `gradle.yml` does not override it. Codecov upload errors therefore do not fail CI by default; setting
+`fail_ci_if_error: true` makes those errors fail the step. This behavior is controlled by the action's input,
+not inferred from the absence of `continue-on-error`. Check the upload logs separately from the Gradle test
+and coverage results. The local JaCoCo report remains available in `build/reports/jacoco/`.
 
 To enable Codecov for forks of this project, follow the steps given in [this se-edu guide](https://se-education.org/guides/tutorials/codecov.html).
 
@@ -73,7 +83,14 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
-1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
-1. Tag the repo with the version number. e.g. `v0.1`
-1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.
+1. Choose the release version and update `MainApp.VERSION` and the Gradle project version together
+   (for example, `v1.5` and `1.5`). Check version references in the guides and landing page against that release.
+1. Run `./gradlew clean check coverage shadowJar` and the repository checks. Build the documentation using the
+   [documentation guide](Documentation.md).
+1. Run `java -jar TrackFlow.jar` from a disposable folder containing a copy of `build/libs/TrackFlow.jar`.
+   Follow the [manual testing instructions](DeveloperGuide.md#appendix-instructions-for-manual-testing),
+   including saving changes and restarting with the runtime from the [setup guide](SettingUp.md#runtime-and-build-requirements).
+1. Confirm Java CI and MarkBind Action have passed for the final `master` commit. Resolve any failed or missing runs.
+1. Tag that verified commit with the chosen version (for example, `v1.5`) and create the GitHub release.
+   Upload `TrackFlow.jar` and state the exact tested
+   runtime requirements and any remaining limitations in the release notes.

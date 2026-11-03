@@ -1,38 +1,49 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# TrackFlow User Guide
 
-* Table of Contents
-{:toc}
+TrackFlow v1.6 is a **desktop application for managing a track-and-field athlete roster**. It is optimized for coaches who
+prefer typing commands through a Command Line Interface (CLI), while retaining the benefits of a Graphical User
+Interface (GUI).
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+1. Install **Azul Zulu JDK 25**. On macOS, use the **JDK FX** distribution, which includes JavaFX,
+   and select the package matching your processor (Apple Silicon or Intel). See the
+   [setup guide](SettingUp.md#runtime-and-build-requirements) for runtime requirements and packaging limitations.
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from
+   [the TrackFlow releases page](https://github.com/AY2627S1-CS2103T-T17-2/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to a writable folder you want to use as the _home folder_ for TrackFlow. Its data and settings
+   will be stored beside the JAR. Use a separate copy in an empty folder when experimenting with test data.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar TrackFlow.jar`.<br>
+   On first launch, the GUI opens with sample athletes. After a successful roster change, later launches open your
+   saved roster instead. This screenshot shows the application displaying its sample roster:<br>
+   ![TrackFlow displaying sample athletes with age categories, event labels, and command feedback](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all athletes.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add n/John Doe a/Open p/98765432 e/johnd@example.com addr/123 Main Street` : Adds an athlete named `John Doe` with age category `Open`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `filter a/Under 14`: Shows athletes in that age category. Use `list` to show everyone again.
 
-   * `clear` : Deletes all contacts.
+   * `sort name`: Sorts the displayed athletes by name in ascending order.
+
+   * `find n/John`: Shows athletes whose names contain `John`. Run `list` to show everyone again.
 
    * `exit` : Exits the app.
 
@@ -42,109 +53,468 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `edit INDEX [n/NAME]` can be used as `edit 1 n/John Doe` or as part of an edit with other fields.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Items followed by `...` can appear zero or more times.<br>
+  For example, in `tag INDEX t/EVENT [t/EVENT]...`, the extra `[t/EVENT]` can be omitted, as in `tag 1 t/Relay`,
+  or repeated, as in `tag 1 t/Relay t/High Jump t/Long Jump`.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+* Field prefixes can be in any order. For `find`, put unprefixed keywords before field prefixes.<br>
+  For example, if the command specifies `n/NAME p/PHONE`, `p/PHONE n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Command words and parameter prefixes are case-insensitive. For example, `LIST`, `List`, and `list` invoke the same
+  command, while `n/Avery` and `N/Avery` supply the same name parameter.
+
+* The `list`, `help`, `clear`, and `exit` commands do not accept parameters.
+
+* Leading and trailing spaces around a command or parameter value are ignored. Pasted Unicode spaces, including
+  non-breaking and em spaces, are accepted between the command word and parameters, before prefixes, and between
+  `sort` arguments or broad `find` keywords. Spaces inside field values are preserved and follow that field's rules.
+  Invisible zero-width characters are not separators.
+
+* Enter one command per submission, using spaces to separate its word and parameters. The command box is a
+  single-line field: pasted tabs and line breaks can be removed, joining adjacent text. Replace them with spaces
+  before pasting a command. TrackFlow does not execute batches of commands.
+
+* Indexes use digits `0`–`9` and must identify a displayed athlete. Leading zeroes are accepted (`0001` means `1`).
+  Zero, signs, decimals, and extra words are rejected; very large numbers report an invalid displayed index.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
+
+### Working with the displayed list
+
+`find` and `filter` select athletes from the full roster. Each replaces the previous selection; they do not narrow
+the results of the preceding command. `sort` orders the selected athletes, and `list` shows everyone in saved roster
+order. Sorting and filtering are reset when TrackFlow restarts.
+
+While a `find` or `filter` is hiding some athletes, the status bar shows the count as `X of Y athletes` (for
+example, `2 of 9 athletes`), so you can tell you are viewing a subset even after a later command such as `sort`
+changes the feedback message. It shows `Y athletes` when the whole roster is displayed.
+
+For `edit`, `remark`, `tag`, `untag`, and `delete`, always use the index currently shown beside the athlete.
+Indexes can change after another command. A successful add, edit, remark, tag, or untag shows the full roster again;
+deleting an athlete keeps the current filter. Check the displayed names before your next indexed command.
+
+When the list area is empty, it explains why: if the roster has no athletes (for example, after confirming
+`clear`), it shows how to add one; if a `find` or `filter` matched nothing, it says so and reminds you to run `list`.
+A first launch without a saved roster displays sample athletes.
+
+### Addresses and remarks containing slashes
+
+Type ordinary addresses and notes normally. If the text looks like a command parameter, such as `A/B` or `r/relay`,
+double its slash to enter it literally:
+
+* `edit 1 addr/Block A//B` stores `Block A/B`.
+* `remark 1 r/Practise r//relay on Mon/Tue` stores `Practise r/relay on Mon/Tue`.
+* `edit 1 addr/Blk 5 p//o box` stores `Blk 5 p/o box`. Without the extra slash, `p/o box` is read as a phone
+  parameter, so TrackFlow reports an invalid or repeated phone instead.
+* `find addr/Block A//B` searches that address.
+
+This applies only to a token shaped like a single-letter parameter or `addr/`. URLs such as
+`https://example.com/a//b`, network paths such as `//server/share`, backslashes, and quotation marks have no escape
+behaviour. Exactly one extra slash is removed, once: enter `A///B` to store `A//B`.
+Do not use quotes to escape parameters: they are kept as part of the value, and a parameter after a space
+inside quoted text is still recognised. Use `//` for literal parameter-like text instead.
+
+If a value begins with a slash, put a space after the real parameter: `edit 1 addr/ /home/coach` stores
+`/home/coach`. An escaped token never replaces a required parameter, and repeated real parameters still cause an error.
+
+### Command autocomplete
+
+TrackFlow provides an autocomplete feature to speed up typing and ensure correct command formats.
+
+* As you type a command word in the command box, a dropdown menu will appear with suggested commands, including mandatory index parameters and prefixes (e.g., `edit INDEX n/ a/ p/ e/ addr/`, `delete INDEX`, `remark INDEX r/`). For `sort`, the suggestion lists the supported fields and orders: `sort name|age|phone|email|address [asc|desc]`. Suggestions are matched case-insensitively.
+* Use the **Up** and **Down** arrow keys to navigate the list of suggestions.
+* Press **Tab**, or **Click** on a suggestion, to select it. This will insert the command word (followed by a space) into the command box and close the suggestions dropdown.
+* Pressing **Enter** does **not** select or apply a suggestion; it closes the suggestions dropdown and executes the command currently typed in the command box.
+* After you enter the command word (or select it with **Tab**), press **Tab** again to insert the next missing prefix.
+  For `edit`, `remark`, `tag`, and `untag`, type the athlete index first; autocomplete does not insert it for you.
+  After typing a parameter value, press **Tab** to insert the next missing prefix.
+* For `edit`, **Tab** inserts every field prefix in turn even though the fields are optional. Delete any prefix you
+  leave empty before pressing **Enter**, as an empty field is rejected.
+* **Tab** only inserts a command's listed prefixes. It does not insert `find` field prefixes or extra `t/` prefixes
+  for `tag` and `untag`; type those yourself.
+* Prefixes already entered in the command box (even in uppercase or in a different order) are recognized and skipped automatically.
+  Autocomplete uses the same Unicode-space separators as command parsing, including pasted non-breaking spaces.
+* Press **Escape** to dismiss suggestions. **Shift+Tab** moves focus backward. When no suggestion or prefix is
+  available, **Tab** moves focus to the next control, allowing keyboard access to feedback and the roster.
+
+### Window size and scrolling
+
+TrackFlow restores its normal window size and position when reopened. If the saved window is too large or its
+monitor is disconnected, TrackFlow fits the window into a connected screen's usable area. The normal minimum is
+450 by 400 pixels, reduced further if the screen has less usable space. Maximizing or minimizing does not replace
+the last normal window bounds. Adding or editing athletes does not automatically enlarge the window.
+
+Resize the window as needed. Athlete details wrap, the roster scrolls, and long command feedback can be scrolled
+within the result area. Select **Expand** to read or copy the full message in a resizable window. The command box and status footer remain separate from the scrolling roster.
+
+### Command feedback and errors
+
+After a successful command, TrackFlow displays a confirmation message and clears the command box. If parsing,
+validation, or command execution fails, TrackFlow displays an error and leaves the entered command in the command box
+so that it can be corrected.
+
+* Submitting an empty or whitespace-only command displays
+  `No command entered. Type a command and try again.`
+* An unrecognized command displays `Unknown command: COMMAND.`, where `COMMAND` is the command word entered. For
+  example, `enrol n/Avery` displays `Unknown command: enrol.`
+* Validation errors explain the accepted format or constraint. The roster is not changed when parsing or validation
+  fails.
+* Parameters a command does not support, such as `t/` in `add`, are rejected with an error.
+  To enter prefix-like text as part of an address or remark, see
+  [Addresses and remarks containing slashes](#addresses-and-remarks-containing-slashes).
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
-
-![help message](images/helpMessage.png)
+Opens a resizable, scrollable help window listing every supported command, its purpose,
+parameters, and examples. It opens on the main window's screen and fits the available space. Running `help`
+again restores it if minimized. Closing and reopening help retains its position during the current session.
 
 Format: `help`
 
 
-### Adding a person: `add`
+### Adding an athlete: `add`
 
-Adds a person to the address book.
+Adds an athlete with a name, age category, phone number, email address, and address.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add n/NAME a/AGE_CATEGORY p/PHONE e/EMAIL addr/ADDRESS`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+* All five fields are required.
+* Fields may appear in any order. Each parameter may appear only once.
+* Age category must be `Under 14`, `Under 16`, `Under 18`, `Under 20`, or `Open`. Category input ignores case and normalizes repeated spaces.
+* Names are words of ASCII letters (`A`–`Z`, `a`–`z`) and digits, separated by ordinary spaces. A single hyphen or
+  apostrophe may join two words (for example, `Mary-Jane` or `O'Brien`), but a name cannot start or end with one,
+  repeat one (`Mary--Jane`), or put spaces around one (`Mary - Jane`). Accented letters and other writing systems are
+  not currently supported.
+  Use a straight apostrophe (`'`); the curly apostrophe (`’`) that some phones and word processors insert is not
+  accepted. Other punctuation, such as full stops (`Tan Ah Kow Jr.`) and slashes (`Ravi s/o Kumar`, `Siti d/o Ahmad`), is not
+  supported either; in a command, `s/` and `d/` are read as parameters and rejected. Write such names without the
+  punctuation instead, for example `Tan Ah Kow Jr` or `Ravi s o Kumar`.
+  Searching, sorting, and duplicate checking do not rename athletes or rewrite their stored name spacing.
+* New phone numbers must contain 3–15 significant digits in total, with at least three digits after any country
+  code. The subscriber number cannot be all zeroes. Write digit groups separated by spaces or
+  single hyphens (for example, `9123 4567` or `9123-4567`). An unbracketed `+` is allowed only at the start.
+  Brackets must be balanced and non-empty. Bracketed text is read by position: a bracketed code written before
+  the number, such as `(+65)` or `(212)`, is part of the number (`(212) 1234` has the digits `2121234`), while
+  bracketed text written after the number, such as `(HP)` or `(ext 5)`, is a note and is ignored. A bracket that
+  is not just digits, such as `(HP)`, may also go before the number and is ignored there too. Only one country or
+  area code is allowed, at the start, and no bracketed text may split the digits (`9123 (HP) 4567` is rejected).
+  Examples: `+65 9123 4567`, `(+65) 9123 4567`, `(212) 555 0199`, or `9123 4567 (HP)`.
+  Separate an unbracketed country code from the number with a space or hyphen; the compact Singapore form
+  `+6591234567` is also accepted. Write extensions as bracketed notes, e.g. `9123 4567 (ext 123)`; bare
+  `ext 123` and notes splitting the digits are unsupported. Older saved phone formats and lengths remain readable.
+* Emails must have the form `local-part@domain` and contain at most 254 characters. The local part consists of
+  alphanumeric groups separated by `+`, `_`, `.`, or `-`. Domain labels consist of alphanumeric groups separated by
+  hyphens; the final label must have at least two characters. Spaces are not allowed.
+* Add and edit reject a duplicate when the normalized name matches and either the phone or email matches, regardless
+  of age category. Name comparisons ignore case and repeated spaces; email comparisons ignore case.
+  Phone comparisons ignore formatting and notes but keep a bracketed code written before the number, so
+  `(212) 123-4567` and `(555) 123-4567` are different numbers. Unprefixed eight-digit numbers match their `+65`,
+  `(+65)`, `(65)` and `65` forms; other explicit country codes remain distinct. Display text and sorting are unchanged.
+  Sharing only a name, or sharing a phone or email with a different name, is allowed with a possible-duplicate
+  warning. Each matching athlete is listed separately with their name, age category, phone, email, and matching fields.
+  Both checks search the full roster, including hidden athletes. On edit, warnings are shown only when the
+  name, phone or email comparison key changes. Warnings identify athletes by their details rather
+  than displayed indexes, which can change after a command.
+* Use `addr/ADDRESS` to supply the required nonblank, single-line address. Addresses can contain any characters except line
+  breaks. Line and paragraph separators are also rejected.
+* Add does not accept events or remarks. `edit` updates athlete details and addresses, `tag` and `untag` update track events, and `remark` updates remarks. **`a/` means age category for `add`, `edit`, and `filter`.** Use `addr/` with `edit` to update addresses.
+* Athletes are saved automatically. Older saved entries without an age category load as `Open`, retaining their
+  existing address, events, and remarks. Saved rosters retain the older significant-digit/email duplicate rule for compatibility.
+  Existing same-name records with distinct emails whose phones differ only by a Singapore country code are
+  preserved on loading. You can maintain or delete these records, but cannot add another equivalent record
+  or edit them into a duplicate under the older significant-digit/email rule. No records are silently merged.
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
 
-### Listing all persons: `list`
+* `add n/Kaylee Teo a/Under 14 p/61234567 e/kaylee.teo@example.com addr/123 Main Street`
+* `add e/jordan.lee@example.com p/62345678 a/open n/Jordan Lee addr/123 Main Street`
 
-Shows a list of all persons in the address book.
+Successful output:
+
+`New athlete added: Kaylee Teo; Age category: Under 14; Phone: 61234567; Email: kaylee.teo@example.com`
+
+A duplicate add names the stored athlete, preserving their spelling, for example
+`This athlete already exists in the roster: Avery Tan.`, even if the submitted name was `avery   tan`.
+Failed validation leaves the command text available for correction.
+
+Command words and parameter prefixes are case-insensitive. Use `sort` to change the displayed order. TrackFlow reports
+a roster-changing command as successful only after saving it. If saving fails, the roster and displayed list remain
+unchanged so that the application never presents an unsaved change as permanent.
+
+### Listing all athletes: `list`
+
+Shows the complete athlete roster.
 
 Format: `list`
 
-### Editing a person: `edit`
+The command restores the complete roster in saved roster order after a `find`, `filter`, or `sort` command.
+It clears the active filter and sort without changing saved data. It does not accept parameters.
 
-Edits an existing person in the address book.
+* An empty roster displays `The athlete roster is empty.`
+* A roster with one athlete displays `Displaying 1 athlete.`
+* A larger roster displays `Displaying COUNT athletes.`, where `COUNT` is the number of athletes displayed.
+* Supplying a parameter, such as `list 1`, displays
+  `The list command does not accept parameters. Format: list`.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Examples:
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
+* `list`
+* `LiSt` (command words are case-insensitive)
+
+### Filtering athletes by age category: `filter`
+
+Use `filter` to show athletes whose recorded age category matches the category you specify.
+
+Format: `filter a/AGE_CATEGORY`
+
+* Supply exactly one `a/` parameter. Accepted categories are `Under 14`, `Under 16`, `Under 18`, `Under 20`, and `Open`.
+* Category values ignore case and repeated spaces: `filter a/under   14` is equivalent to `filter A/Under 14`.
+* Matching uses the recorded category, not an exact age or eligibility calculation. `Under 16` does not include athletes recorded as `Under 14`.
+* Each `filter` searches the entire roster and replaces any previous `find` or `filter`. Likewise, `find` replaces the age filter. Matching athletes retain the current displayed ordering, including any active sort, and receive indexes starting from 1.
+* Filtering does not change or delete athlete records. Use `list` to show everyone again, including after no matches. TrackFlow does not save the filter between application sessions.
+* Missing `a/` shows command usage. An empty or unsupported category (for example, `filter a/Under 15`) shows `Age category must be Under 14, Under 16, Under 18, Under 20, or Open.` Repeated `a/` parameters and extra arguments are rejected. An invalid filter leaves the previous display and roster unchanged.
+
+Feedback examples:
+
+* Two matches: `Displaying 2 athletes in age category Under 14.`
+* One match: `Displaying 1 athlete in age category Under 14.`
+* No matches (including an empty roster): `No athletes found in age category Under 14 (0 matches).` The displayed list is empty; this is a successful search, not an error.
+
+To filter the roster and return to the complete list, follow these steps:
+
+1. Run `filter a/Under 14`. TrackFlow displays only athletes recorded as `Under 14`.
+1. Review the displayed athletes. If you use an indexed command, use the indexes in this filtered list. An index outside the displayed list is invalid even if it exists in the full roster.
+1. Run `list` to display the complete roster again.
+
+### Editing an athlete: `edit`
+
+Edits an existing athlete in the roster.
+
+Format: `edit INDEX [n/NAME] [a/AGE_CATEGORY] [p/PHONE] [e/EMAIL] [addr/ADDRESS]`
+
+* Edits the athlete at the specified `INDEX`. The index refers to the index number shown in the displayed athlete list. The index **must be a positive integer** 1, 2, 3, ...
 * At least one of the optional fields must be provided.
+* At least one supplied value must change the stored details. Otherwise, TrackFlow reports
+  `At least one field must be different from the athlete's current details.` without saving or changing the view.
+  Changing the stored phone formatting or note still counts as an edit.
 * Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* Omitted fields retain their current values. Track events and remarks are preserved.
+* `a/` means age category. Supported categories are `Under 14`, `Under 16`, `Under 18`, `Under 20`, and `Open`;
+  case and repeated ordinary spaces are normalized. Addresses use the separate `addr/` prefix.
+* Use `addr/ADDRESS` to edit the address. An empty or whitespace-only address is rejected.
+* Repeated field prefixes, empty or invalid values, and `t/` or `r/` parameters are rejected. Use `tag`/`untag` for events and `remark` for remarks.
+* Edits that create a duplicate athlete are rejected (producing `This athlete already exists in the roster: Avery Tan.`) using the same normalized name and contact comparison as `add`.
+  The error names the existing matching athlete using their saved spelling, rather than the submitted name.
+* A successful edit displays the full roster again and scrolls to the updated athlete; failed edits leave the
+  roster and displayed list unchanged.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
 
-### Locating persons by name: `find`
+*  `edit 1 addr/123 Main Street` Updates the 1st athlete's address.
+*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st athlete to be `91234567` and `johndoe@example.com` respectively.
+*  `edit 2 n/Betsy Crower a/Under 16` Edits the name and age category of the 2nd athlete, retaining their other details.
 
-Finds persons whose names contain any of the given keywords.
+### Adding or removing an athlete remark: `remark`
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Replaces the remark of an athlete in the currently displayed list. Use remarks for general notes such as injuries,
+personal bests or availability. To record which track events an athlete competes in, use [`tag`](#tagging-athletes-with-track-events-tag-untag) instead.
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Format: `remark INDEX r/[REMARK]`
+
+* `INDEX` refers to the index number shown in the displayed athlete list and must be a positive integer.
+* Exactly one `r/` prefix is required. The prefix is case-insensitive.
+* A new remark replaces the existing remark; remarks are not appended. Feedback distinguishes adding, updating
+  and removing a remark. Submitting the same remark reports that it is unchanged, without saving.
+* Use an empty remark, such as `remark 1 r/`, to remove the athlete's existing remark.
+  If the athlete already has no remark, TrackFlow reports `Athlete has no remark to remove` followed by their
+  details, and leaves the roster and current view unchanged.
+* Remarks form part of the saved athlete record and remain after restarting TrackFlow.
+* Updating a remark preserves the athlete's age category and other details.
+* A successful remark update displays the full roster again and retains the current sort order.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
 
-### Deleting a person: `delete`
+* `remark 1 r/100m personal best: 12.34s`
+* `remark 1 r/` removes the 1st athlete's remark.
 
-Deletes the specified person from the address book.
+### Tagging athletes with track events: `tag`, `untag`
+
+Records which track events each athlete competes in. Events are shown as labels on the athlete's card. For other
+notes, such as injuries or personal bests, use [`remark`](#adding-or-removing-an-athlete-remark-remark).
+
+Format: `tag INDEX t/EVENT [t/EVENT]...`<br>
+Format: `untag INDEX t/EVENT [t/EVENT]...`
+
+* `tag` adds the given events to the athlete at `INDEX`. The athlete's existing events are kept.
+* `untag` removes the given events from the athlete at `INDEX`.
+* `INDEX` refers to the index number shown in the displayed athlete list and must be a positive integer.
+* At least one `t/EVENT` is required. Give `t/` once per event to add or remove several events at once.
+* An event is made of words of letters or digits, separated by a single space or a single hyphen, and can be up to
+  30 characters long, e.g. `100m`, `4x100m`, `Long Jump`, `110m-Hurdles`. Extra spaces between words are reduced to
+  one, but a hyphen cannot have spaces around it or be repeated: use `Long-Jump` or `Long Jump`, not `Long - Jump`
+  or `Long--Jump`.
+  A word may also contain an apostrophe or a decimal point between digits, e.g. `Women's 100m` or `Hammer 7.26kg`.
+  Letters include accented and non-English letters, e.g. `Saut-Élan`.
+* Events ignore case: `100m` and `100M` are the same event. An event keeps the capitalization it was first added with.
+  Spacing and punctuation still count, so `100m`, `100 m`, and `100-m` are different events. Use one spelling for
+  each event so that `untag` and `find t/` match it.
+  Equivalent accent spellings, such as an accented letter typed as a letter followed by an accent mark, are composed
+  into the same form. `tag`, `untag`, and `find` use the same case and accent equivalence rules.
+* Older rosters may contain alphanumeric tags longer than 30 characters. TrackFlow preserves these exactly when
+  loading and saving. They remain searchable and can be removed with `untag INDEX t/EXACT_NAME`, ignoring case.
+  The 30-character limit still applies when adding a new event with `tag`.
+* If the athlete already has some of the events given to `tag`, only the new events are added and the message lists
+  the events that were skipped, as stored on the athlete. If the athlete already has all of them, an error is shown.
+* If any event given to `untag` is not one of the athlete's events, an error is shown and **no** events are removed.
+  This guards against removing the wrong events because of a typo.
+* A successful `tag` or `untag` displays the full roster again.
+
+Examples (run `list` first to reset filtering and sorting, then run these in order on unchanged sample data):
+
+* `tag 2 t/200m t/4x100m` adds `200m` and `4x100m` to the 2nd athlete.<br>
+  Output: `Added event(s) 200m, 4x100m to Daniel Lim.`
+* `tag 2 t/400M t/Relay` adds only `Relay`, because the athlete already has `400m`.<br>
+  Output: `Added event(s) Relay to Daniel Lim. Already had: 400m.`
+* `tag 3 t/Long Jump` adds `Long Jump` to the 3rd athlete.<br>
+  Output: `Added event(s) Long Jump to Priya Nair.`
+* `untag 1 t/200m` removes `200m` from the 1st athlete.<br>
+  Output: `Removed event(s) 200m from Avery Tan.`
+
+### Finding athletes across all or selected fields: `find`
+
+Finds athletes using broad keywords, field-specific values, or both.
+
+Format: `find [KEYWORD]... [n/NAME] [a/AGE_CATEGORY] [p/PHONE] [e/EMAIL] [addr/ADDRESS] [r/REMARK] [t/EVENT]`
+
+* Searchable fields are name, age category, phone, email, address, remark, and track events.
+* Matching is case-insensitive and accepts partial values.
+* Before any field prefix, each space-separated value is a keyword. An athlete is returned when at least one keyword occurs in at least one
+  searchable field (an `OR` search). This broad form remains useful when the field is unknown.
+* Prefix a value to restrict it to one field: `n/` name, `a/` age category, `p/` phone, `e/` email, `addr/` address,
+  `r/` remark, or `t/` event. For example, `find n/und` searches names without matching every `Under` age category.
+* When several field prefixes are given, an athlete must match **every** one (an `AND` search). For example,
+  `find n/avery a/Under 16` returns only athletes named like `avery` **and** in the `Under 16` category.
+* Broad and field-specific criteria can be combined. An athlete is returned when at least one broad keyword matches
+  **or** every field-specific value matches. Each field prefix may appear at most once and cannot have an empty value.
+* Broad keyword order does not matter: `find Avery Tan` and `find Tan Avery` return the same results. A prefixed value is matched as one phrase, so `find n/Avery Tan` matches that name but `find n/Tan Avery` does not. Put broad keywords before any field prefixes. Each athlete appears at most once.
+* Name searches ignore repeated ordinary spaces: `find n/Avery   Tan` and `find n/Avery Tan` match both
+  `Avery Tan` and `Avery   Tan`. Stored names are unchanged. Other field searches retain literal internal spacing.
+* Each `find` searches the entire roster and replaces any previous `find` or `filter`. Matching athletes retain the
+  current displayed ordering, including any active sort, and receive indexes starting from 1. Use `list` to restore the complete roster.
+* An empty or whitespace-only search is rejected and displays the accepted command format.
+
+Feedback:
+
+* No matches: `No matching athletes found.`
+* One match: `Displaying 1 matching athlete.`
+* Multiple matches: `Displaying COUNT matching athletes.`
+
+Examples:
+
+* `find ave` searches every field for partial matches, so it returns `Avery Tan` and also athletes whose address
+  contains `Avenue`. Use `find n/ave` to search names only.
+* `find under` searches age categories such as `Under 14` and `Under 16`.
+* `find n/und` searches only names, so an athlete named `Underwood` can be found without matching age categories.
+* `find a/under 16` searches only age categories.
+* `find 9123` searches partial phone numbers.
+* `find p/9123` searches only phone numbers, matched by digits — so formatting and bracketed notes are ignored (`find p/91234567` finds `9123 4567`). A bracketed code before the number counts, so `find p/212` finds `(212) 123-4567`. A broad `find` also matches the displayed phone text, so `find HP` finds a phone noted `(HP)`.
+* `find tan@exam` searches partial email addresses.
+* `find r/injured` searches only remarks.
+* `find t/hurdles` searches only events, returning athletes with an event such as `Hurdles` or `110m-Hurdles`.
+* `find avery 9123 under` returns athletes matching any of the three keywords.
+* `find n/rachel r/relay` returns only athletes whose name contains `rachel` **and** whose remark contains `relay`.
+
+### Sorting the displayed athletes: `sort`
+
+Sorts the currently displayed athlete list by a selected field.
+
+Format: `sort FIELD [ORDER]`
+
+Available fields:
+
+* `name` sorts names alphabetically without considering letter case or repeated ordinary spaces. For example,
+  `Lee Ann` sorts before `Lee  Bob` (two spaces). Displayed and saved name text is unchanged; names differing only
+  in case or repeated spaces compare equally for sorting.
+* `age` sorts competition categories in this order: `Under 14`, `Under 16`, `Under 18`, `Under 20`, `Open`.
+* `phone` sorts phone numbers numerically by their significant digits. Formatting and bracketed notes after the
+  number, such as `(HP)` or `(5)`, are ignored, while a bracketed code before the number, such as `(+65)` or
+  `(212)`, counts as part of it.
+  For example, `200 (5)` sorts before `300`, and `(+65) 200` sorts after both. Displayed and saved phone text is unchanged.
+* `email` sorts email addresses alphabetically without considering letter case.
+* `address` sorts addresses alphabetically without considering letter case. Empty addresses appear first in ascending
+  order and last in descending order.
+
+Available orders are `asc` or `ascending`, and `desc` or `descending`. If `ORDER` is omitted, ascending order is used.
+Field and order names are case-insensitive.
+
+Sorting changes only the displayed order; it does not rewrite the saved roster order. The selected ordering remains
+active until `list` or a restart, including after `find`, `filter`, and roster-changing commands
+such as `add`, `edit`, `remark`, and `delete`. New or edited athletes automatically move to the correct position in the
+displayed list. A later `sort` command replaces the selected ordering. Indexed commands such as `edit`, `remark`, and
+`delete` use the indexes shown in the sorted list.
+
+Use `list` to show the full roster in saved order. This clears any active sort and filter without saving data.
+
+Examples:
+
+* `sort name` sorts names in ascending order.
+* `sort name desc` sorts names in descending order.
+* `sort age ascending` places `Under 14` before the older categories and `Open`.
+* `sort age desc` reverses the category order.
+* `sort phone` sorts by numeric phone value.
+
+Successful output follows this format:
+`Sorted the displayed athlete list by FIELD in ORDER order.`
+
+Invalid sort commands leave the displayed list unchanged. Examples of errors include:
+
+* `sort` or `sort name asc extra`: displays the accepted command format because a field is missing or there are too
+  many arguments.
+* `sort height`: displays `Unknown sort field: height. Available fields: name, age, phone, email, address.`
+* `sort name upwards`: displays `Unknown sort order: upwards. Use asc, ascending, desc, or descending.`
+
+### Deleting an athlete: `delete`
+
+Deletes the specified athlete from the roster.
 
 Format: `delete INDEX`
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* Deletes the athlete at the specified `INDEX`.
+* The index refers to the index number shown in the displayed athlete list.
+* The index **must be a positive integer** 1, 2, 3, ...
+* On success, the deleted athlete's details are shown, e.g. `Athlete deleted: Avery Tan; Age category: Under 14; Phone: 91234567; Email: avery.tan@example.com`.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+
+* `list` followed by `delete 2` deletes the 2nd athlete in the roster.
+* `find Avery` followed by `delete 1` deletes the 1st athlete in the results of the `find` command.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Deletes all athletes from the roster.
 
-Format: `clear`
+Format: `clear`, then `Y`
+
+`clear` displays a yellow warning without changing or saving the roster. To proceed, type `Y`.
+Type `N` or `no` to cancel; `yes` also confirms. Responses are case-insensitive; any other command, including one
+that fails, cancels the pending clear. Pressing Enter on an empty command box keeps the confirmation open and shows
+the warning again. If you type `Y` or `N` when no clear is pending, TrackFlow reports
+`No clear is waiting for confirmation. Type clear first, then Y to confirm.` instead of an unknown command.
+
+**Confirmed deletion is permanent:** `Y` saves an empty roster with no undo. Close the app
+and back up `data/trackflow.json` in the JAR's home folder before clearing data you may need later. `delete` also saves
+its deletion immediately.
 
 ### Exiting the program: `exit`
 
@@ -152,47 +522,93 @@ Exits the program.
 
 Format: `exit`
 
+The command does not accept parameters.
+
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+TrackFlow automatically saves after every successful command that changes roster data: `add`, `edit`, `remark`,
+`tag`, `untag`, `delete`, and `clear`. Commands that only change the displayed view or open a window do not rewrite
+the data file.
+TrackFlow writes the complete update to a temporary file before replacing the existing roster, so an interrupted write
+does not leave a partially written roster when atomic replacement is supported by the filesystem. On other
+filesystems, TrackFlow moves the completed temporary file into place without an atomicity guarantee.
+If saving fails, the command reports an error and the in-memory roster, filter, and sort order remain unchanged.
+Fix the file or folder permissions, then retry the command. `list`, `find`, `filter`, `sort`, `help`, and `exit` remain
+available without saving the roster. You do not need to save manually.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+TrackFlow saves roster data to `data/trackflow.json` inside the folder containing the JAR, even if you launch it
+from another folder. If you launch through a symbolic link to the JAR, it uses the actual JAR's folder.
+Preferences (`preferences.json`) and rotated logs (`trackflow.log.0`, etc.) use that same home folder. Roster backups
+and temporary save files stay beside the roster. When running unpacked classes from an IDE, home is the process
+working directory instead.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+If no roster file exists there, TrackFlow starts with sample athletes and creates the file after the first
+successful command that changes roster data. An intentionally saved empty roster remains empty on restart, and a
+file that exists but is empty (or contains only whitespace) also loads as an empty roster rather than being treated
+as unreadable. When editing the file by hand, a blank age category loads as `Open`, and spaces around an address
+are removed on loading.
 
-### Archiving data files `[coming in v2.0]`
+If an older version saved your roster in another launch folder, close TrackFlow and back up both locations before
+copying that folder's `data/trackflow.json` into the JAR's `data` folder. Copy `preferences.json` too if you want to
+retain your window settings. Keep a separate copy of any existing destination roster before replacing it.
 
-_Details coming soon ..._
+Missing or unreadable preferences, null window settings, or invalid window dimensions cause TrackFlow to use and
+attempt to save default settings. This recovery does not change athlete data.
+
+Close TrackFlow and make a separate backup before editing this file manually.
+
+<box type="warning" seamless>
+
+**Caution:**
+If the saved roster cannot be loaded, TrackFlow preserves the original file in
+`data/trackflow.json.unreadable-<UUID>.bak`, logs the backup path, shows the complete recovery message in a resizable window, and starts with an empty roster.
+Later roster changes leave the backup intact. If the backup cannot be created, TrackFlow stops startup to
+protect the original file. Keep the preserved copy if you need to recover its records manually.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install TrackFlow on the other computer, then close TrackFlow on both computers. Back up any destination
+roster before replacing it. Inside the destination folder containing the JAR, create a `data` folder if necessary,
+then copy your previous home folder's `data/trackflow.json` into it. On the next launch, TrackFlow reads that copied
+file. A fresh launch only displays sample athletes; it does not create a roster file until a successful change.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+* **Runtime packaging:** the bundled JavaFX dependencies do not include an Apple Silicon classifier. Use the Zulu
+  JDK 25 FX runtime on macOS and verify the packaged JAR on your machine. See the
+  [setup guide](SettingUp.md#runtime-and-build-requirements) for runtime requirements.
+* **One app instance per roster:** close the existing instance before opening the same JAR again. Two instances do
+  not coordinate edits and a later save can overwrite changes from the other instance.
+* **Terminal warnings at launch:** when started with `java -jar`, Java may print warnings such as
+  `Unsupported JavaFX configuration`, `A restricted method in java.lang.System has been called`, or
+  `sun.misc.Unsafe::allocateMemory will be removed`. They come from running the bundled JavaFX on Java 25, do not
+  affect TrackFlow, and can be safely ignored.
+
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
+Action     | Format, Examples
+-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Add**    | `add n/NAME a/AGE_CATEGORY p/PHONE e/EMAIL addr/ADDRESS` <br> e.g., `add n/James Ho a/Under 18 p/22224444 e/jamesho@example.com addr/123 Main Street`
+**Clear**  | `clear`, then `Y`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+**Edit**   | `edit INDEX [n/NAME] [a/AGE_CATEGORY] [p/PHONE] [e/EMAIL] [addr/ADDRESS]`<br> e.g.,`edit 2 n/James Lee e/jameslee@example.com`
+**Filter** | `filter a/AGE_CATEGORY`<br> e.g., `filter a/Under 14`
+**Find**   | `find [KEYWORD]... [n/NAME] [a/AGE_CATEGORY] [p/PHONE] [e/EMAIL] [addr/ADDRESS] [r/REMARK] [t/EVENT]`<br> e.g., `find n/rachel r/relay`, `find t/100m`
+**List**   | `list`
+**Remark** | `remark INDEX r/[REMARK]`<br> e.g., `remark 1 r/100m personal best: 12.34s`
+**Sort**   | `sort FIELD [ORDER]`<br> e.g., `sort age desc`
+**Tag**    | `tag INDEX t/EVENT [t/EVENT]...`<br> e.g., `tag 1 t/100m t/Long Jump`
+**Untag**  | `untag INDEX t/EVENT [t/EVENT]...`<br> e.g., `untag 1 t/100m`
+**Help**   | `help`
+**Exit**   | `exit`

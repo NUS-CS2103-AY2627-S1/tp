@@ -1,0 +1,174 @@
+// @@author qiyuannn
+package trackflow.model;
+
+import static java.util.Objects.requireNonNull;
+import static trackflow.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.logging.Logger;
+
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
+import trackflow.commons.core.GuiSettings;
+import trackflow.commons.core.LogsCenter;
+import trackflow.model.person.Person;
+
+/**
+ * Represents the in-memory model of the athlete roster data.
+ */
+public class ModelManager implements Model {
+    private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
+
+    private final AthleteRoster roster;
+    private final UserPrefs userPrefs;
+    private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private Predicate<Person> personListPredicate = PREDICATE_SHOW_ALL_PERSONS;
+    private Comparator<Person> personListComparator;
+
+    /**
+     * Initializes a ModelManager with the given roster and userPrefs.
+     */
+    public ModelManager(ReadOnlyRoster roster, ReadOnlyUserPrefs userPrefs) {
+        requireAllNonNull(roster, userPrefs);
+
+        logger.fine("Initializing with athlete roster: " + roster + " and user prefs " + userPrefs);
+
+        this.roster = new AthleteRoster(roster);
+        this.userPrefs = new UserPrefs(userPrefs);
+        filteredPersons = new FilteredList<>(this.roster.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
+    }
+
+    /**
+     * Creates a model with an empty roster, default preferences, and no active filter or sort.
+     */
+    public ModelManager() {
+        this(new AthleteRoster(), new UserPrefs());
+    }
+
+    //=========== UserPrefs ==================================================================================
+
+    @Override
+    public ReadOnlyUserPrefs getUserPrefs() {
+        return userPrefs;
+    }
+
+    @Override
+    public GuiSettings getGuiSettings() {
+        return userPrefs.getGuiSettings();
+    }
+
+    @Override
+    public void setGuiSettings(GuiSettings guiSettings) {
+        requireNonNull(guiSettings);
+        userPrefs.setGuiSettings(guiSettings);
+    }
+
+    //=========== AthleteRoster ================================================================================
+
+    @Override
+    public void setRoster(ReadOnlyRoster roster) {
+        this.roster.resetData(roster);
+    }
+
+    @Override
+    public ReadOnlyRoster getRoster() {
+        return roster;
+    }
+
+    @Override
+    public boolean hasPerson(Person person) {
+        requireNonNull(person);
+        return roster.hasPerson(person);
+    }
+
+    @Override
+    public void deletePerson(Person target) {
+        roster.removePerson(target);
+    }
+
+    @Override
+    public void addPerson(Person person) {
+        roster.addPerson(person);
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
+
+    @Override
+    public void setPerson(Person target, Person editedPerson) {
+        requireAllNonNull(target, editedPerson);
+
+        roster.setPerson(target, editedPerson);
+    }
+
+    //=========== Filtered Person List Accessors =============================================================
+
+    /**
+     * Returns a live, unmodifiable view of the roster after applying the current filter and sort order.
+     * Roster changes are reflected in this view; sorting does not reorder the stored roster.
+     */
+    @Override
+    public ObservableList<Person> getFilteredPersonList() {
+        return sortedPersons;
+    }
+
+    @Override
+    public Predicate<Person> getPersonListPredicate() {
+        return personListPredicate;
+    }
+
+    @Override
+    public Comparator<Person> getPersonListComparator() {
+        return personListComparator;
+    }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate) {
+        requireNonNull(predicate);
+        personListPredicate = predicate;
+        filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public void updateSortedPersonList(Comparator<Person> comparator) {
+        personListComparator = comparator;
+        sortedPersons.setComparator(comparator);
+    }
+
+    @Override
+    public void keepTiesInDisplayedOrder(List<Person> displayedOrder) {
+        requireNonNull(displayedOrder);
+        if (personListComparator == null) {
+            return;
+        }
+        Map<Person, Integer> displayedPositions = new IdentityHashMap<>();
+        for (int index = 0; index < displayedOrder.size(); index++) {
+            displayedPositions.put(displayedOrder.get(index), index);
+        }
+        // Only the displayed list uses this tie breaker; the chosen comparator is still reported unchanged
+        sortedPersons.setComparator(personListComparator.thenComparingInt(
+                person -> displayedPositions.getOrDefault(person, Integer.MAX_VALUE)));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof ModelManager otherModelManager)) {
+            return false;
+        }
+
+        return roster.equals(otherModelManager.roster)
+                && userPrefs.equals(otherModelManager.userPrefs)
+                && sortedPersons.equals(otherModelManager.sortedPersons);
+    }
+
+}

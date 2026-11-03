@@ -1,0 +1,166 @@
+package trackflow.logic.parser;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
+ *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
+ * 1. An argument's value can be an empty string e.g. the value of {@code k/} in the above example.<br>
+ * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
+ * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
+ *    in the above example.<br>
+ * 4. A doubled slash in a prefix-like token marks literal text, e.g. {@code A//B} represents {@code A/B}.
+ *    Exactly one slash is removed after splitting arguments; backslashes and quotation marks are ordinary text.
+ */
+public class ArgumentTokenizer {
+
+    private static final Pattern ESCAPED_PREFIX_PATTERN =
+            Pattern.compile(CommandWhitespace.TOKEN_BOUNDARY_REGEX + "((?i:addr)|[A-Za-z])/(/+)");
+
+    /**
+     * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
+     * respective argument values. Only the given prefixes will be recognized, ignoring case.
+     * Prefixes followed by an extra slash are literal content and do not introduce arguments.
+     *
+     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}.
+     * @param prefixes   Prefixes to tokenize the arguments string with.
+     * @return           ArgumentMultimap object that maps prefixes to their arguments.
+     */
+    public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Finds all zero-based prefix positions in the given arguments string.
+     *
+     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}.
+     * @param prefixes   Prefixes to find in the arguments string.
+     * @return           List of zero-based prefix positions in the given arguments string.
+     */
+    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes) {
+        return Arrays.stream(prefixes)
+                .flatMap(prefix -> findPrefixPositions(argsString, prefix).stream())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * @see #findAllPrefixPositions(String, Prefix...)
+     */
+    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
+        List<PrefixPosition> positions = new ArrayList<>();
+
+        int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
+        while (prefixPosition != -1) {
+            PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
+            positions.add(extendedPrefix);
+            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(),
+                    prefixPosition + prefix.getPrefix().length());
+        }
+
+        return positions;
+    }
+
+    /**
+     * Returns the index of the first occurrence of {@code prefix} in
+     * {@code argsString} starting from index {@code fromIndex}. An occurrence
+     * is valid at the beginning of the string or after Java whitespace or a Unicode space character, ignoring case.
+     * A slash-terminated prefix followed by another slash is literal text, not a delimiter.
+     * Returns -1 if no such occurrence can be found.
+     *
+     * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
+     * {@code fromIndex} = 0, this method returns -1 as there are no valid
+     * occurrences of "p/" with whitespace before it. However, if
+     * {@code argsString} = "e/hi p/900", {@code prefix} = "p/" and
+     * {@code fromIndex} = 0, this method returns 5.
+     */
+    private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
+        int latestStart = argsString.length() - prefix.length();
+        for (int index = Math.max(0, fromIndex); index <= latestStart; index++) {
+            boolean isAtBoundary = index == 0 || CommandWhitespace.isWhitespace(argsString.charAt(index - 1));
+            int prefixEnd = index + prefix.length();
+            boolean isEscaped = prefix.endsWith("/") && prefixEnd < argsString.length()
+                    && argsString.charAt(prefixEnd) == '/';
+            if (isAtBoundary && !isEscaped && argsString.regionMatches(true, index, prefix, 0, prefix.length())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Extracts prefixes and their argument values, and returns an {@code ArgumentMultimap} object that maps the
+     * extracted prefixes to their respective arguments. Prefixes are extracted based on their zero-based positions in
+     * {@code argsString}.
+     *
+     * @param argsString      Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}.
+     * @param prefixPositions Zero-based positions of all prefixes in {@code argsString}.
+     * @return                ArgumentMultimap object that maps prefixes to their arguments.
+     */
+    private static ArgumentMultimap extractArguments(String argsString, List<PrefixPosition> prefixPositions) {
+
+        // Sort by start position
+        prefixPositions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
+
+        // Insert a PrefixPosition to represent the preamble
+        PrefixPosition preambleMarker = new PrefixPosition(new Prefix(""), 0);
+        prefixPositions.addFirst(preambleMarker);
+
+        // Add a dummy PrefixPosition to represent the end of the string
+        PrefixPosition endPositionMarker = new PrefixPosition(new Prefix(""), argsString.length());
+        prefixPositions.add(endPositionMarker);
+
+        // Map prefixes to their argument values (if any)
+        ArgumentMultimap argMultimap = new ArgumentMultimap();
+        for (int i = 0; i < prefixPositions.size() - 1; i++) {
+            // Extract and store prefixes and their arguments
+            Prefix argPrefix = prefixPositions.get(i).getPrefix();
+            String argValue = extractArgumentValue(argsString, prefixPositions.get(i), prefixPositions.get(i + 1));
+            argMultimap.put(argPrefix, argValue);
+        }
+
+        return argMultimap;
+    }
+
+    /**
+     * Returns the stripped argument value, decoding one extra slash in each escaped prefix-like token.
+     * The argument is specified by {@code currentPrefixPosition}.
+     * The end position of the value is determined by {@code nextPrefixPosition}.
+     */
+    private static String extractArgumentValue(String argsString,
+            PrefixPosition currentPrefixPosition,
+            PrefixPosition nextPrefixPosition) {
+        Prefix prefix = currentPrefixPosition.getPrefix();
+
+        int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
+        String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
+
+        return ESCAPED_PREFIX_PATTERN.matcher(CommandWhitespace.strip(value)).replaceAll("$1$2");
+    }
+
+    /**
+     * Represents a prefix's position in an arguments string.
+     */
+    private static class PrefixPosition {
+        private int startPosition;
+        private final Prefix prefix;
+
+        PrefixPosition(Prefix prefix, int startPosition) {
+            this.prefix = prefix;
+            this.startPosition = startPosition;
+        }
+
+        int getStartPosition() {
+            return startPosition;
+        }
+
+        Prefix getPrefix() {
+            return prefix;
+        }
+    }
+
+}
