@@ -1,0 +1,194 @@
+package seedu.address;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import javafx.stage.Stage;
+import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.util.JsonUtil;
+import seedu.address.logic.LogicManager;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.EmployeeBuilder;
+import seedu.address.ui.Ui;
+
+public class MainAppTest {
+    @TempDir
+    public Path temporaryFolder;
+
+    private MainApp app;
+    private RecordingUi ui;
+    private Path dataFile;
+    private StorageManager storage;
+
+    @BeforeEach
+    public void setUp() {
+        app = new MainApp();
+        ui = new RecordingUi();
+        app.ui = ui;
+        dataFile = temporaryFolder.resolve("addressbook.json");
+        storage = new StorageManager(new JsonAddressBookStorage(dataFile),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json")));
+        app.storage = storage;
+    }
+
+    @Test
+    public void init_homeFolder_persistsAndReloadsDataAndPreferences() throws Exception {
+        app = new MainApp(temporaryFolder);
+        app.init();
+        assertEquals(temporaryFolder.resolve("preferences.json"), app.storage.getUserPrefsFilePath());
+        assertEquals(temporaryFolder.resolve("data/hrbook.json"), app.storage.getAddressBookFilePath());
+        app.logic.execute("clear");
+        app.logic.execute("add n/Home Test p/90000001 e/home@example.com a/One le/14");
+        GuiSettings settings = new GuiSettings(900, 700, 100, 120);
+        app.model.setGuiSettings(settings);
+        app.stop();
+
+        MainApp restarted = new MainApp(temporaryFolder);
+        restarted.init();
+        assertEquals(app.model.getAddressBook(), restarted.model.getAddressBook());
+        assertEquals(settings, restarted.model.getGuiSettings());
+    }
+
+    @Test
+    public void start_nullLeave_showsLoadingErrorAndPreservesFileThroughShutdown() throws Exception {
+        String data = "{\"persons\":[],\"leaves\":[null]}";
+        Files.writeString(dataFile, data);
+        loadModelAndStart();
+
+        assertEquals(new AddressBook(), app.model.getAddressBook());
+        assertLoadingErrorShown();
+        assertEquals(data, Files.readString(dataFile));
+        app.stop();
+        assertEquals(data, Files.readString(dataFile));
+    }
+
+    @Test
+    public void start_nullLeaveWithValidEmployees_preservesOriginalDataForRecovery() throws Exception {
+        AddressBook saved = new AddressBook();
+        saved.addEmployee(new EmployeeBuilder().build());
+        storage.saveAddressBook(saved);
+        String data = Files.readString(dataFile).replaceFirst("\"leaves\"\\s*:\\s*\\[\\s*\\]", "\"leaves\":[null]");
+        assertTrue(data.contains("[null]"));
+        Files.writeString(dataFile, data);
+        loadModelAndStart();
+
+        assertLoadingErrorShown();
+        assertEquals(new AddressBook(), app.model.getAddressBook());
+        app.stop();
+        assertEquals(data, Files.readString(dataFile));
+    }
+
+    @Test
+    public void start_nullEmployeeFields_showsSameErrorAndPreservesFileThroughShutdown() throws Exception {
+        AddressBook saved = new AddressBook();
+        saved.addEmployee(new EmployeeBuilder().build());
+        storage.saveAddressBook(saved);
+        String baseline = Files.readString(dataFile);
+        for (String field : List.of("leaveEntitlement", "phone", "salary", "employeeId", "tags", "tasks")) {
+            ObjectNode root = JsonUtil.fromJsonString(baseline, ObjectNode.class);
+            ObjectNode employee = (ObjectNode) root.at("/persons/0");
+            employee.putNull(field);
+            String data = root.toString();
+            Files.writeString(dataFile, data);
+            ui.feedback = null;
+            loadModelAndStart();
+
+            assertLoadingErrorShown();
+            assertEquals(new AddressBook(), app.model.getAddressBook(), field);
+            app.stop();
+            assertEquals(data, Files.readString(dataFile), field);
+        }
+    }
+
+    @Test
+    public void start_invalidJson_showsLoadingErrorAndPreservesFileUntilSuccessfulCommand() throws Exception {
+        String data = "not JSON";
+        Files.writeString(dataFile, data);
+        loadModelAndStart();
+
+        assertLoadingErrorShown();
+        assertEquals(data, Files.readString(dataFile));
+        LogicManager logic = new LogicManager(app.model, storage);
+        assertThrows(ParseException.class, () -> logic.execute("invalid-command"));
+        assertEquals(data, Files.readString(dataFile));
+        logic.execute("list");
+        assertEquals(new AddressBook(), new JsonAddressBookStorage(dataFile).readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void start_validData_loadsEmployeesWithoutLoadingError() throws Exception {
+        AddressBook saved = new AddressBook();
+        saved.addEmployee(new EmployeeBuilder().build());
+        storage.saveAddressBook(saved);
+        loadModelAndStart();
+
+        assertEquals(saved, app.model.getAddressBook());
+        assertTrue(ui.started);
+        assertNull(ui.feedback);
+    }
+
+    @Test
+    public void start_missingFile_loadsSampleDataWithoutLoadingErrorOrCreatingFile() {
+        loadModelAndStart();
+
+        assertEquals(new AddressBook(SampleDataUtil.getSampleAddressBook()), app.model.getAddressBook());
+        assertTrue(ui.started);
+        assertNull(ui.feedback);
+        assertFalse(Files.exists(dataFile));
+    }
+
+    @Test
+    public void start_validDataAfterFailedLoad_doesNotKeepPreviousLoadingError() throws Exception {
+        Files.writeString(dataFile, "{\"persons\":[],\"leaves\":[null]}");
+        app.initModelManager(storage, new UserPrefs());
+        storage.saveAddressBook(new AddressBook());
+        loadModelAndStart();
+
+        assertEquals(new AddressBook(), app.model.getAddressBook());
+        assertNull(ui.feedback);
+    }
+
+    private void loadModelAndStart() {
+        app.model = app.initModelManager(storage, new UserPrefs());
+        app.start(null);
+    }
+
+    private void assertLoadingErrorShown() {
+        assertEquals(String.format(MainApp.MESSAGE_DATA_LOADING_ERROR, dataFile), ui.feedback);
+    }
+
+    private static class RecordingUi implements Ui {
+        private boolean started;
+        private String feedback;
+
+        @Override
+        public void start(Stage primaryStage) {
+            started = true;
+        }
+
+        @Override
+        public void setFeedbackToUser(String feedbackToUser) {
+            assertTrue(started, "Feedback must appear after the main window starts.");
+            feedback = feedbackToUser;
+        }
+    }
+}

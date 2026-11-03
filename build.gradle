@@ -24,8 +24,13 @@ checkstyle {
     toolVersion = '14.1.0'
 }
 
+run {
+    enableAssertions = true
+}
+
 test {
     useJUnitPlatform()
+    testLogging.exceptionFormat = 'full'
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +77,12 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'hrbook.jar'
 }
+
+run {
+    enableAssertions = true
+}
+
 
 defaultTasks 'clean', 'test'

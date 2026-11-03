@@ -11,7 +11,12 @@ import com.fasterxml.jackson.annotation.JsonRootName;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Person;
+import seedu.address.model.employee.Employee;
+import seedu.address.model.employee.exceptions.EmployeeIdExhaustedException;
+import seedu.address.model.employee.exceptions.EmployeeNotFoundException;
+import seedu.address.model.leave.Leave;
+import seedu.address.model.leave.exceptions.DuplicateLeaveException;
+import seedu.address.model.leave.exceptions.OverlappingLeaveException;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -19,16 +24,45 @@ import seedu.address.model.person.Person;
 @JsonRootName(value = "addressbook")
 class JsonSerializableAddressBook {
 
-    public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_DUPLICATE_EMPLOYEE = "Employees list contains duplicate employee(s).";
+    public static final String MESSAGE_INVALID_EMPLOYEE_ID = "HR Book data contains invalid employee ID data.";
+    public static final String MESSAGE_DUPLICATE_LEAVE = "Leave list contains duplicate leave record(s).";
+    public static final String MESSAGE_ORPHANED_LEAVE = "Leave list contains a record for an unknown employee.";
+    public static final String MESSAGE_OVERLAPPING_LEAVE = "Leave list contains overlapping records for an employee.";
+    public static final String MESSAGE_INVALID_NEXT_LEAVE_ID = "HR Book data contains an invalid next leave ID.";
+    public static final String MESSAGE_NULL_LEAVE = "Leave list contains a null record.";
 
-    private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    // Retain the existing JSON key so saved address books remain compatible.
+    @JsonProperty("persons")
+    private final List<JsonAdaptedEmployee> employees = new ArrayList<>();
+    @JsonProperty("nextEmployeeId")
+    private final Long nextEmployeeId;
+    @JsonProperty("leaves")
+    private final List<JsonAdaptedLeave> leaves = new ArrayList<>();
+    @JsonProperty("nextLeaveId")
+    private final Long nextLeaveId;
 
     /**
-     * Constructs a {@code JsonSerializableAddressBook} with the given persons.
+     * Constructs a {@code JsonSerializableAddressBook} with the given employees.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedEmployee> employees,
+            @JsonProperty("nextEmployeeId") Long nextEmployeeId,
+            @JsonProperty("leaves") List<JsonAdaptedLeave> leaves,
+            @JsonProperty("nextLeaveId") Long nextLeaveId) {
+        this.employees.addAll(employees);
+        this.nextEmployeeId = nextEmployeeId;
+        if (leaves != null) {
+            this.leaves.addAll(leaves);
+        }
+        this.nextLeaveId = nextLeaveId;
+    }
+
+    /**
+     * Constructs a legacy-compatible address book containing only employees.
+     */
+    public JsonSerializableAddressBook(List<JsonAdaptedEmployee> employees, Long nextEmployeeId) {
+        this(employees, nextEmployeeId, List.of(), null);
     }
 
     /**
@@ -37,7 +71,10 @@ class JsonSerializableAddressBook {
      * @param source future changes to this will not affect the created {@code JsonSerializableAddressBook}.
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
-        persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        employees.addAll(source.getEmployeeList().stream().map(JsonAdaptedEmployee::new).collect(Collectors.toList()));
+        nextEmployeeId = source.getNextEmployeeId();
+        leaves.addAll(source.getLeaveList().stream().map(JsonAdaptedLeave::new).collect(Collectors.toList()));
+        nextLeaveId = source.getNextLeaveId();
     }
 
     /**
@@ -46,15 +83,39 @@ class JsonSerializableAddressBook {
      * @throws IllegalValueException if there were any data constraints violated.
      */
     public AddressBook toModelType() throws IllegalValueException {
-        AddressBook addressBook = new AddressBook();
-        for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
-            Person person = jsonAdaptedPerson.toModelType();
-            if (addressBook.hasPerson(person)) {
-                throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
+        List<Employee> modelEmployees = new ArrayList<>();
+        for (JsonAdaptedEmployee jsonAdaptedEmployee : employees) {
+            Employee employee = jsonAdaptedEmployee.toModelType();
+            if (modelEmployees.stream().anyMatch(employee::hasContactConflictWith)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_EMPLOYEE);
             }
-            addressBook.addPerson(person);
+            modelEmployees.add(employee);
         }
-        return addressBook;
+
+        List<Leave> modelLeaves = new ArrayList<>();
+        for (JsonAdaptedLeave jsonAdaptedLeave : leaves) {
+            if (jsonAdaptedLeave == null) {
+                throw new IllegalValueException(MESSAGE_NULL_LEAVE);
+            }
+            modelLeaves.add(jsonAdaptedLeave.toModelType());
+        }
+
+        long storedNextEmployeeId = nextEmployeeId == null ? 1 : nextEmployeeId;
+        long storedNextLeaveId = nextLeaveId == null ? 1 : nextLeaveId;
+        if (storedNextLeaveId < 1 || storedNextLeaveId > (long) Integer.MAX_VALUE + 1) {
+            throw new IllegalValueException(MESSAGE_INVALID_NEXT_LEAVE_ID);
+        }
+        try {
+            return new AddressBook(modelEmployees, storedNextEmployeeId, modelLeaves, storedNextLeaveId);
+        } catch (DuplicateLeaveException e) {
+            throw new IllegalValueException(MESSAGE_DUPLICATE_LEAVE, e);
+        } catch (EmployeeNotFoundException e) {
+            throw new IllegalValueException(MESSAGE_ORPHANED_LEAVE, e);
+        } catch (OverlappingLeaveException e) {
+            throw new IllegalValueException(MESSAGE_OVERLAPPING_LEAVE, e);
+        } catch (EmployeeIdExhaustedException | IllegalArgumentException | IllegalStateException e) {
+            throw new IllegalValueException(MESSAGE_INVALID_EMPLOYEE_ID, e);
+        }
     }
 
 }

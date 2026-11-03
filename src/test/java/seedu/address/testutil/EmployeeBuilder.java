@@ -1,0 +1,152 @@
+package seedu.address.testutil;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import seedu.address.model.employee.Address;
+import seedu.address.model.employee.Email;
+import seedu.address.model.employee.Employee;
+import seedu.address.model.employee.EmployeeId;
+import seedu.address.model.employee.LeaveEntitlement;
+import seedu.address.model.employee.Name;
+import seedu.address.model.employee.Phone;
+import seedu.address.model.employee.Salary;
+import seedu.address.model.employee.Task;
+import seedu.address.model.tag.Tag;
+import seedu.address.model.util.SampleDataUtil;
+
+/**
+ * A utility class to help with building Employee objects.
+ */
+public class EmployeeBuilder {
+
+    public static final String DEFAULT_NAME = "Amy Bee";
+    public static final String DEFAULT_PHONE = "85355255";
+    public static final String DEFAULT_EMAIL = "amy@gmail.com";
+    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_SALARY = "0";
+    public static final int DEFAULT_LEAVE_ENTITLEMENT = 14;
+
+    private Name name;
+    private Phone phone;
+    private Email email;
+    private Address address;
+    private Set<Tag> tags;
+    private Salary salary;
+    private LeaveEntitlement leaveEntitlement;
+    private List<Task> tasks;
+    private Optional<EmployeeId> employeeId;
+
+    /**
+     * Creates a {@code EmployeeBuilder} with the default details.
+     */
+    public EmployeeBuilder() {
+        name = new Name(DEFAULT_NAME);
+        phone = new Phone(DEFAULT_PHONE);
+        email = new Email(DEFAULT_EMAIL);
+        address = new Address(DEFAULT_ADDRESS);
+        tags = new HashSet<>();
+        salary = new Salary(DEFAULT_SALARY);
+        leaveEntitlement = new LeaveEntitlement(DEFAULT_LEAVE_ENTITLEMENT);
+        tasks = new ArrayList<>();
+        employeeId = Optional.empty();
+    }
+
+    /**
+     * Initializes the EmployeeBuilder with the data of {@code employeeToCopy}.
+     */
+    public EmployeeBuilder(Employee employeeToCopy) {
+        name = employeeToCopy.getName();
+        phone = employeeToCopy.getPhone();
+        email = employeeToCopy.getEmail();
+        address = employeeToCopy.getAddress();
+        tags = new HashSet<>(employeeToCopy.getTags());
+        salary = employeeToCopy.getSalary();
+        leaveEntitlement = employeeToCopy.getLeaveEntitlement();
+        tasks = new ArrayList<>(employeeToCopy.getTasks());
+        employeeId = employeeToCopy.getEmployeeId();
+    }
+
+    /**
+     * Sets the {@code Name} of the {@code Employee} that we are building.
+     */
+    public EmployeeBuilder withName(String name) {
+        this.name = new Name(name);
+        return this;
+    }
+
+    /**
+     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Employee} that we are building.
+     */
+    public EmployeeBuilder withTags(String ... tags) {
+        this.tags = SampleDataUtil.getTagSet(tags);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Address} of the {@code Employee} that we are building.
+     */
+    public EmployeeBuilder withAddress(String address) {
+        this.address = new Address(address);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Phone} of the {@code Employee} that we are building.
+     */
+    public EmployeeBuilder withPhone(String phone) {
+        this.phone = new Phone(phone);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Email} of the {@code Employee} that we are building.
+     */
+    public EmployeeBuilder withEmail(String email) {
+        this.email = new Email(email);
+        return this;
+    }
+
+    /**
+     * Sets the salary of the employee being built.
+     */
+    public EmployeeBuilder withSalary(String salary) {
+        this.salary = new Salary(salary);
+        return this;
+    }
+
+    /** Sets the annual leave entitlement of the employee being built. */
+    public EmployeeBuilder withLeaveEntitlement(int leaveEntitlement) {
+        this.leaveEntitlement = new LeaveEntitlement(leaveEntitlement);
+        return this;
+    }
+
+    /** Sets the tasks of the employee being built. */
+    public EmployeeBuilder withTasks(Task... tasks) {
+        this.tasks = new ArrayList<>(List.of(tasks));
+        return this;
+    }
+
+    /** Assigns an internal employee ID to the employee being built. */
+    public EmployeeBuilder withEmployeeId(int employeeId) {
+        this.employeeId = Optional.of(new EmployeeId(employeeId));
+        return this;
+    }
+
+    /** Leaves the employee without an assigned internal ID. */
+    public EmployeeBuilder withoutEmployeeId() {
+        employeeId = Optional.empty();
+        return this;
+    }
+
+    /** Builds the employee with the configured fields and optional internal ID. */
+    public Employee build() {
+        Employee employee = Employee.createUnassigned(name, phone, email, address, salary, leaveEntitlement,
+                tags, tasks);
+        return employeeId.map(employee::withEmployeeId).orElse(employee);
+    }
+
+}

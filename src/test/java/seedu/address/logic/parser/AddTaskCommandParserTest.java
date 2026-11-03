@@ -1,0 +1,75 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TASK_DETAILS;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.AddTaskCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.employee.Task;
+
+public class AddTaskCommandParserTest {
+
+    private final AddTaskCommandParser parser = new AddTaskCommandParser();
+
+    @Test
+    public void parse_validArgs_returnsCommand() {
+        assertParseSuccess(parser, "1 d/ Prepare  report ",
+                new AddTaskCommand(Index.fromOneBased(1), new Task("Prepare  report")));
+    }
+
+    @Test
+    public void parse_duplicateDetailsPrefix_throwsParseException() {
+        assertParseFailure(parser, "1 d/Prepare d/report",
+                getErrorMessageForDuplicatePrefixes(PREFIX_TASK_DETAILS));
+    }
+
+    @Test
+    public void parse_escapedDetailsPrefix_returnsCommandWithLiteralSlash() {
+        assertParseSuccess(parser, "1 d/Document d\\/DETAILS syntax",
+                new AddTaskCommand(Index.fromOneBased(1), new Task("Document d/DETAILS syntax")));
+        assertParseSuccess(parser, "1 d/Review d\\/DETAILS and d\\/EXAMPLE",
+                new AddTaskCommand(Index.fromOneBased(1), new Task("Review d/DETAILS and d/EXAMPLE")));
+        assertParseSuccess(parser, "1 d/Confirm salary s\\/5000",
+                new AddTaskCommand(Index.fromOneBased(1), new Task("Confirm salary s/5000")));
+    }
+
+    @Test
+    public void parse_missingDetails_throwsParseException() {
+        assertParseFailure(parser, "1", "Invalid command format!\n"
+                + AddTaskCommand.MESSAGE_USAGE);
+    }
+
+    @Test
+    public void parse_emptyDetails_throwsParseException() {
+        assertParseFailure(parser, "1 d/ ", Task.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_taskDetailsExceedingLimit_throwsParseException() {
+        assertThrows(ParseException.class, () -> parser.parse("1 d/"
+                + "a".repeat(Task.MAX_DETAILS_LENGTH + 1)));
+    }
+
+    @Test
+    public void parse_invalidEmployeeIndex_throwsParseException() {
+        assertParseFailure(parser, "zero d/Prepare report",
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddTaskCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_unsupportedPrefix_throwsParseException() {
+        assertParseFailure(parser, "1 d/Prepare t/report",
+                "Unsupported prefix: t/. Check the command's supported prefixes.\n"
+                + "If this is literal address or task text, escape the slash as t\\/.");
+        assertParseFailure(parser, "1 d/jwisbdjd s/5000",
+                "Unsupported prefix: s/. Check the command's supported prefixes.\n"
+                + "If this is literal address or task text, escape the slash as s\\/.");
+    }
+}

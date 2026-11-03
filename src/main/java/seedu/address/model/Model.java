@@ -1,17 +1,29 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.employee.Employee;
+import seedu.address.model.employee.EmployeeId;
+import seedu.address.model.leave.Leave;
+import seedu.address.model.leave.LeaveId;
+import seedu.address.model.leave.LeavePeriod;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Employee> PREDICATE_SHOW_ALL_EMPLOYEES = unused -> true;
+
+    /** Captures data and display rules before a command executes. */
+    ModelSnapshot createSnapshot();
+
+    /** Restores data and display rules without replacing the observable list used by the UI. */
+    void restoreSnapshot(ModelSnapshot snapshot);
 
     /**
      * Returns the user prefs.
@@ -37,35 +49,58 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if an employee shares {@code employee}'s phone number or email address.
      */
-    boolean hasPerson(Person person);
+    boolean hasEmployee(Employee employee);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Deletes the given employee.
+     * The employee must exist in the address book.
      */
-    void deletePerson(Person target);
+    void deleteEmployee(Employee target);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Adds the given employee.
+     * {@code employee} must not already exist in the address book.
      */
-    void addPerson(Person person);
+    void addEmployee(Employee employee);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
+     * Replaces the given employee {@code target} with {@code editedEmployee}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The contact details of {@code editedEmployee} must not conflict with another employee in
+     * the address book.
      */
-    void setPerson(Person target, Person editedPerson);
+    void setEmployee(Employee target, Employee editedEmployee);
 
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    /** Records leave for an existing employee and returns the assigned record. */
+    Leave addLeave(EmployeeId employeeId, LeavePeriod leavePeriod);
+
+    /** Deletes and returns the leave record identified by {@code leaveId}. */
+    Leave deleteLeave(LeaveId leaveId);
+
+    /** Returns the employee's remaining annual leave entitlement for the given year. */
+    int getRemainingLeave(EmployeeId employeeId, int year);
+
+    /** Returns an unmodifiable view of the filtered employee list */
+    ObservableList<Employee> getFilteredEmployeeList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Returns an unmodifiable snapshot of all employees in the current display sort order, ignoring the filter.
+     * Shares the displayed list's ordering for tied values. Without an active sort, uses stored order.
+     */
+    List<Employee> getAllEmployeesInDisplayOrder();
+
+    /**
+     * Updates the filter of the filtered employee list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredEmployeeList(Predicate<Employee> predicate);
+
+    /**
+     * Sorts the displayed employee list, preserving the active filter and stored employee order.
+     * The sort remains active as the displayed list changes.
+     * @throws NullPointerException if {@code comparator} is null.
+     */
+    void sortFilteredEmployeeList(Comparator<Employee> comparator);
 }

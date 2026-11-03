@@ -4,18 +4,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_EMPLOYEE;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.employee.Address;
+import seedu.address.model.employee.Email;
+import seedu.address.model.employee.LeaveEntitlement;
+import seedu.address.model.employee.Name;
+import seedu.address.model.employee.Phone;
+import seedu.address.model.employee.Salary;
+import seedu.address.model.employee.Task;
+import seedu.address.model.leave.LeaveId;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
@@ -48,10 +53,94 @@ public class ParserUtilTest {
     @Test
     public void parseIndex_validInput_success() throws Exception {
         // No whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("1"));
+        assertEquals(INDEX_FIRST_EMPLOYEE, ParserUtil.parseIndex("1"));
 
         // Leading and trailing whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+        assertEquals(INDEX_FIRST_EMPLOYEE, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseTask_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Task.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseTask(" "));
+    }
+
+    @Test
+    public void parseTask_validValue_returnsTask() throws Exception {
+        assertEquals(new Task("Prepare report"), ParserUtil.parseTask("Prepare report"));
+    }
+
+    @Test
+    public void unescapeSlashes_escapedSlashes_returnsLiteralSlashes() {
+        assertEquals("Coordinate w/Finance", ParserUtil.unescapeSlashes("Coordinate w\\/Finance"));
+        assertEquals("Review d/DETAILS and n/NAME",
+                ParserUtil.unescapeSlashes("Review d\\/DETAILS and n\\/NAME"));
+    }
+
+    @Test
+    public void unescapeSlashes_noEscapedSlash_returnsUnchangedText() {
+        assertEquals("Prepare report", ParserUtil.unescapeSlashes("Prepare report"));
+        assertEquals("https://example.com", ParserUtil.unescapeSlashes("https://example.com"));
+    }
+
+    @Test
+    public void parseLeaveEntitlement_invalidValue_throwsParseException() {
+        for (String value : List.of("", " ", "-1", "366", "000366", "1.5", "abc",
+                "999999999999999999999", "9".repeat(1000))) {
+            assertThrows(ParseException.class, LeaveEntitlement.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseLeaveEntitlement(value));
+        }
+    }
+
+    @Test
+    public void parseLeaveEntitlement_validValue_returnsEntitlement() throws Exception {
+        assertEquals(new LeaveEntitlement(0), ParserUtil.parseLeaveEntitlement("0"));
+        assertEquals(new LeaveEntitlement(0), ParserUtil.parseLeaveEntitlement("000"));
+        assertEquals(new LeaveEntitlement(1), ParserUtil.parseLeaveEntitlement("00001"));
+        assertEquals(new LeaveEntitlement(14), ParserUtil.parseLeaveEntitlement(" 14 "));
+        assertEquals(new LeaveEntitlement(14), ParserUtil.parseLeaveEntitlement(" 00014 "));
+        assertEquals(new LeaveEntitlement(365), ParserUtil.parseLeaveEntitlement("365"));
+        assertEquals(new LeaveEntitlement(365), ParserUtil.parseLeaveEntitlement("000365"));
+        assertEquals(new LeaveEntitlement(1), ParserUtil.parseLeaveEntitlement("0".repeat(1000) + "1"));
+    }
+
+    @Test
+    public void parseLeaveEntitlement_leadingZeros_returnsNormalizedEntitlement() throws Exception {
+        assertEquals(new LeaveEntitlement(0), ParserUtil.parseLeaveEntitlement("000"));
+        assertEquals(new LeaveEntitlement(14), ParserUtil.parseLeaveEntitlement("014"));
+        assertEquals(new LeaveEntitlement(365), ParserUtil.parseLeaveEntitlement("000365"));
+    }
+
+    @Test
+    public void parseLeaveId_invalidValue_throwsParseException() {
+        for (String value : List.of("", " ", "0", "-1", "1.5", "abc", "2147483648")) {
+            assertThrows(ParseException.class, LeaveId.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseLeaveId(value));
+        }
+    }
+
+    @Test
+    public void parseLeaveId_validValue_returnsLeaveId() throws Exception {
+        assertEquals(new LeaveId(1), ParserUtil.parseLeaveId(" 1 "));
+        assertEquals(new LeaveId(Integer.MAX_VALUE), ParserUtil.parseLeaveId(Integer.toString(Integer.MAX_VALUE)));
+    }
+
+    @Test
+    public void parseLeaveDate_validDate_returnsDate() throws Exception {
+        LocalDate expectedDate = LocalDate.of(2026, 10, 5);
+        assertEquals(expectedDate, ParserUtil.parseStartDate("05-10-2026"));
+        assertEquals(expectedDate, ParserUtil.parseEndDate(" 05-10-2026 "));
+        assertEquals(LocalDate.of(1, 1, 1), ParserUtil.parseStartDate("01-01-0001"));
+        assertEquals(LocalDate.of(9999, 12, 31), ParserUtil.parseEndDate("31-12-9999"));
+    }
+
+    @Test
+    public void parseLeaveDate_invalidDate_throwsParseException() {
+        for (String invalidDate : List.of("31-02-2026", "2026-10-05", "01-01-0000", "01-01-+10000",
+                "01-01--0001")) {
+            assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_START_DATE, () ->
+                    ParserUtil.parseStartDate(invalidDate));
+            assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_END_DATE, () ->
+                    ParserUtil.parseEndDate(invalidDate));
+        }
     }
 
     @Test
@@ -191,4 +280,28 @@ public class ParserUtilTest {
 
         assertEquals(expectedTagSet, actualTagSet);
     }
+    @Test
+    public void parseSalary_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseSalary(null));
+    }
+
+    @Test
+    public void parseSalary_invalidValues_throwsParseException() {
+        for (String salary : List.of("", " ", "-1", "50001", "999999999999", "abc", "1.5")) {
+            assertThrows(ParseException.class, Salary.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSalary(salary));
+        }
+    }
+
+    @Test
+    public void parseSalary_validValues_returnsSalary() throws Exception {
+        for (String salary : List.of("0", "5000", "50000")) {
+            assertEquals(new Salary(salary), ParserUtil.parseSalary(salary));
+        }
+    }
+
+    @Test
+    public void parseSalary_validValueWithWhitespace_returnsTrimmedSalary() throws Exception {
+        assertEquals(new Salary("5000"), ParserUtil.parseSalary(WHITESPACE + "5000" + WHITESPACE));
+    }
+
 }

@@ -3,9 +3,14 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.logging.Logger;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
@@ -18,6 +23,9 @@ import seedu.address.model.ReadOnlyAddressBook;
  * A class to access AddressBook data stored as a JSON file on the hard disk.
  */
 public class JsonAddressBookStorage {
+
+    public static final String MESSAGE_NULL_VALUE = "HR Book data must not contain null values.";
+    public static final String MESSAGE_INVALID_TASK_STATUS = "Task completion state must be true or false.";
 
     private static final Logger logger = LogsCenter.getLogger(JsonAddressBookStorage.class);
 
@@ -50,17 +58,37 @@ public class JsonAddressBookStorage {
     public Optional<ReadOnlyAddressBook> readAddressBook(Path filePath) throws DataLoadingException {
         requireNonNull(filePath);
 
-        Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFile(
-                filePath, JsonSerializableAddressBook.class);
-        if (!jsonAddressBook.isPresent()) {
+        if (!Files.exists(filePath)) {
             return Optional.empty();
         }
 
         try {
-            return Optional.of(jsonAddressBook.get().toModelType());
-        } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
-            throw new DataLoadingException(ive);
+            String json = FileUtil.readFromFile(filePath);
+            validateJsonValues(json);
+            JsonSerializableAddressBook jsonAddressBook = JsonUtil.fromJsonString(json,
+                    JsonSerializableAddressBook.class);
+            return Optional.of(jsonAddressBook.toModelType());
+        } catch (IOException | IllegalValueException e) {
+            logger.info("Invalid data in " + filePath + ": " + e.getMessage());
+            throw new DataLoadingException(e);
+        }
+    }
+
+    /** Validates values that Jackson could otherwise silently convert during deserialization. */
+    private static void validateJsonValues(String json) throws IOException, IllegalValueException {
+        try (JsonParser parser = new JsonFactory().createParser(json)) {
+            JsonToken token;
+            while ((token = parser.nextToken()) != null) {
+                if (token == JsonToken.VALUE_NULL) {
+                    throw new IllegalValueException(MESSAGE_NULL_VALUE);
+                }
+                if ("isDone".equals(parser.getCurrentName())
+                        && token != JsonToken.FIELD_NAME
+                        && token != JsonToken.VALUE_TRUE
+                        && token != JsonToken.VALUE_FALSE) {
+                    throw new IllegalValueException(MESSAGE_INVALID_TASK_STATUS);
+                }
+            }
         }
     }
 
