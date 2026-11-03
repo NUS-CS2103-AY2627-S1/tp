@@ -1,12 +1,19 @@
 package seedu.address.ui;
 
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonRevision;
 import seedu.address.model.person.Person;
 
 /**
@@ -15,6 +22,7 @@ import seedu.address.model.person.Person;
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MMM yyyy");
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -39,6 +47,24 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label lessons;
+    @FXML
+    private Label fees;
+    @FXML
+    private VBox guardianDetails;
+    @FXML
+    private Label guardianName;
+    @FXML
+    private Label guardianPhone;
+    @FXML
+    private Label guardianEmail;
+    @FXML
+    private Label guardianRelationship;
+    @FXML
+    private Label guardianAddress;
+    @FXML
+    private Label guardianMissing;
+    @FXML
     private FlowPane tags;
 
     /**
@@ -49,11 +75,42 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
+        phone.setText("phone: " + person.getPhone().value);
         address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        email.setText("email: " + person.getEmail().value);
+        boolean hasGuardian = person.getGuardian().isPresent();
+        guardianDetails.setVisible(hasGuardian);
+        guardianDetails.setManaged(hasGuardian);
+        guardianMissing.setVisible(!hasGuardian);
+        guardianMissing.setManaged(!hasGuardian);
+        person.getGuardian().ifPresent(guardian -> {
+            guardianName.setText("Name: " + guardian.getName().fullName);
+            guardianPhone.setText("Phone: " + guardian.getPhone().value);
+            guardianEmail.setText("Email: " + guardian.getEmail().value);
+            guardianRelationship.setText("Relationship: " + guardian.getRelationship().value);
+            guardianAddress.setText("Address: " + guardian.getAddress().value);
+        });
+        YearMonth currentMonth = YearMonth.now();
+        lessons.setText(person.getLessons().stream()
+                .map(lesson -> formatLesson(lesson, currentMonth))
+                .sorted()
+                .collect(Collectors.joining(", ", "Lessons: ", "")));
+        long feesDue = person.getFeesDue(currentMonth);
+        long outstanding = person.getOutstandingFees(currentMonth);
+        fees.setText(String.format("Fees (%s): %s", currentMonth.format(MONTH_FORMAT),
+                outstanding == 0 ? "Paid" : "$" + outstanding + " outstanding"));
+        fees.setVisible(feesDue > 0);
+        fees.setManaged(feesDue > 0);
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+    }
+
+    /** Formats a lesson using the revision active in {@code currentMonth}. */
+    public static String formatLesson(Lesson lesson, YearMonth currentMonth) {
+        Objects.requireNonNull(lesson);
+        Objects.requireNonNull(currentMonth);
+        LessonRevision current = lesson.getRevisionFor(currentMonth);
+        return current.getId();
     }
 }

@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_LESSON_MATH;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.time.Year;
 import java.util.Collection;
 import java.util.List;
 
@@ -16,6 +18,10 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import seedu.address.model.lesson.Day;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.lesson.Time;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.exceptions.DuplicatePersonException;
 import seedu.address.testutil.PersonBuilder;
@@ -77,8 +83,35 @@ public class AddressBookTest {
     }
 
     @Test
+    public void editLesson_preservesUnrelatedUnenrolledCatalogueEntry() {
+        Lesson unrelatedLesson = new Lesson(Year.of(2026), Subject.ENGLISH, Day.MONDAY,
+                Time.TEN, Time.ELEVEN, 30);
+        addressBook.addLesson(VALID_LESSON_MATH);
+        addressBook.addLesson(unrelatedLesson);
+
+        Lesson editedLesson = new Lesson(VALID_LESSON_MATH.getYear(), VALID_LESSON_MATH.getSubject(),
+                Day.TUESDAY, VALID_LESSON_MATH.getStartTime(), VALID_LESSON_MATH.getEndTime(),
+                VALID_LESSON_MATH.getCost());
+        addressBook.editLesson(VALID_LESSON_MATH.getId(), editedLesson);
+
+        assertTrue(addressBook.getLessonList().contains(unrelatedLesson));
+        assertTrue(addressBook.getLessonList().stream()
+                .anyMatch(lesson -> lesson.getId().equals(editedLesson.getId())
+                        && lesson.getUid().equals(VALID_LESSON_MATH.getUid())));
+    }
+
+    @Test
     public void getPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> addressBook.getPersonList().remove(0));
+    }
+
+    @Test
+    public void addPerson_sharedLesson_isStoredOnce() {
+        addressBook.addPerson(new PersonBuilder(ALICE).withLessons(VALID_LESSON_MATH).build());
+        addressBook.addPerson(new PersonBuilder().withName("Bob Choo").withLessons(VALID_LESSON_MATH).build());
+
+        assertEquals(1, addressBook.getLessonList().size());
+        assertTrue(addressBook.getLessonList().contains(VALID_LESSON_MATH));
     }
 
     @Test
@@ -100,6 +133,11 @@ public class AddressBookTest {
         @Override
         public ObservableList<Person> getPersonList() {
             return persons;
+        }
+
+        @Override
+        public ObservableList<Lesson> getLessonList() {
+            return FXCollections.unmodifiableObservableList(FXCollections.observableArrayList());
         }
     }
 

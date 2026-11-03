@@ -1,0 +1,124 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_RELATIONSHIP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LESSON;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.exceptions.LessonException;
+import seedu.address.model.person.Person;
+
+/**
+ * Adds a person to the address book.
+ */
+public class AddStudentCommand extends Command {
+
+    public static final String COMMAND_WORD = "addstudent";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a student to EduReg. \n"
+            + "Parameters: "
+            + PREFIX_NAME + "NAME "
+            + PREFIX_PHONE + "PHONE "
+            + PREFIX_EMAIL + "EMAIL "
+            + PREFIX_ADDRESS + "ADDRESS "
+            + "[" + PREFIX_TAG + "TAG]..."
+            + "[" + PREFIX_LESSON + "LESSON]...\n"
+            + "[" + PREFIX_GUARDIAN_NAME + "GUARDIAN_NAME "
+            + PREFIX_GUARDIAN_PHONE + "GUARDIAN_PHONE "
+            + PREFIX_GUARDIAN_EMAIL + "GUARDIAN_EMAIL "
+            + PREFIX_GUARDIAN_RELATIONSHIP + "GUARDIAN_RELATIONSHIP "
+            + PREFIX_GUARDIAN_ADDRESS + "GUARDIAN_ADDRESS] \n "
+            + "Example: " + COMMAND_WORD + " "
+            + PREFIX_NAME + "John Doe "
+            + PREFIX_PHONE + "98765432 "
+            + PREFIX_EMAIL + "johnd@example.com "
+            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
+            + PREFIX_TAG + "friends "
+            + PREFIX_TAG + "owesMoney "
+            + PREFIX_LESSON + "2026-ENGLISH-MONDAY-TEN-NINETEEN "
+            + PREFIX_LESSON + "2026-MATH-MONDAY-TEN-NINETEEN "
+            + PREFIX_GUARDIAN_NAME + "Mary Doe "
+            + PREFIX_GUARDIAN_PHONE + "91234567 "
+            + PREFIX_GUARDIAN_EMAIL + "mary@example.com "
+            + PREFIX_GUARDIAN_RELATIONSHIP + "Mother "
+            + PREFIX_GUARDIAN_ADDRESS + "311, Clementi Ave 2, #02-25";
+
+    public static final String MESSAGE_SUCCESS = "New student added: %1$s";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This student already exists in EduReg.";
+    public static final String MESSAGE_INCOMPLETE_GUARDIAN_DETAILS = "Guardian details must be provided together. "
+            + "Include gn/, gp/, ge/, gr/, and ga/, or omit all guardian fields.";
+    public static final String MESSAGE_LESSON_NOT_FOUND = "All lessons must already exist. "
+            + "Add them with addlesson first.";
+
+    private final Person toAdd;
+
+    /**
+     * Creates an AddStudentCommand to add the specified {@code Person}
+     */
+    public AddStudentCommand(Person person) {
+        requireNonNull(person);
+        toAdd = person;
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+
+        if (model.hasPerson(toAdd)) {
+            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        }
+        Set<Lesson> canonicalLessons = toAdd.getLessons().stream()
+                .map(lesson -> model.getLesson(lesson.getId()).orElse(null))
+                .collect(Collectors.toSet());
+        if (canonicalLessons.contains(null) || canonicalLessons.size() != toAdd.getLessons().size()) {
+            throw new CommandException(MESSAGE_LESSON_NOT_FOUND);
+        }
+
+        Person canonicalPerson = new Person(toAdd.getName(), toAdd.getPhone(), toAdd.getEmail(), toAdd.getAddress(),
+                toAdd.getTags(), canonicalLessons, toAdd.getGuardian(), toAdd.getPayments(), toAdd.getAttendance());
+        try {
+            Lesson.validateEnrolments(canonicalLessons);
+            model.addPerson(canonicalPerson);
+        } catch (LessonException e) {
+            throw new CommandException(e.getMessage(), e);
+        }
+        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(canonicalPerson)));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof AddStudentCommand otherAddStudentCommand)) {
+            return false;
+        }
+
+        return toAdd.equals(otherAddStudentCommand.toAdd);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("toAdd", toAdd)
+                .toString();
+    }
+}

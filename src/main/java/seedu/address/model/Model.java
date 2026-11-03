@@ -1,9 +1,11 @@
 package seedu.address.model;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
 
 /**
@@ -40,6 +42,27 @@ public interface Model {
      * Returns true if a person with the same identity as {@code person} exists in the address book.
      */
     boolean hasPerson(Person person);
+
+    /** Returns whether the address book already contains this lesson definition. */
+    default boolean hasLesson(Lesson lesson) {
+        return getAddressBook().getLessonList().contains(lesson);
+    }
+
+    /** Returns the shared lesson with the given identifier, if it exists. */
+    default Optional<Lesson> getLesson(String lessonId) {
+        return getAddressBook().getLessonList().stream()
+                .filter(lesson -> lesson.getId().equals(lessonId))
+                .findFirst();
+    }
+
+    /** Adds a shared lesson definition. */
+    void addLesson(Lesson lesson);
+
+    /** Replaces an existing lesson definition and all references to it. */
+    boolean editLesson(String lessonId, Lesson editedLesson);
+
+    /** Removes a lesson definition and unenrols it from all students. */
+    boolean deleteLesson(String lessonId);
 
     /**
      * Deletes the given person.

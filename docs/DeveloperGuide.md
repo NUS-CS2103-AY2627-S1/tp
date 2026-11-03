@@ -9,7 +9,11 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+
+### Use of AI Tools
+
+We used AI tools, including ChatGPT and Claude, to assist with brainstorming, understanding technical concepts, drafting and reviewing code, debugging, developing test cases, and improving documentation. All AI-assisted contributions were reviewed and, where necessary, modified by the team. We take full responsibility for the submitted work and its accuracy, originality, and quality.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -83,6 +87,13 @@ The `UI` component,
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
 * depends on some classes in the `Model` component because it displays `Person` objects from the model.
 
+`PersonListPanel` renders each student using `PersonCard` and `PersonListCard.fxml`.
+The card reads `Person#getGuardian()` and displays the guardian's five fields in a labelled
+section below the student's details and lessons. Guardian labels wrap long values.
+For legacy records with an empty guardian, the card hides and unmanages the detail container
+and displays `No guardian information recorded.` instead. `PersonListPanel` recreates cards
+when model entries change, so guardian edits appear without restarting the application.
+
 ### Logic component
 
 **API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
@@ -111,8 +122,45 @@ Here are the other classes in `Logic` (omitted from the class diagram above) tha
 <img src="images/ParserClasses.png" width="600"/>
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddStudentCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddStudentCommand`). The `AddressBookParser` returns that object as a `Command` object.
+* All `XYZCommandParser` classes, such as `AddStudentCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+
+The importer classes used by the `importcsv` command are shown below:
+
+<img src="images/ImporterClassDiagram.png" width="500"/>
+
+The `ImportCsvCommand` coordinates the import by using `LessonCsvImporter` to read lesson definitions and `StudentCsvImporter` to read student records. Both importers use `CsvParser` and `CsvRow` to parse and access CSV data, and use `ParserUtil` to validate values before creating model objects of Person, Guardian and Lesson.
+
+#### CSV import format
+
+The `importcsv` command reads `data/importlessons.csv` and `data/importstudents.csv`.
+The lesson CSV must have the following columns:
+
+```csv
+year,subject,day,start_time,end_time,cost
+```
+
+Lesson IDs are not stored in the CSV. `LessonCsvImporter` derives each ID from the
+parsed fields using `{year}-{subject}-{day}-{start_time}-{end_time}`. It validates
+the lesson fields and rejects duplicate derived IDs.
+
+The student CSV must have the following required columns:
+
+```csv
+name,phone,email,address
+```
+
+The optional columns are `tags`, `lessons`, and the complete set of guardian columns:
+`guardian_name`, `guardian_phone`, `guardian_email`, `guardian_relationship`, and
+`guardian_address`. Lesson references in the student CSV must match a lesson ID
+derived from `importlessons.csv`.
+
+Validation errors identify the source file and physical CSV row, including the
+header row. For example:
+
+```text
+Unable to import data/importlessons.csv: Lesson CSV row 2: Day is any day of the week eg. MONDAY
+```
 
 ### Model component
 **API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
@@ -123,6 +171,31 @@ How the parsing works:
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
+* stores each distinct `Lesson` once in a `LessonBook`. Students who take the same lesson refer to the same `Lesson` definition.
+* creates and deletes lesson definitions through `AddLessonCommand` and `DeleteLessonCommand`. Student creation and
+  editing may only reference lessons already present in the `LessonBook`; they cannot create lesson definitions.
+* versions lessons instead of overwriting them. A new `Lesson` has a random UUID as its stable internal `uid` and an immutable, non-empty list of `LessonRevision`s, each holding the year, subject, day, times, cost and the
+  `effectiveFrom` billing month. The plain getters (`getId()`, `getCost()`, ...) describe the latest revision.
+  `getRevisionFor(month)` and `getRevisionOn(date)` return the revision in effect at that time.
+* edits lessons through `EditLessonCommand`, which adds a revision using `Lesson#withRevision` and then calls
+  `Model#editLesson` to swap the new version into the `LessonBook` and every `Person` with the same `uid`.
+  `editlesson` accepts only the current-month lesson ID shown in the main `view /lesson` row. Pending revision IDs,
+  including the latest one, are rejected. A new revision ID can be used for attendance, but not for editing until it
+  becomes current.
+  `from/` sets the revision's `effectiveFrom` and defaults to the month immediately after the current billing month.
+  A revision must take effect within the lesson year and after the current billing month. Revisions may be added in
+  any future month, including before another pending revision.
+  Only a future revision can be replaced in the same month. Year and subject cannot be edited.
+  `LessonBook#addLesson` rejects duplicate UIDs without rewriting them. Enrolments and CSV imports reuse the
+  catalog's canonical lesson objects, including their identities and revision histories. Legacy lessons without
+  a UID use their earliest saved lesson ID as a migration UID; saving persists it for subsequent loads.
+* computes fees per month: `Person#getFeesDue(month)` sums `Lesson#getCostFor(month)`, the cost of the revision in
+  effect that month (zero if that revision is for another year). Payments store their own amount and month and are
+  never rewritten, so editing a lesson's cost does not change whether earlier months are paid.
+* reports all catalog lessons in `view /lesson`. Each lesson's main row uses the revision effective in the current
+  billing month and shows the number of enrolled students, which may be zero. Revisions effective in future months
+  are rendered as separate bullet points below that row, including their lesson ID, cost and effective month.
+* represents each student as a `Person` with their contact details, tags, the lessons they take, an optional `Guardian`, and the fee `Payment`s recorded for them. A `Payment` holds an `Amount`, the billing month it is for and the date it was received.
 * stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
@@ -155,6 +228,122 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
+### Attendance tracking
+
+Attendance follows the existing payment command and storage structure. Each `Person` owns a `List<Attendance>`
+in recording order. An immutable `Attendance` contains a lesson ID, a `LocalDate` and an `AttendanceStatus`
+(`PRESENT` or `ABSENT`). The lesson ID and date identify one session within that student's history.
+
+The [attendance class diagram](diagrams/AttendanceClassDiagram.puml) and
+[recording sequence diagram](diagrams/AttendanceSequenceDiagram.puml) describe the model and command flow.
+
+<img src="images/AttendanceClassDiagram.png" width="700" />
+
+<img src="images/AttendanceSequenceDiagram.png" width="1000" />
+
+1. `AddressBookParser` dispatches `attendance` to `AttendanceCommandParser`, which validates the displayed
+   student index, required `l/`, `d/` and `s/` values, duplicate prefixes, calendar date and status.
+2. `AttendanceCommand` resolves the student from `Model#getFilteredPersonList()`. It checks enrolment by lesson ID,
+   verifies the session's year and weekday, and rejects a duplicate lesson/date pair regardless of status.
+3. The command creates a new list and calls `Person#withAttendance`, then `Model#setPerson`. Validation failures
+   occur before any model change. `Person` also enforces session uniqueness when constructed directly.
+4. The existing logic/storage pipeline saves the updated address book. `JsonAdaptedPerson` stores an optional
+   `attendance` array using `JsonAdaptedAttendance`. Older files without it load with empty attendance history.
+   Invalid fields, null entries and duplicate sessions produce a data-loading error. Loading validates calendar
+   dates but does not compare historical dates with the current lesson schedule, since lessons can be edited.
+
+`viewattendance` displays numbered records from earliest to latest date without changing the model.
+Both it and `deleteattendance` use `Person#getAttendanceInDateOrder()`, a stable date sort that retains recording
+order for records on the same date. Deletion resolves the displayed number to the record and removes it from
+the stored list. Both commands use the currently filtered student list, as payment commands do.
+`withPayments`, `withAttendance` and `EditCommand` preserve the other history when copying a person.
+
+Each `Attendance` stores the ID of the lesson revision in effect on its date (so the original timing is kept) and the
+lesson's `uid`. `AttendanceCommand` accepts the lesson's current ID or any earlier one, validates the date against
+`Lesson#getRevisionOn(date)`, and records the revision's ID and the `uid`. Linked records are compared for duplicates
+by `uid` and date, so a session cannot be recorded twice under the old and new IDs. `AddressBook#editLesson` does not
+modify attendance. `viewattendance` looks up the record's lesson by `uid` and, if its current ID differs, adds a
+`Schedule changed to ...` line. `JsonAdaptedAttendance` stores `lessonUid`. Records from older files that have no
+`lessonUid` are linked on load only when exactly one lesson has (or had) that lesson ID. Unresolvable or ambiguous
+legacy records retain their original ID and date. Records with a known UID but an unrelated lesson ID are rejected;
+unknown UIDs are retained because their lessons may have been deleted.
+Attendance participates in `Person#equals` and `hashCode`, but does not change student identity (`isSamePerson`).
+
+### Finding students
+
+The class diagram below shows the main classes used by `find`. It uses the shared Logic (blue)
+and Model (red) styling; `Predicate<Person>` is a Java library interface, not an EduReg class.
+
+![Classes used by the find command](images/FindClassDiagram.png)
+
+Source: [Find class diagram](diagrams/FindClassDiagram.puml).
+
+`FindCommand` extends `Command` and holds one `Predicate<Person>`. `FindCommandParser` creates
+the appropriate predicates and command, using `ParserUtil` to validate billing months.
+The four concrete predicate classes implement the same interface, so the command does not need
+to know which search type it executes. Combined field/payment searches use `Predicate#and`.
+The diagram omits tokenizer helpers, the generic parser interface, and predicate implementation
+details to focus on these relationships. Dashed arrows show dependencies or interface realization;
+the solid triangle-headed arrow shows inheritance, and the solid arrow to the predicate shows
+the stored reference.
+
+The sequence diagram below follows parsing, command execution, filtering and saving for
+`find l/math unpaid/2026-10`. UI forwarding and predicate-construction details are omitted
+to focus on the main method calls.
+
+![Sequence of calls for the find command](images/find-command-sequence.png)
+
+Source: [Find command sequence diagram](diagrams/find-command-sequence.puml).
+
+1. `FindCommandParser` validates the arguments and builds a `Predicate<Person>`. Without prefixes,
+   it searches student names. With prefixes, it combines the selected fields and optional monthly
+   payment status. Invalid arguments produce a parse error before the displayed filter changes.
+2. `FindCommand` applies the predicate through `Model#updateFilteredPersonList`. It returns the
+   number of matching students, or `No students found.` when the filtered list is empty. The UI
+   observes the filtered list, and each search filters the full student list.
+3. After command execution, `LogicManager` saves the address book through the shared command
+   pipeline. Searching changes the displayed filter, not the stored student records. The diagram
+   assumes saving succeeds; a storage failure is reported as a command error after filtering.
+
+Field matching is case-insensitive, with OR across keywords within a field and AND across fields.
+Syntactically valid five-component lesson IDs match exactly. Incomplete or invalid components remain partial search
+terms even when the input contains five components. Lesson criteria are matched against the revision effective in the
+current billing month, consistent with the main row shown by `view /lesson`.
+`unpaid/` matches positive outstanding fees. `paid/` requires positive fees with no outstanding
+balance, including overpayments. Payment status covers all lessons in the billing year, not just
+the lesson matched by `l/`; the two payment-status prefixes cannot be combined. In `a/` or `ga/`, an invalid payment
+month remains literal address text, e.g., `a/Block paid/10`. Other prefix-like address text can be quoted, e.g.,
+`a/"Block n/10"`; parsing resumes normally after the closing quote.
+
+### Viewing student data
+
+The [View command sequence diagram](diagrams/view-command-sequence.puml) gives a high-level overview of how the
+UI, Logic, Model and Storage components handle `view`. With no field selector, the command updates the visible
+student list to show all students. With a selector such as `/email`, it reads the students' values, counts distinct
+values and returns the summary for display. The command pipeline then saves the address book.
+
+Design decisions:
+
+* Store the lesson's existing ID instead of copying a whole lesson or using its position in an unordered set.
+  Historical IDs remain in attendance after unenrolment; loading does not require current enrolment.
+* Reject duplicate sessions instead of silently overwriting them. Corrections require deleting the old record
+  and recording the replacement, with both operations visible to the admin.
+* Use an explicit date instead of defaulting to today to avoid accidentally recording the wrong session.
+* Record present/absent on the lesson's scheduled weekday on the given date. Future dates are accepted;
+  rescheduled sessions, bulk marking and attendance filtering are not implemented here.
+
+Manual verification (use a disposable address book):
+
+1. On fresh sample data, run `find Ethan Tan`. Ethan is enrolled in `2026-ENGLISH-MONDAY-TEN-ELEVEN`.
+   Note his currently displayed index.
+2. Run `attendance INDEX l/2026-ENGLISH-MONDAY-TEN-ELEVEN d/2026-10-19 s/present`, then `viewattendance INDEX`.
+   Expect one numbered `PRESENT` record.
+3. Repeat with `s/absent` for the same date. Expect a duplicate warning and the original record unchanged.
+4. Try `d/2026-10-20` (Tuesday), an invalid calendar date, or a lesson the student has not joined.
+   Expect an error and no new record.
+5. Record a payment and edit the student's phone. Restart the app. Both payment and attendance should remain.
+6. Run `deleteattendance INDEX i/1`, restart, and verify that attendance is empty and payments remain.
+
 ### \[Proposed\] Undo/redo feature
 
 #### Proposed Implementation
@@ -177,7 +366,7 @@ Step 2. The user executes `delete 5` command to delete the 5th person in the add
 
 ![UndoRedoState1](images/UndoRedoState1.png)
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+Step 3. The user executes `addstudent n/David …​` to add a new person. The `addstudent` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
 
 ![UndoRedoState2](images/UndoRedoState2.png)
 
@@ -216,7 +405,7 @@ Step 5. The user then decides to execute the command `list`. Commands that do no
 
 ![UndoRedoState4](images/UndoRedoState4.png)
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `addstudent n/David …​` command. This is the behavior that most modern desktop applications follow.
 
 ![UndoRedoState5](images/UndoRedoState5.png)
 
@@ -261,44 +450,151 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+* is a member of the administrative staff at a small private tuition centre
+* handles daily student enrollments, parent inquiries, class schedules, and fee updates
+* prefers using rapid keyboard commands over clicking through multi-step GUI forms
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Centralizes student-parent relationships, class rosters, fee payments, and educational records into a unified CLI tool, enabling tuition centre admins to update enrollments, log attendance, and track assignment submissions significantly faster than with multi-step GUI systems.
 
 
 ### User stories
 
-Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
+Priorities: High (must have) - `***`, Medium (nice to have) - `**`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+#### 1st use
 
-*{More to be added}*
+| Priority | As a … | I want to … | So that I can … |
+| --- | --- | --- | --- |
+| `***` | tuition centre admin | add a new student's details | maintain an up-to-date record of students enrolled at the tuition centre |
+| `***` | tuition centre admin | search for a student by name | locate their record quickly |
+| `***` | tuition centre admin | view a student's details | quickly retrieve information when handling an enquiry |
+| `**` | tuition centre admin | enrol a student into a class | maintain accurate class rosters |
+| `***` | tuition centre admin | remove a student's record | remove records that were created incorrectly |
+| `**` | tuition centre admin | search for a student using their phone number or email address | identify them when I do not know their full name |
+| `**` | tuition centre admin averse to changing my workflow | view a list of available features | try it to determine if I should switch to using the app |
+| `**` | tuition centre admin new to this app | view helpful error messages | fix mistakes without having to refer back to the user manual |
+| `**` | tuition centre admin | import existing student records from a CSV file | migrate my data without manually entering each student's details |
+| `**` | tuition centre admin | find students by class | retrieve the relevant group of students quickly |
+| `**` | tuition centre admin | record whether a student attended a lesson | keep an attendance record for the centre |
+| `**` | tuition centre admin | record a student's fee payment | keep track of whether payment has been received |
+
+#### 2nd use
+
+| Priority | As a … | I want to … | So that I can … |
+| --- | --- | --- | --- |
+| `**` | tuition centre admin | identify students with outstanding fees | know which payments require follow-up |
+| `**` | tuition centre admin returning to the app | view a list of available commands | find the command I need without recalling every command name |
+| `**` | tuition centre admin returning to the app | view command syntax and examples | enter commands correctly when I have forgotten how to use them |
+
+#### 10th use
+
+| Priority | As a … | I want to … | So that I can … |
+| --- | --- | --- | --- |
+| `***` | tuition centre admin | distinguish between students with identical names | avoid accessing or updating the wrong contact |
+| `***` | tuition centre admin | link a guardian profile directly to a student record | know who to contact for a specific student |
+| `**` | tuition centre admin | load student records quickly | perform administrative tasks efficiently |
+| `**` | tuition centre admin | edit a student's information | keep their details accurate and up to date |
+| `**` | tuition centre admin who types quickly | search for a student by their partial name | locate a student's information during a live call in under 5 seconds |
+| `**` | tuition centre admin | search for a contact by phone number | instantly identify who is calling before I answer the phone |
+| `**` | tuition centre admin | assign tags to students | flexibly categorize students by tags |
+| `*` | tuition centre admin | auto-complete commands using the Tab key | issue commands faster with minimal typos |
+| `*` | tuition centre admin | view recent command history using arrow keys | repeat or modify previous commands without having to type them again |
+| `**` | tuition centre admin | add detailed notes to a student profile | keep track of special requests or student's learning needs |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `EduReg` and the **Actor** is the `user`, unless specified otherwise)
 
-**Use case: Delete a person**
+**Use case: UC01 - Add a student contact**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. User requests to add a new student contact by specifying the student's name, phone number, email and address.
+   The user may also specify tags, existing lessons and guardian details. Guardian details are optional; if supplied,
+   all five fields (name, phone, email, relationship and address) must be provided together.
+2. EduReg validates the input format of the provided details.
+3. EduReg adds the new student to the student directory.
+4. EduReg displays a success message showing the newly added student's details.
 
-    Use case ends.
+   Use case ends.
+
+**Extensions**
+
+* 2a. The provided details do not follow the required format (e.g., only some of the five guardian fields are supplied,
+  a supplied guardian field is blank, a phone number is invalid, or an email is malformed). Omitting all guardian
+  fields is valid.
+
+    * 2a1. EduReg displays an error message specifying the formatting error and required command usage.
+
+      Use case resumes at step 1.
+
+* 2b. EduReg detects a duplicate student entry (a student with the same name, ignoring letter case and spacing, already exists).
+
+    * 2b1. EduReg displays an error message rejecting the duplicate entry.
+
+      Use case resumes at step 1.
+
+**Use case: UC02 - View student details**
+
+**MSS**
+
+1. User requests to list all students.
+2. EduReg displays the list of students.
+3. User views the student's details directly on the student card. The **Guardian** section shows the guardian's name,
+   phone, email, relationship, and address, or `No guardian information recorded.` if none is recorded.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The student directory is empty.
+
+    * 2a1. EduReg displays a message indicating that no students are present in the list.
+
+      Use case ends.
+
+**Use case: UC03 - Find students**
+
+**MSS**
+
+1. User requests to find students by providing one or more search criteria.
+2. EduReg searches for students who match the provided criteria.
+3. EduReg updates the displayed list to show only matching students.
+4. EduReg displays the number of matching students, or `No students found.` if there are no matches.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The search keyword is missing or empty (e.g., `find n/`).
+
+    * 1a1. EduReg displays an error message specifying that the search value cannot be empty and shows correct usage.
+
+      Use case resumes at step 1.
+
+* 1b. The search criteria have an invalid format, such as an unsupported or duplicate prefix.
+
+    * 1b1. EduReg displays an error message explaining the valid command format.
+
+      Use case resumes at step 1.
+
+* 2a. No students match the search criteria.
+
+    * 2a1. EduReg displays an empty list and the message `No students found.`.
+
+      Use case ends.
+
+**Use case: UC04 - Delete a student contact**
+
+**MSS**
+
+1. User requests to list students.
+2. EduReg shows a list of students.
+3. User requests to delete a specific student by specifying their index in the displayed list.
+4. EduReg deletes the student from the directory.
+5. EduReg displays a success message confirming the deletion.
+
+   Use case ends.
 
 **Extensions**
 
@@ -306,26 +602,176 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
   Use case ends.
 
-* 3a. The given index is invalid.
+* 3a. The given index is invalid (e.g., non-integer, negative, or greater than current list size).
 
-    * 3a1. AddressBook shows an error message.
+    * 3a1. EduReg displays an error message indicating that the specified index is invalid.
 
       Use case resumes at step 2.
 
-*{More to be added}*
+**Use case: UC05 - Add or edit guardian details**
+
+**MSS**
+
+1. User requests to list students.
+2. EduReg shows a list of students.
+3. User requests to add or edit the guardian details of a student at a specific index by providing one or more guardian fields.
+4. EduReg validates the index and guardian details.
+5. EduReg attaches the guardian details to the specified student record, preserving any guardian fields that were not edited.
+6. EduReg refreshes the display panel and shows a success message confirming the updated guardian details.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The student list is empty.
+
+    * 2a1. EduReg displays an error message indicating no students are available.
+
+      Use case ends.
+
+* 4a. The specified student index is invalid or missing.
+
+    * 4a1. EduReg displays an error message indicating an invalid index.
+
+      Use case resumes at step 2.
+
+* 4b. The parent details are incomplete or formatted incorrectly.
+
+    * 4b1. EduReg displays an error message specifying the invalid or missing field.
+
+      Use case resumes at step 2.
+
+* 4c. The student has no guardian and only some guardian fields are provided.
+
+    * 4c1. EduReg displays an error message requiring all five guardian fields to add a guardian.
+
+      Use case resumes at step 2.
+
+**Use case: UC06 - Edit a student's information**
+
+**MSS**
+
+1. User requests to list students.
+2. EduReg shows a list of students.
+3. User requests to edit a specific student in the displayed list, specifying the student's id and the details to update.
+4. EduReg updates the student's information.
+5. EduReg displays a success message showing the updated student's details.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The list is empty.
+
+  Use case ends.
+
+* 3a. The given id is missing or invalid.
+
+    * 3a1. EduReg displays an error message.
+
+      Use case resumes at step 2.
+
+* 3b. No fields to update are provided.
+
+    * 3b1. EduReg displays an error message indicating that at least one field to update must be provided.
+
+      Use case resumes at step 3.
+
+* 3c. The provided details are formatted incorrectly.
+
+    * 3c1. EduReg displays an error message specifying the invalid field or command format.
+
+      Use case resumes at step 3.
+
+* 3d. The updated details would create a duplicate student entry.
+
+    * 3d1. EduReg displays an error message rejecting the duplicate entry.
+
+      Use case resumes at step 3.
+
+**Use case: UC07 - Clear all student records and lessons**
+
+**MSS**
+
+1. User requests to clear all student records and lessons.
+2. EduReg removes all students, their guardian details, payments and attendance records, and every lesson
+   in the catalog, including lessons with no enrolled students. The operation is not limited by the current filter.
+3. EduReg displays an empty student list and a success message confirming that the directory has been cleared.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The student directory is already empty.
+
+    * 1a1. EduReg still clears any lessons remaining in the catalog and displays an empty student list
+      and a success message confirming that the directory has been cleared.
+
+      Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+**Compatibility and Portability**
+1. Should work on any _mainstream OS_ (Windows, Linux, macOS) as long as it has Java `25` or above installed.
+2. The software should work without requiring an installer.
+3. The software should not depend on a remote server.
+4. Should be packaged into a single JAR file.
+5. JAR file size must fall below 100MB.
+6. JAR file should not be unnecessarily bloated, ie. does not have largely unused libraries.
+7. External software used must be:
+    1. free, open source
+    2. have permissive license terms
+    3. does not require installation by user
+    4. does not require account creation
 
-*{More to be added}*
+**Usability**
+1. A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+2. Should be used by only one user.
+3. A new admin with basic computer literacy should be able to complete the core tasks within 15 minutes using only the user guide.
+
+**Performance**
+1. Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
+2. The GUI should work well (i.e., should not cause any resolution-related inconveniences to the user) at:
+    1. standard screen resolutions 1920x1080 and higher
+    2. screen scales 100% and 125%
+3. The GUI should be usable (i.e., all functions can be used even if the user experience is not optimal) at:
+    1. resolutions 1280x720 and higher
+    2. screen scales 150%
+4. Saving of data to storage should not impact the user's ability to do other actions ie. no lag or blocking.
+
+**Data Storage**
+1. The data should be stored locally and should be in a human-editable text file.
+2. Data should not be stored in a database management system (DBMS).
+3. The app may not read or write files outside the home folder.
+4. The app may not change any OS-level configuration settings.
+5. Data saved to storage must be identical after closing and reopening the app on the same device.
+6. If the app crashes or the save fails midway, the previous valid data file should not be corrupted.
+7. Failed commands must leave existing data unchanged.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Attendance**: A record of whether a student attended a scheduled lesson.
+* **Basic computer literacy**: The ability to perform common computer tasks, such as opening applications, entering text, and reading instructions.
+* **Class roster**: The list of students enrolled in a particular class.
+* **Command**: A text instruction entered by an administrator to perform an action in EduReg.
+* **Command-line interface (CLI)**: An interface where users interact with software by entering text commands instead of clicking through graphical controls.
+* **EduReg**: The command-driven student and tuition-centre administration application described in this guide.
+* **Enrolment**: The process of registering a student for a class or tuition-centre programme.
+* **Fee status**: The current payment state of a student's tuition fees, such as paid, pending, or overdue.
+* **Graphical user interface (GUI)**: A visual interface that allows users to interact with software using elements such as windows, buttons, and menus.
+* **Guardian**: An adult responsible for a student's care or education, such as a parent or legal guardian.
+* **Human-editable**: A file format whose contents can be read and modified directly by a person using a text editor.
+* **Home folder**: The folder containing the JAR file.
+* **JAR file**: A Java Archive file that packages the application and its required resources for distribution.
+* **Local storage**: Saving data on the same device that runs EduReg, without depending on a remote server.
+* **Mainstream OS**: A commonly used operating system such as Windows, Linux, or macOS.
+* **OS-Level configuration settings**: Settings specific to the operating system, and not the application.
+* **Parent contact**: The contact information of a student's parent or guardian.
+* **Permissive license terms**: License conditions that allow software to be used and distributed with few restrictions; trial licenses that require payment after a time or usage limit do not qualify.
+* **Server**: A computer or service that provides data or application functionality to another computer over a network.
+* **Database management system (DBMS)**: Software used to create, manage, and access databases; EduReg does not require one.
+* **Remote server**: A server accessed over a network rather than running on the same device as EduReg.
+* **Student record**: The collection of information associated with a student, including contact, class, attendance, fee, and educational details.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -354,13 +800,34 @@ testers are expected to do more *exploratory* testing.
    1. Relaunch the app by double-clicking the JAR file.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Displaying guardian details with a student
+
+1. Add a student in a disposable test address book:
+   `addstudent n/Guardian Display Test p/98765432 e/student@example.com a/Student Road gn/Mary Tan gp/91234567 ge/mary@example.com gr/Mother ga/123 Example Road`.<br>
+   Expected: The student's card shows a **Guardian** section containing `Name: Mary Tan`,
+   `Phone: 91234567`, `Email: mary@example.com`, `Relationship: Mother`, and `Address: 123 Example Road`.
+   The student's own contact details remain visible above it.
+
+1. Run `find Guardian Display Test`, note the student's displayed index, then run
+   `edit INDEX gp/92345678` using that index.<br>
+   Expected: The guardian phone updates on the card immediately; the student's phone stays `98765432`.
+   Run `view`. The updated guardian details should still appear with the same student.
+
+1. Edit the guardian address to a long value, for example:
+   `edit INDEX ga/123 Example Road Block 456 Unit 07 89 Singapore Near the Community Centre`.
+   Narrow the window.<br>
+   Expected: Guardian details wrap onto additional lines without overlapping the next card.
+
+1. Load a valid legacy data file containing a student with no `guardian` field.<br>
+   Expected: The student's card shows **No guardian information recorded.**, with no empty guardian field rows.
+   Run `edit INDEX gn/Mary Tan gp/91234567 ge/mary@example.com gr/Mother ga/123 Example Road`.<br>
+   Expected: The message is replaced by the five guardian fields immediately.
 
 ### Deleting a person
 
 1. Deleting a person while all persons are being shown
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Prerequisites: Show all students using the `view` command, with multiple students in the directory.
 
    1. Test case: `delete 1`<br>
       Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
@@ -370,13 +837,3 @@ testers are expected to do more *exploratory* testing.
 
    1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
       Expected: Similar to previous.
-
-1. _{ more test cases …​ }_
-
-### Saving data
-
-1. Dealing with missing/corrupted data files
-
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
-
-1. _{ more test cases …​ }_

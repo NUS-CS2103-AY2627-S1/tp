@@ -3,10 +3,15 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_RELATIONSHIP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LESSON;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -14,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
@@ -21,6 +27,10 @@ import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.guardian.Relationship;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.exceptions.LessonException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -35,22 +45,36 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the student identified "
+            + "by the index number used in the displayed student list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_GUARDIAN_NAME + "GUARDIAN_NAME] "
+            + "[" + PREFIX_GUARDIAN_PHONE + "GUARDIAN_PHONE] "
+            + "[" + PREFIX_GUARDIAN_EMAIL + "GUARDIAN_EMAIL] "
+            + "[" + PREFIX_GUARDIAN_RELATIONSHIP + "GUARDIAN_RELATIONSHIP] "
+            + "[" + PREFIX_GUARDIAN_ADDRESS + "GUARDIAN_ADDRESS] "
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_LESSON + "LESSON]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + PREFIX_EMAIL + "johndoe@example.com "
+            + PREFIX_GUARDIAN_PHONE + "98765432 "
+            + PREFIX_LESSON + "2026-MATH-MONDAY-TEN-ELEVEN";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited student: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This student already exists in EduReg.";
+    public static final String MESSAGE_LESSON_NOT_FOUND = "All lessons must already exist. "
+            + "Add them with addlesson first.";
+    public static final String MESSAGE_INCOMPLETE_GUARDIAN = "This student has no guardian. "
+            + "To add one, provide all of: "
+            + PREFIX_GUARDIAN_NAME + " " + PREFIX_GUARDIAN_PHONE + " " + PREFIX_GUARDIAN_EMAIL + " "
+            + PREFIX_GUARDIAN_RELATIONSHIP + " " + PREFIX_GUARDIAN_ADDRESS;
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -79,20 +103,38 @@ public class EditCommand extends Command {
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
+        Set<Lesson> canonicalLessons = editedPerson.getLessons().stream()
+                .map(lesson -> model.getLesson(lesson.getId()).orElse(null))
+                .collect(Collectors.toSet());
+        if (canonicalLessons.contains(null) || canonicalLessons.size() != editedPerson.getLessons().size()) {
+            throw new CommandException(MESSAGE_LESSON_NOT_FOUND);
+        }
+        editedPerson = new Person(editedPerson.getName(), editedPerson.getPhone(), editedPerson.getEmail(),
+                editedPerson.getAddress(), editedPerson.getTags(), canonicalLessons, editedPerson.getGuardian(),
+                editedPerson.getPayments(), editedPerson.getAttendance());
+
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
-        model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        try {
+            Lesson.validateEnrolments(canonicalLessons);
+            model.setPerson(personToEdit, editedPerson);
+        } catch (LessonException e) {
+            throw new CommandException(e.getMessage(), e);
+        }
         return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
     }
 
     /**
      * Creates and returns a {@code Person} with the details of {@code personToEdit}
      * edited with {@code editPersonDescriptor}.
+     *
+     * @throws CommandException if guardian fields are edited for a person without a guardian,
+     *     but not all guardian fields are provided.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
+    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor)
+            throws CommandException {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
@@ -100,8 +142,44 @@ public class EditCommand extends Command {
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Set<Lesson> updatedLessons = editPersonDescriptor.getLessons().orElse(personToEdit.getLessons());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        Optional<Guardian> updatedGuardian = createEditedGuardian(personToEdit.getGuardian(), editPersonDescriptor);
+
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress,
+                updatedTags, updatedLessons, updatedGuardian, personToEdit.getPayments(), personToEdit.getAttendance());
+    }
+
+    /**
+     * Returns the guardian of a person after applying the guardian fields in {@code editPersonDescriptor}.
+     * If the person has no guardian, a new guardian is created only when all guardian fields are provided.
+     *
+     * @throws CommandException if the person has no guardian and only some guardian fields are provided.
+     */
+    private static Optional<Guardian> createEditedGuardian(Optional<Guardian> guardianToEdit,
+            EditPersonDescriptor editPersonDescriptor) throws CommandException {
+        if (!editPersonDescriptor.isAnyGuardianFieldEdited()) {
+            return guardianToEdit;
+        }
+
+        if (guardianToEdit.isEmpty()) {
+            if (!editPersonDescriptor.isEveryGuardianFieldEdited()) {
+                throw new CommandException(MESSAGE_INCOMPLETE_GUARDIAN);
+            }
+            return Optional.of(new Guardian(editPersonDescriptor.getGuardianName().get(),
+                    editPersonDescriptor.getGuardianPhone().get(),
+                    editPersonDescriptor.getGuardianEmail().get(),
+                    editPersonDescriptor.getGuardianRelationship().get(),
+                    editPersonDescriptor.getGuardianAddress().get()));
+        }
+
+        Guardian guardian = guardianToEdit.get();
+        return Optional.of(new Guardian(
+                editPersonDescriptor.getGuardianName().orElse(guardian.getName()),
+                editPersonDescriptor.getGuardianPhone().orElse(guardian.getPhone()),
+                editPersonDescriptor.getGuardianEmail().orElse(guardian.getEmail()),
+                editPersonDescriptor.getGuardianRelationship().orElse(guardian.getRelationship()),
+                editPersonDescriptor.getGuardianAddress().orElse(guardian.getAddress())));
     }
 
     @Override
@@ -137,6 +215,12 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Set<Lesson> lessons;
+        private Name guardianName;
+        private Phone guardianPhone;
+        private Email guardianEmail;
+        private Relationship guardianRelationship;
+        private Address guardianAddress;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +234,36 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setLessons(toCopy.lessons);
+            setGuardianName(toCopy.guardianName);
+            setGuardianPhone(toCopy.guardianPhone);
+            setGuardianEmail(toCopy.guardianEmail);
+            setGuardianRelationship(toCopy.guardianRelationship);
+            setGuardianAddress(toCopy.guardianAddress);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags, lessons)
+                    || isAnyGuardianFieldEdited();
+        }
+
+        /**
+         * Returns true if at least one guardian field is edited.
+         */
+        public boolean isAnyGuardianFieldEdited() {
+            return CollectionUtil.isAnyNonNull(guardianName, guardianPhone, guardianEmail, guardianRelationship,
+                    guardianAddress);
+        }
+
+        /**
+         * Returns true if every guardian field is edited.
+         */
+        public boolean isEveryGuardianFieldEdited() {
+            return guardianName != null && guardianPhone != null && guardianEmail != null
+                    && guardianRelationship != null && guardianAddress != null;
         }
 
         public void setName(Name name) {
@@ -208,6 +315,63 @@ public class EditCommand extends Command {
             return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
         }
 
+        /**
+         * Sets {@code lessons} to this object's {@code lessons}.
+         * A defensive copy of {@code lessons} is used internally.
+         */
+        public void setLessons(Set<Lesson> lessons) {
+            this.lessons = (lessons != null) ? new HashSet<>(lessons) : null;
+        }
+
+        /**
+         * Returns an unmodifiable lesson set, which throws {@code UnsupportedOperationException}
+         * if modification is attempted.
+         * Returns {@code Optional#empty()} if {@code lessons} is null.
+         */
+        public Optional<Set<Lesson>> getLessons() {
+            return (lessons != null) ? Optional.of(Collections.unmodifiableSet(lessons)) : Optional.empty();
+        }
+
+        public void setGuardianName(Name guardianName) {
+            this.guardianName = guardianName;
+        }
+
+        public Optional<Name> getGuardianName() {
+            return Optional.ofNullable(guardianName);
+        }
+
+        public void setGuardianPhone(Phone guardianPhone) {
+            this.guardianPhone = guardianPhone;
+        }
+
+        public Optional<Phone> getGuardianPhone() {
+            return Optional.ofNullable(guardianPhone);
+        }
+
+        public void setGuardianEmail(Email guardianEmail) {
+            this.guardianEmail = guardianEmail;
+        }
+
+        public Optional<Email> getGuardianEmail() {
+            return Optional.ofNullable(guardianEmail);
+        }
+
+        public void setGuardianRelationship(Relationship guardianRelationship) {
+            this.guardianRelationship = guardianRelationship;
+        }
+
+        public Optional<Relationship> getGuardianRelationship() {
+            return Optional.ofNullable(guardianRelationship);
+        }
+
+        public void setGuardianAddress(Address guardianAddress) {
+            this.guardianAddress = guardianAddress;
+        }
+
+        public Optional<Address> getGuardianAddress() {
+            return Optional.ofNullable(guardianAddress);
+        }
+
         @Override
         public boolean equals(Object other) {
             if (other == this) {
@@ -223,7 +387,13 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(lessons, otherEditPersonDescriptor.lessons)
+                    && Objects.equals(guardianName, otherEditPersonDescriptor.guardianName)
+                    && Objects.equals(guardianPhone, otherEditPersonDescriptor.guardianPhone)
+                    && Objects.equals(guardianEmail, otherEditPersonDescriptor.guardianEmail)
+                    && Objects.equals(guardianRelationship, otherEditPersonDescriptor.guardianRelationship)
+                    && Objects.equals(guardianAddress, otherEditPersonDescriptor.guardianAddress);
         }
 
         @Override
@@ -234,6 +404,12 @@ public class EditCommand extends Command {
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
+                    .add("lessons", lessons)
+                    .add("guardianName", guardianName)
+                    .add("guardianPhone", guardianPhone)
+                    .add("guardianEmail", guardianEmail)
+                    .add("guardianRelationship", guardianRelationship)
+                    .add("guardianAddress", guardianAddress)
                     .toString();
         }
     }

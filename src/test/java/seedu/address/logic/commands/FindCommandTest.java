@@ -2,6 +2,7 @@ package seedu.address.logic.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
@@ -10,14 +11,35 @@ import static seedu.address.testutil.TypicalPersons.ELLE;
 import static seedu.address.testutil.TypicalPersons.FIONA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.time.LocalDate;
+import java.time.Year;
+import java.time.YearMonth;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.guardian.Relationship;
+import seedu.address.model.lesson.Day;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonRevision;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.lesson.Time;
+import seedu.address.model.payment.Amount;
+import seedu.address.model.payment.Payment;
+import seedu.address.model.person.Address;
+import seedu.address.model.person.Email;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -55,11 +77,10 @@ public class FindCommandTest {
 
     @Test
     public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertCommandSuccess(command, model, FindCommand.MESSAGE_NO_RESULTS, expectedModel);
         assertEquals(List.of(), model.getFilteredPersonList());
     }
 
@@ -71,6 +92,178 @@ public class FindCommandTest {
         expectedModel.updateFilteredPersonList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
         assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_prefixedSearches_filtersStudentsWithoutChangingSavedData() throws Exception {
+        Guardian guardian = new Guardian(new Name("Mary Tan"), new Phone("98765432"),
+                new Email("mary@example.com"), new Relationship("Mother"),
+                new Address("Main Street unpaid/room"));
+        Person alice = new PersonBuilder().withName("Alice Tan").withPhone("91234567")
+                .withAddress("Block paid/10").withGuardian(guardian).build();
+        Person bob = new PersonBuilder().withName("Bob Tan").withPhone("82345678")
+                .withAddress("Unit n/10").withGuardian(guardian).build();
+        Person mary = new PersonBuilder().withName("Mary Lim").withPhone("98761234").build();
+        AddressBook book = new AddressBook();
+        book.setPersons(List.of(alice, bob, mary));
+        Model searchModel = new ModelManager(book, new UserPrefs());
+        AddressBook originalBook = new AddressBook(searchModel.getAddressBook());
+
+        assertSearchResults(searchModel, "find n/LIC", List.of(alice));
+        assertSearchResults(searchModel, "find p/9876", List.of(mary));
+        assertSearchResults(searchModel, "find gn/ARY", List.of(alice, bob));
+        assertSearchResults(searchModel, "find gp/9876", List.of(alice, bob));
+        assertSearchResults(searchModel, "find gp/9876 n/lice Bob", List.of(alice, bob));
+        assertSearchResults(searchModel, "find n/lice Bob p/9123 gn/ARY gp/9876", List.of(alice));
+        assertSearchResults(searchModel, "find n/Mary gp/9876", List.of());
+        assertSearchResults(searchModel, "find n/Alice gp/1111", List.of());
+        assertSearchResults(searchModel, "find Alice Bob", List.of(alice, bob));
+        assertSearchResults(searchModel, "find ge/MARY@EXAMPLE ga/main gr/MOTH", List.of(alice, bob));
+        assertSearchResults(searchModel, "find ge/mary n/Bob", List.of(bob));
+        assertSearchResults(searchModel, "find a/Block paid/10", List.of(alice));
+        assertSearchResults(searchModel, "find a/\"Unit n/10\" n/Bob", List.of(bob));
+        assertSearchResults(searchModel, "find ga/Main unpaid/room", List.of(alice, bob));
+        assertSearchResults(searchModel, "find ga/missing", List.of());
+        assertEquals(originalBook, searchModel.getAddressBook());
+    }
+
+    @Test
+    public void execute_lessonSearches_returnsMatchingRosterWithoutChangingData() throws Exception {
+        Lesson mondayMath = new Lesson(Year.of(2026), Subject.MATH, Day.MONDAY, Time.TEN, Time.ELEVEN, 30);
+        Lesson tuesdayMath = new Lesson(Year.of(2026), Subject.MATH, Day.TUESDAY, Time.TEN, Time.ELEVEN, 40);
+        Person alice = new PersonBuilder().withName("Alice Tan").withLessons(mondayMath, tuesdayMath).build();
+        Person bob = new PersonBuilder().withName("Bob Tan").withLessons(tuesdayMath).build();
+        Person carol = new PersonBuilder().withName("Carol Tan").withLessons().build();
+        AddressBook book = new AddressBook();
+        book.setPersons(List.of(alice, bob, carol));
+        Model searchModel = new ModelManager(book, new UserPrefs());
+        AddressBook originalBook = new AddressBook(searchModel.getAddressBook());
+
+        assertSearchResults(searchModel, "find l/MaTh", List.of(alice, bob));
+        assertSearchResults(searchModel, "find l/2026-math-monday-ten-eleven", List.of(alice));
+        assertSearchResults(searchModel, "find l/2026-MATH-TUESDAY-TEN-ELEVEN", List.of(alice, bob));
+        assertSearchResults(searchModel, "find l/science monday", List.of(alice));
+        assertSearchResults(searchModel, "find l/math n/Bob", List.of(bob));
+        assertSearchResults(searchModel, "find l/math n/Carol", List.of());
+        assertSearchResults(searchModel, "find l/science", List.of());
+        assertSearchResults(searchModel, "find l/2026-MATH-MONDAY-TEN-ELEVE", List.of(alice));
+        assertSearchResults(searchModel, "find l/026-MATH-MONDAY-TEN-ELEVEN", List.of(alice));
+        assertSearchResults(searchModel, "find l/2026-MATH-MONDAY-TEN-ELEVEN-30", List.of());
+        assertEquals(originalBook, searchModel.getAddressBook());
+    }
+
+    @Test
+    public void execute_lessonWithPendingRevision_findsOnlyActiveId() throws Exception {
+        YearMonth currentMonth = YearMonth.now();
+        Lesson originalLesson = new Lesson(Year.of(currentMonth.getYear()), Subject.MATH,
+                Day.MONDAY, Time.TEN, Time.ELEVEN, 30);
+        Lesson revisedLesson;
+        String nonActiveId;
+        if (currentMonth.getMonthValue() == 12) {
+            nonActiveId = originalLesson.getId();
+            revisedLesson = originalLesson.withRevision(new LessonRevision(Year.of(currentMonth.getYear()),
+                    Subject.MATH, Day.TUESDAY, Time.TEN, Time.ELEVEN, 40, currentMonth),
+                    currentMonth.minusMonths(1));
+        } else {
+            revisedLesson = originalLesson.withRevision(new LessonRevision(Year.of(currentMonth.getYear()),
+                    Subject.MATH, Day.TUESDAY, Time.TEN, Time.ELEVEN, 40, currentMonth.plusMonths(1)), currentMonth);
+            nonActiveId = revisedLesson.getLatestRevision().getId();
+        }
+        Person enrolledStudent = new PersonBuilder().withName("Alice Tan").withLessons(revisedLesson).build();
+        AddressBook book = new AddressBook();
+        book.setPersons(List.of(enrolledStudent));
+        Model searchModel = new ModelManager(book, new UserPrefs());
+
+        assertSearchResults(searchModel, "find l/" + revisedLesson.getRevisionFor(currentMonth).getId(),
+                List.of(enrolledStudent));
+        assertSearchResults(searchModel, "find l/" + nonActiveId, List.of());
+    }
+
+    /**
+     * Verifies payment searches combine billing-month balances with other field filters.
+     */
+    @Test
+    public void execute_paymentSearch_filtersByBillingMonthAndOtherFields() throws Exception {
+        Lesson lesson = new Lesson(Year.of(2026), Subject.MATH, Day.MONDAY, Time.TEN, Time.ELEVEN, 100);
+        YearMonth month = YearMonth.of(2026, 10);
+        LocalDate date = LocalDate.of(2026, 10, 1);
+        Person unpaid = new PersonBuilder().withName("Alice Unpaid").withLessons(lesson).build();
+        Person partial = new PersonBuilder().withName("Bob Partial").withLessons(lesson)
+                .withPayments(new Payment(new Amount("30"), month, date)).build();
+        Person paid = new PersonBuilder().withName("Carol Paid").withLessons(lesson)
+                .withPayments(new Payment(new Amount("40"), month, date),
+                        new Payment(new Amount("60"), month, date)).build();
+        Person overpaid = new PersonBuilder().withName("Dan Overpaid").withLessons(lesson)
+                .withPayments(new Payment(new Amount("120"), month, date)).build();
+        Person otherMonth = new PersonBuilder().withName("Eve Other").withLessons(lesson)
+                .withPayments(new Payment(new Amount("100"), month.minusMonths(1), date)).build();
+        Person noFees = new PersonBuilder().withName("Frank No Fees").withLessons().withTags("unpaid").build();
+        AddressBook book = new AddressBook();
+        book.setPersons(List.of(unpaid, partial, paid, overpaid, otherMonth, noFees));
+        Model searchModel = new ModelManager(book, new UserPrefs());
+        AddressBook originalBook = new AddressBook(searchModel.getAddressBook());
+
+        assertSearchResults(searchModel, "find unpaid/2026-10", List.of(unpaid, partial, otherMonth));
+        assertSearchResults(searchModel, "find n/ALICE unpaid/2026-10", List.of(unpaid));
+        assertSearchResults(searchModel, "find unpaid/2026-10 l/math n/bob", List.of(partial));
+        assertSearchResults(searchModel, "find l/science unpaid/2026-10", List.of());
+        assertSearchResults(searchModel, "find t/unpaid unpaid/2026-10", List.of());
+        assertSearchResults(searchModel, "find unpaid/2027-10", List.of());
+        assertSearchResults(searchModel, "find paid/2026-10", List.of(paid, overpaid));
+        assertSearchResults(searchModel, "find paid/2026-09", List.of(otherMonth));
+        assertSearchResults(searchModel, "find l/MATH paid/2026-10 n/CAROL", List.of(paid));
+        assertSearchResults(searchModel, "find paid/2027-10", List.of());
+        assertSearchResults(searchModel, "find unpaid/2026-10", List.of(unpaid, partial, otherMonth));
+        for (String input : List.of("find unpaid/", "find unpaid/2026-13",
+                "find unpaid/2026-10 unpaid/2026-11", "find paid/", "find paid/2026-13",
+                "find paid/2026-10 paid/2026-11", "find paid/2026-10 unpaid/2026-10")) {
+            assertThrows(ParseException.class, () -> new AddressBookParser().parseCommand(input).execute(searchModel));
+            assertEquals(List.of(unpaid, partial, otherMonth), searchModel.getFilteredPersonList());
+        }
+        assertEquals(originalBook, searchModel.getAddressBook());
+    }
+
+    /**
+     * Verifies large valid payments and lesson fees do not overflow monthly totals.
+     */
+    @Test
+    public void execute_paymentSearch_largeTotals() throws Exception {
+        YearMonth month = YearMonth.of(2026, 10);
+        Payment payment = new Payment(new Amount("999999999"), month, LocalDate.of(2026, 10, 1));
+        Lesson lesson = new Lesson(Year.of(2026), Subject.MATH, Day.MONDAY, Time.TEN, Time.ELEVEN, 100);
+        Person paid = new PersonBuilder().withName("Paid Student").withLessons(lesson)
+                .withPayments(payment, payment, payment).build();
+        Lesson expensiveLesson = new Lesson(Year.of(2026), Subject.MATH, Day.WEDNESDAY,
+                Time.TEN, Time.ELEVEN, Integer.MAX_VALUE);
+        Lesson otherLesson = new Lesson(Year.of(2026), Subject.MATH, Day.TUESDAY,
+                Time.TEN, Time.ELEVEN, Integer.MAX_VALUE);
+        Person unpaid = new PersonBuilder().withName("Unpaid Student").withLessons(expensiveLesson, otherLesson)
+                .withPayments(payment, payment, payment).build();
+        AddressBook book = new AddressBook();
+        book.setPersons(List.of(paid, unpaid));
+        Model searchModel = new ModelManager(book, new UserPrefs());
+
+        assertEquals(2999999997L, paid.getAmountPaid(month));
+        assertEquals(0L, paid.getOutstandingFees(month));
+        assertEquals(4294967294L, unpaid.getFeesDue(month));
+        assertEquals(1294967297L, unpaid.getOutstandingFees(month));
+        assertSearchResults(searchModel, "find paid/2026-10", List.of(paid));
+        assertSearchResults(searchModel, "find unpaid/2026-10", List.of(unpaid));
+    }
+
+    @Test
+    public void execute_invalidSearch_preservesPreviousResultsAndSavedData() throws Exception {
+        assertSearchResults(model, "find Kurz", List.of(CARL));
+        AddressBook originalBook = new AddressBook(model.getAddressBook());
+        AddressBookParser parser = new AddressBookParser();
+
+        for (String input : List.of("find n/", "find n/Alice gp/", "find n/Alice n/Bob",
+                "find n/Alice x/test", "find Alice gp/9876", "find l/", "find l/math l/science",
+                "find e/", "find t/friend t/other")) {
+            assertThrows(ParseException.class, () -> parser.parseCommand(input).execute(model), input);
+            assertEquals(List.of(CARL), model.getFilteredPersonList(), input);
+            assertEquals(originalBook, model.getAddressBook(), input);
+        }
     }
 
     @Test
@@ -86,5 +279,14 @@ public class FindCommandTest {
      */
     private NameContainsKeywordsPredicate preparePredicate(String userInput) {
         return new NameContainsKeywordsPredicate(List.of(userInput.split("\\s+")));
+    }
+
+    private void assertSearchResults(Model searchModel, String input, List<Person> expected) throws Exception {
+        CommandResult result = new AddressBookParser().parseCommand(input).execute(searchModel);
+        String expectedMessage = expected.isEmpty()
+                ? FindCommand.MESSAGE_NO_RESULTS
+                : String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, expected.size());
+        assertEquals(new CommandResult(expectedMessage), result, input);
+        assertEquals(expected, searchModel.getFilteredPersonList(), input);
     }
 }

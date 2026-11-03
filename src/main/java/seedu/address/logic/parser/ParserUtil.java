@@ -2,13 +2,24 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.LocalDate;
+import java.time.Year;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.guardian.Relationship;
+import seedu.address.model.lesson.Day;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.lesson.Time;
+import seedu.address.model.payment.Amount;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -21,10 +32,27 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_MONTH = "Month must be in the form yyyy-MM, eg. 2026-10";
+    public static final String MESSAGE_INVALID_DATE = "Date must be in the form yyyy-MM-dd, eg. 2026-10-03";
+
+    /**
+     * Parses a relationship, trimming surrounding whitespace.
+     *
+     * @throws ParseException if the relationship is blank.
+     */
+    public static Relationship parseRelationship(String relationship) throws ParseException {
+        requireNonNull(relationship);
+        String trimmed = relationship.trim();
+        if (!Relationship.isValidRelationship(trimmed)) {
+            throw new ParseException(Relationship.MESSAGE_CONSTRAINTS);
+        }
+        return new Relationship(trimmed);
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
+     *
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
@@ -121,4 +149,186 @@ public class ParserUtil {
         }
         return tagSet;
     }
+
+    /**
+     * Parses a year from a lesson string.
+     */
+    public static Year parseYear(String year) throws ParseException {
+        requireNonNull(year);
+        if (!Lesson.isValidYear(year)) {
+            throw new ParseException(Lesson.YEAR_CONSTRAINT);
+        }
+        return Year.parse(year.trim());
+    }
+
+    /**
+     * Parses a subject from a lesson string.
+     */
+    public static Subject parseSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        try {
+            return Subject.valueOf(subject.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(Lesson.SUBJECT_CONSTRAINT, exception);
+        }
+    }
+
+    /**
+     * Parses a day from a lesson string.
+     */
+    public static Day parseDay(String day) throws ParseException {
+        requireNonNull(day);
+        try {
+            return Day.valueOf(day.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(Lesson.DAY_CONSTRAINT, exception);
+        }
+    }
+
+    /**
+     * Parses a time from a lesson string.
+     */
+    public static Time parseTime(String time) throws ParseException {
+        requireNonNull(time);
+        try {
+            return Time.valueOf(time.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(Lesson.TIME_CONSTRAINT, exception);
+        }
+    }
+
+    /**
+     * Parses a lesson cost.
+     */
+    public static int parseCost(String cost) throws ParseException {
+        requireNonNull(cost);
+        final int parsedCost;
+        try {
+            parsedCost = Integer.parseInt(cost.trim());
+        } catch (NumberFormatException exception) {
+            throw new ParseException(Lesson.COST_CONSTRAINT, exception);
+        }
+        if (!Lesson.isValidCost(parsedCost)) {
+            throw new ParseException(Lesson.COST_CONSTRAINT);
+        }
+        return parsedCost;
+    }
+
+    /**
+     * Parses a lesson string into a {@link Lesson}.
+     *
+     * @param lesson lesson in year-subject-day-start time-end time-cost format
+     * @return the parsed lesson
+     * @throws ParseException if any lesson component is invalid
+     */
+    public static Lesson parseLesson(String lesson) throws ParseException {
+        requireNonNull(lesson);
+        String trimmedLesson = lesson.trim();
+        String[] lessonParts = trimmedLesson.split("-", -1);
+        if (lessonParts.length != 6) {
+            throw new ParseException(Lesson.CONSTRAINTS);
+        }
+        Year year = parseYear(lessonParts[0]);
+        Subject subject = parseSubject(lessonParts[1]);
+        Day day = parseDay(lessonParts[2]);
+        Time startTime = parseTime(lessonParts[3]);
+        Time endTime = parseTime(lessonParts[4]);
+        if (!Lesson.isValidTimeRange(startTime, endTime)) {
+            throw new ParseException(Lesson.TIME_ORDER_CONSTRAINT);
+        }
+        int cost = parseCost(lessonParts[5]);
+        return new Lesson(year, subject, day, startTime, endTime, cost);
+    }
+
+    /** Parses a student lesson reference, which must not contain a cost. */
+    public static Lesson parseLessonReference(String lesson) throws ParseException {
+        requireNonNull(lesson);
+        String[] lessonParts = lesson.trim().split("-", -1);
+        if (lessonParts.length != 5) {
+            throw new ParseException(Lesson.STUDENT_REFERENCE_CONSTRAINT);
+        }
+        Year year = parseYear(lessonParts[0]);
+        Subject subject = parseSubject(lessonParts[1]);
+        Day day = parseDay(lessonParts[2]);
+        Time startTime = parseTime(lessonParts[3]);
+        Time endTime = parseTime(lessonParts[4]);
+        if (!Lesson.isValidTimeRange(startTime, endTime)) {
+            throw new ParseException(Lesson.TIME_ORDER_CONSTRAINT);
+        }
+        Lesson reference = new Lesson(year, subject, day, startTime, endTime, 0);
+        // This is a lookup token, not a new catalog lesson. Execution resolves its real identity.
+        return reference.withUid("reference:" + reference.getId());
+    }
+
+    /**
+     * Parses a collection of lesson strings into a set of lessons.
+     *
+     * @param lessons lesson strings to parse
+     * @return the parsed lessons
+     * @throws ParseException if any lesson string is invalid
+     */
+    public static Set<Lesson> parseLessons(Collection<String> lessons) throws ParseException {
+        requireNonNull(lessons);
+        final Set<Lesson> lessonSet = new HashSet<>();
+        for (String lesson : lessons) {
+            lessonSet.add(parseLesson(lesson));
+        }
+        return lessonSet;
+    }
+
+    /** Parses student lesson references without accepting costs. */
+    public static Set<Lesson> parseLessonReferences(Collection<String> lessons) throws ParseException {
+        requireNonNull(lessons);
+        Set<Lesson> lessonSet = new HashSet<>();
+        for (String lesson : lessons) {
+            lessonSet.add(parseLessonReference(lesson));
+        }
+        return lessonSet;
+    }
+
+    /**
+     * Parses a {@code String amount} into an {@code Amount}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code amount} is invalid.
+     */
+    public static Amount parseAmount(String amount) throws ParseException {
+        requireNonNull(amount);
+        String trimmedAmount = amount.trim();
+        if (!Amount.isValidAmount(trimmedAmount)) {
+            throw new ParseException(Amount.MESSAGE_CONSTRAINTS);
+        }
+        return new Amount(trimmedAmount);
+    }
+
+    /**
+     * Parses a {@code String month} in yyyy-MM form into a {@code YearMonth}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code month} is invalid.
+     */
+    public static YearMonth parseMonth(String month) throws ParseException {
+        requireNonNull(month);
+        try {
+            return YearMonth.parse(month.trim());
+        } catch (DateTimeParseException exception) {
+            throw new ParseException(MESSAGE_INVALID_MONTH, exception);
+        }
+    }
+
+    /**
+     * Parses a {@code String date} in yyyy-MM-dd form into a {@code LocalDate}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code date} is invalid.
+     */
+    public static LocalDate parseDate(String date) throws ParseException {
+        requireNonNull(date);
+        try {
+            return LocalDate.parse(date.trim());
+        } catch (DateTimeParseException exception) {
+            throw new ParseException(MESSAGE_INVALID_DATE, exception);
+        }
+    }
+
 }

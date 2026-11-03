@@ -6,12 +6,18 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.lesson.Day;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.lesson.Time;
+import seedu.address.model.payment.Amount;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -180,6 +186,29 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseLesson_validValue_returnsLesson() throws Exception {
+        var lesson = ParserUtil.parseLesson("2026-MATH-MONDAY-TEN-ELEVEN-30");
+        assertEquals(2026, lesson.getYear().getValue());
+        assertEquals(Subject.MATH, lesson.getSubject());
+        assertEquals(Day.MONDAY, lesson.getDay());
+        assertEquals(Time.TEN, lesson.getStartTime());
+        assertEquals(Time.ELEVEN, lesson.getEndTime());
+        assertEquals(30, lesson.getCost());
+    }
+
+    @Test
+    public void parseLesson_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () ->
+                ParserUtil.parseLesson("2026-MATH-MONDAY-TEN-ELEVEN--30"));
+    }
+
+    @Test
+    public void parseLesson_startTimeNotBeforeEndTime_throwsParseException() {
+        assertThrows(ParseException.class, () ->
+                ParserUtil.parseLesson("2026-MATH-MONDAY-ELEVEN-TEN-30"));
+    }
+
+    @Test
     public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
         assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
     }
@@ -190,5 +219,38 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseAmount_validValueWithWhitespace_returnsAmount() throws Exception {
+        assertEquals(new Amount("120"), ParserUtil.parseAmount(" 120 "));
+    }
+
+    @Test
+    public void parseAmount_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Amount.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAmount("12.5"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAmount(null));
+    }
+
+    @Test
+    public void parseMonth_validValueWithWhitespace_returnsYearMonth() throws Exception {
+        assertEquals(YearMonth.of(2026, 10), ParserUtil.parseMonth(" 2026-10 "));
+    }
+
+    @Test
+    public void parseMonth_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_MONTH, () -> ParserUtil.parseMonth("Oct 2026"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseMonth(null));
+    }
+
+    @Test
+    public void parseDate_validValueWithWhitespace_returnsLocalDate() throws Exception {
+        assertEquals(LocalDate.of(2026, 10, 3), ParserUtil.parseDate(" 2026-10-03 "));
+    }
+
+    @Test
+    public void parseDate_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DATE, () -> ParserUtil.parseDate("3/10/2026"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDate(null));
     }
 }

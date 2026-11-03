@@ -1,8 +1,15 @@
 package seedu.address.testutil;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import seedu.address.model.attendance.Attendance;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.payment.Payment;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -21,11 +28,15 @@ public class PersonBuilder {
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
+    private Optional<Guardian> guardian = Optional.empty();
     private Name name;
     private Phone phone;
     private Email email;
     private Address address;
     private Set<Tag> tags;
+    private Set<Lesson> lessons;
+    private List<Payment> payments;
+    private List<Attendance> attendance;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -36,17 +47,24 @@ public class PersonBuilder {
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        lessons = new HashSet<>();
+        payments = new ArrayList<>();
+        attendance = new ArrayList<>();
     }
 
     /**
      * Initializes the PersonBuilder with the data of {@code personToCopy}.
      */
     public PersonBuilder(Person personToCopy) {
+        guardian = personToCopy.getGuardian();
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
         tags = new HashSet<>(personToCopy.getTags());
+        lessons = new HashSet<>(personToCopy.getLessons());
+        payments = new ArrayList<>(personToCopy.getPayments());
+        attendance = new ArrayList<>(personToCopy.getAttendance());
     }
 
     /**
@@ -62,6 +80,22 @@ public class PersonBuilder {
      */
     public PersonBuilder withTags(String ... tags) {
         this.tags = SampleDataUtil.getTagSet(tags);
+        return this;
+    }
+
+    /**
+     * Parses the {@code lessons} into a {@code Set<Lesson>} and sets it to the {@code Person} that we are building.
+     */
+    public PersonBuilder withLessons(Lesson... lessons) {
+        this.lessons = Set.of(lessons);
+        return this;
+    }
+
+    /**
+     * Sets the {@code payments} of the {@code Person} that we are building, in the given order.
+     */
+    public PersonBuilder withPayments(Payment... payments) {
+        this.payments = List.of(payments);
         return this;
     }
 
@@ -89,8 +123,24 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the guardian of the person being built.
+     */
+    public PersonBuilder withGuardian(Guardian guardian) {
+        this.guardian = Optional.of(guardian);
+        return this;
+    }
+
+    /**
+     * Sets the attendance history of the person being built.
+     */
+    public PersonBuilder withAttendance(Attendance... attendance) {
+        this.attendance = List.of(attendance);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, tags, lessons, guardian, payments, attendance);
     }
 
 }

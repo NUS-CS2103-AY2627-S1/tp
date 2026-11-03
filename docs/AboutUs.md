@@ -9,51 +9,49 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Phung Si Qi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/psq21.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/tianyu487)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Responsible for overall project coordination.
 
-### Johnny Doe
+### Deng Tianyu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/tianyu487.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
 
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/tianyu487)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Code quality (coding standards, code reviews)
 
-### James Doe
+### Hoo Shee En
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/hse888.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/HSE888)]
+
+- Role: Documentation Lead
+- Responsibilities: Coordinate and maintain the README, Developer Guide, User Guide, and project website documentation.
+
+### Hoque Shehroz Awadul
+
+<img src="images/barcaboy109.png" width="200px">
+
+[[github](http://github.com/BarcaBoy109)] [[portfolio](team/johndoe.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Data, UI, Team Logistics
+
+### Yap Ray Kai Joel
+
+<img src="images/joelyrk.png" width="200px">
+
+[[github](https://github.com/joelyrk)]
+
+* Role: Integration
+* Responsibilities: In charge of versioning the code, maintaining the code repository, and integrating various parts of
+  the software to create a whole.

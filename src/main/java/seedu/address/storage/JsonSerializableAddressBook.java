@@ -11,6 +11,9 @@ import com.fasterxml.jackson.annotation.JsonRootName;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonBook;
+import seedu.address.model.lesson.exceptions.LessonException;
 import seedu.address.model.person.Person;
 
 /**
@@ -20,15 +23,24 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_NULL_PERSON = "Persons list must not contain null entries.";
+    public static final String MESSAGE_NULL_LESSON = "Lessons list must not contain null entries.";
 
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final List<JsonAdaptedLesson> lessons = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonSerializableAddressBook} with the given persons.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons,
+            @JsonProperty("lessons") List<JsonAdaptedLesson> lessons) {
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
+        if (lessons != null) {
+            this.lessons.addAll(lessons);
+        }
     }
 
     /**
@@ -38,6 +50,8 @@ class JsonSerializableAddressBook {
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
         persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        lessons.addAll(source.getLessonList().stream()
+                .map(JsonAdaptedLesson::new).collect(Collectors.toList()));
     }
 
     /**
@@ -47,13 +61,31 @@ class JsonSerializableAddressBook {
      */
     public AddressBook toModelType() throws IllegalValueException {
         AddressBook addressBook = new AddressBook();
+        LessonBook lessonBook = new LessonBook();
+        for (JsonAdaptedLesson lesson : lessons) {
+            if (lesson == null) {
+                throw new IllegalValueException(MESSAGE_NULL_LESSON);
+            }
+            Lesson modelLesson = lesson.toModelType();
+            // Lesson definitions are shared across students. Keep the first definition when
+            // malformed or manually edited JSON contains the same definition more than once.
+            try {
+                lessonBook.addLesson(modelLesson);
+            } catch (LessonException exception) {
+                throw new IllegalValueException(exception.getMessage(), exception);
+            }
+        }
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
-            Person person = jsonAdaptedPerson.toModelType();
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PERSON);
+            }
+            Person person = jsonAdaptedPerson.toModelType(lessonBook);
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
             }
             addressBook.addPerson(person);
         }
+        lessonBook.getLessons().values().forEach(addressBook::addLesson);
         return addressBook;
     }
 

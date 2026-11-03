@@ -2,6 +2,8 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_LESSON_MATH;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,8 +11,13 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +25,13 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.attendance.Attendance;
+import seedu.address.model.attendance.AttendanceStatus;
+import seedu.address.model.lesson.Day;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonRevision;
+import seedu.address.model.lesson.Time;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -61,6 +75,25 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_nullPayment_throwDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("nullPayment.json");
+        Files.writeString(filePath, "{\"lessons\":[],\"persons\":[{\"name\":\"Amy Tan\",\"phone\":\"91234567\","
+                + "\"email\":\"amy@example.com\",\"address\":\"1 Road\",\"payments\":[null]}]}");
+
+        assertThrows(DataLoadingException.class, () -> readAddressBook(filePath.toString()));
+    }
+
+    @Test
+    public void readAddressBook_invalidLessonTimeRange_throwDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("invalidLessonTimeRange.json");
+        Files.writeString(filePath, "{\"lessons\":[{\"year\":\"2026\",\"subject\":\"MATH\","
+                + "\"day\":\"MONDAY\",\"startTime\":\"TWELVE\",\"endTime\":\"ELEVEN\","
+                + "\"cost\":30}],\"persons\":[]}");
+
+        assertThrows(DataLoadingException.class, () -> readAddressBook(filePath.toString()));
+    }
+
+    @Test
     public void readAndSaveAddressBook_allInOrder_success() throws Exception {
         Path filePath = testFolder.resolve("TempAddressBook.json");
         AddressBook original = getTypicalAddressBook();
@@ -84,6 +117,86 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_lessonsStoredSeparatelyAndLinkedById_success() throws Exception {
+        Path filePath = testFolder.resolve("LessonsAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withLessons(VALID_LESSON_MATH).build());
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original, filePath);
+        String json = Files.readString(filePath);
+
+        assertTrue(json.contains("\"lessons\""));
+        assertTrue(json.contains("\"lessonIds\""));
+        assertFalse(json.contains("\"lessons\":[{\"year\""));
+
+        ReadOnlyAddressBook loaded = storage.readAddressBook(filePath).get();
+        assertEquals(1, loaded.getLessonList().size());
+        assertEquals(Set.of(VALID_LESSON_MATH), loaded.getPersonList().get(0).getLessons());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_editedLesson_keepsRevisionsAndHistoricalAttendance() throws Exception {
+        Path filePath = testFolder.resolve("HistoricalAttendanceAddressBook.json");
+        AddressBook original = new AddressBook();
+        Attendance attendance = new Attendance(VALID_LESSON_MATH.getId(), VALID_LESSON_MATH.getUid(),
+                LocalDate.of(2026, 10, 19), AttendanceStatus.PRESENT);
+        original.addPerson(new PersonBuilder(ALICE).withLessons(VALID_LESSON_MATH)
+                .withAttendance(attendance).build());
+        Lesson editedLesson = VALID_LESSON_MATH.withRevision(new LessonRevision(VALID_LESSON_MATH.getYear(),
+                VALID_LESSON_MATH.getSubject(), Day.TUESDAY, VALID_LESSON_MATH.getStartTime(),
+                VALID_LESSON_MATH.getEndTime(), VALID_LESSON_MATH.getCost() + 10, YearMonth.of(2026, 11)),
+                YearMonth.of(2026, 10));
+
+        editedLesson = editedLesson.withRevision(new LessonRevision(VALID_LESSON_MATH.getYear(),
+                VALID_LESSON_MATH.getSubject(), Day.WEDNESDAY, Time.TEN, Time.ELEVEN, 50,
+                YearMonth.of(2026, 12)), YearMonth.of(2026, 10));
+        original.editLesson(VALID_LESSON_MATH.getId(), editedLesson);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook loaded = storage.readAddressBook(filePath).get();
+
+        assertEquals(List.of(editedLesson), loaded.getLessonList());
+        assertEquals(Set.of(editedLesson), loaded.getPersonList().get(0).getLessons());
+        assertEquals(List.of(attendance), loaded.getPersonList().get(0).getAttendance());
+    }
+
+    @Test
+    public void readAddressBook_duplicateLessonDefinitions_keepsOneDefinition() throws Exception {
+        Path filePath = testFolder.resolve("DuplicateLessonsAddressBook.json");
+        Files.writeString(filePath, "{\"persons\":[],\"lessons\":["
+                + "{\"year\":\"2026\",\"subject\":\"MATH\",\"day\":\"MONDAY\","
+                + "\"startTime\":\"TEN\",\"endTime\":\"ELEVEN\",\"cost\":30},"
+                + "{\"year\":\"2026\",\"subject\":\"MATH\",\"day\":\"MONDAY\","
+                + "\"startTime\":\"TEN\",\"endTime\":\"ELEVEN\",\"cost\":30}]}");
+
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(filePath).readAddressBook(filePath).get();
+        assertEquals(1, loaded.getLessonList().size());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_legacyPersonLessons_areMigrated() throws Exception {
+        Path filePath = testFolder.resolve("LegacyLessonsAddressBook.json");
+        Files.writeString(filePath, "{\"persons\":[{\"name\":\"Alice Pauline\","
+                + "\"phone\":\"94351253\",\"email\":\"alice@example.com\","
+                + "\"address\":\"123, Jurong West Ave 6, #08-111\",\"tags\":[],"
+                + "\"lessons\":[{\"year\":\"2026\",\"subject\":\"MATH\","
+                + "\"day\":\"MONDAY\",\"startTime\":\"TEN\","
+                + "\"endTime\":\"ELEVEN\",\"cost\":30}]}]}");
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        ReadOnlyAddressBook loaded = storage.readAddressBook(filePath).get();
+        Lesson migrated = loaded.getPersonList().getFirst().getLessons().iterator().next();
+        assertEquals(VALID_LESSON_MATH.getRevisions(), migrated.getRevisions());
+        assertEquals(VALID_LESSON_MATH.getId(), migrated.getUid());
+
+        storage.saveAddressBook(loaded, filePath);
+        ReadOnlyAddressBook reloaded = storage.readAddressBook(filePath).get();
+        assertEquals(Set.of(migrated), reloaded.getPersonList().get(0).getLessons());
+        assertEquals(1, reloaded.getLessonList().size());
     }
 
     @Test

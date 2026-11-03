@@ -2,27 +2,39 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.function.Predicate;
+
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists students by partial student or guardian details.
+ * Matching is case insensitive, with AND across fields and OR across keywords within a field.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds students by name or prefixed fields.\n"
+            + "Parameters: KEYWORDS or [n/KEYWORDS] [p/KEYWORDS] "
+            + "[e/KEYWORDS] [a/KEYWORDS] [t/KEYWORDS] [gn/KEYWORDS] [gp/KEYWORDS] "
+            + "[ge/KEYWORDS] [ga/KEYWORDS] [gr/KEYWORDS] [l/KEYWORDS] [paid/YYYY-MM | unpaid/YYYY-MM]\n"
+            + "Examples: " + COMMAND_WORD + " Alice; " + COMMAND_WORD + " n/Alice gp/9876; "
+            + COMMAND_WORD + " unpaid/2026-10";
 
-    private final NameContainsKeywordsPredicate predicate;
+    public static final String MESSAGE_NO_RESULTS = "No students found.";
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    private final Predicate<Person> predicate;
+
+    /**
+     * Constructs a command that lists students matching the predicate.
+     *
+     * @param predicate Search criteria for students.
+     */
+    public FindCommand(Predicate<Person> predicate) {
         this.predicate = predicate;
     }
 
@@ -30,8 +42,11 @@ public class FindCommand extends Command {
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
-        return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+        int resultCount = model.getFilteredPersonList().size();
+        String resultMessage = resultCount == 0
+                ? MESSAGE_NO_RESULTS
+                : String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, resultCount);
+        return new CommandResult(resultMessage);
     }
 
     @Override

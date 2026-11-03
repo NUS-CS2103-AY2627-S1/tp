@@ -10,6 +10,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.lesson.Lesson;
 import seedu.address.model.person.Person;
 
 /**
@@ -73,6 +74,31 @@ public class ModelManager implements Model {
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
+    }
+
+    @Override
+    public boolean hasLesson(Lesson lesson) {
+        requireNonNull(lesson);
+        return addressBook.getLessonList().stream().anyMatch(existing -> existing.getId().equals(lesson.getId()));
+    }
+
+    @Override
+    public void addLesson(Lesson lesson) {
+        requireNonNull(lesson);
+        addressBook.addLesson(lesson);
+    }
+
+    @Override
+    public boolean editLesson(String lessonId, Lesson editedLesson) {
+        requireNonNull(lessonId);
+        requireNonNull(editedLesson);
+        return addressBook.editLesson(lessonId, editedLesson);
+    }
+
+    @Override
+    public boolean deleteLesson(String lessonId) {
+        requireNonNull(lessonId);
+        return addressBook.deleteLesson(lessonId);
     }
 
     @Override
