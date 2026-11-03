@@ -1,0 +1,9 @@
+{
+  "students": [ {
+    "name": "Valid Student",
+    "subjects": [ "Math" ]
+  }, {
+    "name": "Student With Invalid Subject Field",
+    "subjects": [ "Math/Physics" ]
+  } ]
+}

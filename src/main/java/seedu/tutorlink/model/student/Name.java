@@ -1,0 +1,107 @@
+package seedu.tutorlink.model.student;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.tutorlink.commons.util.AppUtil.checkArgument;
+
+import java.text.Normalizer;
+
+/**
+ * Represents a Student's name in TutorLink.
+ * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
+ */
+public class Name {
+
+    public static final int MAX_LENGTH = 50;
+
+    public static final String MESSAGE_CONSTRAINTS = "Student name must be 1 to " + MAX_LENGTH
+            + " characters, contain at least one letter, and use only letters, spaces, hyphens, apostrophes"
+            + " or full stops. The connectors s/o and d/o are also allowed, as in Raj s/o Kumar.";
+
+    /*
+     * Letters include accented letters and combining marks (e.g. José). Both straight and curly apostrophes are
+     * accepted (e.g. O'Brien). The first character of the name must not be a whitespace,
+     * otherwise " " (a blank string) becomes a valid input.
+     */
+    public static final String VALIDATION_REGEX = "[\\p{L}\\p{M}'\u2019.-][\\p{L}\\p{M}'\u2019. -]*";
+    private static final String LETTER_REGEX = ".*\\p{L}.*";
+    /* A standalone "s/o" (son of) or "d/o" (daughter of) word, in any case. */
+    private static final String CONNECTOR_REGEX = "(?i)(?<!\\S)[sd]/o(?!\\S)";
+
+    public final String fullName;
+
+    /**
+     * Constructs a {@code Name}, stored in Unicode NFC form so that visually identical names
+     * (e.g. a composed é and an e followed by a combining accent) are the same name.
+     *
+     * @param name A valid name.
+     */
+    public Name(String name) {
+        requireNonNull(name);
+        String composedName = toComposedForm(name);
+        checkArgument(isValidName(composedName), MESSAGE_CONSTRAINTS);
+        fullName = composedName;
+    }
+
+    /**
+     * Returns true if a given string is a valid name.
+     * The length limit counts Unicode code points after NFC normalization.
+     */
+    public static boolean isValidName(String test) {
+        String composedTest = toComposedForm(test);
+        String testWithoutConnectors = composedTest.replaceAll(CONNECTOR_REGEX, "so");
+        // A connector joins name parts, so its letters do not count as the name's letter
+        String testWithConnectorsRemoved = composedTest.replaceAll(CONNECTOR_REGEX, "");
+        return composedTest.codePointCount(0, composedTest.length()) <= MAX_LENGTH
+                && testWithoutConnectors.matches(VALIDATION_REGEX)
+                && testWithConnectorsRemoved.matches(LETTER_REGEX);
+    }
+
+    /**
+     * Returns {@code text} in Unicode NFC form.
+     */
+    public static String toComposedForm(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFC);
+    }
+
+    /**
+     * Returns true if both names refer to the same student.
+     * Names are compared ignoring case and differences in whitespace.
+     * Case comparison follows {@link String#equalsIgnoreCase(String)}, as in name search.
+     *
+     * @param otherName The name to compare with.
+     */
+    public boolean isSameName(Name otherName) {
+        return otherName != null
+                && normalizeWhitespace(fullName).equalsIgnoreCase(normalizeWhitespace(otherName.fullName));
+    }
+
+    private static String normalizeWhitespace(String name) {
+        return name.trim().replaceAll("\\s+", " ");
+    }
+
+
+    @Override
+    public String toString() {
+        return fullName;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Name otherName)) {
+            return false;
+        }
+
+        return fullName.equals(otherName.fullName);
+    }
+
+    @Override
+    public int hashCode() {
+        return fullName.hashCode();
+    }
+
+}

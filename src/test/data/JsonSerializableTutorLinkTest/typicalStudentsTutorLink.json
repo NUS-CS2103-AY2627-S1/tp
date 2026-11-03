@@ -1,0 +1,25 @@
+{
+  "_comment": "TutorLink save file which contains the same Student values as in TypicalStudents#getTypicalTutorLink()",
+  "students" : [ {
+    "name" : "Alice Pauline",
+    "subjects" : [ "Math" ]
+  }, {
+    "name" : "Benson Meier",
+    "subjects" : [ "Physics", "Math" ]
+  }, {
+    "name" : "Carl Kurz",
+    "subjects" : [ ]
+  }, {
+    "name" : "Daniel Meier",
+    "subjects" : [ "Math" ]
+  }, {
+    "name" : "Elle Meyer",
+    "subjects" : [ "English" ]
+  }, {
+    "name" : "Fiona Kunz",
+    "subjects" : [ "Chemistry" ]
+  }, {
+    "name" : "George Best",
+    "subjects" : [ ]
+  } ]
+}

@@ -1,0 +1,9 @@
+{
+  "students": [ {
+    "name": "Alice Pauline",
+    "subjects": [ "Math" ]
+  }, {
+    "name": "alice pauline",
+    "subjects": [ "Physics" ]
+  } ]
+}

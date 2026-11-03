@@ -7,7 +7,11 @@ plugins {
 }
 
 application {
-    mainClass = 'seedu.address.Main'
+    mainClass = 'seedu.tutorlink.Main'
+}
+
+run {
+    enableAssertions = true
 }
 
 java {
@@ -26,6 +30,9 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    doFirst {
+        systemProperty 'tutorlink.test.runtimeClasspath', classpath.asPath
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +79,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'tutorlink.jar'
 }
 
 defaultTasks 'clean', 'test'

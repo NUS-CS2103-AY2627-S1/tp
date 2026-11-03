@@ -1,0 +1,6 @@
+{
+  "students": [ {
+    "name": "Hans Muster",
+    "subjects": [ "Math/Physics" ]
+  } ]
+}

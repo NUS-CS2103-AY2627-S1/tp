@@ -1,0 +1,164 @@
+package seedu.tutorlink.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tutorlink.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.tutorlink.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.tutorlink.logic.Messages.MESSAGE_UNKNOWN_SUBCOMMAND;
+import static seedu.tutorlink.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.tutorlink.logic.parser.CliSyntax.PREFIX_NEW_NAME;
+import static seedu.tutorlink.testutil.Assert.assertThrows;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.tutorlink.commons.core.index.Index;
+import seedu.tutorlink.logic.commands.AddCommand;
+import seedu.tutorlink.logic.commands.AddInteractionCommand;
+import seedu.tutorlink.logic.commands.DeleteCommand;
+import seedu.tutorlink.logic.commands.DeleteInteractionCommand;
+import seedu.tutorlink.logic.commands.EditInteractionCommand;
+import seedu.tutorlink.logic.commands.EditStudentCommand;
+import seedu.tutorlink.logic.commands.ExitCommand;
+import seedu.tutorlink.logic.commands.FindCommand;
+import seedu.tutorlink.logic.commands.HelpCommand;
+import seedu.tutorlink.logic.commands.ListCommand;
+import seedu.tutorlink.logic.commands.ListInteractionsCommand;
+import seedu.tutorlink.logic.commands.ViewStudentCommand;
+import seedu.tutorlink.logic.parser.exceptions.ParseException;
+import seedu.tutorlink.model.interaction.Interaction;
+import seedu.tutorlink.model.student.Name;
+import seedu.tutorlink.model.student.NameContainsKeywordsPredicate;
+import seedu.tutorlink.model.student.Student;
+import seedu.tutorlink.testutil.StudentBuilder;
+import seedu.tutorlink.testutil.StudentUtil;
+
+public class TutorLinkParserTest {
+
+    private final TutorLinkParser parser = new TutorLinkParser();
+
+    @Test
+    public void parseCommand_add() throws Exception {
+        Student student = new StudentBuilder().build();
+        AddCommand command = (AddCommand) parser.parseCommand(StudentUtil.getAddCommand(student));
+        assertEquals(new AddCommand(student), command);
+    }
+
+    @Test
+    public void parseCommand_viewStudent() throws Exception {
+        assertEquals(new ViewStudentCommand(new Name("John Tan")),
+                parser.parseCommand(ViewStudentCommand.COMMAND_WORD + " n/John Tan"));
+    }
+
+    @Test
+    public void parseCommand_addInteraction() throws Exception {
+        AddInteractionCommand expected = new AddInteractionCommand(new Name("Alex Tan"),
+                new Interaction(LocalDate.of(2026, 10, 1), Optional.empty(), "Discussed revision plan"));
+
+        assertEquals(expected, parser.parseCommand(
+                "interaction add n/Alex Tan date/2026-10-01 note/Discussed revision plan"));
+    }
+
+    @Test
+    public void parseCommand_addWithMixedCaseAndExtraSpaces_returnsAddCommand() throws Exception {
+        Student student = new StudentBuilder().build();
+        String userInput = "Student   ADD " + StudentUtil.getStudentDetails(student);
+        assertEquals(new AddCommand(student), parser.parseCommand(userInput));
+    }
+
+    @Test
+    public void parseCommand_domainWithoutAction_throwsParseException() {
+        String studentCommands = String.format(MESSAGE_UNKNOWN_SUBCOMMAND,
+                "student add, student view, student edit, student delete");
+        assertThrows(ParseException.class, studentCommands, () -> parser.parseCommand("student"));
+        assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_SUBCOMMAND,
+                "interaction add, interaction list, interaction edit, interaction delete"), () ->
+                parser.parseCommand("Interaction"));
+        assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_SUBCOMMAND,
+                "followup add, followup list, followup done, followup cancel"), () ->
+                parser.parseCommand("followup"));
+    }
+
+    @Test
+    public void parseCommand_domainWithUnknownAction_throwsParseException() {
+        String studentCommands = String.format(MESSAGE_UNKNOWN_SUBCOMMAND,
+                "student add, student view, student edit, student delete");
+        assertThrows(ParseException.class, studentCommands, () -> parser.parseCommand("student fly"));
+    }
+
+    @Test
+    public void parseCommand_delete() throws Exception {
+        DeleteCommand command = (DeleteCommand) parser.parseCommand(
+                DeleteCommand.COMMAND_WORD + " " + PREFIX_NAME + "Amy Bee");
+        assertEquals(new DeleteCommand(new Name("Amy Bee")), command);
+    }
+
+    @Test
+    public void parseCommand_editStudent() throws Exception {
+        EditStudentCommand command = (EditStudentCommand) parser.parseCommand(
+                EditStudentCommand.COMMAND_WORD + " " + PREFIX_NAME + "Amy Bee " + PREFIX_NEW_NAME + "Amy Tan");
+        assertEquals(new EditStudentCommand(new Name("Amy Bee"), Optional.of(new Name("Amy Tan")), Optional.empty()),
+                command);
+    }
+
+    @Test
+    public void parseCommand_exit() throws Exception {
+        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
+        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+    }
+
+    @Test
+    public void parseCommand_find() throws Exception {
+        List<String> keywords = List.of("foo", "bar", "baz");
+        FindCommand command = (FindCommand) parser.parseCommand(
+                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+    }
+
+    @Test
+    public void parseCommand_help() throws Exception {
+        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
+        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
+    }
+
+    @Test
+    public void parseCommand_list() throws Exception {
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listInteractions() throws Exception {
+        assertEquals(new ListInteractionsCommand(new Name("Alex Tan")), parser.parseCommand(
+                "interaction list n/Alex Tan"));
+    }
+
+    @Test
+    public void parseCommand_deleteInteraction() throws Exception {
+        assertEquals(new DeleteInteractionCommand(new Name("Alex Tan"),
+                Index.fromOneBased(2)), parser.parseCommand(
+                "interaction delete n/Alex Tan i/2"));
+    }
+
+    @Test
+    public void parseCommand_editInteraction() throws Exception {
+        assertEquals(new EditInteractionCommand(new Name("Alex Tan"), Index.fromOneBased(2), Optional.empty(),
+                Optional.empty(), Optional.of("Corrected note")), parser.parseCommand(
+                "interaction edit n/Alex Tan i/2 note/Corrected note"));
+    }
+
+    @Test
+    public void parseCommand_unrecognisedInput_throwsParseException() {
+        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
+            -> parser.parseCommand(""));
+    }
+
+    @Test
+    public void parseCommand_unknownCommand_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+}
