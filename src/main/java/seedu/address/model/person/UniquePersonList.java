@@ -5,6 +5,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -33,7 +34,27 @@ public class UniquePersonList implements Iterable<Person> {
      */
     public boolean contains(Person toCheck) {
         requireNonNull(toCheck);
-        return internalList.stream().anyMatch(toCheck::isSamePerson);
+        return findDuplicate(toCheck).isPresent();
+    }
+
+    /**
+     * Returns the first person in the list with the same identity as the given argument,
+     * or an empty {@code Optional} if there is none.
+     */
+    public Optional<Person> findDuplicate(Person toCheck) {
+        requireNonNull(toCheck);
+        return internalList.stream().filter(toCheck::isSamePerson).findFirst();
+    }
+
+    /**
+     * Returns the first person in the list other than {@code toSkip} with the same identity as {@code toCheck},
+     * or an empty {@code Optional} if there is none.
+     */
+    public Optional<Person> findDuplicate(Person toCheck, Person toSkip) {
+        requireAllNonNull(toCheck, toSkip);
+        return internalList.stream()
+                .filter(person -> person != toSkip && toCheck.isSamePerson(person))
+                .findFirst();
     }
 
     /**
@@ -56,12 +77,12 @@ public class UniquePersonList implements Iterable<Person> {
     public void setPerson(Person target, Person editedPerson) {
         requireAllNonNull(target, editedPerson);
 
-        int index = internalList.indexOf(target);
+        int index = indexOfTarget(target);
         if (index == -1) {
             throw new PersonNotFoundException();
         }
 
-        if (!target.isSamePerson(editedPerson) && contains(editedPerson)) {
+        if (findDuplicate(editedPerson, target).isPresent()) {
             throw new DuplicatePersonException();
         }
 
@@ -74,11 +95,16 @@ public class UniquePersonList implements Iterable<Person> {
      */
     public void remove(Person toRemove) {
         requireNonNull(toRemove);
-        if (!internalList.remove(toRemove)) {
+        int index = indexOfTarget(toRemove);
+        if (index == -1) {
             throw new PersonNotFoundException();
         }
+        internalList.remove(index);
     }
 
+    /**
+     * Replaces the contents of this list with those of {@code replacement}.
+     */
     public void setPersons(UniquePersonList replacement) {
         requireNonNull(replacement);
         internalList.setAll(replacement.internalList);
@@ -131,6 +157,20 @@ public class UniquePersonList implements Iterable<Person> {
     @Override
     public String toString() {
         return internalList.toString();
+    }
+
+    /**
+     * Returns the index of {@code target} in the list, or -1 if it is not there. The very same object is looked
+     * for first, because two persons without a phone number or email can be equal (and so be shown as twins), and
+     * the one the user chose must be the one that changes.
+     */
+    private int indexOfTarget(Person target) {
+        for (int i = 0; i < internalList.size(); i++) {
+            if (internalList.get(i) == target) {
+                return i;
+            }
+        }
+        return internalList.indexOf(target);
     }
 
     /**

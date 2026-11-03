@@ -10,6 +10,9 @@ import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
@@ -51,7 +54,8 @@ public class DeleteCommandTest {
 
     @Test
     public void execute_validIndexFilteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+        // The first displayed person is the second person in the full list.
+        showPersonAtIndex(model, INDEX_SECOND_PERSON);
 
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
@@ -77,6 +81,30 @@ public class DeleteCommandTest {
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
         assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void execute_emptyList_throwsCommandException() {
+        Model emptyModel = new ModelManager();
+        assertCommandFailure(new DeleteCommand(INDEX_FIRST_PERSON), emptyModel,
+                Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void execute_emptyFilteredList_throwsCommandException() {
+        showNoPerson(model);
+        assertCommandFailure(new DeleteCommand(INDEX_FIRST_PERSON), model,
+                Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void execute_consecutiveDeletes_usesUpdatedDisplayedIndices() throws Exception {
+        List<Person> originalPersons = new ArrayList<>(model.getFilteredPersonList());
+        new DeleteCommand(INDEX_FIRST_PERSON).execute(model);
+        assertEquals(originalPersons.subList(1, originalPersons.size()), model.getFilteredPersonList());
+
+        new DeleteCommand(INDEX_FIRST_PERSON).execute(model);
+        assertEquals(originalPersons.subList(2, originalPersons.size()), model.getFilteredPersonList());
     }
 
     @Test
@@ -116,5 +144,19 @@ public class DeleteCommandTest {
         model.updateFilteredPersonList(p -> false);
 
         assertTrue(model.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_inArchivesView_deletesTheArchivedPerson() throws Exception {
+        Person first = model.getFilteredPersonList().get(0);
+        Person archived = first.copyWithArchived(true);
+        model.setPerson(first, archived);
+        int peopleBefore = model.getAddressBook().getPersonList().size();
+        model.updateFilteredPersonList(Model.PREDICATE_SHOW_ARCHIVED);
+
+        new DeleteCommand(INDEX_FIRST_PERSON).execute(model);
+
+        assertEquals(peopleBefore - 1, model.getAddressBook().getPersonList().size());
+        assertFalse(model.getAddressBook().getPersonList().contains(archived));
     }
 }

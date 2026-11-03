@@ -1,12 +1,14 @@
 package seedu.address.ui;
 
 import java.util.Comparator;
+import java.util.Optional;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import seedu.address.commons.util.NaturalOrderComparator;
 import seedu.address.model.person.Person;
 
 /**
@@ -35,11 +37,15 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label phone;
     @FXML
-    private Label address;
-    @FXML
     private Label email;
     @FXML
-    private FlowPane tags;
+    private Label alias;
+    @FXML
+    private Label introducer;
+    @FXML
+    private Label note;
+    @FXML
+    private FlowPane contexts;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -49,11 +55,25 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        setOptionalLabel(phone, person.getPhone().map(p -> p.value));
+        setOptionalLabel(email, person.getEmail().map(e -> e.value));
+        setOptionalLabel(alias, person.getAlias().map(a -> "Alias: " + a.value));
+        setOptionalLabel(introducer, person.getIntroducer().map(i -> "Introduced by: " + i.value));
+        setOptionalLabel(note, person.getNote().map(n -> "Note: " + n.value));
+        person.getContexts().stream()
+                .sorted(Comparator.comparing(context -> context.description, NaturalOrderComparator.INSTANCE))
+                .forEach(context -> contexts.getChildren().add(new Label(context.description)));
+    }
+
+    /**
+     * Displays {@code text} when present and removes the label from the layout otherwise.
+     * An invisible JavaFX node can still occupy space, so both visibility and management
+     * must be disabled for a missing optional detail.
+     */
+    private static void setOptionalLabel(Label label, Optional<String> text) {
+        boolean isPresent = text.isPresent();
+        label.setText(text.orElse(""));
+        label.setVisible(isPresent);
+        label.setManaged(isPresent);
     }
 }

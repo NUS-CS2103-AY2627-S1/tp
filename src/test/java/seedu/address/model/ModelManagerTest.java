@@ -3,7 +3,7 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ACTIVE;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonContainsKeywordsPredicate;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -98,15 +98,51 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new PersonContainsKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ACTIVE);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    @Test
+    public void filteredList_hidesArchivedPersonsFromTheStart() {
+        modelManager = new ModelManager(new AddressBookBuilder()
+                .withPerson(ALICE).withPerson(BENSON.copyWithArchived(true)).build(), new UserPrefs());
+
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+        assertFalse(modelManager.showingArchivesProperty().get());
+    }
+
+    @Test
+    public void showingArchivesProperty_followsThePredicate() {
+        modelManager.addPerson(ALICE);
+
+        modelManager.updateFilteredPersonList(Model.PREDICATE_SHOW_ARCHIVED);
+        assertTrue(modelManager.showingArchivesProperty().get());
+
+        modelManager.updateFilteredPersonList(Model.PREDICATE_SHOW_ACTIVE);
+        assertFalse(modelManager.showingArchivesProperty().get());
+
+        // a search combines the active test with keywords, so it is not the archives view
+        modelManager.updateFilteredPersonList(Model.PREDICATE_SHOW_ARCHIVED);
+        modelManager.updateFilteredPersonList(
+                Model.PREDICATE_SHOW_ACTIVE.and(new PersonContainsKeywordsPredicate(List.of("Alice"))));
+        assertFalse(modelManager.showingArchivesProperty().get());
+    }
+
+    @Test
+    public void addPerson_returnsToTheActiveList() {
+        modelManager.updateFilteredPersonList(Model.PREDICATE_SHOW_ARCHIVED);
+
+        modelManager.addPerson(ALICE);
+
+        assertFalse(modelManager.showingArchivesProperty().get());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
     }
 }

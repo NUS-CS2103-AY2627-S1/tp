@@ -3,9 +3,12 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
@@ -21,6 +24,7 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final ObservableBooleanValue showingArchives;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +37,10 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        // the normal person list hides archived persons, also right after the app starts
+        filteredPersons.setPredicate(PREDICATE_SHOW_ACTIVE);
+        showingArchives = Bindings.createBooleanBinding(() ->
+                filteredPersons.getPredicate() == PREDICATE_SHOW_ARCHIVED, filteredPersons.predicateProperty());
     }
 
     public ModelManager() {
@@ -76,6 +84,18 @@ public class ModelManager implements Model {
     }
 
     @Override
+    public Optional<Person> findDuplicate(Person toCheck) {
+        requireNonNull(toCheck);
+        return addressBook.findDuplicate(toCheck);
+    }
+
+    @Override
+    public Optional<Person> findDuplicate(Person toCheck, Person toSkip) {
+        requireAllNonNull(toCheck, toSkip);
+        return addressBook.findDuplicate(toCheck, toSkip);
+    }
+
+    @Override
     public void deletePerson(Person target) {
         addressBook.removePerson(target);
     }
@@ -83,7 +103,7 @@ public class ModelManager implements Model {
     @Override
     public void addPerson(Person person) {
         addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        updateFilteredPersonList(PREDICATE_SHOW_ACTIVE);
     }
 
     @Override
@@ -108,6 +128,11 @@ public class ModelManager implements Model {
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public ObservableBooleanValue showingArchivesProperty() {
+        return showingArchives;
     }
 
     @Override

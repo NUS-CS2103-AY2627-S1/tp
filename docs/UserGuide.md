@@ -3,7 +3,7 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+UniContacts is a **desktop contact manager for CS students, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). Every person is saved with one or more *contexts* describing how you know them (such as a module, a hackathon or an internship), so you can find people by where you met them. If you type quickly, UniContacts can help you manage persons faster than traditional GUI applications.
 
 * Table of Contents
 {:toc}
@@ -15,24 +15,26 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-W10-2/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for UniContacts.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar unicontacts.jar`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
    ![Ui](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all persons.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `contexts` : Lists all active persons' contexts with the number of persons linked to each.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `add n/John Doe c/CS2103T p/98765432 e/johnd@example.com` : Adds a person named `John Doe` to UniContacts.
 
-   * `clear` : Deletes all contacts.
+   * `delete 3` : Deletes the 3rd person shown in the current list.
+
+   * `clear` : Deletes all persons except archived ones.
 
    * `exit` : Exits the app.
 
@@ -46,20 +48,24 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 **:information_source: Notes about the command format:**<br>
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
+* Words in `UPPER_CASE` are the parameters to be supplied by the user. Some parameters come after a prefix that says what they are, such as `n/` for a name. Others, such as `INDEX` in `delete INDEX`, have no prefix.<br>
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `n/NAME [p/PHONE]` can be used as `n/John Doe p/98765432` or as `n/John Doe`.
 
 * Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+  For example, `[c/CONTEXT]…​` may be omitted, or written as `c/CS2103T` or `c/CS2103T c/NUS Hackers`.
 
 * Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+  For example, if the command specifies `n/NAME p/PHONE`, `p/PHONE n/NAME` is also acceptable.<br>
+  The exception is `nt/NOTE` in `add`, `edit` and `find`, which must come last.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Command words are case-insensitive, but prefixes must be in lowercase.<br>
+  For example, `add`, `ADD` and `Add` all work, but `N/John Doe` is not read as `n/John Doe`.
+
+* Commands that take no parameters, such as `help`, `list` and `exit`, ignore anything typed after them.<br>
+  For example, `help 123` is interpreted as `help`. The exceptions are [`clear`](#clearing-all-non-archived-persons-clear), [`contexts`](#viewing-all-contexts-contexts) and [`archives`](#viewing-archived-persons-archives), which reject anything typed after them, so that a mistyped `clear 1` does not delete everything.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
@@ -75,60 +81,316 @@ Format: `help`
 
 ### Adding a person: `add`
 
-Adds a person to the address book.
+Adds a person to UniContacts.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Every person has at least one context: how you know them, such as a module, project, CCA, internship or event.
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+Format: `add n/NAME c/CONTEXT [c/CONTEXT]…​ [p/PHONE] [e/EMAIL] [a/ALIAS] [i/INTRODUCER] [nt/NOTE]`
+
+* `n/NAME` and at least one `c/CONTEXT` are compulsory. All other fields are optional.
+* To give more than one context, repeat `c/`, one context each. Every other prefix can be given only once.
+* Spaces before and after each value are ignored.
+* `nt/NOTE` must be the last parameter. Everything after `nt/` is the note, so text such as `c/o`, `n/a` or `p/t` inside a note is saved as part of the note.
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add n/Alex Tan c/CS2103T` adds `Alex Tan` with just a name and one context.
+* `add n/Priya Nair c/Hack&Roll 2026 c/NUS Hackers p/91234567 e/priya@u.nus.edu` adds `Priya Nair` with two contexts, a phone number and an email.
+* `add n/Jean-Luc O'Brien c/Google internship e/jl.obrien@gmail.com` adds `Jean-Luc O'Brien` with an email but no phone number.
+* `add e/mei@u.nus.edu c/CS2101 n/Lim Mei` adds `Lim Mei`, showing that parameters can be in any order.
+* `add n/Alex Tan c/CS2103T a/Alex i/Ben Lee nt/Met at Hack&Roll` also records an alias, who introduced Alex, and a personal note.
+
+**Parameter rules**
+
+Parameter | Rules | Valid | Invalid
+----------|-------|-------|--------
+`n/NAME` | Starts with a letter. Only English letters, spaces, hyphens `-`, apostrophes `'` and periods `.`. At most 100 characters. | `Alex Tan`, `Jean-Luc O'Brien`, `Lim J.H.` | `Alex123`, `Raj s/o Kumar`, `@alex`
+`c/CONTEXT` | Starts with a letter or digit. Only English letters, digits, spaces and `&` `-` `.` `'` `#`. At most 50 characters. | `CS2103T`, `Hack&Roll 2026`, `Tut #3` | `CS2103T/T09`, `(orbital)`
+`p/PHONE` | An optional `+`, then 3 to 15 digits. No spaces, hyphens or brackets. | `91234567`, `+6591234567` | `9123-4567`, `+65 9123 4567`, `12`
+`e/EMAIL` | Of the form `local-part@domain`, at most 254 characters. See the email rules below. | `e0123456@u.nus.edu`, `alex.tan+work@gmail.com` | `alex@`, `.alex@gmail.com`, `alex..tan@gmail.com`
+`a/ALIAS` | Alternative name; follows the same character and 100-character rules as `n/NAME`. | `Alex`, `Jean-Luc` | `Alex123`, empty `a/`
+`i/INTRODUCER` | Plain name of the person who introduced this person; follows the same rules as `n/NAME`. It does not need to be another saved person. | `Ben Lee` | `Ben123`, empty `i/`
+`nt/NOTE` | Short, single-line note of at most 300 characters. No line breaks or control characters. Must be the last parameter; the rest of the line is the note, so it can contain text such as `c/o` or `n/a`. | `Met at Hack&Roll`, `Lives c/o his aunt` | Empty `nt/`, a note over 300 characters
+
+<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
+`/` is not allowed in names, so enter a name such as `Raj s/o Kumar` as `Raj s o Kumar` or `Raj son of Kumar`.
+</div>
+
+Email rules:
+* The local part (before the `@`) may contain letters, digits and `+` `_` `.` `-`, but cannot start or end with a symbol, or have two symbols in a row.
+* The domain (after the `@`) is one or more parts separated by periods, such as `u.nus.edu`. Each part may contain letters, digits and hyphens, but cannot start or end with a hyphen. The last part must be at least 2 characters long.
+* An email can be at most 254 characters long. The local part and domain have no separate maximum, so a local part longer than the 64 characters most mail servers allow is still accepted.
+
+How values are saved:
+* Names, contexts and emails keep the capitalisation you typed.
+* Several spaces in a row inside a context are saved as one space. For example, if you type `NUS`, three spaces, then `Hackers`, the context is saved as `NUS Hackers`. The 50-character limit is checked after this, so extra spaces never make a context too long.
+* Names are saved exactly as typed, including several spaces in a row. So `Ann  Lee` (two spaces) is saved and shown with both spaces, and is a different name from `Ann Lee`. If you typed extra spaces by mistake, fix the name with [`edit`](#editing-a-person-edit).
+* Aliases and introducer names have surrounding spaces removed and repeated spaces inside collapsed to one. Notes have surrounding spaces removed.
+* Contexts that differ only in capitalisation or repeated spaces count as the same context. If you give the same context twice, such as `c/CS2103T c/cs2103t`, the person gets it once, spelt as you first typed it.
+
+**If the command succeeds**
+
+The list shows all persons again, with the new person at the bottom. The result display shows the new person's details. For example, adding Priya Nair (the second example above) shows:
+
+`New person added: Priya Nair; Contexts: [Hack&Roll 2026] [NUS Hackers]; Phone: 91234567; Email: priya@u.nus.edu`
+
+Contexts are listed in natural order, ignoring capitalisation: numbers are compared by value, so `Tutorial 2` comes before `Tutorial 10`. Missing optional fields are left out. If supplied, alias, introducer and note appear in the result and on the person card.
+
+**Duplicate persons**
+
+A person is a duplicate if they have the same phone number or the same email as an existing person. Emails are compared ignoring capitalisation, so `Alex@U.NUS.EDU` and `alex@u.nus.edu` count as the same email. Duplicates are not added. For example, with the sample data, `add n/Alexander Yeoh c/CS2101 p/87438807` shows:
+
+`This person already exists: Alex Yeoh has the same phone number (87438807).`
+
+If the person you clash with is archived, the message ends with `This person is archived; run archives to see them.`
+
+* Two persons can have the same name, as long as their phone numbers and emails are different. A person with no phone number and no email is never a duplicate.
+* If the new person has the same name and at least one context in common with an existing person, they may be the same person (a near duplicate), so the new person is still added, with a warning line. You decide whether to keep both entries. This happens whatever the phone numbers and emails of the two persons are, so adding the same classmate again with a different phone number or email also shows the line. Names are compared ignoring capitalisation and repeated spaces. For example, if Wei Jie with context CS2103T is already at index 7 and the list has 9 persons, `add n/Wei Jie c/CS2103T` or `add n/Wei Jie c/CS2103T p/91234567` adds the new person at index 10 and shows:
+
+  `Note: Wei Jie [CS2103T] already exists at index 7. If this is the same person, run delete 10 to remove the new entry and use edit 7 instead.`
+
+  If the existing person is archived, the note is `Note: Wei Jie [CS2103T] already exists. This person is archived; run archives to see them.` If both an active and an archived person match, the active person is shown.
+* `91234567` and `+6591234567` count as different phone numbers.
+
+**If the command fails**
+
+Nothing is added, and your command stays in the command box so that you can fix it. If there are several problems, only the first is shown. If the person is added but cannot be saved to the data file, the person stays in the list for this session; see [Saving the data](#saving-the-data).
+
+Problem | Example | Message shown
+--------|---------|--------------
+`n/` or `c/` missing | `add n/Alex Tan p/91234567` | `Invalid command format!`, followed by how to use `add`<br>The message does not say which prefix is missing. Check that both `n/` and `c/` are there.
+Text before the first prefix, or an uppercase prefix | `add Alex n/Alex Tan c/CS2103T`<br>`add N/Alex Tan c/CS2103T` | `Invalid command format!`, followed by how to use `add`
+Any prefix other than `c/` given more than once | `add n/Alex n/Alex Tan c/CS2103T` | `Multiple values specified for the following single-valued field(s): n/`<br>A second `nt/` is not an error: it becomes part of the note.
+Nothing after a prefix | `add n/Alex Tan c/` | Depending on the prefix:<br>`Name cannot be empty.`<br>`Contexts cannot be empty.`<br>`Phone number cannot be empty. Leave out p/ if there is no phone number.`<br>`Email cannot be empty. Leave out e/ if there is no email.`<br>`Alias cannot be empty.`<br>`Introducer cannot be empty.`<br>`Note cannot be empty.`
+A value that breaks its rule | `add n/Alex Tan c/CS2103T p/9123-4567` | That parameter's rule, such as `Phone numbers should contain only digits, may start with +, and have 3 to 15 digits.`
+A prefix that `add` does not use, such as `t/` | `add n/Alex Tan t/friend c/CS2103T` | The prefix and its text become part of the value before it. Here the name becomes `Alex Tan t/friend`, so the name rule is shown.
 
 ### Listing all persons: `list`
 
-Shows a list of all persons in the address book.
+Displays all persons saved.
+
+If the displayed person list was previously filtered using another command, such as `find`, the `list` command restores the complete person list.
 
 Format: `list`
 
+Each person is displayed in the following order:
+
+1. Name
+2. Contexts
+3. Phone number, if provided
+4. Email address, if provided
+5. `Alias: ALIAS`, if provided
+6. `Introduced by: INTRODUCER`, if provided
+7. `Note: NOTE`, if provided
+
+Contexts are displayed in natural order, ignoring capitalisation: numbers are compared by value, so `Tutorial 2` comes before `Tutorial 10`. Missing optional fields are not displayed.
+
+After the command is executed, the result display shows the number of persons listed:
+
+* `1 person listed.` when exactly one person is listed.
+* `NUMBER people listed.` when zero or more than one person is listed.
+
+Examples:
+
+* `list` — Displays all saved persons.
+* `LIST` — Command words are case-insensitive, so this also displays all persons.
+* If `find Bernice` currently shows only persons matching `Bernice`, entering `list` restores the complete person list.
+
+<div markdown="block" class="alert alert-info">
+
+**Note:**
+
+* The `list` command does not add, remove, edit, or reorder persons.
+* Archived persons are not listed. Use [`archives`](#viewing-archived-persons-archives) to see them.
+* Person index numbers refer to the currently displayed list. After restoring the complete list, check the displayed index before using commands such as `edit` or `delete`.
+* If there are no persons, the displayed list remains empty and the result display shows `0 people listed.`
+
+</div>
+
+### Viewing all contexts: `contexts`
+
+Shows every distinct context of active persons (persons who are not archived) and the number of active persons linked to it in the result display.
+
+Format: `contexts`
+
+* Counts cover all active persons in UniContacts, even if `find` currently shows only some persons or no persons.
+* Archived persons never contribute to counts or displayed context names. Contexts belonging only to archived persons are omitted. This rule also applies when you run `contexts` while viewing `archives`.
+* Each person is counted once per context. Different persons with the same name are counted separately.
+* Contexts that differ only in capitalisation, surrounding spaces or repeated spaces are grouped together.
+* Contexts are sorted in natural order, ignoring capitalisation: numbers are compared by value, so `Group 9` comes before `Group 11`, and tutorials appear as `Tutorial 1`, `Tutorial 2`, `Tutorial 10`. The spelling from the first active person with that context in the stored person list is shown. No stored spelling is changed.
+* The displayed person list, search filter, archive view, order and index numbers are unchanged.
+* Counts are recalculated each time you run `contexts`, so they reflect additions, edits, deletions, archiving and unarchiving.
+* The command word is case-insensitive: `CONTEXTS` works. Extra text such as `contexts CS2103T`, `contexts c/CS2103T` or `contexts archived` is rejected with `Invalid command format!` and usage guidance.
+
+For example, suppose UniContacts contains only these active persons:
+
+Person | Contexts
+-------|---------
+Alex Tan | `CS2103`, `NUS Hackers`
+Priya Nair | `cs2103`, `CS2103T`
+Marcus Lim | `CS2103T`
+
+Running `contexts` shows:
+
+```text
+CS2103: 2 people
+CS2103T: 2 people
+NUS Hackers: 1 person
+
+3 contexts listed.
+```
+
+The summary says `1 context listed.` when there is exactly one distinct context.
+If your person list is empty, the result is `No contexts found. Add a person with c/CONTEXT to get started.`
+If all persons are archived, the result is `No active contexts found. Run archives to view archived persons, then use unarchive INDEX to include them.`
+Scroll within the result display if the overview is too long to view at once.
+
+In the example above, archiving Alex makes `NUS Hackers` disappear and reduces `CS2103` to one person, displayed as `cs2103` using Priya's spelling. Unarchiving Alex restores the original counts and spelling.
+
+You can then use `find c/CS2103T` to search active persons by context. `find` changes the displayed list and supports partial context matches; `contexts` only shows the overview.
+
 ### Editing a person: `edit`
 
-Edits an existing person in the address book.
+Edits the person at the given index in the displayed list.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ALIAS] [i/INTRODUCER]`<br>
+`[-p/] [-e/] [-a/] [-i/] [-nt/]`<br>
+`[+c/CONTEXT]…​ [-c/CONTEXT]…​ [nt/NOTE]`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+The format is split over lines to make it easier to read. Type the whole command on one line.
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
-
-### Locating persons by name: `find`
-
-Finds persons whose names contain any of the given keywords.
-
-Format: `find KEYWORD [MORE_KEYWORDS]`
-
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* `INDEX` is the number shown beside the person in the displayed list, such as `1` or `2`. After a `find`, it refers to the filtered list.
+* At least one of the other parameters must be given. Anything you leave out stays as it is.
+* `n/NAME`, `p/PHONE`, `e/EMAIL`, `a/ALIAS`, `i/INTRODUCER` and `nt/NOTE` set or replace the current value. Their values follow the same rules as in [`add`](#adding-a-person-add).
+* `-p/`, `-e/`, `-a/`, `-i/` and `-nt/` remove the phone number, email, alias, introducer and note. They take no value after them. Except for the note ordering described below, a removal prefix cannot be given with the prefix that sets the same field, such as `p/` with `-p/`. Removing a field the person does not have changes nothing.
+* `+c/CONTEXT` adds a context and `-c/CONTEXT` removes one. Repeat them to add or remove several contexts, one context each.
+* `-c/` is applied before `+c/`, so you can swap a person's only context in one command.
+* A person must keep at least one context.
+* Every prefix other than `+c/` and `-c/` can be given only once.
+* `nt/NOTE` must be the last parameter. Everything after `nt/` is the note, even text that looks like a prefix. Hence,
+  `edit 1 -nt/ nt/x` is rejected because it tries to remove and set the note, while `edit 1 nt/x -nt/` saves the note
+  as `x -nt/` because the apparent `-nt/` is part of the note.
+* An archived person cannot be edited: UniContacts shows `This person is archived and can't be edited. Unarchive the person first.` Use [`unarchive`](#unarchiving-a-person-unarchive) first.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+* `edit 1 p/91234567 e/alex.yeoh@u.nus.edu` changes the 1st person's phone number and email.
+* `edit 2 +c/NUS Hackers -c/Hiking club` adds `NUS Hackers` to the 2nd person and removes `Hiking club`.
+* `edit 3 +c/RC4 -c/Hall` replaces the 3rd person's only context, `Hall`, with `RC4`.
+* `edit 2 -c/hiking club +c/Hiking Club` changes how the 2nd person's `Hiking club` context is spelt.
+* `edit 4 n/David Li Wei -e/` renames the 4th person and removes their email.
+* `edit 1 a/Alex -i/ nt/Prefers Telegram` gives the 1st person the alias `Alex` and a note, and removes who introduced them.
+
+How contexts are matched:
+* Contexts are compared ignoring capitalisation and repeated spaces, as in `add`. So `-c/hiking club` removes `Hiking club`.
+* `+c/` with a context the person already has is skipped, and the existing spelling is kept. The result display lists the skipped contexts in a note. To change the spelling, remove the context and add it back, as in the 4th example.
+* A `-c/` context the person does not have is skipped, and the rest of the command still runs. The result display lists the skipped contexts in a note. Check the note for typos, since a misspelt context is skipped rather than rejected. Skipped contexts do not count when checking that the person keeps at least one context.
+
+**If the command succeeds**
+
+The list on screen stays the same. For example, after `find CS2103T` shows Alex Yeoh as 1 and Bernice Yu as 2, `edit 1 p/91234567` keeps both on screen, so `edit 2 ...` next still edits Bernice Yu. The result display shows the person's new details. For example, with the sample data, `edit 2 +c/NUS Hackers -c/Hiking club` shows:
+
+`Edited person: Bernice Yu; Contexts: [CS2103T] [NUS Hackers]; Phone: 99272758; Email: berniceyu@example.com`
+
+If the person has an alias, introducer or note, it is shown too, as in `add`.
+
+If the edit leaves the person exactly as they were, such as re-entering their current phone number or adding a context they already have, the result display shows `No changes made to Bernice Yu.` instead. This is not an error. A change in capitalisation counts as a change and is saved, so `edit 2 n/bernice yu` renames Bernice Yu to `bernice yu`.
+
+If any `-c/` context was skipped because the person does not have it, a note follows on a new line. For example, `edit 2 -c/CS2130T p/91234567` on Bernice Yu changes the phone number and adds this line:
+
+`Note: Bernice Yu does not have context(s): [CS2130T]. Check the spelling. Skipped.`
+
+If any `+c/` context was skipped because the person already has it, a note follows on a new line, using the person's existing spelling. For example, `edit 2 +c/cs2103t +c/NUS Hackers` on Bernice Yu, who has `CS2103T`, adds this line:
+
+`Note: Bernice Yu already has context(s): [CS2103T]. Skipped.`
+
+If both kinds of context are skipped, the `-c/` note comes first.
+
+If the edit means the person no longer matches the search whose results are shown, the person leaves the list and a note follows on a new line, after any context notes. For example, after `find CS2103T`, `edit 2 -c/CS2103T` removes Bernice Yu's `CS2103T` context, so she leaves the results and this line is added:
+
+`Note: Bernice Yu no longer matches the current search. Run list to see all persons.`
+
+The numbers of the persons after them in the results go down by one. A person who was edited but still matches stays where they were.
+
+**Duplicate persons**
+
+Edited persons are checked for duplicates the same way as in [`add`](#adding-a-person-add): the edit is rejected if another person has the same phone number or email. A person is never a duplicate of themselves, so `edit 2 p/99272758` on Bernice Yu, who already has that number, is accepted.
+
+If another person has the same name and at least one context in common with the edited person, they may be the same person (a near duplicate), so the edit is still made, with a warning line. This happens whatever the phone numbers and emails of the two persons are. For example, if Cara Dee with context Alpha is at index 7, `edit 8 +c/Alpha` on another Cara Dee adds this line:
+
+`Note: Cara Dee [Alpha] already exists at index 7.`
+
+If that person is archived, the note is the same as in `add`. No note is shown if nothing was changed.
+
+**If the command fails**
+
+Nothing is changed, and your command stays in the command box so that you can fix it. If there are several problems, only the first is shown. If the edit is made but cannot be saved to the data file, the change stays in the list for this session; see [Saving the data](#saving-the-data).
+
+Problem | Example | Message shown
+--------|---------|--------------
+No parameter after the index | `edit 1` | `At least one field to edit must be provided.`, followed by how to use `edit`
+Index missing, zero, negative or not a number | `edit 0 n/Alex Tan` | `Invalid command format!`, followed by how to use `edit`
+Index larger than the displayed list | `edit 99 n/Alex Tan` | `The person index provided is invalid.`
+`c/` instead of `+c/` or `-c/` | `edit 1 c/CS2040S` | `Use +c/ to add a context or -c/ to remove one.`
+Removing every context | `edit 1 -c/CS2103T` | `A person must have at least one context. Add a new context with +c/ before removing the last one.`
+A prefix that sets a field together with the prefix that removes it, such as `p/` and `-p/` | `edit 1 p/91234567 -p/`<br>`edit 1 a/Alex -a/` | `Cannot set and remove the phone number in the same command.`<br>`Cannot set and remove the alias in the same command.`<br>The email, introducer and note give the same message with their own name.
+A value after `-p/`, `-e/`, `-a/`, `-i/` or `-nt/` | `edit 1 -p/91234567`<br>`edit 1 -nt/Met at NUS` | `-p/ does not take a value. Use p/PHONE to change the phone number.`<br>`-nt/ does not take a value. Use nt/NOTE to change the note.`<br>`-e/`, `-a/` and `-i/` give the same message for their own field.
+Nothing after `n/`, `p/`, `e/`, `a/`, `i/`, `nt/`, `+c/` or `-c/` | `edit 1 p/` | Depending on the prefix:<br>`Name cannot be empty.`<br>`Phone number cannot be empty. Use -p/ to remove the phone number.`<br>`Email cannot be empty. Use -e/ to remove the email.`<br>`Alias cannot be empty. Use -a/ to remove the alias.`<br>`Introducer cannot be empty. Use -i/ to remove the introducer.`<br>`Note cannot be empty. Use -nt/ to remove the note.`<br>`Contexts cannot be empty.`
+Any prefix other than `+c/` or `-c/` given more than once | `edit 1 p/91234567 p/98765432` | `Multiple values specified for the following single-valued field(s): p/`<br>A second `nt/` is not an error: it becomes part of the note.
+A value that breaks its rule | `edit 1 p/9123-4567` | That parameter's rule, such as `Phone numbers should contain only digits, may start with +, and have 3 to 15 digits.`
+Another person has the same phone number or email | `edit 1 p/99272758` | `This person already exists: Bernice Yu has the same phone number (99272758).`<br>If that person is archived, the message ends with `This person is archived; run archives to see them.`
+
+### Finding persons: `find`
+
+Finds persons using either general keywords or field-specific clues.
+
+Formats:
+
+* `find KEYWORD [MORE_KEYWORDS]…`
+* `find [n/NAME_PART] [p/PHONE_PART] [e/EMAIL_PART] [c/CONTEXT_PART]… [a/ALIAS_PART]`
+  `[i/INTRODUCER_PART] [nt/NOTE_PART]`
+
+* The command word and search are case-insensitive; for example, `FIND cs2103t` works.
+* Partial matches are supported; for example, `li` matches both `David Li` and `Charlotte Oliveiro`.
+* In a keyword search, a keyword can match either a person's name or any of their contexts. Persons matching at least
+  one keyword are returned (an `OR` search). It does not search phone numbers, emails, aliases, introducers or notes;
+  use the corresponding field-specific prefix to search those fields.
+* In a field-specific search, each prefix searches only its corresponding field: `n/` for name, `p/` for phone,
+  `e/` for email, `c/` for contexts, `a/` for alias, `i/` for introducer and `nt/` for note.
+  A person is returned only if every supplied clue matches (an `AND` search).
+* `n/`, `p/`, `e/`, `a/` and `i/` may each appear at most once. `c/` is repeatable; every context clue must match
+  at least one of the person's contexts.
+* Prefixes other than `nt/` may appear in any order, so `find n/Bernice c/CS2103T` and
+  `find c/CS2103T n/Bernice` are equivalent. `nt/` must come last and takes the rest of the line as the note clue,
+  including text that looks like another prefix, such as `c/o` or `n/a`.
+* Each prefix value is one clue. For example, `n/Bernice Yu` searches for the partial name `Bernice Yu`.
+* Field-specific clues are partial and case-insensitive. They do not need to satisfy the full-field format required by
+  `add`; for example, `p/9123` can match the phone number `91234567`.
+* If a person does not have an optional field, they do not match a clue for that field. For example, a person without
+  an alias does not match `a/Bern`.
+* Keywords and prefixed clues cannot be mixed in one command.
+* Archived persons are never found, whichever kind of search you use. Running `find` while viewing `archives` switches
+  back to search results containing active persons only. Use [`archives`](#viewing-archived-persons-archives) to see
+  archived persons.
+* Each `find` command searches the full person list, even if a previous command filtered the displayed results.
+* Extra spaces before, between, or after keywords and clues are ignored. Repeated spaces inside a clue are treated as
+  one space.
+* If exactly one person matches, the app shows `1 person listed.`
+* If more than one person matches, the app shows `NUMBER people listed.`
+* If no persons match, the app shows `No persons found!`.
+
+Examples:
+* `find li` returns persons such as `David Li` and `Charlotte Oliveiro`.
+* `find CS2103T` returns persons with `CS2103T` as a context.
+* `find David CS2103T` returns persons matching either `David` or `CS2103T`.
+* `find n/Bernice Yu c/CS2103T` returns persons whose name contains `Bernice Yu` and who have a context containing
+  `CS2103T`.
+* `find c/CS2103T c/Hiking` returns persons matching both context clues.
+* If Bernice Yu has been given an alias and a note with `edit`, `find c/CS2103T p/9927 a/Bern nt/hiking` returns
+  persons whose contexts, phone number, alias and note all match their corresponding clues. The non-note prefixes
+  can be supplied in any order, while `nt/` must come last.
 
 ### Deleting a person: `delete`
 
-Deletes the specified person from the address book.
+Deletes the specified person from UniContacts.
 
 Format: `delete INDEX`
 
@@ -136,15 +398,109 @@ Format: `delete INDEX`
 * The index refers to the index number shown in the displayed person list.
 * The index **must be a positive integer** 1, 2, 3, …​
 
+* Deleting removes the person for good. To keep a person but hide them, use [`archive`](#archiving-a-person-archive) instead.
+* If the archived persons are shown (see [`archives`](#viewing-archived-persons-archives)), `delete` deletes an archived person.
+
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `list` followed by `delete 2` deletes the 2nd person in the person list.
+* `find Bernice` followed by `delete 1` deletes the 1st person in the results of the `find` command.
 
-### Clearing all entries: `clear`
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+`delete` runs at once, without asking you to confirm, and is saved straight away. There is no undo, so check the index before you press Enter. To hide a person you might need again, use [`archive`](#archiving-a-person-archive) instead.
+</div>
 
-Clears all entries from the address book.
+### Archiving a person: `archive`
+
+Moves a person out of your normal list without deleting them. Use this for people you no longer need every day, such as a project team that has finished, while keeping them for later.
+
+Format: `archive INDEX` or `archive c/CONTEXT`
+
+* Archives the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list.
+* The index **must be a positive integer** 1, 2, 3, …​
+* An archived person is not shown by `list` and is not found by `find`. They stay saved, with all their details, and they still count when UniContacts checks for a duplicate phone number or email.
+* A person who is already archived cannot be archived again.
+* `archive c/CONTEXT` archives every person who has that context and is not archived yet. It works on all persons in UniContacts, not only the ones currently displayed, so an earlier `find` makes no difference.
+* The context must match exactly, ignoring capitalisation: `c/cs2103t` matches `CS2103T`, but `c/CS` does not.
+* `c/CONTEXT` cannot be combined with an index or any other prefix, and only one `c/` is allowed.
+
+Examples:
+* `list` followed by `archive 2` archives the 2nd person in the list.
+* `find CS2103T` followed by `archive 1` archives the 1st person in the results of the `find` command.
+* `archive c/CS2103T` archives everyone who has the context `CS2103T`.
+
+Outputs:
+
+Situation | Message
+----------|--------
+Success | `Archived person:` followed by the person's details
+The index is larger than the displayed list | `The person index provided is invalid.`
+The person is already archived | `That person is already archived.`
+`INDEX` is missing or is not a positive whole number | `Invalid command format!` followed by the usage of `archive`
+Success with `c/CONTEXT` | `Archived N person(s) with context CONTEXT.`
+No person to archive has that context | `No persons to archive with context CONTEXT.`
+`c/CONTEXT` is combined with an index or another prefix, or `c/` is repeated | `Invalid command format!` followed by the usage of `archive`
+`CONTEXT` is empty | `Contexts cannot be empty.`
+`CONTEXT` is not valid | `Contexts should start with a letter or digit, contain only letters, digits, spaces and & - . ' #, and be at most 50 characters long.`
+
+### Viewing archived persons: `archives`
+
+Shows only the archived persons, under the heading **Archives**.
+
+Format: `archives`
+
+* The heading **Archives** is shown above the list while the archived persons are displayed.
+* The numbers on the cards start from 1 again, and refer to this list. Use them with `unarchive` and `delete`.
+* Use `list` to go back to your normal list. `add`, `find` and `clear` also take you back to it.
+* The archived list cannot be filtered or searched with `find`. To locate a specific archived person, run `archives`
+  and browse the displayed list.
+* If you know the person's exact context, use `unarchive c/CONTEXT` to restore every archived person with that context,
+  then search them normally with `find`. The context must match exactly, ignoring capitalisation.
+* If there are no archived persons, the result display shows `No archived persons.` and the list is empty.
+* Otherwise the result display shows `Listed 1 archived person.` when there is one archived person, and `Listed N archived persons.` when there are more, where `N` is the number of archived persons.
+* Unlike `list`, `archives` does not ignore anything typed after it, because it is one letter away from `archive`. `archives 1` shows an `Invalid command format!` message instead of quietly switching to the archived list when `archive 1` was meant.
+
+### Unarchiving a person: `unarchive`
+
+Moves an archived person back to your normal list.
+
+Format: `unarchive INDEX` or `unarchive c/CONTEXT`
+
+* Unarchives the person at the specified `INDEX`. The index refers to the index number shown in the displayed list, so show the archived persons with [`archives`](#viewing-archived-persons-archives) first.
+* The index **must be a positive integer** 1, 2, 3, …​
+* If the person at that index is not archived, for example because you are looking at your normal list, nothing is changed and UniContacts tells you to run `archives` first.
+* `unarchive c/CONTEXT` unarchives every archived person who has that context. Like `archive c/CONTEXT`, it works on all persons in UniContacts, not only the ones currently displayed, and the context must match exactly, ignoring capitalisation.
+* After a successful `unarchive`, you stay in the archived list, so you can unarchive several persons in a row. The person is back in your normal list, which you reach with `list`.
+
+Examples:
+* `archives` followed by `unarchive 1` brings the 1st archived person back.
+* `unarchive c/CS2103T` brings back everyone archived with the context `CS2103T`.
+
+Outputs:
+
+Situation | Message
+----------|--------
+Success | `Unarchived person:` followed by the person's details
+The index is larger than the displayed list | `The person index provided is invalid.`
+The person is not archived | `That person is not archived. Run archives to see archived persons, then use unarchive INDEX.`
+`INDEX` is missing or is not a positive whole number | `Invalid command format!` followed by the usage of `unarchive`
+Success with `c/CONTEXT` | `Unarchived N person(s) with context CONTEXT.`
+No archived person has that context | `No archived persons with context CONTEXT.`
+`c/CONTEXT` is combined with an index or another prefix, or `c/` is repeated | `Invalid command format!` followed by the usage of `unarchive`
+`CONTEXT` is empty | `Contexts cannot be empty.`
+`CONTEXT` is not valid | `Contexts should start with a letter or digit, contain only letters, digits, spaces and & - . ' #, and be at most 50 characters long.`
+
+### Clearing all non-archived persons: `clear`
+
+Clears all persons from UniContacts, except the archived ones.
 
 Format: `clear`
+
+* Archived persons are kept, so that one `clear` cannot wipe your archive. The result message is `Persons cleared.`, followed by how many archived persons were kept, for example `Persons cleared. 2 archived persons were kept.`
+* To remove an archived person for good, show them with [`archives`](#viewing-archived-persons-archives) and use `delete`.
+
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+`clear` runs at once, without asking you to confirm, and is saved straight away. There is no undo: every non-archived person and their notes are gone. Before a `clear`, keep a copy of `data/unicontacts.json` (see [Editing the data file](#editing-the-data-file)) so that you can restore it, or [`archive`](#archiving-a-person-archive) the persons you might need again.
+</div>
 
 ### Exiting the program: `exit`
 
@@ -154,27 +510,73 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+UniContacts automatically saves data after every command. You do not need to save manually.
+
+If a command cannot be saved, for example because the data file or the `data` folder is read-only, UniContacts shows an error message. The change stays in the current session but is not in the data file until a later command that changes something is saved successfully. If you close UniContacts before then, the change is lost. Commands that change nothing, such as `list` and `find`, do not need to save.
+
+Each save is written to a temporary file first and then moved over `data/unicontacts.json`. If UniContacts is closed or crashes in the middle of a save, your previous data file is left as it was instead of being half-written.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+UniContacts data is saved automatically as a JSON file `data/unicontacts.json`, in the folder you start UniContacts from (normally the folder that contains the JAR file). Advanced users are welcome to update data directly by editing that data file.
+
+If you used v1.5 or earlier, your data was in `data/addressbook.json`. The first time you start this version, UniContacts copies it to `data/unicontacts.json` if that file does not exist yet, and leaves the old file where it is as a backup. Later starts only use `data/unicontacts.json`.
+
+Each person is stored like this:
+
+```json
+{
+  "persons" : [ {
+    "name" : "Alex Yeoh",
+    "phone" : "87438807",
+    "email" : "alexyeoh@example.com",
+    "contexts" : [ "CS2103T", "Hiking club" ]
+  }, {
+    "name" : "Roy Balakrishnan",
+    "contexts" : [ "Internship" ],
+    "archived" : true
+  } ]
+}
+```
+
+* `name` and at least one entry in `contexts` are required.
+* `phone`, `email`, `alias`, `introducer` and `note` are optional. You can leave them out, as for Roy above, or set them to `null`.
+* Each context is a plain piece of text, such as `"CS2103T"`, and must follow the same rules as a context entered in the `add` command.
+* `archived` is optional. `true` means the person is archived (see [`archive`](#archiving-a-person-archive)), as for Roy above. `false`, `null`, or leaving it out, means the person is not archived, so data files saved by earlier versions still work.
+* `archived` must be `true` or `false`, without quotes. Any other value, such as `"yes"` or `5`, makes the data file unreadable (see [If the data file cannot be read](#if-the-data-file-cannot-be-read)).
+* Two persons cannot have the same phone number or the same email, whether they are archived or not.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+Edit the data file only while UniContacts is closed, and only if you are confident that you can update it correctly. Certain edits can cause UniContacts to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range).
 </div>
 
-### Archiving data files `[coming in v2.0]`
+#### If the data file cannot be read
 
-_Details coming soon ..._
+If UniContacts cannot read the data file when it starts (for example, a person has no context or has an invalid phone number or email, two persons share a phone number or email, the file is not valid JSON, or the file is a data file from AddressBook-Level3), it:
+
+1. renames the file to `unicontacts.json.<UTC time>.bak` in the same `data` folder, for example `unicontacts.json.20261015T101723Z.bak`, so that your data is not overwritten; and
+2. starts with an empty person list. A new `data/unicontacts.json` is created by the first command that changes something, such as `add`.
+
+To recover your data:
+
+1. Exit UniContacts.
+2. Open the `.bak` file in a text editor and fix the problem. The reason is written in the log file `unicontacts.log.0`, which is in the folder you started UniContacts from.
+3. If there is a new `unicontacts.json` (it exists if you ran a command that changes something, such as `add`, after the failed start), rename it to `unicontacts-new.json` so that it is not overwritten. Then rename the fixed `.bak` file to `unicontacts.json`.
+4. Start UniContacts again. Any persons you added after the failed start are still in `unicontacts-new.json`; add them again if you need them.
+
+If UniContacts cannot rename the file, for example because the `data` folder is read-only, it still starts with an empty person list and leaves the file where it is. It renames the file to a `.bak` file just before its next save, so a save can never overwrite the unreadable file. The same applies when the `data` folder cannot be opened at all: UniContacts starts empty instead of with the sample data.
+
+If UniContacts fails to read the data file more than once, each failure keeps its own `.bak` file, because the time is part of the name. If two failures happen in the same second, the later `.bak` file gets `-1` (then `-2`, and so on) before `.bak`, for example `unicontacts.json.20261015T101723Z-1.bak`.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file `data/unicontacts.json` it creates with the data file from your previous UniContacts home folder. If your previous data file is still named `addressbook.json` (v1.5 and earlier), copy it to the other computer's `data` folder and delete any `data/unicontacts.json` there, so that UniContacts copies it on the next start.
+
+**Q**: UniContacts started with an empty list, but I had saved persons. What happened?<br>
+**A**: UniContacts could not read your data file, so it kept the file as `data/unicontacts.json.<UTC time>.bak` and started empty. Your data is in that `.bak` file. See [If the data file cannot be read](#if-the-data-file-cannot-be-read) to recover it.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +591,15 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+**Add** | `add n/NAME c/CONTEXT [c/CONTEXT]…​ [p/PHONE] [e/EMAIL] [a/ALIAS] [i/INTRODUCER] [nt/NOTE]` <br> e.g., `add n/James Ho c/CS2103T a/Jim nt/Met at Hack&Roll`
+**Archive** | `archive INDEX` or `archive c/CONTEXT`<br> e.g., `archive 2`, `archive c/CS2103T`
+**Archives** | `archives`
 **Clear** | `clear`
+**Contexts** | `contexts`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
+**Edit** | `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ALIAS] [i/INTRODUCER] [-p/] [-e/] [-a/] [-i/] [-nt/] [+c/CONTEXT]…​ [-c/CONTEXT]…​ [nt/NOTE]`<br> e.g., `edit 2 p/91234567 +c/NUS Hackers -c/Hiking club`
+**Exit** | `exit`
+**Find** | `find KEYWORD [MORE_KEYWORDS]…` or `find [n/NAME_PART] [p/PHONE_PART] [e/EMAIL_PART] [c/CONTEXT_PART]… [a/ALIAS_PART] [i/INTRODUCER_PART] [nt/NOTE_PART]`<br> e.g., `find n/Bernice Yu c/CS2103T a/Bern`
 **List** | `list`
 **Help** | `help`
+**Unarchive** | `unarchive INDEX` or `unarchive c/CONTEXT`<br> e.g., `unarchive 1`, `unarchive c/CS2103T`

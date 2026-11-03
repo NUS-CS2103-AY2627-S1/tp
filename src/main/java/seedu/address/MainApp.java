@@ -1,6 +1,7 @@
 package seedu.address;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -10,6 +11,7 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.FileUtil;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
@@ -32,11 +34,12 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "unicontacts.json");
+    private static final Path OLD_ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
 
     protected Ui ui;
     protected Logic logic;
@@ -45,12 +48,13 @@ public class MainApp extends Application {
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing UniContacts ]===========================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
+        Path dataFile = chooseDataFile(ADDRESS_BOOK_FILE_PATH, OLD_ADDRESS_BOOK_FILE_PATH);
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(dataFile);
         storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
         model = initModelManager(storage, userPrefs);
@@ -58,6 +62,26 @@ public class MainApp extends Application {
         logic = new LogicManager(model, storage);
 
         ui = new UiManager(logic, storage.getAddressBookFilePath());
+    }
+
+    /**
+     * Returns the data file to use. If only {@code oldDataFile}, the data file of v1.5 and earlier, exists, it is
+     * copied to {@code dataFile} and left in place as a backup. The copy is written through a temporary file, so a
+     * failed copy never leaves a partial {@code dataFile}. If it fails, {@code oldDataFile} is used for this run
+     * instead, so that the user's contacts are not replaced by the sample data.
+     */
+    static Path chooseDataFile(Path dataFile, Path oldDataFile) {
+        if (Files.exists(dataFile) || !Files.isRegularFile(oldDataFile)) {
+            return dataFile;
+        }
+        try {
+            FileUtil.writeToFile(dataFile, FileUtil.readFromFile(oldDataFile));
+            logger.info("Copied " + oldDataFile + " to " + dataFile);
+            return dataFile;
+        } catch (IOException e) {
+            logger.warning("Could not copy " + oldDataFile + ", using it directly: " + e);
+            return oldDataFile;
+        }
     }
 
     /**
@@ -74,16 +98,30 @@ public class MainApp extends Application {
             addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
                 logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+                        + " populated with sample UniContacts data.");
             }
             initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
         } catch (DataLoadingException e) {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
+                    + " UniContacts will start with no contacts.");
+            backUpUnreadableDataFile(storage.getAddressBookFilePath());
             initialData = new AddressBook();
         }
 
         return new ModelManager(initialData, userPrefs);
+    }
+
+    /**
+     * Keeps the data file that could not be loaded by renaming it to a {@code .bak} file, as the next save would
+     * otherwise overwrite it.
+     */
+    private void backUpUnreadableDataFile(Path dataFile) {
+        try {
+            FileUtil.backUp(dataFile).ifPresent(backup ->
+                    logger.warning("The unreadable data file was renamed to " + backup));
+        } catch (IOException e) {
+            logger.warning("Could not rename the unreadable data file " + dataFile + ": " + e);
+        }
     }
 
     /**
@@ -120,13 +158,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting UniContacts " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping UniContacts ] =============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

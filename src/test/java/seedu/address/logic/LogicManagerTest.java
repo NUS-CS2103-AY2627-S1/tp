@@ -1,9 +1,11 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.CONTEXT_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
@@ -12,7 +14,10 @@ import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +25,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ContextsCommand;
+import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -67,7 +74,96 @@ public class LogicManagerTest {
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        String expectedMessage = String.format(ListCommand.MESSAGE_SUCCESS_PLURAL,
+                model.getFilteredPersonList().size());
+        assertCommandSuccess(listCommand, expectedMessage, model);
+    }
+
+    @Test
+    public void execute_contextsAfterFind_preservesDisplayedListAndSurvivesReload() throws Exception {
+        logic.execute("add n/Alex Tan c/CS2103T c/NUS Hackers");
+        logic.execute("add n/Priya Nair c/cs2103t");
+        logic.execute("find Priya");
+        List<Person> displayedPersons = List.copyOf(model.getFilteredPersonList());
+        String expectedMessage = String.format(ContextsCommand.MESSAGE_CONTEXT_PLURAL, "CS2103T", 2) + "\n"
+                + String.format(ContextsCommand.MESSAGE_CONTEXT_SINGULAR, "NUS Hackers", 1) + "\n\n"
+                + String.format(ContextsCommand.MESSAGE_SUCCESS_PLURAL, 2);
+
+        assertEquals(new CommandResult(expectedMessage), logic.execute("CoNtExTs"));
+        assertEquals(displayedPersons, model.getFilteredPersonList());
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        Model reloadedModel = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        assertEquals(model.getAddressBook(), reloadedModel.getAddressBook());
+        assertEquals(new CommandResult(expectedMessage), new ContextsCommand().execute(reloadedModel));
+    }
+
+    @Test
+    public void execute_contextsAfterArchive_preservesViewAndCountsSurviveReload() throws Exception {
+        logic.execute("add n/Alex Tan c/cs2103t c/Old Project");
+        logic.execute("add n/Priya Nair c/CS2103T");
+        logic.execute("archive 1");
+        logic.execute("archives");
+        List<Person> displayedPersons = List.copyOf(model.getFilteredPersonList());
+        String expectedMessage = String.format(ContextsCommand.MESSAGE_CONTEXT_SINGULAR, "CS2103T", 1) + "\n\n"
+                + String.format(ContextsCommand.MESSAGE_SUCCESS_SINGULAR, 1);
+
+        assertEquals(new CommandResult(expectedMessage), logic.execute("contexts"));
+        assertEquals(displayedPersons, model.getFilteredPersonList());
+        assertTrue(model.showingArchivesProperty().get());
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        Model reloadedModel = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        assertEquals(model.getAddressBook(), reloadedModel.getAddressBook());
+        assertEquals(new CommandResult(expectedMessage), new ContextsCommand().execute(reloadedModel));
+
+        logic.execute("unarchive 1");
+        String restoredMessage = String.format(ContextsCommand.MESSAGE_CONTEXT_PLURAL, "cs2103t", 2) + "\n"
+                + String.format(ContextsCommand.MESSAGE_CONTEXT_SINGULAR, "Old Project", 1) + "\n\n"
+                + String.format(ContextsCommand.MESSAGE_SUCCESS_PLURAL, 2);
+        assertEquals(new CommandResult(restoredMessage), logic.execute("contexts"));
+    }
+
+    @Test
+    public void execute_contextsWithArguments_rejectsInputAndPreservesSearch() throws Exception {
+        logic.execute("add n/Alex Tan c/CS2103T");
+        logic.execute("find Nobody");
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ContextsCommand.MESSAGE_USAGE);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> false);
+
+        assertCommandFailure("contexts c/CS2103T", ParseException.class, expectedMessage, expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_editChangesOnlyCapitalisation_changeIsSaved() throws Exception {
+        logic.execute("add n/Alex Tan e/alex@example.com c/Hiking");
+        logic.execute("edit 1 e/ALEX@Example.com +c/hiking -c/Hiking");
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        Person saved = storage.readAddressBook().orElseThrow().getPersonList().get(0);
+        assertEquals("ALEX@Example.com", saved.getEmail().orElseThrow().value);
+        assertEquals("hiking", saved.getContexts().iterator().next().description);
+    }
+
+    @Test
+    public void execute_editTwiceAfterFind_editsPersonsByFindResultIndex() throws Exception {
+        logic.execute("add n/Irfan Ibrahim p/90000001 c/CS2103T");
+        logic.execute("add n/Bernice Yu p/90000002 c/CS2103T");
+        logic.execute("add n/Roy Balakrishnan p/90000003 c/CS2103T");
+        logic.execute("find Irfan Roy");
+
+        logic.execute("edit 1 p/90000021");
+        logic.execute("edit 2 e/roy.b@example.com");
+
+        // the find results stay after each edit, so the 2nd person is still Roy and not Bernice
+        List<Person> shownPersons = model.getFilteredPersonList();
+        assertEquals(List.of("Irfan Ibrahim", "Roy Balakrishnan"),
+                shownPersons.stream().map(person -> person.getName().fullName).toList());
+        assertEquals("90000021", shownPersons.get(0).getPhone().orElseThrow().value);
+        assertEquals("roy.b@example.com", shownPersons.get(1).getEmail().orElseThrow().value);
+        assertTrue(model.getAddressBook().getPersonList().get(1).getEmail().isEmpty());
     }
 
     @Test
@@ -79,7 +175,30 @@ public class LogicManagerTest {
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT,
+                temporaryFolder.resolve("ExceptionUserPrefs.json")));
+    }
+
+    @Test
+    public void execute_storageThrowsIoExceptionOnCommandThatChangesNothing_succeeds() throws Exception {
+        logic = new LogicManager(model, createStorageThatThrowsOnSave(DUMMY_IO_EXCEPTION));
+
+        assertEquals(new CommandResult(FindCommand.MESSAGE_NO_PERSONS_FOUND), logic.execute("find nobody"));
+    }
+
+    @Test
+    public void execute_storageThrowsFileAlreadyExistsExceptionForFile_throwsCommandException() throws IOException {
+        Path file = Files.createFile(temporaryFolder.resolve("data"));
+        assertCommandFailureForExceptionFromStorage(new FileAlreadyExistsException(file.toString()), String.format(
+                LogicManager.FILE_OPS_NOT_A_FOLDER_FORMAT,
+                temporaryFolder.resolve("ExceptionUserPrefs.json"), file));
+    }
+
+    @Test
+    public void execute_storageThrowsFileAlreadyExistsExceptionForOtherPath_throwsCommandException() {
+        IOException notAFile = new FileAlreadyExistsException("missing");
+        assertCommandFailureForExceptionFromStorage(notAFile, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, notAFile.getMessage()));
     }
 
     @Test
@@ -147,28 +266,29 @@ public class LogicManagerTest {
      * @param expectedMessage the message expected inside exception thrown by the Logic component
      */
     private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
-        Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
+        logic = new LogicManager(model, createStorageThatThrowsOnSave(e));
 
-        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
+        // Triggers the saveAddressBook method by executing an add command
+        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+                + EMAIL_DESC_AMY + CONTEXT_DESC_FRIEND;
+        // the change is kept for the current session, as the use cases in the developer guide say
+        Person expectedPerson = new PersonBuilder(AMY).build();
+        ModelManager expectedModel = new ModelManager();
+        expectedModel.addPerson(expectedPerson);
+        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+    }
+
+    /**
+     * Returns a {@code StorageManager} whose address book storage throws {@code e} whenever it is asked to save.
+     */
+    private StorageManager createStorageThatThrowsOnSave(IOException e) {
+        Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
         JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
             @Override
             public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
                 throw e;
             }
         };
-
-        JsonUserPrefsStorage userPrefsStorage =
-                new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
-
-        logic = new LogicManager(model, storage);
-
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        return new StorageManager(addressBookStorage, new JsonUserPrefsStorage(prefPath));
     }
 }

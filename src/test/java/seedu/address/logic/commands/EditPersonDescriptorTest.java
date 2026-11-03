@@ -5,11 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ALIAS_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ALIAS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CONTEXT_FRIEND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CONTEXT_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_INTRODUCER_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_INTRODUCER_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_NOTE_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_NOTE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,13 +54,50 @@ public class EditPersonDescriptorTest {
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different address -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        // different contexts -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withContextsToAdd(VALID_CONTEXT_HUSBAND).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different tags -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
+        // different contexts to remove -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withContextsToRemove(VALID_CONTEXT_FRIEND).build();
         assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different alias -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAlias(VALID_ALIAS_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different introducer -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withIntroducer(VALID_INTRODUCER_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different note -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withNote(VALID_NOTE_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+    }
+
+    @Test
+    public void equals_differentFieldRemoved_returnsFalse() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withPhoneRemoved().build()));
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withEmailRemoved().build()));
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withAliasRemoved().build()));
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withIntroducerRemoved().build()));
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withNoteRemoved().build()));
+    }
+
+    @Test
+    public void isAnyFieldEdited() {
+        assertFalse(new EditPersonDescriptor().isAnyFieldEdited());
+
+        // setting or removing a single alias, introducer or note counts as an edit
+        assertTrue(new EditPersonDescriptorBuilder().withAlias(VALID_ALIAS_AMY).build().isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withIntroducer(VALID_INTRODUCER_AMY).build()
+                .isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withNote(VALID_NOTE_AMY).build().isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withAliasRemoved().build().isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withIntroducerRemoved().build().isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withNoteRemoved().build().isAnyFieldEdited());
     }
 
     @Test
@@ -62,10 +105,13 @@ public class EditPersonDescriptorTest {
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
         String expected = EditPersonDescriptor.class.getCanonicalName() + "{name="
                 + editPersonDescriptor.getName().orElse(null) + ", phone="
-                + editPersonDescriptor.getPhone().orElse(null) + ", email="
-                + editPersonDescriptor.getEmail().orElse(null) + ", address="
-                + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getPhone() + ", email="
+                + editPersonDescriptor.getEmail() + ", alias="
+                + editPersonDescriptor.getAlias() + ", introducer="
+                + editPersonDescriptor.getIntroducer() + ", note="
+                + editPersonDescriptor.getNote() + ", contextsToAdd="
+                + editPersonDescriptor.getContextsToAdd().orElse(null) + ", contextsToRemove="
+                + editPersonDescriptor.getContextsToRemove().orElse(null) + "}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }

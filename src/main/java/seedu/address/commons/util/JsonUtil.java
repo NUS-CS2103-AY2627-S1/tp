@@ -52,7 +52,8 @@ public class JsonUtil {
             Path filePath, Class<T> classOfObjectToDeserialize) throws DataLoadingException {
         requireNonNull(filePath);
 
-        if (!Files.exists(filePath)) {
+        // notExists, not !exists: a file in a folder that cannot be searched is unknown, not missing
+        if (Files.notExists(filePath)) {
             return Optional.empty();
         }
         logger.info("JSON file " + filePath + " found.");
@@ -64,6 +65,12 @@ public class JsonUtil {
         } catch (IOException e) {
             logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
             throw new DataLoadingException(e);
+        }
+
+        if (jsonFile == null) {
+            // a file that only contains the JSON value null has no data to load
+            logger.warning("JSON file " + filePath + " contains no data.");
+            throw new DataLoadingException(new IOException("The file " + filePath + " contains no data."));
         }
 
         return Optional.of(jsonFile);

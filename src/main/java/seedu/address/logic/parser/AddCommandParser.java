@@ -1,28 +1,38 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ALIAS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CONTEXT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_INTRODUCER;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
+import seedu.address.model.person.Alias;
+import seedu.address.model.person.Context;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Introducer;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new AddCommand object
  */
 public class AddCommandParser implements Parser<AddCommand> {
+
+    public static final String MESSAGE_EMPTY_PHONE =
+            ParserUtil.MESSAGE_EMPTY_PHONE + " Leave out " + PREFIX_PHONE + " if there is no phone number.";
+    public static final String MESSAGE_EMPTY_EMAIL =
+            ParserUtil.MESSAGE_EMPTY_EMAIL + " Leave out " + PREFIX_EMAIL + " if there is no email.";
 
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
@@ -31,21 +41,33 @@ public class AddCommandParser implements Parser<AddCommand> {
      */
     public AddCommand parse(String args) throws ParseException {
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenizeWithRestOfLinePrefix(args, PREFIX_NOTE, PREFIX_NAME, PREFIX_PHONE,
+                        PREFIX_EMAIL, PREFIX_CONTEXT, PREFIX_ALIAS, PREFIX_INTRODUCER);
 
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
+        // Name and at least one context are compulsory; the remaining fields are optional.
+        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_CONTEXT)
                 || !argMultimap.getPreamble().isEmpty()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL,
+                PREFIX_ALIAS, PREFIX_INTRODUCER);
         Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
+        requireNonBlankIfPresent(argMultimap, PREFIX_PHONE, MESSAGE_EMPTY_PHONE);
+        Phone phone = ParserUtil.parseIfPresent(argMultimap, PREFIX_PHONE, ParserUtil::parsePhone)
+                .orElse(null);
+        requireNonBlankIfPresent(argMultimap, PREFIX_EMAIL, MESSAGE_EMPTY_EMAIL);
+        Email email = ParserUtil.parseIfPresent(argMultimap, PREFIX_EMAIL, ParserUtil::parseEmail)
+                .orElse(null);
+        Set<Context> contextList = ParserUtil.parseContexts(argMultimap.getAllValues(PREFIX_CONTEXT));
+        Alias alias = ParserUtil.parseIfPresent(argMultimap, PREFIX_ALIAS, ParserUtil::parseAlias)
+                .orElse(null);
+        Introducer introducer = ParserUtil.parseIfPresent(argMultimap, PREFIX_INTRODUCER,
+                ParserUtil::parseIntroducer).orElse(null);
+        Note note = ParserUtil.parseIfPresent(argMultimap, PREFIX_NOTE, ParserUtil::parseNote)
+                .orElse(null);
 
-        Person person = new Person(name, phone, email, address, tagList);
+        Person person = new Person(name, phone, email, contextList, alias, introducer, note);
 
         return new AddCommand(person);
     }
@@ -56,6 +78,18 @@ public class AddCommandParser implements Parser<AddCommand> {
      */
     private static boolean arePrefixesPresent(ArgumentMultimap argumentMultimap, Prefix... prefixes) {
         return Stream.of(prefixes).allMatch(prefix -> argumentMultimap.getValue(prefix).isPresent());
+    }
+
+    /**
+     * Throws a {@code ParseException} with {@code message} if {@code prefix} is present with a blank value.
+     * Lets add tell users that the field is optional, a hint that would mislead users of edit.
+     */
+    private static void requireNonBlankIfPresent(ArgumentMultimap argumentMultimap, Prefix prefix, String message)
+            throws ParseException {
+        Optional<String> value = argumentMultimap.getValue(prefix);
+        if (value.isPresent() && value.get().isBlank()) {
+            throw new ParseException(message);
+        }
     }
 
 }
