@@ -7,9 +7,6 @@ import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
@@ -22,27 +19,58 @@ import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.AttendanceWeek;
+import seedu.address.model.person.ClassMembership;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
 
+/**
+ * Verifies command dispatch and rejection of invalid top-level input.
+ */
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
-        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
+        Person person = seedu.address.testutil.StudentBuilder.typicalStudent();
+        AddCommand command = (AddCommand) parser.parseCommand(seedu.address.testutil.StudentBuilder.COMMAND);
         assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_addWithLeadingControlWhitespace_rejected() {
+        for (String whitespace : new String[]{"\t", "\n", "\r"}) {
+            assertThrows(ParseException.class, () ->
+                    parser.parseCommand(whitespace + seedu.address.testutil.StudentBuilder.COMMAND));
+        }
+    }
+
+    @Test
+    public void parseCommand_markWithControlWhitespace_rejected() {
+        String command = "mark 1 m/CS2103T w/1 s/present";
+        for (String whitespace : new String[]{"\t", "\n", "\r"}) {
+            assertThrows(ParseException.class, () -> parser.parseCommand(whitespace + command));
+            assertThrows(ParseException.class, () -> parser.parseCommand(command + whitespace));
+        }
     }
 
     @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertTrue(parser.parseCommand("  clear  ") instanceof ClearCommand);
+    }
+
+    @Test
+    public void parseCommand_clearWithArguments_throwsParseException() {
+        String expected = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE);
+        for (String input : new String[]{"clear 3", "clear anything", "clear n/Alice", "clear\t",
+            "\tclear", "clear\n", "clear \r", "  clear  1  "}) {
+            assertThrows(ParseException.class, expected, () -> parser.parseCommand(input));
+        }
+        assertThrows(ParseException.class, () -> parser.parseCommand("clear\u00a0"));
     }
 
     @Test
@@ -64,15 +92,22 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
-        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+        assertTrue(parser.parseCommand("  " + ExitCommand.COMMAND_WORD + "  ") instanceof ExitCommand);
+    }
+
+    @Test
+    public void parseCommand_exitWithArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExitCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("exit 3"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("exit anything"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("exit n/Alice"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("  exit   3  "));
     }
 
     @Test
     public void parseCommand_find() throws Exception {
-        List<String> keywords = List.of("foo", "bar", "baz");
-        FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+        FindCommand command = (FindCommand) parser.parseCommand("find c/CS2103T:T04 w/3");
+        assertEquals(new FindCommand(new ClassMembership("CS2103T:T04"), new AttendanceWeek("3")), command);
     }
 
     @Test
@@ -84,7 +119,23 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertTrue(parser.parseCommand("  " + ListCommand.COMMAND_WORD + "  ") instanceof ListCommand);
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE), () ->
+                        parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_listWithNonSpaceWhitespace_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE);
+        String[] inputs = {"list\t", "list \t", "\tlist", "list\r"};
+        for (String input : inputs) {
+            assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(input));
+        }
+
+        // Non-ASCII spaces are not command-word separators, so they make the command word unknown
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("list\u00a0"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("\u2003list"));
     }
 
     @Test

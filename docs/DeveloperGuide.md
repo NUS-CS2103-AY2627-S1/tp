@@ -9,7 +9,30 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* Vincent Peh used OpenAI Codex to help interpret the team's add-student specification,
+  implement and test the Telegram handle value type and v1.3 add-student integration, and draft the related UG/DG and implementation context. The integration reuses the team’s `ClassMembership` type and existing SE-EDU AB3 architecture.
+* Ethan Quek used OpenAI Codex to investigate issue #62, implement strict and
+  save-before-publish clear behavior, add parser/storage/JavaFX regressions, and
+  update the guides. Ethan also used Codex for v1.5 alpha-bug investigation,
+  transactional legacy-edit recovery, Help behavior and the documentation/diagram
+  corrections. The work reuses the team's existing model and storage contracts.
+* Vincent also used OpenAI Codex for v1.4 scope planning, student contact updates, regression tests, the sequence diagram and related documentation. The implementation reuses team value types and the existing attendance transaction pattern; Vincent must understand and review the generated work.
+* Vincent used OpenAI Codex for v1.5 contact-validation performance analysis, the linear-time trimming fix, boundary/recovery/UI tests and documentation. This increment reuses the existing team storage and JavaFX test harness; it does not take over teammate features.
+* Vincent used OpenAI Codex for the v1.6 documentation audit and contact regression verification. No functional code was changed in this increment.
+* Aston used OpenAI Codex to test Exit argument validation and add implementation context.
+* Jian Yang used Claude Code to assist with parts of the class membership, `list` and class-view work.
+* Min Thi Ha used OpenAI Codex for attendance recovery and contact-update integration tests,
+  JavaFX failure checks and attendance documentation prose (#61).
+  This work reuses the team's existing model, storage and JavaFX test infrastructure.
+* Min Thi Ha also used OpenAI Codex for the batch-attendance code, tests and
+  documentation prose (#67), reusing the same attendance types and transaction infrastructure.
+* Min Thi Ha used OpenAI Codex to update and verify the student/legacy model diagram and explanation (#110).
+* Min Thi Ha used OpenAI Codex for relationship-marker name parsing, regression tests and documentation (#109).
+* Min Thi Ha used OpenAI Codex for the v1.6 bug audit, startup/file-location/window-size fixes,
+  universal Mac packaging, regression and packaged-app checks, and documentation (#121).
+  This work reuses AB3, the team's JavaFX test utilities and existing JavaFX native libraries.
+
+* Min Thi Ha used OpenAI Codex to correct and verify the TutorTrack implementation links in this guide (#108).
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +59,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -53,7 +76,7 @@ The bulk of the app's work is done by the following four components:
 
 The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<img src="images/ArchitectureSequenceDiagram.png" alt="Delete architecture sequence showing candidate saving before live deletion" width="1000" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -68,13 +91,27 @@ The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/ui/Ui.java)
 
 ![Structure of the UI Component](images/UiClassDiagram.png)
 
+The landing page and User Guide share the product screenshot at `docs/images/Ui.png`.
+It shows the running application with fictional student contacts, class memberships,
+weekly attendance totals and a selected student's attendance history. Refresh it when
+the visible UI changes; capture the application content without annotations or desktop
+clutter, and keep the guides' descriptions consistent with the displayed state.
+
 The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/ui/MainWindow.java).
+
+Keyboard navigation uses the standard JavaFX focus traversal: Tab moves from the
+command text field through the result text area to the roster `ListView`; Shift+Tab
+traverses in reverse. The list's Up/Down behavior changes selection, and
+`PersonListPanel`'s selection listener refreshes and shows `studentDetailsPane` for
+student profiles. Keyboard traversal uses these controls; `select INDEX` provides
+a direct command-box alternative using the same selection listener.
+See the [User Guide keyboard instructions](UserGuide.md#viewing-student-details-with-the-keyboard).
 
 The `UI` component,
 
@@ -85,7 +122,7 @@ The `UI` component,
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
@@ -95,30 +132,58 @@ The sequence diagram below illustrates the interactions within the `Logic` compo
 
 ![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+The diagram shows a valid, single-target deletion. Parser construction, candidate
+filter setup and command-result construction are omitted for readability. The
+candidate uses the pre-command displayed roster, so filtered indices identify the
+same students throughout validation and execution. Saving must finish before the
+live model is changed; the failure branch returns an error with no live mutation.
 
 How the `Logic` component works:
 
 1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
 1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
-   Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
+1. For deletion, `LogicManager` resolves the target against the live display and executes the command on a detached candidate model. It saves that candidate before deleting the same target from the live model. If validation or saving fails, the live data and view stay unchanged.
 1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
 <img src="images/ParserClasses.png" width="600"/>
 
+The parser-class diagram illustrates the inherited tokenizer-based parsing helpers,
+primarily used by legacy `edit`. Strict student parsers receive raw arguments and
+do not all use `ArgumentTokenizer`. The diagram is a catalogue of helpers, not a
+requirement that every parser uses all of them.
+
 How the parsing works:
 * When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+<img src="images/ModelClassDiagram.png" width="850" alt="Model classes showing shared, student and legacy Person relationships" />
 
+`Person` represents either a student profile or a legacy AB3 contact; these are
+constructor-enforced representations of the same class, not subclasses. The
+association multiplicities above cover both representations. The filtered view is
+described below rather than drawn as a second association to `Person`. The profile
+constraints are:
+
+| Relationship from `Person` | Student profile | Legacy contact |
+| --- | --- | --- |
+| `Name`, `Email` | Exactly one of each | Exactly one of each |
+| `TelegramHandle` | Exactly one | Absent (`Optional.empty()` from the getter) |
+| `ClassMembership` | One or more; at most one group per course | Empty set |
+| `AttendanceRecord` | Zero or more; at most one per enrolled course/week | Empty list |
+| `Phone`, `Address` | Absent (`null` from the getters) | Exactly one of each |
+| `Tag` | Empty set | Zero or more |
+
+Each `ClassMembership` contains a course code and tutorial group. Each
+`AttendanceRecord` contains a course code, an `AttendanceWeek` and an
+`AttendanceStatus`; stored decisions are Present or Absent. No record for a
+course/week means Unrecorded. Check `isStudent()` before using legacy-only getters.
+See [Add-student integration](#add-student-integration-v13) and
+[Record and correct attendance](#record-and-correct-attendance) for implementation details.
 
 The `Model` component,
 
@@ -127,7 +192,7 @@ The `Model` component,
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The diagram below is an unimplemented alternative for legacy tags, not TutorTrack's current model. It keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. Student fields are omitted.<br>
 
 <img src="images/BetterModelClassDiagram.png" width="450" />
 
@@ -136,7 +201,7 @@ The `Model` component,
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-W08-4/tp/blob/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
@@ -153,96 +218,556 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 ## **Implementation**
 
+### Student contact updates (v1.4)
+
+`UpdateCommandParser` accepts one displayed index and optional singleton `n/`,
+`p/`, `e/` fields. It preserves raw whitespace for the existing student validators,
+rejects missing changes and unexpected/repeated prefixes, and creates an immutable
+`UpdateCommand`. `update` is separate from legacy `edit` because `p/` means Telegram
+for students and phone for legacy contacts; keeping explicit commands avoids
+silently interpreting a contact in the wrong format.
+
+`Person.withContactDetails` validates the replacement profile through the student
+constructor and retains immutable memberships and attendance. No JSON schema change
+is needed. The command excludes the target when checking the entire roster for
+email/Telegram collisions, checking email first; matching names are allowed.
+
+![Student update transaction](images/UpdateSequenceDiagram.png)
+
+The diagram shows a successful update, with guarded optional fragments for a changed
+profile. A note states where storage failure interrupts the sequence. Parsing,
+validation details and accessors are omitted to keep the transaction order visible.
+Notation follows the course [UML reference sheet](https://nus-cs2103-ay2627-s1.github.io/website/admin/uml-reference-sheet.html)
+and [modeling syllabus](https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/modeling.html):
+instance lifelines, activation bars, solid call arrows, dashed returns, object creation
+and guarded `opt` frames. `LogicManager.executeStudentReplacement` is shared with attendance
+marking. It copies the current display into a detached candidate so indices refer
+to the pre-command view. The command mutates only that candidate. Storage succeeds
+before `model.setPerson` publishes the replacement. The live membership filter is
+preserved; the result requests selection without replacing class/week context.
+Validation errors occur before storage; save errors never return a success result.
+An unchanged profile returns the selected target without saving or replacing it.
+
+**Alternatives:** deleting and re-adding loses attendance and changes roster order;
+mutating then rolling back exposes transient changes to observable UI listeners.
+The detached-candidate approach avoids both problems. Membership edits remain out
+of scope because removing a course needs a separate attendance-retention policy.
+
+**Validation:** `UpdateCommandParserTest` covers grammar, normalized values, omitted
+fields, unknown/repeated prefixes, whitespace and index boundaries.
+`StudentUpdateIntegrationTest` covers filtered indices, collisions outside the view,
+legacy contacts, no-op writes, atomic save failure/retry and JSON reload.
+`MvpRosterUiTest` verifies refreshed details, retained attendance badges, selection,
+class/week heading and failure input preservation in an actual JavaFX window.
+
+**Manual acceptance:** add two students, record attendance in two courses and weeks,
+filter to one class, then update row 1's name, Telegram and email. Confirm the row,
+heading and attendance remain correct. Restart and check the updated contacts.
+Attempt the other student's email, a repeated prefix, `update 0 n/Alice`, and an
+empty `p/`; each must leave the existing profile intact. With an unwritable data
+location, a changed update must fail while a normalized no-op still succeeds.
+
+
+#### v1.5 contact hardening
+
+Tracked in [#77](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/77), with the
+reproduced alpha defect in [#78](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/78).
+`StringUtil.trimOrdinarySpaces` scans the two boundaries once. Name, student email,
+Telegram and update-index validation use it instead of `^ +| +$` replacement.
+The previous regex repeatedly scanned long internal space runs; because command
+execution occurs on the JavaFX thread, pasted input could stall the window.
+The helper removes only U+0020 and leaves internal/control/Unicode whitespace to
+existing validators. Name normalization still uses NFC and collapses ordinary spaces.
+The command grammar, error messages, transaction order and storage schema are unchanged.
+
+| Test | Risk covered |
+| --- | --- |
+| `StringUtilTest` | Empty/all-space boundaries, internal spaces and preservation of unsupported whitespace |
+| `StudentValidationTest` | Unicode name lengths, email boundaries, locale and a reproduced large-spacing regression |
+| `StudentContactParserTest` | Contact parameter order, per-field unsupported whitespace and large pasted inputs through the main parser |
+| `StudentContactAcceptanceTest` | Maximum contacts through JSON, one-over-limit rejection without writes, normalized no-op, restart/contact reuse and permission failure/retry |
+| `MvpRosterUiTest` | Failed add keeps selection/details/context/input; retry selects the new row; invalid update of another row preserves selection; no-op selects without saving |
+
+The performance checks use 100,000 internal spaces and a generous two-second budget
+for a regression that previously took several seconds per field. They are not a
+microbenchmark. Other tests vary one invalid contact at a time so one failure cannot
+mask another missing validation. Permission errors are injected at the storage
+boundary; successful paths use real temporary JSON files. All data is synthetic.
+
+Run `./gradlew check coverage shadowJar shadowJarMacArm` and `.github/run-checks.sh`.
+Read the current validation/status in `CONTEXT.md`; coverage alone does not establish
+beta readiness. Packaged acceptance should repeat add, filtered update, collision,
+no-op and restart on the release JAR, checking contacts, memberships, attendance,
+row selection and the class/week heading. Separate OS packaging and teammate feature
+acceptance remain release gates.
+
+
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Safe clearing (v1.4)
 
-#### Proposed Implementation
+`ClearCommandParser` accepts only ordinary spaces after `clear`. The top-level
+parser forwards raw arguments so trimming cannot hide tabs or line breaks.
+`LogicManager` saves a new empty address book before executing `ClearCommand` on
+live data. An `IOException` uses the existing no-changes-applied recovery message;
+no live list notifications or successful result occur before saving succeeds.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+After saving, `ClearCommand` removes the complete roster, including students hidden
+by a class filter and attendance owned by those students. Its result clears UI
+selection while retaining class/week context. Keeping the live model untouched on
+failure avoids a rollback that could expose transient deletions to UI listeners.
+This path leaves the contact-update and attendance transaction implementations alone.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+`ClearIntegrationTest` verifies save ordering, hidden contacts, attendance, failure,
+absence of list notifications on failure, retry, empty rosters and JSON reload.
+`AddressBookParserTest` covers extra arguments and control whitespace.
+`MvpRosterUiTest` checks that invalid input and save failure preserve the selected
+student, details, typed command and heading, then checks a successful retry.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+Manual check: create students in two classes, record attendance, and filter to one
+class. Try `clear 1`; nothing should change. With an unwritable data location, try
+`clear`; the selected student should remain. Restore write access and retry. The
+roster should empty, selection should clear, the class/week heading should remain,
+and restarting should load no students. Use disposable data because clear has no undo.
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+### Attendance week foundation
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+`AttendanceWeek` is an immutable value object for the shared Feature 3/4 WEEK
+contract. Its string constructor and `isValidAttendanceWeek` accept only ASCII
+integers 1–53 without leading zeros, after trimming surrounding U+0020 spaces.
+Validation happens before numeric conversion, so oversized input receives the
+same `MESSAGE_CONSTRAINTS` error as other invalid weeks. Null input throws
+`NullPointerException`. The public final `value` exposes the week number;
+`toString()` supplies its canonical display, and equality/hash code use that number.
 
-![UndoRedoState0](images/UndoRedoState0.png)
+This type deliberately does not infer a calendar week or impose a current-date
+restriction. Attendance records also identify their course and are owned by a student;
+a week alone is not a complete record identity. Both `mark` and
+`find c/COURSE:GROUP w/WEEK` use this type for their week parameter.
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+`AttendanceWeekTest` checks all 53 supported weeks, normalization, invalid syntax,
+whitespace and Unicode digits, overflow-sized input, nulls, equality and replacing
+an equal week key in a map. OpenAI Codex assisted `toomintyy` with implementation,
+tests and documentation.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+### Record and correct attendance
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+`MarkCommandParser` validates one or more displayed indices and required singleton `m/`, `w/`,
+`s/` prefixes without discarding control whitespace. `AttendanceRecord` normalizes
+course codes with `Locale.ROOT`; `AttendanceWeek` and `AttendanceStatus` supply the
+shared value contracts. The parser preserves Feature 4 field errors. For simultaneous
+errors, this implementation checks unknown/repeated prefixes in input order, missing
+index, index syntax, missing m/w/s in that order, then course/week/status values.
+The source does not fully specify cross-category precedence; this ordering is an
+implementation choice for team review, not a new agreed requirement.
 
-![UndoRedoState2](images/UndoRedoState2.png)
+The owner authorized batch marking for #67 on 22 October 2026; this is an extension
+to the exported MVP specification's single-student requirement, not evidence of team
+consensus. `MarkCommand` deduplicates numeric index values in first-appearance order
+(the existing `Index` type does not implement `hashCode`). `getTargets` takes one
+snapshot of the candidate's displayed roster and validates every index bound first.
+`execute` then validates every target's enrolment in input order before creating or
+applying replacements. No invalid later target can leave earlier targets changed.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+One unique target retains the original messages. Multiple targets report
+`Attendance set: COURSE | Week WEEK | STATUS | X changed, Y unchanged.`, or
+`Attendance unchanged:` with the same count format when X is zero. The selected
+result is always the first supplied unique target, including an unchanged target.
+These message, selection and error-precedence choices are owner-selected defaults
+for teammate review. Mark-all, ranges, mixed per-student statuses, extra states and
+schema changes remain out of scope.
 
+Each immutable `Person` owns an immutable, sorted list of `AttendanceRecord` values.
+`withAttendance` validates enrollment, replaces the single course/week decision or
+removes it for Unrecorded, and returns a complete student copy. Contact identity
+(`isSamePerson`) remains independent of attendance; full equality includes records.
+`getAttendanceStatus(course, week)` returns Unrecorded when no decision is stored.
+Deleting the owning Person removes its records without orphan data. Student contact
+correction uses `update` and preserves attendance; legacy `edit` rejects students.
+
+`LogicManager.executeStudentReplacement`, shared by `mark` and `update`, captures
+immutable snapshots of the full roster and displayed rows. It runs the command on
+a detached model filtered to those displayed rows. After execution it compares the
+complete proposed roster with the original, rather than inspecting just the selected
+student: the first target may be unchanged while later targets need saving. Identical
+rosters return without saving. Otherwise it saves the complete candidate once through
+the atomic JSON writer inherited from #44, then calls `setPerson` on the live model
+for each changed row. The helper is restricted to these in-place replacement commands;
+they retain roster size and order, so original/proposed rows correspond by position.
+The original predicate and row order remain in place. No live
+observable list event or selection request is emitted on validation or saving failure.
+`MainWindow` selects the result only after success, including a no-op. On failure,
+`MainWindow` displays the error and rethrows it to `CommandBox`, which retains the
+attempted input. Restoring storage and resubmitting starts a fresh transaction.
+
+<img src="images/MarkSequenceDiagram.png" alt="Attendance sequence diagram showing unchanged status, successful saving and failed saving" width="1100" />
+
+The diagram focuses on `executeStudentReplacement` for a valid batch. Parsing,
+command creation, detailed accessors and `Person` calls are omitted; target resolution
+and validation are summarized before the replacement loop. An all-unchanged roster
+bypasses both storage and live replacement. The two save outcomes are mutually exclusive: only a successful save
+reaches `live.setPerson`. A failed save returns an error, not a success result, and
+never publishes any part of the candidate. Live row notifications occur after the
+whole proposal is saved; the UI receives its selection request after all replacements.
+A correction replaces a course/week decision; Unrecorded removes it using the same transaction.
+
+Editable source: [MarkSequenceDiagram.puml](diagrams/MarkSequenceDiagram.puml).
+It uses activation bars, object creation, `alt` alternatives and `loop` fragments from the
+[course UML modeling guidance](https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/modeling.html)
+and [UML reference sheet](https://nus-cs2103-ay2627-s1.github.io/website/admin/uml-reference-sheet.html).
+Render with PlantUML 1.2023.10, matching the class-view diagram's renderer, from the
+repository root: `java -Djava.awt.headless=true -jar /path/to/plantuml-1.2023.10.jar -tpng -o ../images docs/diagrams/MarkSequenceDiagram.puml`.
+
+JSON stores `attendance` inside each student as an array, for example:
+
+```json
+"attendance": [{"course": "CS2103T", "week": "3", "status": "Present"}]
+```
+
+Missing/null attendance loads as an empty list for pre-attendance files. Explicit
+Unrecorded entries normalize away. Missing entry fields, invalid values, duplicate
+normalized course/week keys, unenrolled courses, null entries, and attendance on
+legacy contacts are rejected rather than silently losing data. Existing legacy
+contacts and students without attendance remain readable. Older application versions
+do not promise compatibility with attendance-bearing files; keep backups before downgrading.
+
+`AttendanceFormatter` supplies deterministic details and context-specific badges.
+`PersonListPanel` displays details in a bounded scroll area. On a successful class
+query, `MainWindow` applies the returned class/week context with
+`setAttendanceContext(ClassMembership, AttendanceWeek)`; `list` clears it with
+`setAttendanceContext(null, null)`. Changing only the week refreshes the cards.
+A failed command leaves this context untouched. Marking another course/week changes
+student details without changing the badge for the currently displayed context.
+
+Validation includes parser boundaries, immutable record isolation, malformed storage,
+JSON round trips, filtered indices, correction/clearing, no-op save counts and
+existing-command compatibility. `AttendanceIntegrationTest` adds failed initial saves,
+corrections and clears followed by retry and reload, plus marking after contact updates.
+The tests compare the full roster so unrelated students, courses and weeks remain intact.
+`MvpRosterUiTest` checks that a failed mark targeting a different student preserves
+selection, details, badges, heading, order and input, and that retry refreshes the
+correct student. It also checks invalid mark input. `ClassViewUiTest` supplies the
+existing other-course/week display-isolation coverage; `StudentUpdateIntegrationTest`
+covers contact replacement and attendance preservation.
+
+Batch coverage extends those same fixtures with filtered multi-target failure/retry/reload,
+duplicate indices, boundary weeks, mixed/no-op batches and contact-update preservation.
+The injected storage asserts that it receives the complete proposed roster while the live
+roster and observable events are still unchanged. `MarkCommandTest` also tests validation
+before mutation and a filter whose rows disappear during replacement, ensuring all targets
+are resolved first. `MarkCommandParserTest` covers token rules and error precedence.
+Real-window UI checks cover batch failures, invalid batches, first-target selection,
+clearing, no-op input clearing and badges when marking another week.
+
+Run the focused checks with
+`./gradlew test --tests '*MarkCommand*Test' --tests '*AttendanceIntegrationTest' --tests '*MvpRosterUiTest' --tests '*StudentUpdateIntegrationTest' --tests '*ClassViewUiTest'`,
+then `./gradlew check coverage`. Tests use temporary datasets and injected I/O failures.
+They do not modify the user's storage file or permissions. Current results and
+platform limitations are recorded in `CONTEXT.md`.
+
+For commands and expected outcomes, see
+[Attendance isolation and recovery](#attendance-isolation-and-recovery) in the manual
+verification appendix. Codex assisted Min Thi Ha (`toomintyy`) with attendance
+implementation, regression tests and documentation prose.
+
+### Add-student foundation: Telegram handles
+
+`TelegramHandle` is an immutable value type for the add-student feature. It removes
+surrounding ordinary spaces (U+0020), requires `@` followed by 5–32 ASCII characters,
+and requires the first character after `@` to be a letter. Subsequent characters may
+be letters, digits or underscores. Tabs, line breaks, internal spaces and non-ASCII
+characters are rejected. This is TutorTrack's supported subset, not a statement of
+all Telegram username rules.
+
+Accepted handles are stored in lowercase using `Locale.ROOT`, so normalization does
+not depend on the computer's language settings. Equality and hashing use this stored
+value: `@Alice_1` and ` @alice_1 ` represent the same handle. Invalid construction
+throws `IllegalArgumentException` with `MESSAGE_CONSTRAINTS`; null input is a
+programming error and throws `NullPointerException`.
+
+The v1.3 add-student integration connects this type to `Person`, parsing, JSON and the UI.
+`p/` in `add` now means Telegram. Legacy `edit` retains phone semantics for legacy contacts only.
+
+### Add-student integration (v1.3)
+
+The public student constructor is `Person(Name, TelegramHandle, Email, Set<ClassMembership>)`.
+`Name.forStudent` and `Email.forStudent` enforce and normalize the exact Feature 1 contracts;
+the original constructors retain the old validation rules for lossless legacy contact loading.
+`Person.isStudent()` distinguishes the two representations. `getTelegramHandle()` returns an
+`Optional<TelegramHandle>` and `getMemberships()` returns an immutable, defensively copied set in input
+order. Existing `getPhone()` and `getAddress()` return null for students; callers must check the
+representation before accessing legacy fields. No placeholder contact data is created.
+
+Issue #109 extends student names to support standalone `s/o` and `d/o` relationship
+markers in any ASCII letter case. Add and update parsers keep these tokens literal
+only while reading an `n/` value; other unknown or repeated prefixes still fail.
+`ParserUtil.isNameRelationshipMarker` requires an ordinary-space or end-of-input
+boundary after the marker. `Name.forStudent` permits slashes only in these complete
+tokens, preserving case and the existing normalization and 50-code-point limit.
+JSON loading uses the same name validation, so names survive save/reload without a
+schema change. Legacy name validation is unchanged. This is an owner-authorized
+extension to the original Feature 1 contract, merged in
+[PR #114](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/114).
+
+The student constructor requires at least one membership and at most one group per course. Add parsing
+validates every membership before checking repeated courses in appearance order. A student conflicts
+with another record by case-insensitive email, or with another student by Telegram. Names never
+identify students. Two legacy records retain AB3's name identity rule. The add command searches the
+entire saved roster, checking email before Telegram, independently of any active filter.
+
+`AddCommandParser` recognizes prefix tokens at ordinary-space boundaries. It preserves field contents
+for validation instead of using AB3's whitespace-trimming tokenizer. For simultaneous errors, the
+implemented order is: preamble/unknown/repeated prefix errors as encountered, missing required prefixes
+in `n,p,e,c` order, name/Telegram/email validation, all class values, then repeated courses. The supplied
+specification does not completely define cross-category precedence; this is the implemented order.
+`AddressBookParser` preserves control whitespace so it cannot silently turn an invalid add into a valid one.
+
+`LogicManager` executes additions on a detached `ModelManager`. It saves the candidate before publishing
+the new student to the live model. This preserves the live roster, predicate, observable-list contents
+and GUI selection on save failure without attempting to reconstruct view state. The successful command
+result identifies the new student; `MainWindow` selects and scrolls to it after persistence succeeds.
+`mark`, `update`, `delete`, `clear` and legacy `edit` also save before publishing
+changes. The attendance and contact-update paths skip saving normalized no-ops.
+
+`JsonAdaptedPerson` stores students with `name`, `telegram`, `email` and `memberships`. Legacy
+phone/address/tag records retain their original values and schema fields. Incomplete student records,
+hybrid student/legacy records and repeated courses are rejected. `JsonAddressBookStorage` writes a sibling
+temporary file and atomically replaces the target; no non-atomic fallback is used. A failed replacement
+retains the old data file. Unsupported atomic moves are reported as save failures. This protects disk
+contents for all callers; add, mark, delete, update, clear and legacy edit save before changing the live model.
+
+The inherited edit command explicitly rejects student profiles, preserving their new fields. It still
+edits legacy contacts and rejects email changes that would collide with a student. Student contacts
+are corrected with `update`; membership editing remains outside the final scope. The detail panel
+shows `No attendance recorded.` until decisions are recorded, then lists those decisions.
+
+#### Add-student validation and manual checks
+
+Automated tests cover Unicode/ASCII boundaries, locale independence, prefix errors, repeated courses,
+contact collisions across different students, namesakes, immutable memberships, mixed legacy/student
+round trips, malformed storage, atomic-write failures and unchanged live data/view on failed saves.
+Run `./gradlew check coverage` before opening the PR.
+
+For a GUI smoke test, use a separate temporary working directory:
+
+1. Start the JAR; run `find c/CS2103T:T04 w/3` to activate a filter.
+2. Run `add n/Anne-Marie Tan p/@Anne_Tan e/Anne@Example.com c/cs2103t:t04 c/MA2001:T02`.
+   Check the success message, full roster, new selected row, normalized details and initial attendance text.
+3. Submit the same command again. Check the duplicate-email error, unchanged selection/data and retained input.
+4. Exit and restart in the same directory. Check both memberships and contacts survived reload.
+5. On a disposable dataset, make the data directory unwritable and attempt an add. Check that no success
+   is announced and the existing view remains unchanged. Automated tests inject save failures reproducibly.
+
+
+### Exit argument validation
+
+`AddressBookParser` delegates the arguments of the lowercase `exit` command to
+`ExitCommandParser`. The parser accepts only surrounding ordinary spaces and
+rejects any other argument content with `MESSAGE_INVALID_COMMAND_FORMAT`
+and `ExitCommand.MESSAGE_USAGE`. This implements UC05 extension 1a.
+
+Invalid Exit input throws `ParseException` before command execution or saving.
+`MainWindow` displays the error through its existing exception handler, so it does
+not receive an exit result or close the application. Student data and the current
+filtered view remain unchanged. Valid input follows the Exit lifecycle below.
+
+### Exit lifecycle and save-failure recovery
+
+Typed `exit`, File > Exit and the main window's close button all execute
+`ExitCommand` through `LogicManager`. Command execution and data saving are
+synchronous; `MainWindow.closeWindows()` is reached only after an exit result is
+returned. It records GUI settings and hides the Help and main windows.
+
+The window-close handler consumes JavaFX's default close event before requesting
+Exit. A failed save therefore leaves both windows open instead of allowing the
+default handler to hide the main window. An `IOException`, including permission
+failures, becomes `ExitCommand.MESSAGE_SAVE_FAILURE`; the existing result display
+shows the recovery instructions with wrapping enabled. The user can retry after
+fixing the storage problem. Other commands retain their existing error handling.
+
+`MainWindowExitTest` exercises real JavaFX windows for typed, menu and window-close
+requests, invalid input, failure/retry and save-before-close ordering.
+`ExitIntegrationTest` covers IO/permission failures, state/file preservation and
+reloading existing contacts after editing and deleting. GUI tests run on the
+JavaFX thread with a bounded wait. Linux checks require a display and a window
+manager for minimization. CI installs Openbox and runs
+`xvfb-run -a sh -c 'openbox >/tmp/tutortrack-openbox.log 2>&1 & ./gradlew check coverage shadowJar'`.
+No new application or Gradle dependencies are required.
+
+### Startup data protection
+
+#### Window recovery in the v1.6 release
+
+`MainWindow` retains saved coordinates only when the title-bar region intersects
+a connected display's visual bounds; otherwise it calls `centerOnScreen()`.
+This also handles a window whose body intersects a screen while its title bar is
+above every screen. Saved dimensions and visible saved positions are retained.
+
+`HelpWindow.show()` and `focus()` clear the iconified state before displaying or
+focusing the window, so typed, menu and F1 Help requests restore the same window.
+No student records, command grammar or storage schema change. These fixes are not
+present in the published v1.5 JAR.
+
+`MainWindowRecoveryTest` exercises both invalid positions, a valid position, typed
+and menu Help restoration, and reopening a hidden minimized Help window. Showing,
+minimizing and restoring are separated by bounded event-loop waits so assertions
+observe settled native-window state.
+
+At small viewport heights, the results panel can shrink from its 100px preferred
+height to 60px. Its text remains scrollable, leaving more room for the roster and
+selected-student details, including Windows window decorations.
+
+#### Existing student-data startup protection
+
+`MainApp.initialize(Storage)` loads student data before constructing the model, logic and main UI. If loading raises `DataLoadingException`, initialization stops. `MainApp.start()` displays recovery guidance through `UiManager.showDataLoadingErrorAndWait()`, then exits after the dialog closes.
+
+This prevents an empty fallback roster from overwriting an unreadable or invalid existing file through a later saving command or Exit. `MainApp.stop()` skips preference saving when no model was initialized.
+
+`JsonUtil.readJsonFile()` returns an empty result only when the file is confirmed missing. Null JSON roots, null person entries and null legacy tag entries follow the data-loading error path. Missing files retain sample-data initialization; valid empty rosters remain empty.
+
+The following activity diagram shows startup after preference initialization. A missing student data file uses sample data, while a successfully loaded file supplies the saved roster, including a valid empty roster.
+
+<img src="images/StartupActivityDiagram.png" alt="Startup activity diagram showing sample data, saved data and safe shutdown after a data-loading failure" width="768" />
+
+If loading fails, initialization stops before creating the model, logic or main UI. TutorTrack displays the file location and recovery instructions, then exits when the dialog closes. The original student data file remains unchanged.
+
+Editable source: [StartupActivityDiagram.puml](diagrams/StartupActivityDiagram.puml).
+
+### JSON completeness and preference recovery
+
+`JsonUtil.fromJsonString()` reads one JSON value through a `JsonParser`, then checks for further tokens before returning. Additional JSON values cause an `IOException`; malformed trailing text also fails parsing. Surrounding JSON whitespace remains valid. The parser is closed using try-with-resources.
+
+The existing file-loading layer wraps parsing failures in `DataLoadingException`. For student data, this activates the existing startup recovery dialog without opening an editable roster or overwriting the original file.
+
+`JsonUserPrefsStorage.readUserPrefs()` also rejects a loaded preferences object whose GUI settings are null. It reports `DataLoadingException`, allowing `MainApp.initPrefs()` to reuse its existing default-preferences recovery path. The recovered preferences are saved; student data remains unchanged.
+
+### Persistence and Exit verification
+
+`MainAppTest` covers invalid and unreadable data, recovery after repair, missing files and saved empty rosters. `DataLoadingErrorTest` checks the recovery dialog. `PersistenceWorkflowTest` verifies add, update, attendance correction/clearing, deletion and preference restoration through a fresh application initialization.
+
+`MainWindowExitTest` additionally verifies that typed, menu and window-close Exit failures preserve updated student data, selection, details and class context, followed by successful retry and reload.
+
+Seven new regression tests cover trailing garbage, additional JSON values, accepted surrounding whitespace, null GUI settings, original-file preservation and successful startup after preference recovery. The preferences-storage and startup tests also use a valid, non-default preferences object followed by a second JSON value or garbage. They verify `DataLoadingException` and unchanged original preference bytes before recovery, then default settings, unchanged student data and reloadable recovered preferences at startup.
+
+The original startup-recovery increment (#105, follow-up `9829b34a`) passed on Windows with Temurin Java 25.0.4: `gradlew.bat check coverage shadowJar shadowJarMacArm`, **390 tests, zero failures/errors/skips**, both Checkstyle tasks, coverage generation and both JAR builds. Repository formatting checks and `git diff --check` also passed. This is historical increment evidence; current integrated validation is recorded in `CONTEXT.md`.
+
+Instrumented Windows packaged-app checks confirmed that trailing invalid JSON displays recovery guidance and preserves the original file. Null GUI settings recovered to defaults, retained the existing student and allowed normal shutdown. The Mac ARM package was built but not run; Mac execution remains unverified.
+
+### View-class foundation: class memberships
+
+`ClassMembership` is an immutable value type identifying a class by its course code
+and tutorial group, written as `COURSE:GROUP` (e.g., `CS2103T:T04`). It removes
+surrounding ordinary spaces (U+0020) and requires exactly one colon with no other
+spaces. The course code is 2–4 ASCII letters, 4 digits and an optional ASCII letter;
+the tutorial group is one ASCII letter followed by 2 digits. There is no course
+catalog check.
+
+Both parts are stored in uppercase using `Locale.ROOT`, so `cs2103t:t04` and
+`CS2103T:T04` are equal and hash identically. Because a class is identified by
+course and group together, `CS2103T:T04` and `CS2101:T04` are different classes.
+`isSameCourse` compares course codes only; it supports the rule that a student has
+at most one tutorial group per course. Invalid construction throws
+`IllegalArgumentException` with `MESSAGE_CONSTRAINTS`; null input throws
+`NullPointerException`.
+
+Add-student stores this type on `Person` and persists it through JSON. Its error wording matches
+the original Feature 1 specification. The implemented `find c/COURSE:GROUP w/WEEK`
+command uses these memberships to select the class roster, as described below.
+
+#### Selecting a displayed student: `select INDEX`
+
+`AddressBookParser` passes raw arguments to `SelectCommandParser`, which accepts
+exactly one positive ASCII index, without leading zeros and within the Java integer
+range. It trims only ordinary spaces. Invalid syntax fails before command execution.
+`SelectCommand` checks bounds against `Model.getFilteredPersonList()` and returns
+the existing row in `CommandResult`; it never changes the model or filter.
+
+`LogicManager` treats selection as a read-only query alongside `list` and `find`,
+bypassing storage even when the data directory is not writable. After success,
+`MainWindow` uses the existing `PersonListPanel.selectPerson` hook to select and
+scroll to the row. The selection listener shows the student's contacts, memberships
+and attendance; legacy contacts retain their existing card without a student-details
+pane. The result does not replace the roster context or clear the selection.
+Failures reach the existing command error handler, preserving selection, details,
+filter and attempted input. Success clears the input without requesting focus on
+the roster. No storage-schema or Person change is required.
+
+This owner-authorized enhancement under #113 merged in
+[PR #115](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/115). It extends the
+original MVP rather than fixing a previously documented select command.
+Parser, command, persistence-integration and real-window tests cover strict input,
+filtered indices, empty/out-of-range rosters, legacy rows, repeated selection,
+read-only behavior, detail refresh and error-state preservation. For manual checks,
+select a row beyond the current scroll area, repeat in a class/week view, and verify
+that invalid indices keep the previous details and selection. OpenAI Codex assisted
+Min Thi Ha with this command, tests and documentation.
+
+#### Viewing a class: `find c/COURSE:GROUP w/WEEK`
+
+The sequence diagram below shows how `find c/cs2103t:t04 w/3` is executed. `FindCommandParser` validates
+both values with `ClassMembership` and `AttendanceWeek`, so an invalid class or week fails before any state
+changes. `FindCommand` then replaces the model's filter with one that keeps only students whose memberships
+contain the exact class, and returns a `CommandResult` carrying that class and week.
+
+<img src="images/FindSequenceDiagram.png" width="750" />
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `FindCommandParser`
+should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+The UI uses the returned class and week to set the roster heading (e.g., `CS2103T:T04 | Week 3 | 2 students`)
+and each row's attendance badge, and to clear the selection. Because `find` is a read-only query,
+`LogicManager` returns its result without saving, so it also works when the data file is not writable.
 
-![UndoRedoState3](images/UndoRedoState3.png)
+Design considerations:
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+* **Exact class matching (current choice):** a student matches only if they have the complete
+  `COURSE:GROUP` membership, so `CS2103T:T04` does not match `CS2101:T04` or `CS2103T:T05`.
+  The alternative, matching the group code alone, would mix students from different courses who share
+  a group code such as `T04`.
+* **The week does not filter students:** changing only `w/` re-renders the badges for the same students.
+  Class membership is per course, not per week, so filtering by week would hide students who have no
+  decision yet; they are shown as **Unrecorded** instead.
 
-</div>
+**Attendance summary:** below the heading, `PersonListPanel` shows an `AttendanceSummary` of the displayed
+students for the viewed class and week (e.g., `3 present, 1 absent, 1 unrecorded`). The panel recomputes it
+whenever the displayed list or the class/week context changes, so a `mark` updates it immediately. It is
+hidden on the full roster and in an empty class view. `AttendanceSummary` lives in the Model so that the
+counting rules (only students in the class, only the viewed course and week) are unit-tested without the UI.
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+`ClassViewUiTest` checks these behaviours in a real window: exact matching, badges and details after marking
+another week or course, unchanged views after invalid queries, and repeated queries.
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+### Roster and deletion integration
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+The release completion increment is tracked in [issue #55](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/55).
+`FindCommandParser` validates exact class/week queries using `ClassMembership` and
+`AttendanceWeek`. `FindCommand` applies a membership predicate; `list` removes it.
+`list` and `find` return without saving; `select` is also read-only and preserves
+the active view while requesting selection. `CommandResult` explicitly carries whether the
+UI should replace its roster context or clear selection, so failed commands never
+change those UI properties. `PersonListPanel` updates headings/counts as rows change,
+refreshes badges when only the week changes, and supplies separate empty states.
 
-</div>
+`DeleteCommand` resolves all indices against a snapshot of the displayed roster,
+validates every target, and deduplicates integer indices in first-appearance order.
+`LogicManager` executes deletion on a detached candidate, saves it, then removes
+those exact targets from the live model without replacing its filter. A failed save
+leaves data, selection and context untouched. This extends the existing add/mark
+transaction pattern. Safe clearing saves an empty roster before publishing it.
+Legacy `edit` also uses a detached candidate: it saves the edited roster before
+replacing live records, then resets the full-roster view and selection. A failed
+legacy edit retains the original data, filter, selection and command input.
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+Regression coverage includes filtered batch indices, duplicate indices, a late invalid
+target, disk failure/retry, query operation without write access, independent course/week
+attendance and restart. Real-window tests verify badges after a week-only change,
+selection clearing, empty headings, failed-delete input retention and add returning
+to the full roster. See `MvpRosterIntegrationTest` and `MvpRosterUiTest`.
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
-
-#### Design considerations:
-
-**Aspect: How undo & redo execute:**
-
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
-
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
-
-### \[Proposed\] Data archiving
-
-_{Explain here how the data archiving feature will be implemented}_
-
+Release validation and remaining work are recorded in `CONTEXT.md`. Implementation
+and tests for this increment were prepared with OpenAI Codex assistance, reusing AB3
+and the team's existing model, parser and storage contracts.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -259,73 +784,261 @@ _{Explain here how the data archiving feature will be implemented}_
 
 ### Product scope
 
-**Target user profile**:
+**Target user profile**: Teaching assistants (TAs) and professors teaching computer
+science courses who manage students across multiple courses and tutorial groups.
+They are comfortable with technology, type quickly, prefer command-based workflows,
+and use a desktop computer for their teaching administration. Each TutorTrack
+installation manages one teaching staff member's local records.
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+**Value proposition**: Bring student contacts, course and class membership, and
+teaching records into one place so that tech-savvy teaching staff can spend less
+time on administration using fast typed commands.
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Persona**: John is a CS TA teaching multiple courses and classes. He struggles to
+keep track of his students, is highly comfortable with technology, and wants to
+view their details at a glance while spending less time on administrative work.
 
+The requirements include implemented features and deferred ideas. The five MVP
+workflows and contact correction (S04) using `update` are implemented. The current
+v1.5 version also supports batch attendance through explicit displayed indices.
+Other stories remain planning records rather than available features or promises
+for this release. Priorities express product ordering, not course iteration numbers.
+
+**MVP scope**: Add a student with contact details and one or more course/group
+memberships; delete students; list all students or view one class for a chosen
+week; record, correct or clear attendance; and save, reload and exit. The current
+version also supports name/email/Telegram correction while retaining attendance,
+batch attendance and clearing all records. Membership editing,
+GitHub usernames, project teams, participation points, student tags, Telegram search,
+and absence analytics are not implemented in the current version.
+Mark-all, index ranges and mixed per-student statuses remain unsupported.
+These extensions do not rewrite the original MVP specification.
+
+**Domain rules from the MVP specification**:
+
+* One dataset covers one teaching staff member's students for one semester.
+* A student has one profile and at most one tutorial group per course.
+* Normalized email addresses and Telegram handles are individually unique.
+  Namesakes are permitted under the detailed add-student contract.
+* A class is identified by its course and group together, such as CS2103T:T04.
+* Attendance belongs to a student, course and teaching week (1–53). It is Present,
+  Absent or Unrecorded. Unrecorded means no decision, not an absence.
+* The MVP supports one attendance decision per course per week, with no automatic
+  calendar inference or separate sessions within that week.
+* Displayed indices refer to the current roster, not permanent student IDs.
 
 ### User stories
 
-Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
+Priorities: **P1** foundational student management; **P2** course and class
+organization; **P3** tracking and grading support; **P4** stretch goals.
+The complete set below includes requirements beyond the MVP.
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+| ID | Priority | As a … | I want to … | So that I can … |
+| --- | --- | --- | --- | --- |
+| S01 | P1 | CS TA | add a student with their name, university email and Telegram handle | keep their core contact details together |
+| S02 | P1 | CS TA | add a student's GitHub username to their profile | quickly find their repositories for lab grading |
+| S03 | P1 | TA | delete a student | remove students who have dropped the course |
+| S04 | P1 | TA | correct a student's name, email and Telegram handle without deleting their profile | keep contacts current while retaining attendance history |
+| S05 | P1 | professor | list all my students | get an overview of everyone I teach |
+| S06 | P2 | TA teaching multiple courses | assign a student to a course code | distinguish students from different courses |
+| S07 | P2 | TA | assign a student to a tutorial group within a course | organize students by the classes I teach |
+| S08 | P2 | TA | filter students by course and tutorial group | see the students attending a particular class |
+| S09 | P2 | CS professor | assign students to project teams within a course | track group assignments and team-based grading |
+| S10 | P3 | TA | mark a student present or absent for a tutorial session using a text command | record attendance quickly during class |
+| S11 | P3 | TA | add participation points to a student | record class contributions before I forget |
+| S12 | P3 | CS TA | tag a student with programming weaknesses | identify students who need extra attention in labs |
+| S13 | P3 | TA | search for a student by Telegram handle | identify the student and their class when they message me |
+| S14 | P4 | TA | list students who have missed more than two tutorials | identify students to contact with a warning email |
+| S15 | P4 | professor | mark an entire tutorial group present for a session, then correct individual absentees | take attendance with fewer commands |
+| S16 | P4 | TA | clear all student records with one purge command | prepare the application for a new semester |
+| S17 | P2 | TA | select a displayed student by row number using a command | inspect details without changing their records |
 
-*{More to be added}*
+S17 records the owner-authorized #113 enhancement merged in PR #115.
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+**System**: TutorTrack. **Actor**: a TA or professor (called the user below).
+MSS means main success scenario. These use cases describe intended behavior rather
+than final command syntax. Course context distinguishes groups with the same name.
 
-**Use case: Delete a person**
+#### UC01: Add a student (S01)
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. The user requests to add a student and supplies their name, university email, Telegram handle and at least one course/group membership.
+2. TutorTrack validates the supplied details and creates the student record.
+3. TutorTrack shows confirmation and the saved student details.
 
-    Use case ends.
+Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 2a. Required details are missing or invalid.
+  * 2a1. TutorTrack identifies the invalid fields without creating a record.
+  * 2a2. The user supplies corrected details.
+  * Use case resumes at step 2.
+* 2b. The normalized email or Telegram handle already belongs to a student record.
+  * 2b1. TutorTrack reports the conflicting email or Telegram handle without creating a duplicate.
+  * Use case ends.
 
-  Use case ends.
+* 2c. Saving fails.
+  * 2c1. TutorTrack reports the failure without creating a student or changing the previous view.
+  * Use case ends.
 
-* 3a. The given index is invalid.
+#### UC02: View a class roster (S05, S08)
 
-    * 3a1. AddressBook shows an error message.
+**MSS**
 
-      Use case resumes at step 2.
+1. The user requests students for a course, tutorial group and teaching week.
+2. TutorTrack displays the matching students, their attendance for that course and week, and the week's
+   attendance totals.
+3. The user requests the full roster.
+4. TutorTrack removes the filter and displays all students once each.
 
-*{More to be added}*
+Use case ends.
+
+**Extensions**
+
+* 1a. The class or week input is missing or invalid.
+  * 1a1. TutorTrack explains the error and retains the previous view.
+  * Use case resumes at step 1.
+* 2a. The class has no students.
+  * 2a1. TutorTrack shows an empty roster with the requested class and week context.
+  * Use case resumes at step 3.
+* 2b. A student has no attendance decision for the requested course and week.
+  * 2b1. TutorTrack shows Unrecorded for that student.
+  * Use case resumes at step 3.
+
+#### UC03: Record and correct attendance (S08, S10)
+
+**MSS**
+
+1. The user requests the roster for a course, tutorial group and teaching week.
+2. TutorTrack shows the students in that group.
+3. The user specifies a student, enrolled course, teaching week and attendance status.
+4. TutorTrack saves the attendance and shows the resulting record.
+5. The user notices an incorrect status and requests a correction for the same student, course and week.
+6. TutorTrack updates the existing attendance record and shows the corrected status.
+
+Use case ends.
+
+**Extensions**
+
+* 2a. The roster is empty.
+  * Use case ends.
+* 3a. The student index, course, week or attendance status is invalid, or the student is not enrolled in the specified course.
+  * 3a1. TutorTrack explains the problem without changing attendance.
+  * Use case resumes at step 3.
+* 3b. The requested status is already recorded.
+  * 3b1. TutorTrack reports that attendance is unchanged, without adding a record.
+  * Use case ends.
+* 4a. Saving the initial attendance decision fails.
+  * 4a1. TutorTrack reports the failure and retains the complete pre-command data and view.
+  * Use case ends.
+* 5a. No correction is needed.
+  * Use case ends.
+* 5b. The correction details are invalid.
+  * 5b1. TutorTrack explains the problem and retains the previous record.
+  * Use case resumes at step 5.
+* 5c. The user clears a mistaken record by specifying Unrecorded.
+  * 5c1. TutorTrack saves removal of the decision for that student, course and week; on a save failure, extension 6a applies.
+  * Use case ends.
+* 6a. Saving the correction fails.
+  * 6a1. TutorTrack reports the failure and retains the previous attendance and view.
+  * Use case ends.
+
+#### UC04: Delete students (S03)
+
+**MSS**
+
+1. The user requests the full roster or a class roster.
+2. TutorTrack displays the matching students.
+3. The user specifies one or more displayed student indices to delete.
+4. TutorTrack resolves all targets against the pre-command roster and saves their removal, including memberships and attendance.
+5. TutorTrack confirms the deletions and updates the roster while preserving its filter.
+
+Use case ends.
+
+**Extensions**
+
+* 2a. The roster is empty.
+  * Use case ends.
+* 3a. Any index has invalid syntax or is outside the displayed roster.
+  * 3a1. TutorTrack reports the error without deleting any students.
+  * Use case resumes at step 2.
+* 4a. Saving fails.
+  * 4a1. TutorTrack reports the failure and retains all pre-command records and the previous view.
+  * Use case ends.
+
+#### UC05: Exit and reload
+
+**MSS**
+
+1. The user requests to exit TutorTrack.
+2. TutorTrack saves the current student data, then closes the main window and any open Help window.
+3. The user launches TutorTrack again.
+4. TutorTrack loads all previously saved student, membership and attendance records.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The exit command contains extra arguments.
+  * 1a1. TutorTrack explains the correct format and keeps the application open.
+  * Use case resumes at step 1.
+* 2a. Saving fails.
+  * 2a1. TutorTrack reports the failure and keeps the windows open without changing the current data or view.
+  * The user resolves the storage problem and resumes at step 1.
+* 4a. The existing data file is unreadable or invalid.
+  * 4a1. TutorTrack shows the file location and recovery instructions without opening an editable roster or overwriting the student data file.
+  * 4a2. Closing the dialog exits the application. The user repairs or restores the file before relaunching.
+  * Use case ends.
+
+#### UC07: Select a displayed student (S17)
+
+**MSS**
+
+1. The user supplies the row number of a student in the current roster.
+2. TutorTrack resolves that displayed row, selects and reveals it, and shows its details.
+3. The current filter, class/week context and saved records remain unchanged; no save occurs.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The input is malformed or does not identify a displayed row.
+  * 1a1. TutorTrack reports an error while retaining the previous selection, details and view.
+  * Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+1. TutorTrack shall run on Windows, Linux and macOS with Java 25, without requiring a separate installer.
+2. Student, membership and teaching records shall be stored locally in human-editable text files. Normal use shall not depend on a database server or a remote service.
+3. Each installation shall support a single user's records. Shared multi-user access and synchronization are outside the intended scope.
+4. Core student-management, course-organization and attendance operations shall be executable through typed commands without requiring mouse interaction.
+5. The interface shall remain usable at 1920 × 1080 with 100% and 125% scaling, and at 1280 × 720 with 150% scaling.
+6. Distribution shall use a single JAR no larger than 100 MB, including dependencies.
+7. Invalid command input shall produce actionable feedback and shall not change stored records.
+8. Successfully saved records shall remain available after the application is closed and reopened.
 
-*{More to be added}*
+These are acceptance targets for the intended product. Platform, display, persistence
+and invalid-input behavior must be verified as the features are implemented.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Course**: A subject taught under a course code, such as CS2103T; also called a module.
+* **Course membership**: The association between a student and a course.
+* **Tutorial group**: A class within a course, such as T04. The course and group together identify the class.
+* **Teaching week**: An integer from 1 to 53 agreed by the operator for the semester; not inferred from calendar dates.
+* **Attendance record**: A student's present or absent status for a particular course and teaching week. A missing record does not by itself mean absent.
+* **Participation points**: A teaching staff member's numerical record of a student's class contributions.
+* **Project team**: A group of students working on an assignment within a course.
+* **Programming weakness tag**: A label describing a topic where a student may need additional help.
+* **University email**: A student's university-issued email address.
+* **Telegram handle**: A Telegram username used to identify and contact a student.
+* **TA**: Teaching assistant.
+* **CLI**: Command-line interface; interaction by typing commands.
+* **MVP**: Minimum viable product; the smallest agreed feature set that provides useful value to the target user.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -338,23 +1051,185 @@ testers are expected to do more *exploratory* testing.
 
 </div>
 
+### Attendance isolation and recovery
+
+Use a disposable application copy in a separate working directory with its own data
+file. Never change permissions on your real dataset. The commands below use fictional
+contacts and distinctive test groups; confirm the filtered names/indices before marking.
+If these contacts already exist, start a fresh disposable dataset or use unique values.
+
+1. Add the test students:
+   - `add n/Review Alice p/@review_alice e/review.alice@example.com c/CS2103T:T98 c/MA2001:T98`
+   - `add n/Review Bob p/@review_bobby e/review.bob@example.com c/CS2103T:T99`
+2. Run `find c/CS2103T:T98 w/1`. Expected: only Review Alice, at row 1, with an
+   Unrecorded badge. Record `mark 1 m/CS2103T w/1 s/present`, then
+   `mark 1 m/MA2001 w/1 s/absent` and `mark 1 m/CS2103T w/53 s/absent`.
+   Expected: Alice is selected, with three independent records; the displayed
+   CS2103T Week 1 badge remains Present.
+3. Enter `update 1 n/Review Alicia p/@review_alicia e/review.alicia@example.com`,
+   then `mark 1 m/CS2103T w/1 s/absent`. Expected: the corrected contacts and both
+   memberships remain; exactly three attendance decisions exist, with Week 1 now
+   Absent. No duplicate profile appears and the class/week heading remains unchanged.
+4. Repeat `mark 1 m/CS2103T w/1 s/absent`. Expected:
+   `Attendance unchanged: Review Alicia | CS2103T | Week 1 is already Absent.`
+   Clear it with `mark 1 m/CS2103T w/1 s/unrecorded`. Expected: the Week 1 badge
+   becomes Unrecorded and that decision disappears; the other two records remain.
+5. Try `mark 1 m/CS2103T w/54 s/present`, `mark 2 m/CS2103T w/1 s/present`
+   and `mark 1 m/CS1101S w/1 s/present`. Expected: respectively a week error,
+   invalid displayed index and unenrolled-course error; each leaves data, selection,
+   details, badges and heading unchanged, with the rejected command available to edit.
+6. Enter `exit` and restart from the same disposable directory. Query
+   `find c/CS2103T:T98 w/1`, `find c/CS2103T:T98 w/53` and `find c/MA2001:T98 w/1`.
+   Expected badges: Unrecorded, Absent and Absent respectively. Select Alicia to
+   confirm the corrected contacts, memberships and remaining records. Query
+   `find c/CS2103T:T99 w/1`; Bob's contacts are unchanged and attendance is Unrecorded.
+7. Save failure is verified safely through the automated harness rather than by
+   changing real permissions. Run the focused tests listed in the attendance design
+   section. The recovery tests inject failures for initial recording, correction and
+   clearing, restore storage, retry the exact command and reload JSON. The UI test
+   selects Alice, fails a mark for Bobby, checks the unchanged view/input, then retries
+   successfully and verifies Bobby is selected with updated details and badge.
+
+### Batch attendance
+
+Use a fresh disposable dataset and run each command separately. These fictional
+contacts/groups must not already be present. This checks the batch-attendance
+extension (#67) included in v1.5.
+
+1. Create the fixtures:
+   - `add n/Batch Alice p/@batch_alice e/batch.alice@example.com c/CS2103T:T97 c/MA2001:T97`
+   - `add n/Batch Bob p/@batch_bobby e/batch.bob@example.com c/CS2103T:T97`
+   - `add n/Batch Carol p/@batch_carol e/batch.carol@example.com c/CS2103T:T96`
+2. Run `find c/CS2103T:T96 w/1`, then `mark 1 m/CS2103T w/1 s/absent`.
+   Carol's unrelated decision must survive the later batches.
+3. Run `find c/CS2103T:T97 w/1`. Confirm Alice is row 1 and Bob row 2.
+   Run `mark 2 m/CS2103T w/1 s/present`, then `mark 2 1 2 m/CS2103T w/1 s/present`.
+   Expected: `Attendance set: CS2103T | Week 1 | Present | 1 changed, 1 unchanged.`
+   Both badges are Present; Bob is selected. Row order and heading remain unchanged,
+   and successful command input clears. The repeated 2 counts once.
+4. Run `mark 1 2 m/CS2103T w/1 s/present`. Expected:
+   `Attendance unchanged: CS2103T | Week 1 | Present | 0 changed, 2 unchanged.`
+   Alice is selected and input clears, without a storage write (verified automatically).
+5. Run `mark 1 2 m/CS2103T w/53 s/absent`. Expected: 2 changed, 0 unchanged;
+   both details contain Week 53 Absent, while the Week 1 badges stay Present.
+   Run `mark 2 1 m/CS2103T w/1 s/unrecorded`. Both Week 1 badges become Unrecorded,
+   Bob is selected and the Week 53 decisions remain.
+6. Try `mark 1 2 m/MA2001 w/1 s/present`. Expected:
+   `Student Batch Bob is not enrolled in MA2001.` Alice must not acquire a record.
+   Try `mark 2 3 m/MA2001 w/1 s/present`. Expected: invalid displayed index,
+   taking precedence over Bob's absent enrolment. Try `mark 1 2 m/CS2103T w/54 s/present`.
+   Expected: week validation error. All failures retain selection, details, badges,
+   heading, row order and the rejected input.
+7. Exit and restart from the same disposable directory. Query `find c/CS2103T:T97 w/1`
+   (both Unrecorded), `find c/CS2103T:T97 w/53` (both Absent) and
+   `find c/CS2103T:T96 w/1` (Carol still Absent). Contacts and memberships are unchanged.
+8. Run the automated attendance and UI tests for controlled save failure/retry.
+   They check all changed targets are supplied in one save, the live roster is still
+   untouched at that point, failures publish nothing and successful retries reload
+   the complete expected dataset. They never alter real dataset permissions.
+
+### Direct student selection
+
+Use disposable student data and a build containing `select`.
+
+1. Run `list`, then `select 2` with at least two displayed rows. Expected: row 2
+   is selected and scrolled into view, details appear, input clears and command
+   focus remains. Selecting a row does not save student data.
+2. Run `find c/COURSE:GROUP w/WEEK` for a populated class, then `select 1`.
+   Expected: the first displayed row is selected; heading, totals, badges, filter,
+   memberships and attendance remain unchanged.
+3. Try `select 0`, `select 01`, `select 1 2` and an index beyond the displayed
+   roster. Expected: error feedback, with previous selection/details/view and
+   attempted input retained. Repeat with an empty class view: `select 1` fails.
+4. Select a row beyond the initial visible scroll area, then select it again.
+   Expected: that row is revealed on both submissions; no data changes.
+5. Automated tests inject storage that fails on any save attempt. Selection must
+   still succeed, preserving JSON bytes and producing no live roster mutations.
+   See `StudentSelectionIntegrationTest` and the select methods in `MvpRosterUiTest`.
+
+### Student contact correction
+
+Use an isolated test dataset. If an example contact already exists, use distinct
+contacts and the actual displayed index instead of assuming row 1.
+
+1. Add `add n/Alice p/@alice_1 e/alice@example.com c/CS2103T:T04`.
+2. Run `find c/CS2103T:T04 w/3`, identify Alice's row (use that index below),
+   and enter `mark 1 m/CS2103T w/3 s/present`.
+3. Enter `update 1 n/Alice Tan e/alice.new@example.com`.
+   Expected: `Student updated: Alice Tan.`, updated selected details, the same
+   class/week heading and Present badge. Telegram and memberships are unchanged.
+4. Enter `update 1 e/ALICE.NEW@EXAMPLE.COM`.
+   Expected: `Student unchanged: Alice Tan.` and no write to the data file.
+5. Try `update 1 p/`, `update 1 n/Alice n/Bob` and `update 0 n/Alice`.
+   Expected: informative errors, unchanged contacts, attendance, selection and view.
+6. Exit and relaunch, then query the same class/week. Expected: corrected contacts
+   and Present attendance survive restart.
+7. Save failure and retry are covered by `StudentUpdateIntegrationTest` and
+   `MvpRosterUiTest` using injected IO failures. These tests verify unchanged disk
+   content/live state, retained input and selection, then a successful retry.
+
+### Atomic batch deletion
+
+Use an isolated dataset with three students in the same class and at least one
+attendance decision. Use their actual displayed indices in the steps below.
+
+1. Query that class, then run `delete 1 99` where 99 is beyond its displayed roster.
+   Expected: an invalid-index error; neither row 1 nor any attendance is removed.
+   Selection, details and the class/week view remain unchanged.
+2. With storage-save failure injected, run `delete 3 1 3`. Expected: no live removal
+   or disk change for any target; the attempted input and existing view remain.
+   `MvpRosterIntegrationTest` and `MvpRosterUiTest` automate this safely.
+3. Restore storage and retry `delete 3 1 3`. Expected: original rows 3 and 1 are
+   removed once each, including their memberships/attendance. Original row 2
+   remains and becomes row 1; the current class/week filter stays active and the
+   selection/details clear. The deletion feedback lists targets in input order.
+4. Restart and query the same class. Expected: only the remaining student loads;
+   no partial batch or orphan attendance appears.
+
 ### Launch and shutdown
 
 1. Initial launch
 
    1. Download the JAR file and copy it into an empty folder.
 
-   1. Double-click the JAR file.<br>
+   1. Verify `java -version` reports Java 25, then launch with `java -jar addressbook.jar`
+      (or `java -jar tutortrack-macos-arm64.jar` for Apple Silicon).<br>
       Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with the same `java -jar` command.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+1. Exit command validation
+
+   1. Prerequisites: Launch the app and optionally use `find` to filter the displayed contacts.
+
+   1. Test case: `exit 3`<br>
+      Expected: A format error explains that Exit takes no arguments and shows `Example: exit`.
+      The app stays open; stored contacts and the current filtered view are unchanged.
+
+   1. Other invalid inputs: `exit anything`, `exit n/Alice`, and `  exit   3  `<br>
+      Expected: The same error and unchanged app state.
+
+   1. Test case: `  exit  `<br>
+      Expected: The app closes using the existing Exit behavior.
+
+### Exit lifecycle and restart checks
+
+1. Launch a test copy from an isolated directory and open Help. Try `exit 3`.
+   Expected: the usage error is visible and both windows remain open.
+2. Enter `exit`. Relaunch and repeat with File > Exit, then relaunch and use the
+   main window's close button. Expected: each successful request closes both windows.
+3. For save failures, `MainWindowExitTest` injects an IO failure without changing
+   real file permissions. Typed/menu/window-close requests must leave both windows
+   open with the recovery message; retry after restoring storage must close them.
+4. Add two students
+   with memberships, record and correct attendance, and clear a different week's
+   record. Exit and relaunch. Verify all profiles/memberships, the correction,
+   cleared status, and other student/course/week decisions. Use test data only.
 
 ### Deleting a person
 
@@ -371,12 +1246,58 @@ testers are expected to do more *exploratory* testing.
    1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
       Expected: Similar to previous.
 
-1. _{ more test cases …​ }_
+### Manual startup recovery checks
 
-### Saving data
+Use an isolated test folder and synthetic data.
 
-1. Dealing with missing/corrupted data files
+1. Close TutorTrack and keep a valid copy of the test data file.
+2. Replace the test file's contents with invalid JSON and launch the app.
+   Expected: recovery guidance identifies the file; no editable roster opens.
+3. Close the dialog.
+   Expected: the application exits and the invalid file remains unchanged.
+4. Restore the valid copy and relaunch.
+   Expected: the saved records load successfully.
+5. Repeat with `{"persons":[]}`.
+   Expected: an empty roster opens without sample records.
+6. Append `THIS IS NOT VALID JSON` after the closing brace of a valid student data file.
+   Expected: startup displays recovery guidance; closing the dialog exits without changing the file.
+7. Restore the valid file, append a second JSON object, and relaunch.
+   Expected: the same rejection and unchanged file.
+8. Restore valid student data and set `preferences.json` to `{"guiSettings":null}`.
+   Expected: the main window opens with default window settings, the original students remain available, and normal Exit works.
+9. Close the app, restore a valid preferences file, and append a second JSON value such as `{}`.
+   Relaunch. Expected: default window settings are restored and saved, student data is
+   unchanged, and normal commands and Exit work. Repeat from the valid preferences
+   copy with `THIS IS NOT VALID JSON` appended; expect the same recovery.
+10. Restore valid preferences and add only trailing spaces or line breaks, then relaunch.
+    Expected: the original window settings are retained; whitespace alone does not cause recovery.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+### First-run sample students
 
-1. _{ more test cases …​ }_
+`SampleDataUtil` supplies fictional student profiles only when startup finds no
+saved address book. Samples use the student validation factories, unique contacts
+and course/group memberships, with no stored attendance decisions. Existing-file
+loading and legacy compatibility are unchanged. Sample-data regression tests cover
+contact uniqueness, class filtering, marking and JSON reload using temporary files.
+This increment was implemented with OpenAI Codex assistance, reusing AB3's sample
+bootstrap and the team's existing student and attendance models.
+
+### Viewing a class and its attendance totals
+
+1. Prerequisites: start with no data file so the sample students load. `CS2103T:T04` contains
+   Alex Yeoh and Bernice Yu; `CS2103T:T05` contains Charlotte Oliveiro and Roy Balakrishnan.
+2. Run `find c/cs2103t:t04 w/3`.
+   Expected: `2 students listed!`; heading `CS2103T:T04 | Week 3 | 2 students`; totals
+   `0 present, 0 absent, 2 unrecorded`; both rows show `CS2103T | Week 3 | Unrecorded`.
+3. Run `mark 1 m/CS2103T w/3 s/present`.
+   Expected: Alex's badge and the totals change to `1 present, 0 absent, 1 unrecorded` immediately.
+4. Run `mark 1 m/CS2103T w/4 s/absent`.
+   Expected: the week 3 badge and totals do not change; Alex's details list both decisions.
+5. Run `find c/CS2103T:T04 w/4`.
+   Expected: same two students; totals `0 present, 1 absent, 1 unrecorded`.
+6. Run `find c/CS2103T:T05 w/3`, then `find c/CS1101S:T04 w/3`.
+   Expected: the first shows Charlotte and Roy only; the second succeeds with `0 students listed!`,
+   `No students found in CS1101S:T04. Use list to view all students.` and no totals line.
+7. Try invalid queries: `find c/T04 w/3`, `find c/CS2103T:T04 w/0`, `find c/CS2103T:T04`, `find John`.
+   Expected: each shows its error (see the User Guide) and the previous view, totals and selection stay unchanged.
+8. Run `list`. Expected: `All students | N students`, no totals line, and no selection.

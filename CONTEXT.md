@@ -1,0 +1,1502 @@
+# TutorTrack team implementation context
+
+## v1.6 release verification follow-up — 3 November 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); branch `codex/v16-release-fixes`;
+  issue [#123](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/123).
+  Team base `43510ff8`; [PR #124](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/124)
+  is open for peer review before the v1.6 release.
+- Windows CI reproduced a 45px roster at an 853×480 outer window. Allow the results
+  panel to shrink from 100px to 60px instead of weakening the existing roster
+  assertion. This changes one FXML line; commands and data formats are unchanged.
+- Help tests now separate show/minimize/restore operations across bounded JavaFX
+  event-loop waits. Linux CI installs Openbox inside Xvfb because iconification
+  requires a window manager. The CI matrix no longer cancels other platforms when
+  one fails; manual workflow dispatch supports explicit release verification.
+  Temporary diagnostic tests/screenshots remain outside this PR.
+- Local macOS ARM64 / Zulu Java 25.0.3 FX `./gradlew check coverage shadowJar
+  --no-daemon` passed all 462 tests, zero failures/errors/skips, Checkstyle and coverage.
+  Packaged GUI/clean-exit probes passed on plain ARM Java 25.0.3 and Intel Java
+  25.0.3 under Rosetta. Fork [CI run 41580256918](https://github.com/toomintyy/tp/actions/runs/41580256918)
+  passed the full check/coverage/JAR build on Windows, Linux and macOS at `b34cc38a`.
+  User-authorized temporary CI activation was restored to disabled afterward.
+  This result update changes context only; peer review is pending and no release
+  has been published.
+- Assistance: OpenAI Codex. Existing team history below is retained.
+
+## PR #120 integration — 3 November 2026 (SGT)
+
+- Integrator: Min Thi Ha (`toomintyy`); author: Aston (`aston-ish`);
+  issue [#119](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/119),
+  [PR #120](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/120).
+- Integrated team master `02209f3c`, including merged PR #122. Resolved the sole
+  CONTEXT.md conflict by retaining both owners' handoffs and all teammate history.
+  Production, test, guide and packaging changes merge automatically.
+- Scope: integration only; Aston's window-recovery implementation and six tests
+  are retained. The original handoffs below describe their recorded snapshots.
+- Validation: macOS ARM64 / Zulu Java 25.0.3 FX, `./gradlew check coverage
+  shadowJar shadowJarMacArm --no-daemon` passed all 462 tests with zero
+  failures/errors/skips; Checkstyle, coverage, both build commands, repository
+  checks and `git diff --check` passed. The combined JAR passed packaged GUI and
+  clean-exit probes on plain ARM Java 25.0.3 and Intel Java 25.0.3 under Rosetta.
+  Windows/Linux verification and exact-head remote checks remain unverified.
+  No merge or release is claimed by this integration entry.
+- Assistance: OpenAI Codex.
+
+## v1.6 beta-test recovery fixes — 3 November 2026 (Aston)
+
+- Owner: Aston (`aston-ish`); [issue #119](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/119),
+  milestone v1.6; branch `codex/v16-beta-fixes`, updated to team master `49fcd352`.
+  User reviewed and authorized committing/pushing; the user will create the PR.
+  No teammate approval, merge or release is claimed.
+- Beta target: actual downloaded v1.5 `addressbook.jar`, SHA-256
+  `5a933d13ba05eac0e7136a3346714962ee328e4b79b2dec958303cd742324836`,
+  with published UG/DG snapshots. Windows, Temurin Java 25.0.4; disposable data only.
+- Reproduced two existing documented window bugs in the release JAR: Help remains
+  minimized after another request; a disconnected-monitor position can leave the
+  main window/title bar outside all screens. Five of six new real-window regression
+  cases failed before fixes; the valid-position case already passed.
+- Scope: recenter inaccessible saved main-window positions and restore minimized
+  Help, including hidden/reopened Help. No new feature, schema or grammar change.
+  UG distinguishes the development fixes from published v1.5 workarounds; DG removes
+  a paragraph falsely claiming student fields are omitted from its updated diagram
+  and records that selection already merged in #115. Existing acknowledgements kept.
+- Validation: Windows `gradlew.bat --no-daemon check coverage shadowJar shadowJarMacArm`
+  passes 457 tests, zero failures/errors/skips, Checkstyle, coverage and both JAR
+  builds. An initial full-check attempt caught one test-formatting violation;
+  corrected it before the successful full rerun. All six targeted UI recovery
+  regressions pass after the fixes, and rebuilt-package probes confirm visible
+  startup placement and Help restored from minimized state.
+  The downloaded JAR passed the packaged contact checklist proposed in PR #118,
+  including hidden duplicate checks, normalized no-op, invalid-input preservation,
+  released-contact reuse and reload. Its actual `java -jar` workflow also passed
+  add/find/select/batch mark/update/delete/Help/invalid Exit and separate-JVM restart
+  checks. Four invalid student-file cases preserve original bytes and refuse an
+  editable roster; two invalid-preference cases restore defaults without changing
+  student records. Evidence is under `build/beta-v15-20261103` (not committed).
+- PR #118 review: documentation-only; head `2e8e4a06` has successful Windows,
+  macOS and Linux CI. Its twelve-step packaged contact checklist was independently
+  checked above. PR #118 has now merged at `49fcd352`; integrated its README,
+  testing checklist and version-availability updates, retaining both context records.
+- Functional patch size: 13 added and two removed lines across two `src/main`
+  files; tests/docs are separate. This is the draft's size, not a full RepoSense
+  audit of the member's cumulative freeze-period changes.
+- Remaining: user-created PR, teammate review, remote checks and platform checks.
+  Mac/Linux execution and fresh Jekyll rendering are not claimed for this draft.
+  Do not publish or create a release from these unreviewed changes.
+
+## v1.6 bug-fix PR handoff — 3 November 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); branch `codex/v16-bug-audit`;
+  issue [#121](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/121), milestone v1.6;
+  published for teammate review in [PR #122](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/122).
+  Based on team master `49fcd352`, including documentation PR #118. No merge or release.
+- Scope: logging-startup fallback, JAR-home file locations, a usable smaller window
+  and one JAR containing the existing Intel/ARM Mac natives. No command grammar,
+  student model, storage schema or dependency-version changes.
+- Owner-requested cleanup removes internal audit records, broad command/storage
+  audit tests, the roster stress test and the off-screen test. Keeps five focused
+  logging, packaged-path and small-window regressions; all original tests retained.
+  Production/build inputs are unchanged from the previously verified package.
+- Validation: macOS ARM64 / Zulu Java 25.0.3 FX, `./gradlew check coverage
+  shadowJar --no-daemon` passed all 456 tests, zero failures/errors/skips;
+  Checkstyle, coverage, repository checks and `git diff --check` passed.
+  Rebuilt JAR SHA-256 remains
+  `356d131e99492f877cb415edb63ceeb9d23ab6aca48d675445707d3f2668fb7d`.
+- Prior packaged GUI/clean-exit probes passed on plain ARM Java 25.0.3 and Intel
+  Java 25.0.3 under Rosetta. Original slices of all seven universal Mac native
+  pairs are preserved; Windows/Linux natives are unchanged.
+- Integration: Aston's PR #120 owns off-screen startup and minimized Help recovery.
+  Its production files do not overlap these fixes. Retain both owners' handoffs
+  when resolving the shared CONTEXT.md conflict.
+- Remaining: peer review, exact-head Windows/Linux checks, physical Intel hardware,
+  actual OS scaling and fresh rendered-doc verification. Local Jekyll lacks locked
+  Bundler 2.5.11. The owner's manual checklist is not claimed completed.
+- Assistance: OpenAI Codex; existing teammate history below is preserved.
+
+## Documentation/contact handoff before PR #118 merged — 3 November 2026 (SGT)
+
+The following handoff predates team merge `49fcd352`; its original status and
+validation claims are retained as history. Current synchronization is recorded above.
+
+- Owner: Vincent Peh (`Eskalade`); issue [#117](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/117),
+  self-assigned under v1.6. Branch: `codex/final-contact-docs-v16` in his fork.
+  Base: team master / v1.5 tag `20294cd249e63fe813cb6007e954d22a3267fe17`.
+- Status: published for teammate review in
+  [PR #118](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/118). Not merged or released.
+  The user confirmed a teammate owns the final release and Canvas upload.
+- Scope: refresh the README screenshot/capabilities, reconcile UG/site selection
+  availability and merged DG name support, and add reproducible contact acceptance
+  checks to the Testing guide. No production, test, build or schema changes;
+  functional-code change count for this increment is zero.
+- Validation: macOS ARM64 / Zulu Java 25.0.3 FX, `./gradlew check coverage shadowJar
+  --no-daemon` passed: **451 tests**, zero failures/errors/skips; Checkstyle and
+  coverage generated. `.github/run-checks.sh`, `git diff --check` and local Markdown
+  link/image-target checks passed.
+- Packaging verification: an external Gradle init task reran the existing contact
+  acceptance/update/parser and real-window `MvpRosterUiTest` classes with the built
+  JAR replacing main classes/resources on the runtime classpath: **34 tests passed**,
+  zero failures/errors/skips. This is instrumented packaged-class verification,
+  not a manual `java -jar` launch or Windows/Linux packaged GUI validation.
+  JAR SHA-256: `a0c8c30acbc841742025a01af1c77faae5cd8f68c1c07cb816358284b90cb1b1`.
+- Remote baseline: [CI 40904820281](https://github.com/AY2627S1-CS2103T-W08-4/tp/actions/runs/40904820281)
+  at the exact base has passing Windows and Linux jobs; the Mac job was cancelled
+  before steps ran, so the overall run is not green. Local macOS checks above passed.
+  New PR CI must be checked separately. GitHub Pages deployment of the base passed.
+- Published artifact audit: downloaded v1.5 `addressbook.jar` matches GitHub's
+  SHA-256 `5a933d13ba05eac0e7136a3346714962ee328e4b79b2dec958303cd742324836`.
+  Its SelectCommand, SelectCommandParser and Name class bytes match the local build.
+  PR #114 is merged (`f36d03b6`); v1.5 includes selection and relationship-marker names.
+  No v1.6 tag/release existed when checked. Older pending-status entries below are history.
+- Rendering limitation: local `bundle check` cannot run because system Ruby lacks
+  locked Bundler 2.5.11. Updated Jekyll rendering is not verified; review the deployed
+  guides after merge. Existing deployed UG/DG return successfully.
+- Release-owner handoff: the course requires one Canvas JAR named
+  `CS2103T-W08-4TutorTrack.jar`, a version tag/release and deployed UG/DG by
+  **3 November 2026, 14:00 SGT**. Current releases offer separate standard and Mac
+  ARM JARs; verify the single submission JAR on the course-supported Java setup.
+  Do not submit both variants or assume the standard JAR works on plain ARM Java.
+  Retest the actual final artifact and any subsequently integrated source changes.
+- Remaining: teammate review and merge, exact-head CI, deployed-guide review,
+  release-owner packaging/platform validation, GitHub v1.6 release and Canvas receipt.
+  This contribution does not claim those team tasks are complete.
+- Assistance: OpenAI Codex for audit, verification and prose, credited in the DG.
+  Existing team tests, model/storage contracts and screenshots are reused unchanged.
+
+### Recent completed work
+
+- 2026-11-03: Vincent completed the local documentation audit and verified contact
+  regressions against source and packaged classes; issue #117 tracks review/integration.
+
+## Historical handoffs (status applies only to each entry's date)
+
+## Keep the model-paragraph correction on the audit branch — 29 October 2026
+
+- Preserved the concurrent PR #115 keyboard/direct-selection clarification.
+  Centralized its general model-diagram paragraph correction on
+  `docs-workflow-audit` alongside the broad testing guide, rather than retaining
+  duplicate fixes in the selection PR. Feature-specific guide changes stay here.
+- Documentation-only scope correction; production/test sources match the 451-test
+  validated snapshot. Repository and whitespace checks passed. Assistance: OpenAI Codex.
+
+## Separate the documentation audit from selection — 29 October 2026 (SGT)
+
+- The owner requested a separate branch for the cross-cutting documentation audit.
+  PR #114 had already merged as team master `f36d03b6` when checked, so its merged
+  documentation is preserved. Integrated that master into the still-open PR #115.
+- Kept select-specific UG/DG, user story/use case, manual checks, site overview and
+  selection test guidance with #113. Moved the unmerged general testing-workflow
+  material out of PR #115; it will be reviewed on `docs-workflow-audit`.
+- This uses ordinary forward commits and preserves published history. Combined
+  validation on macOS / Zulu Java 25.0.3 FX passed `./gradlew check coverage
+  --no-daemon`: **451 tests**, zero failures/errors/skips, style and coverage
+  passed. Repository scripts and whitespace checks passed. Windows, packaged-app
+  checks and Jekyll rendering remain unverified. Assistance: OpenAI Codex.
+## PR #115 conflict resolution — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue #113 / PR #115. Merged team master
+  `f36d03b6`, including merged PR #114, into `113-select-student`.
+- Resolved the additive context conflict by preserving both PR histories. Kept
+  the selection command together with the relationship-marker name changes,
+  updated model diagram, keyboard guidance and corrected testing reference.
+- Earlier statements about PR #114 being separate/unmerged are dated history;
+  PR #114 is now included through team master. PR #115 remains open for review.
+- Validation: macOS / Zulu Java 25.0.3 FX `./gradlew check coverage --no-daemon`
+  passed 451 tests, 0 failures, 0 errors and 0 skips; Checkstyle,
+  coverage, repository scripts and whitespace checks passed. No tests removed.
+  Reconciled the model/keyboard guide wording after automatic documentation merging.
+  Windows and packaged-app manual verification are unavailable in this session.
+- Assistance: OpenAI Codex.
+
+## Preserve concurrent team documentation refresh — 29 October 2026 (SGT)
+
+- Integrated newly arrived team master `331ce46f` / PR #116 into PR #115 after
+  the audit. Preserved the new Ui/help screenshots, common selection guidance,
+  refreshed DG scope and current user guidance, alongside select source-build
+  availability, requirements, manual checks and read-only behavior.
+- Resolved documentation-only conflicts by keeping the team's click-to-select
+  guidance plus direct-command instructions and retaining explicit unsupported
+  mark-all/range/mixed-status limits. Kept both owners' context histories.
+- Verified no production/test source changed from the validated 438-test
+  snapshot; repository and whitespace checks passed. Jekyll/Bundler and platform
+  verification limits remain as recorded above. Assistance: OpenAI Codex.
+
+## Selection documentation audit and team sync — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); PR #115 / issue #113. Fetched and integrated
+  team master `5024299d` (release-preparation PR #104), preserving the existing
+  select implementation and latest Help read-only / transactional legacy-edit
+  behavior. Resolved additive context, moved UG sections and read-only dispatch.
+- Retained upstream corrected delete/architecture diagrams and v1.5 command
+  examples. Reapplied select feature/summary entries to the current UG; updated
+  quick start, saving guidance, source-build availability and site overview.
+- DG now distinguishes the original MVP from implemented atomic batch marking
+  and direct selection, scopes the inherited parser-helper diagram, corrects
+  MarkSequenceDiagram fragment descriptions, and adds selection requirements,
+  use case and manual checks. Existing atomic-batch documentation was compared
+  with MarkCommand, DeleteCommand and save-before-publish LogicManager paths.
+- PR #114 remains a separate, unmerged source of relationship-marker names,
+  student/legacy model diagrams, keyboard instructions and the test-class fix;
+  those changes are not silently imported into the selection PR.
+- Validation after integration: `./gradlew check coverage --no-daemon` passed
+  on macOS / Zulu Java 25.0.3 FX: 438 tests, zero failures/errors/skips;
+  Checkstyle, coverage, repository scripts and whitespace checks passed. Later
+  audit edits affect documentation only. Windows, packaged-app manual checks
+  and Jekyll rendering remain unverified. No new feature/release claim.
+- Follow-up: synchronized shared scope/parser wording with PR #114 so the two
+  PRs describe atomic batch behavior consistently. Added Testing-guide regression
+  coverage for selection, batch marking/deletion, contacts and legacy recovery;
+  verified every referenced test class exists and the test-class example resolves.
+  Added S17/UC07 and selection manual checks, command-summary/quick-start entries
+  and source-build availability. Reviewed the updated delete/architecture PNGs.
+- Final validation after branch synchronization: **438 tests**, zero failures,
+  errors or skips; full check/coverage, repository scripts and whitespace checks
+  passed. All 426 current team tests are preserved; 12 selection tests are added.
+  Guide command sections/summaries, image references and read-only commands were
+  checked. Jekyll rendering is blocked by missing locked Bundler 2.5.11.
+- Assistance: OpenAI Codex. Status: audit follow-up prepared for existing PR #115.
+
+## Direct student selection — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#113](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/113);
+  separate branch `113-select-student`, based on freshly fetched team master
+  `e59ed71b` (includes startup-recovery PR #105). Does not depend on PR #114.
+- Owner-authorized enhancement proposal: `select INDEX` resolves a single current
+  displayed row and returns it through the existing CommandResult selection hook.
+  Preserve filter, class/week context, roster order, contacts, memberships and
+  attendance; never save data. Invalid syntax/bounds must retain UI selection.
+- Chosen syntax: lowercase command, one positive ASCII index (1–2147483647),
+  no leading zero/sign, ordinary surrounding spaces only. Syntax failures use
+  the select format message; unavailable displayed rows use the invalid-student
+  index message. Success says `Selected: NAME.` Existing legacy rows can also
+  be selected; their contact card is shown without a student details pane.
+- Status: implementation `ad4927b0` is pushed to the member fork in
+  [PR #115](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/115), open against
+  team master under v1.5 and assigned to toomintyy. Latest upstream `e59ed71b`
+  was fetched again before PR creation and is already included. No team approval,
+  merge or release claimed. This extends the MVP rather than fixing an existing command.
+- Baseline validation: `./gradlew check coverage --no-daemon` passed on macOS
+  with Zulu Java 25.0.3 FX: 422 tests, zero failures/errors/skips.
+- Course Week 11 direction checked: final feature refinements precede the v1.5
+  deadline (29 October 23:59 SGT); implementation alone is not a completed
+  release or proof of on-time integration. Source:
+  https://nus-cs2103-ay2627-s1.github.io/website/schedule/week11/project.html
+- Implementation: new SelectCommand/SelectCommandParser plus dispatch and the
+  read-only LogicManager path; reuses CommandResult and PersonListPanel selection
+  and scrolling. No UI production-code, Person or storage-schema changes. UG/DG
+  and command summary updated; this branch is independent of pending PR #114.
+- Validation: the new real-window success test failed against the baseline's
+  unsupported command, then passed after implementation. Added 12 tests across
+  parser, command, persistence integration and real-window UI. Checks cover
+  filtered indices, legacy rows, strict syntax, maximum/overflow indices, empty
+  rosters, repeated selection, contacts/attendance preservation, zero storage
+  writes, unchanged filter and UI details/input/focus behavior.
+- Focused validation passed. `./gradlew check coverage --no-daemon` passed on
+  macOS / Zulu Java 25.0.3 FX: **434 tests**, zero failures/errors/skips, both
+  Checkstyle tasks and coverage generation. Repository scripts and whitespace
+  checks passed. Initial new-test assumptions about a TextField retaining line
+  breaks and Unicode command separators were corrected: JavaFX strips line
+  breaks, and unsupported separators may yield Unknown command at dispatch.
+  Parser-level tests still reject control whitespace; no old tests were weakened.
+- Windows, packaged-app manual checks and Jekyll rendering are unverified. Further
+  review and cross-platform checks remain before merge/release. This handoff
+  changes only CONTEXT.md; the validated production/test snapshot is unchanged.
+  Assistance: OpenAI Codex.
+## PR #114 documentation refresh — 29 October 2026 (SGT)
+
+- Integrated newly arrived team master `331ce46f` / PR #116 into PR #114.
+  Retained current Ui/help screenshots, product guidance and the refreshed scope
+  while preserving names, keyboard instructions, optional legacy/student model
+  relationships and atomic-batch manual checks. Adopted the team's equivalent
+  unimplemented-legacy-tag note; retained unsupported mark-all/range/status limits.
+- Documentation-only merge: production/test sources match the validated 439-test
+  snapshot. Repository/whitespace checks passed. Existing Bundler/Jekyll and
+  platform verification gaps remain. Assistance: OpenAI Codex.
+
+## Combined documentation audit and team sync — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); PR #114 / issues #108–#112. Integrated team
+  master `5024299d`, retaining #105 startup recovery and #104 release changes.
+  Preserved relationship-marker validation/tests, source links, model diagram,
+  keyboard instructions and the corrected test-class reference. Resolved link
+  spelling conflicts using the existing team blob URLs and kept all context entries.
+- Audited command formats/summaries, batch marking/deletion, no-op and failure
+  semantics, source links, diagrams, requirements and manual checks against code.
+  Corrected the DG's stale claim that bulk attendance is beyond implemented scope;
+  distinguished atomic multi-index marking from unsupported mark-all/ranges/mixed
+  statuses. Scoped the inherited parser-helper diagram, corrected mark-diagram
+  fragment descriptions, added atomic-deletion validation/retry/reload checks and
+  made the summary's delete example demonstrate multiple indices.
+- Retained the team's corrected save-before-live-delete architecture and delete
+  diagrams, Help/legacy-edit recovery documentation, current v1.5 examples and
+  updated site overview. Selection documentation is maintained in separate PR #115.
+- Validation: macOS / Zulu Java 25.0.3 FX `./gradlew check coverage --no-daemon`
+  passed **439 tests**, zero failures/errors/skips; Checkstyle, coverage and
+  repository/whitespace checks passed. Verified all supported command sections,
+  batch counts/selection/no-op wording, local guide images, source-link paths and
+  corrected test reference. PlantUML syntax checks passed for model, mark, delete,
+  architecture and update diagrams; the model PNG remains the inspected rendering.
+- Jekyll build attempted but unavailable: local Ruby cannot find locked Bundler
+  2.5.11. No lockfile/dependency changes made. Windows and packaged-app manual
+  checks remain unverified. Earlier dated validation entries are historical.
+- Status: updating existing PR #114; no merge/release or team approval claimed.
+  Assistance: OpenAI Codex for integration, audit corrections and verification.
+
+## Combined issue-fix PR — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); branch `fix-reported-issues` in member fork.
+  [PR #114](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/114) is open against
+  team `master`, assigned to toomintyy under v1.5, resolving issues #108–#112.
+  No review, merge or release is claimed.
+- Fetched upstream immediately before PR preparation; latest team master remains
+  `b93206fb`, already an ancestor. Fast-forward-only synchronization confirmed
+  already up to date. The old #108 branch was merged and deleted locally/remotely.
+- Scope: eight implementation links; literal student relationship-marker names;
+  student/legacy model diagram and field constraints; corrected test-class name;
+  documented existing keyboard navigation. Name-contract extension requires team
+  review. No new selection command or JSON schema change.
+- Exact production/test snapshot `57e8198f` passed a fresh macOS / Zulu Java
+  25.0.3 FX run: `./gradlew check coverage --no-daemon --rerun-tasks`, **428 tests**,
+  zero failures/errors/skips. All 415 original tests remain unchanged; 13 added
+  regressions. Repository scripts, whitespace checks, eight source-link paths
+  and PlantUML syntax passed. Diagram and keyboard verification are detailed below.
+- This handoff changes only CONTEXT.md. Windows/Linux CI, Jekyll rendering and
+  packaged-app platform checks remain unverified; local JavaFX tests do not
+  establish packaged-app behavior. Remaining: teammate review and remote checks.
+- Assistance: OpenAI Codex for implementation, tests, documentation and PR preparation.
+
+## Consolidate issue #108 branch — 29 October 2026 (SGT)
+
+- Owner authorized deleting the #108 branch if superseded by `fix-reported-issues`.
+  Inspection found its commit `06de158a` was not yet included: the combined branch
+  still had the eight upstream AB3 implementation links.
+- Merged that commit into `fix-reported-issues`, retaining all #109–#112 changes,
+  both sets of context entries and AI acknowledgements. Resolved only additive
+  context/acknowledgement conflicts; the eight link corrections merged cleanly.
+- Verified local and remote #108 heads match; no open team PR uses that branch.
+  Rechecked all eight link paths in fetched team master and preserved all other
+  external links. No production or test source changed by this consolidation.
+- Plan authorized by owner: push the combined branch successfully before removing
+  the superseded local and fork branches. No team-master merge or PR claimed.
+- Validation: repository scripts, whitespace checks and `./gradlew check coverage
+  --no-daemon` passed on macOS / Zulu Java 25.0.3 FX, reusing the unchanged
+  428-test result with zero failures/errors/skips. Windows and Jekyll rendering
+  were not rerun for this documentation merge. Assistance: OpenAI Codex.
+
+## Keyboard navigation documentation — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#112](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/112);
+  branch `fix-reported-issues`. Freshly fetched upstream remains `b93206fb`,
+  already included in this branch. Retains the separate #109–#111 commits.
+- Scope: added UG instructions for Tab navigation from the command box through
+  results to the roster, Up/Down selection and details below the roster, and
+  Shift+Tab navigation back to the command box. Included list/class-view entry
+  points and empty-roster guidance. DG explains the existing JavaFX controls and
+  selection listener, with a link to the user instructions. No new selection
+  command, production behavior, storage format or committed tests changed.
+- Verification: inspected FXML focus order and PersonListPanel's selection
+  listener. A temporary test in the existing real-window JavaFX harness passed
+  with synthetic students: dispatched Tab events traversed input/results/roster,
+  Home/Down/Up selected rows and refreshed the visible details, and Shift+Tab
+  twice returned to the command field. The probe was removed after verification;
+  the test source is identical to its pre-change version. This was application
+  event dispatch, not physical-keyboard or packaged-JAR platform testing.
+- Final `./gradlew check coverage --no-daemon` on macOS / Zulu Java 25.0.3 FX
+  reran the full suite: **428 tests**, zero failures/errors/skips. Style checks,
+  coverage generation, repository scripts and `git diff --check` passed. Verified
+  the DG link matches the new UG heading. Windows, Jekyll rendering and separate
+  packaged-app checks were not performed.
+- Status: owner authorized implementation, commit and push without another
+  confirmation. No PR or merge claimed. Assistance: OpenAI Codex.
+
+## Testing-guide class reference — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#111](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/111);
+  branch `fix-reported-issues`. Freshly fetched team master is still `b93206fb`,
+  already contained in the branch. The #110 diagram correction was pushed as
+  `9e043c9c` before starting this change.
+- Scope: corrected the unit-test example in `docs/Testing.md` from the nonexistent
+  `seedu.address.commons.StringUtilTest` to
+  `seedu.address.commons.util.StringUtilTest`, and linked the team source file.
+  No production code, test code or test configuration changed.
+- Validation: checked the package declaration, public class name and source path
+  locally and in fetched team master; the original incorrect reference is gone.
+  The existing XML report confirms this class passes. `./gradlew check coverage
+  --no-daemon` passed on macOS / Zulu Java 25.0.3 FX, reusing unchanged outputs
+  from the **428-test** run (zero failures/errors/skips). Repository scripts and
+  `git diff --check` passed. Windows, Jekyll rendering and packaged-app checks
+  were not performed for this documentation typo.
+- Status: owner authorized implementation, commit and push without another
+  confirmation. No PR or merge claimed. Assistance: OpenAI Codex.
+
+## Student and legacy model diagram — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#110](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/110);
+  branch `fix-reported-issues`. Fetched upstream before starting: team master
+  remains `b93206fb`, already contained in this branch. Retains the #109 commits.
+- Scope: updated ModelClassDiagram source and PNG with shared Name/Email,
+  optional legacy Phone/Address and Tag associations, and student TelegramHandle,
+  ClassMembership and AttendanceRecord associations. Attendance records reference
+  AttendanceWeek and AttendanceStatus. Plain associations avoid implying exclusive
+  composition ownership of immutable values reused by Person copies.
+- The diagram shows multiplicities across both representations. A nearby DG table
+  states conditional constraints: students require Telegram and one or more
+  memberships, while legacy contacts require phone/address. Neither representation
+  is a subclass. Documented absent fields, stored attendance decisions, and the
+  course/group/week constraints against Person and related value types.
+- Simplified the overview by describing the filtered Person view in prose instead
+  of drawing a second overlapping association. Removed obsolete layout placeholders,
+  added accessible image text, and labeled the alternative tag diagram as an
+  unimplemented legacy AB3 design. No production code, schema or tests changed.
+- Validation: compared relationships with Person constructors/getters,
+  ClassMembership, AttendanceRecord and withAttendance. Consulted the course
+  [UML reference sheet](https://nus-cs2103-ay2627-s1.github.io/website/admin/uml-reference-sheet.html).
+  Rendered PNG using PlantUML 1.2023.10 with its built-in Smetana layout and Java
+  headless mode; syntax check passed and rendered image was visually inspected.
+  Reproduction from repository root: `java -Djava.awt.headless=true -jar
+  /path/to/plantuml-1.2023.10.jar -Playout=smetana -tpng -o ../images
+  docs/diagrams/ModelClassDiagram.puml`.
+- `./gradlew check coverage --no-daemon` passed on macOS / Zulu Java 25.0.3 FX,
+  reusing the unchanged **428-test** result (zero failures/errors/skips) and
+  up-to-date style/coverage outputs. Repository scripts and `git diff --check`
+  passed. No Jekyll site build, Windows check or packaged-app check was performed
+  for this documentation-only change.
+- Status: owner authorized commit and push of this documentation fix.
+  No PR or merge claimed. Assistance: OpenAI Codex.
+
+## Issue #109 regression audit — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); branch `fix-reported-issues`. Reviewed pushed
+  implementation `0e5fc001` against pre-change team master `b93206fb`.
+- Confirmed all original test source lines were retained, with no test/build or
+  Checkstyle configuration changes. Matched all **415 original test methods**
+  against the latest execution results: none missing, failing or skipped.
+- Added seven tests covering relationship-marker names across all six contact
+  orders (add memberships before/after contacts), Unicode normalization and
+  supplementary-character length limits, all ASCII marker case variants,
+  incomplete/malformed markers and unsupported whitespace, markers outside name
+  fields, malformed stored names, namesakes/contact collisions, normalized no-op
+  updates, and failed add/update saves followed by successful retries.
+- No production-code regression found; no implementation changes were needed.
+  These tests add coverage rather than replace existing assertions. Validated
+  roster/filter/disk preservation and exact unknown-parameter errors so other
+  invalid fields cannot mask the behavior under test.
+- On macOS with Zulu Java 25.0.3 FX, forced a fresh full check/coverage run, then
+  reran after strengthening boundary/error assertions. Final `./gradlew check
+  coverage --no-daemon` passed **428 tests**, zero failures/errors/skips.
+  Checkstyle, coverage, repository scripts and `git diff --check` passed.
+  Name, AddCommandParser, UpdateCommandParser and the relationship-marker helper
+  have 100% line and branch coverage in this run; coverage is not proof of all
+  possible behaviors. Windows and packaged-app manual checks were not performed.
+- Status: implementation is pushed; audit tests and this context update are
+  prepared for commit and push at the owner's request. No PR or merge claimed.
+  AI assistance: OpenAI Codex.
+
+## Student relationship-marker names — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#109](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/109);
+  branch `fix-reported-issues`, created from freshly fetched team
+  master `b93206fb`. The separate #108 branch is not a dependency of this fix.
+- Scope authorized by the owner: support literal standalone `s/o` and `d/o` tokens
+  in student names, preserving ASCII letter case. This extends the original
+  Feature 1 name contract; it is not recorded team consensus. The exported source
+  specification remains unchanged. Other slash-containing name text stays invalid.
+- Add/update parsers treat these markers as literal text only inside `n/` values.
+  Unknown and repeated parameters still fail. Normalization and the 50-code-point
+  limit remain; storage reload uses the same validation without a schema change.
+  Legacy names, membership and attendance contracts are unchanged. UG/DG updated.
+- Validation: six new regression tests cover both reported commands, add/update
+  field ordering, case/spacing, marker boundaries, invalid slash text, unknown and
+  repeated prefixes, normalized length limits, and actual JSON save/reload with
+  preserved contacts, attendance, memberships and class filtering. Before the fix,
+  all six tests failed; afterward, 29 focused tests passed. Boundary coverage was
+  expanded before the final full run.
+- On macOS with Zulu Java 25.0.3 FX, `./gradlew check coverage --no-daemon`
+  passed **421 tests**, zero failures/errors/skips, both Checkstyle tasks and
+  coverage generation. An initial full run found one line-length violation;
+  corrected before the passing run. `.github/run-checks.sh` and `git diff --check`
+  passed. Windows checks, packaged-app GUI checks and Jekyll rendering were not
+  performed; no cross-platform or release verification is claimed.
+- Status: prepared for commit and push to the member fork at the owner's request.
+  No PR, merge or release claimed. Remaining: teammate review of this
+  name-contract extension and PR integration.
+- Assistance: OpenAI Codex for implementation, regression tests and documentation;
+  reuses the existing name model, parser and persistence-test infrastructure.
+
+## Developer Guide implementation links — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#108](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/108);
+  branch `108-fix-developer-guide-links`, based on team master `b93206fb`.
+- Scope: corrected eight Design-section source links (Main, MainApp, Ui,
+  MainWindow.fxml, MainWindow, Logic, Model and Storage) to the team repository's
+  `blob/master` files. Other external links, including SE-EDU learning resources,
+  remain unchanged. No application behavior or storage changes.
+- Validation: all eight targets exist locally and in fetched `upstream/master`;
+  checked that other external links are unchanged. On macOS with Zulu Java
+  25.0.3, `./gradlew check coverage --no-daemon` passed **415 tests**, zero
+  failures/errors/skips; Checkstyle, coverage, `.github/run-checks.sh` and
+  `git diff --check` passed. The first sandboxed Gradle attempt could not access
+  the cache; rerunning with cache access passed. Windows checks, packaged-app
+  smoke tests and Jekyll rendering were not performed for this documentation fix.
+- Status: prepared for commit and push to the member fork at the owner's request.
+  No PR, merge or publication claimed. Remaining: teammate PR review and integration.
+- Assistance: OpenAI Codex for link correction and verification.
+## v1.5 product screenshot and guide refresh — 29 October 2026
+
+- Owner: Aston (`aston-ish`); branch `codex/refresh-product-documentation`, updated to
+  team master `5024299d`. Documentation-only changes; the user will open the PR.
+- Scope: replace `docs/images/Ui.png` with a real application capture, use it on the
+  landing page and in the UG, correct the landing-page status, and clarify launch and
+  preference-recovery instructions. The audit also refreshes the Help screenshot,
+  corrects the DG's current feature scope and labels its alternative legacy design
+  as unimplemented. Existing AI acknowledgements are unchanged.
+- Capture: current v1.5 application built from master `5024299d`, Windows Java 25.0.4;
+  884 x 1135 PNG, fictional contacts only, six displayed students, attendance totals
+  and selected-student history. The main-window layout matches merged master.
+  Help is captured separately with the TutorTrack guide URL. Both images were
+  visually inspected; the app opened Help and exited normally using disposable data.
+- Integration: PR #105 merged at `e59ed71b`; PR #104 merged at `5024299d` on
+  29 October. Retained their implementation records and guide cleanup. PR #114 is
+  still open; its new name syntax is not documented as available here.
+- Validation: Windows Temurin Java 25.0.4, `gradlew.bat --no-daemon check coverage
+  shadowJar shadowJarMacArm` passed: 426 tests, zero failures/errors/skips,
+  Checkstyle, coverage and both JAR builds. Static audit passed 36 local/source
+  links, all 10 command sections against the parser, repository formatting and
+  whitespace checks. No unsupported feature is presented as available in the UG.
+  Production/test source is unchanged from master `5024299d`.
+- Limits: no fresh Mac/Linux execution; the fork Java CI workflow remains manually
+  disabled. Ruby/Bundler are unavailable, so the Jekyll site was not rendered locally.
+  Latest published release is v1.4; the refreshed guides explicitly target v1.5.
+- Remaining: user-created PR, teammate review, merge and deployed-site verification;
+  cross-platform checks and publication of the v1.5 release packages remain team work.
+
+
+## v1.5 release candidate (29 October 2026, Ethan)
+
+PR #71, #79 and #76 are merged. The revised candidate integrates team master
+`b93206fb`, preserves the existing contact/batch regressions and resolves the
+remaining context-file conflict. No overlapping startup changes remain.
+
+Alpha testing against the packaged current-master JAR produced Ethan's reports
+#94, #96, #97, #98 and #99. The exact JAR SHA-256 is
+`ea273bb847db37df09f29afc2c58e35d707b3ba6804b610a338153d67310e43f`.
+Testing used an isolated writable folder, Java 25 and real JSON/permission probes;
+this evidence does not claim a manual GUI click-through.
+
+The candidate fixes atomic legacy edit publication (#94), read-only Help (#81)
+and its TutorTrack guide link (#80). At the team's request, trailing-JSON (#95)
+and null GUI settings (#100) fixes and their regression tests are removed from
+PR #104; teammate PR #105 owns that work. Documentation fixes cover
+#87/#88/#97/#98/#99, with rendered transaction diagrams and an actual UI image.
+
+Current revised validation: Mac Java 25.0.3 `check coverage` passes 419 tests,
+zero failures/errors/skips, Checkstyle and repository checks. Windows 11,
+Zulu Java 25.0.3, also passes 419 tests with zero failures/errors/skips and
+zero Checkstyle errors. Tested source: `add0a7eb40ee75644fcf8a265fc277cfbf747a3d`.
+Transferred archive SHA-256:
+`1afefb658255efe6b2ca6df613b9a66b95d32078f03cdc68d6227ce5f1f769e7`.
+Later changes only record this evidence. The five startup source/test files
+match team master; no closing keywords for the two removed issues remain in
+the candidate commit messages. PR #105 retains ownership of that work. The fork Java CI workflow currently
+reports `disabled_manually`, so no new GitHub CI result is claimed for the
+revised candidate; the actual Mac and Windows checks above passed.
+
+### Historical verification before removing the overlapping startup fixes
+
+The 425-test results below describe the earlier candidate, not the revised PR.
+Revised Mac/Windows validation will be recorded after integration.
+
+Mac Java 25.0.3 integration checks passed 419 tests before the startup fixes;
+startup/storage fixes passed 424 tests before the added startup fallback test.
+Final Mac Java25 checks pass 425 tests, zero failures/errors/skips, with
+Checkstyle and both release JAR builds. Packaged-JAR command/storage probes pass
+add/find/batch mark/update/invalid clear/delete/exit/reload/clear/help/corrupt JSON.
+Independent AI review found no introduced blockers. Windows Java25.0.3 also
+passes425 tests with zero failures/errors/skips and zero Checkstyle errors.
+The exact source snapshot is1e5b16775c625753ff5e3205f3e7b093f6820fd2,
+archive SHA256d9cfd78d2946a21dc382c876af6d2b0eb5e221e212401179336bdae43b161164.
+Line coverage is1779/1894 (93.9%). Both packaged command probes pass; actual
+java-jar launches reach UI startup on Mac ARM and Windows using disposable data.
+Initial Mac display restrictions and a Windows PowerShell logging-wrapper error
+were corrected before successful reruns. No manual click-through is claimed.
+No final release or approval of these new fixes is claimed here.
+
+Git attribution retains teammates' original commits. RepoSense's published
+29 October 17:00 SGT report recognises `eatenquek` as Ethan and credits two
+surviving Java test lines; the old deletion implementation has since been
+rewritten by a teammate. No tags claim that rewritten code. PR #71 merged after
+that report, so the clear/recovery contributions need a later dashboard refresh.
+The linked author-config page returns404, but the public report data is readable.
+PR #104 contains this candidate; reviews requested from Eskalade and toomintyy.
+The existing Java CI workflow in Ethan's fork was disabled manually; enabled it
+to validate subsequent candidate updates.
+
+Codex assisted with investigation, implementation, documentation and reviews.
+A real teammate review is still required for this candidate's new changes.
+
+
+## Ethan v1.5 release recovery — 29 October 2026
+
+- Owner eatenquek; alpha reports #94 and #96–#99 are distinct runtime, packaging
+  and documentation findings from packaged master92235ba4 (hash recorded in reports).
+- Confirmed #94 with real filesystem permissions: failed legacy edit mutated live
+  data and later Exit persisted the rejected change. A detached candidate now saves
+  before publication; successful legacy edits reset full-roster context/selection.
+- Typed Help is read-only during save failures (#81); Help points to TutorTrack's
+  guide (#80). Existing student/attendance transactions remain separate.
+- Added four legacy/recovery integration tests. Two failed on the original code;
+  full Java25 check/coverage passed after the fix. Final integrated Mac/Windows
+  counts and packaged release evidence remain pending; no release claimed.
+- OpenAI Codex assisted investigation, code, tests and documentation.
+
+## Ethan clear safety integration — 29 October 2026
+
+- Owner eatenquek; PR71 has approvals from jianyang999 and Eskalade at71ab4b87.
+- Reconciled documentation/context conflicts with current team master92235ba4.
+  Kept student updates, attendance verification and startup recovery documentation.
+- Addressed nonblocking feedback: TutorTrack clear-success wording, explained the
+  retained-filter test and made shared AGENTS platform instructions portable.
+  Retaining class/week context after clear is intentional and documented.
+- Java25 check/coverage/shadowJar passed after integration. New full-suite count
+  will be verified from JUnit reports before publication. Original341-test Mac/PC
+  evidence is historical and does not stand in for this integration's Windows run.
+- Status: integration local; no merge/release claimed. AI assistance credited in DG.
+
+### Historical clear-fix validation (22 October)
+
+## Active Ethan v1.4 increment — 22 October 2026 (SGT)
+
+- Owner: Ethan Quek (`eatenquek`), issue [#62](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/62).
+- Local branch: `codex/safe-clear`, based on team master `e83a798e`.
+  Published for teammate review in [PR #71](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/71)
+  from commit `06f9a3f2`. No teammate approval, merge or release is claimed.
+- Scope: reject arguments/control whitespace for `clear`; save an empty roster
+  before changing live data; clear selection only on success and retain class/week
+  context. Clear includes hidden contacts and all attendance. No new features.
+- Regression tests first reproduced four failures, including acceptance of `clear 1`
+  and mutation before saving. Existing filtered batch deletion/repeated indices,
+  invalid later targets and failure/retry tests remain part of the suite.
+- Validation: Java 25.0.3 FX `./gradlew check coverage shadowJar` passed with
+  341 tests, zero failures/errors/skips; both Checkstyle tasks passed. Overall line
+  coverage: 1513 / 1686 (89.7%). New real-window test verifies failed clear preserves
+  selection/details/input/context and successful retry clears selection.
+- Initial full-check attempt found two overlong test lines; wrapped them and reran
+  successfully. UG/DG and AI acknowledgment updated. Source changes applied cleanly to
+  teammate PR #64 in an isolated checkout; combined Java 25 check/coverage passed
+  with 352 tests, zero failures/errors/skips. Documentation overlaps require
+  reconciliation when integrating. No remote CI or packaged manual smoke result claimed.
+- Windows PC validation (22 October): `gradlew.bat --no-daemon check coverage shadowJar`
+  passed on Zulu Java 25.0.3 FX, Windows build 26300: **341 tests**, zero
+  failures/errors/skips; both Checkstyle reports contain zero errors. Line coverage
+  matches macOS (1513 / 1686, 89.7%). Scheduler exit code verified as 0.
+- Exact uncommitted source snapshot: base `e83a798e`, archive SHA-256
+  `bcecfddd03068489f2867d87c4ba246a4b92dd3f4d4c621b06100a8e799099bc`.
+  The snapshot includes the updated AGENTS.md; later handoff/evidence edits do not
+  change production/test sources. Evidence pulled to Ethan's local iP
+  `.codex-artifacts/tp-clear-62/windows/`. No packaged manual GUI smoke claimed.
+- Independent AI review found no actionable correctness/test/documentation issues;
+  this is not teammate approval. Teammate review and integration remain outstanding.
+- AGENTS.md now records focused local tests during editing and final Mac/Windows
+  checks before PR/release. The Windows runtime was portable; default Java unchanged.
+- Assistance: OpenAI Codex, credited in the Developer Guide.
+## Active v1.5 contact hardening — verified 28 October 2026 (SGT)
+
+- Owner: Vincent Peh (`Eskalade`); branch `codex/student-hardening-v15` in his fork.
+  Base: current team master `5d155e5ef0b235c44d250706865ea50130101d7a`.
+- Scope: Vincent's add student and contact update only. Linear-time ordinary-space
+  trimming fixes a reproduced pasted-input stall; commented tests strengthen contact
+  boundaries, normalization, persistence, recovery and UI behavior. UG/DG updated.
+- Issues: [#77](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/77) (implementation)
+  and [#78](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/78) (`alpha-bug`),
+  self-assigned under v1.5. Published for teammate review in
+  [PR #79](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/79), not merged or released.
+  Remote CI is running; consult PR checks before merge.
+- Live state: GitHub confirms #64 merged at `3c5c440c`; current team master includes
+  subsequent integration. Teammate PRs #71 (clear) and #76 (batch attendance) remain
+  open on 28 October. Historical pending-status statements below are dated snapshots.
+- Reproduction: on unmodified master, the new 100,000-space name regression failed
+  its two-second budget. A separate 50,000-space probe took 1,928 ms before the fix
+  and 1 ms after it on this machine; timings are observations, not performance promises.
+- Validation: `./gradlew check coverage` passed on Zulu Java 25.0.3 FX: **391 tests**,
+  zero failures/errors/skips (baseline: 377). Checkstyle and coverage generation
+  passed; both JAR tasks, `.github/run-checks.sh` and `git diff --check` passed.
+  Add/Update parsers, Name, Email and TelegramHandle: 100% line/branch coverage.
+  AddCommand: 100% line/branch; UpdateCommand: 32/33 lines, 24/30 branches.
+  The new trimming method has 100% line/branch coverage. No claim of global 100% coverage.
+- Packaged verification: standard JAR on Zulu Java 25.0.3 FX and ARM JAR on plain
+  Temurin Java 25.0.4 each passed instrumented real-window add/update/collision/
+  long-input tests and separate-JVM JSON reload. Memberships, attendance, filtered
+  indices, selected row and heading were checked. ARM reload screenshot inspected.
+  Isolated evidence: `/private/tmp/tutortrack-v15-probe/` (local, not committed).
+- Integration: additive StringUtil helper; no shared Person/schema/transaction
+  changes. Contact validation rules and error text are preserved. Teammate-owned
+  ClassMembership and other validators still contain similar trimming regexes;
+  their owners should assess long malformed inputs. Those features were not changed.
+- Remaining: teammate review, exact-head remote CI and team integration; test final
+  release JARs and guides on supported OSes. Windows/Linux packaged execution and
+  Jekyll site rendering were not verified locally. This increment is not the team
+  v1.5 release, and does not establish that all features are bug-free.
+- Course: v1.5 due 29 October 23:59 SGT; the course asks each student to submit at
+  least five `alpha-bug` reports. This increment records one reproduced defect,
+  not five independent reports. Continue authentic alpha testing; do not invent bugs.
+- Assistance: OpenAI Codex, credited in DG; reused team models, JSON storage,
+  SE-EDU AB3 architecture and existing JavaFX test infrastructure.
+
+### Recent history
+
+- 2026-10-28: Vincent reproduced and fixed contact trimming stall; added 14 tests,
+  passed local validation and both packaged contact workflows. Review/merge pending.
+- 2026-10-28: verified prior contact-update PR #64 is merged, superseding its old handoff.
+
+## Historical handoffs (status applies only to the date of each entry)
+
+## v1.4 persistence and startup protection — 22 October 2026
+
+- Owner: Aston (`aston-ish`); [issue #63](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/63); milestone v1.4.
+- Branch: `exit-persistence-verification`, based on team master `3c5c440c`.
+- Implementation commit: `8b086cb5`. PR not created. Review, remote CI and merge remain pending.
+- Scope: stop startup when existing student data cannot be loaded; show recovery guidance; preserve the original file; handle null JSON records through the data-loading error path.
+- Verification: add/update/delete, attendance correction/clearing, restart, preferences, and failure/retry through all three Exit routes.
+- Validation: Windows, Temurin Java 25.0.4; 362 tests passed with zero failures/errors/skips. Checkstyle, coverage generation, repository formatting checks and both JAR builds passed.
+- Packaged verification: instrumented Windows checks passed across separate JVMs for persistence/reload and invalid-data startup/shutdown. Mac ARM package built only; Mac/Linux packaged execution is unverified.
+- Integration: no JSON schema change. Clear-command safety remains with its owner.
+
+## Active v1.4 increment — verified 21 October 2026 (SGT)
+## Active v1.4 attendance verification — 22 October 2026 (SGT)
+## Active batch attendance extension — 22 October 2026 (SGT)
+## v1.5 startup recovery fixes — 29 October 2026
+
+- Owner: Aston (`aston-ish`); issues [#95](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/95) and [#100](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/100); both assigned milestone v1.5.
+- Branch: `startup-recovery-fixes`, based on team master `5d84bc06`.
+- Implementation commit: `14d3d3d1`; review follow-up `9829b34a`. [PR #105](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/105) merged on 29 October at `e59ed71b`, verified on GitHub. The validation below records the original local checks; it does not describe a fresh run against the integrated team branch.
+- Scope: reject trailing JSON content and additional JSON values; recover null GUI settings through the existing default-preferences path.
+- Integration: no dependency or data-schema changes. Existing student-data recovery and preference fallback are reused.
+- Regression evidence: four targeted tests reproduced the failures before the fixes. Seven new tests cover rejection, whitespace compatibility, file preservation and preference recovery.
+- Review follow-up: two additional tests cover a valid, non-default preferences object followed by a second JSON value or garbage. Storage rejects it with `DataLoadingException` without changing the original bytes; startup restores and saves default settings while preserving student data. No production change was needed for this follow-up.
+- Validation: Windows, Temurin Java 25.0.4; 390 tests passed with zero failures/errors/skips. Checkstyle, coverage generation, both JAR builds, repository formatting checks and `git diff --check` passed.
+- Packaged verification: instrumented Windows checks confirmed recovery guidance and unchanged invalid student data, plus successful startup and shutdown after restoring default preferences.
+- Platform limits: Mac ARM package built only; Mac execution is unverified.
+
+## PR #76 integration — 29 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue #67 / PR #76. The owner approved
+  integration and merge on 29 October, superseding the earlier v1.4-only target;
+  this is v1.5 integration work, not a claim of an on-time v1.4 delivery or release.
+- Integrated team master `151ff791` (including #71, #73 and #79). Preserved both
+  owners' context records and all three batch and two contact UI tests as separate
+  methods. Retained the clear-safety test and automatically merged production paths.
+- Validation: on macOS with Zulu Java 25.0.3 FX, focused attendance/UI tests passed;
+  `./gradlew check coverage --no-daemon` passed **415 tests**, zero failures,
+  errors or skips, both Checkstyle tasks and coverage generation. Repository scripts
+  and staged/unstaged whitespace checks passed. Synthetic temporary data only.
+- Status: integration pushed as `0eaed2bf`; GitHub reports PR #76 conflict-free.
+  The owner authorized merge after this verification. The prior teammate approval
+  covers `2ae6e80`, not the integration. No Actions run/checks appeared after pushing
+  despite the fork workflow being active; no exact-head remote CI or Windows/Linux
+  result is claimed. Separate packaged-app smoke checks and Jekyll rendering were
+  not performed; release verification is separate. This handoff precedes the merge.
+- Historical entries below retain their dated status; #79 is now merged on master.
+- Assistance: OpenAI Codex for conflict resolution, verification and context updates.
+
+## Batch attendance extension — historical handoff, 22 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#67](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/67);
+  branch `67-atomic-batch-attendance`, based on team master `2e2a3579` (equal at start).
+  PR #72 (attendance verification) and #66 (sample students) are merged. Historical
+  pending-status entries below describe their earlier state.
+- Before publication, merged team master `b072a989` containing PR #75 (class-view
+  attendance totals), preserving existing commits. Extended the batch UI recovery
+  test to verify totals remain unchanged on failure and refresh after retry/clearing.
+  Re-ran `./gradlew check coverage`: **383 tests**, zero failures/errors/skips,
+  Checkstyle and coverage passed; repository scripts and whitespace checks passed.
+  This supersedes the pre-integration 376-test result below.
+- Scope authorized by the owner on 22 October; this is not confirmed team consensus.
+  Extend `mark INDEX [INDEX ...] m/COURSE w/WEEK s/STATUS` with atomic batch marking.
+  This revises the earlier local proposal to defer bulk attendance, without editing
+  the unmodified exported MVP specification or claiming team approval.
+- Contract recorded before implementation: deduplicate in first-appearance order;
+  resolve one pre-command displayed roster; validate all bounds, then every enrolment
+  in input order, before changing anything. Preserve existing parser error precedence
+  (prefix structure, index syntax, required prefixes, course/week/status values).
+- One unique target keeps existing single-student messages. Multiple unique targets
+  report `Attendance set: COURSE | Week WEEK | STATUS | X changed, Y unchanged.`;
+  all-unchanged batches use `Attendance unchanged:` with the same count format.
+  Success selects the first supplied unique target, even when unchanged, and clears
+  input. Filters, order and class/week context remain. Failures retain the entire
+  view and attempted input; changed batches save once before any live replacement.
+- No mark-all, ranges, per-student statuses, new statuses or storage-schema changes.
+  Reuse attendance records and the shared save-before-live-update transaction;
+  regression-check contact updates and coordinate these changes through team review.
+- Course pages checked on 22 October: [v1.4 deadline](https://nus-cs2103-ay2627-s1.github.io/website/schedule/week10/project.html)
+  is 22 October 23:59 SGT; [v1.5 deadline](https://nus-cs2103-ay2627-s1.github.io/website/schedule/week11/project.html)
+  and start of feature freeze is 29 October 23:59 SGT. Freeze limits functional-code
+  changes per member to 15% or 150 lines, whichever is higher. Local completion alone
+  cannot satisfy v1.4 delivery: review, merge and release verification remain required.
+  If those miss tonight's deadline, the team must revise delivery scope/milestone;
+  no GitHub milestone is changed by this local work.
+- Implementation: parser accepts space-separated indices; `MarkCommand` validates
+  the entire snapshot and builds all replacements before applying them. Shared
+  `LogicManager.executeStudentReplacement` compares complete original/proposed rosters,
+  saves once if changed, then publishes only changed rows. It no longer relies on
+  the selected student to detect changes. Single-target and contact-update behaviour
+  remain covered; no storage-schema or UI production-code change was needed.
+- Validation: 48 focused tests passed; `./gradlew check coverage` passed with
+  **376 tests**, zero failures/errors/skips, both Checkstyle tasks and coverage
+  generation. Includes 18 added tests across parser, command, integration and the
+  existing real-window JavaFX harness. All test data uses temporary storage.
+  Full-roster comparisons cover isolated courses/weeks/students and updated contacts;
+  storage hooks verify the complete proposal is saved before any live event.
+- During development, duplicate-index tests exposed reliance on hashing `Index`,
+  which defines equality without `hashCode`. Normalizing numeric indices (as batch
+  deletion does) and hashing their numeric values fixed this without modifying the
+  shared Index type. Initial failing tests and formatting checks were corrected
+  before the passing run above.
+- Documentation: UG batch syntax/examples and DG transaction, precedence and manual
+  checks updated. MarkSequenceDiagram source/PNG updated for batch loops and whole-roster
+  comparison; rendered with PlantUML 1.2023.10 and visually inspected. Existing update
+  and find diagrams remain accurate and unchanged. The v1.4 plan retains its original
+  text with a dated amendment recording this owner-authorized scope change.
+- Repository checks: `.github/run-checks.sh` and `git diff --check` passed. Separate
+  packaged-app/manual platform checks and a Jekyll guide build were not performed;
+  automated GUI checks used the real-window harness on the local macOS host.
+- Status: published from `toomintyy:67-atomic-batch-attendance` in
+  [PR #76](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/76) against team master,
+  under v1.4 with `type.Enhancement` and `priority.Medium`. Open for review, not merged
+  or released. Remaining: teammate review of scope/shared transaction and roster
+  behaviour, remote CI, release verification and delivery/milestone decision.
+- Assistance: OpenAI Codex for code, tests and documentation prose; reuses team
+  attendance types, storage and the existing JavaFX test harness.
+
+## Previous v1.4 attendance verification — historical snapshot, 22 October 2026 (SGT)
+
+## PR #79 integration — 29 October 2026 (SGT)
+
+- Owner: Vincent Peh (`Eskalade`); issues [#77](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/77) and [#78](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/78), v1.5; [PR #79](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/79).
+- Integrated team master `5d84bc06` (including merged #71). The only conflict was
+  this handoff; retained both owners' records. Java, tests and guide merges were automatic.
+- Ethan approved original head `69a6abe9`; that approval predates this integration.
+- Actual local validation: `./gradlew check coverage` passed, 397 tests,
+  zero failures/errors/skips, both Checkstyle tasks and coverage generation passed.
+- Status: integration pushed as `27aad58b`; GitHub retains Ethan's approval and
+  reports no conflicts. Merge pending at this handoff. Fork Java CI is manually
+  disabled, so no new remote run is available; prior-head CI passed.
+  Release verification remains separate. OpenAI Codex assisted conflict resolution.
+
+## Active v1.5 contact hardening — verified 28 October 2026 (SGT)
+
+- Owner: Vincent Peh (`Eskalade`); branch `codex/student-hardening-v15` in his fork.
+  Base: current team master `5d155e5ef0b235c44d250706865ea50130101d7a`.
+- Scope: Vincent's add student and contact update only. Linear-time ordinary-space
+  trimming fixes a reproduced pasted-input stall; commented tests strengthen contact
+  boundaries, normalization, persistence, recovery and UI behavior. UG/DG updated.
+- Issues: [#77](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/77) (implementation)
+  and [#78](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/78) (`alpha-bug`),
+  self-assigned under v1.5. Published for teammate review in
+  [PR #79](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/79), not merged or released.
+  Remote CI is running; consult PR checks before merge.
+- Live state: GitHub confirms #64 merged at `3c5c440c`; current team master includes
+  subsequent integration. Teammate PRs #71 (clear) and #76 (batch attendance) remain
+  open on 28 October. Historical pending-status statements below are dated snapshots.
+- Reproduction: on unmodified master, the new 100,000-space name regression failed
+  its two-second budget. A separate 50,000-space probe took 1,928 ms before the fix
+  and 1 ms after it on this machine; timings are observations, not performance promises.
+- Validation: `./gradlew check coverage` passed on Zulu Java 25.0.3 FX: **391 tests**,
+  zero failures/errors/skips (baseline: 377). Checkstyle and coverage generation
+  passed; both JAR tasks, `.github/run-checks.sh` and `git diff --check` passed.
+  Add/Update parsers, Name, Email and TelegramHandle: 100% line/branch coverage.
+  AddCommand: 100% line/branch; UpdateCommand: 32/33 lines, 24/30 branches.
+  The new trimming method has 100% line/branch coverage. No claim of global 100% coverage.
+- Packaged verification: standard JAR on Zulu Java 25.0.3 FX and ARM JAR on plain
+  Temurin Java 25.0.4 each passed instrumented real-window add/update/collision/
+  long-input tests and separate-JVM JSON reload. Memberships, attendance, filtered
+  indices, selected row and heading were checked. ARM reload screenshot inspected.
+  Isolated evidence: `/private/tmp/tutortrack-v15-probe/` (local, not committed).
+- Integration: additive StringUtil helper; no shared Person/schema/transaction
+  changes. Contact validation rules and error text are preserved. Teammate-owned
+  ClassMembership and other validators still contain similar trimming regexes;
+  their owners should assess long malformed inputs. Those features were not changed.
+- Remaining: teammate review, exact-head remote CI and team integration; test final
+  release JARs and guides on supported OSes. Windows/Linux packaged execution and
+  Jekyll site rendering were not verified locally. This increment is not the team
+  v1.5 release, and does not establish that all features are bug-free.
+- Course: v1.5 due 29 October 23:59 SGT; the course asks each student to submit at
+  least five `alpha-bug` reports. This increment records one reproduced defect,
+  not five independent reports. Continue authentic alpha testing; do not invent bugs.
+- Assistance: OpenAI Codex, credited in DG; reused team models, JSON storage,
+  SE-EDU AB3 architecture and existing JavaFX test infrastructure.
+
+### Recent history
+
+- 2026-10-28: Vincent reproduced and fixed contact trimming stall; added 14 tests,
+  passed local validation and both packaged contact workflows. Review/merge pending.
+- 2026-10-28: verified prior contact-update PR #64 is merged, superseding its old handoff.
+
+## Historical handoffs (status applies only to the date of each entry)
+## Ethan clear safety integration — 29 October 2026
+
+- Owner eatenquek; PR71 has approvals from jianyang999 and Eskalade at71ab4b87.
+- Reconciled documentation/context conflicts with current team master92235ba4.
+  Kept student updates, attendance verification and startup recovery documentation.
+- Addressed nonblocking feedback: TutorTrack clear-success wording, explained the
+  retained-filter test and made shared AGENTS platform instructions portable.
+  Retaining class/week context after clear is intentional and documented.
+- Java25 check/coverage/shadowJar passed after integration. New full-suite count
+  will be verified from JUnit reports before publication. Original341-test Mac/PC
+  evidence is historical and does not stand in for this integration's Windows run.
+- Status: integration local; no merge/release claimed. AI assistance credited in DG.
+
+### Historical clear-fix validation (22 October)
+
+## Active Ethan v1.4 increment — 22 October 2026 (SGT)
+
+- Owner: Ethan Quek (`eatenquek`), issue [#62](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/62).
+- Local branch: `codex/safe-clear`, based on team master `e83a798e`.
+  Published for teammate review in [PR #71](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/71)
+  from commit `06f9a3f2`. No teammate approval, merge or release is claimed.
+- Scope: reject arguments/control whitespace for `clear`; save an empty roster
+  before changing live data; clear selection only on success and retain class/week
+  context. Clear includes hidden contacts and all attendance. No new features.
+- Regression tests first reproduced four failures, including acceptance of `clear 1`
+  and mutation before saving. Existing filtered batch deletion/repeated indices,
+  invalid later targets and failure/retry tests remain part of the suite.
+- Validation: Java 25.0.3 FX `./gradlew check coverage shadowJar` passed with
+  341 tests, zero failures/errors/skips; both Checkstyle tasks passed. Overall line
+  coverage: 1513 / 1686 (89.7%). New real-window test verifies failed clear preserves
+  selection/details/input/context and successful retry clears selection.
+- Initial full-check attempt found two overlong test lines; wrapped them and reran
+  successfully. UG/DG and AI acknowledgment updated. Source changes applied cleanly to
+  teammate PR #64 in an isolated checkout; combined Java 25 check/coverage passed
+  with 352 tests, zero failures/errors/skips. Documentation overlaps require
+  reconciliation when integrating. No remote CI or packaged manual smoke result claimed.
+- Windows PC validation (22 October): `gradlew.bat --no-daemon check coverage shadowJar`
+  passed on Zulu Java 25.0.3 FX, Windows build 26300: **341 tests**, zero
+  failures/errors/skips; both Checkstyle reports contain zero errors. Line coverage
+  matches macOS (1513 / 1686, 89.7%). Scheduler exit code verified as 0.
+- Exact uncommitted source snapshot: base `e83a798e`, archive SHA-256
+  `bcecfddd03068489f2867d87c4ba246a4b92dd3f4d4c621b06100a8e799099bc`.
+  The snapshot includes the updated AGENTS.md; later handoff/evidence edits do not
+  change production/test sources. Evidence pulled to Ethan's local iP
+  `.codex-artifacts/tp-clear-62/windows/`. No packaged manual GUI smoke claimed.
+- Independent AI review found no actionable correctness/test/documentation issues;
+  this is not teammate approval. Teammate review and integration remain outstanding.
+- AGENTS.md now records focused local tests during editing and final Mac/Windows
+  checks before PR/release. The Windows runtime was portable; default Java unchanged.
+- Assistance: OpenAI Codex, credited in the Developer Guide.
+
+## v1.4 persistence and startup protection — 22 October 2026
+
+- Owner: Aston (`aston-ish`); [issue #63](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/63); milestone v1.4.
+- Branch: `exit-persistence-verification`, based on team master `3c5c440c`.
+- Implementation commit: `8b086cb5`. PR not created. Review, remote CI and merge remain pending.
+- Scope: stop startup when existing student data cannot be loaded; show recovery guidance; preserve the original file; handle null JSON records through the data-loading error path.
+- Verification: add/update/delete, attendance correction/clearing, restart, preferences, and failure/retry through all three Exit routes.
+- Validation: Windows, Temurin Java 25.0.4; 362 tests passed with zero failures/errors/skips. Checkstyle, coverage generation, repository formatting checks and both JAR builds passed.
+- Packaged verification: instrumented Windows checks passed across separate JVMs for persistence/reload and invalid-data startup/shutdown. Mac ARM package built only; Mac/Linux packaged execution is unverified.
+- Integration: no JSON schema change. Clear-command safety remains with its owner.
+
+## Active v1.4 increment — verified 21 October 2026 (SGT)
+## Active v1.4 attendance verification — 22 October 2026 (SGT)
+
+- Owner: Min Thi Ha (`toomintyy`); issue [#61](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/61);
+  branch `61-attendance-isolation-recovery`. User confirmed this scope on 22 October.
+- Base: `3c5c440c`, verified equal to team master before editing. PR #64 (contact
+  updates), #69 (Gradle run assertions) and #70 (class-view verification) are merged.
+  This supersedes the pending-merge claims in the historical snapshots below.
+- Status: published from `toomintyy:61-attendance-isolation-recovery` in
+  [PR #72](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/72) against team master,
+  under v1.4. Open for teammate review; not merged or released.
+- Tests cover failed initial attendance recording, correction and clearing followed
+  by retry and JSON reload; student/course/week isolation; mark -> contact update ->
+  mark -> reload; and real JavaFX selection, details, badges, heading, row order and
+  input preservation when another student's mark fails or is invalid.
+- Validation: focused attendance/update/class-view tests and `./gradlew check coverage`
+  passed; full suite **356 tests**, zero failures/errors/skips, Checkstyle passed.
+  The new GUI checks use the existing real-window JavaFX harness and temporary data.
+  No production defect was found and no functional code or model interface changed.
+- Documentation: corrected stale attendance instructions and pending-integration
+  wording in the DG, documented the shared replacement transaction, and added
+  concrete manual checks with expected outcomes. The UG already matches this flow.
+  `docs/diagrams/MarkSequenceDiagram.puml` and its PNG show unchanged, successful-save
+  and failed-save paths. Rendered with PlantUML 1.2023.10 and visually inspected;
+  notation checked against the current course modeling guidance and UML reference.
+  Existing update and find diagrams are unchanged.
+- Repository validation: `.github/run-checks.sh` and `git diff --check` passed.
+  Automated GUI verification ran through the real-window JavaFX harness with
+  isolated data. Separate packaged-app/manual platform checks and a Jekyll guide
+  build were not performed for this increment; remote CI results are not yet verified.
+- Assistance: OpenAI Codex for tests and documentation prose; reuses existing team
+  models, fixtures and GUI test harness.
+- Remaining: obtain teammate review and passing remote CI before merging and closing
+  #61. Do not close the issue merely because local tests pass.
+
+## Previous contact-update handoff — historical snapshot, 21 October 2026 (SGT)
+
+- Owner: Vincent Peh (`Eskalade`); branch `codex/student-update-v14`, based on
+  team master `e83a798ec0e0b2de611a7bb49bedc9055a6705e8`.
+- Status: published in [PR #64](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/64)
+  for teammate review; local checks and three-platform CI passed at `93a01e7a`.
+  This increment is **not merged or released**. v1.3 remains the published release.
+- Implementation issue [#58](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/58);
+  planning issue [#59](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/59), both
+  assigned to Eskalade under v1.4. Proposed teammate tasks are #60–#63.
+- Scope: `update INDEX [n/NAME] [p/TELEGRAM] [e/EMAIL]`, strict add-equivalent
+  field validation, normalized uniqueness excluding the target, filtered indices,
+  preserved memberships/attendance/order/context, selected refreshed details,
+  no-op without saving and save-before-live-update failure recovery.
+- Integration: no JSON schema change. `Person.withContactDetails` preserves immutable
+  attendance. Mark/update share `LogicManager.executeStudentReplacement`; coordinate
+  other transaction changes in this method. Legacy edit directs students to update.
+- Local validation: `./gradlew check coverage shadowJar shadowJarMacArm` passed on
+  Zulu Java 25.0.3 FX; **346 tests**, zero failures/errors/skips. Both Checkstyle
+  tasks, coverage generation, repository scripts and `git diff --check` passed. Initial test fixture filter-reset and
+  Checkstyle test-name failures were corrected before the passing run.
+- Packaged verification: both JARs passed instrumented real-window update/collision/
+  attendance-preservation tests and a second JVM reload on macOS. Standard JAR used
+  Zulu 25.0.3 FX; ARM JAR used plain Temurin 25.0.4. Screenshot visually inspected.
+  Separate Windows/Linux packaged GUI runs have not been performed.
+- UG/DG, S04, manual testing and PlantUML sequence source/render updated. Notation
+  checked against course reference sheet and modeling syllabus; rendered image
+  visually inspected. Jekyll site build is currently unverified: local Ruby lacks
+  the locked Bundler 2.5.11. Do not claim published guide rendering passed.
+- Plan: [v1.4 scope and release gates](docs/project/v1.4-plan.md). Freeze unrelated
+  new features; retain the five MVP workflows plus contact correction. v1.4 due
+  22 October 23:59 SGT; formal feature freeze at v1.5 deadline, 29 October 23:59 SGT.
+- Remote validation: [Java CI run 39523604490](https://github.com/Eskalade/tp/actions/runs/39523604490)
+  passed on Windows, macOS and Linux at `93a01e7a`. This handoff-only commit records
+  that result; production/test sources are unchanged. Recheck checks before merging.
+- Remaining: obtain real teammate review; teammates confirm
+  #60–#63 and complete acceptance/safety work (especially legacy clear); record actual
+  postmortem discussion; integrate and verify exact release JARs before publication.
+- Assistance: OpenAI Codex for planning, implementation, tests, UML and guides,
+  credited in the DG. No teammate approval or retrospective meeting is fabricated.
+
+## Dated history
+
+- 2026-10-21: Vincent completed the local student contact-update increment and
+  created v1.4 planning/acceptance issues and published PR #64. Review and integration remain pending.
+- 2026-10-20: v1.3 release and merged #56/#57 verified on GitHub on 21 October.
+
+## Previous v1.3 handoff (historical snapshot)
+
+Last verified: 2026-10-20 (Singapore time). This is a dated snapshot; verify GitHub
+before starting the next increment.
+
+## Local increment: TutorTrack sample students (2026-10-22)
+
+- Owner: `toomintyy`; issue [#65](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/65).
+- Branch: `65-tutortrack-sample-students`, based on team master `e83a798e`.
+- Status: implemented locally; no PR, merge or release claimed.
+- Replaces six first-run legacy examples with fictional student profiles, unique
+  contacts and memberships across two courses/four classes, including one student
+  in both courses. Attendance starts Unrecorded. Existing saved data is unchanged;
+  this does not migrate or remove the user's existing legacy contacts.
+- Validation: `./gradlew check coverage` passed (337 tests, zero failures,
+  errors or skips), including Checkstyle. New tests cover sample contact uniqueness,
+  all weeks initially Unrecorded, class filtering, marking and JSON reload using
+  temporary storage. No manual GUI launch was performed for this increment.
+- UG/DG updated. Reuses AB3 bootstrap and team models; OpenAI Codex assistance.
+- Remaining: publish/review PR and merge; existing user data cleanup is separate.
+
+## Released v1.3 MVP
+
+- Owner: Vincent Peh (`Eskalade`); release completion tracked by
+  [issue #55](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/55), now closed.
+- [PR #56](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/56) is **merged**.
+  Source/tag commit: `ae8834e03f86ee67f38aca5895476a6ed22cb122`.
+- [TutorTrack v1.3](https://github.com/AY2627S1-CS2103T-W08-4/tp/releases/tag/v1.3)
+  is **published**, with `addressbook.jar`, `tutortrack-macos-arm64.jar`, SHA-256
+  checksums, detailed notes and real screenshots using synthetic data. All public
+  downloads matched local hashes; all screenshot URLs and the tag target were verified.
+- The release completes the agreed five MVP feature groups: add student; delete
+  students; list/class-week views; record/correct/clear attendance; save/reload/exit.
+  The audit found and fixed missing class queries and atomic batch deletion despite
+  the previously closed milestone. Headings, empty states, badge refresh, selection,
+  readable text, strict Exit format, branding and runtime instructions are integrated.
+- Clean validation on the exact merged commit:
+  `./gradlew clean check coverage shadowJar shadowJarMacArm` passed, **335 tests**,
+  zero failures/errors/skips. Checkstyle, coverage, repository scripts and
+  `git diff --check` passed.
+- [Final-head CI](https://github.com/Eskalade/tp/actions/runs/39386261849) passed on
+  Windows, macOS and Linux at `81985c29`; the merge has the identical source tree.
+- Both uploaded JARs passed an instrumented real-window workflow and a second-JVM
+  reload on macOS: standard package with Zulu Java 25.0.3 FX ARM64; Apple Silicon
+  package with plain Temurin Java 25.0.4 ARM64. Standard `java -jar` startup also passed.
+  Screenshots were visually checked, including correction of low-contrast empty text.
+  Separate Windows/Linux packaged-app launches were not performed locally.
+- Integration: existing Person/storage contracts are preserved. Queries do not save.
+  Deletion validates the pre-command display, saves a detached candidate, then updates
+  live data without replacing the filter. Repeated indices delete each target once
+  in first-appearance order; the specification did not define duplicate batch indices.
+  `find` now uses class/week syntax. Legacy `clear`/`edit` retain AB3 behavior.
+- Review covered parser errors, snapshots/rollback, view transitions, attendance
+  isolation, native packaging and documentation. The user authorized merge without
+  teammate review; no teammate approval is claimed. Implementation/test assistance
+  and reuse are acknowledged in the Developer Guide.
+- Known scope limits: editing students, name/Telegram search, undo, bulk attendance
+  and multiple sessions per course/week are outside the agreed MVP. Use the separate
+  Apple Silicon JAR with plain ARM Java; the standard JAR contains Intel Mac natives.
+- Timing: published 20 October, after the course deadline of 15 October 23:59 SGT.
+  Publication does not retroactively satisfy the on-time requirement.
+
+## Class-view attendance summary (2026-10-22)
+
+- Owner: Jian Yang (`jianyang999`); [issue #74](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/74);
+  branch `class-attendance-summary`; milestone v1.4. AI assistance: Claude Code.
+- Status: PR open for teammate review; not merged. Proposed to the team as UI clarity on the
+  existing class view; confirm it fits the v1.4 scope before merging, otherwise move it to v1.5.
+- Scope: `AttendanceSummary` (Model) counts Present/Absent/Unrecorded for the displayed class
+  students in the viewed course/week; `PersonListPanel` shows it in a `rosterSummary` label below
+  the unchanged heading, only in non-empty class views, recomputed on list or context changes.
+  No new command, storage or schema change.
+- Tests: `AttendanceSummaryTest` (6) and a real-window case in `ClassViewUiTest`.
+
+## v1.4 class-view verification (2026-10-22)
+
+- Owner: Jian Yang (`jianyang999`); [issue #60](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/60);
+  branch `verify-class-view`; milestone v1.4. AI assistance: Claude Code.
+- Scope: verification only, no functional code change. New real-window `ClassViewUiTest` covers exact
+  `COURSE:GROUP` matching, badges/details after marking another week or course, unchanged view/selection/input
+  after invalid queries, and repeated queries. No defects found; existing `MvpRosterUiTest` and
+  `MvpRosterIntegrationTest` already cover add/delete/mark context changes and save failures.
+- Docs: DG section "Viewing a class" with `FindSequenceDiagram` (PlantUML source and PNG, rendered with
+  PlantUML 1.2023.10 because newer versions print a warning for `style.puml`'s `ParticipantPadding`).
+- Not covered here: the `update` command (#64) in class view; legacy `clear` keeps the class heading.
+
+## Release history
+
+- 2026-10-20: verified merged prerequisites #44/#51/#53; completed and merged #56;
+  built the exact merged revision, published v1.3 and verified assets/screenshots.
+  The remaining work is future iteration planning and broader platform acceptance.
+
+## Historical handoffs (superseded by the active summary above)
+
+
+Last verified: 2026-10-15 (Singapore time). This is a handoff, not a substitute for
+live GitHub status, issues, teammate review or UG/DG updates.
+
+## Project and workflow
+
+- Team: https://github.com/AY2627S1-CS2103T-W08-4/tp
+- TutorTrack: Java 25 / JavaFX / Gradle / JSON desktop student roster.
+- v1.2 is closed on GitHub. v1.3 is the first working MVP release, due
+  **2026-10-15 23:59 SGT**; the GitHub milestone currently has a later due date.
+- Week 9: https://nus-cs2103-ay2627-s1.github.io/website/schedule/week9/project.html
+- Use assigned issues -> feature branch in member fork -> reviewed PR -> team merge.
+  Release JAR, release notes with screenshots/recordings and milestone wrap-up are team tasks.
+
+## Feature ownership and verified integration status
+
+| Feature | Owner | Team master / published status |
+| --- | --- | --- |
+| Add student | Vincent Peh (`Eskalade`) | Telegram type merged #28; v1.3 integration in current increment below |
+| Delete student | Ethan (`eatenquek`), based on authored PR | #40 open, unmerged; current diff changes terminology/docs, not full batch deletion |
+| List students / view class | Jian Yang (`jianyang999`) | ClassMembership merged #34; class/week find integration not on master |
+| Record/correct attendance | Min Thi Ha (`toomintyy`) | AttendanceStatus merged #36; mark/persistence integration not on master |
+| Exit | Aston (`aston-ish`) | Argument validation merged #39; full integrated shutdown verification remains |
+| General save/reload | Not confirmed | Add-specific transaction below; generalized rollback ownership needs coordination |
+
+Verified team master: `b3e1cf4de2188a23d175b92cd1dd9b9167120275` (2026-10-12).
+Its Java CI passed: https://github.com/AY2627S1-CS2103T-W08-4/tp/actions/runs/38028391769
+Unpublished teammate work is unknown. The open tutorial PR #26 is not product functionality.
+
+## Merge repair (2026-10-15)
+
+- Owner: Vincent (`Eskalade`), with Codex assistance; issue #43 / PR #44.
+- Synced the user's conflict resolution at `88b1a798` with team master `d4e26e25`.
+  #40, #47 and #49 are now merged. #44/#51/#53 are still open.
+- Fixed the integration between strict add parsing and the merged list parser:
+  identify the command separately, then pass original argument text to strict parsers.
+  This restores the specific list-format error for leading tabs without accepting
+  control whitespace in add. Added a leading-control-whitespace add regression test.
+- Validation: `./gradlew check coverage` passed, 299 tests, no failures/errors/skips.
+  The initial run reproduced one list-format regression; the fix resolves it.
+- GitHub reports mergeability unknown and no checks for the latest pre-repair head;
+  Actions is enabled. The pushed repair must receive fresh CI/review; no merge claimed.
+
+### Attendance merge repair (2026-10-15)
+
+- Vincent (`Eskalade`), with Codex assistance, integrated the latest #44 repair
+  into #51 at the user's request. Preserved attendance implementation and both
+  handoffs; strict mark parsing now receives raw arguments like add/list.
+- Validation: `./gradlew check coverage` passed: 319 tests, zero failures/errors/skips,
+  Checkstyle and coverage passed. Added main-parser control-whitespace regression coverage.
+- Merge order remains #44 before #51. No upstream merge performed; GitHub CI is unverified.
+
+## Combined exit merge repair (2026-10-15)
+
+- Vincent (`Eskalade`), with Codex assistance, resolved #53's conflicts with
+  current master and integrated repaired #44/#51 without discarding feature code.
+  Both ExitCommand and MarkCommand imports/transaction paths are preserved.
+- Validation: `./gradlew check coverage shadowJar` passed locally on Java 25.0.4:
+  330 tests, zero failures/errors/skips, including real-window exit tests;
+  Checkstyle, coverage and JAR build passed. `git diff --check` passed.
+- Merge order: #44 -> #51 -> #53. These PRs remain open; no upstream merge is claimed.
+  GitHub confirmed #51 mergeable/clean after the repair; final-head CI still needs verification.
+
+## Exit integration
+
+### Exit handling and verification (2026-10-15)
+
+- Owner: Aston (`aston-ish`); branch: `exit-handling-verification`; milestone: v1.3.
+- Base: team master `b3e1cf4d`, fetched and verified on GitHub on 2026-10-15.
+- Issue: [#52](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/52).
+- Status: published in PR #53, not merged. Latest integration includes #44 and #51; merge those first.
+- Scope: route typed/menu/window-close Exit through saving; block closing on save
+  failure; show an actionable wrapped error; preserve both windows until save
+  succeeds; retain argument validation. Add 11 logic/real-window GUI tests, UG/DG
+  updates and accurate AI credit. Linux GUI CI uses Xvfb; Gradle dependencies are unchanged.
+- Branch validation: `./gradlew.bat check coverage shadowJar` passed on Temurin
+  Java 25.0.4 on Windows: 276 tests, zero failures/errors/skips, both Checkstyle
+  tasks and coverage passed. Tests cover IO/permission errors, failure/retry,
+  state/file preservation, all three close routes, open Help and legacy reload.
+- Remote branch CI: implementation commit `d8ee0a0e` passed Windows, macOS and
+  Linux builds, including the real-window tests and Linux repository scripts:
+  [run 38732753618](https://github.com/aston-ish/tp/actions/runs/38732753618).
+  Repository scripts and `git diff --check` also passed locally. Recheck the latest
+  PR checks after opening the PR or making further changes.
+- Combined local verification: isolated checkout of open PR #51 at `c7e88a57`
+  (includes PR #44 `8832ae33` and PR #49 `a135c683`), with this Exit patch and two
+  additional integration tests, passed 323 tests with zero failures/errors/skips,
+  Checkstyle, coverage and JAR build. A three-way patch application required only
+  combining the Exit and Mark imports; both feature paths were preserved.
+- Packaged-app smoke: an instrumented app launched in two separate JVMs using
+  isolated temporary data. It added two complete students, recorded/corrected/
+  cleared attendance, rejected invalid Exit, kept both windows open on injected
+  File > Exit failure, retried typed Exit, reloaded all data, and closed via the
+  window button. Both JVMs reached `MainApp.stop()` and exited normally; preferences
+  were saved. Student/course/week isolation and cleared-record removal were verified.
+- Artifacts: `build/exit-verification/` holds the isolated test source, process
+  probe/logs and screenshots. Exit failure feedback now wraps completely. Snapshot
+  inspection found light-on-light attendance detail text inherited from PR #51;
+  its owner needs to fix/verify that rendering before an integrated GUI release.
+- Integration: PRs #44/#49/#51 are still open at the recorded heads. No dependency
+  is merged into this feature branch. General storage/model changes remain with
+  their owners; the existing tutorial branch is retained separately.
+- Remaining: create the v1.3 PR, obtain review and CI on the latest commit, combine
+  reviewed dependencies in merge order, repeat acceptance checks on final team
+  master, complete independent manual/cross-platform GUI checks, and release as a team.
+
+### Completed Exit argument validation
+
+- Issue #37 and [PR #39](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/39)
+  merged into team master on 2026-10-09, verified through GitHub on 2026-10-15.
+  PR #38 was closed without merging after its source branch was renamed.
+- Original local validation: 252 tests, zero failures/errors/skips; the parser
+  reached 100% line/branch coverage. V1.3 lifecycle validation is recorded above.
+## Current increment: v1.3 attendance
+
+- Owner: `toomintyy`; branch: `attendance-v13`; issue
+  [#50](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/50), milestone v1.3.
+- PR: [#51](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/51), published for review; not merged.
+- This branch includes the published
+  #44 student implementation (`8832ae33`) and #49 week type (`a135c683`). Merge
+  those dependencies first; the local merge does not merge either upstream PR.
+- Scope: mark parser/command, immutable per-student/course/week records, JSON
+  validation and persistence, save-before-live-update transaction, detail rendering
+  and an optional roster badge interface. No-op commands return selection without saving.
+- Roster handoff: #45 should call `PersonListPanel.setAttendanceContext(membership,
+  week)` after a successful query, and `(null, null)` after list/name search. Changing
+  week refreshes cards even if the filtered list is unchanged. Class queries/headings
+  remain Jian Yang's work; they are not enabled by this branch.
+- Validation: `./gradlew check coverage shadowJar` passed on Zulu Java 25.0.3:
+  310 tests, zero failures/errors/skips; both Checkstyle tasks passed. JAR size:
+  12,520,434 bytes. The packaged command workflow passed with isolated data,
+  including add, name filter, record, correct, repeat, clear, save and reload.
+  Initial Checkstyle violations were corrected before the passing run.
+- GUI: the packaged application reached UI startup with isolated temporary data,
+  but the computer-use tool could not bind its Java window. Visual rendering,
+  selection and scrolling are unverified; use the DG manual checklist.
+- Integration limit: class/week commands and automatic badge-context wiring still
+  require #45. Do not call the integrated MVP complete before those checks pass.
+- AI assistance: OpenAI Codex. Reuses the team's existing attendance status,
+  class membership, Telegram and AB3 architecture.
+
+## Attendance week dependency
+
+### List command for Feature 3 (2026-10-15)
+
+- Owner: Jian Yang (`jianyang999`); branch: `update-list-command`; milestone: v1.3.
+- GitHub issue: [#46](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/46). AI assistance: Claude Code.
+- Status: [PR #47](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/47) approved by `Eskalade` with two fixes, now addressed; not merged.
+- Scope: `ListCommandParser` rejects any extra input with "Invalid command format!"
+  and "Format: list"; `list` reports "{N} students listed!" ("1 student listed!" for one).
+  Only surrounding ordinary spaces are accepted: `AddressBookParser` passes `list` its
+  raw arguments, so tabs, line breaks and other whitespace are rejected (review fix).
+- Validation: after the review fixes and merging team master (with AttendanceWeek),
+  `./gradlew check coverage` passed locally on Java 25.0.4.1 with 278 tests, zero
+  failures/errors/skips. Non-ASCII spaces next to `list` give "Unknown command."
+  because they are not command-word separators; they are still rejected.
+- Not yet done (Feature 3 spec): the "All students | {N} students" heading, the
+  "No students saved. Use add to create a student." empty-roster text, and clearing
+  the selected student and detail panel when `list` succeeds all need UI work;
+  coordinate with PR #44, which also changes `PersonListPanel`.
+- Class/week `find c/COURSE:GROUP w/WEEK` needs `Person#getMemberships()` from PR #44;
+  tracked in issue #45, to be moved to v1.4 if #44 is not merged in time.
+
+### Attendance week (2026-10-15)
+
+- Owner: `toomintyy`; branch: `add-attendance-week`; milestone: v1.3.
+- Issue: [#48](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/48).
+- PR: [#49](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/49).
+- Status: merged into team master in PR #49 (verified 2026-10-15).
+- Scope: immutable `AttendanceWeek`, exact Feature 3/4 WEEK validation, canonical
+  numeric/display access, equality/hash code, tests and UG/DG documentation.
+- Integration: no Person, command, UI or JSON schema changes. Reuse this type for
+  future `mark` and `find w/` parsing; attendance keys also need student and course.
+- Verified against GitHub on 15 October: attendance status #36, Telegram #28,
+  class membership #34 and exit validation #39 are merged. Add-student #44,
+  list #47 and delete #40 remain open; #45 tracks class filtering. The older
+  increment entries below are dated history, not current remote status.
+- Remaining: teammate review and integration of full mark persistence/UI after
+  the student memberships in #44. This foundation does not complete the MVP.
+- Validation: `./gradlew check coverage shadowJar` passed on Zulu Java 25.0.3:
+  271 tests, no failures/errors/skips, Checkstyle passed. AttendanceWeek reached
+  100% line and branch coverage. JAR built (12,498,929 bytes); a Java smoke test
+  against the packaged class passed for normalized week 1, week 53 and invalid 54.
+  Repository checks and `git diff --check` passed. An existing whitespace warning
+  and one new test lambda formatting violation were fixed. No GUI behavior changed;
+  no manual GUI smoke test was performed.
+- AI assistance: OpenAI Codex.
+
+## Current increment: v1.3 add student
+
+- Owner: Vincent Peh (`Eskalade`); branch in fork: `codex/add-student-v13`.
+- Issue: [#43](https://github.com/AY2627S1-CS2103T-W08-4/tp/issues/43), assigned to Eskalade, v1.3.
+- PR: [#44](https://github.com/AY2627S1-CS2103T-W08-4/tp/pull/44), v1.3, assigned to Eskalade.
+- Status: pushed to fork and open for teammate review. Not merged or released.
+- Scope: exact add grammar/field validation, normalization, duplicate contacts,
+  immutable memberships, complete JSON round trip, legacy data compatibility,
+  save-before-live-model update, selection/details, regression tests and UG/DG.
+- Local validation: `./gradlew check coverage shadowJar` passed on Java 25.0.4:
+  285 tests, zero failures/errors/skips; both Checkstyle tasks passed; coverage
+  reports and JAR generated. Name/Email student validation and AddCommandParser
+  have 100% line/branch coverage in this run. `git diff --check` passed.
+- Remote validation: [Java CI run](https://github.com/AY2627S1-CS2103T-W08-4/tp/actions/runs/38265061281)
+  passed on Linux, Windows and macOS at `95f9d810` (same implementation code as this
+  documentation-only validation update). Check the PR for subsequent-head checks.
+- Earlier validation failures: ten obsolete AB3-add expectations were updated to
+  the new contract; subsequent runs exposed import/formatting violations, now fixed.
+- GUI validation: packaged app reached UI startup using an isolated temporary data
+  directory. The first sandboxed launch could not access a JavaFX screen; an
+  unrestricted launch reached UI startup, but the UI tool could not bind the Java
+  window. Selection/rendering have not been visually verified. Smoke processes stopped.
+- AI assistance: OpenAI Codex. Reuses team TelegramHandle/ClassMembership and SE-EDU AB3.
+
+## Shared interface and compatibility decisions
+
+Vincent authorized choosing these defaults on 2026-10-12 because no team agreement
+was yet recorded. They are implemented on this branch and need teammate PR review.
+
+- Student constructor: `Person(Name, TelegramHandle, Email, Set<ClassMembership>)`.
+  `Name.forStudent` / `Email.forStudent` normalize and validate new student data.
+- `isStudent()`, `getTelegramHandle(): Optional<TelegramHandle>`, and immutable
+  `getMemberships(): Set<ClassMembership>` are available for roster/attendance work.
+  Membership order follows input. At least one membership, one group per course.
+- Existing phone/address/tag records load and round-trip unchanged as legacy contacts.
+  No inferred memberships or fabricated Telegram handles. New students have no legacy
+  phone/address; legacy getters return null for students, so guard with `isStudent()`.
+- New JSON fields: `telegram`, `memberships`; malformed/incomplete/hybrid student
+  records fail validation. Email collisions include legacy contacts case-insensitively.
+- Student identity collision uses email OR Telegram; namesakes are allowed. Two legacy
+  contacts retain original name identity. The inherited edit command rejects student
+  targets rather than discarding fields, and prevents legacy email edits colliding with students.
+- Add saves a detached candidate before changing the live model; failed persistence
+  leaves the live predicate, data and selection untouched. Disk writes use sibling-temp
+  atomic replacement, without a non-atomic fallback. Mark also uses a detached candidate in this branch. Other commands retain their
+  existing model-before-save flow; this is not generalized transaction/rollback support.
+- All new course/week attendance is implicitly Unrecorded; add creates no attendance
+  records. The selected detail area says `No attendance recorded.` until a decision is recorded.
+  Attendance owner must integrate actual records and extend model/storage/UI together.
+- Class filtering remains Jian Yang's `find c/COURSE:GROUP w/WEEK` work. ClassMembership
+  validation is reused; only its provisional error wording was aligned to the original spec.
+- Error precedence across categories is incomplete in the supplied spec. Implemented:
+  encountered preamble/unknown/repeated prefix errors; missing n,p,e,c; name/Telegram/email;
+  all class values; repeated courses in input order. Confirm this in review.
+- Source inspected: Vincent's original `CS2103T-W08-4-2.docx`, Feature 1.
+  The overview's unique-name claim conflicts with detailed Feature 1; follow namesakes allowed.
+
+## Remaining work
+
+1. Review PR #44; verify CI on its exact head before merge.
+2. Teammates review the shared Person/schema interface; integrate their own commands
+   without dropping new fields. General persistence/rollback still needs an owner.
+3. Complete the DG GUI smoke checklist, including selection, duplicate error input
+   retention and restart, before calling the integrated MVP ready.
+4. Team completes other MVP features, release packaging/screenshots and milestone wrap-up.
+   No release or merge is claimed by this local implementation.
+
+## Add-student contract
+
+Source: the team document `CS2103T-W08-4-2.docx`, Feature 1, supplied by Vincent
+on 2026-10-06. The original document is not committed; the summary below preserves
+the relevant decisions for implementation. Consult the original for exact messages
+and mockups before completing command integration.
+
+Target syntax:
+
+```text
+add n/NAME p/TELEGRAM e/EMAIL c/COURSE:GROUP [c/COURSE:GROUP ...]
+```
+
+- Prefixes and commands are lowercase and case-sensitive; parameter order is free.
+  Trim surrounding ordinary spaces only. `n/`, `p/`, `e/` occur exactly once;
+  `c/` occurs at least once. Reject unknown prefixes and repeated singleton prefixes.
+- Names: Unicode NFC, collapse ordinary spaces, preserve capitalization, 1–50 code
+  points and at least one letter. Allow letters, combining marks, ordinary spaces,
+  ASCII/curly apostrophes, hyphens and periods. Names never determine duplicates.
+- Telegram: mandatory `@`, followed by 5–32 ASCII characters; first a letter,
+  remaining letters/digits/underscores. Store lowercase with `Locale.ROOT`.
+  Reject tabs, line breaks, other whitespace, non-ASCII and internal spaces.
+  Exact invalid-value message:
+  `Telegram handle must start with @, followed by 5-32 letters, digits or underscores, starting with a letter.`
+- Email: normalize case; one `@`; 1–64 ASCII local-part characters; total at most
+  254; dotted domain. Local part starts/ends alphanumeric, permits `._+-` internally,
+  and forbids consecutive periods. Domain labels are 1–63 ASCII alphanumeric/hyphen
+  characters, start/end alphanumeric; final label is 2–63 ASCII letters. Do not
+  impose a university-domain allowlist.
+- Membership: course is 2–4 ASCII letters + 4 digits + optional ASCII letter;
+  group is one ASCII letter + 2 digits. Normalize both uppercase. Exactly one colon,
+  no internal spaces, no external course catalog. Validate all memberships before
+  checking repeated courses in input order. A course may occur only once, even if
+  repeated with the same group. Different courses can share a group code.
+- Duplicate detection: normalized email OR Telegram matching any existing student
+  rejects the entire addition; check email before Telegram, including collisions
+  involving two different existing students. Namesakes are allowed; do not merge.
+- Successful addition: persist the complete profile, append to roster order, return
+  to the full roster and select the new row. Message: `New student added: {NAME}.`
+  Attendance initially is Unrecorded; details say `No attendance recorded.`
+- Saving failure: retain complete pre-command data and view; never report success.
+  Message: `Unable to save changes. No changes were applied. Check available disk space and file permissions, then try again.`
+
+## Increment history
+
+- 2026-10-06: Vincent's Telegram value type, issue #27 / PR #28, merged. Original
+  local result: 245 tests passed; 100% line/branch coverage for TelegramHandle.
+- 2026-10-08: AttendanceStatus (#35 / #36) and ClassMembership (#33 / #34) merged.
+  Authors recorded successful local checks; these were foundation types, not commands.
+- 2026-10-09: Aston's Exit argument validation (#37 / #39) merged, replacing unmerged #38.
+- 2026-10-10: GitHub v1.2 milestone closed. This does not mean the full MVP is complete.
+- 2026-10-12: Vincent published the v1.3 add-student increment, issue #43 / PR #44;
+  285 tests and required checks passed; teammate review and merge remain pending.
+- 2026-10-06: Vincent's Telegram value-type increment (issue #27, PR #28) merged
+  into team master; merge confirmed through GitHub on 2026-10-08. Original local
+  validation: Java 25.0.3, 245 tests, zero failures/errors/skips, 100% line/branch
+  coverage for `TelegramHandle`. Added this handoff and AGENTS.md. `Person`, add
+  parsing, storage and UI integration remain; `p/` still means AB3 phone.
+- 2026-10-08: Aston published Exit argument validation in PR #39 for issue #37,
+  with UG/DG updates. Java 25.0.4 checks passed: 252 tests, no
+  failures/errors/skips; new parser has 100% line/branch coverage. Approved and merged.
+- 2026-10-06: Vincent implemented the first Telegram value-type increment; full
+  local checks passed. Added this handoff and AGENTS.md. Published issue #27 and
+  PR #28 under v1.2; PR #28 was later merged.
+- 2026-10-07: Jian Yang implemented the ClassMembership value-type increment for
+  view class (issue #33); full local checks passed. Published PR #34 under v1.2.
+- 2026-10-08: `toomintyy` implemented the AttendanceStatus increment (issue #35);
+  merged in PR #36.
+- 2026-10-08: PR #34 approved by `Eskalade`. Merged team master into the branch to
+  resolve a CONTEXT.md conflict and recorded the review follow-ups.
+- 2026-10-15: Jian Yang updated `list` to the Feature 3 contract (issue #46);
+  full local checks passed. Published PR #47 under v1.3.
+- 2026-10-15: Ethan adapted the existing `delete INDEX` command to use student
+  terminology in its success message, usage text and User Guide. The deletion
+  logic remains unchanged; membership and attendance removal need a later increment.

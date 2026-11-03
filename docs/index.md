@@ -1,19 +1,35 @@
 ---
 layout: page
-title: AddressBook Level 3
+title: TutorTrack
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+[![Java CI](https://github.com/AY2627S1-CS2103T-W08-4/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-W08-4/tp/actions/workflows/gradle.yml)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-W08-4/tp/branch/master/graph/badge.svg)](https://codecov.io/gh/AY2627S1-CS2103T-W08-4/tp)
 
-![Ui](images/Ui.png)
+**TutorTrack helps teaching assistants and professors manage student contacts, course memberships
+and weekly attendance through typed commands.**
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+![TutorTrack class roster with attendance totals and selected-student history](images/Ui.png)
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+*TutorTrack showing a class roster and attendance history with fictional student data.*
 
+Add students with their Telegram handles, email addresses and course memberships.
+View a class for a chosen week, record or correct attendance for one or more
+students, and correct contact details without losing attendance history.
+Use `select INDEX`
+to reveal a displayed student's details without editing or saving data.
+TutorTrack saves accepted changes automatically and restores your records on restart.
+
+* Download the application from [GitHub Releases](https://github.com/AY2627S1-CS2103T-W08-4/tp/releases).
+* Read the [User Guide](UserGuide.html) for current usage instructions.
+* Read the [Developer Guide](DeveloperGuide.html) to contribute to development.
+* Meet the [team](AboutUs.html).
 
 **Acknowledgements**
 
-* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+This project is based on the AddressBook-Level3 project created by the
+[SE-EDU initiative](https://se-education.org).
+
+Libraries used: [JavaFX](https://openjfx.io/),
+[Jackson](https://github.com/FasterXML/jackson),
+and [JUnit 5](https://github.com/junit-team/junit5).

@@ -1,0 +1,98 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam sequenceParticipantFontColor white
+skinparam sequenceMessageAlign center
+
+participant ":MainWindow" as UI UI_COLOR
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "mark:MarkCommand" as Mark LOGIC_COLOR
+participant "candidate:ModelManager" as Candidate MODEL_COLOR
+participant ":StorageManager" as Storage STORAGE_COLOR
+participant "live:ModelManager" as Live MODEL_COLOR
+
+UI -> Logic : execute("mark 2 1 2 m/CS2103T w/1 s/present")
+activate UI
+activate Logic
+note over Logic, Mark
+Parsing and command creation omitted.
+MarkCommand deduplicates indices to [2, 1].
+Scenario assumes valid input and enrolment.
+end note
+note over Logic
+executeStudentReplacement(mark) snapshots
+the full original roster and displayed rows.
+end note
+create Candidate
+Logic -> Candidate : new ModelManager(...)
+activate Candidate
+Candidate --> Logic
+deactivate Candidate
+Logic -> Candidate : updateFilteredPersonList(displayed::contains)
+activate Candidate
+Candidate --> Logic
+deactivate Candidate
+Logic -> Mark : execute(candidate)
+activate Mark
+note over Mark, Candidate
+getTargets(candidate) resolves one displayed snapshot.
+Check ALL bounds, then ALL enrolments in input order.
+Build replacements with Person.withAttendance(decision).
+Keep original objects for unchanged decisions.
+Detailed accessors and Person calls are omitted.
+end note
+loop each changed target
+Mark -> Candidate : setPerson(target, updated)
+activate Candidate
+Candidate --> Mark
+deactivate Candidate
+end
+Mark --> Logic : result (counts; first unique target selected)
+deactivate Mark
+note over Logic, Candidate
+Compare complete proposed and original rosters.
+The selected student alone may be unchanged.
+end note
+
+alt proposed.equals(original)
+Logic --> UI : result (Attendance unchanged)
+note over UI, Logic
+Select first target; clear input; retain context.
+No disk write or live replacement for an unchanged batch.
+end note
+else at least one row differs
+alt save succeeds
+Logic -> Storage : saveAddressBook(candidate.getAddressBook())
+activate Storage
+Storage --> Logic : return
+deactivate Storage
+loop each changed row, in original roster order
+Logic -> Live : setPerson(original.get(i), proposed.get(i))
+activate Live
+Live --> Logic
+deactivate Live
+end
+Logic --> UI : result (Attendance set)
+note over UI
+Select first target; refresh details; clear input.
+Retain class/week context and row order.
+end note
+else save fails
+Logic -> Storage : saveAddressBook(candidate.getAddressBook())
+activate Storage
+Storage --> Logic : IOException
+deactivate Storage
+note over Logic
+Log failure; wrap in CommandException.
+end note
+Logic --> UI : CommandException
+note over UI, Live
+Show error; retain input, selection, details, badges, heading and data.
+No live.setPerson call for ANY target and no success result on this path.
+end note
+end
+end
+
+deactivate Logic
+deactivate UI
+@enduml

@@ -10,6 +10,10 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -76,3 +80,18 @@ shadowJar {
 }
 
 defaultTasks 'clean', 'test'
+
+// Both Mac architectures are combined by the universal-native packaging task below.
+configurations {
+    macArmJavafx
+}
+
+dependencies {
+    ['base', 'controls', 'fxml', 'graphics'].each { module ->
+        macArmJavafx("org.openjfx:javafx-${module}:17.0.7:mac-aarch64") {
+            transitive = false
+        }
+    }
+}
+
+apply from: 'gradle/universal-mac.gradle'
