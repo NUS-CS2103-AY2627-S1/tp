@@ -1,59 +1,58 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us with the email `e1591059@u.nus.edu`
 
 ## Project team
 
-### John Doe
+### Ming Xuan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jellehbelleh.png" alt="Ming Xuan" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/JellehBelleh)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities: Storage
 
-### Jane Doe
+### Solomon
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kohkoh-nut.png" alt="Solomon" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://kohkohnut.org/)]
+[[github](http://github.com/KohKoh-Nut)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Developer
+* Responsibilities: Care information + Patient archiving + Profile editing
 
-### Johnny Doe
+### Raisa Nishat
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/nraisa0408.png" alt="Raisa Nishat" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/nraisa0408)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Romy Ako
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/akoromy.png" alt="Romy Ako" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/akoromy)]
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Gauhet Poddar
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/gauhet.png" alt="Gauhet Poddar" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Gauhet)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Appointments + Field validation + Data saving

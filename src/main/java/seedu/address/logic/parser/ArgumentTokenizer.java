@@ -3,7 +3,14 @@ package seedu.address.logic.parser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import seedu.address.logic.Messages;
+import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
@@ -15,6 +22,10 @@ import java.util.stream.Collectors;
  */
 public class ArgumentTokenizer {
 
+    private static final Pattern PREFIX_CANDIDATE_PATTERN = Pattern.compile("(?<!\\S)([A-Za-z]+/)\\S*");
+    private static final String NOT_APPLICABLE_TOKEN = "N/A";
+    private static final Pattern PUNCTUATION_PATTERN = Pattern.compile("\\p{P}");
+
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
      * respective argument values. Only the given prefixes will be recognized in the arguments string.
@@ -24,8 +35,111 @@ public class ArgumentTokenizer {
      * @return           ArgumentMultimap object that maps prefixes to their arguments
      */
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
-        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        return tokenize(argsString, Set.of(), prefixes);
+    }
+
+    /**
+     * Tokenizes an argument string while treating exact standalone tokens in {@code ignoredSlashTokens} as text,
+     * even when one starts with a recognized prefix. Ignored tokens must be lowercase.
+     */
+    public static ArgumentMultimap tokenize(String argsString, Set<String> ignoredSlashTokens, Prefix... prefixes) {
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, ignoredSlashTokens, prefixes);
         return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Rejects unrecognized alphabetic slash prefixes at token boundaries.
+     * A prefix candidate consists of one or more letters followed immediately by a slash.
+     * Standalone tokens in {@code allowedSlashTokens} are treated as ordinary text, ignoring case.
+     * Allowed tokens with trailing punctuation are rejected with a correction.
+     * The first word immediately after a recognized field prefix is checked as value text too.
+     *
+     * @param argsString Original command arguments to check.
+     * @param allowedSlashTokens Lowercase tokens allowed as ordinary text by the command.
+     * @param validPrefixes Prefixes allowed by the command.
+     * @throws ParseException If an unrecognized prefix candidate is found.
+     */
+    public static void verifyNoInvalidPrefixes(String argsString, Set<String> allowedSlashTokens,
+            Prefix... validPrefixes) throws ParseException {
+        verifyNoInvalidPrefixes(argsString, allowedSlashTokens, Set.of(), validPrefixes);
+    }
+
+    /**
+     * Checks field syntax while allowing non-reserved slash text in the given free-text fields.
+     * Known MediConnect prefixes remain reserved regardless of case, except for literal N/A in free text.
+     * Existing standalone slash-word exceptions still apply.
+     *
+     * @param argsString Original command arguments to check.
+     * @param allowedSlashTokens Lowercase standalone tokens allowed as ordinary text by the command.
+     * @param freeTextPrefixes Fields that permit non-reserved slash text in their values.
+     * @param validPrefixes Prefixes allowed by the command.
+     * @throws ParseException If a prefix-like token is not allowed in its context.
+     */
+    public static void verifyNoInvalidPrefixes(String argsString, Set<String> allowedSlashTokens,
+            Set<Prefix> freeTextPrefixes, Prefix... validPrefixes) throws ParseException {
+        verifyNoInvalidPrefixes(argsString, allowedSlashTokens, freeTextPrefixes, false, validPrefixes);
+    }
+
+    private static void verifyNoInvalidPrefixes(String argsString, Set<String> allowedSlashTokens,
+            Set<Prefix> freeTextPrefixes, boolean startsInFreeText, Prefix... validPrefixes) throws ParseException {
+        Matcher matcher = PREFIX_CANDIDATE_PATTERN.matcher(argsString);
+
+        Set<String> allowed = Arrays.stream(validPrefixes)
+                .map(Prefix::getPrefix)
+                .collect(Collectors.toSet());
+        boolean inFreeText = startsInFreeText;
+
+        while (matcher.find()) {
+            if (allowedSlashTokens.contains(matcher.group().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+
+            // Explain how to correct an allowed slash word with trailing punctuation.
+            String token = matcher.group();
+            String unpunctuatedToken = removeTrailingPunctuation(token);
+
+            if (allowedSlashTokens.contains(unpunctuatedToken.toLowerCase(Locale.ROOT))) {
+                throw new ParseException(String.format(
+                        Messages.MESSAGE_PUNCTUATED_SLASH_TOKEN, token, unpunctuatedToken));
+            }
+
+            String candidate = matcher.group(1);
+
+            // Allow recognized command prefixes.
+            if (allowed.contains(candidate)) {
+                // Match tokenization's field boundary, rather than treating a tab as a new field.
+                inFreeText = freeTextPrefixes.contains(new Prefix(candidate))
+                        && (matcher.start() == 0 || argsString.charAt(matcher.start() - 1) == ' ');
+                // No field prefixes are allowed inside the attached value, so this call cannot recurse again.
+                verifyNoInvalidPrefixes(token.substring(candidate.length()), allowedSlashTokens, Set.of(), inFreeText);
+                continue;
+            }
+
+            if (inFreeText && (NOT_APPLICABLE_TOKEN.equals(unpunctuatedToken)
+                    || !CliSyntax.RESERVED_PREFIXES.contains(new Prefix(candidate.toLowerCase(Locale.ROOT))))) {
+                continue;
+            }
+
+            // Report other unrecognized prefixes.
+            throw new ParseException(String.format(Messages.MESSAGE_UNKNOWN_PREFIX, candidate));
+        }
+    }
+
+    /**
+     * Removes trailing punctuation in one backwards scan, including Unicode punctuation.
+     */
+    private static String removeTrailingPunctuation(String token) {
+        Matcher punctuationMatcher = PUNCTUATION_PATTERN.matcher(token);
+        int end = token.length();
+        // Scan from the end to avoid repeatedly searching the same punctuation run.
+        while (end > 0) {
+            int start = end - Character.charCount(token.codePointBefore(end));
+            if (!punctuationMatcher.region(start, end).matches()) {
+                break;
+            }
+            end = start;
+        }
+        return token.substring(0, end);
     }
 
     /**
@@ -35,26 +149,40 @@ public class ArgumentTokenizer {
      * @param prefixes   Prefixes to find in the arguments string
      * @return           List of zero-based prefix positions in the given arguments string
      */
-    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes) {
+    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Set<String> ignoredSlashTokens,
+            Prefix... prefixes) {
         return Arrays.stream(prefixes)
-                .flatMap(prefix -> findPrefixPositions(argsString, prefix).stream())
+                .flatMap(prefix -> findPrefixPositions(argsString, prefix, ignoredSlashTokens).stream())
                 .collect(Collectors.toList());
     }
 
     /**
-     * @see #findAllPrefixPositions(String, Prefix...)
+     * @see #findAllPrefixPositions(String, Set, Prefix...)
      */
-    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
+    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix,
+            Set<String> ignoredSlashTokens) {
         List<PrefixPosition> positions = new ArrayList<>();
 
         int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
         while (prefixPosition != -1) {
-            PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
-            positions.add(extendedPrefix);
+            if (!isIgnoredSlashToken(argsString, prefixPosition, ignoredSlashTokens)) {
+                PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
+                positions.add(extendedPrefix);
+            }
             prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
         }
 
         return positions;
+    }
+
+    private static boolean isIgnoredSlashToken(String argsString, int prefixPosition,
+            Set<String> ignoredSlashTokens) {
+        int tokenEnd = prefixPosition;
+        while (tokenEnd < argsString.length() && !Character.isWhitespace(argsString.charAt(tokenEnd))) {
+            tokenEnd++;
+        }
+        String token = argsString.substring(prefixPosition, tokenEnd).toLowerCase(Locale.ROOT);
+        return ignoredSlashTokens.contains(token);
     }
 
     /**

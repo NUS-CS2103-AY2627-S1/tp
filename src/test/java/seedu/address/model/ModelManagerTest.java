@@ -2,19 +2,32 @@ package seedu.address.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PATIENTS;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPatients.ALICE;
+import static seedu.address.testutil.TypicalPatients.ARCHIVED_ALICE;
+import static seedu.address.testutil.TypicalPatients.BENSON;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.NameContainsKeywordsPredicate;
+import seedu.address.model.patient.Patient;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.AdjustableClock;
+import seedu.address.testutil.PatientBuilder;
 
 public class ModelManagerTest {
 
@@ -41,6 +54,38 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void constructor_addressBookWithArchivedPatient_filtersArchivedPatient() {
+        AddressBook addressBook = new AddressBookBuilder().withPatient(ALICE)
+                .withPatient(new PatientBuilder(ARCHIVED_ALICE).withNric("S1111111A").build())
+                .build();
+
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        assertEquals(List.of(ALICE), modelManager.getFilteredPatientList());
+        assertEquals(2, modelManager.getAddressBook().getPatientList().size());
+    }
+
+    @Test
+    public void addPatient_archivedPatient_remainsStoredButFiltered() {
+        modelManager.addPatient(ARCHIVED_ALICE);
+
+        assertTrue(modelManager.hasPatient(ARCHIVED_ALICE));
+        assertTrue(modelManager.getFilteredPatientList().isEmpty());
+    }
+
+    @Test
+    public void updateFilteredPatientList_showAllPredicate_includesArchivedPatients() {
+        AddressBook addressBook = new AddressBookBuilder().withPatient(ALICE)
+                .withPatient(new PatientBuilder(ARCHIVED_ALICE).withNric("S1111111A").build())
+                .build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        modelManager.updateFilteredPatientList(PREDICATE_SHOW_ALL_PATIENTS);
+
+        assertEquals(2, modelManager.getFilteredPatientList().size());
+    }
+
+    @Test
     public void setGuiSettings_nullGuiSettings_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> modelManager.setGuiSettings(null));
     }
@@ -53,29 +98,190 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    public void hasPatient_nullPatient_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasPatient(null));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
+    public void hasPatient_patientNotInAddressBook_returnsFalse() {
+        assertFalse(modelManager.hasPatient(ALICE));
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
+    public void hasPatient_patientInAddressBook_returnsTrue() {
+        modelManager.addPatient(ALICE);
+        assertTrue(modelManager.hasPatient(ALICE));
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void getFilteredPatientList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPatientList().remove(0));
+    }
+
+    @Test
+    public void getViewedPatient_noPatientViewed_returnsNull() {
+        assertNull(modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setViewedPatient_nullPatient_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.setViewedPatient(null));
+    }
+
+    @Test
+    public void setViewedPatient_patientNotInAddressBook_throwsAssertionError() {
+        assertThrows(AssertionError.class, () -> modelManager.setViewedPatient(ALICE));
+    }
+
+    @Test
+    public void setViewedPatient_patientInAddressBook_setsViewedPatient() {
+        modelManager.addPatient(ALICE);
+        modelManager.addPatient(BENSON);
+
+        modelManager.setViewedPatient(ALICE);
+        assertEquals(ALICE, modelManager.getViewedPatient().getValue());
+
+        // viewing another patient replaces the viewed patient
+        modelManager.setViewedPatient(BENSON);
+        assertEquals(BENSON, modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setViewedPatient_samePatientAgain_notifiesListeners() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+        List<Patient> shownPatients = new ArrayList<>();
+        modelManager.getViewedPatient().addListener((observable, oldPatient, newPatient) ->
+                shownPatients.add(newPatient));
+
+        modelManager.setViewedPatient(ALICE);
+        assertEquals(ALICE, shownPatients.get(shownPatients.size() - 1));
+    }
+
+    @Test
+    public void getAppointmentsOrderedAt_nullPatient_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.getAppointmentsOrderedAt(null));
+    }
+
+    @Test
+    public void getAppointmentsOrderedAt_viewedAndOtherPatient_returnsTimeShownAndCurrentTime() {
+        AdjustableClock clock = new AdjustableClock(Instant.parse("2026-10-18T12:00:00Z"), ZoneOffset.UTC);
+        AddressBook addressBook = new AddressBookBuilder().withPatient(ALICE).withPatient(BENSON).build();
+        ModelManager model = new ModelManager(addressBook, new UserPrefs(), clock);
+        model.setViewedPatient(ALICE);
+        clock.advance(Duration.ofMinutes(2));
+
+        assertEquals(LocalDateTime.of(2026, 10, 18, 12, 0), model.getAppointmentsOrderedAt(ALICE));
+        assertEquals(LocalDateTime.of(2026, 10, 18, 12, 2), model.getAppointmentsOrderedAt(BENSON));
+    }
+
+    @Test
+    public void getAppointmentsAsShown_appointmentPassesWhileViewed_keepsOrderUntilShownAgain() {
+        AdjustableClock clock = new AdjustableClock(Instant.parse("2026-10-18T12:00:00Z"), ZoneOffset.UTC);
+        Appointment soon = new Appointment(LocalDate.of(2026, 10, 18), LocalTime.of(12, 1), "Dr Tan", "");
+        Appointment later = new Appointment(LocalDate.of(2026, 10, 18), LocalTime.of(14, 0), "Dr Lim", "");
+        Patient alice = new PatientBuilder(ALICE).withAppointments(soon, later).build();
+        Patient benson = new PatientBuilder(BENSON).withAppointments(soon, later).build();
+        AddressBook addressBook = new AddressBookBuilder().withPatient(alice).withPatient(benson).build();
+        ModelManager model = new ModelManager(addressBook, new UserPrefs(), clock);
+        model.setViewedPatient(alice);
+        clock.advance(Duration.ofMinutes(2));
+
+        // the viewed patient keeps the order shown, while other patients are ordered at the current time
+        assertEquals(List.of(soon, later), model.getAppointmentsAsShown(alice));
+        assertEquals(List.of(later, soon), model.getAppointmentsAsShown(benson));
+
+        // editing the viewed patient keeps the order shown
+        Patient editedAlice = new PatientBuilder(alice).withAllergens("Latex").build();
+        model.setPatient(alice, editedAlice);
+        assertEquals(List.of(soon, later), model.getAppointmentsAsShown(editedAlice));
+
+        // showing the patient again orders the appointments at the current time
+        model.setViewedPatient(editedAlice);
+        assertEquals(List.of(later, soon), model.getAppointmentsAsShown(editedAlice));
+    }
+
+    @Test
+    public void setPatient_viewedPatientReplaced_viewedPatientUpdated() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        Patient editedAlice = new PatientBuilder(ALICE).withMedications("Metformin 500mg").build();
+        modelManager.setPatient(ALICE, editedAlice);
+        assertEquals(editedAlice, modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setPatient_viewedActivePatientArchived_viewedPatientCleared() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        modelManager.setPatient(ALICE, ALICE.withArchived(true));
+
+        assertNull(modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setPatient_otherPatientReplaced_viewedPatientUnchanged() {
+        modelManager.addPatient(ALICE);
+        modelManager.addPatient(BENSON);
+        modelManager.setViewedPatient(ALICE);
+
+        Patient editedBenson = new PatientBuilder(BENSON).withMedications("Metformin 500mg").build();
+        modelManager.setPatient(BENSON, editedBenson);
+        assertEquals(ALICE, modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void deletePatient_viewedPatientDeleted_viewedPatientCleared() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        modelManager.deletePatient(ALICE);
+        assertNull(modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void deletePatient_otherPatientDeleted_viewedPatientUnchanged() {
+        modelManager.addPatient(ALICE);
+        modelManager.addPatient(BENSON);
+        modelManager.setViewedPatient(ALICE);
+
+        modelManager.deletePatient(BENSON);
+        assertEquals(ALICE, modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setAddressBook_emptyAddressBook_viewedPatientCleared() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        modelManager.setAddressBook(new AddressBook());
+        assertNull(modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setAddressBook_viewedPatientDetailsChanged_viewedPatientCleared() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        Patient editedAlice = new PatientBuilder(ALICE).withPhone("91111111").build();
+        modelManager.setAddressBook(new AddressBookBuilder().withPatient(editedAlice).build());
+        assertNull(modelManager.getViewedPatient().getValue());
+    }
+
+    @Test
+    public void setAddressBook_viewedPatientStillPresent_viewedPatientUnchanged() {
+        modelManager.addPatient(ALICE);
+        modelManager.setViewedPatient(ALICE);
+
+        modelManager.setAddressBook(new AddressBookBuilder().withPatient(ALICE).withPatient(BENSON).build());
+        assertEquals(ALICE, modelManager.getViewedPatient().getValue());
     }
 
     @Test
     public void equals() {
-        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        AddressBook addressBook = new AddressBookBuilder().withPatient(ALICE).withPatient(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
 
@@ -98,15 +304,34 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPatientList(new NameContainsKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredPatientList(PREDICATE_SHOW_ALL_PATIENTS);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    @Test
+    public void equals_viewedPatient() {
+        AddressBook addressBook = new AddressBookBuilder().withPatient(ALICE).withPatient(BENSON).build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+        ModelManager modelManagerCopy = new ModelManager(addressBook, new UserPrefs());
+
+        // different viewedPatient -> returns false
+        modelManagerCopy.setViewedPatient(ALICE);
+        assertFalse(modelManager.equals(modelManagerCopy));
+
+        // same viewedPatient -> returns true
+        modelManager.setViewedPatient(ALICE);
+        assertTrue(modelManager.equals(modelManagerCopy));
+
+        // different patients viewed -> returns false
+        modelManager.setViewedPatient(BENSON);
+        assertFalse(modelManager.equals(modelManagerCopy));
     }
 }

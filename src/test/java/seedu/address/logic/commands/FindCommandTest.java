@@ -2,22 +2,28 @@ package seedu.address.logic.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
+import static seedu.address.logic.Messages.MESSAGE_PATIENTS_LISTED_OVERVIEW;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.testutil.TypicalPersons.CARL;
-import static seedu.address.testutil.TypicalPersons.ELLE;
-import static seedu.address.testutil.TypicalPersons.FIONA;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.model.Model.PREDICATE_SHOW_ACTIVE_PATIENTS;
+import static seedu.address.testutil.TypicalPatients.ARCHIVED_ALICE;
+import static seedu.address.testutil.TypicalPatients.CARL;
+import static seedu.address.testutil.TypicalPatients.ELLE;
+import static seedu.address.testutil.TypicalPatients.FIONA;
+import static seedu.address.testutil.TypicalPatients.getTypicalAddressBook;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.patient.NameContainsKeywordsPredicate;
+import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.LogCollector;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -49,28 +55,116 @@ public class FindCommandTest {
         // null -> returns false
         assertFalse(findFirstCommand.equals(null));
 
-        // different person -> returns false
+        // different patient -> returns false
         assertFalse(findFirstCommand.equals(findSecondCommand));
     }
 
     @Test
-    public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+    public void execute_zeroKeywords_noPatientFound() {
+        String expectedMessage = FindCommand.MESSAGE_NO_PATIENTS_FOUND;
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(), model.getFilteredPersonList());
+        assertEquals(List.of(), model.getFilteredPatientList());
     }
 
     @Test
-    public void execute_multipleKeywords_multiplePersonsFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
+    public void execute_multipleKeywords_multiplePatientsFound() {
+        String expectedMessage = String.format(MESSAGE_PATIENTS_LISTED_OVERVIEW, 3);
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPatientList());
+    }
+
+    @Test
+    public void constructor_nullPredicate_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new FindCommand(null));
+    }
+
+    @Test
+    public void execute_nullModel_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new FindCommand(preparePredicate("Alice")).execute(null));
+    }
+
+    @Test
+    public void execute_logsMatchCountButNotKeywords() throws Exception {
+        List<String> messages;
+        try (LogCollector logs = new LogCollector(FindCommand.class)) {
+            new FindCommand(preparePredicate("Kurz Elle Kunz")).execute(model);
+            messages = logs.getMessages();
+        }
+
+        assertTrue(messages.stream().anyMatch(message -> message.contains("3")));
+        assertFalse(messages.stream().anyMatch(message -> message.contains("Kurz")));
+    }
+
+    @Test
+    public void execute_localeWithOtherDigits_givesCountInPanelDigits() {
+        Locale defaultLocale = Locale.getDefault();
+        try {
+            // String.format writes 3 as an Arabic-Indic digit in Egyptian Arabic unless given Locale.ROOT
+            Locale.setDefault(Locale.forLanguageTag("ar-EG"));
+            FindCommand command = new FindCommand(preparePredicate("Kurz Elle Kunz"));
+            assertEquals("3 patient(s) listed!", command.execute(model).getFeedbackToUser());
+        } finally {
+            Locale.setDefault(defaultLocale);
+        }
+    }
+
+    @Test
+    public void execute_singleKeyword_singlePatientFound() {
+        String expectedMessage = String.format(MESSAGE_PATIENTS_LISTED_OVERVIEW, 1);
+        NameContainsKeywordsPredicate predicate = preparePredicate("Elle");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(ELLE), model.getFilteredPatientList());
+    }
+
+    @Test
+    public void execute_caseInsensitiveKeyword_patientFound() {
+        String expectedMessage = String.format(MESSAGE_PATIENTS_LISTED_OVERVIEW, 1);
+        NameContainsKeywordsPredicate predicate = preparePredicate("kurz");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(CARL), model.getFilteredPatientList());
+    }
+
+    @Test
+    public void execute_partialWordKeyword_noPatientFound() {
+        String expectedMessage = FindCommand.MESSAGE_NO_PATIENTS_FOUND;
+        NameContainsKeywordsPredicate predicate = preparePredicate("Ale");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(), model.getFilteredPatientList());
+    }
+
+    @Test
+    public void execute_numericKeyword_noPatientFound() {
+        String expectedMessage = FindCommand.MESSAGE_NO_PATIENTS_FOUND;
+        NameContainsKeywordsPredicate predicate = preparePredicate("123");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPatientList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(), model.getFilteredPatientList());
+    }
+
+    @Test
+    public void execute_keywordMatchesArchivedPatient_noPatientFound() {
+        var addressBook = new AddressBookBuilder().withPatient(ARCHIVED_ALICE).build();
+        Model modelWithArchivedPatient = new ModelManager(addressBook, new UserPrefs());
+        Model expectedModel = new ModelManager(addressBook, new UserPrefs());
+        NameContainsKeywordsPredicate predicate = preparePredicate("Alice");
+        expectedModel.updateFilteredPatientList(predicate.and(PREDICATE_SHOW_ACTIVE_PATIENTS));
+
+        assertCommandSuccess(new FindCommand(predicate), modelWithArchivedPatient,
+                FindCommand.MESSAGE_NO_PATIENTS_FOUND, expectedModel);
+        assertEquals(List.of(), modelWithArchivedPatient.getFilteredPatientList());
     }
 
     @Test

@@ -3,46 +3,57 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.patient.Patient;
 
 /**
- * Deletes a person identified using its displayed index from the address book.
+ * Deletes a patient identified using its displayed index from the address book.
  */
 public class DeleteCommand extends Command {
 
     public static final String COMMAND_WORD = "delete";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
+            + ": Deletes the patient at the specified INDEX.\n"
             + "Parameters: INDEX (must be a positive integer)\n"
-            + "Example: " + COMMAND_WORD + " 1";
+            + "Example: " + COMMAND_WORD + " 3";
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_PATIENT_SUCCESS = "Deleted patient: %1$s; NRIC: %2$s";
+
+    private static final Logger logger = LogsCenter.getLogger(DeleteCommand.class);
 
     private final Index targetIndex;
 
+    /**
+     * Creates a {@code DeleteCommand} that deletes the patient at {@code targetIndex} of the displayed list.
+     */
     public DeleteCommand(Index targetIndex) {
+        requireNonNull(targetIndex);
         this.targetIndex = targetIndex;
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
+        List<Patient> lastShownList = model.getFilteredPatientList();
 
         if (targetIndex.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            throw new CommandException(Messages.MESSAGE_INVALID_PATIENT_DISPLAYED_INDEX);
         }
 
-        Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
-        model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        Patient patientToDelete = lastShownList.get(targetIndex.getZeroBased());
+        model.deletePatient(patientToDelete);
+        // The name and the NRIC of the patient are not logged
+        logger.info("Deleted the patient at displayed index " + targetIndex.getOneBased());
+        return new CommandResult(String.format(MESSAGE_DELETE_PATIENT_SUCCESS,
+                patientToDelete.getName(), patientToDelete.getNric()));
     }
 
     @Override

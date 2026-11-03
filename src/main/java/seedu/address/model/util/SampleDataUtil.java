@@ -1,60 +1,58 @@
 package seedu.address.model.util;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.Address;
+import seedu.address.model.patient.Contact;
+import seedu.address.model.patient.Dob;
+import seedu.address.model.patient.Medication;
+import seedu.address.model.patient.Name;
+import seedu.address.model.patient.Nric;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.Phone;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
-    public static Person[] getSamplePersons() {
-        return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+    public static Patient[] getSamplePatients() {
+        return new Patient[] {
+            new Patient(new Name("Alex Yeoh"), new Nric("S0000001A"), new Dob("1948-03-15"),
+                new Phone("87438807"), new Address("Blk 30 Geylang Street 29, #06-40"),
+                List.of(new Medication("Aspirin 100mg", List.of(LocalTime.of(8, 0))),
+                    new Medication("Amlodipine 5mg", List.of(LocalTime.of(8, 0), LocalTime.of(20, 0)))),
+                List.of("Penicillin"),
+                List.of("Monitor blood pressure every morning"),
+                List.of(new Contact("Tan & Partners Clinic", "GP", "+65 6123-4567", "Call in the morning")),
+                List.of(new Appointment(LocalDate.of(2027, 11, 5), LocalTime.of(9, 30), "Dr Tan", ""),
+                    new Appointment(LocalDate.of(2027, 12, 10), LocalTime.of(14, 0), "Cardiology clinic",
+                        "Bring BP log"))),
+            new Patient(new Name("Bernice Yu"), new Nric("S0000002A"), new Dob("1952-07-22"),
+                new Phone("99272758"), new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
+                List.of(),
+                List.of("Latex"),
+                List.of("Walk for 15 minutes after dinner"),
+                List.of(),
+                List.of(new Appointment(LocalDate.of(2026, 10, 2), LocalTime.of(10, 0), "Polyclinic nurse",
+                    "Blood pressure normal"))),
+            new Patient(new Name("Charlotte Oliveiro"), new Nric("S0000003A"), new Dob("1945-11-02"),
+                new Phone("93210283"), new Address("Blk 11 Ang Mo Kio Street 74, #11-04")),
+            new Patient(new Name("David Li"), new Nric("S0000004A"), new Dob("1956-09-30"),
+                new Phone("91031282"), new Address("Blk 436 Serangoon Gardens Street 26, #16-43"))
         };
     }
 
     public static ReadOnlyAddressBook getSampleAddressBook() {
         AddressBook sampleAb = new AddressBook();
-        for (Person samplePerson : getSamplePersons()) {
-            sampleAb.addPerson(samplePerson);
+        for (Patient samplePatient : getSamplePatients()) {
+            sampleAb.addPatient(samplePatient);
         }
         return sampleAb;
-    }
-
-    /**
-     * Returns a tag set containing the list of strings given.
-     */
-    public static Set<Tag> getTagSet(String... strings) {
-        return Arrays.stream(strings)
-                .map(Tag::new)
-                .collect(Collectors.toSet());
     }
 
 }

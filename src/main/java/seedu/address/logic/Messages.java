@@ -1,23 +1,84 @@
 package seedu.address.logic;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileSystemException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import seedu.address.commons.util.FileUtil;
 import seedu.address.logic.parser.Prefix;
-import seedu.address.model.person.Person;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.Name;
+import seedu.address.model.patient.Patient;
 
 /**
  * Container for user visible messages.
  */
 public class Messages {
 
+    public static final String MESSAGE_UNKNOWN_PREFIX =
+            "Unrecognized parameter: %1$s. Please check the command format.";
+    public static final String MESSAGE_PUNCTUATED_SLASH_TOKEN =
+            "Unrecognized word: '%1$s'. Write %2$s as a separate word without punctuation.";
+    public static final String MESSAGE_INVALID_CARE_INSTRUCTION_INDEX =
+            "The care instruction index provided is invalid.";
+    public static final String MESSAGE_INVALID_ALLERGEN_INDEX = "The allergen index provided is invalid.";
+    public static final String MESSAGE_INVALID_CONTACT_INDEX = "The contact index provided is invalid.";
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PATIENT_DISPLAYED_INDEX = "The patient index provided is invalid.";
+    public static final String MESSAGE_INVALID_APPOINTMENT_DISPLAYED_INDEX =
+            "The appointment index provided is invalid.";
+    public static final String MESSAGE_DUPLICATE_APPOINTMENT =
+            "This appointment already exists for this patient.";
+    public static final String MESSAGE_APPOINTMENT_BEFORE_DOB =
+            "The appointment cannot be before the patient's date of birth, %1$s.";
+    public static final String MESSAGE_PAST_APPOINTMENT = "Note: this appointment is in the past.";
+    public static final String MESSAGE_FAR_FUTURE_APPOINTMENT = "Note: this appointment is more than 2 years ahead.";
+    public static final String MESSAGE_CLASH =
+            "Warning: %1$s already has an appointment at this date and time (with %2$s).";
+    public static final String MESSAGE_NOTHING_DUE_TODAY = "No medications are due today.";
+    public static final String MESSAGE_NOTHING_DUE_TODAY_FOR_PATIENT = "No medications are due today for %1$s.";
+    public static final String MESSAGE_DUE_PATIENT_ARCHIVED =
+            "This patient is archived. Unarchive them to list their medication times.";
+    public static final String MESSAGE_DUE_ENTRY = "%1$s%5$s %2$s: %3$s";
+    public static final String MESSAGE_DUE_ENTRY_WITH_NRIC = "%1$s%5$s %2$s (%4$s): %3$s";
+    // Follows the time, where the text of a medication cannot be, so that the text cannot imitate the marker
+    public static final String MESSAGE_DUE_EARLIER_TODAY_MARKER = " (earlier today)";
+    public static final String MESSAGE_INVALID_MEDICATION_DISPLAYED_INDEX =
+            "The medication index provided is invalid.";
+    public static final String MESSAGE_NO_MEDICATION_FIELD_TO_EDIT =
+            "At least one of med/ or t/ must be provided.";
+    public static final String MESSAGE_CLEAR_TIMES_CANNOT_BE_COMBINED =
+            "t/ with no time clears all times and cannot be combined with other times.";
+    public static final String MESSAGE_DUPLICATE_MEDICATION_DESCRIPTION =
+            "Medication \"%1$s\" was not updated: it already exists for this patient.";
+    public static final String MESSAGE_EDIT_MEDICATION_SUCCESS = "Updated medication %1$d of %2$s: %3$s";
+    public static final String MESSAGE_DELETE_MEDICATION_SUCCESS = "Deleted medication %1$d of %2$s: %3$s";
+    public static final String MESSAGE_PATIENTS_LISTED_OVERVIEW = "%1$d patient(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
-                "Multiple values specified for the following single-valued field(s): ";
+                "Multiple values specified for a single-valued field: ";
+
+    /** Reason given by {@code describeWriteFailure} when MediConnect is not allowed to write to a folder. */
+    public static final String MESSAGE_NO_WRITE_PERMISSION = "MediConnect does not have permission to write there";
+
+    /** Reason given by {@code describeWriteFailure} when a file has the name of a folder to be made. */
+    public static final String MESSAGE_FILE_IN_PLACE_OF_FOLDER =
+            "there is a file named %1$s where that folder should be. Move or rename the file, "
+            + "so that the folder can be made";
+
+    /** Reason given by {@code describeWriteFailure} when the file system does not give a reason of its own. */
+    public static final String MESSAGE_FILE_SYSTEM_ERROR = "the folder or file could not be created";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -32,20 +93,111 @@ public class Messages {
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Returns a note if {@code appointment} is before {@code now} or on a date more than 2 years after it, which
+     * may be a typing mistake in the year, and a warning for each of the patient's {@code otherAppointments} at
+     * the same date and time, each on a new line.
+     * Returns an empty string if there is nothing to warn about.
      */
-    public static String format(Person person) {
+    public static String formatAppointmentWarnings(Name patientName, Appointment appointment,
+            List<Appointment> otherAppointments, LocalDateTime now) {
+        String warnings = "";
+        if (appointment.isBefore(now)) {
+            warnings += "\n" + MESSAGE_PAST_APPOINTMENT;
+        }
+        if (appointment.getDate().isAfter(now.toLocalDate().plusYears(2))) {
+            warnings += "\n" + MESSAGE_FAR_FUTURE_APPOINTMENT;
+        }
+        for (Appointment otherAppointment : otherAppointments) {
+            if (appointment.isAtSameTimeAs(otherAppointment)) {
+                warnings += "\n" + String.format(MESSAGE_CLASH, patientName, otherAppointment.getProvider());
+            }
+        }
+        return warnings;
+    }
+
+    /**
+     * Formats the {@code patient} for display to the user.
+     */
+    public static String format(Patient patient) {
         final StringBuilder builder = new StringBuilder();
-        builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+        builder.append(patient.getName())
+                .append("; NRIC: ").append(patient.getNric())
+                .append("; DOB: ").append(patient.getDob())
+                .append("; Phone: ").append(patient.getPhone())
+                .append("; Address: ").append(patient.getAddress());
         return builder.toString();
+    }
+
+    /**
+     * Returns a short, readable reason for {@code ioe}, a failure to write a file, suitable for showing to the user.
+     * File system exceptions use the file path as their message, so their reason is used instead. A file that
+     * has the name of a folder to make is named, since the file system gives no reason for it.
+     * Trailing full stops are removed, as the messages that show the reason add their own.
+     *
+     * @param ioe Exception thrown while writing the file.
+     * @return the reason, without a full stop at the end.
+     */
+    public static String describeWriteFailure(IOException ioe) {
+        requireNonNull(ioe);
+        if (ioe instanceof AccessDeniedException) {
+            return MESSAGE_NO_WRITE_PERMISSION;
+        }
+        // Files#createDirectories throws this, without a reason, when a file has the name of a folder to make
+        if (ioe instanceof FileAlreadyExistsException existsException && existsException.getFile() != null) {
+            Path fileName = Paths.get(existsException.getFile()).getFileName();
+            return String.format(MESSAGE_FILE_IN_PLACE_OF_FOLDER, fileName);
+        }
+        // the file system only says "Not a directory" when a file has the name of a folder above, e.g., data
+        Optional<Path> fileAbove = findFileInPlaceOfFolderAbove(ioe);
+        if (fileAbove.isPresent()) {
+            return String.format(MESSAGE_FILE_IN_PLACE_OF_FOLDER, fileAbove.get().getFileName());
+        }
+
+        String reason = getReportedReason(ioe);
+        String trimmedReason = reason == null ? "" : stripTrailingSpacesAndFullStops(reason).strip();
+        return trimmedReason.isEmpty() ? getFallbackReason(ioe) : trimmedReason;
+    }
+
+    /**
+     * Returns the nearest folder above the file that {@code ioe} names that is a file instead, if {@code ioe} is a
+     * file system exception that names a file.
+     */
+    private static Optional<Path> findFileInPlaceOfFolderAbove(IOException ioe) {
+        if (!(ioe instanceof FileSystemException fileSystemException) || fileSystemException.getFile() == null) {
+            return Optional.empty();
+        }
+        return FileUtil.findFileInPlaceOfFolder(Paths.get(fileSystemException.getFile()));
+    }
+
+    /**
+     * Returns the reason that {@code ioe} reports: the file system's reason for a file system exception, whose
+     * message is only the file path, or the message of any other exception. Either can be null.
+     */
+    private static String getReportedReason(IOException ioe) {
+        return ioe instanceof FileSystemException fileSystemException
+                ? fileSystemException.getReason()
+                : ioe.getMessage();
+    }
+
+    /**
+     * Returns the reason to show when {@code ioe} reports none: a general file system error for a file system
+     * exception, or the name of the exception type otherwise.
+     */
+    private static String getFallbackReason(IOException ioe) {
+        return ioe instanceof FileSystemException ? MESSAGE_FILE_SYSTEM_ERROR : ioe.getClass().getSimpleName();
+    }
+
+    /**
+     * Returns {@code text} without the spaces and full stops at its end.
+     * Checks one character at a time from the end, so a long run of spaces inside {@code text} is not
+     * checked again and again, as a regular expression would.
+     */
+    private static String stripTrailingSpacesAndFullStops(String text) {
+        int end = text.length();
+        while (end > 0 && (Character.isWhitespace(text.charAt(end - 1)) || text.charAt(end - 1) == '.')) {
+            end--;
+        }
+        return text.substring(0, end);
     }
 
 }

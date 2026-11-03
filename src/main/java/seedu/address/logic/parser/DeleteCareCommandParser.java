@@ -1,0 +1,27 @@
+package seedu.address.logic.parser;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+
+import java.util.List;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.DeleteCareCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses the patient index and care-instruction index of a deletion.
+ */
+public class DeleteCareCommandParser implements Parser<DeleteCareCommand> {
+
+    @Override
+    public DeleteCareCommand parse(String args) throws ParseException {
+        requireNonNull(args);
+        try {
+            List<Index> indices = ParserUtil.parseTwoIndexes(args);
+            return new DeleteCareCommand(indices.get(0), indices.get(1));
+        } catch (ParseException e) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCareCommand.MESSAGE_USAGE), e);
+        }
+    }
+}

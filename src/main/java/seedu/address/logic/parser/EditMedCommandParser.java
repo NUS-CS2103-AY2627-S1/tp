@@ -1,0 +1,103 @@
+package seedu.address.logic.parser;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_CLEAR_TIMES_CANNOT_BE_COMBINED;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_NO_MEDICATION_FIELD_TO_EDIT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MEDICATION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TIME;
+
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.commands.EditMedCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses input arguments and creates a new {@code EditMedCommand} object.
+ */
+public class EditMedCommandParser implements Parser<EditMedCommand> {
+
+    private static final int PATIENT_INDEX_POSITION = 0;
+    private static final int MEDICATION_INDEX_POSITION = 1;
+
+    /**
+     * Parses the given {@code String} of arguments in the context of the {@code EditMedCommand}
+     * and returns an {@code EditMedCommand} object for execution.
+     *
+     * @throws ParseException if the user input does not conform to the expected format.
+     */
+    @Override
+    public EditMedCommand parse(String args) throws ParseException {
+        requireNonNull(args);
+        ArgumentTokenizer.verifyNoInvalidPrefixes(args, CliSyntax.ALLOWED_SLASH_WORDS, Set.of(PREFIX_MEDICATION),
+                PREFIX_MEDICATION, PREFIX_TIME);
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, PREFIX_MEDICATION, PREFIX_TIME);
+
+        List<Index> indices = parseIndices(argMultimap.getPreamble());
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_MEDICATION);
+
+        List<String> timeValues = argMultimap.getAllValues(PREFIX_TIME);
+        Optional<String> description = argMultimap.getValue(PREFIX_MEDICATION);
+        if (description.isEmpty() && timeValues.isEmpty()) {
+            throw new ParseException(MESSAGE_NO_MEDICATION_FIELD_TO_EDIT);
+        }
+
+        return new EditMedCommand(indices.get(PATIENT_INDEX_POSITION), indices.get(MEDICATION_INDEX_POSITION),
+                parseOptionalDescription(description), parseOptionalTimes(timeValues));
+    }
+
+    /**
+     * Parses the preamble, which must be exactly the patient index followed by the medication index.
+     *
+     * @throws ParseException if the preamble does not consist of exactly two positive integers.
+     */
+    private static List<Index> parseIndices(String preamble) throws ParseException {
+        try {
+            return ParserUtil.parseTwoIndexes(preamble);
+        } catch (ParseException pe) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditMedCommand.MESSAGE_USAGE), pe);
+        }
+    }
+
+    private static Optional<String> parseOptionalDescription(Optional<String> description) throws ParseException {
+        if (description.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(ParserUtil.parseMedicationDescription(description.get()));
+    }
+
+    /** Returns true if {@code timeValue} has only whitespace, including Unicode whitespace such as a no-break space. */
+    private static boolean isBlankTime(String timeValue) {
+        return StringUtil.stripUnicodeWhitespace(timeValue).isEmpty();
+    }
+
+    /**
+     * Parses the values of every {@code t/}. No value means the times are not edited; a single blank value
+     * means the times are cleared; otherwise every value must be a valid time.
+     *
+     * @throws ParseException if a blank {@code t/} is next to other values, or if any time is invalid.
+     */
+    private static Optional<List<LocalTime>> parseOptionalTimes(List<String> timeValues) throws ParseException {
+        if (timeValues.isEmpty()) {
+            return Optional.empty();
+        }
+        if (timeValues.size() == 1 && isBlankTime(timeValues.get(0))) {
+            return Optional.of(List.of());
+        }
+        if (timeValues.stream().anyMatch(EditMedCommandParser::isBlankTime)) {
+            throw new ParseException(MESSAGE_CLEAR_TIMES_CANNOT_BE_COMBINED);
+        }
+
+        List<LocalTime> times = new ArrayList<>();
+        for (String timeValue : timeValues) {
+            times.add(ParserUtil.parseTime(timeValue));
+        }
+        return Optional.of(times);
+    }
+}

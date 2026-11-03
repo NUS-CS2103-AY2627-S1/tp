@@ -1,42 +1,50 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_NOT_TWO_INDEXES;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PATIENT;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PATIENT;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.Address;
+import seedu.address.model.patient.Medication;
+import seedu.address.model.patient.Name;
+import seedu.address.model.patient.Phone;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
-    private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_DATE = "2026-02-30";
+    private static final String INVALID_PROVIDER = " ";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "91234567";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
-    private static final String VALID_EMAIL = "rachel@example.com";
-    private static final String VALID_TAG_1 = "friend";
-    private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_DATE = "2026-10-25";
+    private static final String VALID_PROVIDER = "Dr Tan";
 
     private static final String WHITESPACE = " \t\r\n";
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+    }
+
+    @Test
+    public void parseIndex_nonAsciiDigits_throwsParseException() {
+        for (String index : new String[] {"\uff12", "\u0662", "\uff10\uff11", "1\uff12"}) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex(index));
+        }
     }
 
     @Test
@@ -48,10 +56,28 @@ public class ParserUtilTest {
     @Test
     public void parseIndex_validInput_success() throws Exception {
         // No whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("1"));
+        assertEquals(INDEX_FIRST_PATIENT, ParserUtil.parseIndex("1"));
 
         // Leading and trailing whitespaces
-        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+        assertEquals(INDEX_FIRST_PATIENT, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseTwoIndexes_wrongNumberOfIndexes_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_NOT_TWO_INDEXES, () -> ParserUtil.parseTwoIndexes("1"));
+        assertThrows(ParseException.class, MESSAGE_NOT_TWO_INDEXES, ()
+            -> ParserUtil.parseTwoIndexes("1 2 3"));
+    }
+
+    @Test
+    public void parseTwoIndexes_invalidIndex_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseTwoIndexes("1 a"));
+    }
+
+    @Test
+    public void parseTwoIndexes_validInput_success() throws Exception {
+        assertEquals(List.of(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT),
+                ParserUtil.parseTwoIndexes(" 1   2 "));
     }
 
     @Test
@@ -78,6 +104,32 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_multipleSpacesBetweenWords_returnsCollapsedName() throws Exception {
+        Name expectedName = new Name("Rachel Walker");
+        assertEquals(expectedName, ParserUtil.parseName("Rachel   Walker"));
+    }
+
+    @Test
+    public void parseName_curlyApostrophe_returnsNameWithStraightApostrophe() throws Exception {
+        assertEquals(new Name("O'Brien"), ParserUtil.parseName("O’Brien"));
+    }
+
+    @Test
+    public void parseName_otherTypedApostrophes_returnsNameWithStraightApostrophe() throws Exception {
+        // the left single quotation mark and the modifier letter apostrophe, which phones and Word also type
+        assertEquals(new Name("Mary O'Brien"), ParserUtil.parseName("Mary O\u2018Brien"));
+        assertEquals(new Name("Mary O'Brien"), ParserUtil.parseName("Mary O\u02bcBrien"));
+    }
+
+    @Test
+    public void parseName_apostropheLookAlike_throwsParseException() {
+        // a backtick, an acute accent and a prime are not apostrophes, so they are not changed into one
+        for (String name : new String[] {"Mary O`Brien", "Mary O\u00b4Brien", "Mary O\u2032Brien"}) {
+            assertThrows(ParseException.class, () -> ParserUtil.parseName(name));
+        }
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -101,6 +153,13 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parsePhone_spacesAndHyphensBetweenDigits_returnsPhoneWithoutThem() throws Exception {
+        Phone expectedPhone = new Phone(VALID_PHONE);
+        assertEquals(expectedPhone, ParserUtil.parsePhone("9123 4567"));
+        assertEquals(expectedPhone, ParserUtil.parsePhone("+65 9123-4567"));
+    }
+
+    @Test
     public void parseAddress_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
     }
@@ -108,6 +167,25 @@ public class ParserUtilTest {
     @Test
     public void parseAddress_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
+    }
+
+    @Test
+    public void parseAddress_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, Address.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseAddress("a".repeat(Address.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseAddress_unicodeWhitespaceOnly_throwsParseException() {
+        // an em space (U+2003) and a no-break space (U+00A0), which trim() does not remove
+        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(" "));
+        assertThrows(ParseException.class, () -> ParserUtil.parseAddress("  "));
+    }
+
+    @Test
+    public void parseAddress_unicodeWhitespaceAround_returnsTrimmedAddress() throws Exception {
+        Address expectedAddress = new Address(VALID_ADDRESS);
+        assertEquals(expectedAddress, ParserUtil.parseAddress(" " + VALID_ADDRESS + " "));
     }
 
     @Test
@@ -124,71 +202,160 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseEmail_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
+    public void parseDate_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDate((String) null));
     }
 
     @Test
-    public void parseEmail_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+    public void parseDate_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Appointment.MESSAGE_DATE_CONSTRAINTS, ()
+            -> ParserUtil.parseDate(INVALID_DATE));
+        assertThrows(ParseException.class, Appointment.MESSAGE_DATE_CONSTRAINTS, ()
+            -> ParserUtil.parseDate("25/10/2026"));
     }
 
     @Test
-    public void parseEmail_validValueWithoutWhitespace_returnsEmail() throws Exception {
-        Email expectedEmail = new Email(VALID_EMAIL);
-        assertEquals(expectedEmail, ParserUtil.parseEmail(VALID_EMAIL));
+    public void parseDate_validValueWithWhitespace_returnsTrimmedDate() throws Exception {
+        assertEquals(LocalDate.of(2026, 10, 25), ParserUtil.parseDate(WHITESPACE + VALID_DATE + WHITESPACE));
     }
 
     @Test
-    public void parseEmail_validValueWithWhitespace_returnsTrimmedEmail() throws Exception {
-        String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
-        Email expectedEmail = new Email(VALID_EMAIL);
-        assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    public void parseProvider_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseProvider((String) null));
     }
 
     @Test
-    public void parseTag_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseTag(null));
+    public void parseProvider_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Appointment.MESSAGE_PROVIDER_CONSTRAINTS, ()
+            -> ParserUtil.parseProvider(INVALID_PROVIDER));
     }
 
     @Test
-    public void parseTag_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseTag(INVALID_TAG));
+    public void parseProvider_extraSpaces_returnsTrimmedAndCollapsedProvider() throws Exception {
+        assertEquals(VALID_PROVIDER, ParserUtil.parseProvider(WHITESPACE + "Dr   Tan" + WHITESPACE));
     }
 
     @Test
-    public void parseTag_validValueWithoutWhitespace_returnsTag() throws Exception {
-        Tag expectedTag = new Tag(VALID_TAG_1);
-        assertEquals(expectedTag, ParserUtil.parseTag(VALID_TAG_1));
+    public void parseProvider_unicodeSpaces_treatedAsSpaces() throws Exception {
+        // a no-break space, e.g. copied from a web page, which trim() and isBlank() do not treat as a space
+        assertEquals(VALID_PROVIDER, ParserUtil.parseProvider(" Dr Tan "));
+        assertThrows(ParseException.class, Appointment.MESSAGE_PROVIDER_CONSTRAINTS, ()
+            -> ParserUtil.parseProvider(" "));
     }
 
     @Test
-    public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
-        String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
-        Tag expectedTag = new Tag(VALID_TAG_1);
-        assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    public void parseProvider_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, Appointment.MESSAGE_PROVIDER_CONSTRAINTS, ()
+            -> ParserUtil.parseProvider("a".repeat(Appointment.MAX_PROVIDER_LENGTH + 1)));
     }
 
     @Test
-    public void parseTags_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseTags(null));
+    public void parseNote_unicodeSpacesAround_returnsTrimmedNote() throws Exception {
+        assertEquals("Bring  scans", ParserUtil.parseNote("  Bring  scans "));
+        assertEquals("", ParserUtil.parseNote(" ")); // no note
     }
 
     @Test
-    public void parseTags_collectionWithInvalidTags_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseTags(List.of(VALID_TAG_1, INVALID_TAG)));
+    public void parseNote_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, Appointment.MESSAGE_NOTE_CONSTRAINTS, ()
+            -> ParserUtil.parseNote("a".repeat(Appointment.MAX_NOTE_LENGTH + 1)));
+    }
+
+
+
+    @Test
+    public void parseTime_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTime(null));
     }
 
     @Test
-    public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
-        assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
+    public void parseTime_invalidInput_throwsParseException() {
+        String message = Medication.MESSAGE_TIME_CONSTRAINTS;
+        for (String invalidTime : new String[] {"", WHITESPACE, "24:00", "08:60", "9:60", "08:5", "0830", "08.30",
+            "08:30:00", "ab:cd", "-1:30", "+8:30", "08:30pm", "08 : 30", "8:5", ":30", "1:2:3",
+            "\uff10\uff18:\uff13\uff10", "0\u0663:30"}) {
+            assertThrows(ParseException.class, message, () -> ParserUtil.parseTime(invalidTime));
+        }
     }
 
     @Test
-    public void parseTags_collectionWithValidTags_returnsTagSet() throws Exception {
-        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2));
-        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+    public void parseTime_validInput_returnsLocalTime() throws Exception {
+        assertEquals(LocalTime.MIDNIGHT, ParserUtil.parseTime("00:00"));
+        assertEquals(LocalTime.of(8, 30), ParserUtil.parseTime("08:30"));
+        assertEquals(LocalTime.of(23, 59), ParserUtil.parseTime("23:59"));
+    }
 
-        assertEquals(expectedTagSet, actualTagSet);
+    @Test
+    public void parseTime_noBreakSpaceAround_returnsLocalTime() throws Exception {
+        assertEquals(LocalTime.of(8, 30), ParserUtil.parseTime("\u00a008:30"));
+        assertEquals(LocalTime.of(8, 30), ParserUtil.parseTime("08:30\u00a0"));
+        assertEquals(LocalTime.of(9, 30), ParserUtil.parseTime("\u2003\u00a09:30 \u00a0"));
+    }
+
+    @Test
+    public void parseTime_onlyNoBreakSpace_throwsParseException() {
+        assertThrows(ParseException.class, Medication.MESSAGE_TIME_CONSTRAINTS, () -> ParserUtil.parseTime("\u00a0"));
+    }
+
+    @Test
+    public void parseTime_oneDigitHour_returnsLocalTime() throws Exception {
+        assertEquals(LocalTime.of(9, 30), ParserUtil.parseTime("9:30"));
+        assertEquals(LocalTime.of(8, 30), ParserUtil.parseTime("8:30"));
+        assertEquals(LocalTime.of(0, 5), ParserUtil.parseTime("0:05"));
+        assertEquals(LocalTime.of(9, 0), ParserUtil.parseTime(WHITESPACE + "9:00" + WHITESPACE));
+    }
+
+    @Test
+    public void parseTime_oneDigitHourWithInvalidMinute_throwsParseException() {
+        assertThrows(ParseException.class, Medication.MESSAGE_TIME_CONSTRAINTS, () -> ParserUtil.parseTime("9:60"));
+    }
+
+    @Test
+    public void parseTime_inputWithWhitespace_returnsTrimmedLocalTime() throws Exception {
+        assertEquals(LocalTime.of(8, 30), ParserUtil.parseTime(WHITESPACE + "08:30" + WHITESPACE));
+    }
+
+    @Test
+    public void parseMedicationDescription_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseMedicationDescription(null));
+    }
+
+    @Test
+    public void parseMedicationDescription_blank_throwsParseException() {
+        String message = Medication.MESSAGE_DESCRIPTION_CONSTRAINTS;
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseMedicationDescription(""));
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseMedicationDescription(WHITESPACE));
+    }
+
+    @Test
+    public void parseMedicationDescription_overlongDescription_throwsParseException() throws Exception {
+        String atLimit = "m".repeat(Medication.MAX_DESCRIPTION_LENGTH);
+        assertEquals(atLimit, ParserUtil.parseMedicationDescription(atLimit));
+        String overLimit = atLimit + "m";
+        String message = Medication.MESSAGE_DESCRIPTION_TOO_LONG;
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseMedicationDescription(overLimit));
+    }
+
+    @Test
+    public void parseMedicationDescription_longOnlyBecauseOfNoBreakSpaces_accepted() throws Exception {
+        String word = "m".repeat(249);
+        String description = word + "\u00a0".repeat(5) + word; // 503 characters, 499 after normalization
+        assertEquals(description, ParserUtil.parseMedicationDescription(description));
+
+        String paddedDescription = "\u00a0".repeat(10) + "m".repeat(Medication.MAX_DESCRIPTION_LENGTH);
+        assertEquals(paddedDescription.strip(), ParserUtil.parseMedicationDescription(paddedDescription).strip());
+    }
+
+    @Test
+    public void parseMedicationDescription_longAfterNormalization_throwsParseException() {
+        String word = "m".repeat(250);
+        String description = word + "\u00a0\u00a0 " + word + "m"; // 502 characters after normalization
+        String message = Medication.MESSAGE_DESCRIPTION_TOO_LONG;
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseMedicationDescription(description));
+    }
+
+    @Test
+    public void parseMedicationDescription_valid_returnsTrimmedDescription() throws Exception {
+        assertEquals("Metformin 500mg", ParserUtil.parseMedicationDescription("  Metformin 500mg" + WHITESPACE));
     }
 }

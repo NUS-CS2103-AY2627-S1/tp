@@ -1,0 +1,253 @@
+package seedu.address.model.appointment;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.regex.Pattern;
+
+/**
+ * Represents an appointment of a Patient in MediConnect.
+ * Guarantees: details are present and not null, field values are validated, immutable.
+ */
+public class Appointment implements Comparable<Appointment> {
+
+    public static final String MESSAGE_DATE_CONSTRAINTS =
+            "Appointment date should be a real date in YYYY-MM-DD format, from 1900-01-01, e.g. 2026-10-25.";
+    public static final String MESSAGE_TIME_CONSTRAINTS =
+            "Appointment time should be in HH:MM 24-hour format, e.g. 14:30.";
+    public static final int MAX_PROVIDER_LENGTH = 100;
+    public static final int MAX_NOTE_LENGTH = 500;
+    public static final String MESSAGE_PROVIDER_CONSTRAINTS = "Who the appointment is with should not be blank, and "
+            + "should be one line of at most " + MAX_PROVIDER_LENGTH + " characters.";
+    public static final String MESSAGE_NOTE_CONSTRAINTS =
+            "An appointment note should be one line of at most " + MAX_NOTE_LENGTH + " characters.";
+    public static final String MESSAGE_DUPLICATE = "A patient cannot have two appointments at the same date and "
+            + "time with the same person, ignoring letter case and extra spaces.";
+
+    /*
+     * Four digits for the year, so that "+10000-01-01" and "-0001-01-01" are rejected.
+     */
+    public static final String DATE_VALIDATION_REGEX = "\\d{4}-\\d{2}-\\d{2}";
+
+    /*
+     * Two digits for the hour and two for the minute, so that "9:30" and "14:30:15" are rejected.
+     */
+    public static final String TIME_VALIDATION_REGEX = "\\d{2}:\\d{2}";
+
+    /*
+     * The same earliest date as a date of birth, so that a typing mistake such as "0001-01-01" is rejected.
+     */
+    public static final LocalDate EARLIEST_DATE = LocalDate.of(1900, 1, 1);
+
+    /*
+     * Any line break, which would show as another line of a list of appointments, e.g. a fake appointment.
+     */
+    private static final Pattern LINE_BREAK = Pattern.compile("\\R");
+
+    /*
+     * Whitespace includes Unicode whitespace, e.g. a no-break space copied from a web page.
+     */
+    private static final String WHITESPACE_REGEX = "(?U)\\s+";
+
+    private final LocalDate date;
+    private final LocalTime time;
+    private final String provider;
+    private final String note;
+
+    /**
+     * Every field must be present and not null. An empty {@code note} means the appointment has no note.
+     * The date must not be before {@code EARLIEST_DATE}.
+     * The time must be a whole minute, so that it is saved and loaded in HH:MM format.
+     * The provider and note must be valid, as declared in {@link #isValidProvider(String)} and
+     * {@link #isValidNote(String)}.
+     */
+    public Appointment(LocalDate date, LocalTime time, String provider, String note) {
+        requireAllNonNull(date, time, provider, note);
+        checkArgument(!date.isBefore(EARLIEST_DATE), MESSAGE_DATE_CONSTRAINTS);
+        checkArgument(time.equals(time.truncatedTo(ChronoUnit.MINUTES)), MESSAGE_TIME_CONSTRAINTS);
+        checkArgument(isValidProvider(provider), MESSAGE_PROVIDER_CONSTRAINTS);
+        checkArgument(isValidNote(note), MESSAGE_NOTE_CONSTRAINTS);
+        this.date = date;
+        this.time = time;
+        this.provider = provider;
+        this.note = note;
+    }
+
+    /**
+     * Returns true if a given string is a real date in YYYY-MM-DD format, on or after {@code EARLIEST_DATE}.
+     */
+    public static boolean isValidDate(String test) {
+        if (!test.matches(DATE_VALIDATION_REGEX)) {
+            return false;
+        }
+
+        try {
+            return !LocalDate.parse(test).isBefore(EARLIEST_DATE);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if a given string is a real time in HH:MM 24-hour format.
+     */
+    public static boolean isValidTime(String test) {
+        if (!test.matches(TIME_VALIDATION_REGEX)) {
+            return false;
+        }
+
+        try {
+            LocalTime.parse(test);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if a given string is a valid provider, i.e. who the appointment is with.
+     */
+    public static boolean isValidProvider(String test) {
+        return !test.replaceAll(WHITESPACE_REGEX, "").isEmpty() && isOneLineOfAtMost(test, MAX_PROVIDER_LENGTH);
+    }
+
+    /**
+     * Returns true if a given string is a valid note. An empty note means that the appointment has no note.
+     */
+    public static boolean isValidNote(String test) {
+        return isOneLineOfAtMost(test, MAX_NOTE_LENGTH);
+    }
+
+    /**
+     * Returns true if {@code test} has no line break and at most {@code maxLength} characters.
+     */
+    private static boolean isOneLineOfAtMost(String test, int maxLength) {
+        return !LINE_BREAK.matcher(test).find() && test.codePointCount(0, test.length()) <= maxLength;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public LocalTime getTime() {
+        return time;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    /**
+     * Returns the date and time of the appointment together.
+     */
+    public LocalDateTime getDateTime() {
+        return LocalDateTime.of(date, time);
+    }
+
+    /**
+     * Returns true if both appointments are at the same date and time, whoever they are with.
+     */
+    public boolean isAtSameTimeAs(Appointment otherAppointment) {
+        return otherAppointment != null
+                && date.equals(otherAppointment.date)
+                && time.equals(otherAppointment.time);
+    }
+
+    /**
+     * Returns true if both appointments are at the same date and time with the same provider,
+     * ignoring letter case, spaces at either end, repeated spaces, including Unicode spaces, and how accented
+     * letters are stored in the provider, as {@code addappt} does. Notes are not compared.
+     * This defines a weaker notion of equality between two appointments.
+     */
+    public boolean isSameAppointment(Appointment otherAppointment) {
+        return isAtSameTimeAs(otherAppointment)
+                && toComparableProvider(provider).equalsIgnoreCase(toComparableProvider(otherAppointment.provider));
+    }
+
+    /**
+     * Returns {@code provider} in Unicode NFC form, with each run of whitespace as one space and none at either
+     * end, as {@code ParserUtil#parseProvider} saves it. A hand-edited data file can still hold spaces there.
+     * In NFC form, an accented letter typed as one character, e.g. "é", and as a letter followed by a combining
+     * accent are the same text, as for contact names.
+     */
+    private static String toComparableProvider(String provider) {
+        return Normalizer.normalize(provider, Normalizer.Form.NFC).replaceAll(WHITESPACE_REGEX, " ").strip();
+    }
+
+    /**
+     * Returns true if the appointment is before the minute of {@code dateTime}, i.e. in the past if
+     * {@code dateTime} is now. Seconds are ignored, since appointments are in whole minutes, so an
+     * appointment at 12:00 is not before 12:00:30.
+     */
+    public boolean isBefore(LocalDateTime dateTime) {
+        requireNonNull(dateTime);
+        return getDateTime().isBefore(dateTime.truncatedTo(ChronoUnit.MINUTES));
+    }
+
+    /**
+     * Orders appointments by date, then time.
+     * Two different appointments at the same date and time compare as equal in this order.
+     */
+    @Override
+    public int compareTo(Appointment other) {
+        return getDateTime().compareTo(other.getDateTime());
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Appointment otherAppointment)) {
+            return false;
+        }
+
+        return date.equals(otherAppointment.date)
+                && time.equals(otherAppointment.time)
+                && provider.equals(otherAppointment.provider)
+                && note.equals(otherAppointment.note);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(date, time, provider, note);
+    }
+
+    /**
+     * Returns the date and time as shown to the user, e.g. "2026-10-25 14:30".
+     */
+    public String getDateTimeText() {
+        return date + " " + time;
+    }
+
+    /**
+     * Returns who the appointment is with and its note, if any, as shown to the user after the date and time,
+     * e.g. "with Dr Tan (Fasting)".
+     */
+    public String getDetailsText() {
+        String details = "with " + provider;
+        return note.isEmpty() ? details : details + " (" + note + ")";
+    }
+
+    /**
+     * Returns the appointment as shown to the user, e.g. "2026-10-25 14:30 with Dr Tan (Fasting)".
+     */
+    @Override
+    public String toString() {
+        return getDateTimeText() + " " + getDetailsText();
+    }
+}

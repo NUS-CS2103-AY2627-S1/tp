@@ -1,0 +1,305 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.model.Model.PREDICATE_SHOW_ACTIVE_PATIENTS;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Clock;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.FileUtil;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.patient.Patient;
+import seedu.address.storage.JsonAddressBookStorage;
+
+/**
+ * Replaces all patient data with the data in a backup file, after backing up the current data.
+ */
+public class RestoreCommand extends Command {
+
+    public static final String COMMAND_WORD = "restore";
+
+    public static final String MESSAGE_INVALID_FILE_NAME = "Give only the name of a backup file in data/backups, "
+            + "not a path, e.g., " + COMMAND_WORD + " mediconnect-20261020-083015.json";
+    public static final String MESSAGE_INVALID_CHARACTER = "The backup name has a character that file names "
+            + "cannot have on this computer, e.g., \" or * on Windows. Type the name without quotes, e.g., "
+            + COMMAND_WORD + " my backup.json";
+
+    public static final String MESSAGE_SUCCESS =
+            "Restored %1$d %2$s%3$s from %4$s. Your previous data was backed up to: %5$s";
+    /** Added after the number of restored patients when some of them are archived. */
+    public static final String MESSAGE_ARCHIVED_COUNT = " (%1$d archived, shown by listarchived)";
+    public static final String MESSAGE_NOT_FOUND =
+            "No backup named %1$s was found in %2$s. Your data has not been changed.";
+    public static final String MESSAGE_NO_READ_PERMISSION =
+            "MediConnect does not have permission to read %1$s. Your data has not been changed.";
+    public static final String MESSAGE_NO_FOLDER_READ_PERMISSION = "MediConnect does not have permission to "
+            + "read the backup folder %1$s. Your data has not been changed.";
+    public static final String MESSAGE_FILE_IN_PLACE_OF_FOLDER = "No backup named %1$s can be found, as "
+            + "%2$s is a file, not a folder. Move or rename that file, so that backup can make the folder. "
+            + "Your data has not been changed.";
+    public static final String MESSAGE_UNREADABLE = "The backup %1$s could not be read. It may be damaged, "
+            + "or not a MediConnect data file. Your data has not been changed.";
+    public static final String MESSAGE_NOT_UTF8 = "The backup %1$s could not be read, as it is not saved as "
+            + "UTF-8. Save it as UTF-8, then restore it again. Your data has not been changed.";
+    public static final String MESSAGE_INVALID_DATA = "The backup %1$s has invalid data, so it was not restored. "
+            + "Your data has not been changed.\nDetails: %2$s";
+    public static final String MESSAGE_BACKUP_FAILED = "Could not back up the current data to %1$s: %2$s. "
+            + "Nothing was restored, and your data has not been changed.";
+
+    /** A special space, e.g., a tab or a no-break space, which {@code AddressBookParser} makes a normal space. */
+    private static final Pattern SPECIAL_SPACE_PATTERN = Pattern.compile("\\h");
+
+    private static final Logger logger = LogsCenter.getLogger(RestoreCommand.class);
+
+    private final String fileName;
+    private final Clock clock;
+    private final Path backupDir;
+
+    /**
+     * Creates a RestoreCommand that restores {@code fileName} from {@code BackupCommand.DEFAULT_BACKUP_DIR},
+     * after backing up the current data there, timestamped with the system clock.
+     *
+     * @param fileName Name of the backup file, without a folder. Its ending, ".json", can be left out.
+     */
+    public RestoreCommand(String fileName) {
+        this(fileName, Clock.systemDefaultZone(), BackupCommand.DEFAULT_BACKUP_DIR);
+    }
+
+    /**
+     * Creates a RestoreCommand that restores {@code fileName} from {@code backupDir},
+     * after backing up the current data there, timestamped with {@code clock}.
+     *
+     * @param fileName Name of the backup file, without a folder. Its ending, ".json", can be left out.
+     * @param clock {@code Clock} that gives the date and time in the name of the automatic backup.
+     * @param backupDir Folder that holds the backup file, and receives the automatic backup.
+     */
+    public RestoreCommand(String fileName, Clock clock, Path backupDir) {
+        requireNonNull(fileName);
+        requireNonNull(clock);
+        requireNonNull(backupDir);
+        assert Paths.get(fileName).getFileName().toString().equals(fileName)
+                : "the parser accepts only a file name, so the backup cannot be outside the backup folder";
+        this.fileName = fileName;
+        this.clock = clock;
+        this.backupDir = backupDir;
+    }
+
+    @Override
+    public boolean requiresSaveWhenUnchanged() {
+        return true;
+    }
+
+    /**
+     * Replaces the patient data in {@code model} with the data in the backup file.
+     * The whole file is checked and the current data is backed up first, and if either step fails,
+     * the model is not changed.
+     *
+     * @param model {@code Model} whose patient data is replaced.
+     * @return a result showing how many patients were restored and where the current data was backed up.
+     * @throws CommandException if the backup file is missing, unreadable or invalid,
+     *     or the current data cannot be backed up.
+     */
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        String backupName = findBackupName();
+        ReadOnlyAddressBook restoredData = readBackup(backupName);
+        Path automaticBackupFile = backUpCurrentData(model);
+
+        model.setAddressBook(restoredData);
+        model.updateFilteredPatientList(PREDICATE_SHOW_ACTIVE_PATIENTS);
+
+        logger.info("Restored the backup " + backupDir.resolve(backupName));
+        return createSuccessResult(restoredData, automaticBackupFile, backupName);
+    }
+
+    /**
+     * Returns the name of the backup file to restore: {@code fileName}, or, if there is no such file but
+     * there is one with ".json" added, that name, so that a backup can be restored without typing its ending.
+     * If neither file exists, the only backup whose name matches once its special spaces are normal spaces is
+     * restored, since {@code AddressBookParser} turns every special space typed in a command into a normal space.
+     * If more than one backup matches, none is restored.
+     */
+    private String findBackupName() {
+        String nameWithExtension = fileName + ListBackupsCommand.BACKUP_EXTENSION;
+        if (Files.isRegularFile(backupDir.resolve(fileName))) {
+            return fileName;
+        }
+        if (Files.isRegularFile(backupDir.resolve(nameWithExtension))) {
+            return nameWithExtension;
+        }
+        List<String> matchingNames = findNamesWithSpecialSpaces(fileName);
+        if (matchingNames.isEmpty()) {
+            // ".json" is added only if no backup matches the name as given, so that an unclear name restores none
+            matchingNames = findNamesWithSpecialSpaces(nameWithExtension);
+        }
+        return matchingNames.size() == 1 ? matchingNames.get(0) : fileName;
+    }
+
+    /**
+     * Returns the names of the files in the backup folder that are {@code typedName} once each special space in
+     * them, e.g., a no-break or ideographic space, is a normal space, or an empty list if the backup folder cannot
+     * be listed.
+     */
+    private List<String> findNamesWithSpecialSpaces(String typedName) {
+        try (Stream<Path> files = Files.list(backupDir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(file -> file.getFileName().toString())
+                    .filter(name -> SPECIAL_SPACE_PATTERN.matcher(name).replaceAll(" ").equals(typedName))
+                    .toList();
+        } catch (IOException | UncheckedIOException e) {
+            // the missing backup is then reported, with the folder's permission if that is the cause
+            return List.of();
+        }
+    }
+
+    /**
+     * Reads the backup file named {@code backupName} and checks every patient in it.
+     *
+     * @throws CommandException if the file is missing or unreadable, or has invalid data.
+     */
+    private ReadOnlyAddressBook readBackup(String backupName) throws CommandException {
+        Path backupFile = backupDir.resolve(backupName);
+        String notFoundMessage = String.format(MESSAGE_NOT_FOUND, fileName, backupDir.toAbsolutePath().normalize());
+        if (!Files.isRegularFile(backupFile)) {
+            throw new CommandException(describeMissingBackup(backupFile, notFoundMessage));
+        }
+
+        try {
+            // the file can still disappear after the check above, which readAddressBook reports as empty
+            return new JsonAddressBookStorage(backupFile).readAddressBook()
+                    .orElseThrow(() -> new CommandException(notFoundMessage));
+        } catch (DataLoadingException dle) {
+            String reason = describeLoadingFailure(dle, backupName);
+            logger.warning("Could not restore " + backupFile + ": " + reason);
+            throw new CommandException(reason, dle);
+        }
+    }
+
+    /**
+     * Returns the reason to give when {@code backupFile}, the backup to restore, is not found: that
+     * MediConnect may not read the backup folder, if it cannot even tell whether the file exists and the folder
+     * cannot be opened, or else {@code notFoundMessage}. A file in place of the backup folder, or of a folder
+     * above it, is named instead, since backup cannot make the folder while that file is there.
+     */
+    private String describeMissingBackup(Path backupFile, String notFoundMessage) {
+        Optional<Path> fileAbove = FileUtil.findFileInPlaceOfFolder(backupFile);
+        if (fileAbove.isPresent()) {
+            return String.format(MESSAGE_FILE_IN_PLACE_OF_FOLDER, fileName,
+                    fileAbove.get().toAbsolutePath().normalize());
+        }
+        // neither holds if the folder may not be opened, e.g., after chmod 000 or chmod 444 on it, but also for a
+        // name too long for the file system, so the folder itself is checked as well
+        boolean isExistenceUnknown = !Files.exists(backupFile) && !Files.notExists(backupFile);
+        boolean isFolderUnreadable = isExistenceUnknown
+                && !(Files.isReadable(backupDir) && Files.isExecutable(backupDir));
+        return isFolderUnreadable
+                ? String.format(MESSAGE_NO_FOLDER_READ_PERMISSION, backupDir.toAbsolutePath().normalize())
+                : notFoundMessage;
+    }
+
+    /**
+     * Saves the current patient data in {@code model} to a new backup file, and returns its path.
+     *
+     * @throws CommandException if the backup file cannot be written.
+     */
+    private Path backUpCurrentData(Model model) throws CommandException {
+        try {
+            return new BackupCommand(clock, backupDir).saveBackup(model.getAddressBook());
+        } catch (IOException ioe) {
+            String reason = Messages.describeWriteFailure(ioe);
+            throw new CommandException(
+                    String.format(MESSAGE_BACKUP_FAILED, backupDir.toAbsolutePath().normalize(), reason), ioe);
+        }
+    }
+
+    /**
+     * Returns the result to show after restoring {@code restoredData} from the backup {@code backupName}:
+     * how many patients were restored and how many of them are archived, since only active patients are
+     * listed after a restore, and the full path of {@code automaticBackupFile}, which holds the data from
+     * before the restore.
+     */
+    private CommandResult createSuccessResult(ReadOnlyAddressBook restoredData, Path automaticBackupFile,
+            String backupName) {
+        List<Patient> restoredPatients = restoredData.getPatientList();
+        int patientCount = restoredPatients.size();
+        String patientWord = patientCount == 1 ? "patient" : "patients";
+        long archivedCount = restoredPatients.stream().filter(Patient::isArchived).count();
+        // Locale.ROOT writes the counts with the digits 0 to 9, as the list and the detail panel do, whatever the
+        // computer's language settings are
+        String archivedNote = archivedCount == 0
+                ? ""
+                : String.format(Locale.ROOT, MESSAGE_ARCHIVED_COUNT, archivedCount);
+        return new CommandResult(String.format(Locale.ROOT, MESSAGE_SUCCESS, patientCount, patientWord, archivedNote,
+                backupName, automaticBackupFile.toAbsolutePath().normalize()));
+    }
+
+    /**
+     * Returns the message to show when the backup {@code backupName} could not be loaded because of
+     * {@code dle}.
+     */
+    private String describeLoadingFailure(DataLoadingException dle, String backupName) {
+        Throwable cause = dle.getCause();
+        if (cause instanceof IllegalValueException) {
+            return String.format(MESSAGE_INVALID_DATA, backupName, cause.getMessage());
+        }
+        if (cause instanceof AccessDeniedException) {
+            return String.format(MESSAGE_NO_READ_PERMISSION, backupName);
+        }
+        // e.g., a backup edited by hand and saved as "ANSI" in Windows Notepad with a non-English letter
+        if (cause instanceof CharacterCodingException) {
+            return String.format(MESSAGE_NOT_UTF8, backupName);
+        }
+        return String.format(MESSAGE_UNREADABLE, backupName);
+    }
+
+    /**
+     * Returns true if {@code other} is a {@code RestoreCommand} with the same file name, clock and backup folder.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof RestoreCommand otherRestoreCommand)) {
+            return false;
+        }
+
+        return fileName.equals(otherRestoreCommand.fileName)
+                && clock.equals(otherRestoreCommand.clock)
+                && backupDir.equals(otherRestoreCommand.backupDir);
+    }
+
+    /**
+     * Returns a string showing the file name, clock and backup folder of this command.
+     */
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("fileName", fileName)
+                .add("clock", clock)
+                .add("backupDir", backupDir)
+                .toString();
+    }
+}

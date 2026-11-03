@@ -1,64 +1,274 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_PREFIX;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.LocaleTestUtil.callWithDefaultLocale;
+import static seedu.address.testutil.TypicalAppointments.CHECKUP;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PATIENT;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PATIENT;
 
+import java.time.Clock;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddApptCommand;
+import seedu.address.logic.commands.AddCareCommand;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddContactCommand;
+import seedu.address.logic.commands.ArchiveCommand;
+import seedu.address.logic.commands.BackupCommand;
+import seedu.address.logic.commands.CancelApptCommand;
 import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.DeleteAllergyCommand;
+import seedu.address.logic.commands.DeleteCareCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteContactCommand;
+import seedu.address.logic.commands.DeleteMedCommand;
+import seedu.address.logic.commands.DueCommand;
+import seedu.address.logic.commands.EditApptCommand;
+import seedu.address.logic.commands.EditCareCommand;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditContactCommand;
+import seedu.address.logic.commands.EditMedCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.ExportCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ListApptCommand;
+import seedu.address.logic.commands.ListArchivedCommand;
+import seedu.address.logic.commands.ListBackupsCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RestoreCommand;
+import seedu.address.logic.commands.UnarchiveCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
-import seedu.address.testutil.PersonBuilder;
-import seedu.address.testutil.PersonUtil;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.Contact;
+import seedu.address.model.patient.NameContainsKeywordsPredicate;
+import seedu.address.model.patient.Patient;
+import seedu.address.testutil.EditPatientDescriptorBuilder;
+import seedu.address.testutil.PatientBuilder;
+import seedu.address.testutil.PatientUtil;
 
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void parseCommand_reservedPrefixInFirstValueWord_rejectedAcrossCommands() {
+        for (String input : List.of(
+                "add n/A ic/S1111111A dob/1950-04-12 p/91234567 a/p/123",
+                "edit 1 a/p/123", "addcare 1 ci/p/123", "editcare 1 1 ci/p/1", "editmed 1 1 med/p/1",
+                "addcontact 1 n/p/1 r/GP p/123", "editcontact 1 1 nt/p/1",
+                "addappt 1 d/2027-01-01 t/10:00 w/p/1", "editappt 1 1 nt/p/1")) {
+            assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "p/"), () ->
+                    parser.parseCommand(input));
+        }
+        assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "p/"), () ->
+                parser.parseCommand("addcare 1 med/p/9"));
+    }
+
+    @Test
+    public void parseCommand_slashTextInFreeTextFields_preservedAcrossCommands() throws Exception {
+        for (String text : List.of("and/or", "mg/ml", "units/day", "N/A", "N/A,", "x/123", "and/or, mg/ml")) {
+            Patient patient = new PatientBuilder().withAddress(text).build();
+            assertEquals(new AddCommand(patient), parser.parseCommand(PatientUtil.getAddCommand(patient)));
+            assertEquals(new EditCommand(INDEX_FIRST_PATIENT,
+                    new EditPatientDescriptorBuilder().withAddress(text).build()),
+                    parser.parseCommand("edit 1 a/" + text));
+            assertEquals(new AddCareCommand(INDEX_FIRST_PATIENT, List.of(text), List.of(text), List.of(text)),
+                    parser.parseCommand("addcare 1 med/" + text + " al/" + text + " ci/" + text));
+            assertEquals(new EditCareCommand(INDEX_FIRST_PATIENT, INDEX_FIRST_PATIENT, text),
+                    parser.parseCommand("editcare 1 1 ci/" + text));
+            assertEquals(new EditMedCommand(INDEX_FIRST_PATIENT, INDEX_FIRST_PATIENT,
+                    Optional.of(text), Optional.of(List.of(LocalTime.of(8, 0)))),
+                    parser.parseCommand("editmed 1 1 med/" + text + " t/08:00"));
+            assertEquals(new AddContactCommand(INDEX_FIRST_PATIENT, new Contact(text, text, "123", text)),
+                    parser.parseCommand("addcontact 1 n/" + text + " r/" + text + " p/123 nt/" + text));
+            assertEquals(new EditContactCommand(INDEX_FIRST_PATIENT, INDEX_FIRST_PATIENT, Optional.of(text),
+                    Optional.of(text), Optional.empty(), Optional.of(text)),
+                    parser.parseCommand("editcontact 1 1 n/" + text + " r/" + text + " nt/" + text));
+            Appointment appointment = new Appointment(CHECKUP.getDate(), CHECKUP.getTime(), text, text);
+            assertEquals(new AddApptCommand(INDEX_FIRST_PATIENT, appointment),
+                    parser.parseCommand("addappt 1 d/2026-11-05 t/09:30 w/" + text + " nt/" + text));
+            assertEquals(new EditApptCommand(INDEX_FIRST_PATIENT, INDEX_FIRST_PATIENT, Optional.empty(),
+                    Optional.empty(), Optional.of(text), Optional.of(text)),
+                    parser.parseCommand("editappt 1 1 w/" + text + " nt/" + text));
+        }
+    }
+
+    @Test
+    public void parseCommand_wrongCaseNotePrefix_rejectedAcrossFreeTextCommands() {
+        for (String input : List.of(
+                "add n/Alex ic/S1111111A dob/1950-04-12 p/91234567 a/Block 1 NT/bring scans",
+                "edit 1 a/Block 1 NT/bring scans", "addcare 1 ci/Use cane NT/bring scans",
+                "editcare 1 1 ci/Use cane NT/bring scans", "editmed 1 1 med/Aspirin NT/bring scans",
+                "addcontact 1 n/Clinic r/GP p/123 nt/Call first NT/bring scans",
+                "editcontact 1 1 nt/Call first NT/bring scans",
+                "addappt 1 d/2027-01-01 t/10:00 w/Dr Tan NT/bring scans",
+                "editappt 1 1 w/Dr Tan NT/bring scans")) {
+            assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "NT/"), () ->
+                    parser.parseCommand(input));
+        }
+    }
+
+    @Test
+    public void parseCommand_wrongCaseTimePrefix_rejectedInMedicationDescription() {
+        assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "T/"), () ->
+                parser.parseCommand("editmed 1 1 med/Aspirin T/08:00"));
+    }
+
+    @Test
+    public void parseCommand_slashTextInStructuredFieldsOrPreamble_rejected() {
+        for (String input : List.of(
+                "add n/and/or ic/S1111111A dob/1950-04-12 p/91234567 a/Blk 1",
+                "edit 1 n/and/or", "edit 1 a/Free text ic/and/or", "edit 1 a/Free text dob/and/or",
+                "edit 1 a/Free text p/and/or", "addcare 1 and/or ci/Text", "editcare 1 1 and/or ci/Text",
+                "editmed 1 1 med/Text t/and/or", "addcontact 1 n/Free text r/GP p/and/or",
+                "editcontact 1 1 nt/Free text p/and/or", "addappt 1 w/Free text d/and/or t/10:00",
+                "editappt 1 1 nt/Free text d/and/or", "editappt 1 1 nt/Free text t/and/or")) {
+            assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "and/"), () ->
+                    parser.parseCommand(input));
+        }
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
-        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
-        assertEquals(new AddCommand(person), command);
+        Patient patient = new PatientBuilder().build();
+        AddCommand command = (AddCommand) parser.parseCommand(PatientUtil.getAddCommand(patient));
+        assertEquals(new AddCommand(patient), command);
+    }
+
+    @Test
+    public void parseCommand_addCare() throws Exception {
+        AddCareCommand command = (AddCareCommand) parser.parseCommand("addcare 1 med/Metformin al/Penicillin");
+        assertEquals(new AddCareCommand(INDEX_FIRST_PATIENT, List.of("Metformin"), List.of("Penicillin"), List.of()),
+                command);
+    }
+
+    @Test
+    public void parseCommand_addAppt() throws Exception {
+        AddApptCommand command = (AddApptCommand) parser.parseCommand(
+                "addappt 1 d/2026-11-05 t/09:30 w/Dr Tan nt/Fasting");
+        assertEquals(new AddApptCommand(INDEX_FIRST_PATIENT, CHECKUP), command);
+    }
+
+    @Test
+    public void parseCommand_editAppt() throws Exception {
+        EditApptCommand command = (EditApptCommand) parser.parseCommand("editappt 1 2 w/Dr Lim");
+        assertEquals(new EditApptCommand(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT, Optional.empty(),
+                Optional.empty(), Optional.of("Dr Lim"), Optional.empty()), command);
+    }
+
+    @Test
+    public void parseCommand_cancelAppt() throws Exception {
+        CancelApptCommand command = (CancelApptCommand) parser.parseCommand("cancelappt 1 2");
+        assertEquals(new CancelApptCommand(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT), command);
+    }
+
+    @Test
+    public void parseCommand_listAppt() throws Exception {
+        assertEquals(new ListApptCommand(Optional.empty()), parser.parseCommand("listappt"));
+        assertEquals(new ListApptCommand(Optional.of(INDEX_FIRST_PATIENT)),
+                parser.parseCommand("listappt 1"));
+    }
+
+    @Test
+    public void parseCommand_careInstructionCommands_dispatched() throws Exception {
+        assertTrue(parser.parseCommand("editcare 1 1 ci/Updated") instanceof EditCareCommand);
+        assertTrue(parser.parseCommand("deletecare 1 1") instanceof DeleteCareCommand);
+    }
+
+    @Test
+    public void parseCommand_due() throws Exception {
+        assertEquals(new DueCommand(Clock.systemDefaultZone()), parser.parseCommand(DueCommand.COMMAND_WORD));
+        assertEquals(new DueCommand(INDEX_FIRST_PATIENT, Clock.systemDefaultZone()),
+                parser.parseCommand(DueCommand.COMMAND_WORD + " 1"));
+    }
+
+    @Test
+    public void parseCommand_editMed() throws Exception {
+        EditMedCommand command = (EditMedCommand) parser.parseCommand("editmed 1 2 med/Aspirin t/08:00");
+        assertEquals(new EditMedCommand(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT, Optional.of("Aspirin"),
+                Optional.of(List.of(LocalTime.of(8, 0)))), command);
+    }
+
+    @Test
+    public void parseCommand_deleteMed() throws Exception {
+        DeleteMedCommand command = (DeleteMedCommand) parser.parseCommand("deletemed 1 2");
+        assertEquals(new DeleteMedCommand(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT), command);
     }
 
     @Test
     public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertTrue(parser.parseCommand(ClearCommand.COMMAND_FORMAT) instanceof ClearCommand);
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(ClearCommand.COMMAND_WORD));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("clear 3"));
+    }
+
+    @Test
+    public void parseCommand_backup() throws Exception {
+        assertTrue(parser.parseCommand(BackupCommand.COMMAND_WORD) instanceof BackupCommand);
+        assertTrue(parser.parseCommand(BackupCommand.COMMAND_WORD + " 3") instanceof BackupCommand);
+    }
+
+    @Test
+    public void parseCommand_export() throws Exception {
+        ExportCommand command = (ExportCommand) parser.parseCommand(
+                ExportCommand.COMMAND_WORD + " " + INDEX_FIRST_PATIENT.getOneBased());
+        assertEquals(new ExportCommand(INDEX_FIRST_PATIENT), command);
+    }
+
+    @Test
+    public void parseCommand_restore() throws Exception {
+        RestoreCommand command = (RestoreCommand) parser.parseCommand(
+                RestoreCommand.COMMAND_WORD + " mediconnect-20261020-083015.json");
+        assertEquals(new RestoreCommand("mediconnect-20261020-083015.json"), command);
+        assertEquals(new ListBackupsCommand(), parser.parseCommand(RestoreCommand.COMMAND_WORD));
     }
 
     @Test
     public void parseCommand_delete() throws Exception {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
-                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
-        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PATIENT.getOneBased());
+        assertEquals(new DeleteCommand(INDEX_FIRST_PATIENT), command);
+    }
+
+    @Test
+    public void parseCommand_archiveAndUnarchive() throws Exception {
+        assertEquals(new ArchiveCommand(INDEX_FIRST_PATIENT), parser.parseCommand("archive 1"));
+        assertEquals(new UnarchiveCommand(INDEX_FIRST_PATIENT), parser.parseCommand("unarchive 1"));
+    }
+
+    @Test
+    public void parseCommand_deleteAllergy() throws Exception {
+        DeleteAllergyCommand command = (DeleteAllergyCommand) parser.parseCommand(
+                DeleteAllergyCommand.COMMAND_WORD + " 1 2");
+        assertEquals(new DeleteAllergyCommand(INDEX_FIRST_PATIENT, INDEX_SECOND_PATIENT), command);
     }
 
     @Test
     public void parseCommand_edit() throws Exception {
-        Person person = new PersonBuilder().build();
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
-        EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
-                + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
-        assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+        EditCommand command = (EditCommand) parser.parseCommand("edit 1 n/Amy Bee");
+        assertEquals(new EditCommand(INDEX_FIRST_PATIENT,
+                new EditPatientDescriptorBuilder().withName("Amy Bee").build()), command);
     }
 
     @Test
@@ -85,6 +295,68 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 123") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_listArchived_ignoresArguments() throws Exception {
+        assertTrue(parser.parseCommand(ListArchivedCommand.COMMAND_WORD) instanceof ListArchivedCommand);
+        assertTrue(parser.parseCommand(ListArchivedCommand.COMMAND_WORD + " ignored") instanceof ListArchivedCommand);
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PATIENT.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PATIENT), command);
+
+        // missing index
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ViewCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, ()
+                -> parser.parseCommand(ViewCommand.COMMAND_WORD));
+    }
+
+    @Test
+    public void parseCommand_commandWordCase_routesAllCommands() throws Exception {
+        for (String input : List.of("addcontact 1 n/Clinic r/GP p/123", "editcontact 1 1 nt/Call first",
+                "deletecontact 1 1", "add n/Alex Tan ic/S1111111A dob/1950-04-12 p/91234567 a/Blk 1",
+                "addcare 1 ci/Use cane", "addappt 1 d/2027-01-01 t/10:00 w/Dr Tan", "editappt 1 1 nt/Bring scans",
+                "cancelappt 1 1", "listappt 1", "archive 1", "editcare 1 1 ci/Use walker", "deletecare 1 1",
+                "deleteallergy 1 1", "delete 1", "due 1", "deletemed 1 1", "edit 1 n/Amy Bee",
+                "editmed 1 1 med/Aspirin", "clear confirm", "backup", "restore ClinicBackup.json", "export 1",
+                "find Alex", "list", "listarchived", "unarchive 1", "view 1", "exit", "help")) {
+            String[] parts = input.split(" ", 2);
+            String arguments = parts.length == 2 ? " " + parts[1] : "";
+            Class<?> expectedType = parser.parseCommand(input).getClass();
+            for (String commandWord : List.of(parts[0].toUpperCase(Locale.ROOT),
+                    parts[0].substring(0, 1).toUpperCase(Locale.ROOT) + parts[0].substring(1))) {
+                assertEquals(expectedType, parser.parseCommand(commandWord + arguments).getClass());
+            }
+        }
+    }
+
+    @Test
+    public void parseCommand_mixedCaseCommand_preservesFieldValues() throws Exception {
+        Patient patient = new PatientBuilder().withName("Mary-Jane Tan").withAddress("Blk A, #02-03").build();
+        String arguments = PatientUtil.getAddCommand(patient).substring(AddCommand.COMMAND_WORD.length());
+        assertEquals(new AddCommand(patient), parser.parseCommand("aDd" + arguments));
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(List.of("Mary-Jane"))),
+                parser.parseCommand("fInD Mary-Jane"));
+        assertEquals(new RestoreCommand("ClinicBackup.json"), parser.parseCommand("rEsToRe ClinicBackup.json"));
+    }
+
+    @Test
+    public void parseCommand_uppercaseInTurkishLocale_recognizesCommand() throws Exception {
+        assertTrue(callWithDefaultLocale(Locale.of("tr", "TR"), () -> parser.parseCommand("LIST"))
+                instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_uppercaseCommand_preservesArgumentCaseRules() {
+        assertThrows(ParseException.class, String.format(MESSAGE_UNKNOWN_PREFIX, "N/"), () ->
+                parser.parseCommand("ADD N/John Tan ic/S1234567A dob/1950-04-12 p/91234567 a/Blk 1"));
+        String clearUsage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, clearUsage, () -> parser.parseCommand("CLEAR CONFIRM"));
     }
 
     @Test
@@ -94,7 +366,92 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_unknownCommandWord_doesNotLogTheWord() {
+        String sensitiveWord = "S1234567A";
+        List<String> messages = parseAndCollectLogMessages(sensitiveWord + " 91234567");
+
+        assertFalse(messages.stream().anyMatch(message -> message.contains(sensitiveWord)));
+    }
+
+    @Test
+    public void parseCommand_knownCommandWord_doesNotLogArguments() {
+        List<String> messages = parseAndCollectLogMessages(FindCommand.COMMAND_WORD + " S1234567A");
+
+        assertFalse(messages.stream().anyMatch(message -> message.contains("S1234567A")));
+    }
+
+    /**
+     * Returns the messages that the parser logs at any level while it parses {@code userInput}, which is
+     * expected to be accepted or to fail with a {@code ParseException}.
+     */
+    private List<String> parseAndCollectLogMessages(String userInput) {
+        List<String> messages = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord logRecord) {
+                messages.add(logRecord.getMessage());
+            }
+
+            @Override
+            public void flush() { }
+
+            @Override
+            public void close() { }
+        };
+        handler.setLevel(Level.ALL);
+        Logger parserLogger = LogsCenter.getLogger(AddressBookParser.class);
+        Level originalLevel = parserLogger.getLevel();
+        parserLogger.setLevel(Level.ALL);
+        parserLogger.addHandler(handler);
+        try {
+            parser.parseCommand(userInput);
+        } catch (ParseException e) {
+            // the messages are what matters here
+        } finally {
+            parserLogger.removeHandler(handler);
+            parserLogger.setLevel(originalLevel);
+        }
+        return messages;
+    }
+
+    @Test
+    public void parseCommand_noBreakSpaceAfterCommandWord_parsedAsNormalSpace() throws Exception {
+        String nbsp = "\u00a0";
+        assertEquals(parser.parseCommand("delete 1"), parser.parseCommand("delete" + nbsp + "1"));
+        assertEquals(parser.parseCommand("view 1"), parser.parseCommand("view" + nbsp + "1"));
+        assertEquals(parser.parseCommand("due 1"), parser.parseCommand("due" + nbsp + "1"));
+        assertEquals(parser.parseCommand("editmed 1 2 t/08:00"),
+                parser.parseCommand("editmed" + nbsp + "1 2 t/08:00"));
+        assertTrue(parser.parseCommand("list" + nbsp) instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_noBreakSpaceAroundInput_parsedAsNormalSpace() throws Exception {
+        String nbsp = "\u00a0";
+        assertEquals(parser.parseCommand("delete 1"), parser.parseCommand(nbsp + "delete 1" + nbsp));
+        assertTrue(parser.parseCommand(nbsp + "list") instanceof ListCommand);
+        assertEquals(parser.parseCommand("delete 1"), parser.parseCommand("delete 1" + nbsp));
+        assertEquals(parser.parseCommand("editmed 1 2 t/08:00"),
+                parser.parseCommand("editmed 1" + nbsp + "2" + nbsp + "t/08:00"));
+        assertEquals(parser.parseCommand("deletemed 1 2"), parser.parseCommand("deletemed" + nbsp + "1" + nbsp + "2"));
+    }
+
+    @Test
+    public void parseCommand_tabAndOtherHorizontalSpaces_parsedAsNormalSpace() throws Exception {
+        assertEquals(parser.parseCommand("delete 1"), parser.parseCommand("delete\t1"));
+        assertEquals(parser.parseCommand("editmed 1 2 t/08:00"), parser.parseCommand("editmed\t1\t2\tt/08:00"));
+        assertEquals(parser.parseCommand("due 1"), parser.parseCommand("due\u20031\u3000"));
+    }
+
+    @Test
     public void parseCommand_unknownCommand_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+
+    @Test
+    public void parseCommand_contactCommands_dispatched() throws Exception {
+        assertTrue(parser.parseCommand("addcontact 1 n/Clinic r/GP p/123") instanceof AddContactCommand);
+        assertTrue(parser.parseCommand("editcontact 1 1 nt/") instanceof EditContactCommand);
+        assertTrue(parser.parseCommand("deletecontact 1 1") instanceof DeleteContactCommand);
     }
 }

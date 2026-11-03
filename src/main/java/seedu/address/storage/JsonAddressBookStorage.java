@@ -44,13 +44,16 @@ public class JsonAddressBookStorage {
     /**
      * Similar to {@link #readAddressBook()}.
      *
+     * The file is read strictly, so a misspelled or repeated property makes it invalid, rather than its value being
+     * lost the next time the data is saved.
+     *
      * @param filePath location of the data. Cannot be null.
      * @throws DataLoadingException if loading the data from storage failed.
      */
     public Optional<ReadOnlyAddressBook> readAddressBook(Path filePath) throws DataLoadingException {
         requireNonNull(filePath);
 
-        Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFile(
+        Optional<JsonSerializableAddressBook> jsonAddressBook = JsonUtil.readJsonFileStrictly(
                 filePath, JsonSerializableAddressBook.class);
         if (!jsonAddressBook.isPresent()) {
             return Optional.empty();
@@ -59,7 +62,7 @@ public class JsonAddressBookStorage {
         try {
             return Optional.of(jsonAddressBook.get().toModelType());
         } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
+            logger.warning("Illegal values found in " + filePath + ": " + ive.getMessage());
             throw new DataLoadingException(ive);
         }
     }
@@ -82,7 +85,8 @@ public class JsonAddressBookStorage {
         requireNonNull(addressBook);
         requireNonNull(filePath);
 
-        FileUtil.createIfMissing(filePath);
+        // Creates only the folder, so that a first save that fails leaves no empty data file.
+        FileUtil.createParentDirsOfFile(filePath);
         JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
     }
 

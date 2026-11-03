@@ -1,19 +1,12 @@
-#copyButton, #helpMessage {
+#helpMessage, #userGuideMessage {
     -fx-text-fill: white;
 }
 
-#copyButton {
-    -fx-background-color: dimgray;
+#helpMessageContainer, #userGuideBox {
+    -fx-background-color: derive(#1d1d1d, 20%);
 }
 
-#copyButton:hover {
-    -fx-background-color: gray;
-}
-
-#copyButton:armed {
-    -fx-background-color: darkgray;
-}
-
-#helpMessageContainer {
+#helpScrollPane, #helpScrollPane .viewport {
+    -fx-background: derive(#1d1d1d, 20%);
     -fx-background-color: derive(#1d1d1d, 20%);
 }

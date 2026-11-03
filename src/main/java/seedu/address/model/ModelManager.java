@@ -3,14 +3,22 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.patient.Patient;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -20,19 +28,32 @@ public class ModelManager implements Model {
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Patient> filteredPatients;
+    private final ObjectProperty<Patient> viewedPatient = new SimpleObjectProperty<>();
+    private final Clock clock;
+    private LocalDateTime viewedPatientShownAt;
 
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given addressBook and userPrefs, using the system clock.
      */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+        this(addressBook, userPrefs, Clock.systemDefaultZone());
+    }
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+    /**
+     * Initializes a ModelManager with the given addressBook and userPrefs, using {@code clock} to tell which
+     * appointments are upcoming.
+     */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs, Clock clock) {
+        requireAllNonNull(addressBook, userPrefs, clock);
+
+        logger.fine("Initializing with " + addressBook.getPatientList().size() + " patient(s) and user prefs "
+                + userPrefs);
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        this.clock = clock;
+        filteredPatients = new FilteredList<>(this.addressBook.getPatientList(), PREDICATE_SHOW_ACTIVE_PATIENTS);
     }
 
     public ModelManager() {
@@ -62,6 +83,10 @@ public class ModelManager implements Model {
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
         this.addressBook.resetData(addressBook);
+
+        if (!this.addressBook.getPatientList().contains(viewedPatient.get())) {
+            viewedPatient.set(null);
+        }
     }
 
     @Override
@@ -70,44 +95,107 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasPatient(Patient patient) {
+        requireNonNull(patient);
+        return addressBook.hasPatient(patient);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void deletePatient(Patient target) {
+        addressBook.removePatient(target);
+
+        if (target.equals(viewedPatient.get())) {
+            viewedPatient.set(null);
+        }
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void addPatient(Patient patient) {
+        addressBook.addPatient(patient);
+        updateFilteredPatientList(PREDICATE_SHOW_ACTIVE_PATIENTS);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
+    public void setPatient(Patient target, Patient editedPatient) {
+        requireAllNonNull(target, editedPatient);
 
-        addressBook.setPerson(target, editedPerson);
+        addressBook.setPatient(target, editedPatient);
+
+        if (target.equals(viewedPatient.get()) && !target.isArchived() && editedPatient.isArchived()) {
+            viewedPatient.set(null);
+        } else if (target.equals(viewedPatient.get())) {
+            viewedPatient.set(editedPatient);
+        }
     }
 
-    //=========== Filtered Person List Accessors =============================================================
+    //=========== Filtered Patient List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
+     * Returns an unmodifiable view of the list of {@code Patient} backed by the internal list of
      * {@code addressBook}
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public ObservableList<Patient> getFilteredPatientList() {
+        return filteredPatients;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public void updateFilteredPatientList(Predicate<Patient> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredPatients.setPredicate(predicate);
+    }
+
+    //=========== Viewed Patient Accessors ===================================================================
+
+    @Override
+    public ObservableValue<Patient> getViewedPatient() {
+        return viewedPatient;
+    }
+
+    @Override
+    public void setViewedPatient(Patient patient) {
+        requireNonNull(patient);
+        assert addressBook.hasPatient(patient) : "Viewed patient must exist in MediConnect";
+
+        viewedPatientShownAt = LocalDateTime.now(clock);
+        if (patient.equals(viewedPatient.get())) {
+            // clears first so that listeners redraw the same patient with the new order of appointments
+            viewedPatient.set(null);
+        }
+        viewedPatient.set(patient);
+    }
+
+    @Override
+    public LocalDateTime getAppointmentsOrderedAt(Patient patient) {
+        requireNonNull(patient);
+        return patient.equals(viewedPatient.get())
+                ? viewedPatientShownAt
+                : LocalDateTime.now(clock);
+    }
+
+    @Override
+    public List<Appointment> getAppointmentsAsShown(Patient patient) {
+        requireNonNull(patient);
+        return patient.getAppointmentsUpcomingFirst(getAppointmentsOrderedAt(patient));
+    }
+
+    //=========== Snapshots ==================================================================================
+
+    @Override
+    public Snapshot takeSnapshot() {
+        return new Snapshot(new AddressBook(addressBook), filteredPatients.getPredicate(), viewedPatient.get(),
+                viewedPatientShownAt);
+    }
+
+    @Override
+    public void restoreSnapshot(Snapshot snapshot) {
+        requireNonNull(snapshot);
+        addressBook.resetData(snapshot.addressBook());
+        filteredPatients.setPredicate(snapshot.filter());
+        viewedPatientShownAt = snapshot.viewedPatientShownAt();
+        // clears first so that listeners redraw the patient even if only the order of appointments changed
+        viewedPatient.set(null);
+        viewedPatient.set(snapshot.viewedPatient());
     }
 
     @Override
@@ -123,7 +211,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPatients.equals(otherModelManager.filteredPatients)
+                && Objects.equals(viewedPatient.get(), otherModelManager.viewedPatient.get());
     }
 
 }

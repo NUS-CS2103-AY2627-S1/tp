@@ -1,11 +1,14 @@
 package seedu.address.logic;
 
+import java.util.List;
+
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.patient.Patient;
 
 /**
  * API of the Logic component
@@ -20,8 +23,20 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered list of patients */
+    ObservableList<Patient> getFilteredPatientList();
+
+    /**
+     * Returns the patient whose full details are being viewed.
+     * The value is null when no patient is being viewed.
+     */
+    ObservableValue<Patient> getViewedPatient();
+
+    /**
+     * Returns the text of each appointment of {@code patient}, in the order the detail panel and commands number
+     * them, with past ones marked. Upcoming and past are decided at the same time as the order.
+     */
+    List<String> getAppointmentLinesAsShown(Patient patient);
 
     /**
      * Returns the user prefs' GUI settings.
