@@ -38,6 +38,9 @@ public class MainWindow extends UiPart<Stage> {
     private HelpWindow helpWindow;
 
     @FXML
+    private StackPane personDetailsPlaceholder;
+
+    @FXML
     private StackPane commandBoxPlaceholder;
 
     @FXML
@@ -114,8 +117,13 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.selectedPersonProperty());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+
+        PersonDetailsPanel detailsPanel = new PersonDetailsPanel(logic.selectedPersonProperty());
+        personDetailsPlaceholder.getChildren().add(detailsPanel.getRoot());
+        personDetailsPlaceholder.visibleProperty().bind(detailsPanel.getRoot().visibleProperty());
+        personDetailsPlaceholder.managedProperty().bind(detailsPanel.getRoot().managedProperty());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -125,6 +133,17 @@ public class MainWindow extends UiPart<Stage> {
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+    }
+
+    /**
+     * Shows {@code message} in the result display, if it is not empty.
+     */
+    void showStartupMessage(String message) {
+        assert resultDisplay != null : "fillInnerParts() must be called before showing the startup message";
+        if (message != null && !message.isEmpty()) {
+            logger.info("Showing startup message: " + message);
+            resultDisplay.setFeedbackToUser(message);
+        }
     }
 
     /**
@@ -184,6 +203,10 @@ public class MainWindow extends UiPart<Stage> {
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
+            }
+
+            if (commandResult.isViewRequested()) {
+                personListPanel.scrollToSelectedPerson();
             }
 
             if (commandResult.isExit()) {

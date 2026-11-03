@@ -11,10 +11,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.CheckupAppointment;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,27 +25,85 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String INVALID_BOOLEAN_MESSAGE_FORMAT = "Person's %s field must be true or false!";
 
     private final String name;
-    private final String phone;
-    private final String email;
+    private final String patientNo;
+    private final String familyNo;
+    private final String patientEmail;
+    private final String familyEmail;
     private final String address;
+    // kept as read from the file, so that values such as "true" or 1 are rejected instead of converted
+    private final Object archived;
+    private final String checkupAppointment;
+    private final Object checkupMarked;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<String> remarks = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("patientNo") String patientNo,
+            @JsonProperty("familyNo") String familyNo, @JsonProperty("pEmail") String patientEmail,
+            @JsonProperty("fEmail") String familyEmail, @JsonProperty("email") String legacyEmail,
+            @JsonProperty("address") String address, @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("checkupAppointment") String checkupAppointment,
+            @JsonProperty("remarks") List<String> remarks, @JsonProperty("archived") Object archived,
+            @JsonProperty("checkupMarked") Object checkupMarked) {
         this.name = name;
-        this.phone = phone;
-        this.email = email;
+        this.patientNo = patientNo;
+        this.familyNo = familyNo;
+        this.patientEmail = patientEmail != null ? patientEmail : legacyEmail;
+        this.familyEmail = familyEmail;
         this.address = address;
+        this.archived = archived;
+        this.checkupAppointment = checkupAppointment;
+        this.checkupMarked = checkupMarked;
         if (tags != null) {
             this.tags.addAll(tags);
         }
+        // data files from v1.4 and earlier have no remarks
+        if (remarks != null) {
+            this.remarks.addAll(remarks);
+        }
+    }
+
+    /**
+     * Constructs an adapted contact whose checkup has not been marked.
+     */
+    public JsonAdaptedPerson(String name, String patientNo, String familyNo, String patientEmail,
+            String familyEmail, String legacyEmail, String address, List<JsonAdaptedTag> tags,
+            String checkupAppointment, List<String> remarks, boolean archived) {
+        this(name, patientNo, familyNo, patientEmail, familyEmail, legacyEmail, address, tags,
+                checkupAppointment, remarks, archived, false);
+    }
+
+    /**
+     * Constructs an adapted contact without a checkup appointment or remarks.
+     */
+    public JsonAdaptedPerson(String name, String patientNo, String familyNo, String patientEmail,
+            String familyEmail, String legacyEmail, String address, List<JsonAdaptedTag> tags) {
+        this(name, patientNo, familyNo, patientEmail, familyEmail, legacyEmail, address, tags, null, null);
+    }
+
+    /**
+     * Constructs an active contact with optional appointment and remarks.
+     */
+    public JsonAdaptedPerson(String name, String patientNo, String familyNo, String patientEmail,
+            String familyEmail, String legacyEmail, String address, List<JsonAdaptedTag> tags,
+            String checkupAppointment, List<String> remarks) {
+        this(name, patientNo, familyNo, patientEmail, familyEmail, legacyEmail, address, tags,
+                checkupAppointment, remarks, false);
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} with one legacy email.
+     * and no checkup appointment or remarks.
+     */
+    public JsonAdaptedPerson(String name, String patientNo, String familyNo, String email, String address,
+            List<JsonAdaptedTag> tags) {
+        this(name, patientNo, familyNo, email, null, null, address, tags);
     }
 
     /**
@@ -51,12 +111,18 @@ class JsonAdaptedPerson {
      */
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
-        phone = source.getPhone().value;
-        email = source.getEmail().value;
+        patientNo = source.getPatientNo().value;
+        familyNo = source.getFamilyNo().value;
+        patientEmail = source.getPatientEmail().map(sourceEmail -> sourceEmail.value).orElse(null);
+        familyEmail = source.getFamilyEmail().map(sourceEmail -> sourceEmail.value).orElse(null);
         address = source.getAddress().value;
+        archived = source.isArchived();
+        checkupAppointment = source.getCheckupAppointment().map(CheckupAppointment::toString).orElse(null);
+        checkupMarked = source.isCheckupMarked();
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
+        remarks.addAll(source.getRemark().getNotes());
     }
 
     /**
@@ -67,6 +133,10 @@ class JsonAdaptedPerson {
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            // a hand-edited file may contain null in the tag list
+            if (tag == null) {
+                throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
+            }
             personTags.add(tag.toModelType());
         }
 
@@ -78,21 +148,42 @@ class JsonAdaptedPerson {
         }
         final Name modelName = new Name(name);
 
-        if (phone == null) {
+        if (patientNo == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
-            throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
+        if (!Phone.isValidPhone(patientNo)) {
+            throw new IllegalValueException("Patient HP is invalid. " + Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
 
-        if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
+        if (familyNo == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Email.isValidEmail(email)) {
-            throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+        if (!Phone.isValidPhone(familyNo)) {
+            throw new IllegalValueException("Family HP is invalid. " + Phone.MESSAGE_CONSTRAINTS);
         }
-        final Email modelEmail = new Email(email);
+
+        final Phone modelPatientPhone = new Phone(patientNo);
+        final Phone modelFamilyPhone = new Phone(familyNo);
+
+        final Email modelPatientEmail;
+        if (patientEmail != null) {
+            if (!Email.isValidEmail(patientEmail)) {
+                throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+            }
+            modelPatientEmail = new Email(patientEmail);
+        } else {
+            modelPatientEmail = null;
+        }
+
+        final Email modelFamilyEmail;
+        if (familyEmail != null) {
+            if (!Email.isValidEmail(familyEmail)) {
+                throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+            }
+            modelFamilyEmail = new Email(familyEmail);
+        } else {
+            modelFamilyEmail = null;
+        }
 
         if (address == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
@@ -103,7 +194,55 @@ class JsonAdaptedPerson {
         final Address modelAddress = new Address(address);
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        if (modelTags.size() > 1) {
+            throw new IllegalValueException(Person.MESSAGE_TAG_COUNT_CONSTRAINTS);
+        }
+        final CheckupAppointment modelAppointment;
+        try {
+            modelAppointment = checkupAppointment == null ? null : new CheckupAppointment(checkupAppointment);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(CheckupAppointment.MESSAGE_CONSTRAINTS);
+        }
+        final boolean isArchived = toModelBoolean(archived, "archived");
+        final boolean isCheckupMarked = toModelBoolean(checkupMarked, "checkupMarked");
+        if (isCheckupMarked && modelAppointment == null) {
+            throw new IllegalValueException(Person.MESSAGE_MARK_WITHOUT_CHECKUP);
+        }
+        return new Person(modelName, modelPatientPhone, modelFamilyPhone, modelPatientEmail, modelFamilyEmail,
+                modelAddress, modelTags, modelAppointment, toModelRemark(), isArchived, isCheckupMarked);
+    }
+
+    /**
+     * Converts a true-or-false field as read from the file. A missing field (or {@code null}) is {@code false},
+     * since data files from before the field existed leave it out.
+     *
+     * @throws IllegalValueException if the value is anything other than {@code true} or {@code false}.
+     */
+    private static boolean toModelBoolean(Object value, String fieldName) throws IllegalValueException {
+        if (value == null) {
+            return false;
+        }
+        if (!(value instanceof Boolean)) {
+            throw new IllegalValueException(String.format(INVALID_BOOLEAN_MESSAGE_FORMAT, fieldName));
+        }
+        return (Boolean) value;
+    }
+
+    /**
+     * Converts the adapted notes into the model's {@code Remark} object.
+     *
+     * @throws IllegalValueException if a note is missing or blank, or the notes are too long in total.
+     */
+    private Remark toModelRemark() throws IllegalValueException {
+        for (String note : remarks) {
+            if (note == null || !Remark.isValidNote(note)) {
+                throw new IllegalValueException(Remark.MESSAGE_CONSTRAINTS);
+            }
+        }
+        if (!Remark.isWithinLengthLimit(remarks)) {
+            throw new IllegalValueException(Remark.MESSAGE_TOO_LONG);
+        }
+        return new Remark(remarks);
     }
 
 }

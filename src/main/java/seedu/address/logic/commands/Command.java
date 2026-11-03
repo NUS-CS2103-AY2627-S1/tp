@@ -17,4 +17,19 @@ public abstract class Command {
      */
     public abstract CommandResult execute(Model model) throws CommandException;
 
+    /**
+     * Returns true if this command may change the stored data, so the data should be saved after it runs.
+     */
+    public boolean modifiesData() {
+        return true;
+    }
+
+    /**
+     * Returns whether the selected contact remains displayed after successful command processing.
+     * Only view commands preserve the details panel; other commands return to their normal list display.
+     */
+    public boolean preservesPersonSelection() {
+        return false;
+    }
+
 }

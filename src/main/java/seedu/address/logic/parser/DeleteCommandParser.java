@@ -1,6 +1,7 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.DeleteCommand;
@@ -11,18 +12,49 @@ import seedu.address.logic.parser.exceptions.ParseException;
  */
 public class DeleteCommandParser implements Parser<DeleteCommand> {
 
+    private static final String INTEGER_REGEX = "-?\\d+";
+    private static final String ZERO_REGEX = "-?0+";
+
     /**
      * Parses the given {@code String} of arguments in the context of the DeleteCommand
-     * and returns a DeleteCommand object for execution.
+     * and returns a DeleteCommand object for execution. The index may be followed by {@code /confirm}
+     * to confirm the deletion; without it the command only shows a warning.
      * @throws ParseException if the user input does not conform to the expected format
      */
     public DeleteCommand parse(String args) throws ParseException {
-        try {
-            Index index = ParserUtil.parseIndex(args);
-            return new DeleteCommand(index);
-        } catch (ParseException pe) {
+        String trimmedArgs = args.trim();
+
+        boolean isConfirmed = false;
+        String[] tokens = trimmedArgs.split("\\s+");
+        if (tokens.length == 2 && tokens[1].equalsIgnoreCase(DeleteCommand.CONFIRM_FLAG)) {
+            isConfirmed = true;
+            trimmedArgs = tokens[0];
+        }
+
+        // missing index, non-numeric index or extra arguments
+        if (!trimmedArgs.matches(INTEGER_REGEX)) {
             throw new ParseException(
-                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE), pe);
+                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+        }
+
+        // an integer, but not a positive one
+        if (trimmedArgs.startsWith("-") || trimmedArgs.matches(ZERO_REGEX)) {
+            throw new ParseException(MESSAGE_INVALID_INDEX);
+        }
+
+        return new DeleteCommand(parsePositiveIndex(trimmedArgs), isConfirmed);
+    }
+
+    /**
+     * Parses {@code digits}, a string of digits representing a positive integer, into an {@code Index}.
+     * A value too large to fit in an {@code int} cannot refer to any person in the list, so it is capped at
+     * {@code Integer.MAX_VALUE} for the command to report it as out of range.
+     */
+    private static Index parsePositiveIndex(String digits) {
+        try {
+            return Index.fromOneBased(Integer.parseInt(digits));
+        } catch (NumberFormatException nfe) {
+            return Index.fromOneBased(Integer.MAX_VALUE);
         }
     }
 

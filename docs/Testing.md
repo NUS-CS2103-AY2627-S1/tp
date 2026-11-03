@@ -1,12 +1,15 @@
 ---
-layout: page
-title: Testing guide
+  layout: default.md
+  title: "Testing guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Testing guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Running tests
 
@@ -19,8 +22,19 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
-<div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
-</div>
+Use Java 25 with JavaFX for both methods. The contact-details integration tests create temporary
+JavaFX windows, run assertions on the JavaFX application thread, and close the windows afterwards.
+They use in-memory contacts and temporary paths, not your personal contact file.
+
+On a Linux machine without a graphical display, install Xvfb and run
+`xvfb-run --auto-servernum ./gradlew clean test`. The Linux CI job uses the same virtual-display wrapper
+for `./gradlew check coverage`, so these UI tests contribute to the uploaded coverage report.
+Windows and macOS CI jobs run the tests without this wrapper.
+
+<box type="info" seamless>
+
+**Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 

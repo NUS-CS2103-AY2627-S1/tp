@@ -2,11 +2,12 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FAMILY_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FAMILY_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PATIENT_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PATIENT_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -14,7 +15,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
@@ -39,25 +42,39 @@ public class EditCommand extends Command {
             + "by the index number used in the displayed person list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
-            + "[" + PREFIX_NAME + "NAME] "
-            + "[" + PREFIX_PHONE + "PHONE] "
-            + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_NAME + " NAME] "
+            + "[" + PREFIX_PATIENT_PHONE + " PATIENT_PHONE] "
+            + "[" + PREFIX_FAMILY_PHONE + " FAMILY_PHONE] "
+            + "[" + PREFIX_PATIENT_EMAIL + " PATIENT_EMAIL] "
+            + "[" + PREFIX_FAMILY_EMAIL + " FAMILY_EMAIL] "
+            + "[" + PREFIX_ADDRESS + " ADDRESS] "
+            + "[" + PREFIX_TAG + " PRIORITY]\n"
+            + "The '/' character starts a prefix. Inside a value, it can only join short parts, e.g. s/o or 4/5. "
+            + "Separate each prefix from its value with a space.\n"
             + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + PREFIX_PATIENT_PHONE + " 91234567 "
+            + PREFIX_FAMILY_EMAIL + " family@example.com "
+            + PREFIX_TAG + " HIGH";
 
     public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_NO_CHANGE = "No changes made: the values given are the same as %1$s's "
+            + "current details.";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_BOOKING_CLASH = "This family HP cannot be used: another active contact has "
+            + "a checkup at the same date and time, and contacts can share a booking only if their family HP numbers "
+            + "match. Change one of the checkups first.";
+    public static final String MESSAGE_DUPLICATE_PERSON = Messages.MESSAGE_DUPLICATE_PERSON;
+
+    private static final Logger logger = LogsCenter.getLogger(EditCommand.class);
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * Creates an EditCommand to edit the person at {@code index} with {@code editPersonDescriptor}.
+     *
+     * @param index of the person in the filtered person list to edit.
+     * @param editPersonDescriptor details to edit the person with.
      */
     public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
         requireNonNull(index);
@@ -73,19 +90,56 @@ public class EditCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            logger.fine("Edit rejected: index " + index.getOneBased() + " is not in the displayed list");
+            throw new CommandException(
+                    Messages.getMessageForIndexNotDisplayed(lastShownList.size()));
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        if (personToEdit.equals(editedPerson)) {
+            logger.fine("Edit made no change to the contact at index " + index.getOneBased());
+            return new CommandResult(String.format(MESSAGE_NO_CHANGE, personToEdit.getName()));
         }
 
-        model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        requireNoClash(model, personToEdit, editedPerson);
+        model.setPersonKeepingDisplayed(personToEdit, editedPerson);
+        logger.info("Edited contact at index " + index.getOneBased());
         return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+    }
+
+    /**
+     * Checks that {@code editedPerson}, which replaces {@code personToEdit}, does not clash with another person.
+     *
+     * @throws CommandException if another person has the same patient contact details, or the same name and
+     *     address, or if the new family HP breaks a checkup booking shared with another person.
+     */
+    private static void requireNoClash(Model model, Person personToEdit, Person editedPerson)
+            throws CommandException {
+        List<Person> otherPersons = model.getAddressBook().getPersonList().stream()
+                .filter(person -> !person.equals(personToEdit)).toList();
+
+        AddCommand.requireNoDuplicate(editedPerson, otherPersons);
+
+        if (!editedPerson.getFamilyNo().equals(personToEdit.getFamilyNo())
+                && hasBookingClash(editedPerson, otherPersons)) {
+            logger.fine("Edit rejected: the new family HP clashes with another contact's checkup booking");
+            throw new CommandException(MESSAGE_BOOKING_CLASH);
+        }
+    }
+
+    /**
+     * Returns true if {@code editedPerson} has a checkup appointment that an active person in {@code otherPersons}
+     * also has, with a different family HP. {@code checkup} does not allow such a booking, so neither does edit.
+     */
+    private static boolean hasBookingClash(Person editedPerson, List<Person> otherPersons) {
+        if (editedPerson.isArchived() || editedPerson.getCheckupAppointment().isEmpty()) {
+            return false;
+        }
+        return otherPersons.stream().anyMatch(other -> !other.isArchived()
+                && other.getCheckupAppointment().equals(editedPerson.getCheckupAppointment())
+                && !other.getFamilyNo().equals(editedPerson.getFamilyNo()));
     }
 
     /**
@@ -96,12 +150,26 @@ public class EditCommand extends Command {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
-        Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
-        Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
+        Phone updatedPatientNo = editPersonDescriptor.getPatientNo().orElse(personToEdit.getPatientNo());
+        Phone updatedFamilyNo = editPersonDescriptor.getFamilyNo().orElse(personToEdit.getFamilyNo());
+        Email updatedPatientEmail = chooseEmail(editPersonDescriptor.isPatientEmailEdited(),
+                editPersonDescriptor.getPatientEmail(), personToEdit.getPatientEmail());
+        Email updatedFamilyEmail = chooseEmail(editPersonDescriptor.isFamilyEmailEdited(),
+                editPersonDescriptor.getFamilyEmail(), personToEdit.getFamilyEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPatientNo, updatedFamilyNo, updatedPatientEmail,
+                updatedFamilyEmail, updatedAddress, updatedTags, personToEdit.getCheckupAppointment().orElse(null),
+                personToEdit.getRemark(), personToEdit.isArchived(), personToEdit.isCheckupMarked());
+    }
+
+    /**
+     * Returns the email to keep after an edit: {@code newEmail} if the email was edited (empty means it was
+     * removed), otherwise {@code oldEmail}. Either result may be {@code null}, meaning no email.
+     */
+    private static Email chooseEmail(boolean isEdited, Optional<Email> newEmail, Optional<Email> oldEmail) {
+        return (isEdited ? newEmail : oldEmail).orElse(null);
     }
 
     @Override
@@ -129,12 +197,17 @@ public class EditCommand extends Command {
 
     /**
      * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * corresponding field value of the person. The optional emails have a third state: an email that is
+     * marked as edited but has no value removes the person's email, while an email that is not edited is kept.
      */
     public static class EditPersonDescriptor {
         private Name name;
-        private Phone phone;
-        private Email email;
+        private Phone patientNo;
+        private Phone familyNo;
+        private Email patientEmail;
+        private Email familyEmail;
+        private boolean isPatientEmailEdited;
+        private boolean isFamilyEmailEdited;
         private Address address;
         private Set<Tag> tags;
 
@@ -146,8 +219,13 @@ public class EditCommand extends Command {
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
-            setPhone(toCopy.phone);
-            setEmail(toCopy.email);
+            setPatientNo(toCopy.patientNo);
+            setFamilyNo(toCopy.familyNo);
+            // the email setters would mark the emails as edited, so the fields and flags are copied directly
+            patientEmail = toCopy.patientEmail;
+            familyEmail = toCopy.familyEmail;
+            isPatientEmailEdited = toCopy.isPatientEmailEdited;
+            isFamilyEmailEdited = toCopy.isFamilyEmailEdited;
             setAddress(toCopy.address);
             setTags(toCopy.tags);
         }
@@ -156,7 +234,8 @@ public class EditCommand extends Command {
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, patientNo, familyNo, address, tags)
+                    || isPatientEmailEdited || isFamilyEmailEdited;
         }
 
         public void setName(Name name) {
@@ -167,20 +246,58 @@ public class EditCommand extends Command {
             return Optional.ofNullable(name);
         }
 
-        public void setPhone(Phone phone) {
-            this.phone = phone;
+        public void setPatientNo(Phone patientNo) {
+            this.patientNo = patientNo;
         }
 
-        public Optional<Phone> getPhone() {
-            return Optional.ofNullable(phone);
+        public Optional<Phone> getPatientNo() {
+            return Optional.ofNullable(patientNo);
         }
 
-        public void setEmail(Email email) {
-            this.email = email;
+        public void setFamilyNo(Phone familyNo) {
+            this.familyNo = familyNo;
         }
 
-        public Optional<Email> getEmail() {
-            return Optional.ofNullable(email);
+        public Optional<Phone> getFamilyNo() {
+            return Optional.ofNullable(familyNo);
+        }
+
+        /**
+         * Sets the patient email to {@code patientEmail}, or removes it if {@code patientEmail} is null.
+         */
+        public void setPatientEmail(Email patientEmail) {
+            this.patientEmail = patientEmail;
+            isPatientEmailEdited = true;
+        }
+
+        public Optional<Email> getPatientEmail() {
+            return Optional.ofNullable(patientEmail);
+        }
+
+        /**
+         * Sets the family email to {@code familyEmail}, or removes it if {@code familyEmail} is null.
+         */
+        public void setFamilyEmail(Email familyEmail) {
+            this.familyEmail = familyEmail;
+            isFamilyEmailEdited = true;
+        }
+
+        public Optional<Email> getFamilyEmail() {
+            return Optional.ofNullable(familyEmail);
+        }
+
+        /**
+         * Returns true if the patient email is to be changed or removed.
+         */
+        public boolean isPatientEmailEdited() {
+            return isPatientEmailEdited;
+        }
+
+        /**
+         * Returns true if the family email is to be changed or removed.
+         */
+        public boolean isFamilyEmailEdited() {
+            return isFamilyEmailEdited;
         }
 
         public void setAddress(Address address) {
@@ -220,8 +337,12 @@ public class EditCommand extends Command {
             }
 
             return Objects.equals(name, otherEditPersonDescriptor.name)
-                    && Objects.equals(phone, otherEditPersonDescriptor.phone)
-                    && Objects.equals(email, otherEditPersonDescriptor.email)
+                    && Objects.equals(patientNo, otherEditPersonDescriptor.patientNo)
+                    && Objects.equals(familyNo, otherEditPersonDescriptor.familyNo)
+                    && Objects.equals(patientEmail, otherEditPersonDescriptor.patientEmail)
+                    && Objects.equals(familyEmail, otherEditPersonDescriptor.familyEmail)
+                    && isPatientEmailEdited == otherEditPersonDescriptor.isPatientEmailEdited
+                    && isFamilyEmailEdited == otherEditPersonDescriptor.isFamilyEmailEdited
                     && Objects.equals(address, otherEditPersonDescriptor.address)
                     && Objects.equals(tags, otherEditPersonDescriptor.tags);
         }
@@ -230,8 +351,12 @@ public class EditCommand extends Command {
         public String toString() {
             return new ToStringBuilder(this)
                     .add("name", name)
-                    .add("phone", phone)
-                    .add("email", email)
+                    .add("patientNo", patientNo)
+                    .add("familyNo", familyNo)
+                    .add("patientEmail", patientEmail)
+                    .add("familyEmail", familyEmail)
+                    .add("isPatientEmailEdited", isPatientEmailEdited)
+                    .add("isFamilyEmailEdited", isFamilyEmailEdited)
                     .add("address", address)
                     .add("tags", tags)
                     .toString();

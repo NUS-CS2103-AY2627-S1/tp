@@ -7,14 +7,17 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
@@ -29,8 +32,8 @@ public class ParserUtilTest {
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
-    private static final String VALID_TAG_1 = "friend";
-    private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_TAG_1 = "HIGH";
+    private static final String VALID_TAG_2 = "LOW";
 
     private static final String WHITESPACE = " \t\r\n";
 
@@ -43,6 +46,15 @@ public class ParserUtilTest {
     public void parseIndex_outOfRangeInput_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
             -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+    }
+
+    @Test
+    public void parseDisplayedIndex_tooLargeForInt_capsAtMaxValue() throws Exception {
+        assertEquals(Index.fromOneBased(Integer.MAX_VALUE), ParserUtil.parseDisplayedIndex("99999999999"));
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseDisplayedIndex(" 1 "));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseDisplayedIndex("0"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseDisplayedIndex("-1"));
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseDisplayedIndex("\u0661"));
     }
 
     @Test
@@ -75,6 +87,11 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_repeatedSpaces_returnsNormalizedName() throws Exception {
+        assertEquals(new Name("Kim Lee"), ParserUtil.parseName("  Kim    Lee   "));
     }
 
     @Test
@@ -186,9 +203,41 @@ public class ParserUtilTest {
 
     @Test
     public void parseTags_collectionWithValidTags_returnsTagSet() throws Exception {
-        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2));
-        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_1));
+        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTags_multiplePriorities_throwsParseException() {
+        assertThrows(ParseException.class, Person.MESSAGE_TAG_COUNT_CONSTRAINTS, () ->
+                ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2)));
+    }
+
+    @Test
+    public void parseTag_mixedCase_returnsUppercaseTag() throws Exception {
+        for (String value : List.of("high", "High", "hIgH", "HIGH", "medium", "Medium", "low", "LoW")) {
+            assertEquals(new Tag(value.toUpperCase(Locale.ROOT)), ParserUtil.parseTag(" " + value + " "));
+        }
+    }
+
+    @Test
+    public void parseTags_mixedCaseDuplicates_returnsSingleTag() throws Exception {
+        assertEquals(Set.of(new Tag("HIGH")), ParserUtil.parseTags(List.of("High", "high", "HIGH")));
+        assertThrows(ParseException.class, Person.MESSAGE_TAG_COUNT_CONSTRAINTS, () ->
+                ParserUtil.parseTags(List.of("High", "low")));
+    }
+
+    @Test
+    public void parseTag_turkishLocale_returnsUppercaseTag() throws Exception {
+        Locale originalLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            assertEquals(new Tag("HIGH"), ParserUtil.parseTag("high"));
+            assertEquals(new Tag("MEDIUM"), ParserUtil.parseTag("medium"));
+        } finally {
+            Locale.setDefault(originalLocale);
+        }
     }
 }

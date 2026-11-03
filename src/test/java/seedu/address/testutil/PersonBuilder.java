@@ -1,15 +1,19 @@
 package seedu.address.testutil;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.model.person.Address;
+import seedu.address.model.person.CheckupAppointment;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
 import seedu.address.model.tag.Tag;
-import seedu.address.model.util.SampleDataUtil;
 
 /**
  * A utility class to help with building Person objects.
@@ -22,20 +26,29 @@ public class PersonBuilder {
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
     private Name name;
-    private Phone phone;
-    private Email email;
+    private Phone patientNo;
+    private Phone familyNo;
+    private Email patientEmail;
+    private Email familyEmail;
     private Address address;
+    private CheckupAppointment checkupAppointment;
+    private boolean checkupMarked;
+    private boolean archived;
     private Set<Tag> tags;
+    private Remark remark;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
-        phone = new Phone(DEFAULT_PHONE);
-        email = new Email(DEFAULT_EMAIL);
+        patientNo = new Phone(DEFAULT_PHONE);
+        familyNo = new Phone("87654321");
+        patientEmail = new Email(DEFAULT_EMAIL);
+        familyEmail = null;
         address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        remark = Remark.EMPTY;
     }
 
     /**
@@ -43,10 +56,16 @@ public class PersonBuilder {
      */
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
-        phone = personToCopy.getPhone();
-        email = personToCopy.getEmail();
+        patientNo = personToCopy.getPatientNo();
+        familyNo = personToCopy.getFamilyNo();
+        patientEmail = personToCopy.getPatientEmail().orElse(null);
+        familyEmail = personToCopy.getFamilyEmail().orElse(null);
         address = personToCopy.getAddress();
+        checkupAppointment = personToCopy.getCheckupAppointment().orElse(null);
+        checkupMarked = personToCopy.isCheckupMarked();
+        archived = personToCopy.isArchived();
         tags = new HashSet<>(personToCopy.getTags());
+        remark = personToCopy.getRemark();
     }
 
     /**
@@ -61,8 +80,17 @@ public class PersonBuilder {
      * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
      */
     public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
+        this.tags = getTagSet(tags);
         return this;
+    }
+
+    /**
+     * Returns a tag set containing the priority names in {@code tags}.
+     */
+    public static Set<Tag> getTagSet(String... tags) {
+        return Arrays.stream(tags)
+                .map(Tag::new)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -77,7 +105,23 @@ public class PersonBuilder {
      * Sets the {@code Phone} of the {@code Person} that we are building.
      */
     public PersonBuilder withPhone(String phone) {
-        this.phone = new Phone(phone);
+        this.patientNo = new Phone(phone);
+        return this;
+    }
+
+    /**
+     * Sets the patient phone number of the {@code Person} that we are building.
+     */
+    public PersonBuilder withPatientNo(String patientNo) {
+        this.patientNo = new Phone(patientNo);
+        return this;
+    }
+
+    /**
+     * Sets the family phone number of the {@code Person} that we are building.
+     */
+    public PersonBuilder withFamilyNo(String familyNo) {
+        this.familyNo = new Phone(familyNo);
         return this;
     }
 
@@ -85,12 +129,57 @@ public class PersonBuilder {
      * Sets the {@code Email} of the {@code Person} that we are building.
      */
     public PersonBuilder withEmail(String email) {
-        this.email = new Email(email);
+        this.patientEmail = new Email(email);
         return this;
     }
 
+    /**
+     * Sets the patient email of the {@code Person} that we are building.
+     */
+    public PersonBuilder withPatientEmail(String patientEmail) {
+        this.patientEmail = new Email(patientEmail);
+        return this;
+    }
+
+    /**
+     * Sets the family email of the {@code Person} that we are building.
+     */
+    public PersonBuilder withFamilyEmail(String familyEmail) {
+        this.familyEmail = new Email(familyEmail);
+        return this;
+    }
+
+    /**
+     * Removes the optional email from the {@code Person} that we are building.
+     */
+    public PersonBuilder withoutEmail() {
+        this.patientEmail = null;
+        this.familyEmail = null;
+        return this;
+    }
+
+    /**
+     * Sets the notes in the remark of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRemarks(String... notes) {
+        this.remark = new Remark(List.of(notes));
+        return this;
+    }
+
+    /**
+     * Sets the checkup appointment of the contact being built.
+     */
+    public PersonBuilder withCheckupAppointment(String dateTime) {
+        checkupAppointment = new CheckupAppointment(dateTime);
+        return this;
+    }
+
+    /**
+     * Returns the {@code Person} with the details set so far.
+     */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, patientNo, familyNo, patientEmail, familyEmail, address, tags, checkupAppointment,
+                remark, archived, checkupMarked);
     }
 
 }

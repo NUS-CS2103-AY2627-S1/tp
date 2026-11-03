@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
@@ -12,6 +13,7 @@ import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
@@ -21,6 +23,9 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    private static final String DIGITS_REGEX = "[0-9]+";
+    private static final String ZEROS_REGEX = "0+";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -33,6 +38,23 @@ public class ParserUtil {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+    }
+
+    /**
+     * Parses {@code oneBasedIndex} like {@link #parseIndex(String)}, except that a positive number too large for an
+     * {@code int} is capped at {@code Integer.MAX_VALUE}. It cannot refer to any displayed person, so the command
+     * reports it as out of range instead of as an invalid index.
+     *
+     * @throws ParseException if the specified index is invalid (not a positive integer).
+     */
+    public static Index parseDisplayedIndex(String oneBasedIndex) throws ParseException {
+        String trimmedIndex = oneBasedIndex.trim();
+        boolean isTooLarge = trimmedIndex.matches(DIGITS_REGEX) && !trimmedIndex.matches(ZEROS_REGEX)
+                && !StringUtil.isNonZeroUnsignedInteger(trimmedIndex);
+        if (isTooLarge) {
+            return Index.fromOneBased(Integer.MAX_VALUE);
+        }
+        return parseIndex(trimmedIndex);
     }
 
     /**
@@ -97,13 +119,16 @@ public class ParserUtil {
 
     /**
      * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Trims leading and trailing whitespace and normalizes case to uppercase.
      *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * @param tag The priority name to parse.
+     * @return A tag containing the uppercase priority name.
+     * @throws ParseException If the trimmed name is not HIGH, MEDIUM, or LOW, ignoring case.
+     * @throws NullPointerException If {@code tag} is null.
      */
     public static Tag parseTag(String tag) throws ParseException {
         requireNonNull(tag);
-        String trimmedTag = tag.trim();
+        String trimmedTag = tag.trim().toUpperCase(Locale.ROOT);
         if (!Tag.isValidTagName(trimmedTag)) {
             throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
         }
@@ -112,12 +137,21 @@ public class ParserUtil {
 
     /**
      * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Applies {@link #parseTag(String)} to each name and removes duplicate tags.
+     *
+     * @param tags The priority names to parse.
+     * @return A set containing at most one priority tag, or an empty set.
+     * @throws ParseException If any trimmed name is invalid or more than one distinct priority is supplied.
+     * @throws NullPointerException If {@code tags} or any element is null.
      */
     public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
         requireNonNull(tags);
         final Set<Tag> tagSet = new HashSet<>();
         for (String tagName : tags) {
             tagSet.add(parseTag(tagName));
+        }
+        if (tagSet.size() > 1) {
+            throw new ParseException(Person.MESSAGE_TAG_COUNT_CONSTRAINTS);
         }
         return tagSet;
     }

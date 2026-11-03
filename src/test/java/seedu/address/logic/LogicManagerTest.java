@@ -1,25 +1,38 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.FAMILY_PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.PATIENT_EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_FAMILY_PHONE_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalPersons.BOB;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -32,10 +45,12 @@ import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.PersonUtil;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
     private static final IOException DUMMY_AD_EXCEPTION = new AccessDeniedException("dummy access denied exception");
+    private static final IOException DUMMY_FAE_EXCEPTION = new FileAlreadyExistsException("data");
 
     @TempDir
     public Path temporaryFolder;
@@ -61,25 +76,250 @@ public class LogicManagerTest {
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
         String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandException(deleteCommand, DeleteCommand.MESSAGE_EMPTY_LIST);
     }
 
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_NO_CONTACTS, model);
     }
 
     @Test
-    public void execute_storageThrowsIoException_throwsCommandException() {
+    public void execute_successfulNonViewCommands_clearSelectionWithoutOverridingTheirResults() throws Exception {
+        for (String command : List.of("list", "sort name desc", "find Amy", "filter /name Amy", "help",
+                "edit 1 /address Updated Road", "remark 1 Care note", "archive 1", "delete 1", "clear", "exit",
+                PersonUtil.getAddCommand(new PersonBuilder().withName("Case Preserved").build()))) {
+            model = new ModelManager();
+            setUp();
+            model.addPerson(AMY);
+            model.addPerson(BOB);
+            logic.execute("view 1");
+
+            logic.execute(command);
+
+            assertNull(model.selectedPersonProperty().get(), command);
+            if (command.startsWith("find") || command.startsWith("filter")) {
+                assertEquals(List.of(AMY), model.getFilteredPersonList(), command);
+            } else if (command.equals("sort name desc")) {
+                assertEquals(List.of(BOB, AMY), model.getFilteredPersonList());
+            }
+        }
+    }
+
+    @Test
+    public void execute_checkupAndArchiveWorkflow_closesDetailsAfterEachSuccessfulUpdate() throws Exception {
+        model.addPerson(AMY);
+        for (String command : List.of("checkup 1 25/12/2099 14:30", "mark 1", "unmark 1", "archive 1")) {
+            logic.execute("view 1");
+            logic.execute(command);
+            assertNull(model.selectedPersonProperty().get(), command);
+        }
+        logic.execute("list archive");
+        logic.execute("view 1");
+        logic.execute("unarchive 1");
+        assertNull(model.selectedPersonProperty().get());
+        assertTrue(model.getFilteredPersonList().isEmpty());
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertFalse(model.getAddressBook().getPersonList().getFirst().isArchived());
+    }
+
+    @Test
+    public void execute_repeatedView_preservesSelectionAndData() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("view 1");
+
+        logic.execute("view 1");
+
+        assertEquals(AMY, model.selectedPersonProperty().get());
+        assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_invalidCommands_preserveSelectionAndDisplay() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("view 1");
+        for (String command : List.of("unknown", "view 0", "exit Alice", "clear 1")) {
+            assertThrows(ParseException.class, () -> logic.execute(command));
+            assertEquals(AMY, model.selectedPersonProperty().get(), command);
+            assertEquals(List.of(AMY), model.getFilteredPersonList(), command);
+        }
+        assertThrows(CommandException.class, () -> logic.execute("delete 2"));
+        assertEquals(AMY, model.selectedPersonProperty().get());
+    }
+
+    @Test
+    public void execute_exitWithArguments_preservesContactsDisplayAndSavedData() throws Exception {
+        logic.execute(PersonUtil.getAddCommand(AMY));
+        logic.execute(PersonUtil.getAddCommand(BOB));
+        logic.execute("find Amy");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExitCommand.MESSAGE_USAGE);
+
+        for (String input : List.of("exit Alice", "exit 1")) {
+            assertThrows(ParseException.class, expectedMessage, () -> logic.execute(input));
+            assertEquals(List.of(AMY, BOB), model.getAddressBook().getPersonList());
+            assertEquals(List.of(AMY), model.getFilteredPersonList());
+            assertEquals(savedData, Files.readString(dataFile));
+        }
+
+        // A rejected exit must not prevent the user from continuing to use CareBook.
+        logic.execute(ListCommand.COMMAND_WORD);
+        assertEquals(List.of(AMY, BOB), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_exitWithWhitespace_returnsExitResultWithoutSaving() throws Exception {
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        CommandResult result = logic.execute("  exit \t ");
+
+        assertTrue(result.isExit());
+        assertFalse(result.isShowHelp());
+        assertEquals(ExitCommand.MESSAGE_EXIT_ACKNOWLEDGEMENT, result.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_storageThrowsIoException_throwsCommandException() throws Exception {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
     }
 
     @Test
-    public void execute_storageThrowsAdException_throwsCommandException() {
+    public void execute_storageThrowsAdException_throwsCommandException() throws Exception {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_storageThrowsFileAlreadyExistsException_explainsBlockedFolder() throws Exception {
+        assertCommandFailureForExceptionFromStorage(DUMMY_FAE_EXCEPTION, String.format(
+                LogicManager.FILE_OPS_FOLDER_BLOCKED_ERROR_FORMAT, DUMMY_FAE_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_nonModifyingCommandsWithFailingStorage_doNotSave() throws Exception {
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        // none of these commands change the data, so the failing save must never be triggered
+        for (String commandText : new String[] {ListCommand.COMMAND_WORD, "find alice", "clear", "help", "exit"}) {
+            logic.execute(commandText);
+        }
+    }
+
+    @Test
+    public void execute_modifyingCommand_savesDataToFile() throws Exception {
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        assertFalse(Files.exists(dataFile));
+
+        logic.execute(PersonUtil.getAddCommand(AMY));
+
+        assertTrue(Files.exists(dataFile));
+    }
+
+    @Test
+    public void execute_modifyingCommandWithFailingStorage_attemptsSave() {
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        assertThrows(CommandException.class, () -> logic.execute(PersonUtil.getAddCommand(AMY)));
+    }
+
+    @Test
+    public void execute_failedSaveOfAddInArchiveList_staysInArchiveList() {
+        model.setArchiveScope(true);
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        // a successful add shows the active list, so the failed add must switch back
+        assertThrows(CommandException.class, () -> logic.execute(PersonUtil.getAddCommand(AMY)));
+
+        assertTrue(model.isShowingArchiveList());
+        assertTrue(model.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void execute_failedSaveAfterEditInSearch_keepsEditedPersonShown() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(BOB);
+        logic.execute("find Amy");
+        logic.execute("edit 1 /name Zulu");
+        List<Person> shownPersons = List.copyOf(model.getFilteredPersonList());
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        assertThrows(CommandException.class, () -> logic.execute("remark 1 Likes tea"));
+
+        // Zulu no longer matches the search, but stays shown as it was before the failed remark
+        assertEquals(shownPersons, model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_failedSaveAfterEditInSortedList_keepsIndices() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(BOB);
+        logic.execute("sort name");
+        logic.execute("edit 1 /name Zulu");
+        List<Person> shownPersons = List.copyOf(model.getFilteredPersonList());
+        logic = new LogicManager(model, createStorageThatFailsToSave());
+
+        assertThrows(CommandException.class, () -> logic.execute("remark 1 Likes tea"));
+
+        // Zulu sorts after Bob, but keeps index 1 as it did before the failed remark
+        assertEquals(shownPersons, model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_clear_doesNotCreateDataFile() throws Exception {
+        model.addPerson(AMY);
+
+        CommandResult result = logic.execute(ClearCommand.COMMAND_WORD);
+
+        assertEquals(ClearCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertTrue(model.getFilteredPersonList().isEmpty());
+        assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+        assertFalse(Files.exists(temporaryFolder.resolve("addressBook.json")));
+    }
+
+    @Test
+    public void execute_clear_preservesSavedContactsAfterReload() throws Exception {
+        logic.execute(PersonUtil.getAddCommand(AMY));
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+
+        logic.execute(ClearCommand.COMMAND_WORD);
+
+        assertEquals(savedData, Files.readString(dataFile));
+        ReadOnlyAddressBook reloadedAddressBook = new JsonAddressBookStorage(dataFile).readAddressBook().orElseThrow();
+        Model reloadedModel = new ModelManager(reloadedAddressBook, new UserPrefs());
+        assertEquals(List.of(AMY), reloadedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_clearThenFindAndList_restoresContacts() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(BOB);
+
+        logic.execute(ClearCommand.COMMAND_WORD);
+        assertTrue(model.getFilteredPersonList().isEmpty());
+        logic.execute("find Amy");
+        assertEquals(List.of(AMY), model.getFilteredPersonList());
+
+        logic.execute(ClearCommand.COMMAND_WORD);
+        logic.execute(ListCommand.COMMAND_WORD);
+        assertEquals(List.of(AMY, BOB), model.getFilteredPersonList());
+        assertEquals(List.of(AMY, BOB), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_clearWithArguments_preservesDataAndCurrentFilter() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(BOB);
+        logic.execute("find Amy");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.equals(AMY));
+
+        assertCommandFailure("clear Amy", ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE), expectedModel);
+        assertFalse(Files.exists(temporaryFolder.resolve("addressBook.json")));
     }
 
     @Test
@@ -141,12 +381,29 @@ public class LogicManagerTest {
     }
 
     /**
+     * Returns a {@code StorageManager} that throws an {@code IOException} whenever it is asked to save.
+     */
+    private StorageManager createStorageThatFailsToSave() {
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("FailingAddressBook.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                        throw DUMMY_IO_EXCEPTION;
+                    }
+                };
+        JsonUserPrefsStorage userPrefsStorage =
+                new JsonUserPrefsStorage(temporaryFolder.resolve("FailingUserPrefs.json"));
+        return new StorageManager(addressBookStorage, userPrefsStorage);
+    }
+
+    /**
      * Tests the Logic component's handling of an {@code IOException} thrown by the Storage component.
      *
      * @param e the exception to be thrown by the Storage component
      * @param expectedMessage the message expected inside exception thrown by the Logic component
      */
-    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
+    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage)
+            throws Exception {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
         // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
@@ -165,10 +422,19 @@ public class LogicManagerTest {
 
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+                + FAMILY_PHONE_DESC_AMY + PATIENT_EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+
+        // the add is undone, so the shown contacts still match the data file
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+
+        // a retry is not blocked as a duplicate, and is saved once storage works again
+        logic = new LogicManager(model, new StorageManager(new JsonAddressBookStorage(
+                temporaryFolder.resolve("RetryAddressBook.json")), userPrefsStorage));
+        Person expectedPerson = new PersonBuilder(AMY).withFamilyNo(VALID_FAMILY_PHONE_AMY)
+                .withPatientEmail(VALID_EMAIL_AMY).withTags().build();
+        expectedModel.addPerson(expectedPerson);
+        assertCommandSuccess(addCommand, String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(expectedPerson)),
+                expectedModel);
     }
 }

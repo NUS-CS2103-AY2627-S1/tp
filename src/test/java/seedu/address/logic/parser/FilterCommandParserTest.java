@@ -1,0 +1,153 @@
+package seedu.address.logic.parser;
+
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.FilterCommand;
+import seedu.address.model.person.PersonMatchesFilterPredicate;
+
+public class FilterCommandParserTest {
+
+    private static final String MESSAGE_INVALID_FORMAT =
+            String.format(MESSAGE_INVALID_COMMAND_FORMAT, FilterCommand.MESSAGE_USAGE);
+
+    private FilterCommandParser parser = new FilterCommandParser();
+
+    private static FilterCommand command(List<String> names, List<String> tags, List<String> addresses) {
+        return new FilterCommand(new PersonMatchesFilterPredicate(names, tags, addresses));
+    }
+
+    @Test
+    public void parse_emptyArg_throwsParseException() {
+        assertParseFailure(parser, "     ", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_noPrefix_throwsParseException() {
+        // bare tag is no longer accepted
+        assertParseFailure(parser, "MEDIUM", MESSAGE_INVALID_FORMAT);
+
+        // text before the first prefix
+        assertParseFailure(parser, "ali /tag HIGH", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_unsupportedPrefix_throwsParseException() {
+        assertParseFailure(parser, " /patientNo 91234567", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name ali /patientNo 91234567", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /tag HIGH /familyNo 91234567", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /address clementi /pEmail a@b.com", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name ali /unknown x", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_missingSpaceBeforePrefix_throwsParseException() {
+        assertParseFailure(parser, " /name ali/tag HIGH", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name ali/address clementi", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /address Clementi/tag HIGH", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /address Clementi/name ali", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /tag HIGH/name ali", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_slashInAddress_returnsFilterCommand() {
+        // a slash that does not start a filter prefix is part of the address
+        assertParseSuccess(parser, " /address Blk 12/3", command(List.of(), List.of(), List.of("Blk 12/3")));
+        assertParseSuccess(parser, " /address 12/Tagore Road",
+                command(List.of(), List.of(), List.of("12/Tagore Road")));
+    }
+
+    @Test
+    public void parse_emptyValue_throwsParseException() {
+        assertParseFailure(parser, " /name", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name   ", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /tag", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /address", MESSAGE_INVALID_FORMAT);
+
+        // one empty value among valid ones
+        assertParseFailure(parser, " /tag HIGH /tag", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_invalidTag_throwsParseException() {
+        // tag outside the enumerated values
+        assertParseFailure(parser, " /tag URGENT", MESSAGE_INVALID_FORMAT);
+
+        // tag that only partially matches a valid tag
+        assertParseFailure(parser, " /tag MEDIUMS", MESSAGE_INVALID_FORMAT);
+
+        // several tags must be given by repeating the prefix
+        assertParseFailure(parser, " /tag HIGH LOW", MESSAGE_INVALID_FORMAT);
+
+        // one invalid tag among valid ones
+        assertParseFailure(parser, " /tag HIGH /tag URGENT", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_validArgs_returnsFilterCommand() {
+        // name only, keywords split on whitespace
+        assertParseSuccess(parser, " /name ali bob",
+                command(List.of("ali", "bob"), List.of(), List.of()));
+
+        // tag only, case-insensitive, surrounding whitespace ignored
+        assertParseSuccess(parser, " \n /tag medium \t ",
+                command(List.of(), List.of("MEDIUM"), List.of()));
+
+        // address only, kept as a phrase
+        assertParseSuccess(parser, " /address clementi ave",
+                command(List.of(), List.of(), List.of("clementi ave")));
+    }
+
+    @Test
+    public void parse_extraWhitespaceBeforePrefix_prefixStillRecognized() {
+        FilterCommand expected = new FilterCommand(new PersonMatchesFilterPredicate(
+                List.of("Alice"), List.of("HIGH"), List.of()));
+        assertParseSuccess(parser, " /name Alice     /tag HIGH", expected);
+        assertParseSuccess(parser, " /name Alice\t/tag HIGH", expected);
+        assertParseSuccess(parser, " /name Alice \n /tag HIGH", expected);
+    }
+
+    @Test
+    public void parse_repeatedPrefixes_accumulatesValues() {
+        assertParseSuccess(parser, " /tag HIGH /tag MEDIUM",
+                command(List.of(), List.of("HIGH", "MEDIUM"), List.of()));
+
+        assertParseSuccess(parser, " /address clementi /address jurong west",
+                command(List.of(), List.of(), List.of("clementi", "jurong west")));
+    }
+
+    @Test
+    public void parse_repeatedName_accumulatesCaseInsensitivePrefixes() {
+        assertParseSuccess(parser, " /name alice /NAME bob",
+                command(List.of("alice", "bob"), List.of(), List.of()));
+        assertParseSuccess(parser, " /NaMe ali ann /tag HIGH /NAME bob",
+                command(List.of("ali", "ann", "bob"), List.of("HIGH"), List.of()));
+        assertParseFailure(parser, " /name alice /NAME", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name /NAME bob", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_incompleteOrExtendedPrefix_throwsParseException() {
+        assertParseFailure(parser, " /nameExtra Alice", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name Alice /NAMEExtra Bob", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /tagHIGH", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /addressExtra Clementi", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, " /name Alice /ADDRESS Clementi", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_multipleCriteria_returnsFilterCommand() {
+        assertParseSuccess(parser, " /name ali bob /tag HIGH /tag MEDIUM /address clementi",
+                command(List.of("ali", "bob"), List.of("HIGH", "MEDIUM"), List.of("clementi")));
+
+        // prefix order does not matter
+        assertParseSuccess(parser, " /address clementi /tag HIGH /name ali",
+                command(List.of("ali"), List.of("HIGH"), List.of("clementi")));
+    }
+
+}

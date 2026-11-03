@@ -1,0 +1,104 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Remark;
+import seedu.address.testutil.PersonBuilder;
+
+public class PersonDetailsFormatterTest {
+    @Test
+    public void format_noSelection_returnsEmptyBody() {
+        assertEquals("", PersonDetailsFormatter.format(null));
+    }
+
+    @Test
+    public void format_completeContact_includesEveryField() {
+        Person person = new PersonBuilder().withPatientNo("91234567").withFamilyNo("81234567")
+                .withPatientEmail("patient@example.com").withFamilyEmail("family@example.com")
+                .withAddress("123 Long Road").withTags("HIGH").build();
+        String details = PersonDetailsFormatter.format(person);
+        assertEquals("Patient phone: 91234567\nFamily phone: 81234567"
+                + "\nPatient email: patient@example.com\nFamily email: family@example.com"
+                + "\nAddress: 123 Long Road\nPriority: HIGH"
+                + "\nCheckup appointment: Not scheduled\nRemark: None", details);
+    }
+
+    @Test
+    public void format_absentOptionalFields_showsExplicitPlaceholders() {
+        String details = PersonDetailsFormatter.format(new PersonBuilder().withoutEmail().withTags().build());
+        assertTrue(details.contains("Patient email: Not provided"));
+        assertTrue(details.contains("Family email: Not provided"));
+        assertTrue(details.contains("Priority: Not assigned"));
+        assertTrue(details.contains("Checkup appointment: Not scheduled"));
+        assertFalse(details.contains("Checkup status:"));
+        assertTrue(details.contains("Remark: None"));
+    }
+
+    @Test
+    public void format_appointmentAndNotes_showsCompleteNumberedDetails() {
+        Person person = new PersonBuilder().withCheckupAppointment("25/12/2030 14:30")
+                .withRemarks("Allergic to penicillin", "Literal /tag HIGH belongs to this note").build();
+        String details = PersonDetailsFormatter.format(person);
+        assertTrue(details.contains("Checkup appointment: 25/12/2030 14:30"));
+        assertTrue(details.contains("\nCheckup status: [ ]\n"));
+        assertTrue(details.contains("Remark: \n1. Allergic to penicillin\n2. Literal /tag HIGH belongs to this note"));
+    }
+
+    @Test
+    public void format_markAndUnmark_showsCurrentStatus() {
+        Person scheduled = new PersonBuilder()
+                .withCheckupAppointment("25/12/2030 14:30").build();
+        String markedDetails = PersonDetailsFormatter.format(scheduled.withMarkedCheckup());
+        assertTrue(markedDetails.contains(
+                "Checkup appointment: 25/12/2030 14:30\nCheckup status: [X]\n"));
+        assertFalse(markedDetails.contains("Checkup status: [ ]"));
+        String unmarkedDetails = PersonDetailsFormatter.format(
+                scheduled.withMarkedCheckup().withUnmarkedCheckup());
+        assertTrue(unmarkedDetails.contains("\nCheckup status: [ ]\n"));
+    }
+
+    @Test
+    public void format_renamedMarkedContact_preservesStatus() {
+        Person marked = new PersonBuilder()
+                .withCheckupAppointment("25/12/2030 14:30").build().withMarkedCheckup();
+        Person renamed = new PersonBuilder(marked).withName("Updated Patient Name").build();
+        assertEquals(PersonDetailsFormatter.format(marked), PersonDetailsFormatter.format(renamed));
+        assertTrue(PersonDetailsFormatter.format(renamed).contains("Checkup status: [X]"));
+    }
+
+    @Test
+    public void format_archivedContactWithoutCheckup_omitsAppointmentField() {
+        Person person = new PersonBuilder().build().copyWithArchivedStatus(true);
+        String details = PersonDetailsFormatter.format(person);
+        assertFalse(details.contains("Checkup appointment:"));
+        assertFalse(details.contains("Checkup status:"));
+    }
+
+    @Test
+    public void format_archivedContactWithCheckup_keepsAppointmentField() {
+        Person person = new PersonBuilder()
+                .withCheckupAppointment("25/12/2030 14:30").build()
+                .withMarkedCheckup().copyWithArchivedStatus(true);
+        String details = PersonDetailsFormatter.format(person);
+        assertTrue(details.contains("Checkup appointment: 25/12/2030 14:30"));
+        assertTrue(details.contains("Checkup status: [X]"));
+    }
+
+    @Test
+    public void format_maximumLengthNote_doesNotTruncateText() {
+        String note = "a".repeat(Remark.MAX_TOTAL_LENGTH);
+        assertTrue(PersonDetailsFormatter.format(new PersonBuilder().withRemarks(note).build()).contains(note));
+    }
+
+    @Test
+    public void format_longAddress_doesNotTruncateValue() {
+        String address = "Long Road ".repeat(100);
+        String details = PersonDetailsFormatter.format(new PersonBuilder().withAddress(address).build());
+        assertTrue(details.contains(address));
+    }
+}

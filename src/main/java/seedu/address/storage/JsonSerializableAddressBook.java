@@ -20,15 +20,20 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_MISSING_PERSON = "Persons list contains an empty (null) person.";
 
+    @JsonProperty("contacts")
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonSerializableAddressBook} with the given persons.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("contacts") List<JsonAdaptedPerson> persons) {
+        // a file without a contacts list has no contacts
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
     }
 
     /**
@@ -48,6 +53,10 @@ class JsonSerializableAddressBook {
     public AddressBook toModelType() throws IllegalValueException {
         AddressBook addressBook = new AddressBook();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
+            // a hand-edited file may contain null in the list
+            if (jsonAdaptedPerson == null) {
+                throw new IllegalValueException(MESSAGE_MISSING_PERSON);
+            }
             Person person = jsonAdaptedPerson.toModelType();
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);

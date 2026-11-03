@@ -2,11 +2,15 @@ package seedu.address.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.DANIEL;
+import static seedu.address.testutil.TypicalPersons.GEORGE;
 
 import java.util.List;
 
@@ -14,11 +18,112 @@ import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonComparators;
+import seedu.address.model.person.PersonHasTagPredicate;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
     private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void setPersonKeepingDisplayed_noLongerMatchesSearch_staysDisplayed() {
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build(),
+                new UserPrefs());
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alice")));
+        modelManager.selectPerson(ALICE);
+        Person renamed = new PersonBuilder(ALICE).withName("Zed").build();
+
+        modelManager.setPersonKeepingDisplayed(ALICE, renamed);
+
+        assertEquals(List.of(renamed), modelManager.getFilteredPersonList());
+        assertEquals(renamed, modelManager.selectedPersonProperty().get());
+
+        // a new search no longer keeps the person displayed
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alice")));
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void setPerson_afterKeepingDisplayed_staysDisplayedUntilArchived() {
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build(),
+                new UserPrefs());
+        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of("Alice")));
+        Person renamed = new PersonBuilder(ALICE).withName("Zed").build();
+        modelManager.setPersonKeepingDisplayed(ALICE, renamed);
+
+        // another change, e.g. a checkup appointment, keeps the person displayed
+        Person withCheckup = new PersonBuilder(renamed).withCheckupAppointment("25/12/2030 14:30").build();
+        modelManager.setPerson(renamed, withCheckup);
+        assertEquals(List.of(withCheckup), modelManager.getFilteredPersonList());
+
+        // archiving moves the person out of the active list
+        modelManager.setPerson(withCheckup, withCheckup.copyWithArchivedStatus(true));
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+    }
+
+    @Test
+    public void setArchiveScope_switchesListsClearsFiltersAndPreservesSort() {
+        Person archivedBenson = BENSON.copyWithArchivedStatus(true);
+        Person archivedCarl = CARL.copyWithArchivedStatus(true);
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(archivedBenson);
+        modelManager.addPerson(archivedCarl);
+        assertFalse(modelManager.isShowingArchiveList());
+
+        modelManager.setArchiveScope(true);
+        modelManager.updateSortedPersonList(PersonComparators.byName(false));
+        modelManager.filterPersonsInCurrentList(archivedBenson::equals);
+        assertEquals(List.of(archivedBenson), modelManager.getFilteredPersonList());
+
+        modelManager.setArchiveScope(true);
+        assertTrue(modelManager.isShowingArchiveList());
+        assertEquals(List.of(archivedCarl, archivedBenson), modelManager.getFilteredPersonList());
+        modelManager.selectPerson(archivedBenson);
+        modelManager.setArchiveScope(false);
+        assertFalse(modelManager.isShowingArchiveList());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+        assertNull(modelManager.selectedPersonProperty().get());
+    }
+
+    @Test
+    public void updateFilteredPersonList_neverChangesExplicitScope() {
+        Person archived = BENSON.copyWithArchivedStatus(true);
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(archived);
+        modelManager.setArchiveScope(true);
+
+        // Even a list predicate is only a display filter; switching scope requires the explicit setter.
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertTrue(modelManager.isShowingArchiveList());
+        modelManager.updateFilteredPersonList(person -> false);
+        modelManager.sortPersonsByMostRecent();
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+        modelManager.filterPersonsInCurrentList(person -> true);
+        assertEquals(List.of(archived), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void addPerson_fromArchiveScope_restoresActiveScope() {
+        Person archived = BENSON.copyWithArchivedStatus(true);
+        modelManager.addPerson(archived);
+        modelManager.setArchiveScope(true);
+        modelManager.addPerson(ALICE);
+
+        assertFalse(modelManager.isShowingArchiveList());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void equals_differentScopesWithEmptyResults_areNotEqual() {
+        ModelManager archiveModel = new ModelManager();
+        archiveModel.setArchiveScope(true);
+        assertFalse(modelManager.equals(archiveModel));
+        modelManager.setArchiveScope(true);
+        assertEquals(modelManager, archiveModel);
+    }
 
     @Test
     public void constructor() {
@@ -58,6 +163,56 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void setPerson_selectedContactLeavesActiveList_clearsSelectionWithoutDeletingContact() {
+        modelManager.addPerson(ALICE);
+        modelManager.selectPerson(ALICE);
+        var archived = ALICE.copyWithArchivedStatus(true);
+
+        modelManager.setPerson(ALICE, archived);
+
+        assertNull(modelManager.selectedPersonProperty().get());
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+        assertEquals(List.of(archived), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void setPerson_selectedContactLeavesArchiveList_clearsSelection() {
+        var archived = ALICE.copyWithArchivedStatus(true);
+        modelManager.addPerson(archived);
+        modelManager.updateFilteredPersonList(Model.PREDICATE_SHOW_ARCHIVED_PERSONS);
+        modelManager.selectPerson(archived);
+
+        modelManager.setPerson(archived, ALICE);
+
+        assertNull(modelManager.selectedPersonProperty().get());
+        assertTrue(modelManager.getFilteredPersonList().isEmpty());
+        assertEquals(List.of(ALICE), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void setPerson_selectedContactStillDisplayed_refreshesSelection() {
+        modelManager.addPerson(ALICE);
+        modelManager.selectPerson(ALICE);
+        var edited = new PersonBuilder(ALICE).withAddress("Updated Road").build();
+
+        modelManager.setPerson(ALICE, edited);
+
+        assertEquals(edited, modelManager.selectedPersonProperty().get());
+    }
+
+    @Test
+    public void setPerson_anotherContactLeavesList_preservesSelectedContact() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.selectPerson(ALICE);
+
+        modelManager.setPerson(BENSON, BENSON.copyWithArchivedStatus(true));
+
+        assertEquals(ALICE, modelManager.selectedPersonProperty().get());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
     public void hasPerson_personNotInAddressBook_returnsFalse() {
         assertFalse(modelManager.hasPerson(ALICE));
     }
@@ -71,6 +226,162 @@ public class ModelManagerTest {
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void updateSortedPersonList_nullComparator_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateSortedPersonList(null));
+    }
+
+    @Test
+    public void updateSortedPersonList_ordersDisplayedListOnly() {
+        // added in the order DANIEL, ALICE, CARL, BENSON
+        modelManager = modelWithPersonsAddedInOrder();
+
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        assertEquals(List.of(ALICE, BENSON, CARL, DANIEL), modelManager.getFilteredPersonList());
+
+        modelManager.updateSortedPersonList(PersonComparators.byName(false));
+        assertEquals(List.of(DANIEL, CARL, BENSON, ALICE), modelManager.getFilteredPersonList());
+
+        // stored order is untouched
+        assertEquals(List.of(DANIEL, ALICE, CARL, BENSON), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void sortPersonsByMostRecent_newestFirst() {
+        modelManager = modelWithPersonsAddedInOrder();
+
+        modelManager.sortPersonsByMostRecent();
+        assertEquals(List.of(BENSON, CARL, ALICE, DANIEL), modelManager.getFilteredPersonList());
+
+        // a person added afterwards appears first
+        modelManager.addPerson(GEORGE);
+        assertEquals(GEORGE, modelManager.getFilteredPersonList().get(0));
+
+        // stored order is untouched
+        assertEquals(List.of(DANIEL, ALICE, CARL, BENSON, GEORGE),
+                modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void sortPersonsByMostRecent_editedPersonKeepsPosition() {
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.setPerson(ALICE, new PersonBuilder(ALICE).withTags("LOW").build());
+
+        modelManager.sortPersonsByMostRecent();
+        assertEquals(BENSON, modelManager.getFilteredPersonList().get(0));
+        assertEquals(DANIEL, modelManager.getFilteredPersonList().get(3));
+    }
+
+    @Test
+    public void sort_combinedWithFilter_sortsOnlyMatchingPersons() {
+        modelManager = modelWithPersonsAddedInOrder();
+
+        modelManager.updateFilteredPersonList(new PersonHasTagPredicate("HIGH"));
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        assertEquals(List.of(ALICE, DANIEL), modelManager.getFilteredPersonList());
+
+        // clearing the filter keeps the sort
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, BENSON, CARL, DANIEL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void resetSortedPersonList_restoresAddedOrder() {
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+
+        modelManager.resetSortedPersonList();
+        assertEquals(List.of(DANIEL, ALICE, CARL, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_sortedList_keepsPositionUntilListIsFilteredAgain() {
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        Person renamedAlice = new PersonBuilder(ALICE).withName("Zed Pauline").build();
+
+        modelManager.setPerson(ALICE, renamedAlice);
+        assertEquals(List.of(renamedAlice, BENSON, CARL, DANIEL), modelManager.getFilteredPersonList());
+
+        // a second change keeps the positions too
+        Person renamedCarl = new PersonBuilder(CARL).withName("Aaron Kurz").build();
+        modelManager.setPerson(CARL, renamedCarl);
+        assertEquals(List.of(renamedAlice, BENSON, renamedCarl, DANIEL), modelManager.getFilteredPersonList());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(renamedCarl, BENSON, DANIEL, renamedAlice), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_sortedListWithTies_keepsOrderOfTiedPersons() {
+        // two persons with the same name tie under the name sort
+        Person aliceTwin = new PersonBuilder(ALICE).withPatientNo("90000001").withPatientEmail("twin@example.com")
+                .withAddress("1 Other Road").build();
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(aliceTwin).build(),
+                new UserPrefs());
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        List<Person> sortedBefore = List.copyOf(modelManager.getFilteredPersonList());
+
+        for (int i = 0; i < 2; i++) {
+            Person personWithNote = new PersonBuilder(sortedBefore.get(i)).withRemarks("Diabetic").build();
+            modelManager.setPerson(sortedBefore.get(i), personWithNote);
+            assertEquals(personWithNote, modelManager.getFilteredPersonList().get(i));
+        }
+    }
+
+    @Test
+    public void setPerson_sortedFilteredList_newlyMatchingPersonsFollowKeptPositions() {
+        // ALICE and DANIEL are HIGH; BENSON is LOW and CARL has no tag
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.updateFilteredPersonList(new PersonHasTagPredicate("HIGH"));
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        Person aliceWithNote = new PersonBuilder(ALICE).withRemarks("Diabetic").build();
+        modelManager.setPerson(ALICE, aliceWithNote);
+
+        // persons that start matching the filter have no kept position, so they follow the sort order
+        Person highCarl = new PersonBuilder(CARL).withTags("HIGH").build();
+        Person highBenson = new PersonBuilder(BENSON).withTags("HIGH").build();
+        modelManager.setPerson(CARL, highCarl);
+        modelManager.setPerson(BENSON, highBenson);
+        assertEquals(List.of(aliceWithNote, DANIEL, highBenson, highCarl), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPersonKeepingDisplayed_hiddenPerson_staysHidden() {
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.updateFilteredPersonList(new PersonHasTagPredicate("HIGH"));
+        Person bensonWithNote = new PersonBuilder(BENSON).withRemarks("Diabetic").build();
+
+        modelManager.setPersonKeepingDisplayed(BENSON, bensonWithNote);
+        assertEquals(List.of(DANIEL, ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateSortedPersonList_afterChange_sortsAgain() {
+        modelManager = modelWithPersonsAddedInOrder();
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        Person renamedAlice = new PersonBuilder(ALICE).withName("Zed Pauline").build();
+        modelManager.setPerson(ALICE, renamedAlice);
+
+        modelManager.updateSortedPersonList(PersonComparators.byName(true));
+        assertEquals(List.of(BENSON, CARL, DANIEL, renamedAlice), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_unsortedList_keepsAddedOrder() {
+        modelManager = modelWithPersonsAddedInOrder();
+        Person renamedAlice = new PersonBuilder(ALICE).withName("Zed Pauline").build();
+
+        modelManager.setPerson(ALICE, renamedAlice);
+        assertEquals(List.of(DANIEL, renamedAlice, CARL, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    private static ModelManager modelWithPersonsAddedInOrder() {
+        AddressBook addressBook = new AddressBookBuilder()
+                .withPerson(DANIEL).withPerson(ALICE).withPerson(CARL).withPerson(BENSON).build();
+        return new ModelManager(addressBook, new UserPrefs());
     }
 
     @Test

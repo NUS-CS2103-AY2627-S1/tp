@@ -1,0 +1,153 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":AddCommandParser" as AddCommandParser LOGIC_COLOR
+participant "ArgumentTokenizer" as Tokenizer LOGIC_COLOR
+participant "a:AddCommand" as AddCommand LOGIC_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "p:Person" as Person MODEL_COLOR
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("ADD /name Kim    Lee ...")
+activate LogicManager
+
+LogicManager -> AddressBookParser : parseCommand(commandText)
+activate AddressBookParser
+
+note right of AddressBookParser
+  Recognise the command word
+  ignoring case.
+end note
+
+create AddCommandParser
+AddressBookParser -> AddCommandParser
+activate AddCommandParser
+
+AddCommandParser --> AddressBookParser
+deactivate AddCommandParser
+
+AddressBookParser -> AddCommandParser : parse(args)
+activate AddCommandParser
+
+AddCommandParser -> Tokenizer : tokenizeStrict(args, usage, prefixes)
+activate Tokenizer
+Tokenizer --> AddCommandParser : argumentMultimap
+deactivate Tokenizer
+
+note right of AddCommandParser
+  Validate complete prefixes and reject
+  literal slashes in field values.
+  Check required and duplicate prefixes.
+  Validate fields; normalize the name
+  to "Kim Lee".
+  ParseException stops before construction
+  if validation fails.
+end note
+
+create Person
+AddCommandParser -> Person : name, patientNo, familyNo, patientEmail, familyEmail, address, tagList
+activate Person
+
+Person --> AddCommandParser
+deactivate Person
+
+create AddCommand
+AddCommandParser -> AddCommand : p
+activate AddCommand
+
+AddCommand --> AddCommandParser
+deactivate AddCommand
+
+AddCommandParser --> AddressBookParser : a
+deactivate AddCommandParser
+'Hidden arrow to position the destroy marker below the end of the activation bar.
+AddCommandParser -[hidden]-> AddressBookParser
+destroy AddCommandParser
+
+AddressBookParser --> LogicManager : a
+deactivate AddressBookParser
+
+LogicManager -> AddCommand : execute(m)
+activate AddCommand
+
+AddCommand -> Model : getAddressBook()
+activate Model
+
+Model --> AddCommand : addressBook
+deactivate Model
+
+note right of AddCommand
+  requireNoDuplicate checks all stored contacts,
+  including archived contacts.
+  A patient phone/email conflict throws
+  the duplicate-contact error.
+  A same-name/address conflict instead
+  requests a name differentiator.
+  Neither error changes the model.
+end note
+
+AddCommand -> Model : addPerson(p)
+activate Model
+
+note right of Model
+  Add the contact and reset the filter
+  to display active contacts.
+end note
+
+Model --> AddCommand
+deactivate Model
+
+create CommandResult
+AddCommand -> CommandResult
+activate CommandResult
+
+CommandResult --> AddCommand
+deactivate CommandResult
+
+AddCommand --> LogicManager : r
+deactivate AddCommand
+
+LogicManager -> AddCommand : modifiesData()
+activate AddCommand
+
+AddCommand --> LogicManager : true
+deactivate AddCommand
+
+LogicManager -> LogicManager : saveData(undoCommand)
+activate LogicManager
+
+LogicManager -> Model : getAddressBook()
+activate Model
+
+Model --> LogicManager : addressBook
+deactivate Model
+
+LogicManager -> Storage : saveAddressBook(addressBook)
+activate Storage
+
+Storage --> LogicManager
+deactivate Storage
+
+LogicManager --> LogicManager
+deactivate LogicManager
+
+LogicManager -> Model : selectPerson(null)
+activate Model
+Model --> LogicManager
+deactivate Model
+
+[<-- LogicManager : r
+deactivate LogicManager
+@enduml

@@ -2,10 +2,15 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FAMILY_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FAMILY_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PATIENT_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PATIENT_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+
+import java.util.List;
+import java.util.Optional;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
@@ -20,23 +25,26 @@ public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to CareBook. "
             + "Parameters: "
-            + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + PREFIX_NAME + " NAME "
+            + PREFIX_PATIENT_PHONE + " PATIENT_PHONE "
+            + PREFIX_FAMILY_PHONE + " FAMILY_PHONE "
+            + "[" + PREFIX_PATIENT_EMAIL + " PATIENT_EMAIL] "
+            + "[" + PREFIX_FAMILY_EMAIL + " FAMILY_EMAIL] "
+            + PREFIX_ADDRESS + " ADDRESS "
+            + "[" + PREFIX_TAG + " PRIORITY]\n"
+            + "Note: The '/' character starts a prefix. Inside a value, it can only join short parts, "
+            + "e.g. s/o or 4/5.\n"
+            + "Separate each prefix from its value with a space.\n"
             + "Example: " + COMMAND_WORD + " "
-            + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
-            + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + PREFIX_NAME + " Aunty Rosalind "
+            + PREFIX_PATIENT_PHONE + " 81268767 "
+            + PREFIX_FAMILY_PHONE + " 90783658 "
+            + PREFIX_ADDRESS + " Goonvale Street Block 2 #01-09";
 
     public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON = Messages.MESSAGE_DUPLICATE_PERSON;
 
     private final Person toAdd;
 
@@ -52,12 +60,30 @@ public class AddCommand extends Command {
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
 
-        if (model.hasPerson(toAdd)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
-        }
-
+        requireNoDuplicate(toAdd, model.getAddressBook().getPersonList());
         model.addPerson(toAdd);
         return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+    }
+
+    /**
+     * Checks that {@code person} is not the same person as any of {@code otherPersons}. Archived persons count too.
+     *
+     * @throws CommandException if a person in {@code otherPersons} has the same patient contact details as
+     *     {@code person}, or else the same name and address.
+     */
+    static void requireNoDuplicate(Person person, List<Person> otherPersons) throws CommandException {
+        Optional<Person> sameContactDetails = otherPersons.stream()
+                .filter(person::hasSamePatientContactDetails).findFirst();
+        if (sameContactDetails.isPresent()) {
+            throw new CommandException(Messages.withArchivedHint(MESSAGE_DUPLICATE_PERSON, sameContactDetails.get()));
+        }
+
+        Optional<Person> sameNameAndAddress = otherPersons.stream()
+                .filter(person::hasSameNameAndAddress).findFirst();
+        if (sameNameAndAddress.isPresent()) {
+            throw new CommandException(
+                    Messages.withArchivedHint(Person.MESSAGE_NAME_ADDRESS_CONFLICT, sameNameAndAddress.get()));
+        }
     }
 
     @Override
