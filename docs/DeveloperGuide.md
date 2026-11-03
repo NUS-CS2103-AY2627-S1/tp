@@ -1,15 +1,21 @@
 ---
-layout: page
-title: Developer Guide
+  layout: default.md
+  title: "Developer Guide"
+  pageNav: 3
 ---
-* Table of Contents
-{:toc}
+
+# PingBook Developer Guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+
+Codex and Claude were used to generate, refine, and review content with human oversight. The use includes functional code, testing, and documentation.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -21,14 +27,9 @@ Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+<puml src="diagrams/ArchitectureDiagram.puml" width="280" />
 
 The ***Architecture Diagram*** given above explains the high-level design of the App.
 
@@ -36,9 +37,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
-* At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
-* At shut down, it shuts down the other components and invokes cleanup methods where necessary.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/MainApp.java)) manages the app's launch, initialization, and shutdown. See the [Main component](#main-component) section for details.
 
 The bulk of the app's work is done by the following four components:
 
@@ -51,9 +50,9 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `deletec 1`.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<puml src="diagrams/ArchitectureSequenceDiagram.puml" width="574" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -62,187 +61,135 @@ Each of the four main components (also shown in the diagram above),
 
 For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
 
-<img src="images/ComponentManagers.png" width="300" />
+<puml src="diagrams/ComponentManagers.puml" width="300" />
 
 The sections below give more details of each component.
 
+### Main component
+
+The `Main` component consists of the [`Main`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/MainApp.java) classes. It is responsible for launching PingBook, initializing and connecting the other components, starting the UI, and saving the user preferences when the app shuts down.
+
+`Main` is the entry point of the app. Unlike `MainApp`, it does not extend the JavaFX `Application` class. This avoids the JavaFX launcher error that would otherwise occur because PingBook does not use JavaFX through the Java module system. `Main` delegates the launch to `MainApp` by calling `Application.launch(MainApp.class, args)`.
+
+The sequence diagram below shows how `Main` launches PingBook and how `MainApp` initializes and starts the other components.
+
+<puml src="diagrams/MainSequenceDiagram.puml" alt="Initialization of PingBook by the Main component" />
+
+`MainApp` extends `Application` and coordinates the app's lifecycle. During `init()`, it initializes and connects the components in the following order:
+
+1. It loads the user preferences from `preferences.json`. If the file is missing or cannot be loaded, it uses default preferences instead and attempts to save them to the file.
+1. It creates the `Storage` component using storage objects for `preferences.json` and `data/addressbook.json`.
+1. It creates the `Model` component using the user preferences and the address book data from `Storage`. If the address book data file is missing, it uses sample data; if the file cannot be loaded, it uses an empty address book.
+1. It creates the `Logic` component using `Model` and `Storage`.
+1. It creates the `UI` component using `Logic` and the address book data file path from `Storage`.
+
+After initialization, JavaFX calls `start(Stage)`, which starts the `UI` with the primary stage. When the app shuts down, JavaFX calls `stop()`, which saves the latest user preferences from `Model` through `Storage`.
+
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<puml src="diagrams/UiClassDiagram.puml" alt="Structure of the UI Component"/>
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, `MeetingListPanel`, and `StatusBarFooter`. The `PersonListPanel` and `MeetingListPanel` display contacts and meetings respectively, using `PersonCard` and `MeetingCard` to represent individual entries. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
 * executes user commands using the `Logic` component.
 * listens for changes to `Model` data so that the UI can be updated with the modified data.
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+* depends on classes in the `Model` component because it displays `Person` and `Meeting` objects from the model.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<puml src="diagrams/LogicClassDiagram.puml" width="550"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("deletec 1")` API call as an example.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+<puml src="diagrams/DeleteClientSequenceDiagram.puml" alt="Interactions Inside the Logic Component for the `deletec 1` Command" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+<box type="info" seamless>
+
+**Note:** The lifeline for `DeleteClientCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, the lifeline continues till the end of diagram.
+</box>
+
 
 How the `Logic` component works:
 
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
-   Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
-1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
+1. When `Logic` is called upon to execute a command, the command text is passed to an `AddressBookParser` object, which creates a parser that matches the command (e.g., `DeleteClientCommandParser`) and uses it to parse the command.
+2. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteClientCommand`).
+   `LogicManager` checks whether the command is compatible with the currently displayed panel. For example, if
+   the meetings panel is displayed, attempting to execute `deletec` will result in a `CommandException`.
+3. Before execution, `LogicManager` obtains a rollback action from `Model.createRollbackAction()`. It captures
+   a copy of the contacts and meetings, both active filter predicates, and the meeting comparator. The existing
+   observable lists are retained when restoring these values.
+4. `LogicManager` executes the command, which can communicate with the `Model` (e.g. to delete a person).<br>
+   The code can require several interactions between the command object and the `Model` to complete the operation.
+   For example, the command retrieves the filtered person list from `Model`, selects the person at the requested
+   index, and then asks `Model` to delete that person.
+5. After execution, `LogicManager` saves the address book. If storage throws `AccessDeniedException` or another
+   `IOException`, it runs the rollback action and throws a `CommandException` explaining recovery. The selected
+   panel is updated only after saving succeeds, so failed commands preserve the displayed indices and panel.<br>Note that in the partial sequence diagram, the rollback action is abstracted into `Model`, updating the selected panel is omitted, and both `AccessDeniedException` and other `IOException` save failures are represented as `IOException`.
+6. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`
+   only after saving succeeds.
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<puml src="diagrams/ParserClasses.puml" width="600"/>
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddClientCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddClientCommand`). The `AddressBookParser` returns that object as a `Command` object.
+* All `XYZCommandParser` classes, such as `AddClientCommandParser` and `DeleteClientCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-W13-4/tp/blob/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+<puml src="diagrams/ModelClassDiagram.puml" width="1000" />
+
+[Open the full-size model diagram](diagrams/ModelClassDiagram.png){no-validation}
 
 
-The `Model` component,
+The `Model` component is implemented by `ModelManager`. It:
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores PingBook's contacts and meetings in the `AddressBook` data class. Contacts are represented by `Person` objects in a `UniquePersonList`, while meetings are represented by `Meeting` objects in a `MeetingList`.
+* represents each `Meeting` with a `MeetingName`, a `MeetingDate`, two `MeetingTime` values (`startTime` and `endTime`), and zero or more `Tag` objects.
+* exposes contacts selected by the current filter through `getFilteredPersonList()` as an unmodifiable `ObservableList<Person>` view that the UI can observe.
+* maintains `filteredMeetings`, a `FilteredList<Meeting>` over the stored meeting list, and `sortedMeetings`, a `SortedList<Meeting>` over that filtered view. `updateFilteredMeetingList(...)` changes the filter, while `updateMeetingListOrder(...)` changes the display order without reordering stored meetings.
+* exposes `sortedMeetings` through `getMeetingList()` as an unmodifiable `ObservableList<Meeting>`. The UI receives this observable view through the `Logic` component and updates when its contents or order change.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
-
-<img src="images/BetterModelClassDiagram.png" width="450" />
-
-</div>
 
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-W13-4/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
-<img src="images/StorageClassDiagram.png" width="550" />
+<puml src="diagrams/StorageClassDiagram.puml" width="650" />
 
 The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
+* saves contacts and meetings (including their tags) together in the address book JSON file, as the `persons` and `meetings` arrays. Data files without `meetings` or meeting `tags` still load.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
+* writes address book data to a temporary file in the destination directory before atomically replacing the
+  destination. A failed write or replacement leaves the previous data file intact and attempts to remove the
+  temporary file. An unsupported atomic replacement is reported as a save failure; there is no non-atomic fallback.
+  This protects against partial writes during a reported save failure; it does not guarantee durability through
+  power loss. User preference saving uses its existing separate path.
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+
+Saving replaces the existing address book file with a newly created file. Existing custom file permissions and
+access-control settings are not explicitly preserved and may change after saving. Permission-dependent sharing
+of the data file between operating-system accounts is therefore not guaranteed.
 
 ### Common classes
 
 Classes used by multiple components are in the `seedu.address.commons` package.
-
---------------------------------------------------------------------------------------------------------------------
-
-## **Implementation**
-
-This section describes some noteworthy details on how certain features are implemented.
-
-### \[Proposed\] Undo/redo feature
-
-#### Proposed Implementation
-
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
-
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
-
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
-
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
-
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
-
-![UndoRedoState0](images/UndoRedoState0.png)
-
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
-
-![UndoRedoState1](images/UndoRedoState1.png)
-
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
-
-![UndoRedoState2](images/UndoRedoState2.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
-
-</div>
-
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
-
-![UndoRedoState3](images/UndoRedoState3.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
-
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
-
-#### Design considerations:
-
-**Aspect: How undo & redo execute:**
-
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
-
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
-
-_{more aspects and alternatives to be added}_
-
-### \[Proposed\] Data archiving
-
-_{Explain here how the data archiving feature will be implemented}_
-
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -267,65 +214,362 @@ _{Explain here how the data archiving feature will be implemented}_
 * prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Secretaries have to juggle multiple contacts at once. These contacts are usually scattered across spreadsheets, notebooks, and memory. The app gives them a fast, reliable place to find the right contact in seconds.
+
+**Persona**: Bob is a secretary at a fast-paced firm, supporting multiple department heads and sales leads. He is responsible for continuous schedule adjustments, external client contacts, and managing internal team members across projects. His client contact information and meeting schedules are scattered across messy spreadsheets and notebooks. Locating specific contact details or finding free calendar slots is inefficient and prone to error. As he is comfortable typing basic commands on a laptop, he wants a command-line interface application where all the information is stored.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …          | I want to …                                                           | So that I can…                                             |
+|----------|-----------------|-----------------------------------------------------------------------|------------------------------------------------------------|
+| `* * *`  | secretary       | view a list of contacts                                               | keep track of contacts                                     |
+| `* * *`  | secretary       | add contacts with their email, mobile number, and name                | record contacts' information                               |
+| `* * *`  | secretary       | delete contacts                                                       | keep the list free of information that is no longer useful |
+| `* * *`  | secretary       | view a list of meetings                                               | focus entirely on immediate priorities                     |
+| `* * *`  | secretary       | add meetings with their date and time                                 | record meetings                                            |
+| `* * *`  | secretary       | delete meetings                                                       | remove canceled meetings                                   |
+| `* *`    | secretary       | edit contact and meeting information                                  | keep contact and meeting details up to date                |
+| `* *`    | secretary       | search for a contact or meeting by name                               | find the contacts or meetings I want                       |
+| `* *`    | secretary       | add tags to contacts and meetings                                     | filter or search for groups of contacts or meetings easily |
+| `* *`    | secretary       | be warned when meeting schedules overlap, and override                | know about clashes but still schedule when intended        |
+| `* *`    | secretary       | clear all contacts and meetings                                       | remove outdated information quickly                        |
+| `* *`    | first-time user | see a help guide containing all commands                              | know how to use the app                                    |
+| `*`      | first-time user | **Proposed:** add command aliases                                     | type frequently used commands quickly                      |
+| `*`      | secretary       | **Proposed:** see a contact's meeting history                         | know when we last met                                      |
+| `*`      | secretary       | **Proposed:** record meeting outcomes after a meeting                 | remember what happened during the meeting                  |
+| `*`      | secretary       | **Proposed:** view recently or frequently contacted contacts          | easily find contacts I am likely looking for               |
+| `*`      | secretary       | **Proposed:** view when I am free                                     | know when to schedule a meeting                            |
+| `*`      | secretary       | **Proposed:** add multiple emails and mobile numbers for each contact | track contacts with multiple contact details               |
+| `*`      | secretary       | **Proposed:** view tasks for the day                                  | focus on immediate priorities                              |
+| `*`      | secretary       | **Proposed:** add recurring tasks                                     | avoid adding the same task every time                      |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is the `PingBook` and the **Actor** is the `user`, unless specified otherwise)
 
-**Use case: Delete a person**
+**Use case: UC1 - View and filter contacts**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. User requests to view contacts, optionally providing one or more tags.
+2. PingBook displays the contacts matching all supplied tags.
 
-    Use case ends.
+Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 1a. A supplied tag is invalid or empty.
 
-  Use case ends.
+    * 1a1. PingBook shows an error message.
 
-* 3a. The given index is invalid.
+      Use case ends.
 
-    * 3a1. AddressBook shows an error message.
+**Use case: UC2 - Add contact**
 
-      Use case resumes at step 2.
+**MSS**
 
-*{More to be added}*
+1. User provides a name, phone number, email address, and optionally an address and tags.
+2. PingBook adds the new contact.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. A required field is missing or a supplied field is invalid.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 2a. The contact already exists.
+
+    * 2a1. PingBook shows an error message and does not add the contact.
+
+      Use case ends.
+
+**Use case: UC3 - Edit contact**
+
+**MSS**
+
+1. User requests to edit a contact using its displayed index and provides one or more fields to edit.
+2. PingBook replaces the supplied name, phone number, email address, address, or tags. A blank `a/` or `t/` removes the contact's address or all tags instead.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The contacts panel is not active.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. The index is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1c. No field is provided, a supplied field is invalid (see [Field formats](UserGuide.md#field-formats) in the User Guide), or a single-valued prefix is repeated.
+
+    * 1c1. PingBook shows an error message.
+
+      Use case ends.
+
+* 2a. The edited contact duplicates another contact.
+
+    * 2a1. PingBook shows an error message and does not edit the contact.
+
+      Use case ends.
+
+**Use case: UC4 - Delete contact**
+
+**MSS**
+
+1. User requests to delete a contact using its displayed index.
+2. PingBook deletes the selected contact.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The contacts panel is not active.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. The index is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+**Use case: UC5 - Find contact**
+
+**MSS**
+
+1. User provides one or more name keywords.
+2. PingBook displays contacts whose names contain any of the keywords, ignoring case.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. There are no name keywords provided.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. A supplied name keyword is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+**Use case: UC6 - View and filter meetings**
+
+**MSS**
+
+1. User requests to view meetings, optionally providing one or more tags.
+2. PingBook displays the meetings matching all supplied tags, ordering meetings whose end time has not passed before those whose end time has passed.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. A supplied tag is invalid or empty.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+**Use case: UC7 - Add meeting**
+
+**MSS**
+
+1. User provides a name, date, starting time, ending time, and optionally tags for a new meeting.
+2. PingBook validates the meeting and saves it.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. A required field is missing, a supplied field is invalid, or the ending time is not later than the starting time.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 2a. The meeting is a duplicate of an existing meeting.
+
+    * 2a1. PingBook shows an error message and does not save the meeting.
+
+      Use case ends.
+
+* 2b. The meeting overlaps an existing meeting and `force/` was not provided.
+
+    * 2b1. PingBook shows an error message and does not save the meeting.
+
+      Use case ends.
+
+* 2c. The meeting overlaps an existing meeting and `force/` was provided.
+
+    * 2c1. PingBook saves the meeting and shows a warning listing the overlaps.
+
+      Use case ends.
+
+**Use case: UC8 - Edit meeting**
+
+**MSS**
+
+1. User requests to edit a meeting using its displayed index and provides one or more fields to edit.
+2. PingBook replaces the supplied name, date, times, or tags and keeps unspecified fields unchanged.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The meetings panel is not active.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. The index is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1c. No field is provided, a supplied field is invalid, or the ending time is not later than the starting time.
+
+    * 1c1. PingBook shows an error message.
+
+      Use case ends.
+
+* 2a. The edited meeting is a duplicate of another meeting.
+
+    * 2a1. PingBook shows an error message and does not edit the meeting.
+
+      Use case ends.
+
+* 2b. The edited meeting overlaps another meeting and `force/` was not provided.
+
+    * 2b1. PingBook shows an error message and does not edit the meeting.
+
+      Use case ends.
+
+* 2c. The edited meeting overlaps another meeting and `force/` was provided.
+
+    * 2c1. PingBook edits the meeting and shows a warning listing the overlaps.
+
+      Use case ends.
+
+**Use case: UC9 - Delete meeting**
+
+**MSS**
+
+1. User requests to delete a meeting using its displayed index.
+2. PingBook deletes the selected meeting.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. The meetings panel is not active.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. The index is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+**Use case: UC10 - Find meeting**
+
+**MSS**
+
+1. User provides one or more name keywords.
+2. PingBook displays meetings whose names contain any of the keywords, ignoring case.
+
+Use case ends.
+
+**Extensions**
+
+* 1a. There are no name keywords provided.
+
+    * 1a1. PingBook shows an error message.
+
+      Use case ends.
+
+* 1b. A supplied name keyword is invalid.
+
+    * 1b1. PingBook shows an error message.
+
+      Use case ends.
+
+**Use case: UC11 - View user guide**
+
+**MSS**
+
+1. User requests to view the user guide.
+2. PingBook displays the help window containing a link to the user guide.
+
+Use case ends.
+
+**Use case: UC12 - Clear entries**
+
+**MSS**
+
+1. User requests to clear PingBook.
+2. PingBook removes all contacts and meetings.
+
+Use case ends.
+
+**Use case: UC13 - Exit application**
+
+**MSS**
+
+1. User requests to exit PingBook.
+2. PingBook closes the application.
+
+Use case ends.
+
+**Design notes**
+
+* Two meetings overlap when they are on the same date and `start < otherEnd && otherStart < end`
+  (`Meeting#overlapsWith`). Touching boundaries do not overlap. Finished meetings are included.
+* `Model#getOverlappingMeetings(meeting, excluded)` lists the overlaps; `editm` passes the meeting being edited as
+  `excluded` so it is not compared with itself.
+* `force/` is a valueless flag parsed by `ParserUtil#parseForceFlag`. Overlaps are computed on demand and never
+  stored, so the JSON format is unchanged and saved files that already contain overlaps still load.
+
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
+1.  PingBook should run on Windows, macOS, and Linux with Java 25 installed, from a single JAR file without an installer or an internet connection.
+2.  PingBook should support at least 1000 contacts and 1000 meetings,
+with commands completing within 1 second under typical usage.
 3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+4.  Contact and meeting data should be stored in a human-editable text file. 
+5.  Contact details and meeting information should remain on the user's computer. PingBook should not transmit them to a remote server or require an online account.
+6.  All functions should remain usable at a screen resolution of 1280 × 720 with 150% scaling. At 1920 × 1080 with 100% or 125% scaling, controls and information should not overlap or be cut off.
+7.  Command results, validation errors, and meeting status should be communicated in text, so users do not have to rely on colours or icons alone to understand them.
 
-*{More to be added}*
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Contact (Client)**: A person whose contact information are managed by the application
+* **Meeting**: A scheduled event with a name and time recorded by the application
+* **Command alias**: A user-defined alternative name or abbreviation for an application command
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -333,50 +577,130 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
 Given below are instructions to test the app manually.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
+<box type="info" seamless>
 
-</div>
+**Note:** These instructions only provide a starting point for testers to work on;
+testers are expected to do more *exploratory* testing.
+</box>
 
 ### Launch and shutdown
 
 1. Initial launch
 
-   1. Download the JAR file and copy it into an empty folder.
+   1. Prerequisite: Run PingBook in a folder without an existing data file.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   2. Test case: Launch the application.<br>
+      Expected: The GUI opens with the sample contacts displayed.
 
-1. Saving window preferences
+2. Saving window preferences
 
-   1. Resize the window to an optimal size. Move the window to a different location. Close the window.
+   1. Resize and move the window, then close and relaunch PingBook.<br>
+      Expected: The latest window size and position are restored.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
-       Expected: The most recent window size and location are retained.
+### Recovering from a failed save
 
-1. _{ more test cases …​ }_
+1. Use a disposable copy of PingBook and its data, containing contacts Alice and Bob in that displayed order.
+   Run `listc`.
+1. While PingBook is open, temporarily prevent saving:
+   * Windows: enable the Read-only attribute on `data/addressbook.json`. This is the file attribute, not the
+     folder's Read-only checkbox.
+   * Linux/macOS: remove write permission from the containing `data` directory for the account running PingBook,
+     while retaining read and directory search/access permissions. Use an account without privileges that bypass
+     these restrictions.
+1. Run `deletec 1`.<br>
+   Expected: A save error explains that the command was rolled back. Alice and Bob remain in their original rows,
+   the JSON file is unchanged, and `deletec 1` remains in the command box.
+1. Repeat the command while saving remains blocked.<br>
+   Expected: The same failure leaves both records unchanged.
+1. Restore the original file attribute or directory permissions and retry `deletec 1`.<br>
+   Expected: Only Alice is deleted. Bob remains and reloading the application confirms the saved result.
+1. Repeat with disposable meetings using `listm t/work`, `editm 1 n/Updated review` and `deletem 1`.<br>
+   Expected: Failed saves preserve the filtered rows and their order. Retrying after restoring permission applies
+   the edit or deletion to the original displayed meeting.
 
-### Deleting a person
+### Adding a contact
 
-1. Deleting a person while all persons are being shown
+1. Adding a valid contact
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Test case: `addc n/Test contact p/91234567 e/test@example.com t/test`<br>
+      Expected: The contact is added and displayed with the supplied tag.<br><br>
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+2. Rejecting invalid or duplicate contacts
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+   1. Test cases: `addc n/Test contact p/invalid e/test@example.com`, followed by the same valid `addc` command twice.<br>
+      Expected: Invalid data is rejected. The duplicate contact is rejected and only one copy is stored.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+### Finding and filtering contacts
 
-1. _{ more test cases …​ }_
+1. Filtering contacts by tags
 
-### Saving data
+   1. Prerequisite: Add contacts with different combinations of tags.
 
-1. Dealing with missing/corrupted data files
+   2. Test case: `listc t/friend t/colleague`<br>
+      Expected: Only contacts containing both tags are displayed. Tag matching is case-insensitive.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+2. Finding contacts by name
 
-1. _{ more test cases …​ }_
+   1. Prerequisite: Add contacts whose names contain different keywords.
+
+   2. Test case: `findc alex david`<br>
+      Expected: Contacts matching either keyword are displayed, ignoring case.
+
+### Deleting a contact
+
+1. Deleting a contact while all contacts are being shown
+
+    1. Prerequisite: List all contacts using the `listc` command, with multiple contacts in the list.
+
+    2. Test case: `deletec 1`<br>
+       Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+
+    3. Test cases: `deletec 0`, `deletec`, and `deletec x`<br>
+       Expected: No contact is deleted. The status message shows error details.
+
+### Adding a meeting
+
+1. Validating and adding meetings
+
+   1. Test cases: Add a valid meeting, then try a missing field, an invalid date, and an end time earlier than the start time.<br>
+      Expected: The valid meeting is added. Each invalid command is rejected with an error message.<br><br>
+
+2. Detecting meeting overlaps
+
+   1. Prerequisite: Add one meeting on a particular date.
+
+   2. Test cases: Add an overlapping meeting without `force/`, then repeat it with `force/`.<br>
+      Expected: The first command is rejected with the conflicting meeting listed. The second command saves the meeting and displays a warning.
+
+   3. Test case: Add a meeting that starts exactly when another meeting ends, without overlapping with any other meetings.<br>
+      Expected: The meeting is accepted because touching boundaries do not overlap.
+
+### Finding and filtering meetings
+
+1. Filtering and ordering meetings
+
+   1. Prerequisite: Add meetings with different tags, including one whose end time has passed and one whose end time is in the future.
+
+   2. Test cases: `listm`, `listm t/work`, and `listm t/work t/urgent`<br>
+      Expected: Meetings are filtered by all supplied tags. Meetings whose end time has not passed appear before meetings whose end time has passed.
+
+### Editing a meeting
+
+1. Editing a meeting
+
+   1. Prerequisite: Display meetings using `listm` and ensure that the first meeting displayed does not overlap with other meetings.
+
+   2. Test cases: `editm 1 t/updated` and `editm 1 t/`<br>
+      Expected: The first command replaces the meeting's tags and the second removes all tags.
+
+### Deleting a meeting
+
+1. Deleting a meeting while all meetings are being shown
+
+   1. Prerequisite: List all meetings using the `listm` command, with multiple meetings in the list.
+
+   2. Test case: `deletem 1`<br>
+      Expected: The first meeting is deleted from the list. The status message shows the deleted meeting's details.
+
+   3. Test cases: `deletem 0`, `deletem`, and `deletem x`<br>
+      Expected: No meeting is deleted. The status message shows error details.

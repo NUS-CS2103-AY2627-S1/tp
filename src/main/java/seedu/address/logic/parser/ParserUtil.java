@@ -4,11 +4,16 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.meeting.MeetingDate;
+import seedu.address.model.meeting.MeetingName;
+import seedu.address.model.meeting.MeetingTime;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -120,5 +125,66 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Returns true if the valueless {@code force/} flag is present in {@code argMultimap}.
+     *
+     * @throws ParseException if {@code force/} is given a value.
+     */
+    public static boolean parseForceFlag(ArgumentMultimap argMultimap) throws ParseException {
+        requireNonNull(argMultimap);
+        Optional<String> value = argMultimap.getValue(CliSyntax.PREFIX_FORCE);
+        if (value.isPresent() && !value.get().isEmpty()) {
+            throw new ParseException(Messages.MESSAGE_FORCE_TAKES_NO_VALUE);
+        }
+        return value.isPresent();
+    }
+
+    /**
+     * Parses a {@code String meetingName} into a {@code MeetingName}.
+     * Spaces and tabs are normalized by {@code MeetingName} after validation.
+     *
+     * @param meetingName The meeting name to parse.
+     * @throws ParseException if the given {@code meetingName} is invalid.
+     */
+    public static MeetingName parseMeetingName(String meetingName) throws ParseException {
+        requireNonNull(meetingName);
+        if (!MeetingName.isValidName(meetingName)) {
+            throw new ParseException(MeetingName.MESSAGE_CONSTRAINTS);
+        }
+        return new MeetingName(meetingName);
+    }
+
+    /**
+     * Parses a {@code String meetingDate} into a {@code MeetingDate}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @param meetingDate The meeting date to parse.
+     * @throws ParseException if the given {@code meetingDate} is invalid.
+     */
+    public static MeetingDate parseMeetingDate(String meetingDate) throws ParseException {
+        requireNonNull(meetingDate);
+        String trimmedMeetingDate = meetingDate.trim();
+        if (!MeetingDate.isValidDate(trimmedMeetingDate)) {
+            throw new ParseException(MeetingDate.MESSAGE_CONSTRAINTS);
+        }
+        return new MeetingDate(trimmedMeetingDate);
+    }
+
+    /**
+     * Parses a {@code String meetingTime} into a {@code MeetingTime}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @param meetingTime The meeting time to parse.
+     * @throws ParseException if the given {@code meetingTime} is invalid.
+     */
+    public static MeetingTime parseMeetingTime(String meetingTime) throws ParseException {
+        requireNonNull(meetingTime);
+        String trimmedMeetingTime = meetingTime.trim();
+        if (!MeetingTime.isValidTime(trimmedMeetingTime)) {
+            throw new ParseException(MeetingTime.MESSAGE_CONSTRAINTS);
+        }
+        return new MeetingTime(trimmedMeetingTime);
     }
 }

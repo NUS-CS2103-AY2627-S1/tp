@@ -7,13 +7,18 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
@@ -49,6 +54,39 @@ public class PersonTest {
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
         assertFalse(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void hasAllTags() {
+        // EP: the empty requested-tag set is the no-filter partition and vacuously matches the person.
+        assertTrue(BOB.hasAllTags(Set.of()));
+
+        // EP: one requested tag and multiple requested tags are valid complete-match partitions.
+        assertTrue(BOB.hasAllTags(Set.of(new Tag(VALID_TAG_FRIEND))));
+        assertTrue(BOB.hasAllTags(Set.of(new Tag(VALID_TAG_FRIEND), new Tag(VALID_TAG_HUSBAND))));
+
+        // EP: a partial match is rejected because hasAllTags requires every requested tag.
+        assertFalse(BOB.hasAllTags(Set.of(new Tag(VALID_TAG_FRIEND), new Tag("colleague"))));
+    }
+
+    @Test
+    public void hasAllTags_ignoresTagNameCase() {
+        // EP: tag names with different letter case belong to the same case-insensitive match partition.
+        assertTrue(BOB.hasAllTags(Set.of(new Tag(VALID_TAG_FRIEND.toUpperCase()),
+                new Tag(VALID_TAG_HUSBAND.toLowerCase()))));
+
+        // EP: case-insensitive matching does not make an absent requested tag valid.
+        assertFalse(BOB.hasAllTags(Set.of(new Tag(VALID_TAG_FRIEND.toUpperCase()), new Tag("COLLEAGUE"))));
+    }
+
+    @Test
+    public void hasAllTags_nullTags_throwsNullPointerException() {
+        // EP: null and a set containing null are invalid input partitions rejected by the precondition.
+        assertThrows(NullPointerException.class, () -> BOB.hasAllTags(null));
+
+        Set<Tag> tagsWithNull = new HashSet<>();
+        tagsWithNull.add(null);
+        assertThrows(NullPointerException.class, () -> BOB.hasAllTags(tagsWithNull));
     }
 
     @Test

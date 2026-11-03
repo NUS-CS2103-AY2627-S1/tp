@@ -3,13 +3,20 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.meeting.Meeting;
 import seedu.address.model.person.Person;
 
 /**
@@ -21,6 +28,8 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Meeting> filteredMeetings;
+    private final SortedList<Meeting> sortedMeetings;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +42,9 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredMeetings = new FilteredList<>(this.addressBook.getMeetingList());
+        sortedMeetings = new SortedList<>(filteredMeetings);
+        updateMeetingListOrder(LocalDateTime.now());
     }
 
     public ModelManager() {
@@ -70,6 +82,20 @@ public class ModelManager implements Model {
     }
 
     @Override
+    public Runnable createRollbackAction() {
+        AddressBook original = new AddressBook(addressBook);
+        Predicate<? super Person> personFilter = filteredPersons.getPredicate();
+        Predicate<? super Meeting> meetingFilter = filteredMeetings.getPredicate();
+        Comparator<? super Meeting> meetingOrder = sortedMeetings.getComparator();
+        return () -> {
+            addressBook.resetData(original);
+            filteredPersons.setPredicate(personFilter);
+            filteredMeetings.setPredicate(meetingFilter);
+            sortedMeetings.setComparator(meetingOrder);
+        };
+    }
+
+    @Override
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
@@ -83,7 +109,6 @@ public class ModelManager implements Model {
     @Override
     public void addPerson(Person person) {
         addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
     @Override
@@ -91,6 +116,67 @@ public class ModelManager implements Model {
         requireAllNonNull(target, editedPerson);
 
         addressBook.setPerson(target, editedPerson);
+    }
+
+    //=========== Meeting Accessors ==========================================================================
+
+    @Override
+    public boolean hasMeeting(Meeting meeting) {
+        requireNonNull(meeting);
+        return addressBook.hasMeeting(meeting);
+    }
+
+    @Override
+    public List<Meeting> getOverlappingMeetings(Meeting meeting, Meeting excluded) {
+        requireNonNull(meeting);
+        List<Meeting> overlaps = new SortedList<>(addressBook.getMeetingList(), sortedMeetings.getComparator())
+                .stream()
+                .filter(other -> other != excluded && !other.equals(excluded))
+                .filter(meeting::overlapsWith)
+                .collect(Collectors.toList());
+        assert overlaps.stream().allMatch(meeting::overlapsWith);
+        assert excluded == null || !overlaps.contains(excluded);
+        return overlaps;
+    }
+
+    @Override
+    public void addMeeting(Meeting meeting) {
+        addressBook.addMeeting(meeting);
+    }
+
+    @Override
+    public void setMeeting(Meeting target, Meeting editedMeeting) {
+        requireAllNonNull(target, editedMeeting);
+        addressBook.setMeeting(target, editedMeeting);
+    }
+
+    @Override
+    public void deleteMeeting(Meeting meeting) {
+        addressBook.removeMeeting(meeting);
+    }
+
+    @Override
+    public ObservableList<Meeting> getMeetingList() {
+        return FXCollections.unmodifiableObservableList(sortedMeetings);
+    }
+
+    @Override
+    public void updateFilteredMeetingList(Predicate<Meeting> predicate) {
+        requireNonNull(predicate);
+        filteredMeetings.setPredicate(predicate);
+        logger.fine(() -> "Updated meeting filter; " + filteredMeetings.size() + " meetings match.");
+    }
+
+    @Override
+    public void updateMeetingListOrder(LocalDateTime currentTime) {
+        requireNonNull(currentTime);
+        sortedMeetings.setComparator(Comparator
+                .comparing((Meeting meeting) -> !meeting.getDate().getDate()
+                        .atTime(meeting.getEndTime().getTime()).isAfter(currentTime))
+                .thenComparing(meeting -> meeting.getDate().getDate())
+                .thenComparing(meeting -> meeting.getStartTime().getTime())
+                .thenComparing(meeting -> meeting.getEndTime().getTime())
+                .thenComparing(meeting -> meeting.getName().name, String.CASE_INSENSITIVE_ORDER));
     }
 
     //=========== Filtered Person List Accessors =============================================================
@@ -102,6 +188,11 @@ public class ModelManager implements Model {
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return filteredPersons;
+    }
+
+    @Override
+    public int getFilteredPersonListSize() {
+        return filteredPersons.size();
     }
 
     @Override
@@ -123,7 +214,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && sortedMeetings.equals(otherModelManager.sortedMeetings);
     }
 
 }

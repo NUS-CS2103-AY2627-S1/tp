@@ -9,10 +9,15 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteClientCommand;
+import seedu.address.logic.commands.DeleteMeetingCommand;
+import seedu.address.logic.commands.EditClientCommand;
+import seedu.address.logic.commands.EditMeetingCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.meeting.Meeting;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -20,16 +25,23 @@ import seedu.address.storage.Storage;
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    public static final String SAVE_RECOVERY_MESSAGE =
+            "\nThe command was rolled back. Resolve the storage problem, then retry the command.";
+    public static final String FILE_OPS_ERROR_FORMAT =
+            "Could not save data due to the following error: %s" + SAVE_RECOVERY_MESSAGE;
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
-            "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
+            "Could not save data to file %s due to insufficient permissions to write to the file or the folder."
+                    + SAVE_RECOVERY_MESSAGE;
 
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+
+    /** Tracks the panel selected by successful commands; help, exit and failures keep the current panel. */
+    private boolean showingMeetings;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -46,14 +58,28 @@ public class LogicManager implements Logic {
 
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
+        if (showingMeetings && (command instanceof DeleteClientCommand || command instanceof EditClientCommand)) {
+            throw new CommandException(Messages.MESSAGE_CONTACT_LIST_NOT_VISIBLE);
+        } else if (!showingMeetings
+                && (command instanceof DeleteMeetingCommand || command instanceof EditMeetingCommand)) {
+            throw new CommandException(Messages.MESSAGE_MEETING_LIST_NOT_VISIBLE);
+        }
+        Runnable rollback = model.createRollbackAction();
         commandResult = command.execute(model);
 
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            rollback.run();
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            rollback.run();
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+        }
+
+        // Match MainWindow's panel selection only after execution and saving both succeed.
+        if (!commandResult.isShowHelp() && !commandResult.isExit()) {
+            showingMeetings = commandResult.isShowMeetings();
         }
 
         return commandResult;
@@ -62,6 +88,11 @@ public class LogicManager implements Logic {
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Meeting> getMeetingList() {
+        return model.getMeetingList();
     }
 
     @Override
