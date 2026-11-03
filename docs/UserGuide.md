@@ -3,7 +3,10 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+SoCdex is a desktop roster manager for NUS School of Computing tutors who manage students across multiple class sections and project teams. It keeps student identities and roster information in one local application, so tutors do not need to repeatedly cross-reference Canvas, spreadsheets, technical platforms, and personal notes. SoCdex provides a keyboard-first workflow through typed commands while retaining the benefits of a graphical user interface.
+
+SoCdex is based on AddressBook Level 3 (AB3).
+
 
 * Table of Contents
 {:toc}
@@ -12,29 +15,36 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+1. Install Java `25`. In a terminal, run `java -version` and confirm that the reported major version is `25` before every launch. Other Java versions are not supported.<br>
+   **Mac users:** Use the precise JDK distribution prescribed in the [Java 25 installation guide](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from the [SoCdex releases page](https://github.com/AY2627S1-CS2103T-W09-2/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Put the JAR file in an empty folder where SoCdex is allowed to create and replace files. Do not use a write-protected folder. SoCdex creates its roster, preferences, logs, JavaFX cache and temporary files inside this application folder.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar "addressbook.jar"`. If the downloaded file has another name, use that exact filename instead.<br>
+   Launch SoCdex from the terminal rather than by double-clicking the JAR. This ensures that SoCdex uses the Java 25 installation that you verified. On Linux with a Wayland display server, if launch fails with a `Gdk-CRITICAL` error, retry with `GDK_BACKEND=x11 java -jar "addressbook.jar"`.<br>
+   A GUI should appear in a few seconds. A new installation starts with an empty roster; it does not create sample records automatically. The image below shows the SoCdex interface.<br>
    ![Ui](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all students.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `student add /name Alex Tan /email e9000001@u.nus.edu` : Creates a student profile without requiring optional contacts.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `sample load` : Loads five fictional student profiles into an empty roster.
 
-   * `clear` : Deletes all contacts.
+   * `sample clear` : Removes all profiles that are classified as fictional samples.
 
-   * `exit` : Exits the app.
+   * `delete e9000001@u.nus.edu` : Previews the deletion of the student with that NUS email. Nothing is removed yet.
+
+   * `confirm-delete e9000001@u.nus.edu` : Deletes the previewed student, when submitted as the next command.
+
+   * `clear` : Explains that whole-roster clearing is unavailable and points to the safe alternatives.
+
+   * `bye` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
 
@@ -46,142 +56,465 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 **:information_source: Notes about the command format:**<br>
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+* Words in `UPPER_CASE` represent your values. Square brackets mark optional parameters; do not type the brackets.
+* Use lowercase command words and prefixes. Commands must be on one line; spaces and tabs may separate their components.
+* A tab pasted into the command box becomes a space. A pasted line break shows as `↵`. Other pasted C0 control characters (U+0000–U+001F) and DEL (U+007F) show as `�`. C1 controls (U+0080–U+009F) and the Unicode line and paragraph separators U+2028/U+2029 remain in the field instead of becoming markers. A command containing any of these unsupported controls or separators is rejected with `Enter one command on a single line.` Delete the marker or unsupported character (and any extra command after it), then press Enter again. A `↵` or `�` that you type yourself is ordinary text.
+* For `student add` and `edit`, prefixes may appear in any order, but only once each. Separate each prefix from its value with a space or tab. Unknown prefixes, repeated prefixes, empty supplied values, malformed slash tokens and text before the first prefix are rejected with usage guidance.
+* A prefix starts at a space/tab boundary with `/` and a letter, followed by letters or hyphens. Values end at the next prefix. An embedded slash such as the one in `AY26/27` is not a prefix.
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+* Commands that take no parameters reject extra text. For example, `help 123`, `list all`, and `bye now` are
+  rejected with command-specific usage guidance. Surrounding spaces and tabs remain allowed.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
-
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
-
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Pressing Enter when the command box is empty, or contains only spaces or tabs, shows `Enter a command.`
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens the Help window with editing guidance and a link to this User Guide. The Help window is a guide pointer. It does not list every supported command. Use the command summary in this guide for the complete command list.
 
-![help message](images/helpMessage.png)
+![SoCdex Help window](images/helpMessage.png)
 
 Format: `help`
 
+### Loading fictional sample profiles: `sample load`
 
-### Adding a person: `add`
+Loads a fixed set of five fictional student profiles and five enrolments, so you can explore SoCdex without entering real student data.
 
-Adds a person to the address book.
+Format: `sample load`
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+The roster must be empty and writable. The command accepts extra spaces or tabs around and between `sample` and `load`, but it does not accept any parameters. The command is lowercase and must be on one line.
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+The fixture contains these fictional profiles:
 
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* Alex Tan, `e9000001@u.nus.edu`, with Telegram and GitHub contacts, and two enrolments.
+* Alex Tan, `e9000002@u.nus.edu`, with a GitHub contact and one enrolment.
+* Mei Lim, `e9000003@u.nus.edu`, with a Telegram contact and one enrolment.
+* Nur Aisyah, `e9000005@u.nus.edu`, with no optional contacts or enrolments.
+* Ravi Kumar, `e9000004@u.nus.edu`, with Telegram and GitHub contacts, and one enrolment.
 
-### Listing all persons: `list`
+Every loaded profile shows the `Fictional sample` label. Missing contacts show `Not provided`. Missing section and team values are stored as absent and are displayed as `Not assigned`. Display labels are not stored as data. The five profiles appear in name order, with email used to order equal names. No profile is selected automatically, and the profile panel says `Select a student to view their profile.` Use `view EMAIL` to open one profile. The fixture is saved and returns after restart.
 
-Shows a list of all persons in the address book.
+A successful command shows `Loaded 5 fictional student profiles and 5 enrolments. You can explore SoCdex without using real student data.`
+
+If the roster is not empty, SoCdex shows `Sample data can only be loaded into an empty roster. Existing data was not changed.` It does not add, merge, or replace any profile. If the fixed fixture is invalid, SoCdex shows `Sample data is invalid. No data was changed.` If saving fails, it shows `Sample data could not be saved. No data was changed.` These failures keep the previous roster and saved file unchanged. A read-only recovery session rejects the command with the existing recovery message.
+
+SoCdex does not load samples at startup.
+
+### Removing fictional sample profiles: `sample clear`
+
+Removes every profile that is classified as fictional sample data. It also removes every enrolment owned by those profiles.
+
+Format: `sample clear`
+
+The command accepts extra spaces or tabs around and between `sample` and `clear`. It does not accept parameters, selectors, or other text. The command is lowercase and must be on one line. For example, `sample clear 1` is rejected with `Sample clear does not accept parameters. Usage: sample clear`.
+
+SoCdex uses the stored fictional-sample classification. It does not guess from a student's name, email, contacts, tags, remark, or enrolments. An edited or hidden sample profile is still removed. A real profile is kept even if its details resemble the fixed fixture.
+
+For example, suppose the roster contains the five loaded sample profiles and a real student also named Alex Tan. `sample clear` removes the five classified samples and keeps the real Alex Tan. A successful command reports the actual totals, such as `Removed 5 fictional sample profiles and 5 enrolments. Your non-sample records were not changed.` The remaining roster is shown in name-and-email order. A selected real profile stays selected. A selected sample profile is cleared because it no longer exists.
+
+If no students remain, SoCdex clears the selection and shows `No students in the roster. Add a student or load fictional samples.` If there are no sample profiles, the command succeeds without saving and shows `No fictional sample profiles were found.` The current results and selection do not change. Running the command again therefore cannot remove a real profile.
+
+If saving fails, SoCdex shows `Sample profiles could not be removed. No data was changed.` It restores all profiles, enrolments, results, and the selected profile. A read-only recovery session blocks the command.
+
+The command does not ask for confirmation and it is not selective. The standalone `clear` command is unavailable because deleting the whole roster would bypass the confirmation required for real profiles.
+
+
+### Adding a student: `student add`
+
+Format: `student add /name NAME /email EMAIL [/telegram HANDLE] [/github USERNAME]`
+
+Only name and email are required. The new profile is non-sample and has no enrolments. A successful command shows `Added student: NAME.`, displays the full roster sorted by name (ignoring case) then email, and selects the new student.
+
+* Names may contain 1 to 100 Unicode characters, including accented and non-Latin names. Surrounding spaces/tabs are removed and internal runs become one space. Names must contain a visible character and cannot contain a slash, line break or control character. Two students may have the same name.
+* Emails have a local part of 1 to 64 ASCII letters, digits, dots, underscores, plus signs or hyphens followed by exactly `@u.nus.edu`. The local part must start and end with a letter or digit and cannot contain consecutive dots or spaces. Input is lowercased and surrounding spaces/tabs are removed. Dots and plus suffixes remain significant: `alex+one@u.nus.edu` and `alex+two@u.nus.edu` are different identities.
+* Telegram handles contain 5 to 32 ASCII letters, digits or underscores and start with a letter. One leading `@` is accepted and removed. Letter case is preserved.
+* GitHub usernames contain 1 to 39 ASCII letters, digits or hyphens. They start and end with a letter or digit and cannot contain consecutive hyphens. A leading `@`, underscore or URL is not accepted. Letter case is preserved.
+* Omit an unknown contact entirely. A supplied empty contact is an error. `Not provided` is displayed for absent contacts and is never stored as a placeholder.
+* Syntax checks do not verify that any institutional, Telegram or GitHub account exists. No external service is contacted.
+
+Examples using fictional students:
+
+* `student add /name José Tan /email E9000001@U.NUS.EDU` stores the email as `e9000001@u.nus.edu`.
+* `student add /email e9000002@u.nus.edu /name 王小明 /telegram @Alex_Tan /github alex-tan` accepts mixed prefix order and stores Telegram as `Alex_Tan`.
+* `student add /name José Tan /email e9000003@u.nus.edu` creates a second student with the same name and a different email.
+
+If the canonical email already exists, the command shows `A student with this NUS email already exists. Use view EMAIL to inspect the existing profile.`
+with the existing student's canonical email in place of `EMAIL` and reveals/selects that existing student in the full sorted roster. It does not overwrite or save any data. This deliberate reveal is the exception to preserving the previous selection on rejection. Use `view EMAIL` to reopen that profile later.
+
+A save failure shows `The student could not be saved. No data was changed.` and restores the previous roster, results and selection. Correct the storage problem and retry. If the new display cannot be prepared, the command shows `Student could not be displayed. No data was changed. Try again.` and does not save.
+
+The inherited `add n/...` command is retired. Phone and address are no longer student fields.
+
+### Adding a module-semester enrolment: `enrol`
+
+Format: `enrol /email EMAIL /module MODULE /semester SEMESTER [/section SECTION] [/team TEAM]`
+
+Create the student first with `student add`. The normalised NUS email selects the exact owner from the complete roster, including students hidden by a search. Prefixes may appear in any order, once each. Unknown or repeated prefixes, text before the first prefix and supplied empty values reject the whole command. The slash inside `AY26/27` is part of the semester value.
+
+* Module codes have 2 to 4 ASCII letters, four digits and up to 3 final letters; input is trimmed and stored uppercase.
+* Semesters use `AYyy/yy S1` or `AYyy/yy S2`, ignoring case and normalising spaces/tabs. Years must be consecutive within 2000–2099. Special terms are unsupported.
+* Optional section and team labels have 1 to 30 ASCII letters, digits, spaces or hyphens after spaces/tabs are normalised, and need at least one letter or digit. Case is preserved. Omit a prefix for an unknown affiliation and do not supply a blank value. The current app accepts `Not assigned` as literal label text, but displays it in the same way as an absent value. Avoid that label. Omit the prefix instead. [Issue #169](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/169) tracks a future reserved-label and compatibility change.
+
+Examples using an existing fictional student:
+
+* `enrol /email e9000005@u.nus.edu /module CS2103T /semester AY26/27 S1` adds an unassigned context.
+* Alternatively, `enrol /email E9000005@U.NUS.EDU /module cs2103t /semester ay26/27 s1 /section T12 /team SEED` adds the same context with affiliations. Run either example, not both: the second is a duplicate after the first succeeds.
+* `enrol /semester AY26/27 S2 /module CS2103T /email e9000005@u.nus.edu` adds a separate context for the next semester.
+
+Success shows `Added enrolment for NAME: MODULE, SEMESTER.` followed by `Module:`, `Semester:`, `Section:` and `Team:` lines for the saved context. Missing affiliations display `Not assigned`. The change is saved before success is reported; the active search is cleared and the owner is selected in the full roster sorted by name then email. All contacts, sample classification, earlier enrolments and other students are preserved. The result cards and profile panel show all saved enrolments, including their section and team.
+
+A duplicate module-semester key for the same student is rejected even if section or team differs. The specified message says `This student already has an enrolment for MODULE, SEMESTER. Use edit-enrol to change its section or team.` Use `edit-enrol` to update those affiliations. Check the context before retrying; `enrol` never overwrites existing affiliations. Different students may share the same context.
+
+A missing owner shows `No student found with NUS email: EMAIL. Create the student profile before adding an enrolment.` Invalid values show their field rule. Syntax errors include usage help and report structural errors from left to right, then check values in email/module/semester/section/team order. Rejections leave data, results and selection unchanged.
+
+A save failure shows `The enrollment could not be saved. No data was changed.` and restores the previous roster, results and selection. Correct the storage problem and retry. A display preparation failure shows `Student could not be displayed. No data was changed. Try again.` and does not save. Read-only recovery sessions reject enrolment changes with the existing recovery guidance.
+
+### Editing an enrolment's section or team: `edit-enrol`
+
+Changes affiliations on one existing enrolment. The owner email, module and semester are selectors: this command
+cannot change them, move an enrolment to another student, create a missing enrolment or remove an enrolment.
+
+Format: `edit-enrol /email EMAIL /module MODULE /semester SEMESTER [/section SECTION|clear] [/team TEAM|clear]`
+
+* Supply all three selectors and at least one of `/section` or `/team`. Prefixes may appear in any order, once each.
+* Email is canonicalised to lowercase, module to uppercase, and semester to `AYyy/yy S1` or `AYyy/yy S2`. The
+  academic-year slash is part of the value. For example, `cs2103t` and `ay26/27 s1` select `CS2103T, AY26/27 S1`.
+* Section/team labels accept 1–30 ASCII letters, digits, spaces or hyphens after trimming and collapsing spaces/tabs;
+  each label must include a letter or digit. Case is preserved. A supplied empty value is an error.
+* Omit a field to preserve it. The exact lowercase `clear` removes only that assignment; `Clear` stores a literal
+  label. Missing affiliations display `Not assigned`. The current app also accepts `Not assigned` as literal text,
+  but the display cannot distinguish that text from an absent assignment. Avoid that label and use `clear` when you
+  need to remove an assignment.
+* Success shows `Updated enrolment for NAME: MODULE, SEMESTER.`, clears the search filter and selects the owner
+  in the full sorted roster. Other students, enrolments, contacts and fictional-sample classification are preserved.
+* An identical normalised value, or clearing an already absent field, shows `No values changed.` and reveals the
+  owner without rewriting the roster. A case-only section/team change is saved.
+
+Examples after `sample load`:
+
+* `edit-enrol /email e9000001@u.nus.edu /module CS2103T /semester AY26/27 S1 /section T14 /team SEED-2`
+* `edit-enrol /email e9000001@u.nus.edu /module CS2103T /semester AY26/27 S1 /team clear` preserves the section.
+* `edit-enrol /email e9000001@u.nus.edu /module CS2103T /semester AY26/27 S1 /team Clear` stores the label `Clear`.
+
+Errors preserve the previous roster, displayed results and selection:
+
+* No editable field: `Provide at least one field to update.`
+* Unknown owner: `No student found with NUS email: EMAIL.`
+* Unknown context: `No matching enrolment found for EMAIL, MODULE, SEMESTER. Use enrol to add it first.`
+* Prefix errors identify the missing, empty, repeated or unknown parameter and append this command's usage.
+  Structural errors are checked left to right; values are checked in email, module, semester, section, team order.
+* An invalid field rejects the whole request, even if another field is valid or unchanged.
+* Save or display failure: `The record could not be updated. No data was changed.` Correct the problem and retry.
+* Read-only recovery rejects this command, including no-ops. Restore a valid file and restart first.
+
+
+### Listing the complete roster: `list`
+
+Shows the complete roster, including students hidden by an earlier search, sorted by name (ignoring case) then email.
 
 Format: `list`
 
-### Editing a person: `edit`
+`list` does not change or save roster data. If a profile is selected and remains in the roster, it stays selected.
 
-Edits an existing person in the address book.
+### Adding, replacing or removing a remark: `remark`
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `remark INDEX r/[TEXT]`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+Adds or replaces the selected student's free-text remark. `INDEX` is the positive number shown in the **current result list**, starting at 1; after `find`, it refers to that filtered list, not the full roster. Check the displayed name and email before submitting. An index beyond the displayed results is rejected.
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* `remark INDEX r/TEXT` replaces the entire existing remark with `TEXT`; it does not append to it.
+* `remark INDEX r/` deliberately removes the existing remark. The `r/` prefix is required even when removing a remark; `remark INDEX` alone is rejected.
+* Names, emails, contacts, enrolments and sample classification are preserved. A successful update is saved and shows the full roster in name-and-email order, so displayed indices can change after updating a filtered result.
+* The remark appears on the student's result card and as the last line of the profile panel opened by `view EMAIL`, after `Remark: `. A long remark wraps onto more lines instead of being cut off, so the whole remark can be read without widening the window. If it is below the visible part of the profile panel, scroll the panel.
 
-### Locating persons by name: `find`
+Example using the fictional samples:
 
-Finds persons whose names contain any of the given keywords.
+1. After loading samples, run `find e9000001@u.nus.edu` and check that Alex Tan is result 1.
+2. `remark 1 r/Arrange a consultation on Friday.` adds the remark (or replaces the old one).
+3. Run `find e9000001@u.nus.edu` again to confirm the current index before using `remark 1 r/` to remove the remark.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+### Editing a student's profile: `edit`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Format: `edit /email EMAIL [/new-email NEW_EMAIL] [/name NAME] [/telegram HANDLE|clear] [/github USERNAME|clear]`
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+`/email` is the student's current email. It selects the student across the complete roster, even when a search hides that student. Supply at least one of `/new-email`, `/name`, `/telegram` or `/github`. Every field you omit keeps its stored value. `edit` never changes enrolments, sample status, tags or remark.
 
-### Deleting a person: `delete`
+* `/new-email` replaces the email using the `student add` email rules, and is stored in lowercase. It must not belong to another student. The student's own current email, in any letter case, is not a change. After a successful change, the old email no longer finds the student and is not kept as an alias, so use the new email in later commands. An invalid replacement is reported as `New email: ` followed by the email rule.
+* `/name` replaces the name using the `student add` name rules: surrounding spaces/tabs are removed, each internal run becomes one space, and 1 to 100 Unicode characters remain. The name cannot be removed; `clear` is ordinary name text here. Another student may have the same name.
+* `/telegram` and `/github` use the `student add` contact rules. Only the exact lowercase token `clear` removes a contact. `/telegram @clear` stores the handle `clear`, and `Clear` stores a value for either contact. An empty supplied value is an error.
 
-Deletes the specified person from the address book.
+Examples using the fictional sample students:
 
-Format: `delete INDEX`
+* `edit /email e9000001@u.nus.edu /telegram @Alex_New` updates Telegram and preserves everything else.
+* `edit /email e9000001@u.nus.edu /new-email e9000101@u.nus.edu /github clear` changes the email and removes GitHub in one command. Later commands for this student use `e9000101@u.nus.edu`.
+* `edit /email e9000003@u.nus.edu /name Mei Ling Lim` renames the student; `/name mei ling LIM` afterwards is a case-only change and is saved.
+* `edit /email e9000004@u.nus.edu /telegram @clear /github Clear` stores the literal values `clear` and `Clear`. In `student add`, `clear` is ordinary text; clearing applies only to `edit`.
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+Success shows `Updated student: NAME.` with the resulting name, clears the search filter, displays the full roster sorted by name (ignoring case) then email, and selects the updated student. If every supplied value equals the stored value after normalisation, for example the same name with extra spaces, the current email in uppercase, or clearing a contact that is already absent, the command shows `No values changed.`, still reveals and selects the student, and does not rewrite the data file. A case-only change to a name, Telegram handle or GitHub username is a real change and is saved. A case-only email change is not, because emails are stored in lowercase.
 
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+SoCdex checks the command structure first, then the values in the order email, new email, name, Telegram, GitHub, then whether the student exists, and then whether the new email is taken. If any part fails, nothing changes. For example, a valid new name is not saved when the new email belongs to another student.
 
-### Clearing all entries: `clear`
+* A missing target shows `No student found with NUS email: EMAIL.` A command without an editable field shows `Provide at least one field to update.`
+* A new email that belongs to another student shows `A student with the new NUS email already exists.` Unlike `student add`, this does not reveal the other student.
+* Invalid input preserves the previous data, results and selection.
+* A save failure shows `The record could not be updated. No data was changed.` and restores the prior state, including the old email. Presentation failure uses the same no-change display message as creation and does not save.
+* Read-only recovery rejects this command, including no-ops.
 
-Clears all entries from the address book.
+`edit` does not change enrolments; use `edit-enrol` for sections and teams. Index-based `edit` is not supported.
+
+### Finding students by an identifier: `find`
+
+Search the complete roster using a name, NUS email, Telegram handle, GitHub username, or part of any identifier.
+
+Format: `find QUERY`
+
+* Enter one literal query of 1 to 100 Unicode characters. `find Alex Tan` searches for the phrase `Alex Tan`; it does not match `Alex Lim` or `Mei Tan`.
+* Matching ignores letter case and checks the whole query as a contiguous substring in any of the four fields. Accents remain significant, and punctuation such as `*` is literal; wildcards and regular expressions are not supported.
+* Name text is not Unicode-normalised. Two names that look the same can use different Unicode characters and may not match the same query. For example, a non-breaking space is not treated as an ordinary space, and precomposed and decomposed accented letters remain distinct. If a name search misses a student, search by NUS email or another exact identifier. [Issue #168](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/168) tracks a future validation and search policy.
+* Surrounding spaces and tabs are ignored. Internal tabs become spaces, and repeated internal spaces remain significant. For example, `find Alex  Tan` (two spaces) does not match `Alex Tan` (one space).
+* For Telegram only, one leading `@` is removed from the query. `find @` has no Telegram match but still matches email addresses. Names, emails and GitHub usernames use the original query, so `find @socdex-demo-ravi` does not match GitHub username `socdex-demo-ravi`.
+* Absent contacts do not match the display label `Not provided`. Enrolment fields and the `Fictional sample` label are not searched.
+* Every search starts from the complete roster, including students hidden by a previous search.
+* Results appear in name order, ignoring case, with email used to break ties. Each matching profile appears once and shows its name, email, and currently supported fields.
+* A single match is selected automatically. Zero or multiple matches clear the selection.
+* A blank query shows `Enter a name, NUS email, Telegram handle, or GitHub username to search.` with usage help. More than 100 characters, a line break, or an unsupported control character is also rejected. The previous results and selection remain available; correct the command and retry.
+* Searching does not change or save roster data.
+* If results cannot be displayed, the app shows `Search results could not be displayed. Try the search again.` and retains the previous results and selected profile. Retry the search.
+
+Examples using fictional records:
+
+* `find Alex Tan` finds every profile with an identifier containing `Alex Tan`.
+* `find E9000001@U.NUS.EDU` finds a profile with the email `e9000001@u.nus.edu`, even after an earlier search returned no results.
+* `find @u.nus.edu` lists matching student emails.
+* After `sample load`, `find @socdex_demo_mei` selects Mei Lim through Telegram, and `find socdex-demo-ravi` selects Ravi Kumar through GitHub. Shared handles return every matching student once, even when another field also matches.
+* `find *` searches for a literal asterisk. If no profile matches, the app displays `No students found for "*". Check the spelling or search with another identifier.`
+
+Every result card shows the student's contacts and enrolments. The selected student's complete profile appears in the profile panel; use `view EMAIL` to open one specific profile.
+
+If the student list cannot be refreshed after a command, the app blocks further command execution until it can show the current list. Submit again to refresh it, then check the displayed indexes before re-entering your intended command. The earlier command may already have changed data; refreshing the list does not repeat it.
+
+### Viewing a student profile: `view`
+
+Open the complete profile of one student, identified by NUS email.
+
+Format: `view EMAIL`
+
+* The email is matched against the complete roster, including students hidden by a previous search. Letter case and surrounding spaces or tabs are ignored, so `view E9000001@U.NUS.EDU` opens `e9000001@u.nus.edu`.
+* Success shows `Viewing student: NAME.`, selects that student, scrolls to them, and shows their complete profile in the profile panel. If the student is already in the displayed results, those results are kept. Otherwise the full roster is shown, sorted by name then email.
+* The profile shows the name, `Fictional sample` for sample records, NUS email, Telegram, GitHub, and every enrolment ordered by academic year, then semester, then module code. Each enrolment is shown as `CS2103T | AY26/27 S1 | Section: T12 | Team: SEED`. An absent section or team shows `Not assigned`, an absent contact shows `Not provided`, and a student without enrolments shows `Enrolments: none`. A student with a remark has a final `Remark:` line with the complete remark; a student without one has no remark line. These labels are display text only and are never stored.
+* Selecting a row in the student list also shows that student's profile. With no selection, the profile panel shows `Select a student to view their profile.`
+* `view` does not change or save roster data, and it is available in a read-only recovery session.
+
+Error messages keep the previous results and selection:
+
+* `view` alone shows `NUS email is required. Usage: view EMAIL`.
+* More than one value, such as `view e9000001@u.nus.edu e9000002@u.nus.edu` or `view /email e9000001@u.nus.edu`, shows `View accepts one NUS email only. Usage: view EMAIL`.
+* A name, index, or non-NUS email shows the NUS email rules from `student add`.
+* An unknown email shows `No student found with NUS email: EMAIL.`
+* If the profile cannot be displayed, the app shows `Profile could not be displayed. Try viewing the student again.` Retry the command.
+
+Examples using the fictional sample profiles:
+
+* `view e9000001@u.nus.edu` shows the first Alex Tan with both enrolments; `view e9000002@u.nus.edu` shows the other Alex Tan.
+* `view e9000005@u.nus.edu` shows Nur Aisyah with `Not provided` contacts and `Enrolments: none`.
+
+### Deleting a student: `delete` and `confirm-delete`
+
+Removes one student profile and every enrolment it owns. Deletion takes two commands: a preview, then a confirmation for the same NUS email as the next command you submit. Submit each command separately.
+
+Format: `delete EMAIL`, then `confirm-delete EMAIL`
+
+**Previewing the deletion**
+
+* `delete EMAIL` finds the student by NUS email in the complete roster, including students hidden by a search. Letter case and surrounding spaces or tabs are ignored, so `delete E9000001@U.NUS.EDU` targets `e9000001@u.nus.edu`. Names and list indexes are not accepted: `delete 1` shows the NUS email rules from `student add`. Students with the same name are told apart by their emails.
+* A successful preview selects the student, scrolls to them and shows their complete profile with every enrolment, including when their row is above or below the currently visible rows. If the student is already in the displayed results, those results are kept. Otherwise the full roster is shown, sorted by name then email. The result area shows, for example:
+
+  ```
+  Delete this student?
+  Alex Tan
+  NUS email: e9000001@u.nus.edu
+  Enrolments to remove: 2
+  Type: confirm-delete e9000001@u.nus.edu
+  Any other command will cancel this deletion.
+  ```
+
+  Scroll the result area if it does not show every line. The enrolment count is the student's actual number of stored enrolments. A fictional sample keeps its `Fictional sample` label and still needs confirmation.
+* While the preview awaits confirmation, the status bar shows `Deletion pending`.
+* A preview changes no roster data and does not save. Only one deletion can be pending at a time, and it is never saved: after a restart, nothing is pending.
+
+**Confirming the deletion**
+
+* Submit `confirm-delete EMAIL` with the same NUS email as the next command after the preview. Letter case and surrounding spaces or tabs are ignored.
+* SoCdex removes the student and all of their enrolments, saves the roster, and only then shows `Deleted student: NAME. NUS email: EMAIL. Enrolments removed: N.` Every other student and enrolment is kept, including another student with the same name.
+* The full remaining roster is shown, sorted by name then email, with no student selected, even if only one student remains. The profile panel shows `Select a student to view their profile.`, or `No students in the roster. Add a student or load fictional samples.` if no students remain. `Deletion pending` disappears from the status bar.
+* Deletion is permanent. SoCdex has no undo command or recycle bin, so check the preview before confirming.
+
+**Every confirmation attempt ends the pending deletion**
+
+A confirmation attempt uses up the pending deletion, whether or not it succeeds. To try again, start with a new `delete EMAIL`.
+
+* A different valid email shows `Deletion was cancelled because the confirmation did not match the selected student.` Neither student is deleted.
+* `confirm-delete EMAIL` without a preview, or a second confirmation after a deletion, shows `There is no pending deletion. Use delete EMAIL first.`
+* If the previewed student no longer exists, SoCdex shows `The pending student no longer exists. No data was changed.`
+* A malformed confirmation, such as `confirm-delete` alone or `confirm-delete yes`, shows `Pending deletion cancelled.` with the specific input error on the next line.
+
+**What cancels a pending deletion**
+
+Each of the following cancels the pending deletion. The cancellation itself removes no roster data. A separately submitted `sample clear` still removes fictional sample records after cancelling the pending deletion. Submitting the retired `clear` command cancels the pending deletion but removes nothing. You need a fresh `delete EMAIL` before confirming another deletion:
+
+* Submitting any other command, whether it is valid or not, such as `find`, `view`, `list`, `help`, an unknown command or a command with an error. SoCdex shows `Pending deletion cancelled.` on its own line above that command's own result or error. Another `delete EMAIL` cancels the earlier preview and creates a new pending deletion only if the student exists and the new preview succeeds.
+* Pressing Enter when the command box is empty or contains only spaces or tabs. SoCdex shows `Pending deletion cancelled.` followed by `Enter a command.`
+* Selecting a different student in the list with the mouse or keyboard. SoCdex shows `Pending deletion cancelled.` Selecting the previewed student again, or clearing the selection, keeps the deletion pending. Selecting the original student again after a cancellation does not restore it.
+* Submitting a command when the student list needs to be refreshed. SoCdex refreshes the list instead of running the command, and its message starts with `Pending deletion cancelled.`
+* Exiting with `bye` or `exit`, closing the window, or choosing **File > Exit**. The pending deletion is discarded, never confirmed.
+
+Typing in the command box without pressing Enter, scrolling, resizing the window, and opening help with `F1` or **Help > Help** do not cancel a pending deletion.
+
+**Other errors**
+
+These messages leave the roster unchanged:
+
+* `delete` alone shows `NUS email is required. Usage: delete EMAIL`. `confirm-delete` alone shows `NUS email is required. Usage: confirm-delete EMAIL`.
+* More than one value, such as `delete e9000001@u.nus.edu e9000002@u.nus.edu`, shows `Delete accepts one NUS email only. Usage: delete EMAIL`. For a confirmation, the message is `Confirm-delete accepts one NUS email only. Usage: confirm-delete EMAIL`.
+* A name, index or non-NUS email shows the NUS email rules from `student add`.
+* `delete EMAIL` with an email that belongs to no student shows `No student found with NUS email: EMAIL.` A confirmation does not look the email up this way; it uses the pending-deletion and mismatch checks described above.
+* If the preview cannot be displayed, SoCdex shows `Student could not be displayed. No data was changed. Try again.` and no deletion is pending.
+* A read-only recovery session rejects both commands with `Data changes are disabled because stored data could not be loaded. Restore a valid data file and restart SoCdex.`
+
+**If the deletion cannot be saved**
+
+If saving the deletion fails, or the remaining roster cannot be displayed, SoCdex shows `The student could not be deleted. No data was changed. Use delete EMAIL to start again.` The student, their enrolments, the saved file, the displayed results and the selected profile are restored. The pending deletion has ended, so correct the storage problem and then start again with `delete EMAIL`.
+
+Examples using the fictional sample profiles, after `sample load`:
+
+* `delete e9000001@u.nus.edu` previews the first Alex Tan with `Enrolments to remove: 2`. Then `confirm-delete e9000001@u.nus.edu` deletes that student and both enrolments. The other Alex Tan, `e9000002@u.nus.edu`, is kept.
+* `delete e9000003@u.nus.edu`, then `find Alex`, then `confirm-delete e9000003@u.nus.edu`: the search result starts with `Pending deletion cancelled.`, and the confirmation shows `There is no pending deletion. Use delete EMAIL first.` Mei Lim is kept.
+* `delete e9000003@u.nus.edu`, then `confirm-delete e9000004@u.nus.edu`: the mismatch message is shown, and both Mei Lim and Ravi Kumar are kept.
+
+To remove every fictional sample at once, use `sample clear`. SoCdex does not provide an operation that deletes the whole roster.
+
+### Retired whole-roster command: `clear`
+
+The inherited whole-roster clear operation is unavailable because it would bypass the confirmation required for deleting real student profiles.
 
 Format: `clear`
 
-### Exiting the program: `exit`
+Submitting this command shows `The clear command is unavailable because it would remove the entire roster. Use delete EMAIL to remove one student profile or sample clear to remove fictional sample profiles.` The roster, displayed results, selection and saved file remain unchanged.
 
-Exits the program.
+Use `delete EMAIL` followed by the matching `confirm-delete EMAIL` to remove one real profile safely. Use `sample clear` to remove all records classified as fictional samples.
 
-Format: `exit`
+### Exiting the program: `bye`
+
+Closes SoCdex.
+
+Format: `bye`
+
+* `exit` is an alias that behaves the same way.
+* Spaces or tabs around the command are allowed, but parameters are not. For example, `bye now` or `exit 3` shows `Bye does not accept parameters. Usage: bye`, and SoCdex stays open.
+* Exiting discards any pending deletion without deleting anything. Closing the window or choosing **File > Exit** has the same effect.
+* Exiting does not save the roster; each roster change is already saved when its command succeeds. The window size and position are kept for the next launch. In a read-only recovery session, exiting leaves the preserved data file unchanged.
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+SoCdex saves roster changes before reporting success. You do not need to save manually. Read-only commands (`find`, `view`, `list`, `help`, and `bye` or `exit`), deletion previews, rejected commands, and changes that leave all stored values unchanged do not rewrite the roster file.
+
+If saving fails, the app reports that no data was changed and restores the previous roster, result list, and selected profile. Correct the file or folder permissions, or free disk space, then retry. A failed first save does not create a partial roster file. If the filesystem cannot safely replace the file, saving fails instead of overwriting it in place; use a local filesystem that supports atomic file replacement.
+
+This protects against detected loading and saving failures. It does not provide backups, undo, or guarantees against hardware failure or power loss. Use only one running instance for a roster and do not edit its file while the app is running.
+
+### Starting empty or recovering from a load failure
+
+When no saved roster exists, the app starts empty and explains how to add a student or load fictional samples. Use `student add` to enter your own record, or use `sample load` to explore the fixed fictional fixture. Samples do not load automatically.
+
+If an existing roster is unreadable or invalid, the app preserves it and opens an empty **read-only recovery session**. The initial message is:
+
+> Stored data could not be loaded. The existing file was preserved. This session is read-only. Restore a valid data file and restart SoCdex.
+
+**Storage unavailable — read-only recovery** remains visible in the status bar, including after searches. An empty recovery view does not mean that the saved roster is empty. Data-changing commands are disabled for the entire session. Searching, viewing, listing, help, and exiting remain available. Closing the app does not overwrite the preserved roster.
+
+To recover:
+
+1. Close the app and keep a separate copy of the preserved file before making repairs.
+1. Open the newest file in `logs/`, usually `addressbook.log.0`, and find the stored-data validation message. It identifies the failed rule, such as an invalid section or email, but might not identify the exact record. Do not post a log publicly without checking it for roster information.
+1. Restore a known-valid roster to the displayed data-file location, or correct invalid records and file permissions while the app is closed.
+1. Restart SoCdex. Confirm that the expected records load and the status says **Storage available** before making changes.
+
+### Application folder and data locations
+
+The application folder is the folder containing the running JAR. SoCdex resolves its location from the JAR itself, so launching `java -jar /path/to/SoCdex/addressbook.jar` from another terminal folder still uses the data beside that JAR.
+
+| File or folder | Location inside the application folder |
+| --- | --- |
+| Saved roster | `data/addressbook.json` |
+| Window preferences | `preferences.json` |
+| Rotating logs and logging lock files | `logs/` |
+| Bundled JavaFX native cache | `.javafx-cache/` |
+| Application-controlled temporary directory | `.tmp/` |
+
+Roster saves use temporary files inside `data/` and remove them after the atomic replacement. SoCdex does not load preferences or roster files from the terminal's working directory and does not automatically migrate older files stored there. To keep an older roster, close SoCdex, retain a backup, and manually copy the valid roster into the JAR folder's `data/` subfolder before restarting. Copy `preferences.json` beside the JAR if you also want to keep window settings.
+
+Use a writable application folder. SoCdex does not fall back to another folder when a managed location is unwritable or redirected through a symbolic link. An unsafe roster location uses read-only recovery; preferences or log failures leave defaults or console logging. If the native-cache or temporary directory cannot be prepared safely, startup stops. Correct the folder or move the JAR and its data together to a writable folder. Symbolic links for managed data are unsupported; use ordinary files and directories.
+
+On Linux, SoCdex uses JavaFX's software renderer by default, because the OpenGL graphics driver can keep a shader cache outside the application folder (for example under `~/.cache`). Software rendering may redraw more slowly on some computers. Windows and macOS keep JavaFX's usual rendering. If you start SoCdex with your own `-Dprism.order=...` Java option, SoCdex keeps that choice. SoCdex does not change system or desktop settings.
+
+### Stored enrolments
+
+Student records can store several module-semester enrolments, with optional tutorial sections and project teams. Use `enrol` to add a context to an existing student. Each result card and the profile panel show every stored enrolment; use `view EMAIL` to open a complete profile. Existing commands that edit a profile or its remark preserve its stored enrolments.
+
+An otherwise valid older profile without an `enrolments` property loads with no enrolments. When editing JSON while the app is closed, use the canonical enrolment format documented in the Developer Guide. Invalid values or duplicate module-semester keys reject the entire load. Keep a separate copy of the file before editing it. Do not store `Not assigned` as a substitute for an absent section or team. The current app accepts that literal value but displays it exactly like an absent assignment. Use null or omit that optional property.
+
+### Stored contacts and sample classification
+
+`student add` creates a non-sample profile with optional contacts; `edit /email` changes only the supplied name, email and contacts. `sample load` creates the fixed classified fictional fixture only in an empty roster. `sample clear` removes records based only on that stored classification. Each saved record explicitly states whether it is fictional sample data. Existing remark and enrolment-copy operations preserve that classification and the contacts.
+
+Each result card and the profile panel show a `Telegram:` line and a `GitHub:` line. `Not provided` means that no value is stored; it is display text only. A fictional sample record also shows the label `Fictional sample`.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+**Schema compatibility:** files containing the retired `phone` or `address` properties are rejected, even when those properties are null. No data is silently dropped. Keep an external copy of the original file, close the app, and manually migrate only after retaining any phone/address information you need elsewhere. Remove the retired properties, explicitly classify each record with a boolean `sample`, and verify all fields against the rules below before restarting. The app never guesses classification or automatically migrates a file. An otherwise valid record that omits optional contacts or enrolments loads with those values absent or empty.
+
+Roster data is saved automatically as `[folder containing the running JAR]/data/addressbook.json`, independently of the terminal working directory. Advanced users are welcome to update data directly by editing that data file.
+
+Names in the data file must already have ordinary spaces and tabs normalised: no surrounding ordinary spaces or tabs, no tabs within the name, and no repeated ordinary spaces. Letter case and other permitted Unicode characters, including non-breaking spaces, are preserved. Commands normalise ordinary spaces and tabs, but the app rejects a stored name that needs this normalisation instead of correcting it.
+
+Every record must contain `"sample": false` or `"sample": true`, written as a JSON boolean rather than text. Use `false` for real students and `true` only for fictional sample records. The `"telegram"` and `"github"` properties are optional; omit them or write `null` when there is no value. A stored value must already be in its saved form, with no surrounding spaces or tabs. A Telegram handle has 5 to 32 letters, digits, or underscores, starts with a letter, and is stored without its leading `@` (write `"alex_tan"`, not `"@alex_tan"`). A GitHub username has 1 to 39 letters, digits, or single hyphens, and does not start or end with a hyphen. Letter case is kept as written. Never store `Not provided` as a value. A missing or non-boolean `sample`, or a contact value that is invalid or not in its saved form, rejects the entire load.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+Edit the file only while the app is closed, and keep a separate copy before editing it. If your changes make it invalid, SoCdex preserves it and opens a read-only recovery session at the next run. Restore a valid file and restart; commands and normal exit do not replace the invalid roster.<br>
+Furthermore, certain edits can cause SoCdex to behave in unexpected ways, for example if a value is outside the acceptable range. Edit the data file only if you are confident that you can update it correctly.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Close SoCdex on both computers. Copy `data/addressbook.json` from the folder containing the old JAR into the `data/` subfolder beside the JAR on the new computer. Replace the new file only after keeping a backup. You can also copy `preferences.json` beside the JAR if you want to keep the window size and position. Start SoCdex and confirm that the expected roster loads and the status bar shows **Storage available**.
+
+**Q**: Why does my data file from an earlier version no longer load?<br>
+**A**: Every email must now be a valid NUS email (see `student add`), and no two persons can share an email. In the data file, each email must also already be in its saved form: all lowercase, with no spaces or tabs before or after it. Commands such as `student add` convert uppercase letters and remove surrounding spaces and tabs, but the app does not convert emails in the data file. A data file that contains another kind of email address (such as one ending in `@example.com`), an email that is not in its saved form (such as `E1234567@u.nus.edu`), or two persons with the same email is treated as an invalid data file. SoCdex then preserves the file and opens a read-only recovery session; see [Starting empty or recovering from a load failure](#starting-empty-or-recovering-from-a-load-failure). Keep a copy of the original file, then correct each email or remove the duplicate record while the app is closed, and restart SoCdex.
+
+**Q**: Why does a data file saved by an earlier SoCdex build open in read-only recovery even though its emails are valid?<br>
+**A**: Every record must now state whether it is fictional sample data. A file saved before this change has no `"sample"` property in its records, so SoCdex preserves it and opens a read-only recovery session instead of guessing; see [Starting empty or recovering from a load failure](#starting-empty-or-recovering-from-a-load-failure). To use the file again, close SoCdex and keep a copy of the file. Add `"sample": false` to every record that describes a real student (use `"sample": true` only for fictional sample records), then restart SoCdex. See [Editing the data file](#editing-the-data-file) for the format.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
+1. **The application can open partly or fully outside the usable screen area after display changes.** Two separate situations are known:
+   * If you move the application to a secondary screen and later use only the primary screen, the GUI can reopen off-screen. Close SoCdex, delete its `preferences.json` file, and start it again.
+   * On Windows, a restored launch window can extend beyond the work area after resolution or display-scaling changes. The cause is not established. Press `Win+Up` to maximize the window. [Issue #213](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/213) tracks this limitation.
 2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+3. **Some accented names can appear after Z.** Rosters and search results are ordered by name ignoring letter case, not by the alphabetical order of any language, so a name that starts with a precomposed `É` appears after `Zoe`. A visually identical name that uses `E` followed by a combining accent can sort with other names starting with E.
+   The order is the same on every computer. To find such a student quickly, use `find` or `view EMAIL` instead of scrolling.
+   [Issue #167](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/167) tracks a language-aware order for a later version.
+4. **Visually identical names can behave differently in search.** SoCdex preserves Unicode name text without canonical normalisation. Non-breaking spaces, invisible formatting characters, and different encodings of the same accented letter can produce names that look alike but do not match the same `find` query. Use the student's NUS email when this happens. [Issue #168](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/168) tracks this limitation.
+5. **The text `Not assigned` can be stored as an affiliation but looks absent.** The current app accepts this text as a section or team label and displays it in the same way as a missing value. Avoid this literal label. Omit the optional field when adding an enrolment, or use lowercase `clear` when editing one. [Issue #169](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/169) tracks a future reserved-label and compatibility change.
+6. **Selecting a student can leave part of the card heading above the visible student list.** This was observed on physical Windows at the default 740 x 600 size and at 450 x 600, and on macOS at 450 x 600. It can occur after the selected card scrolls into view. Scroll slightly upward to reveal the full card. The student's full name remains visible in the profile panel. [Issue #212](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/212) tracks this low-severity display limitation.
+
+During v1.6 development, the result-area fix passed automated simulated-layout checks on macOS and a physical Windows 11 check at 1280 x 720 with 150% scaling after the window was maximized. The long-remark fix passed automated simulated-layout checks on macOS at 740 x 600 and 450 x 600, including a same-process storage and reload check. These source-build checks do not replace final release acceptance. The final JAR results and any platform limits are recorded in [issue #203](https://github.com/AY2627S1-CS2103T-W09-2/tp/issues/203). Native Linux desktop behavior remains unverified unless that issue records a native Linux run.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +522,17 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
+**Edit enrolment** | `edit-enrol /email EMAIL /module MODULE /semester SEMESTER [/section SECTION\|clear] [/team TEAM\|clear]`
+**Enrol** | `enrol /email EMAIL /module MODULE /semester SEMESTER [/section SECTION] [/team TEAM]`
+**Student add** | `student add /name NAME /email EMAIL [/telegram HANDLE] [/github USERNAME]`
+**Retired whole-roster clear** | `clear` (always rejected; use `delete EMAIL` or `sample clear`)
+**Delete** | `delete EMAIL`, then `confirm-delete EMAIL` as the next command<br> e.g., `delete e9000001@u.nus.edu`, then `confirm-delete e9000001@u.nus.edu`
+**Exit** | `bye` (alias: `exit`)
+**Edit** | `edit /email EMAIL [/new-email NEW_EMAIL] [/name NAME] [/telegram HANDLE\|clear] [/github USERNAME\|clear]`<br> e.g., `edit /email e9000001@u.nus.edu /new-email e9000101@u.nus.edu /github clear`
+**Find** | `find QUERY`<br> e.g., `find Alex Tan`
 **List** | `list`
+**Remark** | `remark INDEX r/[TEXT]` (omit TEXT to remove the remark)
 **Help** | `help`
+**Sample load** | `sample load`
+**Sample clear** | `sample clear`
+**View** | `view EMAIL`<br> e.g., `view e9000001@u.nus.edu`

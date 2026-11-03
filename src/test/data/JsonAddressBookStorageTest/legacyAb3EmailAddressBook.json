@@ -1,0 +1,17 @@
+{
+  "_comment": "An AddressBook-Level3 save file whose records are otherwise valid but use non-NUS email addresses",
+  "persons": [
+    {
+      "name": "Alice Pauline",
+      "email": "alice@example.com",
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "name": "Benson Meier",
+      "email": "johnd@example.com",
+      "tags": []
+    }
+  ]
+}

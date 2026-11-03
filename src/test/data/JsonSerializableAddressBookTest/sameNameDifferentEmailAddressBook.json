@@ -1,0 +1,18 @@
+{
+  "_comment": "Two profiles with the same name and different canonical NUS emails; this is valid",
+  "persons": [
+    {
+      "name": "Alice Pauline",
+      "email": "alice@u.nus.edu",
+      "sample": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "name": "Alice Pauline",
+      "email": "pauline@u.nus.edu",
+      "sample": false
+    }
+  ]
+}

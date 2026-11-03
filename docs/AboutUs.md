@@ -5,55 +5,48 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Jingchun
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jingchunnnnn.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jingchunnnnn)] [[project portfolio](team/jingchunnnnn.html)]
 
-* Role: Project Advisor
+* Role: Documentation
+* Responsibilities: Deliverables and deadlines
 
-### Jane Doe
+### Spencer Chu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/spencercdz.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/spencercdz)] [[project portfolio](team/spencercdz.html)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Team Lead, Scheduling and Tracking
+* Responsibilities: Coordinate the SoCdex project, maintain and track tasks and milestones, and ensure planned work supports the tutor workflow and iteration goals.
 
-### Johnny Doe
+### Minh Hoang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/minhhoanglenus.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/MinhHoangLeNUS)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: SoCdex Domain Model
+* Responsibilities: Code Quality
 
-### Jean Doe
+### Xie Kaiwen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/xiekaiwen.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/XieKaiwen)]
+* Role: In Charge of Local Storage and Persistence, Integration, Git Expert
+* Responsibilities: Responsible for implementing and maintaining local data storage, ensuring application data is saved and loaded reliably, and handling missing or corrupted files. Coordinates the integration of team members’ changes and helps teammates with Git workflows, branching, and resolving merge conflicts.
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+### Yujie
 
-### James Doe
+<img src="images/yujiejwang.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
+[[github](https://github.com/YujieJWang)]
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+* Role: Testing
+* Responsibilities: Tutor UI

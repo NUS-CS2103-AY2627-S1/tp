@@ -1,14 +1,18 @@
 {
-  "persons": [ {
-    "name": "Alice Pauline",
-    "phone": "94351253",
-    "email": "alice@example.com",
-    "address": "123, Jurong West Ave 6, #08-111",
-    "tags": [ "friends" ]
-  }, {
-    "name": "Alice Pauline",
-    "phone": "94351253",
-    "email": "pauline@example.com",
-    "address": "4th street"
-  } ]
+  "_comment": "Two profiles with different names that share the same canonical NUS email",
+  "persons": [
+    {
+      "name": "Alice Pauline",
+      "email": "alice@u.nus.edu",
+      "sample": false,
+      "tags": [
+        "friends"
+      ]
+    },
+    {
+      "name": "Alicia Tan",
+      "email": "alice@u.nus.edu",
+      "sample": false
+    }
+  ]
 }

@@ -9,6 +9,30 @@ import seedu.address.model.Model;
 public abstract class Command {
 
     /**
+     * Returns whether execution leaves the stored roster unchanged.
+     */
+    public boolean isReadOnly() {
+        return false;
+    }
+
+    /** Returns the feedback after a save failure has restored the previous state. */
+    public String getSaveFailureMessage(String defaultMessage) {
+        return defaultMessage;
+    }
+
+    /** Returns the feedback after a failed display has restored the previous results and selection. */
+    public String getDisplayFailureMessage(String defaultMessage) {
+        return defaultMessage;
+    }
+
+    /**
+     * Returns whether this command answers a pending deletion. Submitting any other command cancels that deletion.
+     */
+    public boolean isDeletionConfirmation() {
+        return false;
+    }
+
+    /**
      * Executes the command and returns the result message.
      *
      * @param model {@code Model} which the command should operate on.

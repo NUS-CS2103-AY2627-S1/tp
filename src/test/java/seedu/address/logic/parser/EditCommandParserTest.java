@@ -1,208 +1,116 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.commons.core.index.Index;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ModelManager;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GitHub;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
+import seedu.address.model.person.Telegram;
 
 public class EditCommandParserTest {
-
-    private static final String TAG_EMPTY = " " + PREFIX_TAG;
-
-    private static final String MESSAGE_INVALID_FORMAT =
-            String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
-
-    private EditCommandParser parser = new EditCommandParser();
+    private static final String TARGET = " /email alex@u.nus.edu";
+    private static final String SUPPLEMENTARY = "\uD840\uDC00"; // U+20000, one code point stored in two chars
+    private final EditCommandParser parser = new EditCommandParser();
 
     @Test
-    public void parse_missingParts_failure() {
-        // no index specified
-        assertParseFailure(parser, VALID_NAME_AMY, MESSAGE_INVALID_FORMAT);
-
-        // no field specified
-        assertParseFailure(parser, "1", EditCommand.MESSAGE_NOT_EDITED);
-
-        // no index and no field specified
-        assertParseFailure(parser, "", MESSAGE_INVALID_FORMAT);
+    public void parse_clearAndLiteralClear_areDistinct() throws Exception {
+        ModelManager model = new ModelManager();
+        new AddCommandParser().parse(" /name Alex" + TARGET).execute(model);
+        parser.parse(TARGET + " /telegram @clear /github Clear").execute(model);
+        assertEquals("clear", model.getFilteredPersonList().get(0).getTelegram().orElseThrow().value);
+        assertEquals("Clear", model.getFilteredPersonList().get(0).getGitHub().orElseThrow().value);
+        parser.parse(" /telegram clear /email ALEX@U.NUS.EDU").execute(model);
+        assertEquals(true, model.getFilteredPersonList().get(0).getTelegram().isEmpty());
+        assertEquals("Clear", model.getFilteredPersonList().get(0).getGitHub().orElseThrow().value);
     }
 
     @Test
-    public void parse_invalidPreamble_failure() {
-        // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
-        // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
-
-        // invalid arguments being parsed as preamble
-        assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
-
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+    public void parse_invalidStructureAndRetiredSyntax_rejected() {
+        syntax("1 e/alex@u.nus.edu", "Unexpected text before the first parameter.");
+        syntax(" /telegram clear", "Missing required parameter: /email");
+        syntax(TARGET + " /email other@u.nus.edu", "Parameter /email can be supplied only once.");
+        for (String prefix : new String[] {"/section", "/team", "/module", "/semester"}) {
+            syntax(TARGET + " " + prefix + " value", "Unknown parameter: " + prefix);
+        }
+        syntax(TARGET + " /github", "A value is required for /github.");
+        syntax(TARGET + " /telegram /github Clear", "A value is required for /telegram.");
+        assertParseFailure(parser, TARGET, EditCommand.MESSAGE_NOT_EDITED);
+        assertThrows(ParseException.class, () -> parser.parse(TARGET + " /github a\n"));
     }
 
     @Test
-    public void parse_invalidValue_failure() {
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC, Name.MESSAGE_CONSTRAINTS); // invalid name
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC, Phone.MESSAGE_CONSTRAINTS); // invalid phone
-        assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
-        assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
-        assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+    public void parse_invalidReplacement_validatedBeforeTargetLookup() {
+        assertParseFailure(parser, " /email bad /telegram invalid", Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /telegram @@@clear /github bad_", Telegram.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /github bad_", GitHub.MESSAGE_CONSTRAINTS);
+    }
 
-        // invalid phone followed by valid email
-        assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_identityFields_acceptedAloneTogetherAndInAnyOrder() {
+        assertParseSuccess(parser, TARGET + " /new-email \tNEW@U.NUS.EDU ",
+                edit(Optional.of(new Email("new@u.nus.edu")), Optional.empty(), Optional.empty(), Optional.empty()));
+        assertParseSuccess(parser, TARGET + " /name clear", nameOnly("clear")); // ordinary name text
+        assertParseSuccess(parser, " /name Alex \t Lim /github clear /new-email e7654321@u.nus.edu" + TARGET,
+                edit(Optional.of(new Email("e7654321@u.nus.edu")), Optional.of(new Name("Alex Lim")),
+                        Optional.empty(), Optional.of(Optional.empty())));
+    }
 
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
-        // parsing it together with a valid tag results in error
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-
-        // multiple invalid values, but only the first invalid value is captured
-        assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + VALID_ADDRESS_AMY + VALID_PHONE_AMY,
+    @Test
+    public void parse_nameCodePointBoundaries_matchCreation() {
+        assertParseSuccess(parser, TARGET + " /name " + SUPPLEMENTARY.repeat(100),
+                nameOnly(SUPPLEMENTARY.repeat(100)));
+        // Surrounding tabs are removed and the internal space/tab run becomes one space: 100 code points.
+        assertParseSuccess(parser, TARGET + " /name \t" + "a".repeat(50) + " \t " + "b".repeat(49) + "\t",
+                nameOnly("a".repeat(50) + " " + "b".repeat(49)));
+        assertParseFailure(parser, TARGET + " /name " + SUPPLEMENTARY.repeat(101), Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /name " + "a".repeat(50) + "  " + "b".repeat(50),
                 Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /name Alex/Tan", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /name \u200B", Name.MESSAGE_CONSTRAINTS);
     }
 
     @Test
-    public void parse_allFieldsSpecified_success() {
-        Index targetIndex = INDEX_SECOND_PERSON;
-        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + TAG_DESC_HUSBAND
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + NAME_DESC_AMY + TAG_DESC_FRIEND;
-
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY)
-                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY).withAddress(VALID_ADDRESS_AMY)
-                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-
-        assertParseSuccess(parser, userInput, expectedCommand);
+    public void parse_identityErrors_structureFirstThenDocumentedFieldOrder() {
+        // Structural errors precede every value error, whatever the values.
+        syntax(" /email bad /new-email bad /new-email x", "Parameter /new-email can be supplied only once.");
+        syntax(" /email bad /name Alex/Tan /nickname x", "Unknown parameter: /nickname");
+        syntax(" /new-email new@u.nus.edu /name Alex", "Missing required parameter: /email");
+        // An empty replacement keeps the shared usage error and is never labelled as an invalid new email.
+        syntax(TARGET + " /new-email", "A value is required for /new-email.");
+        syntax(TARGET + " /new-email \t /name Alex", "A value is required for /new-email.");
+        syntax(TARGET + " /name", "A value is required for /name.");
+        // Values are read in the order email, new email, name, Telegram, GitHub, regardless of typed order.
+        assertParseFailure(parser, " /new-email bad /email bad", Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " /email bad /new-email", Email.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, TARGET + " /name Alex/Tan /new-email bad", EditCommand.MESSAGE_INVALID_NEW_EMAIL);
+        assertParseFailure(parser, TARGET + " /new-email bad /name", EditCommand.MESSAGE_INVALID_NEW_EMAIL);
+        syntax(TARGET + " /new-email /name Alex/Tan", "A value is required for /new-email.");
+        assertParseFailure(parser, TARGET + " /telegram four /name Alex/Tan", Name.MESSAGE_CONSTRAINTS);
+        syntax(TARGET + " /github bad_ /name", "A value is required for /name.");
+        assertParseFailure(parser, TARGET + " /new-email clear", EditCommand.MESSAGE_INVALID_NEW_EMAIL);
+        assertEquals("New email: " + Email.MESSAGE_CONSTRAINTS, EditCommand.MESSAGE_INVALID_NEW_EMAIL);
     }
 
-    @Test
-    public void parse_someFieldsSpecified_success() {
-        Index targetIndex = INDEX_FIRST_PERSON;
-        String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + EMAIL_DESC_AMY;
-
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB)
-                .withEmail(VALID_EMAIL_AMY).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-
-        assertParseSuccess(parser, userInput, expectedCommand);
+    private EditCommand nameOnly(String name) {
+        return edit(Optional.empty(), Optional.of(new Name(name)), Optional.empty(), Optional.empty());
     }
 
-    @Test
-    public void parse_oneFieldSpecified_success() {
-        // name
-        Index targetIndex = INDEX_THIRD_PERSON;
-        String userInput = targetIndex.getOneBased() + NAME_DESC_AMY;
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY).build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // phone
-        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // email
-        userInput = targetIndex.getOneBased() + EMAIL_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withEmail(VALID_EMAIL_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // address
-        userInput = targetIndex.getOneBased() + ADDRESS_DESC_AMY;
-        descriptor = new EditPersonDescriptorBuilder().withAddress(VALID_ADDRESS_AMY).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
-
-        // tags
-        userInput = targetIndex.getOneBased() + TAG_DESC_FRIEND;
-        descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
-        expectedCommand = new EditCommand(targetIndex, descriptor);
-        assertParseSuccess(parser, userInput, expectedCommand);
+    private EditCommand edit(Optional<Email> newEmail, Optional<Name> name, Optional<Optional<Telegram>> telegram,
+            Optional<Optional<GitHub>> github) {
+        return new EditCommand(new Email("alex@u.nus.edu"), newEmail, name, telegram, github);
     }
 
-    @Test
-    public void parse_multipleRepeatedFields_failure() {
-        // More extensive testing of duplicate parameter detections is done in
-        // AddCommandParserTest#parse_repeatedNonTagValue_failure()
-
-        // valid followed by invalid
-        Index targetIndex = INDEX_FIRST_PERSON;
-        String userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + PHONE_DESC_BOB;
-
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid followed by valid
-        userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + INVALID_PHONE_DESC;
-
-        assertParseFailure(parser, userInput, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple valid fields repeated
-        userInput = targetIndex.getOneBased() + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY
-                + TAG_DESC_FRIEND + PHONE_DESC_AMY + ADDRESS_DESC_AMY + EMAIL_DESC_AMY + TAG_DESC_FRIEND
-                + PHONE_DESC_BOB + ADDRESS_DESC_BOB + EMAIL_DESC_BOB + TAG_DESC_HUSBAND;
-
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
-
-        // multiple invalid values
-        userInput = targetIndex.getOneBased() + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC
-                + INVALID_PHONE_DESC + INVALID_ADDRESS_DESC + INVALID_EMAIL_DESC;
-
-        assertParseFailure(parser, userInput,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
-    }
-
-    @Test
-    public void parse_resetTags_success() {
-        Index targetIndex = INDEX_THIRD_PERSON;
-        String userInput = targetIndex.getOneBased() + TAG_EMPTY;
-
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withTags().build();
-        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
-
-        assertParseSuccess(parser, userInput, expectedCommand);
+    private void syntax(String input, String message) {
+        assertParseFailure(parser, input, message + "\nUsage: " + EditCommand.MESSAGE_USAGE);
     }
 }

@@ -1,5 +1,7 @@
 package seedu.address.logic;
 
+import java.util.function.Consumer;
+
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
@@ -20,6 +22,13 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
+    /**
+     * Executes a command and presents search results or its target profile before reporting success.
+     * A failed presentation restores the preceding data, filter and order.
+     */
+    CommandResult execute(String commandText, Consumer<CommandResult> presentSearch)
+            throws CommandException, ParseException;
+
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
 
@@ -32,4 +41,22 @@ public interface Logic {
      * Set the user prefs' GUI settings.
      */
     void setGuiSettings(GuiSettings guiSettings);
+
+    /** Returns whether data changes are disabled after a failed load. */
+    boolean isReadOnly();
+
+    /** Returns whether a deletion preview is awaiting confirmation in this session. */
+    boolean hasPendingDeletion();
+
+    /**
+     * Discards any deletion awaiting confirmation and returns whether one existed.
+     * Nothing is saved, and the roster, results and selection are unchanged.
+     */
+    boolean cancelPendingDeletion();
+
+    /**
+     * Cancels the pending deletion unless {@code selected} is its target, comparing canonical emails, and returns
+     * whether a deletion was cancelled. Nothing is saved.
+     */
+    boolean cancelPendingDeletionUnlessTarget(Person selected);
 }

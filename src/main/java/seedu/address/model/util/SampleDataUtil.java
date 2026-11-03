@@ -1,45 +1,68 @@
 package seedu.address.model.util;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Address;
+import seedu.address.model.enrolment.Enrolment;
+import seedu.address.model.enrolment.ModuleCode;
+import seedu.address.model.enrolment.Section;
+import seedu.address.model.enrolment.Semester;
+import seedu.address.model.enrolment.Team;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GitHub;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Telegram;
 import seedu.address.model.tag.Tag;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
+    private static final Remark EMPTY_REMARK = new Remark("");
+
+    private SampleDataUtil() {
+    }
+
+    /** Returns the fixed fictional fixture in name-and-email display order. */
     public static Person[] getSamplePersons() {
         return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+            samplePerson("Alex Tan", "e9000001@u.nus.edu", "socdex_demo_alex", "socdex-demo-alex",
+                    enrolment("CS2103T", "AY26/27 S1", "T12", "SEED"),
+                    enrolment("CS2113T", "AY26/27 S2", "T14", null)),
+            samplePerson("Alex Tan", "e9000002@u.nus.edu", null, "socdex-demo-alex2",
+                    enrolment("CS2103T", "AY26/27 S1", "T14", "SPROUT")),
+            samplePerson("Mei Lim", "e9000003@u.nus.edu", "socdex_demo_mei", null,
+                    enrolment("CS2103T", "AY26/27 S1", "T12", "SEED")),
+            samplePerson("Nur Aisyah", "e9000005@u.nus.edu", null, null),
+            samplePerson("Ravi Kumar", "e9000004@u.nus.edu", "socdex_demo_ravi", "socdex-demo-ravi",
+                    enrolment("CS2103T", "AY26/27 S1", null, null))
         };
     }
 
+    /** Returns one classified fictional profile with no tags or remark. */
+    private static Person samplePerson(String name, String email, String telegram, String github,
+            Enrolment... enrolments) {
+        Optional<Telegram> optionalTelegram = Optional.ofNullable(telegram).map(Telegram::new);
+        Optional<GitHub> optionalGitHub = Optional.ofNullable(github).map(GitHub::new);
+        return new Person(new Name(name), new Email(email), optionalTelegram, optionalGitHub, true,
+                EMPTY_REMARK, Set.of(), List.of(enrolments));
+    }
+
+    /** Returns one fixture enrolment, keeping absent affiliations as absent values. */
+    private static Enrolment enrolment(String module, String semester, String section, String team) {
+        Optional<Section> optionalSection = Optional.ofNullable(section).map(Section::new);
+        Optional<Team> optionalTeam = Optional.ofNullable(team).map(Team::new);
+        return new Enrolment(new ModuleCode(module), new Semester(semester), optionalSection, optionalTeam);
+    }
+
+    /** Returns a fresh address book containing the complete fixed fixture. */
     public static ReadOnlyAddressBook getSampleAddressBook() {
         AddressBook sampleAb = new AddressBook();
         for (Person samplePerson : getSamplePersons()) {

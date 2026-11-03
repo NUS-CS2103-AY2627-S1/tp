@@ -1,24 +1,21 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalPersons.BOB;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -60,8 +57,8 @@ public class LogicManagerTest {
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteCommand = "delete e9999999@u.nus.edu";
+        assertCommandException(deleteCommand, "No student found with NUS email: e9999999@u.nus.edu.");
     }
 
     @Test
@@ -72,19 +69,65 @@ public class LogicManagerTest {
 
     @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION,
+                "The student could not be saved. No data was changed.");
     }
 
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION,
+                "The student could not be saved. No data was changed.");
     }
 
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void execute_search_doesNotSaveEvenWhenStorageFails() throws Exception {
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("roster.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                throw new AssertionError("A search must never attempt a save.");
+            }
+        };
+        logic = new LogicManager(model, new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+        model.addPerson(AMY);
+        assertEquals("1 student found for \"Amy\".", logic.execute("find Amy").getFeedbackToUser());
+        assertEquals("No students found for \"missing\". Check the spelling or search with another identifier.",
+                logic.execute("find missing").getFeedbackToUser());
+        Person contact = new PersonBuilder(AMY).withTelegram("Fictional_Chat").withGitHub("fictional-repo").build();
+        model.setPerson(AMY, contact);
+        assertEquals("1 student found for \"@FICTIONAL_CHAT\".",
+                logic.execute("find @FICTIONAL_CHAT").getFeedbackToUser());
+        assertEquals("1 student found for \"fictional-repo\".",
+                logic.execute("find fictional-repo").getFeedbackToUser());
+        assertEquals(List.of(contact), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_invalidSearch_preservesPreviousResults() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("find Amy");
+        for (String input : new String[] {"find", "find " + "x".repeat(101), "find Amy\n"}) {
+            assertThrows(ParseException.class, () -> logic.execute(input));
+            assertEquals(List.of(AMY), model.getFilteredPersonList());
+            assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+        }
+    }
+
+    @Test
+    public void execute_clearWithParameters_preservesRosterAndPreviousResults() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(BOB);
+        logic.execute("find Amy");
+
+        assertThrows(ParseException.class, ClearCommand.MESSAGE_USAGE, () -> logic.execute("clear all"));
+
+        assertEquals(List.of(AMY), model.getFilteredPersonList());
+        assertEquals(List.of(AMY, BOB), model.getAddressBook().getPersonList());
     }
 
     /**
@@ -164,11 +207,8 @@ public class LogicManagerTest {
         logic = new LogicManager(model, storage);
 
         // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+        String addCommand = "student add /name Amy /email amy@u.nus.edu";
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

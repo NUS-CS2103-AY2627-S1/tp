@@ -1,9 +1,12 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.Email;
 import seedu.address.model.person.Person;
 
 /**
@@ -68,4 +71,32 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Filters the complete roster and orders only the displayed results.
+     */
+    void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator);
+
+    /** Returns whether this session must preserve an unreadable saved roster. */
+    boolean isReadOnly();
+
+    /** Returns an action that restores the current roster, result filter, and display order after a failed command. */
+    Runnable createRestorePoint();
+
+    /**
+     * Captures the current filter and display order for a failed search to restore.
+     */
+    Runnable createDisplayRestorePoint();
+
+    /**
+     * Records {@code email} as the only deletion awaiting confirmation in this session.
+     * The pending deletion is never saved and is not part of any restore point.
+     */
+    void setPendingDeletion(Email email);
+
+    /** Returns the email of the deletion awaiting confirmation, if any. */
+    Optional<Email> getPendingDeletion();
+
+    /** Discards any deletion awaiting confirmation and returns whether one existed. */
+    boolean clearPendingDeletion();
 }

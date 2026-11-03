@@ -2,11 +2,13 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_SINGLE_LINE;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -19,7 +21,7 @@ import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
-    private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_NAME = "R/chel";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
@@ -28,7 +30,7 @@ public class ParserUtilTest {
     private static final String VALID_NAME = "Rachel Walker";
     private static final String VALID_PHONE = "123456";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
-    private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_EMAIL = "rachel@u.nus.edu";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
@@ -71,8 +73,21 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_internalSpacesAndTabs_returnsNormalisedName() throws Exception {
+        assertEquals(new Name("Rachel Walker"), ParserUtil.parseName("Rachel \t  Walker"));
+    }
+
+    @Test
+    public void parseName_controlAtBoundary_throwsParseException() {
+        for (String name : new String[] {"\u0000" + VALID_NAME, VALID_NAME + "\u0001",
+            "\n" + VALID_NAME, VALID_NAME + "\r"}) {
+            assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName(name));
+        }
+    }
+
+    @Test
     public void parseName_validValueWithWhitespace_returnsTrimmedName() throws Exception {
-        String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
+        String nameWithWhitespace = " \t" + VALID_NAME + "\t ";
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
     }
@@ -140,10 +155,25 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseEmail_validValueWithWhitespace_returnsTrimmedEmail() throws Exception {
-        String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
+    public void parseEmail_validValueWithSpacesAndTabs_returnsTrimmedEmail() throws Exception {
+        String emailWithWhitespace = " \t" + VALID_EMAIL + "\t ";
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseEmail_uppercaseValue_returnsCanonicalEmail() throws Exception {
+        assertEquals(new Email(VALID_EMAIL), ParserUtil.parseEmail(VALID_EMAIL.toUpperCase(Locale.ROOT)));
+    }
+
+    @Test
+    public void parseEmail_valueWithLineBreakOrControlCharacter_throwsParseException() {
+        for (String surrounding : new String[] {"\n", "\r", "\r\n", "\u0000", "\u0001"}) {
+            assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseEmail(surrounding + VALID_EMAIL));
+            assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseEmail(VALID_EMAIL + surrounding));
+        }
     }
 
     @Test
@@ -190,5 +220,39 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseSoleEmail_missingEmail_throwsMissingMessage() {
+        for (String args : new String[] {"", " ", " \t \t"}) {
+            assertThrows(ParseException.class, "missing", () -> ParserUtil.parseSoleEmail(args, "missing", "extra"));
+        }
+    }
+
+    @Test
+    public void parseSoleEmail_extraTokens_throwsExtraMessageBeforeEmailValidation() {
+        for (String args : new String[] {" rachel@u.nus.edu rachel@u.nus.edu", " rachel@u.nus.edu\textra",
+            " /email rachel@u.nus.edu", " not-an-email also-bad", " 1 2"}) {
+            assertThrows(ParseException.class, "extra", () -> ParserUtil.parseSoleEmail(args, "missing", "extra"));
+        }
+    }
+
+    @Test
+    public void parseSoleEmail_invalidSingleToken_throwsEmailRule() {
+        for (String args : new String[] {" 1", " Rachel", " rachel@gmail.com", " a..b@u.nus.edu", " @rachel"}) {
+            assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseSoleEmail(args, "missing", "extra"));
+        }
+    }
+
+    @Test
+    public void parseSoleEmail_lineBreak_throwsSingleLineMessage() {
+        assertThrows(ParseException.class, MESSAGE_SINGLE_LINE, () ->
+                ParserUtil.parseSoleEmail(" " + VALID_EMAIL + "\n", "missing", "extra"));
+    }
+
+    @Test
+    public void parseSoleEmail_paddedMixedCaseEmail_returnsCanonicalEmail() throws Exception {
+        assertEquals(new Email(VALID_EMAIL), ParserUtil.parseSoleEmail(" \tRACHEL@U.NUS.EDU\t ", "missing", "extra"));
     }
 }

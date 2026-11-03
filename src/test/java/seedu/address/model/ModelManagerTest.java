@@ -8,12 +8,12 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
-import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.IdentifierContainsQueryPredicate;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -98,7 +98,7 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new IdentifierContainsQueryPredicate(keywords[0]));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
@@ -108,5 +108,42 @@ public class ModelManagerTest {
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    @Test
+    public void pendingDeletion_setAndClear_reportsWhetherOneExisted() {
+        assertTrue(modelManager.getPendingDeletion().isEmpty());
+        assertFalse(modelManager.clearPendingDeletion());
+        modelManager.setPendingDeletion(ALICE.getEmail());
+        assertEquals(Optional.of(ALICE.getEmail()), modelManager.getPendingDeletion());
+        assertTrue(modelManager.clearPendingDeletion());
+        assertTrue(modelManager.getPendingDeletion().isEmpty());
+        assertThrows(NullPointerException.class, () -> modelManager.setPendingDeletion(null));
+    }
+
+    @Test
+    public void pendingDeletion_excludedFromRosterAndModelEquality() {
+        modelManager.addPerson(ALICE);
+        ModelManager withoutPending = new ModelManager(modelManager.getAddressBook(), new UserPrefs());
+        modelManager.setPendingDeletion(ALICE.getEmail());
+        assertEquals(withoutPending.getAddressBook(), modelManager.getAddressBook());
+        assertTrue(modelManager.equals(withoutPending));
+    }
+
+    @Test
+    public void createRestorePoint_neverRestoresOrDiscardsPendingDeletion() {
+        modelManager.addPerson(ALICE);
+        modelManager.setPendingDeletion(ALICE.getEmail());
+        Runnable restoreWithPending = modelManager.createRestorePoint();
+        modelManager.clearPendingDeletion();
+        modelManager.deletePerson(ALICE);
+        restoreWithPending.run();
+        assertTrue(modelManager.hasPerson(ALICE)); // positive control: the roster itself was restored
+        assertTrue(modelManager.getPendingDeletion().isEmpty());
+
+        Runnable restoreWithoutPending = modelManager.createRestorePoint();
+        modelManager.setPendingDeletion(ALICE.getEmail());
+        restoreWithoutPending.run();
+        assertEquals(Optional.of(ALICE.getEmail()), modelManager.getPendingDeletion());
     }
 }

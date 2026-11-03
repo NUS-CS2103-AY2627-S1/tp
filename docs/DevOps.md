@@ -32,6 +32,33 @@ The following commands perform common Gradle tasks.
   * `./gradlew test`: Runs all tests.
   * `./gradlew clean test`: Cleans the project before running all tests
 
+Java assertions are enabled for Gradle tests and all Gradle `JavaExec` tasks, including `run` and `runShadow`.
+For an IDE developer run, add `-ea` to the VM options. In IntelliJ IDEA, use **Run > Edit Configurations >
+VM options**. In VS Code, set `"vmArgs": "-ea"` in the applicable Java launch configuration. For a direct Java
+developer run, add `-ea` before `-jar` or `-cp`. Release behaviour must not depend on assertions.
+
+### Runtime-log packaging check
+
+`shadowJar` excludes the top-level `logs/` directory from `build/classes/java/main`. This narrow rule prevents a
+non-clean rebuild from packaging files created by an earlier developer or test run without excluding application
+resources. `JarContentsTest`, which runs under `check`, rejects every `logs/` entry and confirms that the manifest,
+CSS, FXML, images, Jackson service configuration and Windows, macOS and Linux JavaFX files remain in the JAR. It
+also creates a synthetic contaminated archive to verify that the check fails on a runtime log.
+
+Use the following disposable-marker check when changing packaging behaviour:
+
+```text
+./gradlew clean check coverage shadowJar
+mkdir -p build/classes/java/main/logs
+printf 'SOCDEX_PACKAGING_MARKER\n' > build/classes/java/main/logs/packaging-marker.log
+./gradlew check coverage shadowJar
+jar tf build/libs/addressbook.jar
+```
+
+The clean and non-clean commands must pass. The final archive listing must contain the required application
+resources and platform libraries, and it must not contain `logs/` or `packaging-marker.log`. Delete the marker with
+`./gradlew clean` after the check. Run `java -jar build/libs/addressbook.jar` as a separate launch smoke test.
+
 --------------------------------------------------------------------------------------------------------------------
 
 ## Continuous integration (CI)
@@ -69,11 +96,70 @@ Any warnings or errors will be printed out to the console.
 
 --------------------------------------------------------------------------------------------------------------------
 
+### Required external-working-directory sandbox acceptance
+
+Before candidate packaging and acceptance sign-off, build the reviewed candidate and copy its JAR into a clean disposable application folder. Create a separate external working directory containing fictional sentinel `preferences.json` and `data/addressbook.json` files. Retain hashes and a recursive listing of that external directory before testing. Use paths containing spaces/Unicode; include a percent sign in the JAR folder to exercise file-logging pattern escaping.
+
+From the external directory run `java -jar /ABSOLUTE/APPLICATION/FOLDER/addressbook.jar`. Confirm the empty production window opens without using the sentinel data. Create a fictional profile and enrolment, exit normally and relaunch from that same external directory. Verify the complete record returns and preferences, roster, logs/locks and JavaFX native extraction appear only inside the application folder. Compare the external tree and sentinel hashes; no external file or directory may be created, changed or removed. Record actual native-cache observations with a plain JDK; a JavaFX-enabled JDK can mask extraction behaviour.
+
+For reproducible programmatic entry-point acceptance, first build with `./gradlew testClasses shadowJar`. Run these from the external working directory as distinct JVM processes, redirecting logs **inside the application folder**:
+
+```text
+java -cp /ABSOLUTE/CHECKOUT/build/classes/java/test:/ABSOLUTE/APPLICATION/FOLDER/addressbook.jar seedu.address.DataSandboxAcceptance seed
+java -cp /ABSOLUTE/CHECKOUT/build/classes/java/test:/ABSOLUTE/APPLICATION/FOLDER/addressbook.jar seedu.address.DataSandboxAcceptance restart
+```
+
+Quote the entire classpath when paths contain spaces; on Windows use `;` instead of `:`. The driver calls production `Main.main`, waits for the real window, submits fictional creation/enrolment/search commands and exits through the real command box. It refuses a pre-existing roster in seed mode. The driver supplies only test code; production paths are derived from the copied JAR, not the driver's classes directory. The external sentinel/tree comparison is a separate harness check. Record source SHA, JAR checksum, platform/runtime, command results and limitations. This utility is programmatic UI acceptance with a real process restart; it is not manual keyboard entry. Preserve the integrated Apple Silicon packaging and JAR-home sandbox checks when preparing each candidate.
+
+
 ## Making a release
 
-Here are the steps to create a new release.
+Prepare the candidate separately from publication. For v1.6, Kaiwen owns packaging (#202), Minh Hoang independently reviews
+the handoff and owns acceptance (#203), and Jingchun publishes through #204 after acceptance.
+Final Canvas submission and receipt verification are tracked separately in #205; publication alone is not submission.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
-1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
-1. Tag the repo with the version number. e.g. `v0.1`
-1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.
+1. Open a focused PR updating `MainApp.VERSION` in `src/main/java/seedu/address/MainApp.java` and any release instructions.
+1. Obtain independent review and successful required CI, then use the reviewed master commit for the final build.
+1. Complete the clean build, archive checks and smoke tests below. Record dry runs separately from final evidence.
+1. Hand off the exact JAR and checksum for independent acceptance. Keep a draft unpublished while acceptance is pending.
+1. After acceptance, tag the accepted source and publish the same tested JAR. Download the uploaded artifact and verify its checksum.
+
+### v1.6 candidate packaging and smoke evidence
+
+Build one reviewed, feature-complete master commit with Java 25:
+
+```text
+./gradlew clean check coverage shadowJar
+```
+
+`MainApp.VERSION` identifies V1.6. This metadata does not mean a release has been published. `shadowJar` produces
+`build/libs/addressbook.jar`; keep this filename without spaces or special characters and do not change its bytes after testing.
+Record the full source SHA (`git rev-parse HEAD`), Java version (`java -version`), filename, byte size and SHA-256.
+The JAR must stay below 100 MB. Record preparation builds separately from final build evidence and handoff review in #202.
+Acceptance sign-off for that exact artifact is recorded separately in #203 before #204 publication.
+Do not replace the published v1.5 tag or assets with v1.6 preparation builds. Final packaging consumes the merged accepted fixes,
+reviewed instructions (#200/#201) and freeze ledger (#199); an early dry run is not the final candidate.
+Prepare the expected Canvas copy `[CS2103T-W09-2][SoCdex].jar` from the accepted JAR, then verify identical bytes
+and checksum. The square brackets are literal filename characters, not placeholders;
+[the course clarification](https://github.com/NUS-CS2103-AY2627-S1/forum/issues/733#issuecomment-6517256752) confirms this.
+Quote the complete filename in shell commands, for example `cp addressbook.jar "[CS2103T-W09-2][SoCdex].jar"`.
+Confirm the remaining private assignment instructions before uploading under #205.
+
+The JAR retains Windows and Linux JavaFX libraries and packages macOS libraries as universal Mach-O binaries containing both Intel and Apple Silicon slices. `universalMacNatives` combines the existing JavaFX 17.0.7 vendor binaries without changing their slices or upgrading dependencies. It runs on all build hosts and needs no Apple tools. Native resource names collide between the two macOS classifiers, so the task replaces the Intel-only root resources with the combined files. On macOS, `file build/generated/universal-mac-natives/*.dylib` provides an independent architecture check. Native inspection and unit-test CI are not GUI launch evidence.
+
+Copy the same JAR into a new disposable folder on Windows, macOS and Linux. Use a plain JDK 25 without preinstalled JavaFX where possible, so an external JavaFX runtime does not mask missing packaged libraries. Record the operator, OS/architecture, Java vendor/version, source SHA and artifact checksum for each run. On macOS/Linux use `shasum -a 256 addressbook.jar` and `wc -c addressbook.jar`; on Windows use `Get-FileHash addressbook.jar -Algorithm SHA256` and `(Get-Item addressbook.jar).Length` in PowerShell.
+
+1. Run `java -jar addressbook.jar`. Confirm the production window opens and the roster starts empty. Do not seed the test with an existing preferences or roster file.
+1. Enter `student add /name Alex Demo /email E9000001@U.NUS.EDU /telegram @Alex_Demo /github alex-demo`. Expect `Added student: Alex Demo.` and the selected canonical email `e9000001@u.nus.edu`.
+1. Enter `find e9000001`. Expect one selected result. In the final feature-complete candidate, also run #203's integrated acceptance scenarios against this same artifact.
+1. Enter `exit`, confirm normal process termination, then run the identical launch command again. Verify the complete saved profile and contacts return. Search again and exit; keep logs and a screenshot. Record any failure rather than marking the platform as passed.
+1. Hand the artifact and checksum to Minh Hoang for #202 handoff review and #203 acceptance, then to Jingchun for #204 publication. Rebuild and rerun affected checks if the candidate source changes. Publication is separate: download the uploaded JAR and compare its checksum.
+
+An optional reproducible programmatic smoke utility exercises production `MainApp` startup and stop and the actual command box. Build test classes using `./gradlew testClasses shadowJar`. From a new disposable working directory, copy the tested JAR and run these as **two separate JVM invocations**, using the absolute path to this checkout's test classes:
+
+```text
+java -cp /ABSOLUTE/CHECKOUT/build/classes/java/test:addressbook.jar seedu.address.release.PackagedJarSmoke seed
+java -cp /ABSOLUTE/CHECKOUT/build/classes/java/test:addressbook.jar seedu.address.release.PackagedJarSmoke restart
+```
+
+On Windows, replace the classpath separator `:` with `;`. The seed refuses an existing roster. The utility writes fictional roster/preferences files and `smoke-seed.png` / `smoke-restart.png`, verifies byte preservation through search and shutdown, and prints actual results. Production classes and JavaFX come from the tested JAR; the extra classpath supplies only the test driver. This is programmatic UI acceptance and a real JVM restart, not manual keyboard interaction or a substitute for the direct `java -jar` launch check. Run and record each platform separately; three CI unit-test jobs do not certify three packaged GUI launches.

@@ -3,13 +3,17 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.Email;
 import seedu.address.model.person.Person;
 
 /**
@@ -21,18 +25,29 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final boolean isReadOnly;
+    private final SortedList<Person> displayedPersons;
+    // Session-only state: kept outside the address book so it is never saved, compared or restored.
+    private Email pendingDeletion;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
      */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
+        this(addressBook, userPrefs, false);
+    }
+
+    /** Creates a model with a fixed recovery status for this session. */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs, boolean isReadOnly) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing model with " + addressBook.getPersonList().size() + " roster entries.");
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        this.isReadOnly = isReadOnly;
+        displayedPersons = new SortedList<>(filteredPersons);
     }
 
     public ModelManager() {
@@ -101,13 +116,66 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return displayedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
+        updateFilteredPersonList(predicate, null);
+    }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
         requireNonNull(predicate);
+        displayedPersons.setComparator(comparator);
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return isReadOnly;
+    }
+
+    @Override
+    public Runnable createRestorePoint() {
+        AddressBook previousData = new AddressBook(addressBook);
+        Runnable restoreDisplay = createDisplayRestorePoint();
+        return () -> {
+            if (!addressBook.equals(previousData)) {
+                addressBook.resetData(previousData);
+            }
+            restoreDisplay.run();
+        };
+    }
+
+    @Override
+    public Runnable createDisplayRestorePoint() {
+        Predicate<? super Person> previousFilter = filteredPersons.getPredicate();
+        Comparator<? super Person> previousOrder = displayedPersons.getComparator();
+        return () -> {
+            filteredPersons.setPredicate(previousFilter);
+            displayedPersons.setComparator(previousOrder);
+        };
+    }
+
+    //=========== Pending deletion ===========================================================================
+
+    @Override
+    public void setPendingDeletion(Email email) {
+        requireNonNull(email);
+        pendingDeletion = email;
+    }
+
+    @Override
+    public Optional<Email> getPendingDeletion() {
+        return Optional.ofNullable(pendingDeletion);
+    }
+
+    @Override
+    public boolean clearPendingDeletion() {
+        boolean hadPendingDeletion = pendingDeletion != null;
+        pendingDeletion = null;
+        return hadPendingDeletion;
     }
 
     @Override
@@ -123,7 +191,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && displayedPersons.equals(otherModelManager.displayedPersons);
     }
 
 }

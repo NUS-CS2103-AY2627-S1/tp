@@ -1,6 +1,7 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_SINGLE_LINE;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -23,6 +24,16 @@ public class ParserUtil {
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
 
     /**
+     * Rejects line breaks and control characters other than horizontal tabs.
+     */
+    public static void requireSingleLine(String text) throws ParseException {
+        if (text.codePoints().anyMatch(codePoint -> (Character.isISOControl(codePoint) && codePoint != '\t')
+                || codePoint == 0x2028 || codePoint == 0x2029)) {
+            throw new ParseException(MESSAGE_SINGLE_LINE);
+        }
+    }
+
+    /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
      * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
@@ -37,17 +48,16 @@ public class ParserUtil {
 
     /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Surrounding spaces and tabs are removed and internal runs of them are normalised by {@code Name}.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
+        if (!Name.isValidName(name)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
-        return new Name(trimmedName);
+        return new Name(name);
     }
 
     /**
@@ -81,18 +91,40 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String email} into an {@code Email}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Parses command arguments that must be exactly one NUS email into a canonical {@code Email}.
+     * The argument count is checked before the email is validated.
+     *
+     * @param missingMessage the error message when no email is given.
+     * @param extraMessage the error message when more than one argument is given.
+     * @throws ParseException if the arguments are not exactly one valid email.
+     */
+    public static Email parseSoleEmail(String args, String missingMessage, String extraMessage)
+            throws ParseException {
+        requireNonNull(args);
+        requireSingleLine(args);
+        String trimmed = args.replaceAll("^[ \t]+|[ \t]+$", "");
+        if (trimmed.isEmpty()) {
+            throw new ParseException(missingMessage);
+        }
+        if (trimmed.split("[ \t]+").length > 1) {
+            throw new ParseException(extraMessage);
+        }
+        return parseEmail(trimmed);
+    }
+
+    /**
+     * Parses a {@code String email} into a canonical {@code Email}.
+     * Leading and trailing spaces and tabs are ignored by the shared {@link Email} rule; other characters are not
+     * removed.
      *
      * @throws ParseException if the given {@code email} is invalid.
      */
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
-        String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
+        if (!Email.isValidEmail(email)) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
-        return new Email(trimmedEmail);
+        return new Email(email);
     }
 
     /**
