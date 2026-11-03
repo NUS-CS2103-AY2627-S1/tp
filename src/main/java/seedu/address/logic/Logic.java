@@ -1,5 +1,7 @@
 package seedu.address.logic;
 
+import java.util.Optional;
+
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
@@ -20,8 +22,17 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
+    /**
+     * Returns the student in the displayed list that {@code commandText} would delete, or an empty {@code Optional}
+     * if it is not a valid {@code delete} command for a displayed student. Nothing is executed or changed.
+     */
+    Optional<Person> getDeletionTarget(String commandText);
+
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable view of the list of all persons, which the filter does not affect */
+    ObservableList<Person> getPersonList();
 
     /**
      * Returns the user prefs' GUI settings.

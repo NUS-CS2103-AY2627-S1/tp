@@ -29,8 +29,8 @@ The following commands perform common Gradle tasks.
   **`checkstyleTest`**: Runs the code style check for the test code base.
 
 * **`test`**
-  * `./gradlew test`: Runs all tests.
-  * `./gradlew clean test`: Cleans the project before running all tests
+  * `./gradlew test`: Runs all tests, except the JavaFX UI tests, which run only when the environment variable `POCO_UI_TESTS` is `true` (see [Running the JavaFX UI tests](Testing.md#running-the-javafx-ui-tests)).
+  * `./gradlew clean test`: Cleans the project, then runs the same tests as `./gradlew test`, so the JavaFX UI tests still run only when `POCO_UI_TESTS` is `true`.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-F09-2a/tp/tree/master/src/main/java/seedu/address/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

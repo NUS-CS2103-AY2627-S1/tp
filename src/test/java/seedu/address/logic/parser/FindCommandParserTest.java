@@ -21,6 +21,30 @@ public class FindCommandParserTest {
     }
 
     @Test
+    public void parse_invalidKeyword_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+
+        // only keyword is invalid
+        assertParseFailure(parser, "@@@", expectedMessage);
+
+        // one valid and one invalid keyword
+        assertParseFailure(parser, "Alice B@b", expectedMessage);
+    }
+
+    @Test
+    public void parse_keywordWithoutLetters_returnsFindCommand() {
+        assertParseSuccess(parser, "Alex 2",
+                new FindCommand(new NameContainsKeywordsPredicate(List.of("Alex", "2"))));
+        assertParseSuccess(parser, "2", new FindCommand(new NameContainsKeywordsPredicate(List.of("2"))));
+    }
+
+    @Test
+    public void parse_decomposedKeyword_normalizesKeyword() {
+        assertParseSuccess(parser, "Jose\u0301",
+                new FindCommand(new NameContainsKeywordsPredicate(List.of("Jos\u00e9"))));
+    }
+
+    @Test
     public void parse_validArgs_returnsFindCommand() {
         // no leading and trailing whitespaces
         FindCommand expectedFindCommand =

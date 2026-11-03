@@ -1,0 +1,101 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":AddressBookParser" as Parser LOGIC_COLOR
+participant ":PaidCommandParser" as PaidParser LOGIC_COLOR
+participant "c:PaidCommand" as Paid LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> Logic : execute("paid 1")
+activate Logic
+Logic -> Parser : parseCommand("paid 1")
+activate Parser
+
+create PaidParser
+Parser -> PaidParser : PaidCommandParser()
+activate PaidParser
+PaidParser --> Parser
+deactivate PaidParser
+
+Parser -> PaidParser : parse(" 1")
+activate PaidParser
+note right of PaidParser
+Parse a positive index without
+leading zeros, signs or extra tokens.
+end note
+
+create Paid
+PaidParser -> Paid : PaidCommand(index)
+activate Paid
+Paid --> PaidParser
+deactivate Paid
+
+PaidParser --> Parser : c
+deactivate PaidParser
+'Hidden arrow to position the destroy marker below the end of the activation bar.
+PaidParser -[hidden]-> Parser
+destroy PaidParser
+
+Parser --> Logic : c
+deactivate Parser
+
+Logic -> Paid : execute(m)
+activate Paid
+Paid -> Model : getFilteredPersonList()
+activate Model
+Model --> Paid : displayed students
+deactivate Model
+note right of Paid
+Reject an index outside the displayed list.
+student = displayed students.get(0)
+Fail if student has no outstanding fee,
+before any record is changed.
+studentWithoutFee = copy of student with
+every other field unchanged and no fee.
+end note
+
+Paid -> Model : setPerson(student, studentWithoutFee)
+activate Model
+note right of Model
+Keep the active filter: after a fees
+search, the paid student leaves the
+displayed list and later indexes shift up.
+end note
+Model --> Paid
+deactivate Model
+
+note right of Paid
+r = CommandResult naming the
+student and the cleared fee.
+end note
+Paid --> Logic : r
+deactivate Paid
+
+Logic -> Paid : shouldSaveAddressBook()
+activate Paid
+Paid --> Logic : true
+deactivate Paid
+
+Logic -> Storage : saveAddressBook(m.getAddressBook())
+activate Storage
+Storage --> Logic
+deactivate Storage
+note right of Logic
+If saving fails, LogicManager throws a CommandException,
+and the cleared fee stays only in memory.
+end note
+
+[<-- Logic : r
+deactivate Logic
+@enduml

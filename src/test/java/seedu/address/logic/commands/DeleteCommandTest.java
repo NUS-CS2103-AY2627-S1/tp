@@ -6,9 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +37,7 @@ public class DeleteCommandTest {
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+        String expectedMessage = "Deleted student:\n" + Messages.format(personToDelete);
 
         ModelManager expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
         expectedModel.deletePerson(personToDelete);
@@ -46,7 +50,7 @@ public class DeleteCommandTest {
         Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
     }
 
     @Test
@@ -76,7 +80,34 @@ public class DeleteCommandTest {
 
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void constructor_nullIndex_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new DeleteCommand(null));
+    }
+
+    @Test
+    public void getTarget_indexInDisplayedList_returnsStudentAtIndex() {
+        // Only BENSON is displayed. Index 1 of the full list is ALICE.
+        showPersonAtIndex(model, INDEX_SECOND_PERSON);
+
+        assertEquals(Optional.of(BENSON),
+                new DeleteCommand(INDEX_FIRST_PERSON).getTarget(model.getFilteredPersonList()));
+    }
+
+    @Test
+    public void getTarget_indexBeyondDisplayedList_returnsEmpty() {
+        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+
+        assertEquals(Optional.empty(), new DeleteCommand(INDEX_SECOND_PERSON).getTarget(model.getFilteredPersonList()));
+        assertEquals(Optional.empty(), new DeleteCommand(INDEX_FIRST_PERSON).getTarget(List.of()));
+    }
+
+    @Test
+    public void getTarget_nullList_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new DeleteCommand(INDEX_FIRST_PERSON).getTarget(null));
     }
 
     @Test

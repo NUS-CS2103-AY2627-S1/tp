@@ -27,7 +27,11 @@ public class StringUtilTest {
         assertFalse(StringUtil.isNonZeroUnsignedInteger("0"));
 
         // EP: zero as prefix
-        assertTrue(StringUtil.isNonZeroUnsignedInteger("01"));
+        assertFalse(StringUtil.isNonZeroUnsignedInteger("01"));
+        assertFalse(StringUtil.isNonZeroUnsignedInteger("0001"));
+
+        // EP: non-ASCII digits
+        assertFalse(StringUtil.isNonZeroUnsignedInteger("\u0661"));
 
         // EP: signed numbers
         assertFalse(StringUtil.isNonZeroUnsignedInteger("-1"));
@@ -38,11 +42,12 @@ public class StringUtilTest {
         assertFalse(StringUtil.isNonZeroUnsignedInteger("1 0")); // Spaces in the middle
 
         // EP: number larger than Integer.MAX_VALUE
-        assertFalse(StringUtil.isNonZeroUnsignedInteger(Long.toString(Integer.MAX_VALUE + 1)));
+        assertFalse(StringUtil.isNonZeroUnsignedInteger(Long.toString(Integer.MAX_VALUE + 1L)));
 
         // EP: valid numbers, should return true
         assertTrue(StringUtil.isNonZeroUnsignedInteger("1")); // Boundary value
         assertTrue(StringUtil.isNonZeroUnsignedInteger("10"));
+        assertTrue(StringUtil.isNonZeroUnsignedInteger(Integer.toString(Integer.MAX_VALUE)));
     }
 
 
@@ -121,6 +126,33 @@ public class StringUtilTest {
 
         // Matches multiple words in sentence
         assertTrue(StringUtil.containsWordIgnoreCase("AAA bBb ccc  bbb", "bbB"));
+    }
+
+    @Test
+    public void containsWordIgnoreCaseAndEdgePunctuation_validInputs_correctResult() {
+        // Sentence word has punctuation at its end or around it
+        assertTrue(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Wei Ming Tan.", "Tan"));
+        assertTrue(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Ali (Junior)", "junior"));
+
+        // Query word has punctuation that the sentence word does not
+        assertTrue(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Wei Ming Tan", "Tan."));
+
+        // Exact matches, including punctuation, still match
+        assertTrue(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Wei Ming Tan.", "tan."));
+
+        // Punctuation inside a word is kept, so only full words match
+        assertFalse(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Mary-Ann Lim", "Mary"));
+        assertFalse(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Ali (Junior)", "Jun"));
+
+        // Query word made only of punctuation matches only the same text
+        assertFalse(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("Wei Ming Tan.", "."));
+        assertTrue(StringUtil.containsWordIgnoreCaseAndEdgePunctuation("A . B", "."));
+    }
+
+    @Test
+    public void containsWordIgnoreCaseAndEdgePunctuation_emptyWord_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, "Word parameter cannot be empty", ()
+            -> StringUtil.containsWordIgnoreCaseAndEdgePunctuation("typical sentence", "  "));
     }
 
     //---------------- Tests for getDetails --------------------------------------

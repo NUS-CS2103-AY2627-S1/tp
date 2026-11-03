@@ -1,7 +1,10 @@
 package seedu.address.logic;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -9,6 +12,7 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -44,10 +48,37 @@ public class LogicManager implements Logic {
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        CommandResult commandResult = command.execute(model);
 
+        if (command.shouldSaveAddressBook()) {
+            saveAddressBook();
+        }
+
+        return commandResult;
+    }
+
+    @Override
+    public Optional<Person> getDeletionTarget(String commandText) {
+        requireNonNull(commandText);
+        Command command;
+        try {
+            command = addressBookParser.parseCommand(commandText);
+        } catch (ParseException e) {
+            // execute(commandText) reports the same parse error.
+            return Optional.empty();
+        }
+
+        if (!(command instanceof DeleteCommand deleteCommand)) {
+            return Optional.empty();
+        }
+        return deleteCommand.getTarget(model.getFilteredPersonList());
+    }
+
+    /**
+     * Saves the address book and reports any storage failure as a command failure.
+     */
+    private void saveAddressBook() throws CommandException {
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
@@ -55,13 +86,16 @@ public class LogicManager implements Logic {
         } catch (IOException ioe) {
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
-
-        return commandResult;
     }
 
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Person> getPersonList() {
+        return model.getAddressBook().getPersonList();
     }
 
     @Override

@@ -9,8 +9,10 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +20,8 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -61,6 +65,63 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_invalidOutstandingFeeAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("invalidOutstandingFeeAddressBook.json"));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_unknownFields_ignoredOnReadAndDroppedOnSave() throws Exception {
+        ReadOnlyAddressBook readBack = readAddressBook("unknownFieldsAddressBook.json").get();
+        AddressBook expected = new AddressBook();
+        expected.addPerson(ALICE);
+        assertEquals(expected, new AddressBook(readBack));
+
+        Path filePath = testFolder.resolve("TempAddressBook.json");
+        new JsonAddressBookStorage(filePath).saveAddressBook(readBack);
+        String savedJson = Files.readString(filePath);
+        assertFalse(savedJson.contains("schemaVersion"));
+        assertFalse(savedJson.contains("lessonNotes"));
+    }
+
+    @Test
+    public void readAddressBook_nullRoot_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("nullRootAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_contentAfterAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("contentAfterAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_secondRootAfterAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("secondRootAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_duplicatePersonsField_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("duplicatePersonsFieldAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_duplicateNameField_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("duplicateNameFieldAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_whitespaceAfterSavedAddressBook_success() throws Exception {
+        Path filePath = testFolder.resolve("TempAddressBook.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+        jsonAddressBookStorage.saveAddressBook(original);
+        Files.writeString(filePath, System.lineSeparator() + " \t" + System.lineSeparator(),
+                StandardOpenOption.APPEND);
+
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook().get();
+        assertEquals(original, new AddressBook(readBack));
+    }
+
+    @Test
     public void readAndSaveAddressBook_allInOrder_success() throws Exception {
         Path filePath = testFolder.resolve("TempAddressBook.json");
         AddressBook original = getTypicalAddressBook();
@@ -84,6 +145,24 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_normalizedGuardianPhoneAndFee_success() throws Exception {
+        Path filePath = testFolder.resolve("TempAddressBook.json");
+        Person person = new PersonBuilder().withGuardianPhone("9 123-4567")
+                .withOutstandingFee("1.2").build();
+        AddressBook original = new AddressBook();
+        original.addPerson(person);
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook().get();
+
+        Person savedPerson = readBack.getPersonList().get(0);
+        assertEquals("91234567", savedPerson.getGuardianPhone().getValue());
+        assertEquals("1.20", savedPerson.getOutstandingFee().get().toString());
+        assertEquals(original, new AddressBook(readBack));
     }
 
     @Test

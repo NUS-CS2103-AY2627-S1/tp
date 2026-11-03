@@ -1,6 +1,8 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
@@ -10,6 +12,7 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +20,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,6 +29,8 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double VISIBLE_TITLE_WIDTH = 200;
+    private static final double VISIBLE_TITLE_HEIGHT = 40;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -34,8 +40,10 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private PersonDetailsPanel personDetailsPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private DeleteConfirmationHandler deleteConfirmationHandler;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +53,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane personDetailsPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -57,12 +68,23 @@ public class MainWindow extends UiPart<Stage> {
      * and the data file path to show in the status bar.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
+        this(primaryStage, logic, dataFilePath, new DeleteConfirmationHandler(logic, student ->
+                new DeleteConfirmationDialog(primaryStage, student).showAndConfirm()));
+    }
+
+    /**
+     * Creates a {@code MainWindow} that confirms deletions with {@code deleteConfirmationHandler}.
+     * A test supplies this handler so that a deletion can be confirmed without a dialog.
+     */
+    MainWindow(Stage primaryStage, Logic logic, Path dataFilePath,
+            DeleteConfirmationHandler deleteConfirmationHandler) {
         super(FXML, primaryStage);
 
         // Set dependencies
         this.primaryStage = primaryStage;
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.deleteConfirmationHandler = deleteConfirmationHandler;
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
@@ -114,8 +136,13 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.getPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+
+        personDetailsPanel = new PersonDetailsPanel();
+        personDetailsPanelPlaceholder.getChildren().add(personDetailsPanel.getRoot());
+        personListPanel.selectedPersonProperty().addListener((unused, oldPerson, selectedPerson) ->
+                personDetailsPanel.showPerson(selectedPerson));
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -131,11 +158,25 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        double width = guiSettings.getWindowWidth();
+        double height = guiSettings.getWindowHeight();
+        GuiSettings defaults = new GuiSettings();
+        primaryStage.setWidth(Double.isFinite(width) && width > 0 ? width : defaults.getWindowWidth());
+        primaryStage.setHeight(Double.isFinite(height) && height > 0 ? height : defaults.getWindowHeight());
+
+        Point coordinates = guiSettings.getWindowCoordinates();
+        if (coordinates == null) {
+            return;
+        }
+        double titleWidth = Math.min(primaryStage.getWidth(), VISIBLE_TITLE_WIDTH);
+        boolean isTitleVisible = Screen.getScreens().stream()
+                .anyMatch(screen -> screen.getVisualBounds().intersects(
+                        coordinates.x, coordinates.y, titleWidth, VISIBLE_TITLE_HEIGHT));
+        if (isTitleVisible) {
+            primaryStage.setX(coordinates.x);
+            primaryStage.setY(coordinates.y);
+        } else {
+            primaryStage.centerOnScreen();
         }
     }
 
@@ -173,14 +214,25 @@ public class MainWindow extends UiPart<Stage> {
 
     /**
      * Executes the command and returns the result.
+     * A {@code delete} command for a displayed student is executed only after the user confirms it.
      *
      * @see seedu.address.logic.Logic#execute(String)
+     * @see DeleteConfirmationHandler#confirmAndDelete(String, Person)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        Person previouslySelected = personListPanel.getSelectedPerson();
         try {
-            CommandResult commandResult = logic.execute(commandText);
+            Optional<Person> studentToDelete = logic.getDeletionTarget(commandText);
+            CommandResult commandResult = (studentToDelete.isPresent())
+                    ? deleteConfirmationHandler.confirmAndDelete(commandText, studentToDelete.get())
+                    : logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+
+            commandResult.getViewedPerson().ifPresentOrElse(personListPanel::selectPerson, () ->
+                    personListPanel.retainSelection(previouslySelected));
+            // The selection listener does not fire when the new record equals the old one, so refresh explicitly.
+            personDetailsPanel.showPerson(personListPanel.getSelectedPerson());
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -194,6 +246,8 @@ public class MainWindow extends UiPart<Stage> {
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
+            personListPanel.retainSelectionAfterFailure(previouslySelected);
+            personDetailsPanel.showPerson(personListPanel.getSelectedPerson());
             throw e;
         }
     }

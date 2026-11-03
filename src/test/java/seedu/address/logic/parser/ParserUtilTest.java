@@ -2,6 +2,7 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
@@ -11,6 +12,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
@@ -26,7 +28,7 @@ public class ParserUtilTest {
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "91234567";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
@@ -36,13 +38,29 @@ public class ParserUtilTest {
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+        for (String input : List.of("", "0", "01", "0001", "-1", "+1", "1.5", "10 a", "1 2", "\u0661")) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex(input));
+        }
     }
 
     @Test
     public void parseIndex_outOfRangeInput_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+        assertThrows(ParseException.class, MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX, ()
+            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1L)));
+        assertThrows(ParseException.class, MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX, ()
+            -> ParserUtil.parseIndex("999999999999999999999999999999999999999999"));
+    }
+
+    @Test
+    public void parseIndex_customFormatMessage_preservesErrorClassification() throws Exception {
+        String invalidFormatMessage = "Invalid command format!";
+        assertThrows(ParseException.class, invalidFormatMessage, ()
+            -> ParserUtil.parseIndex("01", invalidFormatMessage));
+        assertThrows(ParseException.class, invalidFormatMessage, ()
+            -> ParserUtil.parseIndex("2147483648 extra", invalidFormatMessage));
+        assertThrows(ParseException.class, MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX, ()
+            -> ParserUtil.parseIndex("2147483648", invalidFormatMessage));
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex(" 1 ", invalidFormatMessage));
     }
 
     @Test
@@ -52,6 +70,20 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+        assertEquals(Index.fromOneBased(Integer.MAX_VALUE), ParserUtil.parseIndex("2147483647"));
+    }
+
+    @Test
+    public void normalizeCommandWord_anyCase_returnsLowerCase() {
+        assertEquals("list", ParserUtil.normalizeCommandWord("list"));
+        assertEquals("list", ParserUtil.normalizeCommandWord("LIST"));
+        assertEquals("findguardian", ParserUtil.normalizeCommandWord("FindGuardian"));
+        assertEquals("lsit.", ParserUtil.normalizeCommandWord("LSIT."));
+    }
+
+    @Test
+    public void normalizeCommandWord_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.normalizeCommandWord(null));
     }
 
     @Test
@@ -190,5 +222,13 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTags_tagsDifferingOnlyInCase_keepsFirstTag() throws Exception {
+        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of("Math", "math"));
+
+        assertEquals(1, actualTagSet.size());
+        assertEquals("Math", actualTagSet.iterator().next().tagName);
     }
 }

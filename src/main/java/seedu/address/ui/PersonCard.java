@@ -1,12 +1,13 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
+import java.util.Optional;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import seedu.address.logic.Messages;
 import seedu.address.model.person.Person;
 
 /**
@@ -39,6 +40,10 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label guardian;
+    @FXML
+    private Label outstandingFee;
+    @FXML
     private FlowPane tags;
 
     /**
@@ -49,11 +54,24 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        setOptionalText(phone, person.getPhone().map(p -> p.value));
+        setOptionalText(address, person.getAddress().map(a -> a.value));
+        setOptionalText(email, person.getEmail().map(e -> e.value));
+        guardian.setText("Guardian: " + person.getGuardianName() + " (" + person.getGuardianPhone() + ")");
+        person.getOutstandingFee().ifPresent(fee -> {
+            outstandingFee.setText("S$" + fee + " outstanding");
+            outstandingFee.setVisible(true);
+            outstandingFee.setManaged(true);
+        });
+        Messages.sortTagNames(person.getTags()).forEach(tagName -> tags.getChildren().add(new Label(tagName)));
+    }
+
+    /**
+     * Shows {@code text} in {@code label}, or hides the label when the student did not provide that detail.
+     */
+    private static void setOptionalText(Label label, Optional<String> text) {
+        label.setText(text.orElse(""));
+        label.setVisible(text.isPresent());
+        label.setManaged(text.isPresent());
     }
 }

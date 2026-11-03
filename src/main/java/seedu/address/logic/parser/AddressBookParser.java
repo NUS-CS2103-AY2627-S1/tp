@@ -14,9 +14,15 @@ import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FeeSummaryCommand;
+import seedu.address.logic.commands.FeesCommand;
 import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FindGuardianCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PaidCommand;
+import seedu.address.logic.commands.SetOutstandingCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -32,10 +38,12 @@ public class AddressBookParser {
 
     /**
      * Parses user input into command for execution.
+     * The command word is matched in any letter case; the arguments are passed on unchanged.
      *
      * @param userInput full user input string
      * @return the command based on the user input
-     * @throws ParseException if the user input does not conform to the expected format
+     * @throws ParseException if the user input does not conform to the expected format, or if the command word
+     *     is unknown, in which case the message names the word as typed and lists the available command words
      */
     public Command parseCommand(String userInput) throws ParseException {
         final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
@@ -51,18 +59,25 @@ public class AddressBookParser {
         // Lower level log messages are used sparingly to minimize noise in the code.
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
-        return switch (commandWord) {
+        return switch (ParserUtil.normalizeCommandWord(commandWord)) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
             case ClearCommand.COMMAND_WORD -> new ClearCommand();
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case FindGuardianCommand.COMMAND_WORD -> new FindGuardianCommandParser().parse(arguments);
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case FeeSummaryCommand.COMMAND_WORD -> new FeeSummaryCommandParser().parse(arguments);
+            case PaidCommand.COMMAND_WORD -> new PaidCommandParser().parse(arguments);
+            case FeesCommand.COMMAND_WORD -> new FeesCommandParser().parse(arguments);
+            case SetOutstandingCommand.COMMAND_WORD -> new SetOutstandingCommandParser().parse(arguments);
+            case HelpCommand.COMMAND_WORD -> new HelpCommandParser().parse(arguments);
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
-                throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
+                throw new ParseException(String.format(MESSAGE_UNKNOWN_COMMAND, commandWord) + " "
+                        + HelpCommand.MESSAGE_HELP_HINT + "\n" + HelpCommand.getAvailableCommandsMessage());
             }
         };
     }
