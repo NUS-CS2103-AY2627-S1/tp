@@ -1,70 +1,52 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam ParticipantPadding 5
+skinparam SequenceMessageAlign left
+skinparam maxMessageSize 180
+title delete-client: select by index or phone
+caption Index example: delete-client 1\nAlternative: delete-client i/91234567
 
-box Logic LOGIC_COLOR_T1
-participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
-participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
-participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
-participant "r:CommandResult" as CommandResult LOGIC_COLOR
-end box
+participant ":LogicManager" as logic LOGIC_COLOR
+participant ":BuBuParser" as parser LOGIC_COLOR
+participant ":DeleteClientCommand\nParser" as feature LOGIC_COLOR
+participant "command:\nDeleteClientCommand" as command LOGIC_COLOR
+participant "model:Model" as model MODEL_COLOR
 
-box Model MODEL_COLOR_T1
-participant "m:Model" as Model MODEL_COLOR
-end box
-
-[-> LogicManager : execute("delete 1")
-activate LogicManager
-
-LogicManager -> AddressBookParser : parseCommand("delete 1")
-activate AddressBookParser
-
-create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
-activate DeleteCommandParser
-
-DeleteCommandParser --> AddressBookParser
-deactivate DeleteCommandParser
-
-AddressBookParser -> DeleteCommandParser : parse("1")
-activate DeleteCommandParser
-
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
-activate DeleteCommand
-
-DeleteCommand --> DeleteCommandParser :
-deactivate DeleteCommand
-
-DeleteCommandParser --> AddressBookParser : d
-deactivate DeleteCommandParser
-'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
-destroy DeleteCommandParser
-
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
-
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
-
-DeleteCommand -> Model : deletePerson(1)
-activate Model
-
-Model --> DeleteCommand
-deactivate Model
-
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
-
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
-
-[<--LogicManager
-deactivate LogicManager
+[-> logic : execute(text)
+activate logic
+logic -> parser ++: parseCommand(text)
+' Parser construction is omitted; parsing is a call on the existing parser.
+parser -> feature ++: parse(arguments)
+create command
+feature -> command : create(target)
+feature --> parser --: command
+parser --> logic --: command
+note over logic, parser
+  For an index, require the client list.
+  Take a book snapshot before execution.
+end note
+logic -> command ++: execute(model)
+alt displayed index
+    command -> model ++: getFilteredClientList()
+    model --> command --: displayed clients
+    command -> command : select at index
+else phone identifier
+    command -> model ++: getBubuBook()\n.getClientList()
+    model --> command --: saved clients
+    command -> command : match phone number
+end
+command -> model ++: deleteClient(client)
+note over command, model
+  Remove the client and their linked
+  pets and appointments from BubuBook.
+end note
+model --> command --
+command --> logic --: CommandResult(success message)
+note over logic, parser
+  Save changed records.
+  Restore the snapshot if saving fails.
+end note
+[<-- logic : commandResult
+deactivate logic
 @enduml

@@ -19,7 +19,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/bubu.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -41,6 +41,11 @@ This project uses GitHub Actions for CI. The necessary workflow configuration fi
 ### Code coverage
 
 As part of CI, Gradle generates JaCoCo coverage reports from the tests, and CI uploads the coverage data to Codecov. Codecov then provides information about test coverage.
+
+The build runs JavaFX UI tests on Linux, macOS, and Windows. The `check` task fails if any of the six UI test classes
+listed in the [Testing guide](Testing.md#javafx-ui-tests-on-supported-platforms) has no results or skipped tests.
+Codecov receives the Linux job's report; a skipped test does not contribute execution data and must not be counted as
+validated behavior on any platform.
 
 However, because Codecov is known to run into intermittent problems (e.g., report upload fails) due to issues on the Codecov service side, the CI is configured to pass even if the Codecov task failed. Therefore, developers are advised to check the code coverage levels periodically and take corrective actions if the coverage level falls below desired levels.
 

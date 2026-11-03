@@ -1,0 +1,71 @@
+@startuml
+!include style.puml
+
+title Updating linked appointment snapshots after a client edit
+
+participant ":LogicManager" as logic LOGIC_COLOR
+participant ":EditClientCommand" as command LOGIC_COLOR
+participant ":ModelManager" as model MODEL_COLOR
+participant ":BubuBook" as book MODEL_COLOR
+participant ":AppointmentList" as appointments MODEL_COLOR
+participant "appointment:Appointment" as appointment MODEL_COLOR
+
+activate logic
+logic -> command : execute(model)
+activate command
+
+command -> model : setClient(current, edited)
+activate model
+
+model -> book : setClient(current, edited)
+activate book
+
+book -> appointments : updateOwner(current, edited)
+activate appointments
+
+loop for each appointment
+    opt owner phone matches current owner
+        alt appointment end is after current Singapore time
+            appointments -> appointment : withOwner(editedOwner)
+            appointment --> appointments : updated copy
+
+            note right of appointments
+                Ongoing or future appointment:
+                refresh the complete client snapshot
+                and the pet snapshot's owner reference.
+            end note
+
+        else appointment end is at or before current Singapore time
+            opt owner phone edited
+                appointments -> appointment : withOwnerPhone(editedOwner.getPhone())
+                appointment --> appointments : updated copy
+
+                note right of appointments
+                    Completed appointment:
+                    update only the owner phone in the
+                    client and pet snapshots.
+                end note
+            end
+
+            note right of appointments
+                If the phone is unchanged, preserve the
+                historical appointment snapshot.
+            end note
+        end
+    end
+end
+
+appointments --> book : return
+deactivate appointments
+
+book --> model : return
+deactivate book
+
+model --> command : return
+deactivate model
+
+command --> logic : CommandResult
+deactivate command
+deactivate logic
+
+@enduml

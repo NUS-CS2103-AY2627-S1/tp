@@ -9,51 +9,36 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Khang Sian
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/khangsian0412.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/khangsian0412)]
 
-* Role: Project Advisor
 
-### Jane Doe
+### Anders Chow
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/anderschow.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/anderschow)]
 
-* Role: Team Lead
-* Responsibilities: UI
 
-### Johnny Doe
+### Zhou XinYu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/xinyu-zxy.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/xinyu-zxy)]
 
-* Role: Developer
-* Responsibilities: Data
 
-### Jean Doe
+### Lee Hayoung
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/0218hy.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/0218hy)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Chung Hean
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/chunghean.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+[[github](http://github.com/chunghean)]

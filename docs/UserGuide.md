@@ -3,196 +3,918 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+BuBu helps **freelance pet groomers** keep track of clients, their pets and grooming appointments. Before a visit, you can check where to go, which service was booked and whether the pet needs special care. Type a command in the box at the top of the window and press <kbd>Enter</kbd>. The box below it shows the result.
 
-* Table of Contents
-{:toc}
+* [Quick start](#quick-start)
+* [Features](#features)
+  * [Reading command formats](#reading-command-formats)
+  * [Using shared fields](#how-fields-are-shared-between-commands)
+  * [General command rules](#general-command-rules)
+  * [Accepted formats](#accepted-formats)
+  * [Command history](#recalling-previously-entered-commands)
+  * [Displayed record lists](#switching-the-displayed-record-list)
+  * [If a command fails](#if-a-command-fails)
+  * [View help](#viewing-help-help)
+  * [Managing clients](#managing-clients)
+    * [Add a client](#adding-a-client-add-client)
+    * [List or search clients](#listing-and-searching-clients-list-clients)
+    * [Edit a client](#editing-a-client-edit-client)
+    * [Delete a client](#deleting-a-client-delete-client)
+  * [Managing pet profiles](#managing-pet-profiles)
+    * [Add a pet](#adding-a-pet-add-pet)
+    * [List pet profiles](#listing-pet-profiles-list-pets)
+    * [Edit a pet](#editing-a-pet-edit-pet)
+    * [Delete a pet](#deleting-a-pet-delete-pet)
+  * [Scheduling appointments](#scheduling-appointments)
+    * [Schedule an appointment](#scheduling-an-appointment-add-appointment)
+    * [List appointments](#listing-appointments-list-appointments)
+    * [Edit an appointment](#editing-an-appointment-edit-appointment)
+    * [Delete an appointment](#deleting-an-appointment-delete-appointment)
+  * [Other commands](#other-commands)
+    * [Clear all entries](#clearing-all-entries-clear)
+    * [Exit BuBu](#exiting-the-program-exit)
+    * [Saving the data](#saving-the-data)
+    * [Data files, backups and recovery](#data-files-backups-and-recovery)
+* [FAQ](#faq)
+* [Known issues](#known-issues)
+* [Command summary](#command-summary)
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+1. Install Java 25. On a Mac, follow the [macOS Java installation guide](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+2. Download `bubu.jar` from the [BuBu releases page](https://github.com/AY2627S1-CS2103T-W08-2/tp/releases) and put it in a folder where you can save files.
+3. Open a terminal in that folder and run `java -jar bubu.jar`. Use the same folder each time so BuBu can find your records.
+4. Type `list-clients` in the command box and press <kbd>Enter</kbd>. BuBu displays `Listed all clients.` and shows the client list. On a fresh launch, sample clients are provided so you can explore the app.
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+   ![Client list showing six records, with Alex Yeoh and Bernice Yu visible beneath the feedback “Listed all clients.”](images/Ui.png)
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+   *The sample client list after running `list-clients`. Scroll down to view the remaining clients.*
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+5. Enter a command in the command box and press <kbd>Enter</kbd>. BuBu shows feedback in the box below it.
+   Try these commands to explore the app:
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
+   * `list-clients` — view all saved clients.
+   * `list-pets` — view all saved pet profiles.
+   * `list-appointments` — view ongoing and future appointments.
+   * `help` — view command formats and field restrictions. You can also use **Help → Help** or <kbd>F1</kbd>.
 
-   * `list` : Lists all contacts.
+   On a fresh launch, the pet and appointment lists are empty until you add records.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
-
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
-
-   * `clear` : Deletes all contacts.
-
-   * `exit` : Exits the app.
-
-1. Refer to the [Features](#features) section below for details of each command.
+6. Explore [adding your own clients](#adding-a-client-add-client) and
+   [scheduling appointments](#scheduling-an-appointment-add-appointment). Use the
+   [command summary](#command-summary) to look up other commands, or read the feature examples below.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+### Reading command formats
 
-**:information_source: Notes about the command format:**<br>
+| In the guide | What to type |
+| --- | --- |
+| `i/PHONE_NUMBER` | Keep the short label (the *prefix*) and replace the uppercase words with your value, e.g. `i/87438807`. |
+| `[b/BREED]` | The field is optional. Type `b/Toy Poodle` if known, or leave the whole field out. Omit the brackets. |
+| `[t/TAG]...` | You can enter several tags, e.g. `t/regular t/mobile`. |
+| `INDEX` | Use the number beside the record in the displayed list. After filtering, use the numbers you see now. |
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+Separate fields with spaces. When copying from a PDF, check that fields on different lines still have a space between them.
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+### How fields are shared between commands
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+The same information is used throughout BuBu. This table shows where a field is reused and, importantly, whether it **finds an existing record** or **supplies a new value**.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+| Record | When adding | When editing or deleting |
+| --- | --- | --- |
+| **Client** | `n/`, `i/`, `e/` and `a/` supply the new client's details. | `i/` finds the current client. `n/`, `p/`, `e/`, `a/` and `t/` supply replacement details in `edit-client`. |
+| **Pet** | `p/` supplies the new pet's name. `i/` identifies the owner. `s/`, `b/` and `r/` supply its details. | `p/` and `i/` together find the current pet. `n/` supplies a replacement name. `s/`, `b/` and `r/` change the same pet details used by `add-pet`. |
+| **Appointment** | `i/` and `p/` identify the owner and pet. `d/`, `st/`, `et/` and `s/` supply the booking details. | `d/` and `st/` together find the current booking. `i/`, `p/`, `nd/`, `nst/`, `et/` and `s/` supply replacements. `nd/` and `nst/` mean **new** date and start time. |
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+For example, use `p/Mochi i/81112222` to find Mochi under Jamie's phone number when editing or deleting. Use `n/Mochi Bean` only when you want to rename Mochi.
 
-* If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+### General command rules
+
+* Type the command word first. Labelled fields can appear in any order.
+* Use each single-valued prefix only once. `t/TAG` is repeatable when a command accepts tags.
+* Leading and trailing spaces around a field value are ignored.
+* A blank required field is rejected. In an edit command, `b/` removes the breed and `t/` removes all tags.
+
+### Accepted formats
+
+Use this table for rules shared by more than one command. Command sections below explain which fields are required and any additional rules for that task.
+
+| Data | Prefix or field | What you can enter |
+| --- | --- | --- |
+| Client name | `n/NAME` | 2–60 Unicode letters, combining marks, spaces, apostrophes (`'`), hyphens (`-`) or full stops (`.`). For example, `José Tan` and `李小明` are accepted. |
+| Pet name | `p/PET_NAME`, `n/NEW_PET_NAME` | 1–40 letters, digits, spaces, apostrophes (`'`), hyphens (`-`) or full stops (`.`). |
+| Client or owner phone | `i/PHONE_NUMBER`, `i/OWNER_IDENTIFIER`, `i/OWNER_PHONE` | Exactly eight digits starting with `8` or `9`, without spaces or hyphens. |
+| New client phone | `p/NEW_PHONE` | The same eight-digit phone format as a client or owner phone. |
+| Email | `e/EMAIL` | At most 254 characters, exactly one `@`, no whitespace and non-empty local and domain parts. The domain includes a full stop, such as `example.com`. |
+| Address | `a/ADDRESS` | 5–120 characters using English letters, digits, spaces, commas, full stops, apostrophes (`'`), hyphens (`-`) or `#`. |
+| Tag | `t/TAG` | A non-empty alphanumeric label without spaces. Repeat `t/` for several tags. |
+| Species | `s/SPECIES` | `Dog`, `Cat`, `Rabbit`, `Guinea Pig`, `Guinea_Pig` or `Other`, ignoring case. |
+| Breed | `b/BREED` | Optional 2–50 character description using letters, digits, spaces, apostrophes (`'`), hyphens (`-`) or full stops (`.`). BuBu does not verify the breed or its species. |
+| Care requirements | `r/REQUIREMENTS` | 5–240 characters. `/` is allowed; a space followed by a recognised prefix begins another field. |
+| Appointment date | `d/`, `nd/` | A real calendar date in `DD-MM-YYYY` form, for example `18-09-2027`. |
+| Appointment time | `st/`, `et/`, `nst/` | Singapore time in `HH:mm` form, on the hour or half-hour. Start from `08:00` to `19:30`; end from `08:30` to `20:00`, on the same day and at least 30 minutes later. |
+| Service | `s/SERVICE` | `Bath and brush`, `Full groom`, `Nail trim` or `Other`, ignoring case and extra spaces. |
+| Displayed position | `INDEX` | A positive, one-based number shown beside a record in the current matching list. |
+
+For a field not listed above, follow the rule in its command section.
+
+### Recalling previously entered commands
+
+Use the <kbd>↑</kbd> and <kbd>↓</kbd> arrow keys while the command box is focused to recall commands that you have
+entered during the current application session. This is useful for repeating a command or editing a similar command
+without typing it again.
+
+* <kbd>↑</kbd> starts with the most recently entered command and moves towards older commands.
+* <kbd>↓</kbd> moves towards newer commands. After the newest command, it restores your saved unfinished command
+  (draft), if one exists. Press <kbd>↓</kbd> again to clear the command box. If there is no saved draft, moving past
+  the newest command shows a blank box immediately.
+* At the oldest command, further presses of <kbd>↑</kbd> leave the text unchanged. Once <kbd>↓</kbd> has reached
+  the blank box, further presses of <kbd>↓</kbd> leave it blank.
+* Every non-empty submitted command is remembered, including commands that produced an error. If you begin typing a
+  command and press <kbd>↑</kbd>, that unfinished command is saved as a draft; navigate past the newest command
+  with <kbd>↓</kbd> to restore it.
+  Recalling an unchanged command does not duplicate it in the history.
+* Command history is kept only while BuBu is running and is cleared when the application closes.
+
+
+### Switching the displayed record list
+
+BuBu shows one list at a time. A successful
+`list-clients` command displays clients, `list-pets` displays pets, and `list-appointments` displays
+ongoing and future appointments. The selected panel remains visible until another list command or a successful `edit-client` command changes it.
+
+Index-based deletion commands use the corresponding displayed list. For example, run `list-pets` before
+`delete-pet 1` and run `list-appointments` before `delete-appointment 1`. If the wrong record type is currently
+displayed, the deletion is rejected rather than applying the index to another list.
+
+
+### If a command fails
+
+If BuBu rejects a command, your saved records stay as they were. Read the feedback below the command box, correct the input and press <kbd>Enter</kbd> to try again.
+
+If BuBu cannot load your saved records, follow the recovery instructions under
+[Data files, backups and recovery](#data-files-backups-and-recovery). Help remains available while other valid commands are blocked.
+
+BuBu checks client phone and email uniqueness when it loads saved records. For example, client emails that differ only in domain capitalisation make the data file invalid. BuBu does not merge or delete these records automatically; preserve the file and restore a valid backup before restarting.
+An unrecognised command word reports an unknown-command error. Use the exact lowercase command words below.
+When a save fails, previous records are restored in memory, but list filters or the visible selection may have changed.
+
+See [Saving the data](#saving-the-data) for automatic saving and save failures.
+
+The examples below use Jamie Tan and her dog Mochi. Each example describes the records it needs. Use a separate practice folder if you want to try deleting records. For a booking, choose a free slot that starts after the current Singapore time.
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Displays the built-in command reference in the feedback box below the command entry. It includes the available commands,
+their formats, field restrictions and important behavior notes. It does not change records or depend on the currently
+displayed list.
 
-![help message](images/helpMessage.png)
+#### Format
 
-Format: `help`
+```text
+help
+```
 
+#### Notes
 
-### Adding a person: `add`
+* This command takes no parameters. Extra text after `help` is ignored.
+* Choose **Help → Help** or press <kbd>F1</kbd> for the same reference, including when the command box is focused.
+* The reference is included in the application, so viewing it does not require an internet connection.
 
-Adds a person to the address book.
+#### Examples
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+- `help`<br>
+  **First line of the command reference** — `AVAILABLE COMMANDS`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+#### Success and other behavior
 
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* On success, BuBu displays a scrollable command reference, with emphasised command names and monospace formats.
+* The feedback box expands for help. The next non-help command replaces the reference with its normal feedback or
+  error message and returns the box to its usual size. Opening help again keeps the expanded view and scrolls to the top.
+* Help appears inside the main window. The selected record panel, its filters, and saved records remain unchanged.
+* Typed `help`, **Help → Help**, and <kbd>F1</kbd> remain available if the records file could not be loaded at startup.
+  All other commands stay blocked until you restore a valid backup and restart; help does not make records writable.
 
-### Listing all persons: `list`
+#### Common issues
 
-Shows a list of all persons in the address book.
+* `help` does not create or rewrite `data/bububook.json` and does not require write access to it. A record-saving error
+  or an invalid records file does not by itself prevent you from viewing help.
+* If the application cannot load its bundled reference, the feedback is
+  `Unable to load the command reference. Check that you are using a complete BuBu release JAR.`
+  Obtain a complete release JAR from the [BuBu releases page](https://github.com/AY2627S1-CS2103T-W08-2/tp/releases)
+  and relaunch it from your usual folder. Keep your existing data file; this reference-loading error does not mean
+  that your records need to be deleted.
 
-Format: `list`
+## Managing clients
 
-### Editing a person: `edit`
+### Adding a client: `add-client`
 
-Edits an existing person in the address book.
+Adds a client contact and grooming address to the saved client records. The command works from any panel and checks all saved clients for duplicates.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+#### Format
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+```text
+add-client n/NAME i/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...
+```
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+#### Notes
 
-### Locating persons by name: `find`
+* `n/NAME`, `i/PHONE_NUMBER`, `e/EMAIL` and `a/ADDRESS` are required. Their shared formats are in [Accepted formats](#accepted-formats).
+* `t/TAG` is optional. Repeat it for multiple tags, or omit it for no tags. Duplicate tags are stored once.
+* Phone numbers and emails must be unique across clients. Email addresses are compared case-insensitively: `alice@example.com`, `alice@EXAMPLE.COM`, and `Alice@example.com` all conflict. The entered spelling is preserved for display and storage. Names and addresses need not be unique.
+* A phone number recorded for another owner in a past booking cannot be assigned to a new or existing client. This prevents client edits or deletions from changing another person's historical appointment.
 
-Finds persons whose names contain any of the given keywords.
+If you see `Email (e/) cannot be blank.`, type the email address immediately after `e/`. If no email field was supplied, add the whole field.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+#### Examples
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Jamie is a new client. Her phone number and email are available.
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+- `add-client n/Jamie Tan i/81112222 e/jamie@example.com a/12 Lily Road t/regular`<br>
+  **Feedback** — `Client added: Jamie Tan (81112222).`
 
-### Deleting a person: `delete`
+#### Success and other behavior
 
-Deletes the specified person from the address book.
+* On success, BuBu displays `Client added: NAME (PHONE).`
+* The active client filter is preserved. The new client appears only if it matches the filter. The command does not switch away from a pet or appointment panel; use `list-clients` to view all clients.
+* Changes are saved automatically. A save failure restores the previous records in memory and reports that the new client was not saved.
 
-Format: `delete INDEX`
+#### Common issues
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* Enter each required field once. If a field is blank or uses an unsupported format, correct that field and try again.
+* Use a phone number and email that are not already assigned to another client. A phone number used by a different historical booking owner cannot be reused.
+* If saving fails, BuBu restores the earlier records in the open window. Check that the data folder is available and writable before retrying.
 
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+### Listing and searching clients: `list-clients`
+
+Shows all saved clients or searches their contact details. The search examines all clients, not just the currently filtered list.
+
+#### Format
+
+```text
+list-clients [q/KEYWORD]
+```
+
+#### Notes
+
+* `q/KEYWORD` - optional; omit it to show all clients. When supplied, use 1-60 characters after trimming. Any text or punctuation is accepted, including `+`, commas, underscores and slashes; blank queries and control characters (such as internal tabs or line breaks) are rejected.
+* The keyword is one case-insensitive substring, including internal spaces, matched against name, phone, email or address; tags are not searched.
+* Specify `q/` at most once.
+
+#### Examples
+
+Search with Jamie’s number, then clear the search to see all clients again.
+
+- `list-clients q/81112222`<br>
+  **Feedback** — `Found 1 client(s).`
+- `list-clients`<br>
+  **Feedback** — `Listed all clients.`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Listed all clients.`, `Found N client(s).` or `No clients match "KEYWORD".`
+* The client panel is selected and results are sorted alphabetically by name, ignoring case.
+* No matches is a successful search with an empty list. Saved records and their stored order are unchanged.
+
+#### Common issues
+
+* Leave out `q/` to return to the full client list.
+* Use one nonblank `q/KEYWORD` field. Text outside that field is not supported.
+
+### Editing a client: `edit-client`
+
+Edits a client by their index in the currently displayed client list or by their current phone number. The phone identifier searches all saved clients and works even when a filter hides the client or another panel is selected.
+
+#### Format
+
+```text
+edit-client INDEX [n/NAME] [p/NEW_PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...
+edit-client i/CURRENT_PHONE [n/NAME] [p/NEW_PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...
+```
+
+#### Notes
+
+* Supply either `INDEX` or `i/CURRENT_PHONE`, not both. `INDEX` is a positive, one-based position in the displayed client list. Index-based editing requires the client panel; invalid or out-of-range indexes are rejected without changing records. The active filter remains applied after editing.
+* `i/CURRENT_PHONE` — the client's existing eight-digit phone number starting with `8` or `9`.
+* `n/NAME`, `p/NEW_PHONE`, `e/EMAIL`, `a/ADDRESS` — optional updates using the same value constraints as `add-client`. Omitted fields keep their values.
+* `t/TAG` — optional alphanumeric tags replacing all existing tags. Repeat it to supply multiple tags; use `t/` alone to clear tags. Omit it to keep tags.
+* Supply at least one update. Each of `i/`, `n/`, `p/`, `e/` and `a/` may appear only once.
+* A changed phone or email must not belong to another saved client, including clients hidden by a search. Email addresses are compared case-insensitively, as for `add-client`.
+* The new number must also be different from a number recorded for another owner in a past booking.
+
+If BuBu reports a missing client, check which phone field you used. For example, `edit-client i/91234567 p/89998888` looks up `91234567` and replaces it with `89998888`.
+
+#### Examples
+
+Jamie Tan has moved from 12 Lily Road to 24 Lily Road. Use her current phone number to update her address.
+
+- `edit-client i/81112222 a/24 Lily Road`<br>
+  **Feedback** — `Edited client: Jamie Tan; Phone: 81112222; Email: jamie@example.com; Address: 24 Lily Road; Tags: [regular]`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Edited client: ...` and selects the client panel while preserving its active filter. Updated clients appear only if they still match the filter; a client that stops matching remains saved but disappears from the view.
+* Editing a client updates their saved profile, linked pet owner profiles, and owner details in ongoing and future appointments.
+* Completed appointments retain their recorded name, email, address and tags, so later client profile changes do not rewrite those past appointment details. An appointment is completed when its end date and time are at or before the time of the edit, using Singapore time. Use `list-clients` to obtain the client's current contact details.
+* Phone numbers are an exception: because they identify clients, a phone-number change also updates linked pets and all linked appointments, including completed appointments. Changing an email does not break these links.
+* Client edits preserve appointment dates, times, services and other pet details. Completed appointments can still be affected by linked pet renames or deletion: deleting a client or pet also deletes their linked appointments, including completed ones.
+
+#### Common issues
+
+* Choose one way to find the client: the displayed `INDEX` or their current `i/PHONE_NUMBER`.
+* Add at least one replacement field. The new phone number and email must not already belong to another client.
+* When using an index, run `list-clients` first. If saving fails, BuBu restores the earlier client, pet and appointment records in the open window.
+
+### Deleting a client: `delete-client`
+
+Deletes a saved client and all pets and appointments linked to that client. Index-based deletion uses the displayed
+client list; phone-based deletion searches all saved clients.
+
+#### Format
+
+```text
+delete-client INDEX
+delete-client i/PHONE_NUMBER
+```
+
+#### Notes
+
+* `INDEX` — a positive integer referring to the client's one-based position in the currently displayed client list,
+  including any search filter. The client panel must be displayed.
+* `i/PHONE_NUMBER` — alternatively, a valid saved eight-digit phone number starting with `8` or `9`. This form can
+  delete a client even when a filter or another panel hides them.
+* Provide either an index or a phone identifier, not both. Specify `i/` only once.
+
+#### Examples
+
+This example assumes Jamie has moved to 24 Lily Road and has no linked pets or bookings.
+
+- `delete-client i/81112222`<br>
+  **Feedback** — `Deleted client: Jamie Tan; Phone: 81112222; Email: jamie@example.com; Address: 24 Lily Road; Tags: [regular]. Removed 0 pets and 0 appointments.`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Deleted client: CLIENT_DETAILS. Removed PET_COUNT and APPOINTMENT_COUNT.`
+  The counts use singular or plural wording, such as `1 pet` or `2 appointments`.
+* All pets and appointments belonging to that client are also deleted, including completed appointments. Other clients' records are preserved.
+* The selected panel does not change. There is no confirmation prompt.
+
+#### Common issues
+
+* Choose one deletion method: a positive displayed `INDEX` or one saved `i/PHONE_NUMBER`.
+* Run `list-clients` before using an index. A phone number works even when a search hides the client.
+* Deletion removes the client's linked pets and appointments too. Back up the data file first if you may need those records.
+
+## Managing pet profiles
+
+### Adding a pet: `add-pet`
+
+Adds a pet under a registered client identified by phone number. It searches all clients and does not depend on the displayed client list.
+
+#### Format
+
+```text
+add-pet p/PET_NAME i/OWNER_IDENTIFIER s/SPECIES [b/BREED] r/REQUIREMENTS
+```
+
+#### Notes
+
+**Enter the new pet and owner**
+
+* `p/PET_NAME` — required name for the **new** pet. See [Accepted formats](#accepted-formats).
+* `i/OWNER_IDENTIFIER` — required registered owner [phone number](#accepted-formats). This links the new pet to that client.
+
+**Enter the pet's details**
+
+* `s/SPECIES` and `r/REQUIREMENTS` are required. `b/BREED` is optional. See [Accepted formats](#accepted-formats).
+  Omit the breed when unknown; a supplied blank breed is invalid.
+* Under one owner, pet names must be unique after ignoring case and extra whitespace. Different owners may have pets with the same name.
+* Separate fields with ordinary spaces. Tabs inside the command are part of field values, not field separators.
+
+#### Examples
+
+Once Jamie is registered, you can add her dog Mochi.
+
+- `add-pet p/Mochi i/81112222 s/Dog b/Toy Poodle r/Use low heat`<br>
+  **Feedback** — `Pet added: Mochi (Dog, Toy Poodle) under Jamie Tan.`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Pet added: PET_NAME (SPECIES, BREED) under OWNER.` The breed is omitted from the message when not supplied.
+* The active pet filter is preserved. A new pet appears only if it matches the filter. The client filter and selected panel are unchanged; use `list-pets` to view all pets.
+* Changes are saved automatically. A save failure restores the previous records in the open window and explains what to do next.
+
+#### Common issues
+
+* Add the owner with `add-client` before adding their pet. The supplied phone number must belong to that client.
+* Enter each required field once and use one of the listed species. A pet name can be reused for another owner, but not for two pets under the same owner.
+* If another BuBu window is open, wait for it to finish saving. If records changed outside this window, close and reopen BuBu before retrying.
+
+### Listing pet profiles: `list-pets`
+
+Shows all saved pets or only those belonging to one registered client. It selects the pet panel without changing saved records or the client filter.
+
+#### Format
+
+```text
+list-pets [i/OWNER_IDENTIFIER]
+```
+
+#### Notes
+
+* `i/OWNER_IDENTIFIER` — supply a registered client’s [phone number](#accepted-formats) to see only their pets. Omit it to list every owner’s pets.
+* Specify `i/` at most once. Keyword or pet-name search is not supported.
+
+#### Examples
+
+In this example, Jamie owns Mochi and Bubu, and Daniel owns Luna.
+
+- `list-pets i/81112222`<br>
+  **Feedback** — `Found 2 pet(s) under Jamie Tan.`
+- `list-pets`<br>
+  **Feedback** — `Listed all pets.`
+
+![Pet list showing Daniel's Luna and Jamie's Bubu under separate owner headings, with breed and care requirements.](images/PetProfiles.png)
+
+*The list groups pets by owner and numbers them continuously. Bubu's unknown breed appears as `Not recorded`.
+Scroll down to see the remaining pet, Mochi.*
+
+#### Success and other behavior
+
+* On success, BuBu displays `Listed all pets.`, `Found N pet(s) under OWNER.` or `OWNER has no saved pet profiles.`
+* Pets are ordered by owner name, owner phone, then pet name. Names are compared ignoring case; owners with the same name remain separate groups.
+* Each owner group has a heading. Record numbers continue across groups. Pet cards show name, species, breed and care requirements; an absent breed appears as `Not recorded`.
+* An empty result is successful. This command does not save or change records.
+
+#### Common issues
+
+* `Jamie Tan has no saved pet profiles.` means BuBu found Jamie. Use `add-pet` to register her first pet.
+* `No saved client has this phone number.` means BuBu could not find the owner. Run `list-clients` to check their number. If they are a new client, register them with `add-client` first.
+
+### Editing a pet: `edit-pet`
+
+Edits a saved pet identified by its current name and owner's phone number, or by its one-based index in the displayed pet list. Name-and-phone lookup searches all saved pets, regardless of the displayed list; index lookup requires the pet list to be displayed. The command never transfers ownership.
+
+#### Format
+
+```text
+edit-pet INDEX [n/NEW_PET_NAME] [s/SPECIES] [b/BREED] [r/REQUIREMENTS]
+edit-pet p/PET_NAME i/OWNER_IDENTIFIER [n/NEW_PET_NAME] [s/SPECIES] [b/BREED] [r/REQUIREMENTS]
+```
+
+#### Notes
+
+**Find the pet to edit**
+
+* `INDEX` — use this instead of the fields below to select the pet's one-based position in the displayed pet list, including any owner filter. The pet list must be the active display.
+* `p/PET_NAME` — current pet name; required with `i/` when not using an index. It follows the same 1–40 character rules as `add-pet`. Lookup ignores case and extra whitespace.
+* `i/OWNER_IDENTIFIER` — current owner's eight-digit phone number; required with `p/` when not using an index.
+
+**Choose what to change**
+
+* `n/NEW_PET_NAME` — optional replacement name. It follows the same rules as `add-pet` and must not match another pet under the owner after case and whitespace normalisation.
+* `s/SPECIES` — optional replacement species. It accepts the same values as `add-pet`: `Dog`, `Cat`, `Rabbit`, `Guinea Pig`, `Other` or `Guinea_Pig`.
+* `b/BREED` — optional replacement breed. A nonblank replacement follows the same format as `add-pet`. Use `b/` alone (or a whitespace-only value) to remove the breed; omit the field to keep it unchanged.
+  For mixed breeds, use a description such as `b/Poodle-Labrador mix`; `/` and `&` are not accepted.
+  BuBu checks the text format only; it does not verify that the breed exists or matches the selected species.
+* `r/REQUIREMENTS` — optional replacement requirements. It follows the same 5–240 character rules as `add-pet` and may contain `/`, e.g. `shampoo/conditioner`.
+* Supply either `INDEX` or both `p/PET_NAME` and `i/OWNER_IDENTIFIER`, not both targeting forms. Supply at least one update. Omitted fields are unchanged. Every prefix may appear only once.
+
+#### Examples
+
+Jamie asks you to keep the dryer on low for Mochi.
+
+- `edit-pet p/Mochi i/81112222 r/Keep dryer on low`<br>
+  **Feedback** — `Edited pet: Mochi`
+
+Alternatively, run `list-pets i/81112222`. If Mochi is Jamie's only pet, Mochi appears at index 1:
+
+- `edit-pet 1 r/Keep dryer on low`<br>
+  **Feedback** — `Edited pet: Mochi`
+
+To remove a recorded breed, supply `b/` without a value:
+
+- `edit-pet p/Mochi i/81112222 b/`<br>
+  **Feedback** — `Edited pet: Mochi`
+
+The following separate example starts with Mochi's breed recorded as `Toy Poodle` and care requirements
+set to `Use low heat and allow short breaks`.
+
+**Before removing the breed:**
+
+![Mochi's pet card before the edit, showing Breed: Toy Poodle.](images/EditPetBefore.png)
+
+**After removing the breed:**
+
+![Mochi's pet card after the edit, showing Breed: Not recorded, with the same name, species and care requirements.](images/EditPetAfter.png)
+
+*Removing the breed changes it to `Not recorded`; Mochi's name, species and care requirements remain unchanged.
+Omitting `b/` entirely would keep the existing breed.*
+
+#### Success and other behavior
+
+* On success, BuBu displays `Edited pet: PET_NAME`.
+* The active pet filter is preserved and matching pets show their updated details. Pets outside the filter remain hidden; the selected panel does not change.
+* Renaming a pet can change its position in the sorted list. Use the updated displayed index for subsequent index-based
+  commands, and use the new name for subsequent name-and-phone commands.
+* Linked ongoing and future appointments receive the updated pet name, species, breed and care requirements.
+* Completed appointments keep their recorded pet details, except that a changed pet name still updates linked bookings.
+  An appointment is completed when its end date and time are at or before the time of the edit, using Singapore time.
+* Appointment dates, times, services and recorded owner details remain unchanged.
+
+#### Common issues
+
+* Find the pet using either a displayed `INDEX` or both its current `p/PET_NAME` and `i/OWNER_IDENTIFIER`. Do not combine these methods.
+* Run `list-pets` before using an index. For name-and-phone lookup, check the pet's current name and the owner's registered phone number.
+* Supply at least one change. A replacement name cannot duplicate another pet under the same owner.
+
+### Deleting a pet: `delete-pet`
+
+Deletes a saved pet and its linked appointments. Index-based deletion uses the displayed pet list; name-and-phone deletion searches all saved pets.
+
+#### Format
+
+```text
+delete-pet INDEX
+delete-pet p/PET_NAME i/OWNER_IDENTIFIER
+```
+
+#### Notes
+
+* `INDEX` — a positive integer referring to the pet's one-based position in the current pet list, including any owner
+  filter. The pet panel must be displayed; index-based deletion is rejected when another record panel is selected.
+* `p/PET_NAME` — alternatively, the saved pet name; 1–40 letters, digits, spaces, apostrophes, hyphens or full stops. The name is matched case-insensitively; leading and trailing whitespace is ignored, and repeated internal whitespace is treated as a single space, consistent with edit lookup.
+* `i/OWNER_IDENTIFIER` — required with `p/`; the owner's eight-digit phone number starting with `8` or `9`. Together,
+  the name and phone identify a saved pet even when it is hidden by the active filter or another panel is displayed.
+* Provide an index or both identifiers, not both formats.
+
+#### Examples
+
+Use Mochi’s name and Jamie’s phone number to remove the pet and any linked bookings.
+
+- `delete-pet p/Mochi i/81112222`<br>
+  **Feedback** — `Deleted pet: Mochi`
+
+Alternatively, while Mochi is still saved, run `list-pets i/81112222`. If Mochi is Jamie's only pet, Mochi appears at
+index 1. Use this command instead of the name-and-phone example above:
+
+- `delete-pet 1`<br>
+  **Feedback** — `Deleted pet: Mochi`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Deleted pet: PET_NAME`.
+* All appointments linked to that pet are also deleted, including completed appointments. The client and other pets
+  are preserved.
+* The selected panel does not change. There is no confirmation prompt.
+
+#### Common issues
+
+* Choose one deletion method: a displayed `INDEX` or both `p/PET_NAME` and `i/OWNER_IDENTIFIER`.
+* Run `list-pets` before using an index. If BuBu cannot find the pet by name and phone number, check the owner’s registered phone number.
+* Deleting a pet also removes its linked appointments. The client and their other pets remain saved.
+
+## Scheduling appointments
+
+### Scheduling an appointment: `add-appointment`
+
+Schedules a grooming appointment for a registered pet and client. It searches saved records rather than the currently displayed list and checks the slot against all appointments.
+
+#### Format
+
+```text
+add-appointment i/OWNER_PHONE p/PET_NAME d/DD-MM-YYYY st/HH:mm et/HH:mm s/SERVICE
+```
+
+#### Notes
+
+* `i/OWNER_PHONE` — enter the registered owner’s [phone number](#accepted-formats).
+* `p/PET_NAME` — required; a pet registered under that client. Use 1–40 letters, digits, spaces, apostrophes, hyphens or full stops; lookup ignores case and repeated whitespace.
+* `d/DD-MM-YYYY` — required; a real calendar date. The combined date and start time must be strictly in the future in Singapore time.
+* `st/HH:mm` — required; a 24-hour start time from `08:00` to `19:30`, in 30-minute intervals.
+* `et/HH:mm` — required; an end time from `08:30` to `20:00`, in 30-minute intervals and at least 30 minutes after the start on the same day.
+* `s/SERVICE` — required; `Bath and brush`, `Full groom`, `Nail trim` or `Other`. Case and extra whitespace are ignored.
+* Slots must not overlap any other appointment, including bookings for different pets; adjacent slots are allowed.
+
+#### Examples
+
+Jamie wants a full groom for Mochi. These examples assume the date is in the future and the first slot is free.
+
+- `add-appointment i/81112222 p/Mochi d/18-09-2027 st/10:00 et/11:00 s/Full groom`<br>
+  **Feedback** — `Appointment scheduled: Mochi; Owner phone: 81112222; Date: 18-09-2027; Time: 10:00-11:00; Service: Full groom`
+
+If Jamie's other registered pet, Bubu, needs a booking at 10:30, BuBu identifies the existing booking that uses that time.
+
+- `add-appointment i/81112222 p/Bubu d/18-09-2027 st/10:30 et/11:30 s/Bath and brush`<br>
+  **Feedback** — `This appointment overlaps an existing booking for Mochi on 18-09-2027, 10:00–11:00.`
+
+![Rejected booking for Bubu from 10:30 to 11:30, with an error identifying Mochi's existing 10:00 to 11:00 appointment.](images/AppointmentConflict.png)
+
+*BuBu rejects Bubu's 10:30–11:30 booking because it overlaps Mochi's existing 10:00–11:00 appointment.*
+
+#### Success and other behavior
+
+* On success, BuBu displays `Appointment scheduled: ...` with the pet, owner phone, date, time and service.
+* The booking records the participant details available at booking time. The selected panel does not change; use `list-appointments` to view the updated schedule.
+
+#### Common issues
+
+* Add the owner and pet first. The pet must be registered under the owner phone number you enter.
+* You can book a slot later today or on a future date. Its start time must be after the current Singapore time. Choose a slot within business hours and one of the listed services.
+* Choose a free slot. BuBu rejects overlaps even when the existing booking is for a different pet.
+
+### Listing appointments: `list-appointments`
+
+Shows ongoing and future appointments in the appointment panel, or all appointments on a specified date, ordered by date and start time. It reads all saved bookings rather than depending on the currently displayed list.
+
+#### Format
+
+```text
+list-appointments [d/DD-MM-YYYY]
+```
+
+#### Notes
+
+* Without a date filter, only ongoing and future appointments are shown, using Singapore time. Appointments that have already ended, including earlier today or exactly now, are excluded.
+* `d/` — optional date in `DD-MM-YYYY` format. Shows every appointment on that date, including completed appointments. Past dates are allowed.
+* Only one date may be supplied. Invalid dates, extra arguments, phone filters, and pet-name filters are rejected.
+
+#### Examples
+
+In this example, Mochi has a full groom from 10:00 to 11:00 and Luna has a nail trim from 11:00 to 11:30 on this date.
+
+- `list-appointments d/18-09-2027`<br>
+  **Feedback** — `Appointments on 18-09-2027 found: 2.`
+
+![Two appointments on 18 September 2027: Mochi's full groom at 10:00 and Luna's nail trim at 11:00.](images/AppointmentsByDate.png)
+
+*The date-filtered list shows both appointments in start-time order, with the service and time at the top of each card.*
+
+If no bookings exist on that date, the same command returns `No appointments on 18-09-2027.`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Ongoing or future appointments found: N.` or `No ongoing or future appointments.`
+* With a date filter, BuBu displays `Appointments on DD-MM-YYYY found: N.` or `No appointments on DD-MM-YYYY.`
+* Without a date filter, an appointment is included if its end time is after the time when the command runs, using Singapore time. Run the command again to refresh this time-based selection.
+* Appointments have date headings and continuous record numbers. Cards show service and timing, pet and owner details, address and care notes saved with the booking.
+* Completed appointments remain saved and can be viewed with the date filter. No matches is a successful result; this command does not save or change records.
+
+#### Common issues
+
+* Use at most one `d/DD-MM-YYYY` field. Omit it to see ongoing and future bookings.
+* Use a real calendar date. Phone-number and pet-name filters are not available for this command.
+
+### Editing an appointment: `edit-appointment`
+
+Edits a saved appointment identified by its current date and start time, or by its displayed appointment-list index.
+
+#### Format
+
+```text
+edit-appointment d/CURRENT_DATE st/CURRENT_START_TIME [i/NEW_OWNER_PHONE] [p/NEW_PET_NAME] [nd/NEW_DATE] [nst/NEW_START_TIME] [et/NEW_END_TIME] [s/NEW_SERVICE]
+edit-appointment INDEX [i/NEW_OWNER_PHONE] [p/NEW_PET_NAME] [nd/NEW_DATE] [nst/NEW_START_TIME] [et/NEW_END_TIME] [s/NEW_SERVICE]
+```
+
+#### Notes
+
+* `d/` and `st/` identify the existing appointment. Identifier-based edits search all saved appointments.
+* `INDEX` refers to the one-based position in the currently displayed appointment list. Run `list-appointments`
+  first when using this form; a date-filtered appointment list may also be used.
+* Provide either the date/start-time identifiers or an index, but not both. Replacement fields can be combined with
+  either identification form.
+* `CURRENT_DATE` and `NEW_DATE` use `DD-MM-YYYY`. `CURRENT_START_TIME`, `NEW_START_TIME`, and `NEW_END_TIME` use
+  `HH:mm`.
+* When supplied, `i/NEW_OWNER_PHONE` must identify a registered client, and `p/NEW_PET_NAME` must identify a pet
+  registered under that client. Pet-name matching ignores letter case and repeated whitespace.
+* The [same booking hours and minimum duration](#accepted-formats) apply when moving or resizing a booking.
+* Use `nd/` and `nst/` when changing the appointment's date or start time. At least one replacement field is required.
+* The resulting appointment must start in the future in Singapore time and must not overlap another appointment.
+  An appointment whose resulting start time is in the past cannot be edited.
+
+#### Examples
+
+Jamie wants a nail trim instead of a full groom. Identify the existing booking by its date and start time.
+
+- `edit-appointment d/18-09-2027 st/10:00 s/Nail trim`<br>
+  **Feedback** — `Edited appointment: Mochi; Owner phone: 81112222; Date: 18-09-2027; Time: 10:00-11:00; Service: Nail trim`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Edited appointment: ...` with the updated booking details.
+* Fields that are not supplied keep their existing values. The selected panel and active appointment filter are
+  preserved; an updated appointment that no longer matches the filter disappears from the view but remains saved.
+
+#### Common issues
+
+* Find the booking using either a displayed `INDEX` or its current `d/` date and `st/` start time. Do not combine these methods.
+* Run `list-appointments` before using an index. The date-and-start-time method needs the booking's exact start time.
+* Supply at least one change. The resulting booking must be in the future, within business hours, at least 30 minutes long and free of overlaps.
+
+### Deleting an appointment: `delete-appointment`
+
+Deletes a booking by its displayed index or its date and start time. Date-and-start-time lookup searches all saved appointments, including completed bookings hidden from the list.
+
+#### Format
+
+```text
+delete-appointment INDEX
+delete-appointment d/DD-MM-YYYY st/HH:mm
+```
+
+#### Notes
+
+* `INDEX` — a positive integer referring to the appointment's one-based position in the currently displayed appointment
+  list. Run `list-appointments` first; a date-filtered appointment list may also be used.
+* `d/DD-MM-YYYY` — alternatively, a real calendar date; it need not be in the future.
+* `st/HH:mm` — required with `d/`; use the exact start time of the appointment to delete, not any time within its
+  duration. It must be from `08:00` to `19:30` in 30-minute intervals.
+* Provide an index or both date and time, not both formats.
+
+#### Examples
+
+To cancel Mochi’s nail trim, use the start time printed on the booking.
+
+- `delete-appointment d/18-09-2027 st/10:00`<br>
+  **Feedback** — `Deleted appointment: Mochi; Owner phone: 81112222; Date: 18-09-2027; Time: 10:00-11:00; Service: Nail trim`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Deleted appointment: ...` with the booking details.
+* Client and pet profiles and other appointments are preserved. The selected panel does not change.
+
+#### Common issues
+
+* Choose one deletion method: a displayed `INDEX` or the booking's exact `d/` date and `st/` start time.
+* Run `list-appointments` before using an index. A date-and-start-time lookup works even for a completed booking hidden from the list.
+* The start time must match the booking's beginning, not any time during the service.
+
+## Other commands
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Deletes all saved clients, pets and appointments, including completed bookings and records hidden by filters. It does not depend on the displayed list.
 
-Format: `clear`
+#### Format
+
+```text
+clear
+```
+
+#### Notes
+
+* This command takes no parameters. Extra text is ignored.
+
+#### Examples
+
+- `clear`<br>
+  **Feedback** — `Clients, pets, and appointments have been cleared!`
+
+#### Success and other behavior
+
+* On success, BuBu displays `Clients, pets, and appointments have been cleared!`
+* The command takes effect immediately without confirmation. The selected panel remains selected but contains no records.
+
+#### Common issues
+
+* Storage error — the data file cannot be written, for example because of file or folder permissions.
+* `Unable to load saved records. See the User Guide for backup restoration steps.` — `clear` and other valid commands except `help` are
+  blocked because the data file was invalid at startup. Malformed or unrecognised commands report parsing errors first.
+  Viewing help does not enable clearing the records.
 
 ### Exiting the program: `exit`
 
-Exits the program.
+Closes BuBu without deleting saved records. It does not depend on the displayed list.
 
-Format: `exit`
+#### Format
+
+```text
+exit
+```
+
+#### Notes
+
+* This command takes no parameters. Extra text is ignored.
+
+#### Examples
+
+- `exit`<br>
+  **Result** — BuBu closes immediately.
+
+#### Success and other behavior
+
+* On success, BuBu closes immediately. The exit acknowledgement may not be visible before the window closes.
+* `exit` does not save record data. Record changes are saved when the commands that make them succeed. During shutdown, BuBu attempts to save window preferences separately in `preferences.json`. Session command history is not retained.
+
+#### Common issues
+
+* `Unable to load saved records. See the User Guide for backup restoration steps.` — valid commands except `help`, including `exit`, are
+  blocked by the startup data-file error; close the window instead. Malformed or unrecognised commands report parsing
+  errors first. Typed `help`, **Help → Help**, and <kbd>F1</kbd> remain available.
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+BuBu automatically saves clients, pets and appointments together in `data/bububook.json` after successful changes.
+You do not need to save manually. Commands that leave records unchanged, including listing records and exiting,
+do not create or rewrite this file. Window preferences are saved separately in `preferences.json` during shutdown.
 
-### Editing the data file
+If saving fails, BuBu restores the previous records in the open window and displays an error.
+If another window has changed the file, close and reopen BuBu before retrying; if another window is still saving,
+wait and retry as instructed. See [Data files, backups and recovery](#data-files-backups-and-recovery) for file locations and recovery.
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+### Data files, backups and recovery
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+By default, grooming records are saved in `data/bububook.json` relative to the terminal's working directory when
+BuBu is launched, with `clients`, `pets`, and `appointments` lists. Following the Quick start instructions makes
+this the folder containing the JAR. Always launch from the same folder to load the same records; launching from
+another folder can make BuBu use a different data file.
 
-### Archiving data files `[coming in v2.0]`
+Leave `data/bububook.json.lock` in place while BuBu is open. This file coordinates saves between windows;
+it may remain after the app closes, even though the lock is no longer held.
 
-_Details coming soon ..._
+Manage records using BuBu commands. Importing external JSON, merging data files and manually editing saved records
+are not supported. To back up or restore your records, copy the unchanged data file while BuBu is closed.
+
+#### Restoring your records from a backup
+
+If BuBu cannot read or validate your saved data, the window opens without your records. Valid commands other than
+`help` report `Unable to load saved records. See the User Guide for backup restoration steps.` BuBu blocks these commands to protect
+the existing file; an empty display does not mean your saved records have been deleted.
+
+**To restore a backup** (using the default file location):
+
+1. **Close every BuBu window using the window's close button.** The `exit` command is blocked in this state.
+2. **Open the folder you normally launch BuBu from**, then open its `data` subfolder. If you followed Quick start,
+   this is the folder containing `bubu.jar`.
+3. **Preserve the affected file first.** Copy `data/bububook.json` to a separate folder before replacing it.
+   Do not edit its contents. If you cannot copy it, stop; do not replace the file until you have preserved a copy.
+4. **Restore a known-good backup.** Copy an unchanged `bububook.json` that you previously backed up from a working
+   BuBu installation into the `data` subfolder, replacing the affected file. Ensure its name is exactly
+   `bububook.json`. Restoring it returns your records to the backup's state; later changes will not be included.
+5. **Restart from the same launch folder** using `java -jar bubu.jar`. Run `list-clients` and `list-pets` to check
+   the restored records. Use `list-appointments d/DD-MM-YYYY` with a date from your backup to check its bookings,
+   including completed appointments.
+
+**If you have no valid backup, or the error persists:** keep the affected file unchanged. BuBu has no built-in
+repair tool and does not provide a data-recovery service. You can try another known-good backup if one is available;
+otherwise, these steps cannot restore your records. Do not delete the file to make BuBu start with sample data;
+sample records do not restore your own records.
+
+You can still use `help`, **Help → Help**, or <kbd>F1</kbd> while loading is blocked. Help does not repair the file.
+Malformed commands may show syntax errors instead of the loading error; this does not mean the file has recovered.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: With the default data-file location, follow these steps:
+
+1. Close BuBu on both computers and keep a backup of `data/bububook.json` from your original launch folder.
+2. Put the JAR in your intended launch folder on the other computer. Create a `data` subfolder there if it does not exist.
+3. Copy your backup into that subfolder as `bububook.json`. If a destination file already exists, back it up before replacing it.
+4. Open a terminal in that same launch folder and run `java -jar bubu.jar`. BuBu will load the copied records.
+
+A fresh launch without a data file loads sample records into memory; it does not create `data/bububook.json`.
+You do not need to add a dummy record before copying your backup. Keep the destination app closed while copying:
+an already-open window retains its in-memory records and may reject later changes because the data file changed externally.
+
+**Q**: How do I reuse records from an older version?<br>
+**A**: If the old file is named `data/groombook.json`, close BuBu, keep a backup and copy it to
+`data/bububook.json` before launching the new version. Older bookings that stored only an owner phone and pet name
+require both participants to remain registered. If either is missing, restore a backup containing them before upgrading.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
+The examples use Jamie and Mochi. To try them in sequence, add Jamie, add Mochi, then book the appointment. Try the list and edit commands while the records exist. Leave deletion until the end, starting with the appointment, then the pet, then the client.
+
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
+**Add Client** | `add-client n/NAME i/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]...`<br> e.g., `add-client n/Jamie Tan i/81112222 e/jamie@example.com a/12 Lily Road t/regular`
+**List clients** | `list-clients [q/KEYWORD]`<br> e.g., `list-clients q/81112222`
+**Edit client** | `edit-client INDEX [n/NAME] [p/NEW_PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...` or `edit-client i/CURRENT_PHONE [n/NAME] [p/NEW_PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]...`<br> e.g., `edit-client i/81112222 a/24 Lily Road`
+**Delete Client** | `delete-client INDEX` or `delete-client i/PHONE_NUMBER`<br> e.g., `delete-client i/81112222`
+**Add pet** | `add-pet p/PET_NAME i/OWNER_IDENTIFIER s/SPECIES [b/BREED] r/REQUIREMENTS`<br> e.g., `add-pet p/Mochi i/81112222 s/Dog r/Use low heat`
+**List pets** | `list-pets [i/OWNER_IDENTIFIER]`<br> e.g., `list-pets i/81112222`
+**Edit pet** | `edit-pet INDEX [n/NEW_PET_NAME] [s/SPECIES] [b/BREED] [r/REQUIREMENTS]` or `edit-pet p/PET_NAME i/OWNER_IDENTIFIER [n/NEW_PET_NAME] [s/SPECIES] [b/BREED] [r/REQUIREMENTS]`<br> e.g., `edit-pet p/Mochi i/81112222 r/Keep dryer on low`
+**Delete pet** | `delete-pet INDEX` or `delete-pet p/PET_NAME i/OWNER_IDENTIFIER`<br> e.g., `delete-pet p/Mochi i/81112222`
+**Add appointment** | `add-appointment i/OWNER_PHONE p/PET_NAME d/DD-MM-YYYY st/HH:mm et/HH:mm s/SERVICE`<br> e.g., `add-appointment i/81112222 p/Mochi d/18-09-2027 st/10:00 et/11:00 s/Full groom`
+**List appointments** | `list-appointments [d/DD-MM-YYYY]`<br> e.g., `list-appointments d/18-09-2027`
+**Edit appointment** | `edit-appointment d/CURRENT_DATE st/CURRENT_START_TIME [i/NEW_OWNER_PHONE] [p/NEW_PET_NAME] [nd/NEW_DATE] [nst/NEW_START_TIME] [et/NEW_END_TIME] [s/NEW_SERVICE]` or `edit-appointment INDEX [...]`<br> e.g., `edit-appointment d/18-09-2027 st/10:00 s/Nail trim`
+**Delete appointment** | `delete-appointment INDEX` or `delete-appointment d/DD-MM-YYYY st/HH:mm`<br> e.g., `delete-appointment d/18-09-2027 st/10:00`
 **Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
 **Help** | `help`
+**Exit** | `exit`

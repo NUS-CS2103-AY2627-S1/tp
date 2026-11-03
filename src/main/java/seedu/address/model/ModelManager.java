@@ -3,41 +3,73 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.client.Client;
+import seedu.address.model.pet.Pet;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of the BubuBook data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final BubuBook bubuBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Client> filteredClients;
+    //@@author anderschow
+    private final SortedList<Client> sortedClients;
+    //@@author
+    private final FilteredList<Pet> filteredPets;
+    private final SortedList<Pet> sortedPets;
+    private final FilteredList<Appointment> filteredAppointments;
+    private final SortedList<Appointment> sortedAppointments;
 
+    //@@author anderschow
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given bubuBook and userPrefs.
      */
-    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+    public ModelManager(ReadOnlyBubuBook bubuBook, ReadOnlyUserPrefs userPrefs) {
+        requireAllNonNull(bubuBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing model with saved records and user preferences");
 
-        this.addressBook = new AddressBook(addressBook);
+        this.bubuBook = new BubuBook(bubuBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredClients = new FilteredList<>(this.bubuBook.getClientList());
+        sortedClients = new SortedList<>(filteredClients);
+        filteredPets = new FilteredList<>(this.bubuBook.getPetList());
+        sortedPets = new SortedList<>(filteredPets, createPetDisplayComparator());
+        filteredAppointments = new FilteredList<>(this.bubuBook.getAppointmentList());
+        sortedAppointments = new SortedList<>(filteredAppointments,
+                Comparator.comparing((Appointment appointment) -> appointment.getDate().value)
+                        .thenComparing(appointment -> appointment.getStartTime().value));
     }
+    //@@author
 
     public ModelManager() {
-        this(new AddressBook(), new UserPrefs());
+        this(new BubuBook(), new UserPrefs());
     }
+
+    // @@author xinyu-zxy
+    /** Returns a comparator that groups pets by owner, then orders them by normalized name. */
+    private static Comparator<Pet> createPetDisplayComparator() {
+        Comparator<Pet> byOwnerName = Comparator.comparing(
+                pet -> pet.getOwner().getName().fullName.toLowerCase(Locale.ROOT));
+        Comparator<Pet> byOwner = byOwnerName.thenComparing(pet -> pet.getOwner().getPhone().value);
+        return byOwner.thenComparing(pet -> pet.getName().getNormalizedName());
+    }
+    // @@author
 
     //=========== UserPrefs ==================================================================================
 
@@ -57,57 +89,145 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
-    //=========== AddressBook ================================================================================
+    //=========== BubuBook ================================================================================
 
     @Override
-    public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+    public void setBubuBook(ReadOnlyBubuBook bubuBook) {
+        this.bubuBook.resetData(bubuBook);
     }
 
     @Override
-    public ReadOnlyAddressBook getAddressBook() {
-        return addressBook;
+    public ReadOnlyBubuBook getBubuBook() {
+        return bubuBook;
+    }
+
+    //=========== Client ======================================================================================
+    @Override
+    public boolean hasClient(Client client) {
+        requireNonNull(client);
+        return bubuBook.hasClient(client);
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public void deleteClient(Client target) {
+        bubuBook.removeClient(target);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void addClient(Client client) {
+        bubuBook.addClient(client);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void setClient(Client target, Client editedClient) {
+        requireAllNonNull(target, editedClient);
+
+        bubuBook.setClient(target, editedClient);
+    }
+
+    //=========== Pet ======================================================================================
+
+    @Override
+    public boolean hasPet(Pet pet) {
+        requireNonNull(pet);
+        return bubuBook.hasPet(pet);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
+    public void deletePet(Pet pet) {
+        bubuBook.removePet(pet);
     }
 
-    //=========== Filtered Person List Accessors =============================================================
+    @Override
+    public void addPet(Pet pet) {
+        bubuBook.addPet(pet);
+    }
+
+    @Override
+    public void setPet(Pet target, Pet editedPet) {
+        requireAllNonNull(target, editedPet);
+        bubuBook.setPet(target, editedPet);
+    }
+
+    //=========== Appointments ==============================================================================
+
+    //@@author 0218hy
+    @Override
+    public void setAppointments(List<Appointment> appointments) {
+        bubuBook.setAppointments(appointments);
+    }
+
+    @Override
+    public void clearBubuBook() {
+        bubuBook.clear();
+    }
+
+    @Override
+    public void addAppointment(Appointment appointment) {
+        bubuBook.addAppointment(appointment);
+    }
+    //@@author
+
+    @Override
+    public void deleteAppointment(Appointment appointment) {
+        bubuBook.removeAppointment(appointment);
+    }
+
+    //@@author anderschow
+    //=========== Filtered Client List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * Returns an unmodifiable view of the list of {@code Client} backed by the internal list of
+     * {@code bubuBook}
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public ObservableList<Client> getFilteredClientList() {
+        return sortedClients;
+    }
+    //@@author
+
+    @Override
+    public void updateFilteredClientList(Predicate<Client> predicate) {
+        requireNonNull(predicate);
+        filteredClients.setPredicate(predicate);
+    }
+
+    //@@author anderschow
+    /**
+     * Sorts the live displayed client list by name, ignoring case, without reordering stored clients.
+     * Subsequent changes to the filtered list retain this sort order.
+     */
+    @Override
+    public void sortFilteredClientList() {
+        sortedClients.setComparator(Comparator.comparing(person -> person.getName().fullName,
+                String.CASE_INSENSITIVE_ORDER));
+    }
+    //@@author
+
+    //=========== Filtered Pet List Accessors ========================================================
+
+    @Override
+    public ObservableList<Pet> getFilteredPetList() {
+        return sortedPets;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public void updateFilteredPetList(Predicate<Pet> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredPets.setPredicate(predicate);
+    }
+
+    //=========== Filtered Appointment List Accessors ========================================================
+
+    @Override
+    public ObservableList<Appointment> getFilteredAppointmentList() {
+        return sortedAppointments;
+    }
+
+    @Override
+    public void updateFilteredAppointmentList(Predicate<Appointment> predicate) {
+        requireNonNull(predicate);
+        filteredAppointments.setPredicate(predicate);
     }
 
     @Override
@@ -121,9 +241,10 @@ public class ModelManager implements Model {
             return false;
         }
 
-        return addressBook.equals(otherModelManager.addressBook)
+        return bubuBook.equals(otherModelManager.bubuBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredClients.equals(otherModelManager.filteredClients)
+                && filteredPets.equals(otherModelManager.filteredPets);
     }
 
 }

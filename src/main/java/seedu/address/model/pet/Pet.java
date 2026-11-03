@@ -1,0 +1,160 @@
+package seedu.address.model.pet;
+
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.Objects;
+
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.client.Client;
+import seedu.address.model.client.Phone;
+
+/**
+ * Represents a pet in BuBu.
+ * Its required details are non-null, while breed may be absent.
+ * The profile is immutable.
+ */
+public class Pet {
+
+    private final PetName name;
+    private final Client owner;
+    private final Species species;
+    private final Breed breed;
+    private final Requirement requirement;
+
+    // @@author xinyu-zxy
+    /**
+     * Creates a pet without a recorded breed.
+     * All supplied fields must be non-null.
+     */
+    public Pet(PetName name, Client owner, Species species, Requirement requirement) {
+        this(name, owner, species, null, requirement);
+    }
+
+    /**
+     * Creates a pet with an optional breed.
+     * All other fields must be non-null.
+     */
+    public Pet(PetName name, Client owner, Species species, Breed breed, Requirement requirement) {
+        requireAllNonNull(name, owner, species, requirement);
+        this.name = name;
+        this.owner = owner;
+        this.species = species;
+        this.breed = breed;
+        this.requirement = requirement;
+    }
+    // @@author
+
+    public PetName getName() {
+        return name;
+    }
+
+    public Client getOwner() {
+        return owner;
+    }
+
+    // @@author xinyu-zxy
+    /**
+     * Returns whether this pet belongs to the client identified by {@code ownerPhone}.
+     * Ownership is determined by phone number, not by name or other client details.
+     * Returns false when {@code ownerPhone} is null.
+     */
+    public boolean isOwnedBy(Phone ownerPhone) {
+        return owner.getPhone().equals(ownerPhone);
+    }
+    // @@author
+
+    public Species getSpecies() {
+        return species;
+    }
+
+    /**
+     * Returns the breed, or {@code null} when it was not supplied.
+     */
+    public Breed getBreed() {
+        return breed;
+    }
+
+    public Requirement getRequirement() {
+        return requirement;
+    }
+
+    //@@author khangsian0412
+    /**
+     * Returns a copy of this pet with the given owner.
+     * The pet's name, species, breed, and care requirements are preserved.
+     */
+    public Pet withOwner(Client newOwner) {
+        return new Pet(name, newOwner, species, breed, requirement);
+    }
+
+    /**
+     * Returns a copy of this pet with the given name.
+     * The owner and all remaining pet details are preserved.
+     */
+    public Pet withName(PetName newName) {
+        return new Pet(newName, owner, species, breed, requirement);
+    }
+    //@@author
+
+    /** Returns whether this pet has the given owner phone and normalized name. */
+    public boolean isIdentifiedBy(Phone ownerPhone, PetName petName) {
+        requireAllNonNull(ownerPhone, petName);
+        return owner.getPhone().equals(ownerPhone) && name.hasSameName(petName);
+    }
+
+    /**
+     * Returns whether both pets belong to the same owner and have the same normalized name.
+     * Case and repeated whitespace in the names do not affect identity.
+     */
+    public boolean isSamePet(Pet otherPet) {
+        if (otherPet == this) {
+            return true;
+        }
+
+        return otherPet != null
+                && isSamePet(otherPet.owner, otherPet.name);
+    }
+
+    /**
+     * Returns whether the owner phone and normalized name identify this pet.
+     * Changes to the owner's other profile details do not affect pet identity.
+     */
+    public boolean isSamePet(Client otherOwner, PetName otherName) {
+        return otherOwner != null && otherName != null
+                && owner.getPhone().equals(otherOwner.getPhone())
+                && name.getNormalizedName().equals(otherName.getNormalizedName());
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        if (!(other instanceof Pet otherPet)) {
+            return false;
+        }
+
+        return name.equals(otherPet.name)
+                && owner.equals(otherPet.owner)
+                && species.equals(otherPet.species)
+                && Objects.equals(breed, otherPet.breed)
+                && requirement.equals(otherPet.requirement);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, owner, species, breed, requirement);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("name", name)
+                .add("owner", owner)
+                .add("species", species)
+                .add("breed", breed)
+                .add("requirement", requirement)
+                .toString();
+    }
+}

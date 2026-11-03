@@ -1,0 +1,54 @@
+//@@author anderschow
+package seedu.address.logic;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.client.EditClientCommand;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.BubuBook;
+import seedu.address.model.client.Address;
+import seedu.address.model.client.Client;
+import seedu.address.model.client.ClientName;
+import seedu.address.model.client.Email;
+import seedu.address.model.client.Phone;
+import seedu.address.testutil.ClientBuilder;
+
+public class CommandLogTest {
+    @Test
+    public void rejectionReason_invalidContactFields_reportsCategoryWithoutInput() {
+        // EP: Known field-validation and duplicate-contact errors, plus unrecognised parse and command errors.
+        assertEquals("invalid client name format",
+                CommandLog.getRejectionReason(new ParseException(ClientName.MESSAGE_CONSTRAINTS)));
+        assertEquals("invalid email format",
+                CommandLog.getRejectionReason(new ParseException(Email.MESSAGE_CONSTRAINTS)));
+        assertEquals("invalid address format",
+                CommandLog.getRejectionReason(new ParseException(Address.MESSAGE_CONSTRAINTS)));
+        assertEquals("invalid phone format",
+                CommandLog.getRejectionReason(new ParseException(Phone.MESSAGE_CONSTRAINTS)));
+        assertEquals("phone and email already belong to saved clients",
+                CommandLog.getRejectionReason(new CommandException(EditClientCommand.MESSAGE_DUPLICATE_CLIENT)));
+        assertEquals("invalid command syntax or field format",
+                CommandLog.getRejectionReason(new ParseException("Private user input")));
+        assertEquals("record validation or lookup failed",
+                CommandLog.getRejectionReason(new CommandException("Private contact details")));
+    }
+
+    @Test
+    public void changedClientFields_multipleClientsChanged_reportsEachFieldOnlyOnce() {
+        // EP: Repeated changes to the same fields across clients, and records with no changes.
+        Client first = new ClientBuilder().withPhone("81112222").withEmail("first@example.com").build();
+        Client second = new ClientBuilder().withPhone("82223333").withEmail("second@example.com").build();
+        BubuBook before = new BubuBook();
+        before.addClient(first);
+        before.addClient(second);
+        BubuBook after = new BubuBook();
+        after.addClient(new ClientBuilder(first).withName("Changed First").withTags("regular").build());
+        after.addClient(new ClientBuilder(second).withName("Changed Second").withTags("regular").build());
+        assertEquals("; changedFields=[name, tags]", CommandLog.getChangedClientFields(before, after));
+        assertEquals("", CommandLog.getChangedClientFields(before, before));
+    }
+}
+//@@author

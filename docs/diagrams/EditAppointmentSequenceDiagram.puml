@@ -1,0 +1,61 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantPadding 5
+skinparam SequenceMessageAlign left
+skinparam maxMessageSize 180
+title edit-appointment: select by index or date/start-time
+caption Index example: edit-appointment 1 et/12:00\nAlternative: edit-appointment d/18-09-2027 st/10:00 et/12:00
+
+participant ":LogicManager" as logic LOGIC_COLOR
+participant ":BuBuParser" as parser LOGIC_COLOR
+participant ":EditAppointmentCommand\nParser" as feature LOGIC_COLOR
+participant "command:\nEditAppointmentCommand" as command LOGIC_COLOR
+participant "model:Model" as model MODEL_COLOR
+
+[-> logic : execute(text)
+activate logic
+logic -> parser ++: parseCommand(text)
+' Parser construction is omitted; parsing is a call on the existing parser.
+parser -> feature ++: parse(arguments)
+create command
+feature -> command : create(target, changes)
+feature --> parser --: command
+parser --> logic --: command
+note over logic, parser
+  For an index, require the appointment list.
+  Take a book snapshot before execution.
+end note
+logic -> command ++: execute(model)
+alt displayed index
+    command -> model ++: getFilteredAppointmentList()
+    model --> command --: displayed appointments
+    command -> command : select at index
+else date/start-time identifier
+    command -> model ++: getBubuBook()\n.getAppointmentList()
+    model --> command --: saved appointments
+    command -> command : match exact date and start time
+end
+command -> model ++: get saved clients and pets
+model --> command --: participant records
+command -> command : build replacement appointment
+note over command, model
+  Validate the replacement fields.
+  Reject unchanged details
+  or a non-future start.
+end note
+command -> model ++: setAppointments(replacement)
+note over command, model
+  Validate the schedule, including overlaps,
+  before applying the replacement.
+  Preserve the active appointment filter.
+end note
+model --> command --: replacement accepted
+command --> logic --: CommandResult(success message)
+note over logic, parser
+  Save changed records.
+  Restore the snapshot if saving fails.
+end note
+[<-- logic : commandResult
+deactivate logic
+@enduml

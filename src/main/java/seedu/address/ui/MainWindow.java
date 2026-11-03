@@ -3,20 +3,29 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.CommandResult.DisplayType;
+import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.ui.appointment.AppointmentListPanel;
+import seedu.address.ui.client.ClientListPanel;
+import seedu.address.ui.pet.PetListPanel;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,6 +34,13 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final String CLIENTS_TITLE = "Clients";
+    private static final String PETS_TITLE = "Pets";
+    private static final String APPOINTMENTS_TITLE = "Appointments";
+    private static final String SINGLE_RECORD_FORMAT = "%d record";
+    private static final String MULTIPLE_RECORDS_FORMAT = "%d records";
+    private static final double DEFAULT_RESULT_DISPLAY_HEIGHT = 100;
+    private static final double HELP_RESULT_DISPLAY_HEIGHT = 300;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -33,9 +49,10 @@ public class MainWindow extends UiPart<Stage> {
     private Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private ClientListPanel clientListPanel;
+    private PetListPanel petListPanel;
+    private AppointmentListPanel appointmentListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,13 +61,19 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane recordListPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
 
     @FXML
     private StackPane statusbarPlaceholder;
+
+    @FXML
+    private Label recordTitle;
+
+    @FXML
+    private Label recordCount;
 
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
@@ -69,7 +92,6 @@ public class MainWindow extends UiPart<Stage> {
 
         setAccelerators();
 
-        helpWindow = new HelpWindow();
     }
 
     public Stage getPrimaryStage() {
@@ -98,8 +120,8 @@ public class MainWindow extends UiPart<Stage> {
          * not work when the focus is in them because the key event is consumed by
          * the TextInputControl(s).
          *
-         * For now, we add the following event filter to capture such key events and open
-         * the help window purposely so as to support accelerators even when focus is
+         * For now, we add the following event filter to capture such key events and execute
+         * the Help command purposely so as to support accelerators even when focus is
          * in CommandBox or ResultDisplay.
          */
         getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -114,11 +136,16 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        clientListPanel = new ClientListPanel(logic.getFilteredClientList());
+        petListPanel = new PetListPanel(logic.getFilteredPetList());
+        appointmentListPanel = new AppointmentListPanel(logic.getFilteredAppointmentList());
+        recordListPanelPlaceholder.getChildren().addAll(clientListPanel.getRoot(), petListPanel.getRoot(),
+                appointmentListPanel.getRoot());
+        showList(DisplayType.CLIENTS);
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        setResultDisplayHeight(DEFAULT_RESULT_DISPLAY_HEIGHT);
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
@@ -139,17 +166,21 @@ public class MainWindow extends UiPart<Stage> {
         }
     }
 
+    //@@author khangsian0412
     /**
-     * Opens the help window or focuses on it if it's already opened.
+     * Displays the command reference in the result display.
      */
     @FXML
     public void handleHelp() {
-        if (!helpWindow.isShowing()) {
-            helpWindow.show();
-        } else {
-            helpWindow.focus();
+        try {
+            executeCommand(HelpCommand.COMMAND_WORD);
+        } catch (CommandException | ParseException exception) {
+            //@@author anderschow
+            logger.log(java.util.logging.Level.WARNING, "Unable to display the command reference", exception);
+            //@@author khangsian0412
         }
     }
+    //@@author
 
     void show() {
         primaryStage.show();
@@ -163,13 +194,58 @@ public class MainWindow extends UiPart<Stage> {
         GuiSettings guiSettings = new GuiSettings(primaryStage.getWidth(), primaryStage.getHeight(),
                 (int) primaryStage.getX(), (int) primaryStage.getY());
         logic.setGuiSettings(guiSettings);
-        helpWindow.hide();
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public ClientListPanel getClientListPanel() {
+        return clientListPanel;
     }
+
+    private void showList(DisplayType displayType) {
+        if (displayType == DisplayType.UNCHANGED) {
+            return;
+        }
+
+        setListVisibility(clientListPanel.getRoot(), displayType == DisplayType.CLIENTS);
+        setListVisibility(petListPanel.getRoot(), displayType == DisplayType.PETS);
+        setListVisibility(appointmentListPanel.getRoot(), displayType == DisplayType.APPOINTMENTS);
+        switch (displayType) {
+            case CLIENTS:
+                updateRecordHeading(CLIENTS_TITLE, logic.getFilteredClientList());
+                break;
+            case PETS:
+                updateRecordHeading(PETS_TITLE, logic.getFilteredPetList());
+                break;
+            case APPOINTMENTS:
+                updateRecordHeading(APPOINTMENTS_TITLE, logic.getFilteredAppointmentList());
+                break;
+            default:
+                break;
+        }
+    }
+
+    // @@author xinyu-zxy
+    /**
+     * Updates the heading and keeps its count synchronized with the visible list.
+     */
+    private void updateRecordHeading(String title, ObservableList<?> records) {
+        recordTitle.setText(title);
+        recordCount.textProperty().unbind();
+        recordCount.textProperty().bind(Bindings.createStringBinding(() -> formatRecordCount(records.size()), records));
+    }
+
+    private String formatRecordCount(int count) {
+        String format = count == 1 ? SINGLE_RECORD_FORMAT : MULTIPLE_RECORDS_FORMAT;
+        return String.format(format, count);
+    }
+    // @@author
+
+    //@@author chunghean
+    private static void setListVisibility(Region listRoot, boolean visible) {
+        listRoot.setVisible(visible);
+        listRoot.setManaged(visible);
+    }
+    //@@author
 
     /**
      * Executes the command and returns the result.
@@ -179,12 +255,14 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
-
+            showList(commandResult.getDisplayType());
             if (commandResult.isShowHelp()) {
-                handleHelp();
+                resultDisplay.setHelpContent(commandResult.getFeedbackToUser());
+            } else {
+                resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
             }
+            setResultDisplayHeight(commandResult.isShowHelp()
+                    ? HELP_RESULT_DISPLAY_HEIGHT : DEFAULT_RESULT_DISPLAY_HEIGHT);
 
             if (commandResult.isExit()) {
                 handleExit();
@@ -192,9 +270,20 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            resultDisplay.setErrorFeedbackToUser(e.getMessage());
+            setResultDisplayHeight(DEFAULT_RESULT_DISPLAY_HEIGHT);
             throw e;
         }
     }
+
+    //@@author khangsian0412
+    /**
+     * Sets the height of the result display area.
+     */
+    private void setResultDisplayHeight(double height) {
+        resultDisplayPlaceholder.setMinHeight(height);
+        resultDisplayPlaceholder.setPrefHeight(height);
+        resultDisplayPlaceholder.setMaxHeight(height);
+    }
+    //@@author
 }

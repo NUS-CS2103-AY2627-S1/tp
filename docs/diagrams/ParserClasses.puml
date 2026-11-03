@@ -1,38 +1,42 @@
 @startuml
+!pragma layout smetana
 !include style.puml
+skinparam dpi 150
 skinparam arrowThickness 1.1
 skinparam arrowColor LOGIC_COLOR_T4
+skinparam ArrowFontStyle plain
 skinparam classBackgroundColor LOGIC_COLOR
 
-Class "{abstract}\nCommand" as Command
-Class XYZCommand
+abstract class Command
+class XYZCommand
 
-package "Parser classes"{
-Class "<<interface>>\nParser" as Parser
-Class AddressBookParser
-Class XYZCommandParser
-Class CliSyntax
-Class ParserUtil
-Class ArgumentMultimap
-Class ArgumentTokenizer
-Class Prefix
+package "Parser classes" as ParserClasses {
+    class "<<interface>>\nParser" as Parser
+    class BuBuParser
+    class XYZCommandParser
+    class ArgumentTokenizer
+    class ArgumentMultimap
+    class Prefix
+    class ParserUtil
 }
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> AddressBookParser
-
-AddressBookParser .down.> XYZCommandParser: <<create>>
-
-XYZCommandParser ..> XYZCommand : <<create>>
-AddressBookParser ..> Command : <<use>>
+BuBuParser ..> XYZCommandParser : <<create>>
+BuBuParser ..> Command : returns
 XYZCommandParser .up.|> Parser
-XYZCommandParser ..> ArgumentMultimap
-XYZCommandParser ..> ArgumentTokenizer
-ArgumentTokenizer .left.> ArgumentMultimap
-XYZCommandParser ..> CliSyntax
-CliSyntax ..> Prefix
-XYZCommandParser ..> ParserUtil
-ParserUtil .down.> Prefix
-ArgumentTokenizer .down.> Prefix
+XYZCommandParser ..> XYZCommand : <<create>>
 XYZCommand -up-|> Command
+XYZCommandParser ..> ArgumentTokenizer : tokenize
+XYZCommandParser ..> ArgumentMultimap : read arguments
+XYZCommandParser ..> ParserUtil : parse index\n(when supported)
+ArgumentTokenizer ..> ArgumentMultimap : <<create>>
+ArgumentTokenizer ..> Prefix
+ArgumentMultimap --> "*" Prefix : keys
+
+legend bottom
+  XYZ is the same command name in both placeholders, e.g. EditPet.
+  Each concrete parser implements Parser<T>, with T = its concrete command type.
+  Syntax constants and field-validation helpers vary by feature and are omitted.
+  ParserUtil only parses indices; it does not depend on Prefix.
+  HelpCommand, ExitCommand and ClearCommand have no separate command parser.
+endlegend
 @enduml

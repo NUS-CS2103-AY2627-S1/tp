@@ -1,47 +1,52 @@
 @startuml
+!pragma layout smetana
 !include style.puml
+skinparam dpi 150
 skinparam arrowThickness 1.1
 skinparam arrowColor LOGIC_COLOR_T4
+skinparam ArrowFontStyle plain
 skinparam classBackgroundColor LOGIC_COLOR
 
 package Logic as LogicPackage {
+    class "<<interface>>\nLogic" as Logic
+    class LogicManager
 
-package "Parser Classes" as ParserClasses{
-}
-Class XYZCommand
-Class CommandResult
-Class "{abstract}\nCommand" as Command
+    package "Parser classes" as ParserClasses {
+        class BuBuParser
+        class XYZCommandParser
+    }
 
-
-Class "<<interface>>\nLogic" as Logic
-Class LogicManager
-}
-
-package Model {
-Class HiddenModel #FFFFFF
+    abstract class Command
+    class XYZCommand
+    class CommandResult
+    enum "CommandResult.DisplayType" as DisplayType <<enumeration>>
 }
 
-package Storage {
+package Model as ModelPackage {
+    class "<<interface>>\nModel" as Model MODEL_COLOR
+}
+package Storage as StoragePackage {
+    class "<<interface>>\nStorage" as Storage STORAGE_COLOR
 }
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Logic
-
-LogicManager .right.|> Logic
-LogicManager -right->"1" ParserClasses
-ParserClasses ..> XYZCommand : <<create>>
-
+LogicManager .up.|> Logic
+LogicManager -right-> "1" BuBuParser
+BuBuParser ..> XYZCommandParser : <<create>>
+XYZCommandParser ..> XYZCommand : <<create>>
 XYZCommand -up-|> Command
-LogicManager .left.> Command : <<call>>
+LogicManager ..> Command : execute(model)
+Command ..> Model : uses
+Command ..> CommandResult : returns
+LogicManager --> "1" Model
+LogicManager --> "1" Storage
+Logic ..> CommandResult : returns
+CommandResult --> "1" DisplayType
 
-LogicManager --> Model
-LogicManager --> Storage
-Storage --[hidden] Model
-Command .[hidden]up.> Storage
-Command .right.> Model
-note right of XYZCommand: XYZCommand = AddCommand, \nFindCommand, etc
-
-Logic ..> CommandResult
-LogicManager .down.> CommandResult
-Command .up.> CommandResult : <<create>>
+legend bottom
+  Partial overview; parser helpers are expanded in the next class diagram.
+  XYZ stands for a feature command, e.g. AddClient, EditPet or ListAppointments.
+  XYZCommand and XYZCommandParser are placeholders, not additional classes.
+  BuBuParser creates HelpCommand, ExitCommand and ClearCommand directly (omitted).
+  DisplayType: CLIENTS, PETS, APPOINTMENTS, UNCHANGED.
+endlegend
 @enduml

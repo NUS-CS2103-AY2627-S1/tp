@@ -1,0 +1,331 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.event.ActionEvent;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/** Contains unit tests for command-history navigation in {@code CommandBox}. */
+public class CommandBoxTest {
+
+    //@@author khangsian0412
+    @Test
+    public void commandHistory_emptyHistory_doesNotConsumeArrowKeys() {
+        JavaFxTestUtils.runAndWait(() -> {
+            List<String> executedCommands = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(command -> {
+                executedCommands.add(command);
+                return new CommandResult("Executed");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "");
+            commandTextField.setText("draft command");
+            KeyEvent upEvent = press(commandTextField, KeyCode.UP);
+            KeyEvent downEvent = press(commandTextField, KeyCode.DOWN);
+
+            assertEquals("draft command", commandTextField.getText());
+            assertFalse(upEvent.isConsumed());
+            assertFalse(downEvent.isConsumed());
+            assertTrue(executedCommands.isEmpty());
+        });
+    }
+
+    @Test
+    public void commandHistory_navigatesInOrderAndStopsAtBothEnds() {
+        JavaFxTestUtils.runAndWait(() -> {
+            List<String> executedCommands = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(command -> {
+                executedCommands.add(command);
+                return new CommandResult("Executed");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "help");
+            submit(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.LEFT);
+            assertCommandText(commandTextField, "");
+
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "help");
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "help");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+
+            assertEquals(List.of("list-pets", "help", "list-pets"), executedCommands);
+        });
+    }
+
+    @Test
+    public void commandHistory_navigatingUp_preservesUnsubmittedDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> new CommandResult("Executed"));
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "help");
+            commandTextField.setText("add-pet p/BuBu");
+
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "help");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "add-pet p/BuBu");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+        });
+    }
+
+    @Test
+    public void commandHistory_draftMatchingNewestCommand_restoresDraftWithoutExecutingIt() {
+        JavaFxTestUtils.runAndWait(() -> {
+            List<String> executedCommands = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(command -> {
+                executedCommands.add(command);
+                return new CommandResult("Executed");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "help");
+
+            // EP: a new draft can have the same text as the newest submitted command.
+            commandTextField.setText("help");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "help");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+
+            assertEquals(List.of("list-pets", "help"), executedCommands);
+        });
+    }
+
+    @Test
+    public void commandHistory_newDraftMatchingNewestCommand_replacesPreviouslySavedDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> new CommandResult("Executed"));
+            TextField commandTextField = getCommandTextField(commandBox);
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "help");
+            commandTextField.setText("add-pet p/BuBu");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "add-pet p/BuBu");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+
+            // EP: replacing an older draft must work even when the new draft matches history.
+            commandTextField.setText("help");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "help");
+        });
+    }
+
+    @Test
+    public void commandHistory_uneditedFailedSubmission_doesNotCreateDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> {
+                throw new ParseException("Invalid syntax");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+            submit(commandTextField, "invalid-command");
+
+            // EP: retained failed input is already submitted and must not become a second draft.
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "invalid-command");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+        });
+    }
+
+    @Test
+    public void commandHistory_retypedFailedSubmission_restoresNewDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            List<String> executedCommands = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(command -> {
+                executedCommands.add(command);
+                throw new CommandException("Invalid command");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+            submit(commandTextField, "invalid-command");
+
+            // EP: clearing and retyping failed input creates a draft despite identical final text.
+            commandTextField.clear();
+            commandTextField.setText("invalid-command");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "invalid-command");
+            assertEquals(List.of("invalid-command"), executedCommands);
+        });
+    }
+
+    @Test
+    public void commandHistory_submittingRecalledCommand_resetsNavigationAndClearsSavedDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            List<String> executedCommands = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(command -> {
+                executedCommands.add(command);
+                return new CommandResult("Executed");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "help");
+            commandTextField.setText("add-pet p/BuBu");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+
+            commandTextField.fireEvent(new ActionEvent());
+            assertCommandText(commandTextField, "");
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "help");
+            press(commandTextField, KeyCode.DOWN);
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "");
+            assertEquals(List.of("list-pets", "help", "list-pets"), executedCommands);
+        });
+    }
+
+    @Test
+    public void commandHistory_editingMiddleEntry_keepsChronologicalNavigationAndRestoresDraft() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> new CommandResult("Executed"));
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "list-clients");
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "list-appointments");
+
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+            commandTextField.setText("list-pets i/91234567");
+
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-clients");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-appointments");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-pets i/91234567");
+
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-appointments");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-pets i/91234567");
+        });
+    }
+
+    @Test
+    public void commandHistory_editingOldestEntry_stopsAtOldestAndRestoresDraftAfterNewerEntries() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> new CommandResult("Executed"));
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "list-clients");
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "list-appointments");
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.UP);
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-clients");
+
+            commandTextField.setText("list-clients q/Alice");
+            press(commandTextField, KeyCode.UP);
+            assertEquals("list-clients q/Alice", commandTextField.getText());
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-pets");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-appointments");
+            press(commandTextField, KeyCode.DOWN);
+            assertCommandText(commandTextField, "list-clients q/Alice");
+        });
+    }
+
+    @Test
+    public void commandHistory_failedSubmissionIsRecordedAndIndicatesFailure() {
+        JavaFxTestUtils.runAndWait(() -> {
+            CommandBox commandBox = new CommandBox(command -> {
+                if (command.equals("invalid-command")) {
+                    throw new CommandException("Invalid command");
+                }
+                return new CommandResult("Executed");
+            });
+            TextField commandTextField = getCommandTextField(commandBox);
+
+            submit(commandTextField, "list-pets");
+            submit(commandTextField, "invalid-command");
+            submit(commandTextField, "invalid-command");
+
+            assertEquals("invalid-command", commandTextField.getText());
+            assertTrue(commandTextField.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "invalid-command");
+            assertTrue(commandTextField.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "invalid-command");
+            assertTrue(commandTextField.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+            press(commandTextField, KeyCode.UP);
+            assertCommandText(commandTextField, "list-pets");
+            assertFalse(commandTextField.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+        });
+    }
+
+    private static void submit(TextField commandTextField, String command) {
+        commandTextField.setText(command);
+        commandTextField.fireEvent(new ActionEvent());
+    }
+
+    private static KeyEvent press(TextField commandTextField, KeyCode keyCode) {
+        KeyEvent event = new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode,
+                false, false, false, false);
+        commandTextField.fireEvent(event);
+        return event;
+    }
+
+    private static void assertCommandText(TextField commandTextField, String expectedText) {
+        assertEquals(expectedText, commandTextField.getText());
+        assertEquals(expectedText.length(), commandTextField.getCaretPosition());
+    }
+
+    private static TextField getCommandTextField(CommandBox commandBox) {
+        try {
+            Field commandTextField = CommandBox.class.getDeclaredField("commandTextField");
+            commandTextField.setAccessible(true);
+            return (TextField) commandTextField.get(commandBox);
+        } catch (NoSuchFieldException | IllegalAccessException exception) {
+            throw new AssertionError(exception);
+        }
+    }
+    //@@author
+}

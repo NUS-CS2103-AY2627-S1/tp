@@ -1,14 +1,60 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# BuBu
 
-![Ui](docs/images/Ui.png)
+[![Java CI](https://github.com/AY2627S1-CS2103T-W08-2/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-W08-2/tp/actions/workflows/gradle.yml)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+**Client contacts, pet care details, and grooming appointments in one place.**
+
+BuBu is designed for freelance mobile pet groomers. It helps groomers to keep track of their clients, remember each pet's grooming requirements, and plan upcoming appointments. A command-line interface supports quick keyboard input, while a graphical interface keeps records and schedules easy to read.
+
+![BuBu UI showing the command box and record-list panels](docs/images/Ui.png)
+
+BuBu provides one command-driven workflow for client records, pet profiles, and grooming appointments.
+
+## Features
+
+* **Manage clients:** Add, list, search, and delete client records containing names, Singapore mobile numbers, email addresses, and service addresses.
+* **Keep pet profiles:** Add and edit owner-linked pet profiles with species, optional breed information, and grooming or care requirements. View all pets or filter by owner.
+* **Plan appointments:** Schedule grooming services for registered pets, view ongoing or future bookings in chronological order, and edit or delete bookings. Overlapping appointments are rejected.
+* **Switch record views:** The GUI displays one of the client, pet, or appointment lists at a time. List commands select the visible record type, while index-based deletions use the corresponding displayed list.
+
+## Commands
+
+| Task | Commands |
+| --- | --- |
+| Manage client records | `add-client`, `list-clients`, `delete-client` |
+| Manage pet profiles | `add-pet`, `list-pets`, `edit-pet`, `delete-pet` |
+| Manage grooming appointments | `add-appointment`, `list-appointments`, `edit-appointment`, `delete-appointment` |
+
+For example, `list-clients q/amelia` searches client records, `list-pets i/87438807` shows the pets owned by the client with that phone number, and `list-appointments` displays upcoming appointments in chronological order.
+
+In the default application startup, `add-appointment` remains unavailable until owner and pet lookup is connected;
+appointment listing and deletion are available.
+
+## Documentation
+
+* [User Guide](docs/UserGuide.md)
+* [Developer Guide](docs/DeveloperGuide.md)
+* [About Us](docs/AboutUs.md)
+* [MVP Feature Specification](https://docs.google.com/document/d/1FkVnp8Y37VR8ZQ9TC2qKz3bctjJC6KtlW0KcylmdCfQ/edit?usp=sharing)
+
+The [User Guide](docs/UserGuide.md) documents command formats and user-visible behavior. The [Developer Guide](docs/DeveloperGuide.md) documents the current model, logic, UI, storage, and manual-testing workflows.
+
+## Development
+
+BuBu is built with Java and JavaFX. With JDK 25 installed, run the current development version from the repository root:
+
+```sh
+./gradlew run
+```
+
+The shared `BubuBook` contains clients, pets, and appointments, saved together in `data/bububook.json`. Pet and appointment display order is maintained by the model without changing the saved record order.
+Feature-specific code lives in
+`client`, `pet`, and `appointment` packages; see the [current code organization](docs/DeveloperGuide.md#current-code-organization)
+for the package layout and storage format.
+
+Run the automated checks with `./gradlew check`. On Windows, use `gradlew.bat` in place of `./gradlew`.
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+

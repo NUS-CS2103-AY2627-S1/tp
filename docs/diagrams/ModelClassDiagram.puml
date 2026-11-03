@@ -1,54 +1,74 @@
 @startuml
-!include style.puml
+' Model overview; domain attributes and participant links are expanded in BetterModelClassDiagram.
+!define MODEL_COLOR #9D0012
+skinparam style strictuml
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+skinparam class {
+    FontColor #FFFFFF
+    FontSize 16
+    BorderThickness 1
+    BorderColor #FFFFFF
+    StereotypeFontColor #FFFFFF
+    FontName Arial
+    AttributeFontColor #FFFFFF
+    AttributeFontSize 14
+    AttributeFontName Arial
+}
+skinparam noteFontSize 14
+skinparam interfaceFontStyle plain
+skinparam classStereotypeFontStyle plain
+skinparam DefaultTextAlignment center
+skinparam Shadowing false
+skinparam nodesep 100
+skinparam ranksep 45
+hide circle
+hide empty members
+skinparam classAttributeIconSize 0
 
-Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
-Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
-Class ModelManager
-Class UserPrefs
+title Model component: API, containers, and display views
 
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
+interface Model <<interface>>
+interface ReadOnlyBubuBook <<interface>>
+interface ReadOnlyUserPrefs <<interface>>
 
-Class I #FFFFFF
+class ModelManager {
+    - filteredClients: FilteredList<Client>
+    - sortedClients: SortedList<Client>
+    - filteredPets: FilteredList<Pet>
+    - sortedPets: SortedList<Pet>
+    - filteredAppointments: FilteredList<Appointment>
+    - sortedAppointments: SortedList<Appointment>
 }
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Model
+class UserPrefs {
+    - guiSettings: GuiSettings
+}
 
-AddressBook .up.|> ReadOnlyAddressBook
+class BubuBook
+class UniqueClientList
+class UniquePetList
+class AppointmentList
+class Client
+class Pet
+class Appointment
 
 ModelManager .up.|> Model
-Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
-ModelManager -right-> "1" UserPrefs
+BubuBook .up.|> ReadOnlyBubuBook
 UserPrefs .up.|> ReadOnlyUserPrefs
+Model .right.> ReadOnlyBubuBook : returns
+Model .left.> ReadOnlyUserPrefs : returns
+ModelManager *-right-> "1\nbubuBook" BubuBook
+ModelManager *-left-> "1\nuserPrefs" UserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+BubuBook *-down-> "1\nclients" UniqueClientList
+BubuBook *-down-> "1\npets" UniquePetList
+BubuBook *-down-> "1\nappointments" AppointmentList
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+' Records can be shared with snapshots and other lists; membership is not composition.
+UniqueClientList "0..*" --> "0..*" Client : stores >
+UniquePetList "0..*" --> "0..*" Pet : stores >
+AppointmentList "0..*" --> "0..*" Appointment : stores >
 
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
-ModelManager --> "~* filtered" Person
 @enduml

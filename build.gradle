@@ -6,6 +6,10 @@ plugins {
     id 'jacoco'
 }
 
+run {
+    enableAssertions = true
+}
+
 application {
     mainClass = 'seedu.address.Main'
 }
@@ -25,8 +29,40 @@ checkstyle {
 }
 
 test {
+    //@@author anderschow
+    enableAssertions = true
+    //@@author
     useJUnitPlatform()
     finalizedBy jacocoTestReport
+}
+
+tasks.register('verifyUiTests') {
+    dependsOn test
+    doLast {
+        def uiTestClasses = [
+                'seedu.address.ui.MainWindowTest',
+                'seedu.address.ui.ResultDisplayTest',
+                'seedu.address.ui.pet.PetCardTest',
+                'seedu.address.ui.pet.PetListPanelTest',
+                'seedu.address.ui.appointment.AppointmentCardTest',
+                'seedu.address.ui.appointment.AppointmentListPanelTest'
+        ]
+        uiTestClasses.each { className ->
+            def resultFile = layout.buildDirectory.file("test-results/test/TEST-${className}.xml").get().asFile
+            if (!resultFile.isFile()) {
+                throw new GradleException("Missing UI test results for ${className}.")
+            }
+            def results = new groovy.xml.XmlSlurper(false, false).parse(resultFile)
+            if (results.@tests.toInteger() == 0 || results.@skipped.toInteger() > 0) {
+                throw new GradleException("UI tests were not fully run for ${className}: "
+                        + "${results.@tests} found, ${results.@skipped} skipped.")
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyUiTests')
 }
 
 task coverage(type: JacocoReport) {
@@ -72,7 +108,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'bubu.jar'
 }
 
 defaultTasks 'clean', 'test'

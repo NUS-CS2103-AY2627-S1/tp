@@ -7,24 +7,23 @@ import java.util.logging.Logger;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ReadOnlyBubuBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 
 /**
- * Manages storage of AddressBook data in local storage.
+ * Manages storage of BubuBook data in local storage.
  */
 public class StorageManager implements Storage {
 
     private static final Logger logger = LogsCenter.getLogger(StorageManager.class);
-    private JsonAddressBookStorage addressBookStorage;
+    private JsonBubuBookStorage bubuBookStorage;
     private JsonUserPrefsStorage userPrefsStorage;
-
     /**
-     * Creates a {@code StorageManager} with the given address book and user prefs storage.
+     * Creates a storage manager for the shared BubuBook and user preferences.
      */
-    public StorageManager(JsonAddressBookStorage addressBookStorage, JsonUserPrefsStorage userPrefsStorage) {
-        this.addressBookStorage = addressBookStorage;
+    public StorageManager(JsonBubuBookStorage bubuBookStorage, JsonUserPrefsStorage userPrefsStorage) {
+        this.bubuBookStorage = bubuBookStorage;
         this.userPrefsStorage = userPrefsStorage;
     }
 
@@ -46,23 +45,23 @@ public class StorageManager implements Storage {
     }
 
 
-    // ================ AddressBook methods ==============================
+    // ================ BubuBook methods ==============================
 
     @Override
-    public Path getAddressBookFilePath() {
-        return addressBookStorage.getAddressBookFilePath();
+    public Path getBubuBookFilePath() {
+        return bubuBookStorage.getBubuBookFilePath();
     }
 
     @Override
-    public Optional<ReadOnlyAddressBook> readAddressBook() throws DataLoadingException {
-        logger.fine("Attempting to read data from file: " + addressBookStorage.getAddressBookFilePath());
-        return addressBookStorage.readAddressBook();
+    public Optional<ReadOnlyBubuBook> readBubuBook() throws DataLoadingException {
+        logger.fine("Attempting to read data from file: " + bubuBookStorage.getBubuBookFilePath());
+        return bubuBookStorage.readBubuBook();
     }
 
     @Override
-    public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
-        logger.fine("Attempting to write to data file: " + addressBookStorage.getAddressBookFilePath());
-        addressBookStorage.saveAddressBook(addressBook);
+    public void saveBubuBook(ReadOnlyBubuBook bubuBook) throws IOException {
+        logger.fine("Attempting to write to data file: " + bubuBookStorage.getBubuBookFilePath());
+        bubuBookStorage.saveBubuBook(bubuBook);
     }
 
 }
