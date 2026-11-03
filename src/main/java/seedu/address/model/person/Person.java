@@ -12,45 +12,65 @@ import seedu.address.model.tag.Tag;
 
 /**
  * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * Guarantees: required fields are present, field values are validated, immutable.
  */
 public class Person {
 
     // Identity fields
     private final Name name;
-    private final Phone phone;
-    private final Email email;
 
     // Data fields
-    private final Address address;
+    private final SquadName squadName;
+    private final Position position;
+    private final GuardianName guardianName;
+    private final GuardianContact guardianContact;
+    private final Availability availability;
+    private final InjuryStatus injuryStatus;
+    private final FeeStatus feeStatus;
+    private final ConsentStatus consentStatus;
     private final Set<Tag> tags = new HashSet<>();
+    private final Remark remark;
+
+    /** Constructs a player with the default fit injury status. */
+    public Person(Name name, Set<Tag> tags, Remark remark,
+                  SquadName squadName, Position position, GuardianName guardianName,
+                  GuardianContact guardianContact, Availability availability) {
+        this(name, tags, remark, squadName, position, guardianName, guardianContact,
+                availability, new InjuryStatus(InjuryStatus.FIT));
+    }
 
     /**
-     * Every field must be present and not null.
+     * Every field except the optional guardian name and contact must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Set<Tag> tags, Remark remark,
+                  SquadName squadName, Position position, GuardianName guardianName,
+                  GuardianContact guardianContact, Availability availability, InjuryStatus injuryStatus) {
+        this(name, tags, remark, squadName, position, guardianName, guardianContact,
+                availability, injuryStatus, new FeeStatus(FeeStatus.UNPAID), new ConsentStatus(ConsentStatus.PENDING));
+    }
+
+    /** Constructs a player with validated profile and recorded status fields. */
+    public Person(Name name, Set<Tag> tags, Remark remark,
+                  SquadName squadName, Position position, GuardianName guardianName,
+                  GuardianContact guardianContact, Availability availability, InjuryStatus injuryStatus,
+                  FeeStatus feeStatus, ConsentStatus consentStatus) {
+        requireAllNonNull(name, tags, remark, squadName, position, availability, injuryStatus,
+                feeStatus, consentStatus);
         this.name = name;
-        this.phone = phone;
-        this.email = email;
-        this.address = address;
         this.tags.addAll(tags);
+        this.remark = remark;
+        this.squadName = squadName;
+        this.position = position;
+        this.guardianName = guardianName;
+        this.guardianContact = guardianContact;
+        this.availability = availability;
+        this.injuryStatus = injuryStatus;
+        this.feeStatus = feeStatus;
+        this.consentStatus = consentStatus;
     }
 
     public Name getName() {
         return name;
-    }
-
-    public Phone getPhone() {
-        return phone;
-    }
-
-    public Email getEmail() {
-        return email;
-    }
-
-    public Address getAddress() {
-        return address;
     }
 
     /**
@@ -61,8 +81,44 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    public Remark getRemark() {
+        return remark;
+    }
+
+    public SquadName getSquadName() {
+        return squadName;
+    }
+
+    public Position getPosition() {
+        return position;
+    }
+
+    public GuardianName getGuardianName() {
+        return guardianName;
+    }
+
+    public GuardianContact getGuardianContact() {
+        return guardianContact;
+    }
+
+    public Availability getAvailability() {
+        return availability;
+    }
+
+    public FeeStatus getFeeStatus() {
+        return feeStatus;
+    }
+
+    public ConsentStatus getConsentStatus() {
+        return consentStatus;
+    }
+
+    public InjuryStatus getInjuryStatus() {
+        return injuryStatus;
+    }
+
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both players have the same name, squad and position.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +127,23 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().equals(getName())
+                && otherPerson.getSquadName().equals(getSquadName())
+                && otherPerson.getPosition().equals(getPosition());
+    }
+
+    /**
+     * Formats the player details for list view output:
+     * <name>, <squad>, <position>, <availability>
+     *
+     * @return the formatted string.
+     */
+    public String toListString() {
+        return String.format("%s, %s, %s, %s",
+                getName().fullName,
+                getSquadName().value,
+                getPosition(),
+                getAvailability()); // e.g. true or false
     }
 
     /**
@@ -90,26 +162,37 @@ public class Person {
         }
 
         return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && squadName.equals(otherPerson.squadName)
+                && position.equals(otherPerson.position)
+                && Objects.equals(guardianName, otherPerson.guardianName)
+                && Objects.equals(guardianContact, otherPerson.guardianContact)
+                && availability.equals(otherPerson.availability)
+                && injuryStatus.equals(otherPerson.injuryStatus)
+                && feeStatus.equals(otherPerson.feeStatus)
+                && consentStatus.equals(otherPerson.consentStatus);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, tags, squadName, position, guardianName,
+                guardianContact, availability, injuryStatus, feeStatus, consentStatus);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("name", name)
-                .add("phone", phone)
-                .add("email", email)
-                .add("address", address)
                 .add("tags", tags)
+                .add("squadName", squadName)
+                .add("position", position)
+                .add("guardianName", guardianName)
+                .add("guardianContact", guardianContact)
+                .add("availability", availability)
+                .add("injuryStatus", injuryStatus)
+                .add("feeStatus", feeStatus)
+                .add("consentStatus", consentStatus)
                 .toString();
     }
 

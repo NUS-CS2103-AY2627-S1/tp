@@ -5,11 +5,17 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.person.Availability;
+import seedu.address.model.person.ConsentStatus;
+import seedu.address.model.person.FeeStatus;
+import seedu.address.model.person.GuardianContact;
+import seedu.address.model.person.GuardianName;
+import seedu.address.model.person.InjuryStatus;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
+import seedu.address.model.person.Position;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.SquadName;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -33,10 +39,16 @@ public class EditPersonDescriptorBuilder {
     public EditPersonDescriptorBuilder(Person person) {
         descriptor = new EditPersonDescriptor();
         descriptor.setName(person.getName());
-        descriptor.setPhone(person.getPhone());
-        descriptor.setEmail(person.getEmail());
-        descriptor.setAddress(person.getAddress());
         descriptor.setTags(person.getTags());
+        descriptor.setSquadName(person.getSquadName());
+        descriptor.setPosition(person.getPosition());
+        descriptor.setGuardianName(person.getGuardianName());
+        descriptor.setGuardianContact(person.getGuardianContact());
+        descriptor.setAvailability(person.getAvailability());
+        descriptor.setInjuryStatus(person.getInjuryStatus());
+        descriptor.setFeeStatus(person.getFeeStatus());
+        descriptor.setConsentStatus(person.getConsentStatus());
+        descriptor.setRemark(person.getRemark());
     }
 
     /**
@@ -44,30 +56,6 @@ public class EditPersonDescriptorBuilder {
      */
     public EditPersonDescriptorBuilder withName(String name) {
         descriptor.setName(new Name(name));
-        return this;
-    }
-
-    /**
-     * Sets the {@code Phone} of the {@code EditPersonDescriptor} that we are building.
-     */
-    public EditPersonDescriptorBuilder withPhone(String phone) {
-        descriptor.setPhone(new Phone(phone));
-        return this;
-    }
-
-    /**
-     * Sets the {@code Email} of the {@code EditPersonDescriptor} that we are building.
-     */
-    public EditPersonDescriptorBuilder withEmail(String email) {
-        descriptor.setEmail(new Email(email));
-        return this;
-    }
-
-    /**
-     * Sets the {@code Address} of the {@code EditPersonDescriptor} that we are building.
-     */
-    public EditPersonDescriptorBuilder withAddress(String address) {
-        descriptor.setAddress(new Address(address));
         return this;
     }
 
@@ -81,7 +69,63 @@ public class EditPersonDescriptorBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Availability} of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withAvailability(String availability) {
+        descriptor.setAvailability(new Availability(availability));
+        return this;
+    }
+
+    /** Sets the squad name. */
+    public EditPersonDescriptorBuilder withSquadName(String squadName) {
+        descriptor.setSquadName(new SquadName(squadName));
+        return this;
+    }
+
+    /** Sets the position. */
+    public EditPersonDescriptorBuilder withPosition(String position) {
+        descriptor.setPosition(new Position(position));
+        return this;
+    }
+
+    /** Sets or clears the guardian name. */
+    public EditPersonDescriptorBuilder withGuardianName(String guardianName) {
+        descriptor.setGuardianName(guardianName == null ? null : new GuardianName(guardianName));
+        return this;
+    }
+
+    /** Sets or clears the guardian contact. */
+    public EditPersonDescriptorBuilder withGuardianContact(String guardianContact) {
+        descriptor.setGuardianContact(guardianContact == null ? null : new GuardianContact(guardianContact));
+        return this;
+    }
+
     public EditPersonDescriptor build() {
         return descriptor;
+    }
+
+    /** Sets the fee payment status. */
+    public EditPersonDescriptorBuilder withFeeStatus(String feeStatus) {
+        descriptor.setFeeStatus(new FeeStatus(feeStatus));
+        return this;
+    }
+
+    /** Sets the consent status. */
+    public EditPersonDescriptorBuilder withConsentStatus(String consentStatus) {
+        descriptor.setConsentStatus(new ConsentStatus(consentStatus));
+        return this;
+    }
+
+    /** Sets the injury status. */
+    public EditPersonDescriptorBuilder withInjuryStatus(String injuryStatus) {
+        descriptor.setInjuryStatus(new InjuryStatus(injuryStatus));
+        return this;
+    }
+
+    /** Sets the remark. An empty string clears the existing remark. */
+    public EditPersonDescriptorBuilder withRemark(String remark) {
+        descriptor.setRemark(new Remark(remark));
+        return this;
     }
 }

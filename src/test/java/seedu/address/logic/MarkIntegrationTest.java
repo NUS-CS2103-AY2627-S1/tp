@@ -1,0 +1,197 @@
+package seedu.address.logic;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.logic.commands.MarkCommand;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.PersonBuilder;
+
+/** Tests mark commands through parsing, filtering and persistent storage. */
+public class MarkIntegrationTest {
+    @TempDir
+    public Path temporaryFolder;
+
+    private Model model;
+    private final Person amy = new PersonBuilder().withName("Amy Tan").withSquadName("U12")
+            .withRemark("Left footed").build();
+    private final Person ben = new PersonBuilder().withName("Ben Lee").withSquadName("U12").build();
+    private final Person cal = new PersonBuilder().withName("Cal Lim").withSquadName("U14").build();
+    private JsonAddressBookStorage storage;
+    private Logic logic;
+
+    @BeforeEach
+    public void setUp() throws Exception {
+        AddressBook initialAddressBook = new AddressBook();
+        initialAddressBook.addPerson(amy);
+        initialAddressBook.addPerson(ben);
+        initialAddressBook.addPerson(cal);
+        model = new ModelManager(initialAddressBook, new UserPrefs());
+
+        storage = new JsonAddressBookStorage(temporaryFolder.resolve("players.json"));
+        storage.saveAddressBook(model.getAddressBook());
+        logic = createLogic(storage);
+    }
+
+    @Test
+    public void execute_allStatuses_saveAndReloadWithoutLosingOtherFields() throws Exception {
+        logic.execute("filter sn/U12");
+        logic.execute("mark 1 2 fee/PAID");
+        logic.execute("mark 1 2 consent/received");
+        logic.execute("mark 1 2 injury/injured");
+        logic.execute("mark 1 2 av/false");
+
+        Person updatedAmy = markedPlayer(amy);
+        Person updatedBen = markedPlayer(ben);
+        List<Person> expected = List.of(updatedAmy, updatedBen, cal);
+        assertEquals(expected, model.getAddressBook().getPersonList());
+        assertEquals(List.of(updatedAmy, updatedBen), model.getFilteredPersonList());
+        ReadOnlyAddressBook reloaded = storage.readAddressBook().orElseThrow();
+        assertEquals(expected, reloaded.getPersonList());
+        assertEquals(amy.getRemark(), reloaded.getPersonList().getFirst().getRemark());
+
+        logic.execute("mark 1 2 available/true");
+        logic.execute("mark 1 2 injury/fit");
+        logic.execute("mark 1 2 fee/unpaid");
+        logic.execute("mark 1 2 consent/pending");
+        assertEquals(List.of(amy, ben, cal), storage.readAddressBook().orElseThrow().getPersonList());
+    }
+
+    @Test
+    public void execute_shrinkingAvailabilityFilter_savesOriginalTargets() throws Exception {
+        logic.execute("filter sn/U12 av/true");
+
+        logic.execute("mark 1 2 av/false");
+
+        assertEquals(List.of(), model.getFilteredPersonList());
+        assertEquals(List.of(new PersonBuilder(amy).withAvailability("unavailable").build(),
+                new PersonBuilder(ben).withAvailability("unavailable").build(), cal),
+                storage.readAddressBook().orElseThrow().getPersonList());
+    }
+
+    @Test
+    public void execute_invalidInput_preservesModelFilterAndFile() throws Exception {
+        logic.execute("filter sn/U12");
+        String savedData = Files.readString(storage.getAddressBookFilePath());
+
+        assertThrows(CommandException.class, () -> logic.execute("mark 1 3 fee/paid"));
+        assertThrows(ParseException.class, () -> logic.execute("mark 1 fee/paid consent/received"));
+        assertThrows(CommandException.class, () -> logic.execute("mark 1 injury/unknown"));
+        assertThrows(ParseException.class, () -> logic.execute("mark 1 wrong/paid"));
+
+        assertEquals(List.of(amy, ben, cal), model.getAddressBook().getPersonList());
+        assertEquals(List.of(amy, ben), model.getFilteredPersonList());
+        assertEquals(savedData, Files.readString(storage.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void execute_mixedIndexErrors_reportsFirstAndPreservesFile() throws Exception {
+        logic.execute("filter sn/U12");
+        String savedData = Files.readString(storage.getAddressBookFilePath());
+
+        CommandException boundsError = assertThrows(CommandException.class, () ->
+                logic.execute("mark 1 4 0 av/true"));
+        assertEquals(String.format(MarkCommand.MESSAGE_INVALID_INDEX, 4, 2), boundsError.getMessage());
+        CommandException zeroError = assertThrows(CommandException.class, () ->
+                logic.execute("mark 1 0 4 av/true"));
+        assertEquals(Messages.MESSAGE_INDEX_BELOW_ONE, zeroError.getMessage());
+
+        assertEquals(List.of(amy, ben, cal), model.getAddressBook().getPersonList());
+        assertEquals(List.of(amy, ben), model.getFilteredPersonList());
+        assertEquals(savedData, Files.readString(storage.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void execute_saveFailure_restoresAllPlayersAndResetsFilter() throws Exception {
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(storage.getAddressBookFilePath()) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("Disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+        logic.execute("filter sn/U12 av/true");
+
+        CommandException exception = assertThrows(CommandException.class, () ->
+                logic.execute("mark 1 2 av/false"));
+
+        assertEquals("Could not save data.\nError details: Disk unavailable", exception.getMessage());
+        assertEquals(List.of(amy, ben, cal), model.getAddressBook().getPersonList());
+        assertEquals(List.of(amy, ben, cal), model.getFilteredPersonList());
+        assertEquals(List.of(amy, ben, cal), storage.readAddressBook().orElseThrow().getPersonList());
+    }
+
+    @Test
+    public void execute_unchangedMark_preservesRedoHistory() throws Exception {
+        logic.execute("delete 3");
+        logic.execute("undo");
+
+        assertTrue(logic.execute("mark 1 2 fee/unpaid").getFeedbackToUser().startsWith("No changes made."));
+
+        logic.execute("redo");
+        assertEquals(List.of(amy, ben), model.getAddressBook().getPersonList());
+        assertEquals(List.of(amy, ben), storage.readAddressBook().orElseThrow().getPersonList());
+    }
+
+    @Test
+    public void execute_unchangedMark_skipsSaveAndPreservesUndoHistory() throws Exception {
+        logic.execute("delete 3");
+        JsonAddressBookStorage unexpectedSaveStorage = new JsonAddressBookStorage(storage.getAddressBookFilePath()) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                throw new AssertionError("An unchanged mark must not save data");
+            }
+        };
+        Logic noSaveLogic = createLogic(unexpectedSaveStorage);
+
+        noSaveLogic.execute("mark 1 2 fee/unpaid");
+
+        logic.execute("undo");
+        assertEquals(List.of(amy, ben, cal), model.getAddressBook().getPersonList());
+        assertFalse(model.canUndoAddressBook());
+    }
+
+    @Test
+    public void execute_mixedChangedAndUnchangedPlayers_savesAndCreatesOneUndoStep() throws Exception {
+        logic.execute("mark 1 fee/paid");
+        Person paidAmy = new PersonBuilder(amy).withFeeStatus("paid").build();
+        Person paidBen = new PersonBuilder(ben).withFeeStatus("paid").build();
+
+        logic.execute("mark 1 2 fee/paid");
+
+        assertEquals(List.of(paidAmy, paidBen, cal), storage.readAddressBook().orElseThrow().getPersonList());
+        logic.execute("undo");
+        assertEquals(List.of(paidAmy, ben, cal), model.getAddressBook().getPersonList());
+    }
+
+    private Person markedPlayer(Person original) {
+        return new PersonBuilder(original).withAvailability("unavailable").withInjuryStatus("injured")
+                .withFeeStatus("paid").withConsentStatus("received").build();
+    }
+
+    private Logic createLogic(JsonAddressBookStorage addressBookStorage) {
+        return new LogicManager(model, new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"))));
+    }
+}

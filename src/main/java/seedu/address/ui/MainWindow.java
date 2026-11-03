@@ -1,15 +1,18 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -131,12 +134,42 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        Point savedCoordinates = guiSettings.getWindowCoordinates();
+        Rectangle2D visualBounds = getVisualBounds(savedCoordinates);
+
+        double minimumWidth = Math.min(primaryStage.getMinWidth(), visualBounds.getWidth());
+        double minimumHeight = Math.min(primaryStage.getMinHeight(), visualBounds.getHeight());
+        double windowWidth = clamp(guiSettings.getWindowWidth(), minimumWidth, visualBounds.getWidth());
+        double windowHeight = clamp(guiSettings.getWindowHeight(), minimumHeight, visualBounds.getHeight());
+
+        primaryStage.setMinWidth(minimumWidth);
+        primaryStage.setMinHeight(minimumHeight);
+        primaryStage.setWidth(windowWidth);
+        primaryStage.setHeight(windowHeight);
+        if (savedCoordinates != null) {
+            primaryStage.setX(clamp(savedCoordinates.getX(), visualBounds.getMinX(),
+                    visualBounds.getMaxX() - windowWidth));
+            primaryStage.setY(clamp(savedCoordinates.getY(), visualBounds.getMinY(),
+                    visualBounds.getMaxY() - windowHeight));
         }
+    }
+
+    /**
+     * Returns the usable bounds of the screen containing the saved window position,
+     * or the primary screen when that position is no longer available.
+     */
+    private Rectangle2D getVisualBounds(Point savedCoordinates) {
+        if (savedCoordinates != null) {
+            return Screen.getScreensForRectangle(savedCoordinates.getX(), savedCoordinates.getY(), 1, 1).stream()
+                    .findFirst()
+                    .orElse(Screen.getPrimary())
+                    .getVisualBounds();
+        }
+        return Screen.getPrimary().getVisualBounds();
+    }
+
+    private static double clamp(double value, double minimum, double maximum) {
+        return Math.max(minimum, Math.min(value, maximum));
     }
 
     /**
@@ -171,16 +204,34 @@ public class MainWindow extends UiPart<Stage> {
         return personListPanel;
     }
 
+    private void showPlayerList() {
+        personListPanelPlaceholder.getChildren().setAll(personListPanel.getRoot());
+    }
+
+    private void showOverview(CommandResult result) {
+        OverviewPanel overviewPanel = new OverviewPanel(result.getOverview().orElseThrow());
+        personListPanelPlaceholder.getChildren().setAll(overviewPanel);
+    }
+
     /**
      * Executes the command and returns the result.
      *
      * @see seedu.address.logic.Logic#execute(String)
      */
-    private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+    CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            if (commandResult.getOverview().isPresent()) {
+                showOverview(commandResult);
+                resultDisplay.setFeedbackToUser("Club overview displayed. Type main to return to your player list,"
+                        + " or list to show all players.");
+            } else {
+                if (!commandResult.isShowHelp() && !commandResult.isExit()) {
+                    showPlayerList();
+                }
+                resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -193,6 +244,7 @@ public class MainWindow extends UiPart<Stage> {
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
+            showPlayerList();
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }

@@ -20,7 +20,7 @@ import seedu.address.storage.Storage;
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data.\nError details: %s";
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
             "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
@@ -44,19 +44,29 @@ public class LogicManager implements Logic {
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        CommandResult commandResult = command.execute(model);
 
-        try {
-            storage.saveAddressBook(model.getAddressBook());
-        } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
-        } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+        if (command.isAddressBookMutating()) {
+            saveAddressBook();
         }
 
         return commandResult;
+    }
+
+    /**
+     * Saves the current address book and restores its previous state if saving fails.
+     */
+    private void saveAddressBook() throws CommandException {
+        try {
+            storage.saveAddressBook(model.getAddressBook());
+        } catch (IOException ioe) {
+            model.rollbackAddressBook();
+            String errorFormat = ioe instanceof AccessDeniedException
+                    ? FILE_OPS_PERMISSION_ERROR_FORMAT
+                    : FILE_OPS_ERROR_FORMAT;
+            throw new CommandException(String.format(errorFormat, ioe.getMessage()), ioe);
+        }
     }
 
     @Override

@@ -2,6 +2,7 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,6 +10,7 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,12 +20,125 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void read_previouslyUnknownStatuses_migratesAndSavesTwoStateValues() throws Exception {
+        Person original = new PersonBuilder().withFeeStatus("paid").withConsentStatus("received")
+                .withInjuryStatus("injured").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(original);
+        Path file = testFolder.resolve("previouslyUnknown.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(addressBook);
+        String json = Files.readString(file);
+        Files.writeString(file, json.replace("\"paid\"", "\" UNKNOWN \"")
+                .replace("\"received\"", "\"unknown\""));
+        ReadOnlyAddressBook migrated = storage.readAddressBook().orElseThrow();
+        Person expected = new PersonBuilder(original).withFeeStatus("unpaid").withConsentStatus("pending").build();
+        assertEquals(expected, migrated.getPersonList().getFirst());
+        storage.saveAddressBook(migrated);
+        assertFalse(Files.readString(file).contains("unknown"));
+        assertEquals(expected, storage.readAddressBook().orElseThrow().getPersonList().getFirst());
+    }
+
+    @Test
+    public void saveAndRead_feeAndConsentStatuses_preservesCombinationsAndRejectsInvalidData() throws Exception {
+        AddressBook original = new AddressBook();
+        for (String fee : new String[] {"paid", "unpaid"}) {
+            for (String consent : new String[] {"received", "pending"}) {
+                original.addPerson(new PersonBuilder().withName("Player " + fee + " " + consent)
+                        .withFeeStatus(fee).withConsentStatus(consent).withInjuryStatus("injured").build());
+            }
+        }
+        Path file = testFolder.resolve("feeConsent.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(original);
+        String json = Files.readString(file);
+        assertTrue(json.contains("\"feeStatus\""));
+        assertTrue(json.contains("\"consentStatus\""));
+        assertEquals(original, new AddressBook(storage.readAddressBook().orElseThrow()));
+        for (String field : new String[] {"feeStatus", "consentStatus"}) {
+            for (String invalid : new String[] {"", "invalid", "PA\u0130D", "unpa\u0131d",
+                "RECE\u0130VED", "pend\u0131ng", "un\u212Anown"}) {
+                Files.writeString(file, json.replaceFirst("\"" + field + "\"\\s*:\\s*\"[^\"]*\"",
+                        "\"" + field + "\" : \"" + invalid + "\""));
+                assertThrows(DataLoadingException.class, storage::readAddressBook);
+            }
+        }
+    }
+
+    @Test
+    public void read_legacyFeeAndConsentStatuses_defaultToUnpaidAndPending() throws Exception {
+        ReadOnlyAddressBook legacy = readAddressBook("legacyContactFieldsAddressBook.json").orElseThrow();
+        legacy.getPersonList().forEach(person -> {
+            assertEquals("unpaid", person.getFeeStatus().value);
+            assertEquals("pending", person.getConsentStatus().value);
+        });
+        Person person = new PersonBuilder().withInjuryStatus("injured").withFeeStatus("paid")
+                .withConsentStatus("received").build();
+        AddressBook original = new AddressBook();
+        original.addPerson(person);
+        Path file = testFolder.resolve("nullableStatuses.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(original);
+        String json = Files.readString(file);
+        Files.writeString(file, json.replace("\"paid\"", "null").replace("\"received\"", "null"));
+        Person restored = storage.readAddressBook().orElseThrow().getPersonList().getFirst();
+        assertEquals("unpaid", restored.getFeeStatus().value);
+        assertEquals("pending", restored.getConsentStatus().value);
+        assertEquals(person.getInjuryStatus(), restored.getInjuryStatus());
+    }
+
+    @Test
+    public void read_legacyUnknownOrMissingInjury_migratesToFitAndSavesCanonicalStatus() throws Exception {
+        Person player = new PersonBuilder().withInjuryStatus("injured").build();
+        AddressBook original = new AddressBook();
+        original.addPerson(player);
+        Path file = testFolder.resolve("legacyInjury.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(original);
+        String json = Files.readString(file);
+        for (String legacyValue : new String[] {"null", "\" UNKNOWN \""}) {
+            Files.writeString(file, json.replace("\"injured\"", legacyValue));
+            ReadOnlyAddressBook migrated = storage.readAddressBook().orElseThrow();
+            Person expected = new PersonBuilder(player).withInjuryStatus("fit").build();
+            assertEquals(expected, migrated.getPersonList().getFirst());
+            storage.saveAddressBook(migrated);
+            assertEquals(expected, storage.readAddressBook().orElseThrow().getPersonList().getFirst());
+            assertFalse(Files.readString(file).contains("unknown"));
+        }
+    }
+
+    @Test
+    public void saveAndRead_injuryStatuses_preservesAllValues() throws Exception {
+        AddressBook original = new AddressBook();
+        for (String status : new String[] {"fit", "injured"}) {
+            original.addPerson(new PersonBuilder().withName("Player " + status).withInjuryStatus(status).build());
+        }
+        Path file = testFolder.resolve("injuryStatuses.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(original);
+        assertEquals(original, new AddressBook(storage.readAddressBook().orElseThrow()));
+        String json = Files.readString(file);
+        assertTrue(json.contains("\"injuryStatus\""));
+
+        Files.writeString(file, json.replace("\"injured\"", "\"recovering\""));
+        assertThrows(DataLoadingException.class, () -> storage.readAddressBook());
+    }
+
+    @Test
+    public void read_legacyFileWithoutInjuryStatus_defaultsToFit() throws Exception {
+        ReadOnlyAddressBook legacy = readAddressBook("legacyContactFieldsAddressBook.json").orElseThrow();
+        legacy.getPersonList().forEach(person -> assertEquals("fit", person.getInjuryStatus().value));
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -48,6 +163,14 @@ public class JsonAddressBookStorageTest {
     @Test
     public void read_notJsonFormat_exceptionThrown() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("notJsonFormatAddressBook.json"));
+    }
+
+    @Test
+    public void read_nullRootValue_exceptionThrown() throws IOException {
+        Path filePath = testFolder.resolve("nullRoot.json");
+        Files.writeString(filePath, "null");
+
+        assertThrows(DataLoadingException.class, () -> new JsonAddressBookStorage(filePath).readAddressBook());
     }
 
     @Test
@@ -84,6 +207,29 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_legacyContactFields_preservesPlayersAndOmitsRemovedFields() throws Exception {
+        ReadOnlyAddressBook migrated = readAddressBook("legacyContactFieldsAddressBook.json").orElseThrow();
+        AddressBook expected = new AddressBook();
+        expected.addPerson(new PersonBuilder().withName("Legacy Player").build());
+        expected.addPerson(new PersonBuilder().withName("Existing Player").withTags("captain")
+                .withRemark("Left footed").withSquadName("U12 A").withPosition("Defender")
+                .withGuardianName("Jane Doe").withGuardianContact("81234567")
+                .withAvailability("unavailable").build());
+        assertEquals(expected, new AddressBook(migrated));
+
+        Path filePath = testFolder.resolve("MigratedAddressBook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(migrated);
+        String savedJson = Files.readString(filePath);
+        assertFalse(savedJson.contains("\"phone\""));
+        assertFalse(savedJson.contains("\"email\""));
+        assertFalse(savedJson.contains("\"address\""));
+        assertFalse(savedJson.contains("\"guardianNumber\""));
+        assertTrue(savedJson.contains("\"guardianContact\""));
+        assertEquals(expected, new AddressBook(storage.readAddressBook().orElseThrow()));
     }
 
     @Test

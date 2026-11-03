@@ -1,5 +1,6 @@
 # Gradle build files
 /.gradle/
+.gradle-user/
 /build/
 src/main/resources/docs/
 
@@ -7,6 +8,9 @@ src/main/resources/docs/
 /.idea/
 /out/
 /*.iml
+
+# VS Code Java build output
+/bin/
 
 # Storage/log files
 /data/

@@ -5,10 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +14,56 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditPersonDescriptorTest {
+
+    @Test
+    public void feeAndConsentDescriptors_copyAndCompareIndependently() {
+        EditPersonDescriptor fee = new EditPersonDescriptorBuilder().withFeeStatus("paid").build();
+        EditPersonDescriptor consent = new EditPersonDescriptorBuilder().withConsentStatus("received").build();
+        assertTrue(fee.isAnyFieldEdited());
+        assertTrue(consent.isAnyFieldEdited());
+        assertTrue(fee.equals(new EditPersonDescriptor(fee)));
+        assertTrue(consent.equals(new EditPersonDescriptor(consent)));
+        assertFalse(fee.equals(new EditPersonDescriptorBuilder().withFeeStatus("unpaid").build()));
+        assertFalse(consent.equals(new EditPersonDescriptorBuilder().withConsentStatus("pending").build()));
+        assertFalse(fee.equals(consent));
+    }
+
+    @Test
+    public void optionalGuardianClearing_countsAsAnEditAndDiffersFromOmission() {
+        EditPersonDescriptor omitted = new EditPersonDescriptor();
+        EditPersonDescriptor clearName = new EditPersonDescriptorBuilder().withGuardianName(null).build();
+        EditPersonDescriptor clearContact = new EditPersonDescriptorBuilder().withGuardianContact(null).build();
+
+        assertFalse(omitted.isAnyFieldEdited());
+        assertTrue(clearName.isAnyFieldEdited());
+        assertTrue(clearContact.isAnyFieldEdited());
+        assertTrue(clearName.getGuardianName().isEmpty());
+        assertTrue(clearContact.getGuardianContact().isEmpty());
+        assertFalse(omitted.equals(clearName));
+        assertFalse(clearName.equals(omitted));
+        assertFalse(omitted.equals(clearContact));
+        assertFalse(clearContact.equals(omitted));
+        assertFalse(clearName.equals(clearContact));
+        assertFalse(clearContact.equals(clearName));
+
+        EditPersonDescriptor copiedName = new EditPersonDescriptor(clearName);
+        EditPersonDescriptor copiedContact = new EditPersonDescriptor(clearContact);
+        assertEquals(clearName, copiedName);
+        assertEquals(clearContact, copiedContact);
+        assertTrue(copiedName.isGuardianNameEdited());
+        assertTrue(copiedContact.isGuardianContactEdited());
+    }
+
+    @Test
+    public void injuryStatus_isRecognizedAndCopied() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withInjuryStatus("injured").build();
+        assertTrue(descriptor.isAnyFieldEdited());
+        EditPersonDescriptor copied = new EditPersonDescriptor(descriptor);
+        assertEquals(descriptor, copied);
+        assertEquals(descriptor.getInjuryStatus(), copied.getInjuryStatus());
+        assertFalse(descriptor.equals(new EditPersonDescriptorBuilder().withInjuryStatus("fit").build()));
+        assertFalse(descriptor.equals(new EditPersonDescriptor()));
+    }
 
     @Test
     public void equals() {
@@ -40,20 +87,16 @@ public class EditPersonDescriptorTest {
         EditPersonDescriptor editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withName(VALID_NAME_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different phone -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withPhone(VALID_PHONE_BOB).build();
-        assertFalse(DESC_AMY.equals(editedAmy));
-
-        // different email -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
-        assertFalse(DESC_AMY.equals(editedAmy));
-
-        // different address -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
-        assertFalse(DESC_AMY.equals(editedAmy));
-
         // different tags -> returns false
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different availability -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAvailability("unavailable").build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different remark -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withRemark("Reliable defender").build();
         assertFalse(DESC_AMY.equals(editedAmy));
     }
 
@@ -61,11 +104,17 @@ public class EditPersonDescriptorTest {
     public void toStringMethod() {
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
         String expected = EditPersonDescriptor.class.getCanonicalName() + "{name="
-                + editPersonDescriptor.getName().orElse(null) + ", phone="
-                + editPersonDescriptor.getPhone().orElse(null) + ", email="
-                + editPersonDescriptor.getEmail().orElse(null) + ", address="
-                + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getName().orElse(null) + ", tags="
+                + editPersonDescriptor.getTags().orElse(null) + ", squadName="
+                + editPersonDescriptor.getSquadName().orElse(null) + ", position="
+                + editPersonDescriptor.getPosition().orElse(null) + ", guardianName="
+                + editPersonDescriptor.getGuardianName().orElse(null) + ", guardianContact="
+                + editPersonDescriptor.getGuardianContact().orElse(null) + ", availability="
+                + editPersonDescriptor.getAvailability().orElse(null) + ", injuryStatus="
+                + editPersonDescriptor.getInjuryStatus().orElse(null) + ", feeStatus="
+                + editPersonDescriptor.getFeeStatus().orElse(null) + ", consentStatus="
+                + editPersonDescriptor.getConsentStatus().orElse(null) + ", remark="
+                + editPersonDescriptor.getRemark().orElse(null) + "}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }

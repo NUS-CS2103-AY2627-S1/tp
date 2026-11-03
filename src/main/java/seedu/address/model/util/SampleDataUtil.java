@@ -6,37 +6,49 @@ import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.person.Availability;
+import seedu.address.model.person.GuardianContact;
+import seedu.address.model.person.GuardianName;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
+import seedu.address.model.person.Position;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.SquadName;
 import seedu.address.model.tag.Tag;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
+
+    public static final Remark EMPTY_REMARK = new Remark("");
+
     public static Person[] getSamplePersons() {
         return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+            new Person(new Name("Alex Yeoh"),
+                getTagSet("captain", "goalkeeper"), EMPTY_REMARK, new SquadName("U12 A"),
+                new Position("Goalkeeper"), new GuardianName("Hannah Yeoh"), new GuardianContact("81234567"),
+                new Availability(Availability.AVAILABLE)),
+            new Person(new Name("Bernice Yu"),
+                getTagSet("leftFooted", "development"), EMPTY_REMARK, new SquadName("U12 A"),
+                new Position("Defender"), new GuardianName("Amir Yu"), new GuardianContact("82345678"),
+                new Availability(Availability.UNAVAILABLE)),
+            new Person(new Name("Charlotte Oliveiro"),
+                getTagSet("playmaker", "setPieces"), EMPTY_REMARK, new SquadName("U13 B"),
+                new Position("Midfielder"), new GuardianName("Priya Oliveiro"), new GuardianContact("89876543"),
+                new Availability(Availability.AVAILABLE)),
+            new Person(new Name("David Li"),
+                getTagSet("topScorer", "viceCaptain"), EMPTY_REMARK, new SquadName("U13 B"),
+                new Position("Striker"), new GuardianName("Mei Li"), new GuardianContact("93456789"),
+                new Availability(Availability.AVAILABLE)),
+            new Person(new Name("Irfan Ibrahim"),
+                getTagSet("injuryReturn", "defence"), EMPTY_REMARK, new SquadName("U14 A"),
+                new Position("Defender"), new GuardianName("Nurul Ibrahim"), new GuardianContact("85678901"),
+                new Availability(Availability.UNAVAILABLE)),
+            new Person(new Name("Roy Balakrishnan"),
+                getTagSet("boxToBox", "trainingLead"), EMPTY_REMARK, new SquadName("U14 A"),
+                new Position("Midfielder"), new GuardianName("Kavitha Balakrishnan"), new GuardianContact("98890123"),
+                new Availability(Availability.AVAILABLE))
         };
     }
 

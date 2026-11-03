@@ -1,6 +1,11 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_INDEX_BELOW_ONE;
+import static seedu.address.logic.Messages.MESSAGE_INDEX_TOO_LARGE;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_MISSING_INDEX;
+import static seedu.address.logic.Messages.MESSAGE_NON_NUMERIC_INDEX;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -9,10 +14,7 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -36,63 +38,43 @@ public class ParserUtil {
     }
 
     /**
+     * Parses a player index with specific validation messages. Surrounding whitespace and leading zeroes are allowed.
+     *
+     * @throws ParseException if the input is missing, is not digits only, or is outside the positive integer range.
+     */
+    public static Index parsePlayerIndex(String oneBasedIndex) throws ParseException {
+        String trimmedIndex = oneBasedIndex.trim();
+        if (trimmedIndex.isEmpty()) {
+            throw new ParseException(MESSAGE_MISSING_INDEX);
+        }
+        if (!trimmedIndex.matches("[0-9]+")) {
+            throw new ParseException(MESSAGE_NON_NUMERIC_INDEX);
+        }
+
+        int value;
+        try {
+            value = Integer.parseInt(trimmedIndex);
+        } catch (NumberFormatException e) {
+            throw new ParseException(MESSAGE_INDEX_TOO_LARGE, e);
+        }
+        if (value < 1) {
+            throw new ParseException(MESSAGE_INDEX_BELOW_ONE);
+        }
+        return Index.fromOneBased(value);
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Surrounding whitespace is trimmed and repeated whitespace is collapsed to a single space.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
+        if (!Name.isValidName(name)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
-        return new Name(trimmedName);
-    }
-
-    /**
-     * Parses a {@code String phone} into a {@code Phone}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code phone} is invalid.
-     */
-    public static Phone parsePhone(String phone) throws ParseException {
-        requireNonNull(phone);
-        String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
-        }
-        return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
-    }
-
-    /**
-     * Parses a {@code String email} into an {@code Email}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code email} is invalid.
-     */
-    public static Email parseEmail(String email) throws ParseException {
-        requireNonNull(email);
-        String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
-        }
-        return new Email(trimmedEmail);
+        return new Name(name);
     }
 
     /**
@@ -120,5 +102,21 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Ensures that no extraneous non-whitespace arguments were supplied for a zero-argument command.
+     *
+     * @param args The input arguments string following the command word.
+     * @param usageMessage The usage/syntax guide to include in the error message.
+     * @throws ParseException If {@code args} contains any non-whitespace characters.
+     */
+    public static void requireNoArguments(String args, String usageMessage) throws ParseException {
+        assert !usageMessage.isBlank() : "Usage message must not be blank";
+        requireNonNull(usageMessage);
+
+        if (!args.trim().isEmpty()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, usageMessage));
+        }
     }
 }

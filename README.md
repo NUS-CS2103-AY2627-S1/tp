@@ -1,14 +1,54 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# SquadLink
 
-![Ui](docs/images/Ui.png)
+[![Build Status](https://github.com/AY2627S1-CS2103T-F11-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-F11-3/tp/actions)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+![SquadLink user interface](docs/images/Ui.png)
+
+**SquadLink** is a desktop application for coaches of small youth football clubs who manage players across multiple squads.
+
+SquadLink helps coaches keep player information organised in one place, making it easier to find players and check their availability for selection.
+
+## Features
+
+SquadLink allows coaches to:
+
+- Add players with their name, squad and position.
+- Edit existing player details.
+- Mark players as available or unavailable.
+- Remove players who are no longer in the club.
+- Search for players by name.
+- Filter players by squad and availability.
+- Sort the displayed roster by name, squad, position, or availability.
+- View club and squad availability counts with `overview`.
+- Return to the main player list with `main`, keeping the current filter and sort order.
+
+## Getting Started
+
+### Prerequisites
+
+- Java 25 or later
+
+### Running SquadLink
+
+1. Download `squadlink.jar` from the [SquadLink Releases page](https://github.com/AY2627S1-CS2103T-F11-3/tp/releases).
+2. Copy the `.jar` file to the folder where you want to store SquadLink data.
+3. Open a terminal in that folder.
+4. Run:
+
+```bash
+java -jar squadlink.jar
+```
+
+The SquadLink application should open shortly after.
+
+## Documentation
+
+For more information about using and developing SquadLink, refer to:
+
+- [User Guide](https://ay2627s1-cs2103t-f11-3.github.io/tp/UserGuide.html)
+- [Developer Guide](https://ay2627s1-cs2103t-f11-3.github.io/tp/DeveloperGuide.html)
+- [About Us](https://ay2627s1-cs2103t-f11-3.github.io/tp/AboutUs.html)
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

@@ -3,6 +3,7 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,9 +15,17 @@ import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.MainCommand;
+import seedu.address.logic.commands.MarkCommand;
+import seedu.address.logic.commands.OverviewCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -33,9 +42,9 @@ public class AddressBookParser {
     /**
      * Parses user input into command for execution.
      *
-     * @param userInput full user input string
-     * @return the command based on the user input
-     * @throws ParseException if the user input does not conform to the expected format
+     * @param userInput full user input string.
+     * @return the command based on the user input.
+     * @throws ParseException if the user input does not conform to the expected format.
      */
     public Command parseCommand(String userInput) throws ParseException {
         final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
@@ -43,7 +52,7 @@ public class AddressBookParser {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
-        final String commandWord = matcher.group("commandWord");
+        final String commandWord = matcher.group("commandWord").toLowerCase(Locale.ROOT);
         final String arguments = matcher.group("arguments");
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
@@ -54,12 +63,44 @@ public class AddressBookParser {
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
+            case MarkCommand.COMMAND_WORD -> new MarkCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ClearCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, ClearCommand.MESSAGE_USAGE);
+                yield new ClearCommand();
+            }
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, ListCommand.MESSAGE_USAGE);
+                yield new ListCommand();
+            }
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
+            case MainCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, MainCommand.MESSAGE_USAGE);
+                yield new MainCommand();
+            }
+            case OverviewCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, OverviewCommand.MESSAGE_USAGE);
+                yield new OverviewCommand();
+            }
+            case ExitCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, ExitCommand.MESSAGE_USAGE);
+                yield new ExitCommand();
+            }
+            case HelpCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, HelpCommand.MESSAGE_USAGE);
+                yield new HelpCommand();
+            }
+            case RemarkCommand.COMMAND_WORD -> new RemarkCommandParser().parse(arguments);
+            case UndoCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, UndoCommand.MESSAGE_USAGE);
+                yield new UndoCommand();
+            }
+            case RedoCommand.COMMAND_WORD -> {
+                ParserUtil.requireNoArguments(arguments, RedoCommand.MESSAGE_USAGE);
+                yield new RedoCommand();
+            }
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);

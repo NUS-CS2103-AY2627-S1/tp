@@ -33,13 +33,19 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label id;
     @FXML
-    private Label phone;
+    private Label squadName;
     @FXML
-    private Label address;
+    private Label position;
     @FXML
-    private Label email;
+    private Label guardianName;
+    @FXML
+    private Label guardianContact;
+    @FXML
+    private Label availability;
     @FXML
     private FlowPane tags;
+    @FXML
+    private Label remark;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -49,9 +55,14 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        squadName.setText("Squad: " + person.getSquadName().value);
+        position.setText("Position: " + person.getPosition().value);
+        guardianName.setText("Guardian: " + (person.getGuardianName() == null ? "Not provided"
+                : person.getGuardianName().value));
+        guardianContact.setText("Guardian contact: " + (person.getGuardianContact() == null ? "Not provided"
+                : person.getGuardianContact().value));
+        availability.setText("Availability: " + person.getAvailability().value);
+        remark.setText(person.getRemark().value);
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));

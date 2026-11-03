@@ -1,196 +1,247 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_NON_EMPTY;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalPersons.AMY;
-import static seedu.address.testutil.TypicalPersons.BOB;
+
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.person.ConsentStatus;
+import seedu.address.model.person.FeeStatus;
+import seedu.address.model.person.GuardianContact;
+import seedu.address.model.person.GuardianName;
+import seedu.address.model.person.InjuryStatus;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Position;
+import seedu.address.model.person.SquadName;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
-    private AddCommandParser parser = new AddCommandParser();
+    private static final String REQUIRED = " name/John Doe squad/Soccer Stars position/Goalkeeper";
+    private final AddCommandParser parser = new AddCommandParser();
 
     @Test
-    public void parse_allFieldsPresent_success() {
-        Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
-
-        // whitespace only preamble
-        assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
-
-
-        // multiple tags - all accepted
-        Person expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
-                .build();
-        assertParseSuccess(parser,
-                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
-                new AddCommand(expectedPersonMultipleTags));
+    public void parse_statusShorthands_success() {
+        Person expected = new PersonBuilder(player()).withInjuryStatus("injured")
+                .withFeeStatus("paid").withConsentStatus("received").build();
+        assertParseSuccess(parser, REQUIRED + " inj/INJURED f/paid c/received", new AddCommand(expected));
     }
 
     @Test
-    public void parse_repeatedNonTagValue_failure() {
-        String validExpectedPersonString = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND;
-
-        // multiple names
-        assertParseFailure(parser, NAME_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // multiple phones
-        assertParseFailure(parser, PHONE_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple emails
-        assertParseFailure(parser, EMAIL_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // multiple addresses
-        assertParseFailure(parser, ADDRESS_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // multiple fields repeated
-        assertParseFailure(parser,
-                validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
-                        + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
-
-        // invalid value followed by valid value
-
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, INVALID_EMAIL_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, INVALID_PHONE_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, INVALID_ADDRESS_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // valid value followed by invalid value
-
-        // invalid name
-        assertParseFailure(parser, validExpectedPersonString + INVALID_NAME_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, validExpectedPersonString + INVALID_EMAIL_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, validExpectedPersonString + INVALID_PHONE_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, validExpectedPersonString + INVALID_ADDRESS_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
+    public void parse_statusShorthandsWithInvalidValues_failure() {
+        String[] prefixes = {"inj/", "f/", "c/"};
+        String[] messages = {InjuryStatus.MESSAGE_CONSTRAINTS, FeeStatus.MESSAGE_CONSTRAINTS,
+            ConsentStatus.MESSAGE_CONSTRAINTS};
+        for (int i = 0; i < prefixes.length; i++) {
+            for (String value : new String[] {"", "unknown"}) {
+                assertParseFailure(parser, REQUIRED + " " + prefixes[i] + value, messages[i]);
+            }
+        }
     }
 
     @Test
-    public void parse_optionalFieldsMissing_success() {
-        // zero tags
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
-                new AddCommand(expectedPerson));
+    public void parse_injuryStatus_acceptsSupportedValuesAndDefaultsToFit() {
+        assertParseSuccess(parser, REQUIRED, new AddCommand(new PersonBuilder(player())
+                .withInjuryStatus("fit").build()));
+        for (String value : new String[] {"fit", "injured"}) {
+            AddCommand expected = new AddCommand(new PersonBuilder(player()).withInjuryStatus(value).build());
+            assertParseSuccess(parser, REQUIRED + " injury/" + value, expected);
+            assertParseSuccess(parser, " injury/ \t" + value.toUpperCase(Locale.ROOT) + " \n" + REQUIRED,
+                    expected);
+        }
+        Person expected = new PersonBuilder(player()).withInjuryStatus("injured")
+                .withAvailability("unavailable").withTags("captain").build();
+        assertParseSuccess(parser, REQUIRED + " injury/injured av/false t/captain", new AddCommand(expected));
     }
 
     @Test
-    public void parse_compulsoryFieldMissing_failure() {
-        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
-
-        // missing name prefix
-        assertParseFailure(parser, VALID_NAME_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing phone prefix
-        assertParseFailure(parser, NAME_DESC_BOB + VALID_PHONE_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing email prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
-
-        // all prefixes missing
-        assertParseFailure(parser, VALID_NAME_BOB + VALID_PHONE_BOB + VALID_EMAIL_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
+    public void parse_invalidOrRepeatedInjuryStatus_failure() {
+        for (String value : new String[] {"", " \t", "unknown", "un\u212Anown",
+            "F\u0130T", "f\u0131t", "\u0130NJURED", "recovering", "true", "in jured"}) {
+            assertParseFailure(parser, REQUIRED + " injury/" + value, InjuryStatus.MESSAGE_CONSTRAINTS);
+        }
+        assertParseFailure(parser, REQUIRED + " injury/fit injury/injured",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_INJURY_FULL));
+        assertParseFailure(parser, " injury/recovering contact/abc" + REQUIRED, InjuryStatus.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " contact/abc injury/recovering" + REQUIRED, InjuryStatus.MESSAGE_CONSTRAINTS);
     }
 
     @Test
-    public void parse_invalidValue_failure() {
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Name.MESSAGE_CONSTRAINTS);
+    public void parse_requiredFieldsAndAliases_success() {
+        AddCommand expected = new AddCommand(player());
+        assertParseSuccess(parser, REQUIRED, expected);
+        assertParseSuccess(parser, " n/John Doe sn/Soccer Stars pos/Goalkeeper", expected);
+        assertParseSuccess(parser, " N/John Doe SN/Soccer Stars POS/Goalkeeper", expected);
+        assertParseSuccess(parser, " NAME/John Doe SQUAD/Soccer Stars POSITION/Goalkeeper", expected);
+        assertParseSuccess(parser, " pos/goal-keeper n/John Doe squad/Soccer Stars", expected);
+        assertParseSuccess(parser, " position/ G O A L - K E E P E R sn/Soccer Stars name/John Doe", expected);
+    }
 
-        // invalid phone
-        assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Phone.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_namesWithHyphensAndWhitespace_normalizesNames() {
+        Person expected = new PersonBuilder().withName("John-Paul Doe 2").withSquadName("U12-A Stars")
+                .withPosition("Defender").withGuardianName("Jane-Anne Doe").build();
+        assertParseSuccess(parser, " n/ \tJohn-Paul \n Doe  2 sn/ U12-A   Stars pos/defender g/Jane-Anne \t Doe ",
+                new AddCommand(expected));
+    }
 
-        // invalid email
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Email.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_optionalFieldsAndAliases_success() {
+        Person expected = new PersonBuilder(player()).withGuardianName("Long Ox").withGuardianContact("99999999")
+                .withAvailability("unavailable").build();
+        assertParseSuccess(parser, REQUIRED + " guardian/Long Ox contact/99999999 available/FALSE",
+                new AddCommand(expected));
+        Person formattedContact = new PersonBuilder(player()).withGuardianName("Long Ox")
+                .withGuardianContact("99-99 99\t99").withAvailability("unavailable").build();
+        assertParseSuccess(parser, " av/f a L s E gc/99-99 99\t99 g/Long Ox" + REQUIRED,
+                new AddCommand(formattedContact));
+        assertParseSuccess(parser, REQUIRED + " av/ t R u E ", new AddCommand(player()));
+        Person contactDetail = new PersonBuilder(player()).withGuardianContact("+65 (8123) 4567 (Mother)").build();
+        assertParseSuccess(parser, REQUIRED + " gc/+65 (8123) 4567 (Mother)", new AddCommand(contactDetail));
 
-        // invalid address
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Address.MESSAGE_CONSTRAINTS);
+        Person slashText = new PersonBuilder(player()).withRemark("Available Saturday/Sunday").build();
+        assertParseSuccess(parser, REQUIRED + " r/Available Saturday/Sunday", new AddCommand(slashText));
+    }
 
-        // invalid tag
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + INVALID_TAG_DESC + VALID_TAG_FRIEND, Tag.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_remark_successAndInvalidValues() {
+        Person expected = new PersonBuilder(player()).withRemark("Late arrival").build();
+        assertParseSuccess(parser, REQUIRED + " r/Late arrival", new AddCommand(expected));
+        assertParseSuccess(parser, REQUIRED + " remark/Late arrival", new AddCommand(expected));
+        assertParseFailure(parser, REQUIRED + " r/", AddCommandParser.MESSAGE_MISSING_REMARK);
+        assertParseFailure(parser, REQUIRED + " r/first r/second",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_REMARK));
+        assertParseFailure(parser, REQUIRED + " r/first remark/second",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_REMARK, CliSyntax.PREFIX_REMARK_FULL));
+    }
 
-        // two invalid values, only first invalid value reported
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC,
-                Name.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_guardianFieldsIndependently_success() {
+        assertParseSuccess(parser, REQUIRED + " g/Jane Doe",
+                new AddCommand(new PersonBuilder(player()).withGuardianName("Jane Doe").build()));
+        assertParseSuccess(parser, REQUIRED + " gc/81234567",
+                new AddCommand(new PersonBuilder(player()).withGuardianContact("81234567").build()));
+        assertParseSuccess(parser, REQUIRED + " gc/000",
+                new AddCommand(new PersonBuilder(player()).withGuardianContact("000").build()));
+    }
 
-        // non-empty preamble
-        assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
-                String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    @Test
+    public void parse_tags_success() {
+        Person expected = new PersonBuilder(player()).withTags("friend", "captain").build();
+        assertParseSuccess(parser, " t/captain" + REQUIRED + " t/friend t/friend", new AddCommand(expected));
+        assertParseSuccess(parser, " tag/captain" + REQUIRED + " t/friend", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_missingRequiredFields_failure() {
+        assertParseFailure(parser, "", AddCommandParser.MESSAGE_MISSING_NAME);
+        assertParseFailure(parser, " sn/Stars pos/striker", AddCommandParser.MESSAGE_MISSING_NAME);
+        assertParseFailure(parser, " n/John Doe pos/striker", AddCommandParser.MESSAGE_MISSING_SQUAD);
+        assertParseFailure(parser, " n/John Doe sn/Stars", AddCommandParser.MESSAGE_MISSING_POSITION);
+    }
+
+    @Test
+    public void parse_invalidOrEmptyValues_failure() {
+        assertParseFailure(parser, " n/John@Doe sn/Stars pos/striker", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " n/ sn/Stars pos/striker", Name.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " n/John sn/ pos/striker", SquadName.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " n/John sn/Stars! pos/striker", SquadName.MESSAGE_CONSTRAINTS);
+        for (String position : new String[] {"", "Unassigned", "Forward", "Left Striker", "striker,defender"}) {
+            assertParseFailure(parser, " n/John sn/Stars pos/" + position, Position.MESSAGE_CONSTRAINTS);
+        }
+        assertParseFailure(parser, REQUIRED + " g/", GuardianName.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, REQUIRED + " guardian/Jane@Doe", GuardianName.MESSAGE_CONSTRAINTS);
+        for (String contact : new String[] {"", " \t"}) {
+            assertParseFailure(parser, REQUIRED + " contact/" + contact, GuardianContact.MESSAGE_CONSTRAINTS);
+        }
+        for (String availability : new String[] {"", "yes", "true-false"}) {
+            assertParseFailure(parser, REQUIRED + " available/" + availability,
+                    AddCommandParser.MESSAGE_INVALID_AVAILABILITY);
+        }
+    }
+
+    @Test
+    public void parse_duplicateAliases_failure() {
+        Prefix[][] aliases = {
+            {CliSyntax.PREFIX_NAME, CliSyntax.PREFIX_NAME_FULL},
+            {CliSyntax.PREFIX_SQUADNAME, CliSyntax.PREFIX_SQUADNAME_FULL},
+            {CliSyntax.PREFIX_POSITION, CliSyntax.PREFIX_POSITION_FULL},
+            {CliSyntax.PREFIX_GUARDIANNAME, CliSyntax.PREFIX_GUARDIANNAME_FULL},
+            {CliSyntax.PREFIX_GUARDIANCONTACT, CliSyntax.PREFIX_GUARDIANCONTACT_FULL},
+            {CliSyntax.PREFIX_AVAILABILITY, CliSyntax.PREFIX_AVAILABILITY_FULL,
+                CliSyntax.PREFIX_AVAILABILITY_LEGACY},
+            {CliSyntax.PREFIX_INJURY, CliSyntax.PREFIX_INJURY_FULL},
+            {CliSyntax.PREFIX_FEE, CliSyntax.PREFIX_FEE_FULL},
+            {CliSyntax.PREFIX_CONSENT, CliSyntax.PREFIX_CONSENT_FULL}
+        };
+        String[] values = {"John Doe", "Soccer Stars", "Goalkeeper", "Jane Doe", "81234567", "true",
+            "injured", "paid", "received"};
+        String[] bases = {" squad/Stars position/striker", " name/John position/striker",
+            " name/John squad/Stars", REQUIRED, REQUIRED, REQUIRED, REQUIRED, REQUIRED, REQUIRED};
+        for (int index = 0; index < aliases.length; index++) {
+            for (Prefix first : aliases[index]) {
+                for (Prefix second : aliases[index]) {
+                    String input = bases[index] + " " + first + values[index] + " " + second + values[index];
+                    assertParseFailure(parser, input, Messages.getErrorMessageForDuplicatePrefixes(first, second));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void parse_duplicatePrefixBeforeOtherAlias_reportsOnlyRepeatedPrefix() {
+        assertParseFailure(parser, REQUIRED + " injury/fit injury/injured inj/fit",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_INJURY_FULL));
+        assertParseFailure(parser, REQUIRED + " inj/fit inj/injured injury/fit",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_INJURY));
+    }
+
+    @Test
+    public void parse_multipleDuplicateFields_reportsFirstRepeatedPrefix() {
+        assertParseFailure(parser, REQUIRED + " injury/fit injury/injured fee/paid fee/unpaid",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_INJURY_FULL));
+        assertParseFailure(parser, REQUIRED + " fee/paid fee/unpaid injury/fit injury/injured",
+                Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_FEE_FULL));
+    }
+
+    @Test
+    public void parse_invalidValues_reportsFirstSuppliedField() {
+        assertParseFailure(parser, " available/no contact/abc" + REQUIRED,
+                AddCommandParser.MESSAGE_INVALID_AVAILABILITY);
+        assertParseFailure(parser, " contact/ available/no" + REQUIRED, GuardianContact.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " pos/invalid sn/Stars! n/John@Doe", Position.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " sn/Stars! pos/invalid n/John@Doe", SquadName.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_unknownPrefixOrPreamble_failure() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        assertParseFailure(parser, "John Doe squad/Stars position/striker", message);
+        for (String prefix : new String[] {"p/81234567", "e/john@example.com", "a/Street", "unknown/value",
+            "/squad Stars"}) {
+            assertParseFailure(parser, " " + prefix + REQUIRED, message);
+        }
+    }
+
+    @Test
+    public void parse_unknownTokenAfterLastField_isAbsorbedIntoValue() {
+        // Only known prefixes are recognized, consistent with ArgumentTokenizer in edit/remark:
+        // an unknown token after the last field becomes part of that field's value.
+        Person remarkWithSlashText = new PersonBuilder(player())
+                .withRemark("Available but unknown/value").build();
+        assertParseSuccess(parser, REQUIRED + " r/Available but unknown/value", new AddCommand(remarkWithSlashText));
+
+        // The absorbed token surfaces as a field validation error once the value becomes invalid.
+        assertParseFailure(parser, REQUIRED + " p/81234567", Position.MESSAGE_CONSTRAINTS);
+    }
+
+    private Person player() {
+        return new PersonBuilder().withName("John Doe").withSquadName("Soccer Stars")
+                .withPosition("Goalkeeper").build();
     }
 }

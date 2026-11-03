@@ -2,27 +2,59 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AVAILABILITY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AVAILABILITY_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AVAILABILITY_LEGACY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CONSENT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CONSENT_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FEE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FEE_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIANCONTACT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIANCONTACT_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIANNAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIANNAME_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_INJURY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_INJURY_FULL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_POSITION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_POSITION_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_REMARK;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_REMARK_FULL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SQUADNAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SQUADNAME_FULL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG_FULL;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Availability;
+import seedu.address.model.person.ConsentStatus;
+import seedu.address.model.person.FeeStatus;
+import seedu.address.model.person.GuardianContact;
+import seedu.address.model.person.GuardianName;
+import seedu.address.model.person.InjuryStatus;
+import seedu.address.model.person.Position;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.SquadName;
 import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new EditCommand object
  */
 public class EditCommandParser implements Parser<EditCommand> {
+
+    public static final String MESSAGE_INVALID_AVAILABILITY =
+            "Invalid availability entered. Availability must be true, false, available, or unavailable.";
 
     /**
      * Parses the given {@code String} of arguments in the context of the EditCommand
@@ -32,7 +64,12 @@ public class EditCommandParser implements Parser<EditCommand> {
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_NAME_FULL, PREFIX_AVAILABILITY,
+                        PREFIX_AVAILABILITY_FULL, PREFIX_AVAILABILITY_LEGACY, PREFIX_SQUADNAME, PREFIX_SQUADNAME_FULL,
+                        PREFIX_POSITION, PREFIX_POSITION_FULL, PREFIX_GUARDIANNAME, PREFIX_GUARDIANNAME_FULL,
+                        PREFIX_GUARDIANCONTACT, PREFIX_GUARDIANCONTACT_FULL, PREFIX_INJURY, PREFIX_INJURY_FULL,
+                        PREFIX_FEE, PREFIX_FEE_FULL, PREFIX_CONSENT, PREFIX_CONSENT_FULL, PREFIX_REMARK,
+                        PREFIX_REMARK_FULL, PREFIX_TAG, PREFIX_TAG_FULL);
 
         Index index;
 
@@ -42,29 +79,136 @@ public class EditCommandParser implements Parser<EditCommand> {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        try {
+            return new EditCommand(index, parseFields(argMultimap));
+        } catch (ParseException exception) {
+            // Check the displayed index before reporting errors in the fields that follow it.
+            return EditCommand.withDeferredError(index, exception.getMessage());
+        }
+    }
+
+    private EditPersonDescriptor parseFields(ArgumentMultimap argMultimap) throws ParseException {
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_NAME_FULL, PREFIX_AVAILABILITY,
+                PREFIX_AVAILABILITY_FULL, PREFIX_AVAILABILITY_LEGACY,
+                PREFIX_SQUADNAME, PREFIX_SQUADNAME_FULL, PREFIX_POSITION, PREFIX_POSITION_FULL,
+                PREFIX_GUARDIANNAME, PREFIX_GUARDIANNAME_FULL, PREFIX_GUARDIANCONTACT, PREFIX_GUARDIANCONTACT_FULL,
+                PREFIX_INJURY, PREFIX_INJURY_FULL, PREFIX_FEE, PREFIX_FEE_FULL, PREFIX_CONSENT, PREFIX_CONSENT_FULL,
+                PREFIX_REMARK, PREFIX_REMARK_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_INJURY, PREFIX_INJURY_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_NAME, PREFIX_NAME_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_FEE, PREFIX_FEE_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_CONSENT, PREFIX_CONSENT_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_AVAILABILITY, PREFIX_AVAILABILITY_FULL, PREFIX_AVAILABILITY_LEGACY);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_SQUADNAME, PREFIX_SQUADNAME_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_POSITION, PREFIX_POSITION_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_GUARDIANNAME, PREFIX_GUARDIANNAME_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_GUARDIANCONTACT, PREFIX_GUARDIANCONTACT_FULL);
+        verifyAliasesUsedOnce(argMultimap, PREFIX_REMARK, PREFIX_REMARK_FULL);
 
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
 
-        if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
-            editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
+        Optional<String> name = getValue(argMultimap, PREFIX_NAME, PREFIX_NAME_FULL);
+        if (name.isPresent()) {
+            editPersonDescriptor.setName(ParserUtil.parseName(name.get()));
         }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
-        }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
+        parseSquadName(argMultimap).ifPresent(editPersonDescriptor::setSquadName);
+        parsePosition(argMultimap).ifPresent(editPersonDescriptor::setPosition);
+        parseGuardianName(argMultimap, editPersonDescriptor);
+        parseGuardianContact(argMultimap, editPersonDescriptor);
+        parseAvailability(argMultimap).ifPresent(editPersonDescriptor::setAvailability);
+        parseValue(getValue(argMultimap, PREFIX_INJURY, PREFIX_INJURY_FULL), InjuryStatus::new)
+                .ifPresent(editPersonDescriptor::setInjuryStatus);
+        parseValue(getValue(argMultimap, PREFIX_FEE, PREFIX_FEE_FULL), FeeStatus::new)
+                .ifPresent(editPersonDescriptor::setFeeStatus);
+        parseValue(getValue(argMultimap, PREFIX_CONSENT, PREFIX_CONSENT_FULL), ConsentStatus::new)
+                .ifPresent(editPersonDescriptor::setConsentStatus);
+        getValue(argMultimap, PREFIX_REMARK, PREFIX_REMARK_FULL)
+                .ifPresent(value -> editPersonDescriptor.setRemark(new Remark(value)));
+        Collection<String> tags = new ArrayList<>(argMultimap.getAllValues(PREFIX_TAG));
+        tags.addAll(argMultimap.getAllValues(PREFIX_TAG_FULL));
+        parseTagsForEdit(tags).ifPresent(editPersonDescriptor::setTags);
 
         if (!editPersonDescriptor.isAnyFieldEdited()) {
             throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
         }
 
-        return new EditCommand(index, editPersonDescriptor);
+        return editPersonDescriptor;
+    }
+
+    private void verifyAliasesUsedOnce(ArgumentMultimap argMultimap, Prefix... prefixes)
+            throws ParseException {
+        long count = java.util.Arrays.stream(prefixes)
+                .filter(prefix -> argMultimap.getValue(prefix).isPresent())
+                .count();
+        if (count > 1) {
+            throw new ParseException(Messages.getErrorMessageForDuplicatePrefixes(prefixes));
+        }
+    }
+
+    private Optional<String> getValue(ArgumentMultimap argMultimap, Prefix shortPrefix, Prefix fullPrefix) {
+        return argMultimap.getValue(shortPrefix).or(() -> argMultimap.getValue(fullPrefix));
+    }
+
+    private Optional<SquadName> parseSquadName(ArgumentMultimap argMultimap) throws ParseException {
+        return parseValue(getValue(argMultimap, PREFIX_SQUADNAME, PREFIX_SQUADNAME_FULL), SquadName::new);
+    }
+
+    private Optional<Position> parsePosition(ArgumentMultimap argMultimap) throws ParseException {
+        Optional<Position> position = parseValue(
+                getValue(argMultimap, PREFIX_POSITION, PREFIX_POSITION_FULL), Position::new);
+        if (position.isPresent() && position.get().isUnassigned()) {
+            throw new ParseException(Position.MESSAGE_CONSTRAINTS);
+        }
+        return position;
+    }
+
+    private void parseGuardianName(ArgumentMultimap argMultimap, EditPersonDescriptor descriptor)
+            throws ParseException {
+        Optional<String> value = getValue(argMultimap, PREFIX_GUARDIANNAME, PREFIX_GUARDIANNAME_FULL);
+        if (value.isPresent()) {
+            descriptor.setGuardianName(value.get().isEmpty() ? null
+                    : parseValue(value, GuardianName::new).orElseThrow());
+        }
+    }
+
+    private void parseGuardianContact(ArgumentMultimap argMultimap, EditPersonDescriptor descriptor)
+            throws ParseException {
+        Optional<String> value = getValue(argMultimap, PREFIX_GUARDIANCONTACT, PREFIX_GUARDIANCONTACT_FULL);
+        if (value.isPresent()) {
+            descriptor.setGuardianContact(value.get().isEmpty() ? null
+                    : parseValue(value, GuardianContact::new).orElseThrow());
+        }
+    }
+
+    private <T> Optional<T> parseValue(Optional<String> value, java.util.function.Function<String, T> constructor)
+            throws ParseException {
+        if (value.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(constructor.apply(value.get()));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
+        }
+    }
+
+    private Optional<Availability> parseAvailability(ArgumentMultimap argMultimap) throws ParseException {
+        Optional<String> availability = getValue(argMultimap, PREFIX_AVAILABILITY, PREFIX_AVAILABILITY_FULL)
+                .or(() -> argMultimap.getValue(PREFIX_AVAILABILITY_LEGACY));
+        if (availability.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String normalizedAvailability = availability.get().replaceAll("\\s", "");
+        if ("true".equalsIgnoreCase(normalizedAvailability)
+                || "available".equalsIgnoreCase(normalizedAvailability)) {
+            return Optional.of(new Availability(Availability.AVAILABLE));
+        }
+        if ("false".equalsIgnoreCase(normalizedAvailability)
+                || "unavailable".equalsIgnoreCase(normalizedAvailability)) {
+            return Optional.of(new Availability(Availability.UNAVAILABLE));
+        }
+        throw new ParseException(MESSAGE_INVALID_AVAILABILITY);
     }
 
     /**
