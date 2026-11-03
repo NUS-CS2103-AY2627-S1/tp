@@ -1,0 +1,154 @@
+package seedu.boothmanagerpro.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.boothmanagerpro.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.boothmanagerpro.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.boothmanagerpro.testutil.Assert.assertThrows;
+import static seedu.boothmanagerpro.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.boothmanagerpro.logic.commands.AddCommand;
+import seedu.boothmanagerpro.logic.commands.ClearCommand;
+import seedu.boothmanagerpro.logic.commands.DeleteCommand;
+import seedu.boothmanagerpro.logic.commands.ExitCommand;
+import seedu.boothmanagerpro.logic.commands.FindCommand;
+import seedu.boothmanagerpro.logic.commands.HelpCommand;
+import seedu.boothmanagerpro.logic.commands.ListCommand;
+import seedu.boothmanagerpro.logic.commands.TagCommand;
+import seedu.boothmanagerpro.logic.commands.UpdateCommand;
+import seedu.boothmanagerpro.logic.commands.ViewCommand;
+import seedu.boothmanagerpro.logic.parser.exceptions.ParseException;
+import seedu.boothmanagerpro.model.person.Name;
+import seedu.boothmanagerpro.model.person.NameContainsKeywordsPredicate;
+import seedu.boothmanagerpro.model.person.Person;
+import seedu.boothmanagerpro.model.person.SortField;
+import seedu.boothmanagerpro.model.tag.Tag;
+import seedu.boothmanagerpro.testutil.PersonBuilder;
+import seedu.boothmanagerpro.testutil.PersonUtil;
+
+public class AddressBookParserTest {
+
+    private final AddressBookParser parser = new AddressBookParser();
+
+    @Test
+    public void parseCommand_add() throws Exception {
+        Person person = new PersonBuilder().withCompany("TechNova").withAddress("Not provided").build();
+        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
+        assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_clear() throws Exception {
+        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " confirm") instanceof ClearCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(ClearCommand.COMMAND_WORD));
+        assertThrows(ParseException.class, () -> parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_delete() throws Exception {
+        DeleteCommand command = (DeleteCommand) parser.parseCommand(
+                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+
+        DeleteCommand commandByName = (DeleteCommand) parser.parseCommand(
+                DeleteCommand.COMMAND_WORD + " Alice Pauline");
+        assertEquals(new DeleteCommand(new Name("Alice Pauline")), commandByName);
+    }
+
+    @Test
+    public void parseCommand_tag() throws Exception {
+        TagCommand commandByIndex = (TagCommand) parser.parseCommand(
+                TagCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " t/vip");
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("vip"))), commandByIndex);
+
+        TagCommand commandByName = (TagCommand) parser.parseCommand(
+                TagCommand.COMMAND_WORD + " Alice Pauline t/vip");
+        assertEquals(new TagCommand(new Name("Alice Pauline"), Set.of(new Tag("vip"))), commandByName);
+    }
+
+    @Test
+    public void parseCommand_update() throws Exception {
+        assertTrue(parser.parseCommand(UpdateCommand.COMMAND_WORD + " 1 n/New Name") instanceof UpdateCommand);
+    }
+
+    @Test
+    public void parseCommand_exit() throws Exception {
+        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
+        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + "   ") instanceof ExitCommand);
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExitCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(ExitCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_find() throws Exception {
+        List<String> keywords = List.of("foo", "bar", "baz");
+        FindCommand command = (FindCommand) parser.parseCommand(
+                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+    }
+
+    @Test
+    public void parseCommand_help() throws Exception {
+        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
+        assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + "   ") instanceof HelpCommand);
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(HelpCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_list() throws Exception {
+        assertEquals(new ListCommand(), parser.parseCommand(ListCommand.COMMAND_WORD));
+        assertEquals(new ListCommand(), parser.parseCommand(ListCommand.COMMAND_WORD + "   "));
+        assertEquals(new ListCommand(SortField.NAME), parser.parseCommand(ListCommand.COMMAND_WORD + " o/name"));
+        assertEquals(new ListCommand(SortField.COMPANY),
+                parser.parseCommand(ListCommand.COMMAND_WORD + " o/company"));
+        assertEquals(new ListCommand(SortField.STATUS),
+                parser.parseCommand(ListCommand.COMMAND_WORD + " o/status"));
+    }
+
+    @Test
+    public void parseCommand_listWithParameters_throwsParseException() {
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_unrecognisedInput_throwsParseException() {
+        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
+            -> parser.parseCommand(""));
+    }
+
+    @Test
+    public void parseCommand_caseInsensitiveCommandWord_success() throws Exception {
+        assertEquals(new ListCommand(), parser.parseCommand("List"));
+        assertEquals(new ListCommand(SortField.NAME), parser.parseCommand("LIST O/name"));
+        assertTrue(parser.parseCommand("Help") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("eXiT") instanceof ExitCommand);
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), parser.parseCommand("DELETE 1"));
+        Person alice = new PersonBuilder().withName("Alice Tan").withCompany("Acme")
+                .withEmail("alice@example.com").withPhone("91234567").withAddress("Not provided").withTags().build();
+        assertEquals(new AddCommand(alice),
+                parser.parseCommand("ADD n/Alice Tan c/Acme e/alice@example.com p/91234567"));
+        assertEquals(new AddCommand(alice),
+                parser.parseCommand("add N/Alice Tan C/Acme E/alice@example.com P/91234567"));
+        assertTrue(parser.parseCommand("Clear Confirm") instanceof ClearCommand);
+        assertTrue(parser.parseCommand("UPDATE 1 S/Completed") instanceof UpdateCommand);
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("vip"))), parser.parseCommand("TAG 1 T/vip"));
+        assertTrue(parser.parseCommand("FIND N/Alicia") instanceof FindCommand);
+        assertEquals(new ViewCommand(new Name("Alicia Tan")), parser.parseCommand("View N/Alicia Tan"));
+    }
+
+    @Test
+    public void parseCommand_unknownCommand_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+}

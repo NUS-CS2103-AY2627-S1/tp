@@ -5,55 +5,55 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Jenna Ng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jennangke.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/jennangke)]
+[[portfolio](team/jennangke.md)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Logic & parser error handling
 
-### Jean Doe
+### Rhineson Kok
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/rhinesonn.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/rhinesonn)]
+[[portfolio](team/rhinesonn.md)]
+
+* Role: Team Lead & Developer
+* Responsibilities: Architecture, UI integration & Developer Guide
+
+### Cedric Cheng
+
+<img src="images/seadrickbug.png" width="200px">
+
+[[github](https://github.com/seadrickbug)]
+[[portfolio](team/seadrickbug.md)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: UI & help system
 
-### James Doe
+### Gerard Lum
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/gerardlke.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://www.linkedin.com/in/gerardlumkaien/)]
+[[github](https://github.com/gerardlke)]
+[[portfolio](team/gerardlke.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Model & data management
+
+### Li Wenze
+
+<img src="images/legned-wenze.png" width="200px">
+
+[[github](https://github.com/legned-wenze)]
+[[portfolio](team/legned-wenze.md)]
+
+* Role: Developer
+* Responsibilities: Storage recovery & state management

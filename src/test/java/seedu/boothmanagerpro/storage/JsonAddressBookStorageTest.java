@@ -1,0 +1,212 @@
+package seedu.boothmanagerpro.storage;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.ALICE;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.HOON;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.IDA;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.boothmanagerpro.commons.exceptions.DataLoadingException;
+import seedu.boothmanagerpro.commons.util.JsonUtil;
+import seedu.boothmanagerpro.model.AddressBook;
+import seedu.boothmanagerpro.model.ReadOnlyAddressBook;
+
+public class JsonAddressBookStorageTest {
+    private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
+
+    @TempDir
+    public Path testFolder;
+
+    @Test
+    public void readAddressBook_nullFilePath_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> readAddressBook(null));
+    }
+
+    private java.util.Optional<ReadOnlyAddressBook> readAddressBook(String filePath) throws Exception {
+        return new JsonAddressBookStorage(Paths.get(filePath)).readAddressBook(addToTestDataPathIfNotNull(filePath));
+    }
+
+    private Path addToTestDataPathIfNotNull(String prefsFileInTestDataFolder) {
+        return prefsFileInTestDataFolder != null
+                ? TEST_DATA_FOLDER.resolve(prefsFileInTestDataFolder)
+                : null;
+    }
+
+    @Test
+    public void read_missingFile_emptyResult() throws Exception {
+        assertFalse(readAddressBook("NonExistentFile.json").isPresent());
+    }
+
+    @Test
+    public void read_notJsonFormat_exceptionThrown() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("notJsonFormatAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_invalidPersonAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("invalidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_invalidAndValidPersonAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_allInOrder_success() throws Exception {
+        Path filePath = testFolder.resolve("TempAddressBook.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        // Save in new file and read back
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+        assertEquals(original, new AddressBook(readBack));
+
+        // Modify data, overwrite existing file, and read back
+        original.addPerson(HOON);
+        original.removePerson(ALICE);
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+        assertEquals(original, new AddressBook(readBack));
+
+        // Save and read without specifying file path
+        original.addPerson(IDA);
+        jsonAddressBookStorage.saveAddressBook(original); // file path not specified
+        readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
+        assertEquals(original, new AddressBook(readBack));
+
+    }
+
+    @Test
+    public void saveAddressBook_differentPath_success() throws Exception {
+        Path configuredPath = testFolder.resolve("configured.json");
+        Path alternatePath = testFolder.resolve("alternate.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(configuredPath);
+
+        storage.saveAddressBook(original, alternatePath);
+
+        ReadOnlyAddressBook readBack = new JsonAddressBookStorage(alternatePath)
+                .readAddressBook().orElseThrow();
+        assertEquals(original, new AddressBook(readBack));
+        assertFalse(Files.exists(configuredPath));
+    }
+
+    @Test
+    public void readAddressBook_lockDirectoryCannotBeCreated_throwsDataLoadingException() throws Exception {
+        Path blockedDirectory = testFolder.resolve(".boothmanagerpro-locks");
+        Files.writeString(blockedDirectory, "file blocks lock directory creation");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("addressbook.json"));
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+    }
+
+    @Test
+    public void read_lockFailureThenRecovery_preservesUnreadContactData() throws Exception {
+        Path dataFile = testFolder.resolve("unread-contacts.json");
+        String original = JsonUtil.toJsonString(
+                new JsonSerializableAddressBook(getTypicalAddressBook()));
+        Files.writeString(dataFile, original);
+        Path blockedDirectory = testFolder.resolve(".boothmanagerpro-locks");
+        Files.writeString(blockedDirectory, "lock directory unavailable");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataFile);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertTrue(storage.isRecoveryPending());
+        assertEquals(original, Files.readString(dataFile));
+        Files.delete(blockedDirectory);
+        storage.saveAddressBook(new AddressBook());
+        try (var files = Files.list(testFolder)) {
+            var backups = files.filter(path -> path.getFileName().toString().contains(".recovery-")).toList();
+            assertEquals(1, backups.size());
+            assertEquals(original, Files.readString(backups.getFirst()));
+        }
+        assertTrue(storage.readAddressBook().orElseThrow().getPersonList().isEmpty());
+    }
+
+    @Test
+    public void saveAndRead_lockFilesStayInsideDataDirectory() throws Exception {
+        Path dataDirectory = testFolder.resolve("data");
+        Path filePath = dataDirectory.resolve("addressbook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(getTypicalAddressBook());
+        Path locks = dataDirectory.resolve(".boothmanagerpro-locks");
+        assertTrue(Files.isDirectory(locks));
+        try (var files = Files.list(locks)) {
+            var lockFiles = files.toList();
+            assertEquals(1, lockFiles.size());
+            assertTrue(lockFiles.getFirst().getFileName().toString().endsWith(".lock"));
+        }
+        assertEquals(getTypicalAddressBook(), storage.readAddressBook().orElseThrow());
+        try (var files = Files.list(locks)) {
+            assertEquals(1, files.count());
+        }
+    }
+
+    @Test
+    public void saveAddressBook_nullAddressBook_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> saveAddressBook(null, "SomeFile.json"));
+    }
+
+    /**
+     * Saves {@code addressBook} at the specified {@code filePath}.
+     */
+    private void saveAddressBook(ReadOnlyAddressBook addressBook, String filePath) {
+        try {
+            new JsonAddressBookStorage(Paths.get(filePath))
+                    .saveAddressBook(addressBook, addToTestDataPathIfNotNull(filePath));
+        } catch (IOException ioe) {
+            throw new AssertionError("There should not be an error writing to the file.", ioe);
+        }
+    }
+
+    @Test
+    public void saveAddressBook_nullFilePath_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> saveAddressBook(new AddressBook(), null));
+    }
+
+    @Test
+    public void saveAddressBook_fileChangedSinceRead_throwsConcurrentDataModificationException() throws Exception {
+        Path filePath = testFolder.resolve("ConcurrentAddressBook.json");
+        JsonAddressBookStorage seedStorage = new JsonAddressBookStorage(filePath);
+        seedStorage.saveAddressBook(new AddressBook());
+
+        JsonAddressBookStorage firstSession = new JsonAddressBookStorage(filePath);
+        JsonAddressBookStorage staleSession = new JsonAddressBookStorage(filePath);
+        firstSession.readAddressBook();
+        staleSession.readAddressBook();
+
+        AddressBook firstSessionData = new AddressBook();
+        firstSessionData.addPerson(ALICE);
+        firstSession.saveAddressBook(firstSessionData);
+
+        AddressBook staleData = new AddressBook();
+        assertThrows(ConcurrentDataModificationException.class, () -> staleSession.saveAddressBook(staleData));
+
+        ReadOnlyAddressBook dataOnDisk = new JsonAddressBookStorage(filePath).readAddressBook().orElseThrow();
+        assertEquals(firstSessionData, new AddressBook(dataOnDisk));
+    }
+
+    @Test
+    public void saveAddressBook_fileDeletedSinceRead_throwsConcurrentDataModificationException() throws Exception {
+        Path filePath = testFolder.resolve("DeletedAddressBook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(new AddressBook());
+        storage.readAddressBook();
+        Files.delete(filePath);
+
+        assertThrows(ConcurrentDataModificationException.class, () ->
+                storage.saveAddressBook(new AddressBook()));
+        assertFalse(Files.exists(filePath));
+    }
+}

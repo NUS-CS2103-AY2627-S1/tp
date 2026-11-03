@@ -3,7 +3,7 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+BoothManagerPro is a desktop contact manager for **convention organisers following up with exhibitors**. Keep contact details, enquiry status, follow-up dates and tags together, then use typed commands to find the contacts you need without scanning spreadsheet rows. Results appear as contact cards or text below the command box. Saved contacts are not shown automatically on startup.
 
 * Table of Contents
 {:toc}
@@ -12,33 +12,61 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+1. Ensure that Java `25` is installed on your computer. You can check this by running `java -version` in your terminal, as described in the [setup guide](SettingUp.md).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download `boothmanagerpro.jar` from the [latest GitHub release](https://github.com/AY2627S1-CS2103T-W11-2/tp/releases/latest). You do not need to download the source code or build the app.
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the JAR file to an empty folder you want to use as the home directory for BoothManagerPro.
+   <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+   Do not place BoothManagerPro in a write-protected directory (e.g. `Program Files` or system root), as the application creates and updates its local data file (`data/addressbook.json`) in the directory it is run from.
+   </div>
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` into the folder containing the JAR file, and launch the application with:
+   ```text
+   java -jar boothmanagerpro.jar
+   ```
+   <div markdown="span" class="alert alert-primary">:bulb: **Note:**
+   Double-clicking the JAR file may not work on certain operating systems or configurations (such as Linux desktop environments or macOS without console associations). Running the command from a terminal is the recommended method.
+   </div>
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
+   Sample contacts are loaded on first launch, but only a ready prompt is shown.
+   Type `list` to show the sample contacts, or `help` to see the available commands.<br>
+   ![Command interface on startup](images/ug-startup.png)
+
+1. Type a command in the command box and press Enter to execute it. For example, type **`help`** (or press **F1**) and press Enter to print command usage instructions.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all contacts. Add `o/name`, `o/company`, or `o/status` to sort them, e.g. `list o/status`.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add n/John Doe c/Example Ltd e/johnd@example.com p/98765432` : Adds an exhibitor contact named `John Doe`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `delete Alex Yeoh` : Deletes the contact named Alex Yeoh.
 
-   * `clear` : Deletes all contacts.
+   * `clear confirm` : Deletes all contacts.
 
    * `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
 
 --------------------------------------------------------------------------------------------------------------------
+
+### Working through commands
+
+* Type a command and press **Enter**. Command words and field prefixes are case-insensitive (for example, `list` or `LIST`, and `n/` or `N/`).
+* The command box starts with keyboard focus. Press **Ctrl+L** on Windows/Linux or **Command+L** on macOS to return to it. Use `help` or **F1** for the guide, and `exit` to close the app.
+* Press **Tab** to complete an unambiguous command word, field prefix, contact method, enquiry status, or list sort
+  field. It also supplies any missing required `add` prefix, `view n/`, `find n/`, `list o/`, or the first `tag t/` after
+  a target. If no completion is available, **Tab** resumes normal focus navigation. When focus returns to the command
+  box, the cursor is placed at the end of your input, so typing continues the command instead of replacing it.
+* Each launch starts with a ready prompt. Saved contacts remain available but are not automatically printed.
+* Results appear in the output area below the command box. `list`, `find`, and `view` show matching contacts as separate cards; other commands and errors show text. Each card shows the enquiry status as a coloured badge beside the name, and the card's left edge uses the same colour: amber for `Needs follow-up`, blue for `In progress`, green for `Completed`, and red for `Cancelled`. Cards are display-only and cannot be clicked or selected; scroll the output area to see more. There is no separate contact-list or details panel.
+* `list` prints every contact with a number and details. `find` prints the match count and numbered matching contacts; it works without running `list` first.
+* `view` prints a matching contact's details or numbered choices. Reply with a number only when `view` asks you to choose.
+* Each command replaces the previous output. The output fills the available space and scrolls for longer results.
+  When no autofill is available, use **Tab** to focus it and the arrow keys to read it; **Ctrl+L** or **Command+L**
+  returns to command entry.
+* For `update INDEX`, `tag INDEX`, and `delete INDEX`, first display the target using `list`, `find`, or `view`. If a command, help, or error replaces those results, display them again before using an index. A successful `add`, `update`, or `tag` resets the filter; deleting a contact shifts later indices. You can also target a contact by its full name.
+* Company and contact method show `Not specified` when absent. Tags appear in saved order, with `None` for an empty tag set. Postal addresses are not used when adding exhibitor contacts.
 
 ## Features
 
@@ -55,96 +83,365 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 * Items followed by `…`​ can appear zero or more times.<br>
   For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
 
-* Parameters can be in any order.<br>
+* Command words and field prefixes are case-insensitive.<br>
+  For example, `List`, `ADD n/Alice Tan ...`, and `add N/Alice Tan C/Acme ...` are all accepted.
+
+* Prefixed fields can be in any order.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Extraneous parameters are rejected across all commands.<br>
+  For example, `help 123`, `exit 123`, and `list 123` all show an invalid command format error (`list` accepts only an optional `o/name`, `o/company`, or `o/status`).
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
-
-![help message](images/helpMessage.png)
+Prints every command's description, format, example, and the User Guide link in the text output area. This includes
+optional fields and features such as list sorting, follow-up-date searches, status updates, field clearing, and tag
+toggling. It also summarizes displayed-index targeting and the **Tab**, **F1**, and **Ctrl+L**/**Command+L** keyboard
+controls. You can also press **F1** to open it. Keyboard focus stays in the command box.
 
 Format: `help`
 
 
-### Adding a person: `add`
+### Adding an exhibitor contact: `add`
 
-Adds a person to the address book.
+Adds an exhibitor or representative with a required company, email, and phone number.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add n/NAME c/COMPANY e/EMAIL p/PHONE [m/METHOD] [s/STATUS] [f/YYYYMMDD] [t/TAG]...`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+| Field | Rules |
+| --- | --- |
+| `n/NAME` | 1-80 characters; at least one letter. Allows letters, digits, spaces, hyphens, apostrophes (`'` and `’`, stored as `'`), full stops, commas, parentheses, `@`, and `s/o`, `d/o`, `a/l`, or `a/p` between words. |
+| `c/COMPANY` | 1-100 characters; cannot be blank. Supports common business slash abbreviations such as `d/b/a`, `c/o`, `S/B`, `P/L`, `I/O`, `A/B`, and `M/s`. `t/` (including `T/`) always starts a tag; write `trading as` instead of `t/a` in a company name. |
+| `e/EMAIL` | A conventional unquoted email address, up to 254 characters with a local part up to 64 characters. The local part starts and ends with a letter or digit and may use <code>! # $ % &amp; ' * + / = ? ^ _ &#96; { &#124; } ~ . -</code> individually between letters or digits. Quoted addresses and other uncommon mailbox formats are not supported. Stored in lowercase. |
+| `p/PHONE` | 7-15 digits, optionally starting with `+`. Single spaces are allowed between digit groups; consecutive spaces and other punctuation are rejected. Example: `+65 9123 4567`. |
+| `m/METHOD` | Optional: `email`, `phone`, or `other`, ignoring case. Omitted method is `Not specified`. |
+| `s/STATUS` | Optional: `Needs follow-up` (default), `In progress`, `Completed`, or `Cancelled`, ignoring case. |
+| `f/YYYYMMDD` | Optional calendar date, e.g. `20261025`; omitted date displays as `None`. Years 0001-9999; invalid dates are rejected. |
+| `t/TAG` | Optional and repeatable: 1-30 characters, nonblank, without `/`. Consecutive spaces are collapsed; comparisons are case-insensitive while preserving the first supplied casing. |
+
+Leading and trailing spaces are removed from field values. Repeated whitespace in names, including pasted tabs and line breaks, becomes a single space. Fields can appear in any order. Only `t/` may repeat. Dates contain no time or timezone; past dates are accepted. Omit `f/` for no date (do not enter `f/none`). Status does not advance automatically. `add` does not accept a postal address (`a/`).
+
+Examples (enter each command on one line):
+
+```text
+add n/Alicia Tan c/TechNova Pte Ltd e/alicia@technova.com p/91234567 m/email t/technology t/high-priority
+add n/Ben Lim c/GreenWorks e/BEN@example.com p/+65 8765 4321 s/In progress f/20261025
+add n/Chloe Ng c/ExpoWorks e/chloe%expo@example.com p/87654321
+```
+
+The first command displays:
+
+```text
+Added Alicia Tan at TechNova Pte Ltd.
+```
+
+![Add command confirmation](images/ug-add.png)
+
+*The confirmation shows that Alicia Tan was added. The command box is cleared for the next command.*
+
+After a successful add:
+
+* Any previous filter is cleared. The output shows the addition confirmation.
+* Use `view n/NAME` to print the saved details, or `list` to print all contacts.
+* The command box clears and keeps keyboard focus, ready for the next command.
+
+The second example stores the email in lowercase as `ben@example.com` and the phone as `+65 8765 4321`. A subsequent `view n/Ben Lim` shows `Not specified` for the omitted method and `None` for an empty tag set. The third example demonstrates `%`, one of the supported email local-part characters.
+
+If validation or duplicate detection fails, the typed command remains available for correction. No contact is added.
+
+**Duplicate handling**
+
+A contact is rejected if any stored contact has the same normalised email, or the same name and company ignoring case. Names and company names are stored after surrounding whitespace is removed and consecutive spaces (including tabs and newlines in company names) are collapsed, and curly apostrophes (`’`) in names are normalised to straight apostrophes (`'`), so `Chloe Ng` and `chloe  ng` or `O’Neil` and `O'Neil` are treated as the same name, and `TechNova  Pte Ltd` and `TechNova Pte Ltd` are treated as the same company. This includes contacts hidden by the current search. Sharing only a name or company is allowed if the email is different. Contacts saved without a company are compared by email only. Company punctuation is significant: `Acme Pte. Ltd.` and `Acme Pte Ltd` are different company names, so check for spelling variants before adding a contact.
+
+For a match against Alicia's record above:
+
+```text
+This contact may already exist: Alicia Tan at TechNova Pte Ltd.
+Use the update command if you want to change the existing contact.
+```
+
+If the email matches one record and the name/company matches another, both conflicting contacts are listed with their emails. No contact is added; correct the input before retrying.
+
+**Correcting input errors**
+
+An error identifies missing, repeated, empty or invalid fields. Correct the command retained in the input box and press Enter again. Required fields are `n/`, `c/`, `e/` and `p/`; only `t/` can repeat. For example, `Empty field: c/. Supply a value after this prefix.` means that you need to enter a company after `c/`.
+
+Use the field rules above to correct invalid values. Rejected input does not add a contact. If a duplicate is reported, check the existing contact before using `update`.
+| Problem | Feedback |
+| --- | --- |
+| Missing required prefixes (example: company and email) | `Missing required fields: c/, e/. Supply a value after each prefix.` |
+| Repeated fields (example: name and phone) | `Repeated fields: n/, p/. Keep one value per field; only t/ may repeat.` |
+| Unknown prefix (example: `x/`) | `Unknown field prefix: x/. Use n/, c/, e/, p/, m/, s/, f/, or t/.` |
+| Text before the first prefix | `Unexpected text before the first field.` followed by a complete example command. |
+| Empty field (example: `c/`) | `Empty field: c/. Supply a value after this prefix.` |
+| Invalid name | `Invalid value for n/: Names must be 1 to 80 characters and contain a letter. Use only letters, digits, spaces, hyphens, apostrophes, full stops, commas, parentheses, @, or s/o, d/o, a/l and a/p between words.` |
+| Invalid company | `Invalid value for c/: Company name must contain 1 to 100 characters.` |
+| Invalid email | `Invalid value for e/: Email address is invalid. Use a conventional unquoted address; run help and follow the User Guide for supported email formats.` |
+| Phone with consecutive spaces or punctuation other than a leading `+`, e.g. `9123  4567`, `9123-4567`, or `(65)91234567` | `Invalid value for p/: Phone number can only contain digits, single spaces between digit groups, and an optional leading +. Example: +65 9123 4567.` |
+| Phone with too few or too many digits | `Invalid value for p/: Phone number must contain 7 to 15 digits, optionally starting with +. Single spaces are allowed between digit groups. Example: +65 9123 4567.` |
+| Invalid method | `Invalid value for m/: Contact method must be email, phone, or other.` |
+| Invalid status | `Invalid value for s/: Enquiry status must be Needs follow-up, In progress, Completed, or Cancelled.` |
+| Invalid date | `Invalid value for f/: Follow-up date must be a valid date in YYYYMMDD format (years 0001 to 9999), e.g. 20261025.` |
+| Invalid tag | `Invalid value for t/: Tag must be 1 to 30 characters and cannot contain '/'.` |
+
+Each missing-field or repeated-field error lists all affected prefixes in n/, c/, e/, p/, m/, s/, f/ order. A present but empty field is reported separately from a missing prefix. Words between prefixes belong to the preceding field; prefix-like tokens are reserved. If several errors occur, unknown prefixes/preamble are checked first, then repeated fields, then missing prefixes, then values in n/, c/, e/, p/, m/, s/, f/, t/ order. Invalid input and duplicates do not add a contact.
+
+### Listing all exhibitor contacts: `list`
+
+Shows every stored exhibitor contact with its name, company, email, phone, preferred contact method, enquiry status, follow-up date, and tags,
+followed by the total number of contacts. You can optionally sort the list by name, company, or enquiry status.
+
+Format: `list`, `list o/name`, `list o/company`, or `list o/status`
+
+* `list` with no parameters shows contacts in the order they were added.
+* `list o/name` sorts contacts alphabetically by name. Contacts with the same name are ordered by company, then by email.
+* `list o/company` sorts contacts alphabetically by company, and by name within the same company.
+  Contacts without a company (possible in saved data) appear last.
+* `list o/status` sorts contacts by enquiry status in workflow order: `Needs follow-up` first, then `In progress`,
+  then `Completed`, then `Cancelled`, so the contacts you still need to act on come first. Contacts with the same status are ordered by name.
+* Sorting uses locale-aware collation: accented names such as `Ángel` and `Élodie` sort with A and E, before `Zoe`. Sorting ignores upper and lower case, so `alicia tan` and `Alicia Tan` sort together. The sort field itself is also
+  case-insensitive: `o/Name` works like `o/name`.
+* Sorting changes only the displayed order, not the saved data. The numbers shown follow the sorted order, so
+  `list o/name` followed by `delete 1` deletes the first contact alphabetically.
+* The sort order stays in effect for later `find` results and after `add`, `update`, or `tag`, until you run `list` with no parameters again.
+* Only one `o/` is allowed. Anything else, such as `list 3`, `list o/email`, or `list o/name o/company`, is rejected with an explanation.
+* `list` shows numbered contact cards in the output area, followed by the total. With no contacts, it prints the no-contacts message below.
+* Any filter left by a previous `find` or `view` command is cleared, so all contacts are shown again.
+* Tags are shown in the order they are stored. An omitted contact method or a company missing from saved
+  data is shown as `Not specified`. Contacts without tags show `None`.
+
+Example: `list`
+
+```text
+Exhibitor Contact List
+──────────────────────────────────────
+
+1. Alicia Tan at TechNova Pte Ltd
+Email: alicia@technova.com
+Phone: 91234567
+Contact method: email
+Enquiry status: Needs follow-up
+Follow-up date: None
+Tags: technology, high-priority
+
+2. Ben Lim at GreenWorks
+Email: ben@example.com
+Phone: +65 8765 4321
+Contact method: Not specified
+Enquiry status: In progress
+Follow-up date: 25 Oct 2026
+Tags: None
+
+──────────────────────────────────────
+Total contacts: 2
+```
+
+Example: `list o/company` shows the same contacts ordered by company, with the heading
+`Exhibitor Contact List (sorted by company)`. With the contacts above, Ben Lim (GreenWorks) is listed
+before Alicia Tan (TechNova Pte Ltd).
+
+If there are no stored contacts:
+
+```text
+No contacts found.
+Use the 'add' command to add a new exhibitor contact.
+```
+
+![List command showing numbered contact cards and a total count](images/ug-list.png)
+
+### Viewing an exhibitor contact: `view`
+
+Shows the chosen contact's details as a card in the command output area.
+
+Format: `view n/NAME`
+
+* Matching follows unprefixed `find KEYWORD`: case-insensitive whole-name keywords, matching **any** supplied keyword. Patronymic markers (`s/o`, `d/o`, `a/l`, and `a/p`) connect words in a name and do not act as standalone keywords, so `view n/Raj s/o Kumar` matches contacts with `Raj` or `Kumar` without matching unrelated contacts containing `s/o`.
+  For example, `view n/rhineson` matches both `rhineson` and `rhineson kok`; `rhin` does not match `rhineson`.
+* Names must contain 1 to 80 characters and at least one letter. Letters, digits, spaces, hyphens, apostrophes,
+  full stops, commas, parentheses, `@`, and `s/o`, `d/o`, `a/l`, or `a/p` between words are supported, for example `Anne-Marie O'Neil` or `Raj s/o Kumar`.
+* Searches all stored contacts, including those hidden by a previous `find` command.
+* If several contacts match, the output lists numbered choices with their companies and asks you to choose.
+  Enter the corresponding number as your next command, for example `2`.
+  Choices follow the current sort order (for example, after `list o/company`), so each number is also that contact's
+  index for `update`, `tag`, and `delete`.
+  The output is replaced with the chosen contact's details. A single match displays details immediately.
+* If exactly one contact's full name equals `NAME`, ignoring case and extra spaces, that contact's details are shown
+  immediately, even when other names share a word. For example, `view n/Alex Yeo` shows `Alex Yeo` directly
+  instead of also listing `Alex Yeoh`; `view n/Alex` still lists both.
+* An invalid number shows the valid range followed by the numbered choices again, and lets you try again. Opening `help` (or pressing **F1**) shows the help guide with the pending numbered choices kept at the bottom so you can still reply with a number. Any other successfully parsed command cancels the pending choice, even if execution fails. A command with invalid syntax leaves the choice pending. Cancelling a choice clears its prompt; a subsequent bare number is no longer a selection reply.
+* Only `n/` is accepted. Repeated names, other prefixes, missing/invalid names, and unprefixed requests are rejected.
+  A name without `n/`, such as `view alex`, shows `view needs the n/ prefix before the name. Use: view n/NAME, e.g. view n/Alicia Tan`;
+  `view n/` with no name shows `Name cannot be empty. Use: view n/NAME, e.g. view n/Alicia Tan`.
+* No match produces an error and keeps the current filter unchanged.
+* Viewing does not change saved data. It filters the current index set to the matches; use `list` to print everyone again. A unique match has index `1`.
+* An omitted contact method or a company missing from saved data is shown as `Not specified`.
+  Contacts without tags show `None`.
+
+Example: `view n/Alicia Tan`
+
+```text
+Exhibitor contact found:
+Alicia Tan at TechNova Pte Ltd
+Email: alicia@technova.com
+Phone: 91234567
+Contact method: email
+Enquiry status: Needs follow-up
+Follow-up date: None
+Tags: technology, high-priority
+```
+
+Create these records with `add n/NAME c/COMPANY e/EMAIL p/PHONE [m/METHOD] [s/STATUS] [f/YYYYMMDD] [t/TAG]...`.
+
+![View command showing a matching exhibitor contact](images/ug-view.png)
+
+### Updating an exhibitor contact: `update`
+
+Updates only the supplied attributes. All values follow the rules in [Adding an exhibitor contact](#adding-an-exhibitor-contact-add).
+
+Format: `update NAME_OR_INDEX [n/NAME] [c/COMPANY] [e/EMAIL] [p/PHONE] [m/METHOD] [s/STATUS] [f/YYYYMMDD] [t/TAG]...`
+
+- Use an exact full name, ignoring case. Name lookup includes contacts hidden by a filter.
+- If names conflict, run `list` or `find` and use the displayed index: `update 2 s/In progress`. This is a current list position, not a permanent contact ID or a numbered view reply.
+- Supply at least one field. Omitted attributes stay unchanged. `n/` changes the name; the text before the first prefix selects the original contact.
+- Only `t/` may repeat. Supplied tags replace existing tags, with duplicates ignored in input order. Empty `t/` clears tags; do not combine it with nonempty tags.
+- Empty `m/` clears the preferred contact method back to `Not specified`; empty `f/` clears the date. Other blank fields are rejected. Status may be changed to any of the four supported values; there is no enforced transition order.
+- Unknown prefixes, invalid values, missing/ambiguous targets, and duplicate email or name/company combinations are rejected without changing contacts or saved data. Duplicate checks include hidden contacts.
+- Don't put `n/` before the contact: `update n/Alicia Tan s/Completed` shows `Don't include n/ for update. Use: update NAME_OR_INDEX FIELD... (n/ only sets a new name, e.g. update Alicia Tan n/Alicia Lim)`.
+- An index of `0` or below shows `Index must be a positive integer.`; a leading `+` such as `+1` shows `Index must be an unsigned positive integer (e.g. 1, not +1).`; an index too large to be a list position, such as `99999999999999` or `+99999999999999`, shows `Index is too large. Use a number shown in the current list, find or view results.`
+- Success prints `Updated NAME at COMPANY.`, clears the filter and command input, and retains keyboard focus. Run `list` or `find` before reusing an index, or `view n/NAME` to check details.
+- Supplying only existing values reports `No changes made: NAME at COMPANY already has the supplied values.` It keeps the current filter, sort order, and command input, and does not save to disk. Changes to displayed casing or tag order still count as updates.
+- Updating contact details does not change any postal address saved in the data file.
+
+```text
+update Alicia Tan p/+65 9876 5432 m/phone s/In progress f/20261025
+update Alicia Tan n/Alicia Lim c/New Company
+update 2 s/Completed m/ f/ t/
+update Alicia Tan s/Cancelled
+```
+
+### Updating contact tags: `tag`
+
+Toggles one or more tags on a contact: each supplied tag that is not yet on the contact is added, and each supplied tag that already exists on the contact is removed.
+
+Format: `tag NAME_OR_INDEX t/TAG [t/TAG]...`
+
+- Use an exact full name, ignoring case, or a displayed index from `list`, `find`, or `view` (`tag 2 t/vip`). Name lookup includes contacts hidden by a filter; ambiguous names require a displayed index.
+- Supply at least one nonblank `t/TAG` field (`1-30` characters, without `/`). Repeated identical `t/TAG` values in the same command are ignored in input order.
+- Tag matching is case-insensitive, consistent with `add`, `update`, and `find`: `t/VIP` and `t/vip` refer to the same tag, and consecutive internal spaces are collapsed.
+- Only `t/` is accepted. Unknown prefixes, missing or blank `t/`, and invalid targets are rejected without changing contacts, filters, or saved data.
+- Don't put `n/` before the contact: `tag n/Alicia Tan t/vip` shows `Don't include n/ for tag. Use: tag NAME_OR_INDEX t/TAG [t/TAG]...`. Invalid indexes show the same messages as [`update`](#updating-an-exhibitor-contact-update).
+- Success prints the exact tag changes made (`Updated tags for NAME at COMPANY. Added: .... Removed: .... Current tags: ....`), clears the filter and command input, and retains keyboard focus. All other contact attributes remain unchanged.
+
+```text
+tag Alicia Tan t/sponsor t/high-priority
+tag 1 t/technology t/keynote
+```
+
+### Finding and filtering contacts: `find`
+
+Use prefixed criteria to match a complete name or a whole name word, full or partial company/email/phone values, and complete method, status, tag, or follow-up date values:
+
+Format: `find [n/NAME] [c/COMPANY] [e/EMAIL] [p/PHONE] [m/METHOD] [s/STATUS] [t/TAG] [f/YYYYMMDD]...`
+
+* Supply at least one non-empty criterion. Phone search values accept 1 to 15 digits with an optional leading `+` and single spaces between digit groups, for example `find p/+65 9123`; other punctuation is not accepted. Email search values accept full or partial email addresses and domains (such as `@technova.com`).
+* Names, companies, emails, methods, statuses, and tags ignore case and surrounding whitespace. Permitted spaces in phone searches are ignored during substring matching.
+* Name criteria (`n/`) match a complete name or a single whole name word, ignoring case and repeated spaces.
+  For example, `find n/Alex` matches `Alex Yeo` and `Alex Yeoh`, but not `Alexandra Tan`.
+  A multi-word value such as `n/Alex Yeo` must match the complete name.
+* Name, company, and tag searches use Unicode-aware case-insensitive matching. For example, `find n/ipek`
+  matches the word `İpek`, and `find c/οσ` matches `ΟΣ` or `ΟΣ Labs`.
+* Repeat a prefix for alternatives (OR). Different fields must all match (AND).
+* Tags match complete tag names; any matching tag satisfies that field.
+* Duplicate criteria have no effect. Results always search all stored contacts, not just the current displayed list.
+* Unknown prefixes and empty/invalid values are rejected without changing the filter or stored contacts.
+* `find` prints the number of matches followed by each matching contact's number, name, company, email, phone, method, enquiry status, follow-up date, and tags. No preliminary `list` command is needed.
+* With no matches, it prints `0 contact(s) found.` and no contact details.
+* Company (`c/`), email (`e/`), and phone (`p/`) match full or partial values (for example, `find c/TechNova` matches `TechNova Solutions`, `find e/@technova.com` matches any `@technova.com` address, and `find p/8743` matches `87438807` or `+6587438807`). Contacts saved without a company do not match `c/`.
+* Contact method (`m/`) matches `email`, `phone`, or `other` (ignoring case); contacts without a specified contact method do not match `m/`.
+* Enquiry status (`s/`) matches `Needs follow-up`, `In progress`, `Completed`, or `Cancelled` (ignoring case).
+* Follow-up date (`f/`) matches the exact stored calendar date in `YYYYMMDD` format, using the same date validation as `add` and `update`. Contacts without a follow-up date do not match. Past dates are accepted; date ranges and overdue searches are not supported.
+* Repeat `f/` to match any of the supplied dates (OR), or combine it with another field to require both (AND). An empty `f/` is invalid in `find`; it does not search for contacts without dates. Invalid dates are rejected without changing the existing results or saved data.
+* To find contacts scheduled for today, supply today's date explicitly, for example `find f/20261029` on 29 October 2026. This matches that date only; it does not include earlier dates or check enquiry status.
+* `list` restores all contacts. A result count of zero means no contacts matched.
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
 
-### Listing all persons: `list`
+* `find n/Alicia Tan` matches the complete name; `find n/Alicia` matches any contact with the whole name word `Alicia`.
+* `find n/Alicia Tan n/Ben Lim t/technology` finds either named contact if it also has the `technology` tag.
+* `find e/@technova.com p/9123` finds contacts with a `@technova.com` email whose phone contains `9123`.
+* `find c/TechNova s/In progress m/email` finds contacts at companies containing `TechNova` whose enquiry is in progress and whose contact method is `email`.
+* `find t/technology t/food` returns contacts tagged with either label.
+* `find f/20261025` returns contacts whose follow-up date is 25 October 2026.
+* `find f/20261025 f/20261026 t/high-priority` returns high-priority contacts due on either date.
+* `update Alicia Tan f/20261028`, then `find f/20261028`, changes Alicia's date using the existing update command and finds contacts due on the new date. Use `update Alicia Tan f/` to clear her date; she will no longer match any date criterion.
 
-Shows a list of all persons in the address book.
+#### Using the numbers in search results
 
-Format: `list`
+The numbers shown by `find` refer to the current results, not to permanent contact IDs.
+For example, after `find n/Alicia`, `delete 1` deletes the first contact in those results,
+even if that contact had a different number in an earlier `list` output.
 
-### Editing a person: `edit`
+* Read the latest output before using a number with `update`, `tag`, or `delete`.
+* Run `list` again if you want to choose from all contacts in the order they were added. To sort the full list,
+  use `list o/name`, `list o/company`, or `list o/status`, then read the newly displayed numbers.
+* After another search or sort, use the newly displayed numbers rather than numbers copied from older output.
+* An empty result set has no valid contact index; use another `find` or `list` before an index-based action.
 
-Edits an existing person in the address book.
+#### Searching by name keywords
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
-
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
-
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
-
-### Locating persons by name: `find`
-
-Finds persons whose names contain any of the given keywords.
+Finds contacts whose names contain any of the given keywords.
 
 Format: `find KEYWORD [MORE_KEYWORDS]`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
+* The search is case-insensitive; for example, `alicia` matches `Alicia`.
+* Keyword order does not matter; `Alicia Tan` and `Tan Alicia` use the same keywords.
 * The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* Only full words match; for example, `Ali` does not match `Alicia`.
+* Contacts matching at least one keyword are returned (an `OR` search). After adding Alicia Tan and Ben Lim using the examples above, `find Alicia Ben` finds both contacts. Patronymic markers `s/o`, `d/o`, `a/l`, and `a/p` do not act as standalone keywords, so `find Raj s/o Kumar` searches for `Raj` and `Kumar` without matching every contact containing `s/o`.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
 
-### Deleting a person: `delete`
+* `find Alicia` finds Alicia Tan after you add her using the example above.
+* `find Alicia Ben` finds both example contacts. Matches are shown as numbered cards in the output area.
 
-Deletes the specified person from the address book.
+![Find command showing two numbered name matches](images/ug-find.png)
 
-Format: `delete INDEX`
+### Deleting an exhibitor contact: `delete`
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+Deletes the specified contact.
+
+Format: `delete NAME` or `delete INDEX`
+
+* `NAME` must be the contact's full name (matching is case-insensitive); do not include `n/`.
+* Name deletion searches all stored contacts, including contacts hidden by a filter. Success feedback includes company and contact method.
+* A partial name does not match. For example, `delete Alex` does not match `Alex Yeoh`.
+* If no contact has the supplied name, no contact is deleted and an error is shown.
+* If multiple contacts match the supplied name ignoring letter case, no contact is deleted. Use `list`, optionally followed by `find`,
+  then delete the intended contact by its displayed index.
+* Alternatively, deletes the contact at the specified `INDEX`.
+* The index refers to the index number shown in the current numbered command results.
+* The index **must be an unsigned positive integer** 1, 2, 3, …​ `delete 0` or `delete -1` shows `Index must be a positive integer.`, `delete +1` shows `Index must be an unsigned positive integer (e.g. 1, not +1).`, an index too large to be a list position, such as `delete 99999999999999`, shows `Index is too large. Use a number shown in the current list, find or view results.`, and multiple indices such as `delete 1 2` show `Specify only one displayed index at a time.`
+* Don't include field prefixes: `delete n/Alex Yeoh` shows `Don't include n/ for delete. Use: delete NAME or delete INDEX`, and other prefixes such as `delete 1 t/vip` show `Unexpected field prefix: t/. Use: delete NAME or delete INDEX`. Invalid names show the standard name constraint message.
+* A successful deletion identifies the deleted contact in the feedback and saves the updated contact list automatically.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
 
-### Clearing all entries: `clear`
+* `delete Alex Yeoh` deletes the contact named Alex Yeoh.
+* `list` followed by `delete 2` deletes the 2nd contact in the contact list.
+* After adding Alicia Tan using the example above, `find Alicia` followed by `delete 1` deletes her contact. Check the displayed results before deleting.
 
-Clears all entries from the address book.
+![Delete command confirming the removal of Ben Lim](images/ug-delete.png)
 
-Format: `clear`
+### Clearing all entries: `clear confirm`
+
+Deletes all stored contacts, including those hidden by a filter. To prevent accidental deletion of all data, confirmation is required.
+
+Format: `clear confirm`
+
+* Running `clear` without `confirm` does not delete any contacts and prompts you to type `clear confirm`.
 
 ### Exiting the program: `exit`
 
@@ -154,34 +451,57 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+BoothManagerPro automatically saves data after successful `add`, `update`, `tag`, `delete`, and `clear`
+commands. Read-only commands such as `list`, `find`, `view`, `help`, and `exit` do not write the data file. You do
+not need to save manually. If saving fails, the in-memory change is rolled back and an error appears.
+
+If the data file changes after a BoothManagerPro window loads it, that window refuses to save stale data. Restart
+that window to load the latest contacts before retrying the command. This prevents an older window from silently
+overwriting work saved by another window or process.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+By default, BoothManagerPro saves data as `data/addressbook.json`, relative to the folder from which you launch the app. Close the app before editing or replacing this file so that a running session does not overwrite your changes.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If your changes make the data file invalid, BoothManagerPro starts with an empty contact collection and shows a loading-failure warning. Read-only commands such as `list`, `find`, `help`, and `exit` leave the file untouched. Before a command that changes contacts (such as `add` or `clear confirm`) saves new data, the original file is copied to a unique backup beside it, named `addressbook.json.recovery-<unique suffix>.json`. Existing backups are not replaced. If this backup cannot be created, saving is blocked and an error is shown.<br>
+To recover contacts, close BoothManagerPro first. Keep a separate copy of the recovery backup, repair the invalid values, and restore the repaired contents to `data/addressbook.json` before restarting. Backups are not loaded automatically. We still recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause BoothManagerPro to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
 
-### Archiving data files `[coming in v2.0]`
+#### Recovering from a loading-failure warning
 
-_Details coming soon ..._
+An empty contact list after a loading error does not mean the original file was empty.
+If you expected existing contacts, preserve the file before making further changes:
+
+1. Close all BoothManagerPro windows using the same data folder.
+2. Copy `data/addressbook.json` and any `.recovery-` backups to a separate folder. Keep these copies unchanged.
+3. If a recovery backup exists, work on a copy of it. Otherwise, work on a copy of the original file.
+   A backup is created before the next save, not immediately when the loading warning appears.
+4. Repair the invalid data in that working copy, or use a known-good backup. A recovery backup preserves the
+   unreadable bytes; it does not automatically repair them.
+5. Put the repaired or known-good contents in `data/addressbook.json`, then restart BoothManagerPro.
+6. Run `list` and check the expected contacts and their details. Keep the untouched copies until you are satisfied.
+
+If the loading warning remains, close the app and recheck the working copy. Repeatedly adding contacts does not
+restore the old collection, and `clear confirm` clears the collection rather than recovering it.
+
+### Planned features [Coming soon]
+
+Reminders, data archiving, CSV import/export, and undo remain planned for future iterations. Exact follow-up-date search is available through `find f/YYYYMMDD`.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
+**Q**: Why does double-clicking `boothmanagerpro.jar` not open the application?<br>
+**A**: Certain operating systems (or configurations without Java desktop associations) do not execute JAR files on double-click. Open a terminal, navigate to the folder containing the JAR, and run `java -jar boothmanagerpro.jar`.
+
+**Q**: Where does BoothManagerPro store contact data?<br>
+**A**: BoothManagerPro stores contacts in `data/addressbook.json` in the folder from which you run the application. Ensure that folder is not write-protected.
+
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
-
---------------------------------------------------------------------------------------------------------------------
-
-## Known issues
-
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+**A**: Close BoothManagerPro on both computers. Copy `data/addressbook.json` from the old launch folder into the new launch folder's `data` directory, backing up any existing file first. Start the app from the new folder and run `list` to check your contacts.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +509,13 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
+**Add** | `add n/NAME c/COMPANY e/EMAIL p/PHONE [m/METHOD] [s/STATUS] [f/YYYYMMDD] [t/TAG]...` <br> e.g., `add n/James Ho c/Example Ltd e/jamesho@example.com p/22224444 m/phone t/technology`
+**Clear** | `clear confirm`
+**Delete** | `delete NAME` or `delete INDEX`<br> e.g., `delete Alex Yeoh`
+**Update** | `update NAME_OR_INDEX [n/NAME] [c/COMPANY] [e/EMAIL] [p/PHONE] [m/METHOD] [s/STATUS] [f/YYYYMMDD] [t/TAG]...`<br> e.g., `update Alicia Tan s/Completed f/`
+**Tag** | `tag NAME_OR_INDEX t/TAG [t/TAG]...`<br> e.g., `tag Alicia Tan t/high-priority t/sponsor`
+**Find** | `find [n/NAME] [c/COMPANY] [e/EMAIL] [p/PHONE] [m/METHOD] [s/STATUS] [t/TAG] [f/YYYYMMDD]...` or `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find f/20261025 t/high-priority`
+**List** | `list`, `list o/name`, `list o/company`, or `list o/status`<br> e.g., `list o/status`
+**View** | `view n/NAME`<br> e.g., `view n/Alicia Tan`; reply `2` if prompted to choose between matches
 **Help** | `help`
+**Exit** | `exit`

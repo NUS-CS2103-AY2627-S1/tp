@@ -1,0 +1,254 @@
+package seedu.boothmanagerpro.logic;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static seedu.boothmanagerpro.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static seedu.boothmanagerpro.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.boothmanagerpro.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
+import static seedu.boothmanagerpro.logic.commands.CommandTestUtil.NAME_DESC_AMY;
+import static seedu.boothmanagerpro.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.boothmanagerpro.testutil.Assert.assertThrows;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.AMY;
+
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.boothmanagerpro.logic.commands.AddCommand;
+import seedu.boothmanagerpro.logic.commands.CommandResult;
+import seedu.boothmanagerpro.logic.commands.ListCommand;
+import seedu.boothmanagerpro.logic.commands.UpdateCommand;
+import seedu.boothmanagerpro.logic.commands.exceptions.CommandException;
+import seedu.boothmanagerpro.logic.parser.exceptions.ParseException;
+import seedu.boothmanagerpro.model.Model;
+import seedu.boothmanagerpro.model.ModelManager;
+import seedu.boothmanagerpro.model.ReadOnlyAddressBook;
+import seedu.boothmanagerpro.model.UserPrefs;
+import seedu.boothmanagerpro.model.person.Person;
+import seedu.boothmanagerpro.storage.JsonAddressBookStorage;
+import seedu.boothmanagerpro.storage.JsonUserPrefsStorage;
+import seedu.boothmanagerpro.storage.StorageManager;
+import seedu.boothmanagerpro.testutil.IntegrationTestFixture;
+import seedu.boothmanagerpro.testutil.PersonBuilder;
+
+public class LogicManagerTest {
+    private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
+    private static final IOException DUMMY_AD_EXCEPTION = new AccessDeniedException("dummy access denied exception");
+
+    @TempDir
+    public Path temporaryFolder;
+
+    private Model model = new ModelManager();
+    private Logic logic;
+
+    @BeforeEach
+    public void setUp() {
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        logic = IntegrationTestFixture.createLogic(model, addressBookStorage,
+                temporaryFolder.resolve("userPrefs.json"));
+    }
+
+    @Test
+    public void execute_invalidCommandFormat_throwsParseException() {
+        String invalidCommand = "uicfhmowqewca";
+        assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
+    }
+
+    @Test
+    public void execute_commandExecutionError_throwsCommandException() {
+        String deleteCommand = "delete 9";
+        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void execute_validCommand_success() throws Exception {
+        String listCommand = ListCommand.COMMAND_WORD;
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_EMPTY, model);
+    }
+
+    @Test
+    public void execute_storageThrowsIoException_throwsCommandException() {
+        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_readOnlyCommandsWhileRecoveryPending_doNotSave() throws Exception {
+        model.addPerson(AMY);
+        StorageManager recoveringStorage = new StorageManager(
+                new JsonAddressBookStorage(temporaryFolder.resolve("contacts.json")),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))) {
+            @Override
+            public boolean isAddressBookRecoveryPending() {
+                return true;
+            }
+
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook data) {
+                throw new AssertionError("A read-only command must not save the address book");
+            }
+        };
+        logic = new LogicManager(model, recoveringStorage);
+        for (String command : java.util.List.of("list", "list o/name", "find Amy", "view n/Amy Bee", "help",
+                "exit")) {
+            logic.execute(command);
+        }
+    }
+
+    @Test
+    public void execute_saveFails_restoresContactsAndDisplayedOrder() {
+        assertSaveFailureRestoresContactsAndOrder(false);
+    }
+
+    @Test
+    public void execute_saveFails_restoresContactsAndSortedOrder() {
+        assertSaveFailureRestoresContactsAndOrder(true);
+    }
+
+    private void assertSaveFailureRestoresContactsAndOrder(boolean sorted) {
+        Person zoe = new PersonBuilder().withName("Zoe Tan").withEmail("zoe@example.com").build();
+        Person amy = new PersonBuilder().withName("Amy Tan").withEmail("amy@example.com").build();
+        model.addPerson(zoe);
+        model.addPerson(amy);
+        if (sorted) {
+            model.updateSortedPersonList(java.util.Comparator.comparing(person -> person.getName().fullName));
+        }
+        java.util.List<Person> displayedBefore = java.util.List.copyOf(model.getFilteredPersonList());
+        StorageManager failingStorage = new StorageManager(
+                new JsonAddressBookStorage(temporaryFolder.resolve("contacts.json")),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook data) throws IOException {
+                throw DUMMY_IO_EXCEPTION;
+            }
+        };
+        logic = new LogicManager(model, failingStorage);
+        assertThrows(CommandException.class, () -> logic.execute("delete 1"));
+        assertEquals(java.util.List.of(zoe, amy), model.getAddressBook().getPersonList());
+        assertEquals(displayedBefore, model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_unchangedUpdate_doesNotAttemptStorageWrite() {
+        model.addPerson(AMY);
+        StorageManager writeRejectingStorage = new StorageManager(
+                new JsonAddressBookStorage(temporaryFolder.resolve("contacts.json")),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook data) {
+                throw new AssertionError("An unchanged update must not save the address book");
+            }
+        };
+        logic = new LogicManager(model, writeRejectingStorage);
+        assertThrows(CommandException.class,
+                String.format(UpdateCommand.MESSAGE_NO_CHANGES, AddCommand.formatIdentity(AMY)), () ->
+                logic.execute("update 1 p/" + AMY.getPhone().value));
+    }
+
+    @Test
+    public void execute_storageThrowsAdException_throwsCommandException() {
+        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
+                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    }
+
+    /**
+     * Executes the command and confirms that
+     * - no exceptions are thrown <br>
+     * - the feedback message is equal to {@code expectedMessage} <br>
+     * - the internal model manager state is the same as that in {@code expectedModel} <br>
+     * @see #assertCommandFailure(String, Class, String, Model)
+     */
+    private void assertCommandSuccess(String inputCommand, String expectedMessage,
+            Model expectedModel) throws CommandException, ParseException {
+        CommandResult result = logic.execute(inputCommand);
+        assertEquals(expectedMessage, result.getFeedbackToUser());
+        assertEquals(expectedModel, model);
+    }
+
+    /**
+     * Executes the command, confirms that a ParseException is thrown and that the result message is correct.
+     * @see #assertCommandFailure(String, Class, String, Model)
+     */
+    private void assertParseException(String inputCommand, String expectedMessage) {
+        assertCommandFailure(inputCommand, ParseException.class, expectedMessage);
+    }
+
+    /**
+     * Executes the command, confirms that a CommandException is thrown and that the result message is correct.
+     * @see #assertCommandFailure(String, Class, String, Model)
+     */
+    private void assertCommandException(String inputCommand, String expectedMessage) {
+        assertCommandFailure(inputCommand, CommandException.class, expectedMessage);
+    }
+
+    /**
+     * Executes the command, confirms that the exception is thrown and that the result message is correct.
+     * @see #assertCommandFailure(String, Class, String, Model)
+     */
+    private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
+            String expectedMessage) {
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        assertCommandFailure(inputCommand, expectedException, expectedMessage, expectedModel);
+    }
+
+    /**
+     * Executes the command and confirms that
+     * - the {@code expectedException} is thrown <br>
+     * - the resulting error message is equal to {@code expectedMessage} <br>
+     * - the internal model manager state is the same as that in {@code expectedModel} <br>
+     * @see #assertCommandSuccess(String, String, Model)
+     */
+    private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
+            String expectedMessage, Model expectedModel) {
+        assertThrows(expectedException, expectedMessage, () -> logic.execute(inputCommand));
+        assertEquals(expectedModel, model);
+    }
+
+    /**
+     * Tests the Logic component's handling of an {@code IOException} thrown by the Storage component.
+     * When saving fails, the model must be rolled back to its state prior to execution so that
+     * unpersisted contacts are not retained in memory.
+     *
+     * @param e the exception to be thrown by the Storage component
+     * @param expectedMessage the message expected inside exception thrown by the Logic component
+     */
+    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
+        Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
+
+        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw e;
+            }
+        };
+
+        JsonUserPrefsStorage userPrefsStorage =
+                new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
+        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+
+        logic = new LogicManager(model, storage);
+
+        // Triggers the saveAddressBook method by executing an add command
+        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+                + EMAIL_DESC_AMY + " c/TechNova";
+        Person expectedPerson = new PersonBuilder(AMY).withTags().withCompany("TechNova")
+                .withAddress("Not provided").build();
+        ModelManager expectedModel = new ModelManager();
+        // Since saving failed, the model must be rolled back and remain unchanged (no person added).
+        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        assertFalse(model.hasPerson(expectedPerson));
+        // A subsequent view command must not find the contact whose save failed
+        assertThrows(CommandException.class, () -> logic.execute("view n/Amy Bee"));
+    }
+}

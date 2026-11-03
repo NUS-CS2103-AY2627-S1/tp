@@ -1,0 +1,65 @@
+.root {
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+    -fx-base: #ffffff;
+    -fx-background: #f3f6fa;
+    -fx-accent: #287ab5;
+    -fx-focus-color: #287ab5;
+    -fx-faint-focus-color: #287ab522;
+    -fx-text-background-color: #20344d;
+}
+.app-shell { -fx-background-color: #f3f6fa; }
+.label { -fx-text-fill: #20344d; }
+.brand-bar { -fx-background-color: #1b3752; -fx-padding: 15 24; }
+.brand-title { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white; }
+.brand-caption { -fx-text-fill: #cfdeec; }
+.workspace { -fx-padding: 14 20 16 20; }
+.section-label { -fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #49617a; }
+.muted { -fx-text-fill: #536c84; -fx-font-size: 13px; }
+.command-input {
+    -fx-background-color: white;
+    -fx-background-radius: 5;
+    -fx-border-color: #cedae5;
+    -fx-border-radius: 5;
+    -fx-border-width: 1 1 1 4;
+    -fx-padding: 13 16;
+    -fx-font-size: 18px;
+    -fx-prompt-text-fill: #60758b;
+}
+.command-input:focused { -fx-border-color: #287ab5; }
+.command-input.error { -fx-border-color: #b43e42; }
+.result-display { -fx-background-color: #f0f6fa; -fx-background-radius: 6; -fx-text-fill: #20344d; }
+.result-display .content { -fx-background-color: #f0f6fa; -fx-padding: 10 12; }
+.result-display.error { -fx-text-fill: #8d292f; -fx-background-color: #fff0ef; }
+.result-display.error .content { -fx-background-color: #fff0ef; }
+.contact-scroll, .contact-scroll > .viewport { -fx-background-color: transparent; }
+.contact-scroll { -fx-padding: 0; -fx-background-insets: 0; }
+.contact-cards { -fx-padding: 2 4 8 0; }
+.contact-card {
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-border-color: #287ab5;
+    -fx-border-width: 0 0 0 4;
+    -fx-padding: 14 18;
+}
+.contact-card.status-needs-follow-up { -fx-border-color: #d98e04; }
+.contact-card.status-in-progress { -fx-border-color: #287ab5; }
+.contact-card.status-completed { -fx-border-color: #2f8f4e; }
+.contact-card.status-cancelled { -fx-border-color: #a74343; }
+.card-name { -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1b3752; }
+.status-badge { -fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 4 12; -fx-background-radius: 12; }
+.status-badge.status-needs-follow-up { -fx-background-color: #fff1d6; -fx-text-fill: #8a5300; }
+.status-badge.status-in-progress { -fx-background-color: #e3eefa; -fx-text-fill: #1f5f99; }
+.status-badge.status-completed { -fx-background-color: #e3f4e8; -fx-text-fill: #276b3c; }
+.status-badge.status-cancelled { -fx-background-color: #fbe7e7; -fx-text-fill: #913737; }
+.card-company { -fx-font-size: 15px; -fx-text-fill: #36556e; }
+.card-detail { -fx-font-size: 14px; -fx-text-fill: #536c84; }
+.card-tags { -fx-padding: 6 0 0 0; }
+.card-tags .label { -fx-background-color: #e5eef9; -fx-padding: 3 10; -fx-text-fill: #285487;
+    -fx-background-radius: 3; -fx-font-size: 12px; }
+.card-tags .label.card-detail { -fx-background-color: transparent; -fx-padding: 0; -fx-text-fill: #536c84; }
+.status-bar { -fx-background-color: #e3eaf1; -fx-padding: 9 24; }
+.status-bar .label { -fx-text-fill: #536c84; -fx-font-size: 11px; }
+.scroll-bar { -fx-background-color: transparent; }
+.scroll-bar .thumb { -fx-background-color: #bdccda; -fx-background-radius: 6; }
+.scroll-bar .thumb:hover { -fx-background-color: #8da7be; }

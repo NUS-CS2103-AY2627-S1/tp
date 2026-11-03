@@ -1,0 +1,140 @@
+package seedu.boothmanagerpro.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_COMPANY;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_FOLLOW_UP;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_METHOD;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_STATUS;
+import static seedu.boothmanagerpro.logic.parser.CliSyntax.PREFIX_TAG;
+
+import java.util.List;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
+import seedu.boothmanagerpro.commons.core.LogsCenter;
+import seedu.boothmanagerpro.commons.util.ToStringBuilder;
+import seedu.boothmanagerpro.logic.commands.exceptions.CommandException;
+import seedu.boothmanagerpro.model.Model;
+import seedu.boothmanagerpro.model.person.Person;
+
+/**
+ * Adds an exhibitor contact to the address book.
+ */
+public class AddCommand extends Command {
+
+    public static final String COMMAND_WORD = "add";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds an exhibitor contact. "
+            + "Parameters: "
+            + PREFIX_NAME + "NAME "
+            + PREFIX_COMPANY + "COMPANY "
+            + PREFIX_EMAIL + "EMAIL "
+            + PREFIX_PHONE + "PHONE "
+            + "[" + PREFIX_METHOD + "METHOD] "
+            + "[" + PREFIX_STATUS + "STATUS] "
+            + "[" + PREFIX_FOLLOW_UP + "YYYYMMDD] "
+            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "Example: " + COMMAND_WORD + " "
+            + PREFIX_NAME + "Alicia Tan "
+            + PREFIX_COMPANY + "TechNova Pte Ltd "
+            + PREFIX_EMAIL + "alicia@technova.com "
+            + PREFIX_PHONE + "91234567 "
+            + PREFIX_METHOD + "email "
+            + PREFIX_TAG + "technology "
+            + PREFIX_TAG + "high-priority";
+
+    public static final String MESSAGE_SUCCESS = "Added %1$s.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This contact may already exist: %s.\n"
+            + "Use the update command if you want to change the existing contact.";
+
+    private static final Logger logger = LogsCenter.getLogger(AddCommand.class);
+
+    private final Person toAdd;
+
+    /**
+     * Creates an AddCommand to add the specified {@code Person}
+     */
+    public AddCommand(Person person) {
+        requireNonNull(person);
+        toAdd = person;
+    }
+
+    @Override
+    public boolean modifiesAddressBook() {
+        return true;
+    }
+
+    /**
+     * Checks all stored contacts, including those hidden by a filter, before adding the contact.
+     * A duplicate error identifies the existing record and leaves the model unchanged.
+     * Returns a concise text confirmation; list, find, and view can display the saved details.
+     * Persistence is performed by LogicManager before the result reaches the UI.
+     *
+     * @throws CommandException If an existing contact matches the duplicate rule.
+     */
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        logger.fine("Executing AddCommand.");
+
+        List<Person> duplicates = findDuplicates(model);
+        if (duplicates.size() == 1) {
+            logger.warning("AddCommand rejected: duplicate contact.");
+            throw new CommandException(String.format(MESSAGE_DUPLICATE_PERSON, formatIdentity(duplicates.getFirst())));
+        }
+        if (!duplicates.isEmpty()) {
+            logger.warning("AddCommand rejected; duplicate matches: " + duplicates.size());
+            String matches = duplicates.stream()
+                    .map(person -> formatIdentity(person) + " (" + person.getEmail() + ")")
+                    .collect(Collectors.joining("\n"));
+            throw new CommandException("This contact conflicts with multiple existing contacts:\n" + matches
+                    + "\nCheck the email and name/company fields. No contact was added.");
+        }
+
+        model.addPerson(toAdd);
+        logger.info("Successfully added exhibitor contact.");
+        return new CommandResult(formatSuccessMessage(toAdd));
+    }
+
+    /** Formats the addition success message, avoiding double full stops if the company ends with a period. */
+    public static String formatSuccessMessage(Person person) {
+        String identity = formatIdentity(person);
+        return identity.endsWith(".")
+                ? "Added " + identity
+                : String.format(MESSAGE_SUCCESS, identity);
+    }
+
+    /** Finds every existing match in one pass over the full collection, independently of the UI filter. */
+    private List<Person> findDuplicates(Model model) {
+        return model.getAddressBook().getPersonList().stream().filter(toAdd::isSamePerson).toList();
+    }
+
+    /** Formats contact identity for successful additions and duplicate warnings. */
+    public static String formatIdentity(Person person) {
+        return person.getName() + person.getCompany().map(company -> " at " + company.value).orElse("");
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof AddCommand otherAddCommand)) {
+            return false;
+        }
+
+        return toAdd.equals(otherAddCommand.toAdd);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("toAdd", toAdd)
+                .toString();
+    }
+}

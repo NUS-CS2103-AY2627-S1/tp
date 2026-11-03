@@ -1,0 +1,1287 @@
+package seedu.boothmanagerpro.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static seedu.boothmanagerpro.testutil.TypicalPersons.ALICE;
+
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import javax.imageio.ImageIO;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.ContextMenuEvent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import seedu.boothmanagerpro.MainApp;
+import seedu.boothmanagerpro.logic.LogicManager;
+import seedu.boothmanagerpro.logic.commands.CommandResult;
+import seedu.boothmanagerpro.logic.commands.exceptions.CommandException;
+import seedu.boothmanagerpro.model.ModelManager;
+import seedu.boothmanagerpro.model.UserPrefs;
+import seedu.boothmanagerpro.model.person.Address;
+import seedu.boothmanagerpro.model.person.Company;
+import seedu.boothmanagerpro.model.person.Email;
+import seedu.boothmanagerpro.model.person.EnquiryStatus;
+import seedu.boothmanagerpro.model.person.Name;
+import seedu.boothmanagerpro.model.person.Person;
+import seedu.boothmanagerpro.model.person.Phone;
+import seedu.boothmanagerpro.model.util.SampleDataUtil;
+import seedu.boothmanagerpro.storage.JsonAddressBookStorage;
+import seedu.boothmanagerpro.storage.StorageManager;
+import seedu.boothmanagerpro.testutil.IntegrationTestFixture;
+
+/** Exercises command-only FXML, text results, keyboard controls, and persistence. */
+public class MainWindowTest {
+    @TempDir
+    public Path testFolder;
+
+    @BeforeAll
+    public static void startToolkit() throws Exception {
+        assumeTrue(!System.getProperty("os.name").toLowerCase().contains("linux")
+                || System.getenv("DISPLAY") != null, "JavaFX requires a display; run with xvfb on Linux.");
+        FutureTask<Void> startup = new FutureTask<>(() -> {
+            Platform.setImplicitExit(false);
+            return null;
+        });
+        Platform.startup(startup);
+        startup.get(15, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void add_enquiryMetadata_isVisibleInContactCard() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            enterCommand(root, "add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567"
+                    + " s/In progress f/20261025");
+            enterCommand(root, "view n/Alicia");
+            VBox cards = (VBox) root.lookup("#contactCards");
+            Parent card = (Parent) cards.getChildren().getFirst();
+            Label status = (Label) card.lookup("#enquiryStatus");
+            assertEquals("In progress", status.getText());
+            assertEquals("Enquiry status: In progress", status.getAccessibleText());
+            assertTrue(status.getStyleClass().contains("status-in-progress"));
+            assertTrue(card.getStyleClass().contains("status-in-progress"));
+            assertEquals("Follow-up date: 25 Oct 2026", ((Label) card.lookup("#followUpDate")).getText());
+        });
+    }
+
+    @Test
+    public void find_followUpDate_showsMatchingCardsAndRetainsInvalidInput() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            enterCommand(root, "add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567 f/20261025");
+            enterCommand(root, "add n/Ben Lim c/Other e/ben@example.com p/98765432");
+            enterCommand(root, "find f/20261025");
+            assertTrue(output(root).startsWith("1 contact(s) found."));
+            assertEquals("", input(root).getText());
+            VBox cards = (VBox) root.lookup("#contactCards");
+            assertEquals(1, cards.getChildren().size(), "One contact and no total, as the heading has the count");
+            Parent card = (Parent) cards.getChildren().getFirst();
+            assertEquals("1. Alicia Tan", ((Label) card.lookup("#name")).getText());
+            assertEquals("Follow-up date: 25 Oct 2026", ((Label) card.lookup("#followUpDate")).getText());
+            savePreview(root, 1180, 820, "cli-find-date.png");
+            enterCommand(root, "find f/20230229");
+            assertTrue(output(root).contains("Invalid value for f/"));
+            assertEquals("find f/20230229", input(root).getText());
+            enterCommand(root, "update 1 f/20261028");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            enterCommand(root, "find f/20261025");
+            enterCommand(root, "update 1 f/20261028");
+            enterCommand(root, "find f/20261025");
+            assertEquals("0 contact(s) found.", output(root));
+            assertTrue(cards.getChildren().isEmpty());
+            assertFalse(root.lookup("#contactScroll").isVisible());
+            enterCommand(root, "find f/20261028");
+            assertEquals(1, cards.getChildren().size());
+        });
+    }
+
+    @Test
+    public void list_eachEnquiryStatus_showsMatchingBadge() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            enterCommand(root, "add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567");
+            enterCommand(root, "add n/Ben Lim c/Paper and Ink e/ben@example.com p/92345678 s/In progress");
+            enterCommand(root, "add n/Chloe Ng c/Green Goods e/chloe@example.com p/93456789 s/Completed");
+            enterCommand(root, "add n/David Lee c/Other e/david@example.com p/94567890 s/Cancelled");
+            enterCommand(root, "list");
+            VBox cards = (VBox) root.lookup("#contactCards");
+            String[] expected = {"status-needs-follow-up", "status-in-progress", "status-completed",
+                "status-cancelled"};
+            for (int i = 0; i < expected.length; i++) {
+                Parent card = (Parent) cards.getChildren().get(i);
+                assertTrue(card.getStyleClass().contains(expected[i]));
+                assertTrue(card.lookup("#enquiryStatus").getStyleClass().contains(expected[i]));
+            }
+            savePreview(root, 1180, 820, "cli-status.png");
+        });
+    }
+
+    @Test
+    public void update_successAndFailure_showFeedbackAndSavedDetails() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            enterCommand(root, "add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567");
+            enterCommand(root, "update Alicia Tan s/Completed f/20261025");
+            assertEquals("Updated Alicia Tan at TechNova.", output(root));
+            assertEquals("", input(root).getText());
+            enterCommand(root, "view n/Alicia");
+            VBox cards = (VBox) root.lookup("#contactCards");
+            Parent card = (Parent) cards.getChildren().getFirst();
+            Label status = (Label) card.lookup("#enquiryStatus");
+            assertEquals("Completed", status.getText());
+            assertTrue(status.getStyleClass().contains("status-completed"));
+            assertFalse(status.getStyleClass().contains("status-in-progress"));
+            assertEquals("Follow-up date: 25 Oct 2026", ((Label) card.lookup("#followUpDate")).getText());
+            enterCommand(root, "update Alicia Tan f/20230229");
+            assertTrue(output(root).contains("Invalid value for f/"));
+            assertEquals("update Alicia Tan f/20230229", input(root).getText());
+            enterCommand(root, "tag Alicia Tan t/vip t/sponsor");
+            assertEquals("Updated tags for Alicia Tan at TechNova. Added: vip, sponsor. "
+                    + "Removed: None. Current tags: vip, sponsor.", output(root));
+            enterCommand(root, "tag Alicia Tan t/vip t/keynote");
+            assertEquals("Updated tags for Alicia Tan at TechNova. Added: keynote. "
+                    + "Removed: vip. Current tags: sponsor, keynote.", output(root));
+        });
+    }
+
+    @Test
+    public void startupAndRestart_showOnlyPromptWithoutLoadingContactsIntoOutput() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            assertTrue(output(root).startsWith("Ready."));
+            assertFalse(output(root).contains("Alex Yeoh"));
+            assertEquals(6, model.getAddressBook().getPersonList().size());
+            assertNoContactPanels(root);
+            savePreview(root, 1180, 820, "cli-startup.png");
+            enterCommand(root, "list");
+            assertTrue(output(root).contains("1. Alex Yeoh"));
+        });
+        ModelManager reloaded = new ModelManager(
+                new JsonAddressBookStorage(dataPath()).readAddressBook().orElseThrow(), new UserPrefs());
+        withWindow(reloaded, (window, root, storage) -> {
+            assertTrue(output(root).startsWith("Ready."));
+            assertFalse(output(root).contains("Alex Yeoh"));
+            assertEquals(6, reloaded.getAddressBook().getPersonList().size());
+            assertNoContactPanels(root);
+        });
+    }
+
+    @Test
+    public void find_printsNumberedMatchesWithoutListCommand_andIndicesWork() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "find Alex David");
+            String found = output(root);
+            assertTrue(found.startsWith("2 contact(s) found.\n\n1. Alex Yeoh"));
+            assertTrue(found.contains("2. David Li at Quantum Dynamics\nEmail: lidavid@example.com"));
+            assertFalse(found.contains("Bernice Yu"));
+            assertEquals("", input(root).getText());
+            assertNoContactPanels(root);
+            VBox foundCards = (VBox) root.lookup("#contactCards");
+            assertEquals(2, foundCards.getChildren().size(), "2 cards and no total, as the heading has the count");
+            savePreview(root, 1180, 820, "cli-find.png");
+            savePreview(root, 860, 640, "cli-compact.png");
+            enterCommand(root, "update 2 p/91234567");
+            assertTrue(output(root).startsWith("Updated David Li"));
+            enterCommand(root, "find Alex David");
+            assertTrue(output(root).contains("Phone: 91234567"));
+            enterCommand(root, "delete 2");
+            assertTrue(output(root).startsWith("Deleted contact: David Li"));
+            assertEquals(5, storage.readAddressBook().orElseThrow().getPersonList().size());
+            enterCommand(root, "list");
+            assertTrue(output(root).contains("Total contacts: 5"));
+            assertFalse(output(root).contains("David Li"));
+            VBox cards = (VBox) root.lookup("#contactCards");
+            assertTrue(root.lookup("#contactScroll").isVisible());
+            assertFalse(root.lookup("#resultDisplay").isVisible());
+            assertFalse(cards.isMouseTransparent());
+            assertEquals(6, cards.getChildren().size(), "5 cards and the total");
+            savePreview(root, 1180, 820, "cli-list.png");
+            enterCommand(root, "not-a-command");
+            assertTrue(root.lookup("#resultDisplay").isVisible());
+            assertFalse(root.lookup("#contactScroll").isVisible());
+        });
+    }
+
+    @Test
+    public void find_emptyAndInvalidRequests_doNotShowStaleContacts() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "list");
+            enterCommand(root, "find Nobody");
+            assertEquals("0 contact(s) found.", output(root));
+            enterCommand(root, "find Alex");
+            String before = Files.readString(dataPath());
+            enterCommand(root, "find n/");
+            assertEquals("find n/", input(root).getText());
+            assertTrue(root.lookup("#resultDisplay").getStyleClass().contains("error"));
+            assertEquals(1, model.getFilteredPersonList().size());
+            assertEquals(before, Files.readString(dataPath()));
+            assertNoContactPanels(root);
+            enterCommand(root, "clear");
+            assertTrue(output(root).contains("This will delete all contacts! Type 'clear confirm' to proceed."));
+            assertEquals(1, model.getFilteredPersonList().size());
+            enterCommand(root, "clear confirm");
+            enterCommand(root, "list");
+            assertTrue(output(root).startsWith("No contacts found."));
+            assertTrue(storage.readAddressBook().orElseThrow().getPersonList().isEmpty());
+        });
+    }
+
+    @Test
+    public void view_numberedChoicesAndCancellation_workEntirelyInText() throws Exception {
+        ModelManager model = new ModelManager();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "add n/Alicia Tan c/TechNova e/first@example.com p/91234567");
+            enterCommand(root, "add n/Alicia Tan c/Other Ltd e/second@example.com p/87654321");
+            String before = Files.readString(dataPath());
+            enterCommand(root, "view n/Alicia Tan");
+            assertTrue(output(root).contains("1. Alicia Tan at TechNova"));
+            assertTrue(output(root).contains("2. Alicia Tan at Other Ltd"));
+            enterCommand(root, "3");
+            assertTrue(output(root).startsWith("Please enter a number between 1 and 2.\n2 contacts matching"));
+            assertTrue(output(root).contains("1. Alicia Tan at TechNova"));
+            assertTrue(output(root).contains("2. Alicia Tan at Other Ltd"));
+            enterCommand(root, "2");
+            assertTrue(output(root).startsWith("Exhibitor contact found:\nAlicia Tan at Other Ltd"));
+            assertTrue(output(root).contains("Email: second@example.com"));
+            assertEquals(before, Files.readString(dataPath()));
+            assertNoContactPanels(root);
+            savePreview(root, 1180, 820, "cli-view.png");
+            enterCommand(root, "view n/Alicia Tan");
+            enterCommand(root, "view n/Alicia Tan");
+            input(root).fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.F1,
+                    false, false, false, false));
+            assertTrue(output(root).contains("BoothManagerPro commands"));
+            assertTrue(output(root).contains("1. Alicia Tan at TechNova"));
+            assertTrue(output(root).contains("2. Alicia Tan at Other Ltd"));
+            enterCommand(root, "1");
+            assertTrue(output(root).contains("Email: first@example.com"));
+            enterCommand(root, "view n/Alicia Tan");
+            enterCommand(root, "find");
+            enterCommand(root, "1");
+            assertTrue(output(root).contains("Alicia Tan at TechNova"));
+            enterCommand(root, "view n/Alicia Tan");
+            enterCommand(root, "delete 99");
+            enterCommand(root, "1");
+            assertEquals("Unknown command.", output(root));
+            enterCommand(root, "view n/Alicia Tan");
+            enterCommand(root, "list");
+            enterCommand(root, "2");
+            assertEquals("Unknown command.", output(root));
+        });
+    }
+
+    @Test
+    public void add_persistsNormalisedValuesAndKeepsRejectedInputForCorrection() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "find Nobody");
+            String add = "add n/Alicia Tan c/TechNova e/ALICIA@example.com p/+6591234567 m/email"
+                    + " t/technology t/high-priority";
+            enterCommand(root, add);
+            assertEquals("Added Alicia Tan at TechNova.", output(root));
+            assertEquals("", input(root).getText());
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            enterCommand(root, add);
+            assertEquals(add, input(root).getText());
+            assertTrue(root.lookup("#resultDisplay").getStyleClass().contains("error"));
+            assertEquals(7, storage.readAddressBook().orElseThrow().getPersonList().size());
+            enterCommand(root, "view n/Alicia");
+            assertTrue(output(root).contains("Email: alicia@example.com"));
+            assertTrue(output(root).contains("Phone: +6591234567"));
+            assertTrue(output(root).contains("Tags: technology, high-priority"));
+            assertFalse(root.lookup("#resultDisplay").getStyleClass().contains("error"));
+            assertNoContactPanels(root);
+        });
+    }
+
+    @Test
+    public void keyboardFocusHelpAndExit_workWithoutMenus() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            root.lookup("#resultDisplay").requestFocus();
+            boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
+            window.getRoot().fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.L,
+                    false, !isMac, false, isMac));
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            input(root).fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.F1,
+                    false, false, false, false));
+            assertEquals(1, Window.getWindows().size());
+            assertTrue(output(root).contains("BoothManagerPro commands"));
+            assertTrue(output(root).contains("find"));
+            assertTrue(output(root).contains("User Guide:"));
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            enterCommand(root, "help");
+            assertEquals(1, Window.getWindows().size());
+            assertTrue(output(root).contains("BoothManagerPro commands"));
+            assertTrue(output(root).contains("find"));
+            assertTrue(output(root).contains("User Guide:"));
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            enterCommand(root, "exit");
+            assertFalse(window.getRoot().isShowing());
+            assertTrue(Window.getWindows().isEmpty());
+        });
+    }
+
+    @Test
+    public void handleHelp_logicFailure_displaysAndHandlesError() throws Exception {
+        runOnFxThread(() -> {
+            StorageManager storage = IntegrationTestFixture.createStorage(new JsonAddressBookStorage(dataPath()),
+                    testFolder.resolve("preferences.json"));
+            LogicManager failingLogic = new LogicManager(new ModelManager(), storage) {
+                @Override
+                public CommandResult execute(String commandText) throws CommandException {
+                    throw new CommandException("Help is temporarily unavailable.");
+                }
+            };
+            Stage stage = new Stage();
+            stage.setOpacity(0);
+            MainWindow window = new MainWindow(stage, failingLogic, dataPath());
+            try {
+                assertEquals(stage, window.getPrimaryStage());
+                window.fillInnerParts();
+                window.handleHelp();
+                assertEquals("Help is temporarily unavailable.", output(stage.getScene().getRoot()));
+            } finally {
+                stage.hide();
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void tabAutocomplete_completesCommandsAndRequiredPrefixes() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            TextField commandInput = input(root);
+
+            commandInput.setText("del");
+            pressKey(commandInput, KeyCode.A);
+            assertEquals("del", commandInput.getText());
+
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("delete ", commandInput.getText());
+            assertEquals(commandInput.getText().length(), commandInput.getCaretPosition());
+
+            commandInput.setText("ta");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("tag ", commandInput.getText());
+
+            commandInput.setText("e");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("exit ", commandInput.getText());
+
+            commandInput.setText("not-a-command");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("not-a-command", commandInput.getText());
+
+            commandInput.setText("add unexpected-text");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add unexpected-text", commandInput.getText());
+
+            commandInput.setText("add");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/", commandInput.getText());
+
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/", commandInput.getText());
+
+            commandInput.appendText("Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan c/", commandInput.getText());
+
+            commandInput.appendText("TechNova");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan c/TechNova e/", commandInput.getText());
+            assertEquals(commandInput.getText().length(), commandInput.getCaretPosition());
+
+            commandInput.setText("add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567",
+                    commandInput.getText());
+
+            // Reordered add: all four required fields present in a different order must not gain a duplicate prefix.
+            commandInput.setText("add c/OtherCo e/gamma@example.com p/91234569 n/Gamma Tester");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add c/OtherCo e/gamma@example.com p/91234569 n/Gamma Tester",
+                    commandInput.getText());
+
+            commandInput.setText("view");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("view n/", commandInput.getText());
+
+            commandInput.appendText("Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("view n/Alicia Tan", commandInput.getText());
+            assertEquals(root.lookup("#resultDisplay"), root.getScene().getFocusOwner());
+        });
+    }
+
+    @Test
+    public void tabAutocomplete_completesNewCommandFieldsAndFixedValues() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            TextField commandInput = input(root);
+
+            commandInput.setText("li");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("list ", commandInput.getText());
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("list o/", commandInput.getText());
+            commandInput.appendText("st");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("list o/status", commandInput.getText());
+
+            commandInput.setText("add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567 m");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567 m/",
+                    commandInput.getText());
+            commandInput.appendText("e");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan c/TechNova e/alicia@example.com p/91234567 m/email",
+                    commandInput.getText());
+
+            commandInput.setText("update Alicia Tan s");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("update Alicia Tan s/", commandInput.getText());
+            commandInput.appendText("In");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("update Alicia Tan s/In progress", commandInput.getText());
+
+            commandInput.setText("tag Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("tag Alicia Tan t/", commandInput.getText());
+
+            commandInput.setText("find f");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find f/", commandInput.getText());
+
+            commandInput.setText("find s");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find s/", commandInput.getText());
+            commandInput.appendText("In");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find s/In progress", commandInput.getText());
+
+            commandInput.setText("find m");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find m/", commandInput.getText());
+            commandInput.appendText("em");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find m/email", commandInput.getText());
+
+            commandInput.setText("fi");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find ", commandInput.getText());
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find n/", commandInput.getText());
+
+            commandInput.setText("update 1 c");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("update 1 c/", commandInput.getText());
+
+            commandInput.setText("DEL");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("delete ", commandInput.getText());
+
+            commandInput.setText("ADD");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/", commandInput.getText());
+
+            commandInput.setText("ADD N/Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("ADD N/Alicia Tan c/", commandInput.getText());
+            commandInput.setText("update 1 S/Completed S");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("update 1 S/Completed S", commandInput.getText());
+
+            commandInput.setText("LIST");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("list o/", commandInput.getText());
+
+            commandInput.setText("FIND");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find n/", commandInput.getText());
+
+            commandInput.setText("LIST O/st");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("LIST O/status", commandInput.getText());
+
+            commandInput.setText("VIEW N");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("VIEW n/", commandInput.getText());
+
+            commandInput.setText("TAG Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("TAG Alicia Tan t/", commandInput.getText());
+
+            commandInput.setText("view n");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("view n/", commandInput.getText());
+            assertEquals(commandInput.getText().length(), commandInput.getCaretPosition());
+        });
+    }
+
+    @Test
+    public void tabAutocomplete_preservesUndoHistory() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            TextField commandInput = input(root);
+
+            commandInput.appendText("add n/Undo Tester");
+            assertEquals("add n/Undo Tester", commandInput.getText());
+
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Undo Tester c/", commandInput.getText());
+
+            commandInput.undo();
+            assertEquals("add n/Undo Tester", commandInput.getText());
+
+            commandInput.undo();
+            assertEquals("", commandInput.getText());
+        });
+    }
+
+    @Test
+    public void commandBox_convenienceConstructorAndAutocompleteEdges_areHandled() throws Exception {
+        runOnFxThread(() -> {
+            CommandBox commandBox = new CommandBox(command -> new CommandResult(command));
+            TextField commandInput = (TextField) commandBox.getRoot().lookup("#commandTextField");
+
+            commandInput.setText("unknown");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("unknown", commandInput.getText());
+
+            // The next required prefix can skip one that was already supplied out of order.
+            commandInput.setText("add c/TechNova n/Alicia Tan");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add c/TechNova n/Alicia Tan e/", commandInput.getText());
+
+            // Out-of-order required fields still supply any missing earlier required prefix.
+            commandInput.setText("add n/Alicia Tan p/91234567");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia Tan p/91234567 c/", commandInput.getText());
+
+            commandInput.setText("add c/TechNova e/a@b.co p/91234567");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add c/TechNova e/a@b.co p/91234567 n/", commandInput.getText());
+
+            // Optional fields during add complete their value first before advancing to missing required prefixes.
+            commandInput.setText("add n/Alicia c/TechNova e/a@b.com m/em");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia c/TechNova e/a@b.com m/email", commandInput.getText());
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia c/TechNova e/a@b.com m/email p/", commandInput.getText());
+
+            // Empty or ambiguous optional fields during add are not corrupted by appending a required prefix.
+            commandInput.setText("add n/Alicia m/");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia m/", commandInput.getText());
+
+            commandInput.setText("add n/Alicia s/C");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Alicia s/C", commandInput.getText());
+
+            // Multi-word fixed-choice values with spaces still complete, while unsupported prefixes are ignored.
+            commandInput.setText("update 1 s/Needs ");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("update 1 s/Needs follow-up", commandInput.getText());
+
+            commandInput.setText("find s/In");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find s/In progress", commandInput.getText());
+
+            commandInput.setText("find m/em");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find m/email", commandInput.getText());
+
+            commandInput.setText("find o/na");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find o/na", commandInput.getText());
+
+            // Repeatable prefixes can still complete again in find and tag.
+            commandInput.setText("find f/20261025 f");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("find f/20261025 f/", commandInput.getText());
+
+            commandInput.setText("tag 1 t/vip t");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("tag 1 t/vip t/", commandInput.getText());
+
+            // Patronymic names in add and tag still advance cleanly without treating s/o as status.
+            commandInput.setText("add n/Raj s/o Kumar");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("add n/Raj s/o Kumar c/", commandInput.getText());
+
+            commandInput.setText("tag Raj s/o Kumar");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("tag Raj s/o Kumar t/", commandInput.getText());
+
+            // Empty fixed-choice text is ambiguous, so completion must fall through without changing it.
+            commandInput.setText("list o/");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("list o/", commandInput.getText());
+
+            // An existing tag prefix must not be duplicated.
+            commandInput.setText("tag Alicia Tan t/");
+            pressKey(commandInput, KeyCode.TAB);
+            assertEquals("tag Alicia Tan t/", commandInput.getText());
+
+            AtomicInteger outputFocusRequests = new AtomicInteger();
+            CommandBox focusableCommandBox = new CommandBox(
+                    command -> new CommandResult(command), outputFocusRequests::incrementAndGet);
+            TextField focusableInput = (TextField) focusableCommandBox.getRoot().lookup("#commandTextField");
+            focusableInput.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.TAB,
+                    true, false, false, false));
+            assertEquals(1, outputFocusRequests.get());
+
+            // Trailing spaces after completed values or commands are preserved and let Tab move focus.
+            focusableInput.setText("update 1 m/email ");
+            pressKey(focusableInput, KeyCode.TAB);
+            assertEquals("update 1 m/email ", focusableInput.getText());
+            assertEquals(2, outputFocusRequests.get());
+
+            focusableInput.setText("delete ");
+            pressKey(focusableInput, KeyCode.TAB);
+            assertEquals("delete ", focusableInput.getText());
+            assertEquals(3, outputFocusRequests.get());
+
+            // Single-letter words matching an already-present non-repeatable prefix are not mutated into duplicates.
+            focusableInput.setText("add n/Alicia c/Tech e/a@b.co p/91234567 t/tier c");
+            pressKey(focusableInput, KeyCode.TAB);
+            assertEquals("add n/Alicia c/Tech e/a@b.co p/91234567 t/tier c", focusableInput.getText());
+            assertEquals(4, outputFocusRequests.get());
+
+            focusableInput.setText("view n/Alicia n");
+            pressKey(focusableInput, KeyCode.TAB);
+            assertEquals("view n/Alicia n", focusableInput.getText());
+            assertEquals(5, outputFocusRequests.get());
+            return null;
+        });
+    }
+
+    @Test
+    public void resultDisplay_tabCallbackAndVisibleContactFocus_areHandled() throws Exception {
+        runOnFxThread(() -> {
+            AtomicInteger commandFocusRequests = new AtomicInteger();
+            ResultDisplay display = new ResultDisplay(commandFocusRequests::incrementAndGet);
+
+            display.getRoot().fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.A,
+                    false, false, false, false));
+            assertEquals(0, commandFocusRequests.get());
+            display.getRoot().fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.TAB,
+                    false, false, false, false));
+            assertEquals(1, commandFocusRequests.get());
+
+            display.showContacts(List.of(ALICE), true, false);
+            assertTrue(display.getRoot().lookup("#contactScroll").isVisible());
+            display.focus();
+
+            display.setFeedbackToUser("test");
+            assertFalse(display.getRoot().lookup("#contactScroll").isVisible());
+            display.focus();
+
+            ResultDisplay nullCallbackDisplay = new ResultDisplay();
+            nullCallbackDisplay.getRoot().fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.TAB,
+                    false, false, false, false));
+            return null;
+        });
+    }
+
+    @Test
+    public void commandBox_blankAndRepeatedInvalidInput_areHandledSafely() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            TextField commandInput = input(root);
+            String initialOutput = output(root);
+
+            commandInput.setText("   ");
+            commandInput.fireEvent(new ActionEvent());
+            assertEquals("   ", commandInput.getText());
+            assertEquals(initialOutput, output(root));
+
+            commandInput.setText("not-a-command");
+            commandInput.fireEvent(new ActionEvent());
+            assertTrue(commandInput.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+
+            commandInput.fireEvent(new ActionEvent());
+            assertTrue(commandInput.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+        });
+    }
+
+    @Test
+    public void tabFocusReturn_keepsCommandInputUnselected() throws Exception {
+        assertFocusReturnKeepsDraft(output -> pressKey(output, KeyCode.TAB));
+    }
+
+    @Test
+    public void tabFocusReturn_fromContactScroll_returnsFocusToCommandInput() throws Exception {
+        withWindow(sampleModel(), (window, root, storage) -> {
+            enterCommand(root, "list");
+            Node contactScroll = root.lookup("#contactScroll");
+            assertTrue(contactScroll.isVisible());
+            contactScroll.requestFocus();
+            pressKey(contactScroll, KeyCode.TAB);
+            assertEquals(input(root), root.getScene().getFocusOwner());
+        });
+    }
+
+    @Test
+    public void contactCard_copyMenusAndLayoutSafeguards_areConfigured() throws Exception {
+        withWindow(sampleModel(), (window, root, storage) -> {
+            enterCommand(root, "view n/Alex Yeoh");
+            VBox cards = (VBox) root.lookup("#contactCards");
+            assertFalse(cards.isMouseTransparent());
+            Parent card = (Parent) cards.getChildren().getFirst();
+            Label email = (Label) card.lookup("#email");
+            Label phone = (Label) card.lookup("#phone");
+            Label commandHints = (Label) root.lookup("#commandHints");
+
+            assertTrue(phone.isWrapText());
+            assertEquals(0.0, phone.getMinWidth());
+            assertTrue(commandHints.isWrapText());
+            assertEquals(0.0, commandHints.getMinWidth());
+
+            assertNotNull(email.getContextMenu());
+            assertTrue(email.getContextMenu().getItems().stream()
+                    .anyMatch(item -> item.getText().equals("Copy Email")));
+            assertNotNull(phone.getContextMenu());
+            assertTrue(phone.getContextMenu().getItems().stream()
+                    .anyMatch(item -> item.getText().equals("Copy Phone")));
+
+            ContactCard.copyToClipboard("test@example.com");
+            ContactCard.copyToClipboard(null);
+        });
+    }
+
+    @Test
+    public void contactCard_missingCompanyAndTags_matchesUserGuidePlaceholders() throws Exception {
+        runOnFxThread(() -> {
+            Person person = new Person(new Name("No Field"), new Phone("91234567"),
+                    new Email("nofield@example.com"), new Address("Blk 123"),
+                    Set.of(), Optional.empty(), Optional.empty(),
+                    EnquiryStatus.NEEDS_FOLLOW_UP, Optional.empty());
+            ContactCard card = new ContactCard(person, 1);
+            Label company = (Label) card.getRoot().lookup("#company");
+            FlowPane tags = (FlowPane) card.getRoot().lookup("#tags");
+            assertEquals("Not specified", company.getText());
+            assertEquals(1, tags.getChildren().size());
+            assertEquals("None", ((Label) tags.getChildren().getFirst()).getText());
+            return null;
+        });
+    }
+
+    @Test
+    public void showContacts_oneThousandContacts_rendersIncrementallyWithoutLag() throws Exception {
+        runOnFxThread(() -> {
+            List<Person> oneThousand = new ArrayList<>();
+            for (int i = 0; i < 1000; i++) {
+                oneThousand.add(new Person(new Name("Contact Person"), new Phone("91234567"),
+                        new Email("contact" + i + "@example.com"), new Address("Blk 123"),
+                        Set.of(), Optional.empty(), Optional.empty(),
+                        EnquiryStatus.NEEDS_FOLLOW_UP, Optional.empty()));
+            }
+            ResultDisplay display = new ResultDisplay();
+            long start = System.currentTimeMillis();
+            display.showContacts(oneThousand, true, true);
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 500, "Initial display of 1,000 contacts took " + elapsed + "ms, expected < 500ms");
+            VBox cards = display.getContactCards();
+            assertEquals(ResultDisplay.getBatchSize(), cards.getChildren().size(),
+                    "Initial batch should match BATCH_SIZE");
+
+            display.loadAllRemainingBatches();
+            assertEquals(1001, cards.getChildren().size(),
+                    "All 1,000 cards plus total label should be loaded");
+            return null;
+        });
+    }
+
+    @Test
+    public void contactCard_copyActionsAndEvents_fullyCovered() throws Exception {
+        runOnFxThread(() -> {
+            Person personWithCompany = new Person(new Name("Alex Yeoh"), new Phone("87438807"),
+                    new Email("alexyeoh@example.com"), new Address("Blk 30"),
+                    Set.of(), Optional.of(new Company("TechNova")), Optional.empty(),
+                    EnquiryStatus.NEEDS_FOLLOW_UP, Optional.empty());
+            ContactCard card = new ContactCard(personWithCompany, 1);
+            Stage stage = new Stage();
+            Scene scene = new Scene(card.getRoot());
+            stage.setScene(scene);
+            stage.show();
+            try {
+                Label email = (Label) card.getRoot().lookup("#email");
+                Label phone = (Label) card.getRoot().lookup("#phone");
+                Label name = (Label) card.getRoot().lookup("#name");
+                Label company = (Label) card.getRoot().lookup("#company");
+
+                for (MenuItem item : email.getContextMenu().getItems()) {
+                    item.fire();
+                }
+                for (MenuItem item : phone.getContextMenu().getItems()) {
+                    item.fire();
+                }
+                for (MenuItem item : name.getContextMenu().getItems()) {
+                    item.fire();
+                }
+                for (MenuItem item : company.getContextMenu().getItems()) {
+                    item.fire();
+                }
+                for (MenuItem item : card.getCardContextMenu().getItems()) {
+                    item.fire();
+                }
+
+                ContextMenuEvent menuEvent = new ContextMenuEvent(ContextMenuEvent.CONTEXT_MENU_REQUESTED,
+                        10, 10, 10, 10, false, null);
+                card.getRoot().getOnContextMenuRequested().handle(menuEvent);
+
+                MouseEvent doublePrimary = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0,
+                        MouseButton.PRIMARY, 2, false, false, false, false, false, false, false, false, false, false,
+                        null);
+                email.getOnMouseClicked().handle(doublePrimary);
+
+                MouseEvent singlePrimary = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0,
+                        MouseButton.PRIMARY, 1, false, false, false, false, false, false, false, false, false, false,
+                        null);
+                email.getOnMouseClicked().handle(singlePrimary);
+
+                MouseEvent doubleSecondary = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0,
+                        MouseButton.SECONDARY, 2, false, false, false, false, false, false, false, false, false, false,
+                        null);
+                email.getOnMouseClicked().handle(doubleSecondary);
+            } finally {
+                stage.hide();
+            }
+
+            return null;
+        });
+    }
+
+    @Test
+    public void resultDisplay_scrollListenerAndCleanup_fullyCovered() throws Exception {
+        runOnFxThread(() -> {
+            List<Person> fifty = new ArrayList<>();
+            for (int i = 0; i < 50; i++) {
+                fifty.add(new Person(new Name("Person"), new Phone("91234567"),
+                        new Email("person" + i + "@example.com"), new Address("Blk 123"),
+                        Set.of(), Optional.empty(), Optional.empty(),
+                        EnquiryStatus.NEEDS_FOLLOW_UP, Optional.empty()));
+            }
+
+            ResultDisplay display = new ResultDisplay();
+            ScrollPane contactScroll = (ScrollPane) display.getRoot().lookup("#contactScroll");
+            contactScroll.getContextMenu().getItems().getFirst().fire();
+
+            display.showContacts(fifty, true, true);
+            assertEquals(ResultDisplay.getBatchSize(), display.getLoadedCount());
+
+            // Scroll below threshold: no extra batch
+            contactScroll.setVvalue(0.1);
+            assertEquals(ResultDisplay.getBatchSize(), display.getLoadedCount());
+
+            // Scroll above threshold: loads next batch
+            contactScroll.setVvalue(0.85);
+            assertEquals(50, display.getLoadedCount());
+
+            // Cleanup while scrollListener is active
+            display.showContacts(fifty, true, true);
+            assertEquals(ResultDisplay.getBatchSize(), display.getLoadedCount());
+            display.setFeedbackToUser("Clearing results");
+            assertEquals(0, display.getLoadedCount());
+
+            return null;
+        });
+    }
+
+    @Test
+    public void shortcutFocusReturn_keepsCommandInputUnselected() throws Exception {
+        boolean isMac = System.getProperty("os.name").startsWith("Mac");
+        assertFocusReturnKeepsDraft(output -> output.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "",
+                KeyCode.L, false, !isMac, false, isMac)));
+    }
+
+    @Test
+    public void helpKeyFocusReturn_keepsCommandInputUnselected() throws Exception {
+        assertFocusReturnKeepsDraft(output -> pressKey(output, KeyCode.F1));
+    }
+
+    /**
+     * Moves focus from a draft in the command box to the output area, returns it using {@code returnFocus}, and
+     * checks the draft is neither selected nor changed, so the next keystroke appends to it.
+     */
+    private void assertFocusReturnKeepsDraft(Consumer<Node> returnFocus) throws Exception {
+        String draft = "add n/Draft Tester";
+        Stage stage = runOnFxThread(() -> {
+            StorageManager storage = IntegrationTestFixture.createStorage(new JsonAddressBookStorage(dataPath()),
+                    testFolder.resolve("preferences.json"));
+            Stage newStage = new Stage();
+            newStage.setOpacity(0);
+            MainWindow window = new MainWindow(newStage, new LogicManager(new ModelManager(), storage), dataPath());
+            window.fillInnerParts();
+            window.show();
+            Parent root = newStage.getScene().getRoot();
+            Node output = root.lookup("#resultDisplay");
+            input(root).setText(draft);
+            output.requestFocus();
+            assertEquals(output, root.getScene().getFocusOwner());
+            returnFocus.accept(output);
+            assertEquals(input(root), root.getScene().getFocusOwner());
+            return newStage;
+        });
+        try {
+            // Runs after the deferred caret update queued when the command input regained focus.
+            runOnFxThread(() -> {
+                TextField commandInput = input(stage.getScene().getRoot());
+                assertEquals(draft, commandInput.getText());
+                assertEquals("", commandInput.getSelectedText());
+                assertEquals(commandInput.getLength(), commandInput.getCaretPosition());
+                return null;
+            });
+        } finally {
+            runOnFxThread(() -> {
+                for (Window open : List.copyOf(Window.getWindows())) {
+                    open.hide();
+                }
+                return null;
+            });
+        }
+    }
+
+    private ModelManager sampleModel() {
+        return new ModelManager(SampleDataUtil.getSampleAddressBook(), new UserPrefs());
+    }
+
+    private Path dataPath() {
+        return testFolder.resolve("contacts.json");
+    }
+
+    @Test
+    public void userGuide_examples_generateCurrentScreenshots() throws Exception {
+        withWindow(new ModelManager(), (window, root, storage) -> {
+            savePreview(root, 1180, 820, "ug-startup.png");
+            enterCommand(root, "add n/Alicia Tan c/TechNova Pte Ltd e/alicia@technova.com p/91234567 "
+                    + "m/email t/technology t/high-priority");
+            assertEquals("Added Alicia Tan at TechNova Pte Ltd.", output(root));
+            assertEquals("", input(root).getText());
+            savePreview(root, 1180, 820, "ug-add.png");
+            enterCommand(root, "add n/Ben Lim c/GreenWorks e/ben@example.com p/+65 8765 4321 "
+                    + "s/In progress f/20261025");
+            enterCommand(root, "list");
+            assertEquals(2, storage.readAddressBook().orElseThrow().getPersonList().size());
+            savePreview(root, 1180, 820, "ug-list.png");
+            enterCommand(root, "view n/Alicia Tan");
+            assertTrue(output(root).contains("Alicia Tan"));
+            savePreview(root, 1180, 820, "ug-view.png");
+            enterCommand(root, "find Alicia Ben");
+            assertTrue(output(root).startsWith("2 contact(s) found."));
+            savePreview(root, 1180, 820, "ug-find.png");
+            enterCommand(root, "delete Ben Lim");
+            assertEquals(1, storage.readAddressBook().orElseThrow().getPersonList().size());
+            assertTrue(output(root).contains("Ben Lim"));
+            savePreview(root, 1180, 820, "ug-delete.png");
+        });
+    }
+
+    @Test
+    public void startup_loadingFailure_showsWarningAndKeepsCommandsUsable() throws Exception {
+        withWindow(new ModelManager(), MainApp.MESSAGE_DATA_LOAD_FAILURE, (window, root, storage) -> {
+            assertEquals(MainApp.MESSAGE_DATA_LOAD_FAILURE, output(root));
+            savePreview(root, 1180, 820, "cli-recovery-warning.png");
+            enterCommand(root, "help");
+            assertFalse(output(root).contains("Contact data could not be loaded"));
+            assertEquals("", input(root).getText());
+        });
+    }
+
+    @Test
+    public void uiManager_start_propagatesRecoveryWarningAndSupportsNormalStartup() throws Exception {
+        runOnFxThread(() -> {
+            StorageManager storage = IntegrationTestFixture.createStorage(new JsonAddressBookStorage(dataPath()),
+                    testFolder.resolve("preferences.json"));
+            for (String warning : List.of("", MainApp.MESSAGE_DATA_LOAD_FAILURE)) {
+                Stage stage = new Stage();
+                stage.setOpacity(0);
+                LogicManager logic = new LogicManager(new ModelManager(), storage);
+                UiManager manager = warning.isEmpty() ? new UiManager(logic, dataPath())
+                        : new UiManager(logic, dataPath(), warning);
+                try {
+                    manager.start(stage);
+                    Parent root = stage.getScene().getRoot();
+                    root.applyCss();
+                    root.layout();
+                    if (warning.isEmpty()) {
+                        assertTrue(output(root).startsWith("Ready."));
+                    } else {
+                        assertEquals(warning, output(root));
+                        assertTrue(root.lookup("#resultDisplay").getStyleClass().contains("error"));
+                    }
+                    enterCommand(root, "help");
+                    assertFalse(output(root).contains("Contact data could not be loaded"));
+                    assertEquals("", input(root).getText());
+                } finally {
+                    stage.hide();
+                }
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void hiddenIndexAtStartup_rejectsDeleteUpdateAndTagWithoutSaving() throws Exception {
+        for (String command : List.of("delete 1", "update 1 s/Completed", "tag 1 t/vip")) {
+            ModelManager model = sampleModel();
+            withWindow(model, (window, root, storage) -> {
+                List<Person> before = List.copyOf(model.getAddressBook().getPersonList());
+                String json = Files.readString(dataPath());
+                enterCommand(root, command);
+                assertTrue(output(root).contains("Run list, find, or view"));
+                assertEquals(before, model.getAddressBook().getPersonList());
+                assertEquals(json, Files.readString(dataPath()));
+            });
+        }
+    }
+
+    @Test
+    public void indexAfterHiddenFeedback_requiresFreshResultsButNameTargetStillWorks() throws Exception {
+        withWindow(sampleModel(), (window, root, storage) -> {
+            enterCommand(root, "list");
+            enterCommand(root, "help");
+            enterCommand(root, "delete 1");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            enterCommand(root, "delete Alex Yeoh");
+            assertTrue(output(root).contains("Deleted"));
+            assertEquals(5, storage.readAddressBook().orElseThrow().getPersonList().size());
+        });
+    }
+
+    @Test
+    public void displayedIndexWorks_thenSuccessfulMutationRequiresRefreshingResults() throws Exception {
+        withWindow(sampleModel(), (window, root, storage) -> {
+            enterCommand(root, "find n/Alex");
+            enterCommand(root, "update 1 s/Completed");
+            assertTrue(output(root).contains("Updated Alex Yeoh"));
+            enterCommand(root, "tag 1 t/vip");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            enterCommand(root, "view n/Alex Yeoh");
+            enterCommand(root, "tag 1 t/vip");
+            assertTrue(output(root).contains("Updated tags for Alex Yeoh"));
+        });
+    }
+
+    @Test
+    public void displayedIndexAfterAddAndRestart_requiresNewList() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "list");
+            enterCommand(root, "add n/New Contact c/Acme e/new@example.com p/91234567");
+            enterCommand(root, "delete 1");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            assertEquals(7, storage.readAddressBook().orElseThrow().getPersonList().size());
+        });
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "tag 1 t/vip");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            assertEquals(7, model.getAddressBook().getPersonList().size());
+        });
+    }
+
+    @Test
+    public void displayedSnapshotChangedExternally_rejectsStaleIndex() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "list");
+            String json = Files.readString(dataPath());
+            model.updateSortedPersonList(java.util.Comparator.comparing((Person person) -> person.getName().fullName)
+                    .reversed());
+            enterCommand(root, "delete 1");
+            assertTrue(output(root).contains("Run list, find, or view"));
+            assertEquals(6, model.getAddressBook().getPersonList().size());
+            assertEquals(json, Files.readString(dataPath()));
+            enterCommand(root, "list");
+            String firstName = model.getFilteredPersonList().getFirst().getName().fullName;
+            enterCommand(root, "delete 1");
+            assertTrue(output(root).contains(firstName));
+            assertEquals(5, model.getAddressBook().getPersonList().size());
+        });
+    }
+
+    @Test
+    public void pendingViewChoiceAndSelectedDetails_provideCorrectIndexTargets() throws Exception {
+        ModelManager model = sampleModel();
+        withWindow(model, (window, root, storage) -> {
+            enterCommand(root, "add n/Alex Tan c/Acme e/alextan@example.com p/91234567");
+            enterCommand(root, "view n/Alex");
+            assertTrue(output(root).contains("2 contacts"));
+            enterCommand(root, "2");
+            assertTrue(output(root).contains("Alex Tan"));
+            enterCommand(root, "update 1 s/Completed");
+            assertTrue(output(root).contains("Updated Alex Tan"));
+            enterCommand(root, "view n/Alex");
+            enterCommand(root, "delete 2");
+            assertTrue(output(root).contains("Deleted contact: Alex Tan"));
+        });
+    }
+
+    @Test
+    public void commandFeedbackAndFailures_doNotCopyContactDataIntoLogs() throws Exception {
+        List<String> logged = new ArrayList<>();
+        java.util.logging.Logger parent = java.util.logging.Logger.getLogger("ab3");
+        java.util.logging.Handler handler = new java.util.logging.Handler() {
+            @Override
+            public void publish(java.util.logging.LogRecord record) {
+                logged.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        parent.addHandler(handler);
+        try {
+            withWindow(new ModelManager(), (window, root, storage) -> {
+                enterCommand(root, "add n/Private Person c/Secret Expo e/private@example.com p/91234567");
+                assertTrue(output(root).contains("Private Person"));
+                enterCommand(root, "view n/Private Person");
+                assertTrue(output(root).contains("private@example.com"));
+                enterCommand(root, "add n/Private Person c/Secret Expo e/private@example.com p/91234567");
+                assertTrue(output(root).contains("Private Person"));
+                enterCommand(root, "private@example.com");
+                assertTrue(output(root).contains("Unknown command"));
+                String messages = String.join("\n", logged);
+                for (String sensitive : List.of("Private Person", "Secret Expo", "private@example.com", "91234567")) {
+                    assertFalse(messages.contains(sensitive), sensitive);
+                }
+                assertTrue(messages.contains("Command completed"));
+                assertTrue(messages.contains("Command rejected"));
+            });
+        } finally {
+            parent.removeHandler(handler);
+        }
+    }
+
+    private void withWindow(ModelManager model, UiAction action) throws Exception {
+        withWindow(model, "", action);
+    }
+
+    private void withWindow(ModelManager model, String startupWarning, UiAction action) throws Exception {
+        runOnFxThread(() -> {
+            StorageManager storage = IntegrationTestFixture.createStorage(new JsonAddressBookStorage(dataPath()),
+                    testFolder.resolve("preferences.json"));
+            storage.saveAddressBook(model.getAddressBook());
+            Stage stage = new Stage();
+            stage.setOpacity(0);
+            MainWindow window = new MainWindow(stage, new LogicManager(model, storage), dataPath());
+            assertEquals(stage, window.getPrimaryStage());
+            if (startupWarning.isEmpty()) {
+                window.fillInnerParts();
+            } else {
+                window.fillInnerParts(startupWarning);
+            }
+            window.show();
+            try {
+                Parent root = stage.getScene().getRoot();
+                root.applyCss();
+                root.layout();
+                action.run(window, root, storage);
+            } finally {
+                for (Window open : List.copyOf(Window.getWindows())) {
+                    open.hide();
+                }
+            }
+            return null;
+        });
+    }
+
+    @FunctionalInterface
+    private interface UiAction {
+        void run(MainWindow window, Parent root, StorageManager storage) throws Exception;
+    }
+
+    private static void assertNoContactPanels(Parent root) {
+        assertTrue(root.lookupAll(".list-view").isEmpty());
+        assertTrue(root.lookupAll(".split-pane").isEmpty());
+        assertNull(root.lookup("#contactDetailsPlaceholder"));
+        assertNull(root.lookup("#personListPanelPlaceholder"));
+        assertNull(root.lookup("#recordCount"));
+    }
+
+    private static TextField input(Parent root) {
+        return (TextField) root.lookup("#commandTextField");
+    }
+
+    private static void pressKey(Node node, KeyCode keyCode) {
+        node.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode,
+                false, false, false, false));
+    }
+
+    private static String output(Parent root) {
+        return ((TextArea) root.lookup("#resultDisplay")).getText();
+    }
+
+    private static void enterCommand(Parent root, String text) {
+        input(root).setText(text);
+        input(root).fireEvent(new ActionEvent());
+    }
+
+    private static <T> T runOnFxThread(Callable<T> action) throws Exception {
+        FutureTask<T> task = new FutureTask<>(action);
+        Platform.runLater(task);
+        return task.get(30, TimeUnit.SECONDS);
+    }
+
+    private static void savePreview(Parent root, int width, int height, String fileName) throws Exception {
+        // A detached scene gives repeatable snapshots without opening a desktop window.
+        Scene oldScene = root.getScene();
+        oldScene.setRoot(new javafx.scene.layout.StackPane());
+        Scene previewScene = new Scene(root, width, height);
+        previewScene.getStylesheets().setAll(oldScene.getStylesheets());
+        root.applyCss();
+        root.layout();
+        Node output = root.lookup("#resultDisplay").isVisible()
+                ? root.lookup("#resultDisplay") : root.lookup("#contactScroll");
+        assertTrue(output.getLayoutBounds().getHeight() > height * 0.6, "Output should fill the remaining workspace");
+        WritableImage image = root.snapshot(null, null);
+        BufferedImage bufferedImage = new BufferedImage((int) image.getWidth(), (int) image.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                bufferedImage.setRGB(x, y, image.getPixelReader().getArgb(x, y));
+            }
+        }
+        Path directory = Path.of("build", "reports", "ui");
+        Files.createDirectories(directory);
+        ImageIO.write(bufferedImage, "png", directory.resolve(fileName).toFile());
+        previewScene.setRoot(new javafx.scene.layout.StackPane());
+        oldScene.setRoot(root);
+    }
+}
