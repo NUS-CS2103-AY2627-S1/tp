@@ -2,26 +2,54 @@ package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
 
     @Test
-    public void asObservableList_modifyList_throwsUnsupportedOperationException() {
-        Person person = new PersonBuilder().build();
-        assertThrows(UnsupportedOperationException.class, () -> person.getTags().remove(0));
+    public void constructor_tagsDefensivelyCopiedAndUnmodifiable() {
+        Set<Tag> labels = new HashSet<>(Set.of(new Tag("Striker")));
+        Person player = new Person(ALICE.getName(), ALICE.getPhone(), labels);
+        labels.clear();
+        assertEquals(Set.of(new Tag("Striker")), player.getTags());
+        assertThrows(UnsupportedOperationException.class, () -> player.getTags().clear());
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(), (Set<Tag>) null));
+        labels.add(null);
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(), labels));
+    }
+
+    @Test
+    public void equals_tagsAffectDataButNotPlayerIdentity() {
+        Person taggedAlice = new PersonBuilder(ALICE).withTags("Striker").build();
+        assertTrue(ALICE.isSamePerson(taggedAlice));
+        assertNotEquals(ALICE, taggedAlice);
+        Person sameTags = new PersonBuilder(ALICE).withTags("striker").build();
+        assertEquals(taggedAlice, sameTags);
+        assertEquals(taggedAlice.hashCode(), sameTags.hashCode());
+    }
+
+    @Test
+    public void withSelectionStatus_ratedPlayer_preservesRating() {
+        Person rated = new Person(ALICE.getName(), ALICE.getPhone(), new Rating("8"));
+        assertEquals(SelectionStatus.PENDING, rated.getSelectionStatus());
+        Person kept = rated.withSelectionStatus(SelectionStatus.KEPT);
+        assertEquals(new Rating("8"), kept.getRating());
+        assertEquals(SelectionStatus.KEPT, kept.getSelectionStatus());
+        assertEquals(SelectionStatus.PENDING, rated.getSelectionStatus());
     }
 
     @Test
@@ -32,23 +60,45 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        // same name, different phone -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
-        // different name, all other attributes same -> returns false
+        // different name, same phone -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // name has repeated internal spaces, all other attributes same -> returns true
+        editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.replace(" ", "   ")).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void hasSameJerseyNumber() {
+        Person aliceWithTen = new PersonBuilder(ALICE).withJerseyNumber("10").build();
+
+        // same jersey number -> returns true
+        assertTrue(aliceWithTen.hasSameJerseyNumber(new PersonBuilder(BOB).withJerseyNumber("10").build()));
+
+        // different jersey number -> returns false
+        assertFalse(aliceWithTen.hasSameJerseyNumber(new PersonBuilder(BOB).withJerseyNumber("11").build()));
+
+        // one or both without a jersey number -> returns false
+        assertFalse(aliceWithTen.hasSameJerseyNumber(BOB));
+        assertFalse(BOB.hasSameJerseyNumber(aliceWithTen));
+        assertFalse(ALICE.hasSameJerseyNumber(BOB));
+
+        // null -> returns false
+        assertFalse(aliceWithTen.hasSameJerseyNumber(null));
     }
 
     @Test
@@ -77,23 +127,134 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different email -> returns false
-        editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
+        // different selection status -> returns false
+        editedAlice = new PersonBuilder(ALICE).withSelectionStatus(SelectionStatus.KEPT).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different address -> returns false
-        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
+        // jersey number added -> returns false
+        editedAlice = new PersonBuilder(ALICE).withJerseyNumber("10").build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different tags -> returns false
-        editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
-        assertFalse(ALICE.equals(editedAlice));
+        // different jersey number -> returns false
+        assertFalse(editedAlice.equals(new PersonBuilder(ALICE).withJerseyNumber("11").build()));
+
+        // same jersey number -> returns true
+        assertTrue(editedAlice.equals(new PersonBuilder(ALICE).withJerseyNumber("10").build()));
+    }
+
+    @Test
+    public void hashcode() {
+        // same values -> returns same hashcode
+        assertEquals(ALICE.hashCode(), new PersonBuilder(ALICE).build().hashCode());
+
+        // different name -> returns different hashcode
+        assertNotEquals(ALICE.hashCode(), new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build().hashCode());
+
+        // different phone -> returns different hashcode
+        assertNotEquals(ALICE.hashCode(), new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build().hashCode());
+
+        // different selection status -> returns different hashcode
+        assertNotEquals(ALICE.hashCode(),
+                new PersonBuilder(ALICE).withSelectionStatus(SelectionStatus.CUT).build().hashCode());
+
+        // jersey number added -> returns different hashcode
+        assertNotEquals(ALICE.hashCode(), new PersonBuilder(ALICE).withJerseyNumber("10").build().hashCode());
+    }
+
+    @Test
+    public void getJerseyNumber() {
+        assertTrue(ALICE.getJerseyNumber().isEmpty());
+        assertEquals(new JerseyNumber("10"),
+                new PersonBuilder(ALICE).withJerseyNumber("10").build().getJerseyNumber().get());
+    }
+
+    @Test
+    public void withJerseyNumber_newOrRemovedNumber_keepsOtherFields() {
+        Person keptAlice = new PersonBuilder(ALICE).withSelectionStatus(SelectionStatus.KEPT).withRating("8")
+                .withTags("Striker").withRemark("Strong left foot").build();
+
+        Person numberedAlice = keptAlice.withJerseyNumber(new JerseyNumber("10"));
+        assertEquals(new PersonBuilder(keptAlice).withJerseyNumber("10").build(), numberedAlice);
+
+        // null removes the jersey number
+        assertEquals(keptAlice, numberedAlice.withJerseyNumber(null));
+    }
+
+    @Test
+    public void withOtherFields_jerseyNumberKept() {
+        Person numberedAlice = new PersonBuilder(ALICE).withJerseyNumber("10").build();
+        JerseyNumber expected = new JerseyNumber("10");
+
+        assertEquals(expected, numberedAlice.withSelectionStatus(SelectionStatus.KEPT).getJerseyNumber().get());
+        assertEquals(expected, numberedAlice.withRemark(new Remark("Fast")).getJerseyNumber().get());
+        assertEquals(expected, numberedAlice.withInjuryStatus(InjuryStatus.INJURED).getJerseyNumber().get());
+    }
+
+    @Test
+    public void constructor_withoutSelectionStatus_isPending() {
+        Person newPlayer = new Person(ALICE.getName(), ALICE.getPhone());
+        assertEquals(SelectionStatus.PENDING, newPlayer.getSelectionStatus());
+    }
+
+    @Test
+    public void isSamePerson_differentSelectionStatus_returnsTrue() {
+        // the status is a decision about the player, not part of who they are
+        Person keptAlice = new PersonBuilder(ALICE).withSelectionStatus(SelectionStatus.KEPT).build();
+        assertTrue(ALICE.isSamePerson(keptAlice));
+    }
+
+    @Test
+    public void withSelectionStatus_newStatus_keepsOtherFields() {
+        Person cutAlice = ALICE.withSelectionStatus(SelectionStatus.CUT);
+        assertEquals(SelectionStatus.CUT, cutAlice.getSelectionStatus());
+        assertEquals(ALICE.getName(), cutAlice.getName());
+        assertEquals(ALICE.getPhone(), cutAlice.getPhone());
+
+        // the original player is not changed
+        assertEquals(SelectionStatus.PENDING, ALICE.getSelectionStatus());
+    }
+
+    @Test
+    public void withSelectionStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ALICE.withSelectionStatus(null));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", selectionStatus=" + ALICE.getSelectionStatus() + ", tags=[], remark=" + ALICE.getRemark()
+                + ", injuryStatus=" + ALICE.getInjuryStatus() + ", jerseyNumber=null}";
         assertEquals(expected, ALICE.toString());
     }
+
+    @Test
+    public void remark_changesDataEqualityButPreservesIdentity() {
+        Person updated = new PersonBuilder(ALICE).withRemark("Strong left foot").build();
+        assertTrue(ALICE.isSamePerson(updated));
+        assertNotEquals(ALICE, updated);
+        assertEquals(updated, new PersonBuilder(updated).build());
+        assertEquals(updated.hashCode(), new PersonBuilder(updated).build().hashCode());
+        assertEquals(new Remark(""), ALICE.getRemark());
+    }
+
+    @Test
+    public void withRemark_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ALICE.withRemark(null));
+    }
+
+    @Test
+    public void injuryStatus_changesDataEqualityButPreservesIdentity() {
+        Person updated = new PersonBuilder(ALICE).withInjuryStatus(InjuryStatus.INJURED).build();
+        assertTrue(ALICE.isSamePerson(updated));
+        assertNotEquals(ALICE, updated);
+        assertEquals(updated, new PersonBuilder(updated).build());
+        assertEquals(updated.hashCode(), new PersonBuilder(updated).build().hashCode());
+        assertEquals(InjuryStatus.FIT, ALICE.getInjuryStatus());
+    }
+
+    @Test
+    public void withInjuryStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ALICE.withInjuryStatus(null));
+    }
+
 }

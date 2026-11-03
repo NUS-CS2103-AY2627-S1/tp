@@ -11,8 +11,13 @@ public class Phone {
 
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+            "Phone numbers should contain only digits, optionally preceded by a single '+', "
+            + "and should be 3 to 15 digits long. Spaces, hyphens, dots and brackets are allowed and will be "
+            + "removed, e.g. (65) 9123-4567. To note what a number is for, e.g. HP, use the remark command.";
+    public static final String VALIDATION_REGEX = "\\+?\\d{3,15}";
+    /** Matches the separators a user may type between digits, which are removed before validation. */
+    private static final String SEPARATOR_REGEX = "[ ().-]";
+
     public final String value;
 
     /**
@@ -31,6 +36,14 @@ public class Phone {
      */
     public static boolean isValidPhone(String test) {
         return test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns {@code phone} with leading and trailing whitespace, and all spaces, hyphens, dots and brackets,
+     * removed.
+     */
+    public static String normalize(String phone) {
+        return phone.trim().replaceAll(SEPARATOR_REGEX, "");
     }
 
     @Override

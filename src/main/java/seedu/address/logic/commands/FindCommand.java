@@ -8,30 +8,39 @@ import seedu.address.model.Model;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists players whose names match any keyword as a whole word, or as a part of a word between
+ * punctuation, ignoring case.
  */
 public class FindCommand extends Command {
 
+    /** Command word used to find players by name. */
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
+    /** Usage displayed when no search keyword is supplied. */
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds players whose names contain any of the given keywords.\n"
             + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+            + "Example: " + COMMAND_WORD + " wei ming";
 
     private final NameContainsKeywordsPredicate predicate;
+    private final String commandText;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
-        this.predicate = predicate;
+    /**
+     * Creates a command that lists players matching {@code predicate}.
+     *
+     * @param predicate The name-matching predicate.
+     * @param commandText The search command to identify in feedback.
+     */
+    public FindCommand(NameContainsKeywordsPredicate predicate, String commandText) {
+        this.predicate = requireNonNull(predicate);
+        this.commandText = requireNonNull(commandText);
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
-        return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+        model.updateFilteredPersonList(predicate, commandText);
+        return new CommandResult(Messages.formatCurrentListSummary(model));
     }
 
     @Override

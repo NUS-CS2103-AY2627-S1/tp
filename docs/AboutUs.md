@@ -1,59 +1,64 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
+
+# About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+For CouchCoach questions or bug reports, use the [project issue tracker](https://github.com/AY2627S1-CS2103T-W13-1/tp/issues).
 
 ## Project team
 
-### John Doe
+### Ian Sin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/iansine.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/iansine)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities:
+  * Integration: In charge of versioning the code, maintaining the code repository, and integrating various parts of the software to create a whole.
 
-### Jane Doe
+### Jonathan Koh
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jonkohzy.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jonkohzy)]
+
+* Role: Developer
+* Responsibilities:
+  * Code quality: Looks after code quality, ensures adherence to coding standards, etc.
+
+### Dhanush Bhoja Shetty
+
+<img src="images/dbs15329.png" width="200px">
+
+[[github](https://github.com/dbs15329)]
+
+* Role: Developer
+* Responsibilities:
+  * Testing: Ensures the testing of the project is done properly and on time.
+
+### Wesley Tay
+
+<img src="images/wesleytay25.png" width="200px">
+
+[[github](https://github.com/WesleyTay25)]
+
+* Role: Developer
+* Responsibilities:
+  * Documentation: Responsible for the quality of various project documents.
+  * Deliverables and Deadlines: Ensures project deliverables are done on time and in the right format.
+
+### Chester Lim Yi Jie
+
+<img src="images/chesterlim2004.png" width="200px">
+
+[[github](https://github.com/chesterlim2004)]
 
 * Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+* Responsibilities:
+  * Team Lead: Responsible for overall project coordination.
+  * Scheduling and tracking: In charge of defining, assigning, and tracking project tasks.

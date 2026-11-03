@@ -1,15 +1,19 @@
 package seedu.address.testutil;
 
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
+import seedu.address.model.person.InjuryStatus;
+import seedu.address.model.person.JerseyNumber;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Rating;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.SelectionStatus;
 import seedu.address.model.tag.Tag;
-import seedu.address.model.util.SampleDataUtil;
 
 /**
  * A utility class to help with building Person objects.
@@ -18,14 +22,15 @@ public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
-    public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
     private Name name;
     private Phone phone;
-    private Email email;
-    private Address address;
-    private Set<Tag> tags;
+    private SelectionStatus selectionStatus;
+    private Rating rating = Rating.UNRATED;
+    private Remark remark;
+    private InjuryStatus injuryStatus;
+    private Set<Tag> tags = Set.of();
+    private JerseyNumber jerseyNumber;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -33,9 +38,9 @@ public class PersonBuilder {
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
-        email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        selectionStatus = SelectionStatus.PENDING;
+        remark = new Remark("");
+        injuryStatus = InjuryStatus.FIT;
     }
 
     /**
@@ -44,9 +49,12 @@ public class PersonBuilder {
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
-        email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        selectionStatus = personToCopy.getSelectionStatus();
+        rating = personToCopy.getRating();
+        remark = personToCopy.getRemark();
+        injuryStatus = personToCopy.getInjuryStatus();
+        tags = personToCopy.getTags();
+        jerseyNumber = personToCopy.getJerseyNumber().orElse(null);
     }
 
     /**
@@ -54,22 +62,6 @@ public class PersonBuilder {
      */
     public PersonBuilder withName(String name) {
         this.name = new Name(name);
-        return this;
-    }
-
-    /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
-     */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
-        return this;
-    }
-
-    /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
         return this;
     }
 
@@ -82,15 +74,57 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Email} of the {@code Person} that we are building.
+     * Sets the custom labels of the player being built.
      */
-    public PersonBuilder withEmail(String email) {
-        this.email = new Email(email);
+    public PersonBuilder withTags(String... labels) {
+        tags = Arrays.stream(labels).map(Tag::new).collect(Collectors.toCollection(LinkedHashSet::new));
+        return this;
+    }
+
+    /**
+     * Sets the {@code SelectionStatus} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withSelectionStatus(SelectionStatus selectionStatus) {
+        this.selectionStatus = selectionStatus;
+        return this;
+    }
+
+    /** Sets the rating of the player being built. */
+    public PersonBuilder withRating(String rating) {
+        this.rating = new Rating(rating);
+        return this;
+    }
+
+    /** Sets the player's remark. */
+    public PersonBuilder withRemark(String remark) {
+        this.remark = new Remark(remark);
+        return this;
+    }
+
+    /** Sets the player's injury status. */
+    public PersonBuilder withInjuryStatus(InjuryStatus injuryStatus) {
+        this.injuryStatus = injuryStatus;
+        return this;
+    }
+
+    /**
+     * Sets the {@code JerseyNumber} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withJerseyNumber(String jerseyNumber) {
+        this.jerseyNumber = new JerseyNumber(jerseyNumber);
+        return this;
+    }
+
+    /**
+     * Removes the {@code JerseyNumber} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withoutJerseyNumber() {
+        this.jerseyNumber = null;
         return this;
     }
 
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, selectionStatus, rating, tags, remark, injuryStatus, jerseyNumber);
     }
 
 }

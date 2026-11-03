@@ -3,11 +3,15 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
@@ -21,6 +25,9 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final ObservableList<Person> displayedPersons;
+    private Optional<String> currentListCommand = Optional.empty();
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +40,8 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
+        displayedPersons = FXCollections.unmodifiableObservableList(sortedPersons);
     }
 
     public ModelManager() {
@@ -101,13 +110,33 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return displayedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+        currentListCommand = Optional.empty();
+    }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate, String commandText) {
+        requireAllNonNull(predicate, commandText);
+        updateFilteredPersonList(predicate);
+        currentListCommand = Optional.of(commandText);
+    }
+
+    @Override
+    public Optional<String> getCurrentListCommand() {
+        return currentListCommand;
+    }
+
+    @Override
+    public void setPersonComparator(Comparator<Person> comparator) {
+        // Explicitly break ties by source order: replacement events need not retain SortedList's tie order.
+        sortedPersons.setComparator(comparator == null ? null
+                : comparator.thenComparingInt(addressBook.getPersonList()::indexOf));
     }
 
     @Override
@@ -123,7 +152,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && displayedPersons.equals(otherModelManager.displayedPersons);
     }
 
 }

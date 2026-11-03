@@ -9,15 +9,23 @@ package Storage as StoragePackage {
 Class "<<interface>>\nStorage" as Storage
 Class StorageManager
 
-package "UserPrefs Storage" #F4F6F6{
+package "UserPrefs Storage" #F4F6F6 {
 Class JsonUserPrefsStorage
 }
 
-package "AddressBook Storage" #F4F6F6{
+package "AddressBook Storage" #F4F6F6 {
 Class JsonAddressBookStorage
 Class JsonSerializableAddressBook
-Class JsonAdaptedPerson
-Class JsonAdaptedTag
+Class JsonAdaptedPerson {
+  name : String
+  phone : String
+  selectionStatus : String [0..1]
+  rating : String [0..1]
+  tags : String [*]
+  remark : String [0..1]
+  injuryStatus : String [0..1]
+  jerseyNumber : String [0..1]
+}
 }
 
 }
@@ -31,6 +39,14 @@ StorageManager -down-> "1" JsonAddressBookStorage
 
 JsonAddressBookStorage ..> JsonSerializableAddressBook
 JsonSerializableAddressBook --> "*" JsonAdaptedPerson
-JsonAdaptedPerson --> "*" JsonAdaptedTag
+
+show JsonAdaptedPerson fields
+hide HiddenOutside
+
+note right of JsonAdaptedPerson
+  An optional field missing from the file
+  takes its default (e.g. PENDING, unrated,
+  fit), so older data files still load.
+end note
 
 @enduml

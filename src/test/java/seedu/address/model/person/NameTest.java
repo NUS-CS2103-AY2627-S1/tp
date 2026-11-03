@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -20,6 +21,12 @@ public class NameTest {
     }
 
     @Test
+    public void constructor_tooLongName_throwsIllegalArgumentException() {
+        String tooLongName = "a".repeat(Name.MAX_LENGTH + 1);
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_LENGTH_CONSTRAINTS, () -> new Name(tooLongName));
+    }
+
+    @Test
     public void isValidName() {
         // null name
         assertThrows(NullPointerException.class, () -> Name.isValidName(null));
@@ -27,15 +34,83 @@ public class NameTest {
         // invalid name
         assertFalse(Name.isValidName("")); // empty string
         assertFalse(Name.isValidName(" ")); // spaces only
-        assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
-        assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName(" peter")); // leading space
+        assertFalse(Name.isValidName("^")); // only disallowed characters
+        assertFalse(Name.isValidName("peter*")); // contains disallowed characters
+        assertFalse(Name.isValidName("Tan @ Ming")); // contains '@'
+        assertFalse(Name.isValidName("a".repeat(Name.MAX_LENGTH + 1))); // exceeds maximum length
 
         // valid name
+        assertTrue(Name.isValidName("Muthu s/o Ramasamy")); // slash
+        assertTrue(Name.isValidName("José García")); // accented letters
+        assertTrue(Name.isValidName("Zhang Wei 张伟")); // non-English letters
+        assertTrue(Name.isValidName("Dr. Lim, Jr")); // comma
+        assertTrue(Name.isValidName("Lim Ah Kow (Ah Boy)")); // brackets
+        assertTrue(Name.isValidName("Nur'ain Binte Hassan")); // apostrophe
+        assertTrue(Name.isValidName("Anne-Marie Tan Jr.")); // hyphen and full stop
         assertTrue(Name.isValidName("peter jack")); // alphabets only
         assertTrue(Name.isValidName("12345")); // numbers only
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("a".repeat(Name.MAX_LENGTH))); // exactly maximum length
+    }
+
+    @Test
+    public void normalize() {
+        // null name
+        assertThrows(NullPointerException.class, () -> Name.normalize(null));
+
+        // already normalized -> unchanged
+        assertEquals("Tan Wei Ming", Name.normalize("Tan Wei Ming"));
+
+        // leading and trailing whitespace -> removed
+        assertEquals("Tan Wei Ming", Name.normalize(" \t Tan Wei Ming \n"));
+
+        // repeated internal whitespace -> collapsed into a single space
+        assertEquals("Tan Wei Ming", Name.normalize("Tan   Wei \t Ming"));
+
+        // capitalization -> preserved
+        assertEquals("tAn WEI ming", Name.normalize("tAn WEI ming"));
+    }
+
+    @Test
+    public void isSameName() {
+        Name name = new Name("Tan Wei Ming");
+
+        // same object -> returns true
+        assertTrue(name.isSameName(name));
+
+        // null -> returns false
+        assertFalse(name.isSameName(null));
+
+        // different case -> returns true
+        assertTrue(name.isSameName(new Name("tan wei ming")));
+        assertTrue(name.isSameName(new Name("TAN WEI MING")));
+
+        // repeated internal or trailing spaces -> returns true
+        assertTrue(name.isSameName(new Name("Tan  Wei   Ming")));
+        assertTrue(name.isSameName(new Name("Tan Wei Ming ")));
+
+        // different name -> returns false
+        assertFalse(name.isSameName(new Name("Tan Wei Ming 2")));
+        assertFalse(name.isSameName(new Name("TanWei Ming")));
+    }
+
+    @Test
+    public void isSimilarTo() {
+        Name name = new Name("Tan Wei Ming");
+
+        // same letters and digits, ignoring spaces, punctuation and case -> returns true
+        assertTrue(name.isSimilarTo(new Name("TanWei Ming")));
+        assertTrue(name.isSimilarTo(new Name("tan-wei-ming")));
+        assertTrue(name.isSimilarTo(new Name("Tan Wei Ming")));
+
+        // different letters or digits -> returns false
+        assertFalse(name.isSimilarTo(new Name("Tan Wei Ming 2")));
+        assertFalse(name.isSimilarTo(new Name("Tan Wei Min")));
+
+        assertThrows(NullPointerException.class, () -> name.isSimilarTo(null));
     }
 
     @Test
@@ -56,5 +131,8 @@ public class NameTest {
 
         // different values -> returns false
         assertFalse(name.equals(new Name("Other Valid Name")));
+
+        // different case -> returns false, as the capitalisation typed is preserved
+        assertFalse(name.equals(new Name("valid name")));
     }
 }

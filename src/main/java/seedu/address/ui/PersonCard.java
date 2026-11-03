@@ -1,12 +1,13 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
+import java.util.Locale;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import seedu.address.model.person.InjuryStatus;
 import seedu.address.model.person.Person;
 
 /**
@@ -15,6 +16,8 @@ import seedu.address.model.person.Person;
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    /** Prefix of the style class that colours the status badge, e.g. {@code selection-status-kept}. */
+    private static final String STATUS_STYLE_CLASS_PREFIX = "selection-status-";
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -27,7 +30,7 @@ public class PersonCard extends UiPart<Region> {
     public final Person person;
 
     @FXML
-    private HBox cardPane;
+    private VBox cardPane;
     @FXML
     private Label name;
     @FXML
@@ -35,9 +38,15 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label phone;
     @FXML
-    private Label address;
+    private Label jerseyNumber;
     @FXML
-    private Label email;
+    private Label rating;
+    @FXML
+    private Label remark;
+    @FXML
+    private Label injuryBadge;
+    @FXML
+    private Label selectionStatus;
     @FXML
     private FlowPane tags;
 
@@ -50,10 +59,21 @@ public class PersonCard extends UiPart<Region> {
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
         phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        // hide the line entirely, rather than leaving a blank one, for a player without a jersey number
+        jerseyNumber.setText(person.getJerseyNumber().map(number -> "Jersey #" + number).orElse(""));
+        jerseyNumber.setVisible(person.getJerseyNumber().isPresent());
+        jerseyNumber.setManaged(jerseyNumber.isVisible());
+        remark.setText("Remark: " + person.getRemark().value);
+        remark.setVisible(!person.getRemark().value.isEmpty());
+        remark.setManaged(remark.isVisible());
+        // Only injured players get a badge, so they stand out; a "fit" line on every card would hide them
+        injuryBadge.setVisible(person.getInjuryStatus() == InjuryStatus.INJURED);
+        injuryBadge.setManaged(injuryBadge.isVisible());
+        rating.setText("Rating: " + person.getRating() + (person.getRating().isRated() ? "/10" : ""));
+        selectionStatus.setText(person.getSelectionStatus().toString());
+        selectionStatus.getStyleClass().add(STATUS_STYLE_CLASS_PREFIX
+                + person.getSelectionStatus().name().toLowerCase(Locale.ROOT));
+        person.getTags().stream().map(Object::toString).sorted(String.CASE_INSENSITIVE_ORDER)
+                .forEach(tag -> tags.getChildren().add(new Label(tag)));
     }
 }

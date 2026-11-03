@@ -5,18 +5,39 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_JERSEY_NUMBER_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditPersonDescriptorTest {
+
+    @Test
+    public void tags_distinguishesOmittedAndClearedAndCopiesInput() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        assertTrue(descriptor.getTags().isEmpty());
+        assertFalse(descriptor.isAnyFieldEdited());
+        Set<Tag> labels = new HashSet<>(Set.of(new Tag("Striker")));
+        descriptor.setTags(labels);
+        labels.clear();
+        EditPersonDescriptor copy = new EditPersonDescriptor(descriptor);
+        assertEquals(Set.of(new Tag("Striker")), copy.getTags().orElseThrow());
+        assertThrows(UnsupportedOperationException.class, () -> copy.getTags().orElseThrow().clear());
+        descriptor.setTags(Set.of());
+        assertTrue(descriptor.isAnyFieldEdited());
+        assertTrue(descriptor.getTags().orElseThrow().isEmpty());
+        assertFalse(descriptor.equals(copy));
+        assertEquals(Set.of(new Tag("Striker")), copy.getTags().orElseThrow());
+    }
 
     @Test
     public void equals() {
@@ -44,17 +65,24 @@ public class EditPersonDescriptorTest {
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withPhone(VALID_PHONE_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different email -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
+        // jersey number edited -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withJerseyNumber(VALID_JERSEY_NUMBER_BOB).build();
         assertFalse(DESC_AMY.equals(editedAmy));
 
-        // different address -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        // jersey number removed -> returns false, as it differs from leaving the jersey number unchanged
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withoutJerseyNumber().build();
         assertFalse(DESC_AMY.equals(editedAmy));
+        assertTrue(editedAmy.equals(new EditPersonDescriptor(editedAmy)));
+    }
 
-        // different tags -> returns false
-        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
-        assertFalse(DESC_AMY.equals(editedAmy));
+    @Test
+    public void isAnyFieldEdited() {
+        assertFalse(new EditPersonDescriptor().isAnyFieldEdited());
+        assertTrue(new EditPersonDescriptorBuilder().withJerseyNumber(VALID_JERSEY_NUMBER_BOB).build()
+                .isAnyFieldEdited());
+
+        // removing the jersey number counts as an edit
+        assertTrue(new EditPersonDescriptorBuilder().withoutJerseyNumber().build().isAnyFieldEdited());
     }
 
     @Test
@@ -62,10 +90,8 @@ public class EditPersonDescriptorTest {
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
         String expected = EditPersonDescriptor.class.getCanonicalName() + "{name="
                 + editPersonDescriptor.getName().orElse(null) + ", phone="
-                + editPersonDescriptor.getPhone().orElse(null) + ", email="
-                + editPersonDescriptor.getEmail().orElse(null) + ", address="
-                + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getPhone().orElse(null) + ", tags=null, jerseyNumber=null"
+                + ", isJerseyNumberEdited=false}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }
