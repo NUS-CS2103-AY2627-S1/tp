@@ -1,5 +1,7 @@
 package seedu.address.logic;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.logging.Logger;
@@ -7,12 +9,17 @@ import java.util.logging.Logger;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -20,6 +27,7 @@ import seedu.address.storage.Storage;
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
+    public static final String MESSAGE_ADD_SAVE_FAILURE = "Unable to save student data. No changes were made.";
     public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
@@ -35,8 +43,8 @@ public class LogicManager implements Logic {
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
      */
     public LogicManager(Model model, Storage storage) {
-        this.model = model;
-        this.storage = storage;
+        this.model = requireNonNull(model);
+        this.storage = requireNonNull(storage);
         addressBookParser = new AddressBookParser();
     }
 
@@ -44,16 +52,36 @@ public class LogicManager implements Logic {
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        Model proposedModel = new ModelManager(model.getAddressBook(), model.getUserPrefs());
+        proposedModel.restoreSnapshot(model.createSnapshot());
+        CommandResult commandResult = command.execute(proposedModel);
+        boolean isHistoryCommand = command instanceof UndoCommand || command instanceof RedoCommand;
+        boolean hasRosterChanged = !model.getAddressBook().equals(proposedModel.getAddressBook());
+        boolean usesStudentSaveMessage = command instanceof AddCommand || command instanceof TagCommand;
 
-        try {
-            storage.saveAddressBook(model.getAddressBook());
-        } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
-        } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+        if (hasRosterChanged || isHistoryCommand) {
+            if (!isHistoryCommand) {
+                proposedModel.commitAddressBook();
+            }
+            try {
+                storage.saveAddressBookAtomically(proposedModel.getAddressBook());
+            } catch (AccessDeniedException e) {
+                logger.warning("Could not save roster changes; the live roster and history were not changed.");
+                String message = usesStudentSaveMessage ? MESSAGE_ADD_SAVE_FAILURE
+                        : String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage());
+                throw new CommandException(message, e);
+            } catch (IOException e) {
+                logger.warning("Could not save roster changes; the live roster and history were not changed.");
+                String message = usesStudentSaveMessage ? MESSAGE_ADD_SAVE_FAILURE
+                        : String.format(FILE_OPS_ERROR_FORMAT, e.getMessage());
+                throw new CommandException(message, e);
+            }
+        }
+        // Publish roster, filter, and history together only after a successful save.
+        model.restoreSnapshot(proposedModel.createSnapshot());
+        if (hasRosterChanged || isHistoryCommand) {
+            logger.info("Saved and published roster and history changes.");
         }
 
         return commandResult;

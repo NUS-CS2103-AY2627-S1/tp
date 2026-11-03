@@ -10,7 +10,7 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain alphanumeric characters and spaces, and should not be blank.";
 
     /*
      * The first character of the name must not be a whitespace,
@@ -26,9 +26,20 @@ public class Name {
      * @param name A valid name.
      */
     public Name(String name) {
+        this(name, true);
+    }
+
+    private Name(String name, boolean validate) {
         requireNonNull(name);
-        checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
+        if (validate) {
+            checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
+        }
         fullName = name;
+    }
+
+    /** Creates a name from validated student data or compatible stored data. */
+    public static Name fromStoredValue(String name) {
+        return new Name(name, false);
     }
 
     /**

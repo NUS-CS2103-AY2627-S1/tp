@@ -15,6 +15,9 @@ import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
+import java.util.List;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
@@ -24,7 +27,9 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Address;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 
@@ -41,12 +46,36 @@ public class EditCommandTest {
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(editedPerson).build();
         EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                editedPerson.getName().fullName);
 
         Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
         expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_newStudentFields_preservesAndReplacesNewData() throws Exception {
+        Model studentModel = new ModelManager();
+        Person student = new Person("Amy Bee", "85355255", "amy@example.com", List.of("Math"), "JC 1",
+                "Old notes").withTags(Set.of(new Tag("old-tag")));
+        studentModel.addPerson(student);
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setSubjects(List.of("Physics", "Chemistry"));
+        descriptor.setLevel("Secondary 4");
+        descriptor.setNotes("New notes");
+        descriptor.setTags(Set.of(new Tag("new-tag")));
+
+        new EditCommand(Index.fromOneBased(1), descriptor).execute(studentModel);
+
+        Person edited = studentModel.getAddressBook().getPersonList().getFirst();
+        assertEquals(List.of("Physics", "Chemistry"), edited.getSubjects());
+        assertEquals("Secondary 4", edited.getLevel());
+        assertEquals("New notes", edited.getNotes());
+        assertEquals(Set.of(new Tag("new-tag")), edited.getTags());
+        assertEquals("amy@example.com", edited.getEmail().value);
     }
 
     @Test
@@ -62,7 +91,8 @@ public class EditCommandTest {
                 .withPhone(VALID_PHONE_BOB).withTags(VALID_TAG_HUSBAND).build();
         EditCommand editCommand = new EditCommand(indexLastPerson, descriptor);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                editedPerson.getName().fullName);
 
         Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
         expectedModel.setPerson(lastPerson, editedPerson);
@@ -75,7 +105,8 @@ public class EditCommandTest {
         EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
         Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                editedPerson.getName().fullName);
 
         Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
 
@@ -91,7 +122,8 @@ public class EditCommandTest {
         EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
                 new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                editedPerson.getName().fullName);
 
         Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
         expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
@@ -181,4 +213,137 @@ public class EditCommandTest {
         assertEquals(expected, editCommand.toString());
     }
 
+    @Test
+    public void execute_studentFieldsSpecifiedUnfilteredList_success() {
+        Person student = new Person("Ryan Tan", "+6591234567", "ryan@example.com",
+                java.util.List.of("Mathematics", "Physics"), "Secondary 4", "Initial notes");
+        model.addPerson(student);
+        Index studentIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withPhone("+6598765432")
+                .withLevel("Secondary 5")
+                .build();
+        EditCommand editCommand = new EditCommand(studentIndex, descriptor);
+
+        Person expectedStudent = new Person("Ryan Tan", "+6598765432", "ryan@example.com",
+                java.util.List.of("Mathematics", "Physics"), "Secondary 5", "Initial notes");
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                expectedStudent.getName().fullName);
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(student, expectedStudent);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_editStudentSubjectsAndNotes_success() {
+        Person student = new Person("Alice Wong", "+6581234567", null,
+                java.util.List.of("English"), "Secondary 1", "");
+        model.addPerson(student);
+        Index studentIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withSubjects("English Literature", "History")
+                .withNotes("Prefers visual aids")
+                .build();
+        EditCommand editCommand = new EditCommand(studentIndex, descriptor);
+
+        Person expectedStudent = new Person("Alice Wong", "+6581234567", null,
+                java.util.List.of("English Literature", "History"), "Secondary 1", "Prefers visual aids");
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                expectedStudent.getName().fullName);
+
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(student, expectedStudent);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_editStudentAddress_success() {
+        Person student = new Person("Alice Wong", "+6581234567", null,
+                List.of("English"), "Secondary 1", "", new Address("12 Main Street"));
+        model.addPerson(student);
+        Index studentIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setAddress(new Address("34 River Road"));
+        EditCommand editCommand = new EditCommand(studentIndex, descriptor);
+
+        Person expectedStudent = new Person("Alice Wong", "+6581234567", null,
+                List.of("English"), "Secondary 1", "", new Address("34 River Road"));
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(student, expectedStudent);
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                expectedStudent.getName().fullName);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_clearOptionalStudentFields_success() {
+        Person student = new Person("Alice Wong", "+6581234567", "alice@example.com",
+                List.of("English"), "Secondary 1", "", new Address("12 Main Street"));
+        model.addPerson(student);
+        Index studentIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.clearEmail();
+        descriptor.clearAddress();
+        EditCommand editCommand = new EditCommand(studentIndex, descriptor);
+
+        Person expectedStudent = new Person("Alice Wong", "+6581234567", null,
+                List.of("English"), "Secondary 1", "", null);
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(student, expectedStudent);
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                expectedStudent.getName().fullName);
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_appendAndRemoveMultiValueFields_success() {
+        Person student = new Person("Alice Wong", "+6581234567", null,
+                List.of("English", "Mathematics"), "Secondary 1", "")
+                .withTags(Set.of(new Tag("old-tag"), new Tag("keep-tag")));
+        model.addPerson(student);
+        Index studentIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        descriptor.setSubjectsToAdd(List.of("Physics"));
+        descriptor.setSubjectsToRemove(List.of("English"));
+        descriptor.setTagsToAdd(Set.of(new Tag("new-tag")));
+        descriptor.setTagsToRemove(Set.of(new Tag("old-tag")));
+        EditCommand editCommand = new EditCommand(studentIndex, descriptor);
+
+        Person expectedStudent = new Person("Alice Wong", "+6581234567", null,
+                List.of("Mathematics", "Physics"), "Secondary 1", "")
+                .withTags(Set.of(new Tag("keep-tag"), new Tag("new-tag")));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                expectedStudent.getName().fullName);
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(student, expectedStudent);
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_duplicateStudentPhone_failure() {
+        Person student1 = new Person("Ryan Tan", "+6591234567", null,
+                java.util.List.of("Mathematics"), "Secondary 4");
+        Person student2 = new Person("Ryan Tan", "+6581234567", null,
+                java.util.List.of("Mathematics"), "Secondary 4");
+        model.addPerson(student1);
+        model.addPerson(student2);
+
+        Index student2Index = Index.fromOneBased(model.getFilteredPersonList().size());
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withPhone("+6591234567").build();
+        EditCommand editCommand = new EditCommand(student2Index, descriptor);
+
+        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+    }
 }

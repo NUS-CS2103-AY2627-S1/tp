@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +22,15 @@ public class ArgumentTokenizerTest {
 
         assertPreambleEmpty(argMultimap);
         assertArgumentAbsent(argMultimap, pSlash);
+    }
+
+    @Test
+    public void tokenize_nullArguments_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ArgumentTokenizer.tokenize((String) null));
+        assertThrows(NullPointerException.class, () -> ArgumentTokenizer.tokenize("", (Prefix[]) null));
+        assertThrows(NullPointerException.class, ()
+                -> ArgumentTokenizer.tokenize("", new Prefix[] {null}));
+        assertThrows(NullPointerException.class, () -> new Prefix(null));
     }
 
     private void assertPreamblePresent(ArgumentMultimap argMultimap, String expectedPreamble) {
@@ -77,6 +87,15 @@ public class ArgumentTokenizerTest {
         assertPreambleEmpty(argMultimap);
         assertArgumentPresent(argMultimap, pSlash, "Argument value");
 
+    }
+
+    @Test
+    public void tokenize_whitespaceBeforePrefix_acceptsTabsAndUnicodeSeparators() {
+        for (String separator : new String[] {"\t", "\u2003", "\u00a0"}) {
+            ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize("1" + separator + "p/91234567", pSlash);
+            assertPreamblePresent(argMultimap, "1");
+            assertArgumentPresent(argMultimap, pSlash, "91234567");
+        }
     }
 
     @Test

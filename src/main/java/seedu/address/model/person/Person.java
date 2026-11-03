@@ -2,8 +2,10 @@ package seedu.address.model.person;
 
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -11,30 +13,105 @@ import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
 
 /**
- * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * A student record in TutorRoster.
  */
 public class Person {
 
-    // Identity fields
     private final Name name;
     private final Phone phone;
     private final Email email;
-
-    // Data fields
+    private final List<String> subjects;
+    private final String level;
+    private final String notes;
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
 
-    /**
-     * Every field must be present and not null.
-     */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
-        this.name = name;
-        this.phone = phone;
-        this.email = email;
+    /** Creates a new student after validating all fields. Email may be absent. */
+    public Person(String name, String phone, String email, List<String> subjects, String level) {
+        this(name, phone, email, subjects, level, "");
+    }
+
+    /** Creates a new student after validating all fields. Email and notes may be absent. */
+    public Person(String name, String phone, String email, List<String> subjects, String level, String notes) {
+        this(name, phone, email, subjects, level, notes, null);
+    }
+
+    /** Creates a new student after validating all fields. Optional fields may be absent. */
+    public Person(String name, String phone, String email, List<String> subjects, String level, String notes,
+            Address address) {
+        requireAllNonNull(name, phone, subjects, level);
+        String normalizedName = StudentFields.normalizeName(name);
+        if (!StudentFields.isValidName(normalizedName)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_NAME);
+        }
+        if (!StudentFields.isValidPhone(phone)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_PHONE);
+        }
+        if (email != null && !StudentFields.isValidEmail(email)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_EMAIL);
+        }
+        if (subjects.isEmpty()) {
+            throw new IllegalArgumentException(StudentFields.INVALID_SUBJECT);
+        }
+        Set<String> subjectKeys = new HashSet<>();
+        List<String> normalizedSubjects = new ArrayList<>();
+        for (String subject : subjects) {
+            if (subject == null) {
+                throw new IllegalArgumentException(StudentFields.INVALID_SUBJECT);
+            }
+            String normalizedSubject = StudentFields.normalizeWhitespace(subject);
+            if (!StudentFields.isValidSubject(normalizedSubject)) {
+                throw new IllegalArgumentException(StudentFields.INVALID_SUBJECT);
+            }
+            if (!subjectKeys.add(StudentFields.subjectKey(normalizedSubject))) {
+                throw new IllegalArgumentException("Duplicate subject: " + normalizedSubject);
+            }
+            normalizedSubjects.add(normalizedSubject);
+        }
+        String normalizedLevel = StudentFields.normalizeWhitespace(level);
+        if (!StudentFields.isValidLevel(normalizedLevel)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_LEVEL);
+        }
+        String normalizedNotes = notes == null ? "" : StudentFields.trim(notes);
+        if (!normalizedNotes.isEmpty() && !StudentFields.isValidNotes(normalizedNotes)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_NOTES);
+        }
+        this.name = Name.fromStoredValue(normalizedName);
+        this.phone = Phone.fromStoredValue(StudentFields.normalizePhone(phone));
+        this.email = email == null ? null : Email.fromStoredValue(email);
+        this.subjects = List.copyOf(normalizedSubjects);
+        this.level = normalizedLevel;
+        this.notes = normalizedNotes;
+        this.address = address;
+    }
+
+    private Person(String name, String phone, String email, List<String> subjects, String level, String notes,
+            Address address, Set<Tag> tags) {
+        requireAllNonNull(name, phone, subjects, level, tags);
+        this.name = Name.fromStoredValue(name);
+        this.phone = Phone.fromStoredValue(phone);
+        this.email = email == null ? null : Email.fromStoredValue(email);
+        this.subjects = Collections.unmodifiableList(new ArrayList<>(subjects));
+        this.level = level;
+        String normalizedNotes = notes == null ? "" : StudentFields.trim(notes);
+        if (!normalizedNotes.isEmpty() && !StudentFields.isValidNotes(normalizedNotes)) {
+            throw new IllegalArgumentException(StudentFields.INVALID_NOTES);
+        }
+        this.notes = normalizedNotes;
         this.address = address;
         this.tags.addAll(tags);
+    }
+
+    /** Restores an already stored record without applying new-add validation to existing data. */
+    public static Person fromStoredRecord(String name, String phone, String email, List<String> subjects,
+            String level, Address address, Set<Tag> tags) {
+        return fromStoredRecord(name, phone, email, subjects, level, "", address, tags);
+    }
+
+    /** Restores a stored record with notes. */
+    public static Person fromStoredRecord(String name, String phone, String email, List<String> subjects,
+            String level, String notes, Address address, Set<Tag> tags) {
+        return new Person(name, phone, email, subjects, level, notes, address, tags);
     }
 
     public Name getName() {
@@ -49,6 +126,19 @@ public class Person {
         return email;
     }
 
+    public List<String> getSubjects() {
+        return subjects;
+    }
+
+    public String getLevel() {
+        return level;
+    }
+
+    /** Returns tutoring-specific notes, or an empty string when no notes were supplied. */
+    public String getNotes() {
+        return notes;
+    }
+
     public Address getAddress() {
         return address;
     }
@@ -61,17 +151,51 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    /** Copies this record with new tags, preserving every other field. */
+    public Person withTags(Set<Tag> replacementTags) {
+        requireAllNonNull(replacementTags);
+        return new Person(name.fullName, phone.value, email == null ? null : email.value,
+                subjects, level, notes, address, replacementTags);
+    }
+
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Copies a student with replacement student fields and tags.
+     * The public student constructor performs the complete validation before the copy is returned.
+     */
+    public Person withStudentDetails(String replacementName, String replacementPhone, String replacementEmail,
+            List<String> replacementSubjects, String replacementLevel, String replacementNotes,
+            Set<Tag> replacementTags) {
+        return withStudentDetails(replacementName, replacementPhone, replacementEmail, replacementSubjects,
+                replacementLevel, replacementNotes, address, replacementTags);
+    }
+
+    /** Copies a student with replacement student fields, address, and tags. */
+    public Person withStudentDetails(String replacementName, String replacementPhone, String replacementEmail,
+            List<String> replacementSubjects, String replacementLevel, String replacementNotes,
+            Address replacementAddress, Set<Tag> replacementTags) {
+        requireAllNonNull(replacementName, replacementPhone, replacementSubjects, replacementLevel, replacementTags);
+        return new Person(replacementName, replacementPhone, replacementEmail, replacementSubjects,
+                replacementLevel, replacementNotes, replacementAddress).withTags(replacementTags);
+    }
+
+    /**
+     * Returns true if both students have the same normalized name and either the same phone or same email.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
             return true;
         }
 
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        if (otherPerson == null) {
+            return false;
+        }
+        boolean sameName = StudentFields.nameKey(name.fullName)
+                .equals(StudentFields.nameKey(otherPerson.name.fullName));
+        boolean samePhone = StudentFields.phoneKey(phone.value)
+                .equals(StudentFields.phoneKey(otherPerson.phone.value));
+        boolean sameEmail = email != null && otherPerson.email != null
+                && StudentFields.emailKey(email.value).equals(StudentFields.emailKey(otherPerson.email.value));
+        return sameName && (samePhone || sameEmail);
     }
 
     /**
@@ -84,33 +208,38 @@ public class Person {
             return true;
         }
 
-        // instanceof handles nulls
         if (!(other instanceof Person otherPerson)) {
             return false;
         }
 
         return name.equals(otherPerson.name)
                 && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
+                && Objects.equals(email, otherPerson.email)
+                && subjects.equals(otherPerson.subjects)
+                && Objects.equals(level, otherPerson.level)
+                && notes.equals(otherPerson.notes)
+                && Objects.equals(address, otherPerson.address)
                 && tags.equals(otherPerson.tags);
     }
 
     @Override
     public int hashCode() {
-        // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, subjects, level, notes, address, tags);
     }
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
+        ToStringBuilder builder = new ToStringBuilder(this)
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
-                .toString();
+                .add("subjects", subjects)
+                .add("level", level)
+                .add("address", address);
+        if (!notes.isEmpty()) {
+            builder.add("notes", notes);
+        }
+        return builder.add("tags", tags).toString();
     }
 
 }

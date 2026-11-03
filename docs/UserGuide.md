@@ -1,198 +1,454 @@
----
-layout: page
-title: User Guide
----
+# TutorRoster User Guide
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+TutorRoster is a desktop student directory for private freelance tutors. It keeps each student's
+contact details, subjects, education level, optional address, tutoring notes, and tags in one local
+roster. The graphical interface displays the roster, while short keyboard commands do the work.
 
-* Table of Contents
-{:toc}
+TutorRoster is useful when you manage several students and want to update or find records faster
+than in a mouse-driven contact application. No Internet connection is required for core features.
 
---------------------------------------------------------------------------------------------------------------------
+<a href="images/Ui.png">
+  <img src="images/Ui.png" alt="TutorRoster main window" width="700" style="max-width: 100%; height: auto;">
+</a>
+
+*The main window displays student cards, command feedback, the command box, and the local data-file path.*
+
+<page-nav-print />
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
-
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
-
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
-
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
-
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
-
-   * `list` : Lists all contacts.
-
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
-
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
-
-   * `clear` : Deletes all contacts.
-
-   * `exit` : Exits the app.
-
-1. Refer to the [Features](#features) section below for details of each command.
-
---------------------------------------------------------------------------------------------------------------------
-
-## Features
-
-<div markdown="block" class="alert alert-info">
-
-**:information_source: Notes about the command format:**<br>
-
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
-
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
-
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
-
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
-
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
-
-* If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
-
-### Viewing help: `help`
-
-Shows a message explaining how to access the help page.
-
-![help message](images/helpMessage.png)
-
-Format: `help`
-
-
-### Adding a person: `add`
-
-Adds a person to the address book.
-
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
-
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
-
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
-
-### Listing all persons: `list`
-
-Shows a list of all persons in the address book.
-
-Format: `list`
-
-### Editing a person: `edit`
-
-Edits an existing person in the address book.
-
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
-
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
-
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
-
-### Locating persons by name: `find`
-
-Finds persons whose names contain any of the given keywords.
-
-Format: `find KEYWORD [MORE_KEYWORDS]`
-
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
-
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
-
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
-
-### Clearing all entries: `clear`
-
-Clears all entries from the address book.
-
-Format: `clear`
-
-### Exiting the program: `exit`
-
-Exits the program.
-
-Format: `exit`
-
-### Saving the data
-
-AddressBook automatically saves data after every command. You do not need to save manually.
-
-### Editing the data file
-
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
-
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
-
---------------------------------------------------------------------------------------------------------------------
-
-## FAQ
-
-**Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
-
---------------------------------------------------------------------------------------------------------------------
-
-## Known issues
-
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
-
---------------------------------------------------------------------------------------------------------------------
+1. Install Java **25 or later**. On macOS, use a Java distribution that includes JavaFX.
+1. Download the runnable JAR from the
+   [latest TutorRoster release](https://github.com/AY2627S1-CS2103T-F14-2/tp/releases/latest).
+1. Put the JAR in a folder where you can create and update files. TutorRoster needs this
+   permission for `data/addressbook.json` and `preferences.json`.
+1. Open a terminal in that folder and run:
+
+   ```sh
+   java -jar TutorRoster.jar
+   ```
+
+   Replace `TutorRoster.jar` if the downloaded file has a different name. Double-clicking the JAR
+   may not work on every operating system; use the terminal command when in doubt.
+1. The TutorRoster window opens. If no saved roster exists, sample students are displayed. A saved
+   roster is loaded on later launches from the same folder.
+1. Click the command box, type a command, and press **Enter** or **Run command**. For example:
+
+   ```text
+   add n/Ryan Tan p/+6591234567 s/Mathematics l/Secondary 4 r/Prefers worked examples
+   ```
+
+   The command box is the primary input method, but buttons and menus remain available for running
+   a command or opening help.
+
+## Reading the interface
+
+* **Your students**: the numbered, scrollable roster. Each card shows the name, phone, subjects,
+  education level, and any supplied email, notes, and tags. The address is shown in the full record.
+* **Result area**: feedback from the most recent command, including validation errors and save errors.
+* **Command box**: type commands here. A successful command clears the box; a rejected command
+  remains so that you can correct it.
+* **Suggestions**: while typing, TutorRoster suggests matching commands and parameter prefixes.
+  Press **Tab** to insert the top suggestion or click a suggestion.
+* **Student detail modal**: `show INDEX` opens a scrollable complete record above the dimmed roster.
+  It shows phone, email, subjects, education level, notes, address, and tags. Missing optional
+  values are shown as `Not provided`.
+* **Status bar**: shows the path of the roster data file.
+
+The index always belongs to the list currently displayed. A search starts its result numbering at 1.
+Commands that change the roster, `list`, `undo`, and `redo` return to the complete roster; `tag` and
+`untag` keep the current search filter.
+
+### Keyboard shortcuts
+
+| Action | Shortcut | Behaviour |
+| --- | --- | --- |
+| Focus command box | `/` | Focuses the command box when another part of the app has focus; the slash is not entered. |
+| Autocomplete | `Tab` | Inserts the top matching command or parameter suggestion. |
+| Dismiss or move focus | `Esc` | Dismisses suggestions, closes the student modal, or moves focus from the command box to the roster. |
+| Previous command | Up arrow | Recalls an earlier command while the command box is focused. |
+| Next command | Down arrow | Recalls a later command while the command box is focused. |
+| Open or close help | `F1` | Toggles the Help window. |
+
+Command history lasts for the current application session. Consecutive duplicate commands are stored
+only once, and an unfinished command is restored when you navigate past the newest history entry.
+
+## Command format
+
+* Command words and parameter prefixes are lowercase, for example `add` and `n/`.
+* Replace capitalised placeholders such as `NAME` with your own value.
+* Square brackets mark optional input. An ellipsis means that the preceding item may be repeated.
+* Parameters may appear in any order unless a command says otherwise.
+* Surrounding whitespace is ignored. Names, subjects, and education levels also collapse repeated
+  internal whitespace to one space; their entered capitalisation is preserved.
+* Recognised prefixes begin a new value when they follow whitespace. This also applies inside notes.
+  For example, `p/123` after `r/` is read as a phone field in `add`, and `s/Physics` after `r/` is
+  read as a subject field in `edit`. Unknown letter-and-slash tokens after whitespace may be rejected.
+  Quoted values and an escape syntax are not supported, so avoid standalone prefix-shaped text in notes.
+* `INDEX` is a positive integer in the list currently displayed. After `find`, use the index shown in
+  the search results, not the student's old index in the full roster.
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+| Action | Format | Example |
+| --- | --- | --- |
+| Open help | `help` | `help` |
+| Add student | `add n/NAME p/PHONE s/SUBJECT [s/SUBJECT]... l/LEVEL [e/EMAIL] [a/ADDRESS] [r/NOTES] [t/TAG]...` | `add n/Ryan Tan p/81234567 s/Mathematics l/Secondary 4` |
+| Edit student | `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [s/SUBJECT]... [+s/SUBJECT]... [-s/SUBJECT]... [l/LEVEL] [r/NOTES] [t/TAG]... [+t/TAG]... [-t/TAG]...` | `edit 1 p/+6591234567 l/Secondary 5` |
+| List students | `list` | `list` |
+| Find students | `find [--any] [n/NAME]... [p/PHONE]... [e/EMAIL]... [a/ADDRESS]... [s/SUBJECT]... [l/LEVEL]... [t/TAG]...` | `find n/Ryan` |
+| Show details | `show INDEX` | `show 1` |
+| Delete student | `delete INDEX` | `delete 1` |
+| Clear roster | `clear` | `clear` |
+| Add tag | `tag INDEX TAG` | `tag 1 exam-prep` |
+| Remove tag | `untag INDEX TAG` | `untag 1 exam-prep` |
+| Clear one student's tags | `untag --all INDEX` | `untag --all 1` |
+| Undo change | `undo` | `undo` |
+| Redo change | `redo` | `redo` |
+| Exit | `exit` | `exit` |
+
+## Features
+
+### Open help: `help`
+
+**Format:** `help`
+
+Opens a Help window containing the link to this User Guide and a **Copy URL** button. The Help
+window can also be toggled with `F1`. Pressing `F1` while the Help window is open closes it.
+
+`help` accepts no arguments. For example, `help details` is rejected with an invalid-command error
+and the usage message.
+
+### Add a student: `add`
+
+Adds a student to the end of the roster and shows the complete roster.
+
+**Format:** `add n/NAME p/PHONE s/SUBJECT [s/SUBJECT]... l/LEVEL [e/EMAIL] [a/ADDRESS] [r/NOTES] [t/TAG]...`
+
+| Field | Rules | Example |
+| --- | --- | --- |
+| `NAME` | 1–100 characters after whitespace normalisation; must contain a letter or number. Letters, numbers, spaces, apostrophes, hyphens, and full stops are allowed. | `Anne-Marie Lee` |
+| `PHONE` | 3–15 digits, optionally preceded by `+`. | `+65 9123-4567` |
+| `EMAIL` | Optional. Use a non-empty local part, one `@`, and a domain with at least two dot-separated labels. No whitespace. | `ryan@tutoring.example.com` |
+| `ADDRESS` | Optional non-blank text. | `12 Main Street` |
+| `SUBJECT` | 1–50 characters after whitespace normalisation; must contain a letter or number. Letters, numbers, spaces, `&`, `+`, `/`, apostrophes, hyphens, and full stops are allowed. | `Physics/Chemistry` |
+| `LEVEL` | 1–30 characters after whitespace normalisation; letters, numbers, spaces, and hyphens only. | `Secondary 4` |
+| `NOTES` | Optional trimmed free text of 1–500 characters. Control characters are not allowed. | `Prefers worked examples` |
+| `TAG` | Optional. Use one `t/` for each tag; each tag is 1–30 English letters or digits with optional single hyphens. | `exam-prep` |
+
+You may separate phone digit groups with spaces or hyphens. TutorRoster removes these separators before
+storing the number, so `9123 4567` is stored as `91234567`. Other punctuation is rejected.
+
+For an email, each domain label can contain up to 63 letters or digits, with hyphens allowed inside a
+label but not at either end. For example, `ryan@tutoring.example.com` is accepted, while
+`ryan@exam!ple.com` and `ryan@-example.com` are rejected.
+
+The required fields are `n/`, `p/`, at least one `s/`, and `l/`. The prefixes `s/` and `t/` may be
+repeated to supply multiple subjects and tags. The prefixes `n/`, `p/`, `e/`, `a/`, `l/`, and `r/`
+can each be supplied only once. Fields can be supplied in any order.
+
+Examples:
+
+```text
+add n/Ryan Tan p/+6591234567 e/ryan@example.com s/Mathematics l/Secondary 4
+add n/Alicia Lim p/81234567 a/12 Main Street s/Mathematics s/Physics l/JC 1
+add n/Sarah Lee p/+821012345678 s/English l/Grade 8 t/exam-prep t/needs-follow-up r/Needs visual explanations
+```
+
+Tags are case-insensitive and stored in lowercase. Duplicate equivalent tags are stored once and
+produce the warning `Warning: Duplicate tags were ignored.` A student can have at most 20 distinct
+new tags.
+
+**Success feedback:** `New student added: NAME`, for example `New student added: Ryan Tan`.
+
+#### Duplicate students and subjects
+
+Names retain their entered capitalisation for display. Duplicate detection and same-name warnings
+compare names without regard to capitalisation or differences in surrounding and repeated whitespace.
+For example, `Ryan Tan` and `RYAN TAN` match for name comparison.
+
+Two students are duplicates when their normalised names match and either their phone numbers match
+(after removing an optional `+`, spaces, and hyphens) or both email addresses are present and match
+without regard to case. Different names may share a phone number or email address. Subject and
+education-level values do not affect duplicate detection.
+
+If a new student's normalised name matches an existing student's name but the contact details differ,
+the add succeeds and shows a warning. Check the contact details to catch a mistyped name or contact
+update. The warning does not block legitimate students who share a name.
+
+The same subject cannot be repeated in one `add` command. Subject comparison ignores case and repeated
+whitespace, so `s/English Language s/English  Language` is rejected as a duplicate subject.
+
+#### Common add errors
+
+The result area identifies missing fields, unknown prefixes, repeated single-value prefixes, duplicate
+subjects, invalid field values, duplicate students, and save failures. Spaces and hyphens are accepted
+inside phone numbers, but other punctuation is not. For example, `p/9123/4567` is rejected.
+
+### Edit a student: `edit`
+
+Edits the student at `INDEX` in the currently displayed list. At least one field must be supplied.
+After a successful edit, the complete roster is displayed.
+
+**Format:**
+
+```text
+edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS]
+     [s/SUBJECT]... [+s/SUBJECT]... [-s/SUBJECT]...
+     [l/LEVEL] [r/NOTES]
+     [t/TAG]... [+t/TAG]... [-t/TAG]...
+```
+
+* Supplying `n/`, `p/`, `e/`, `a/`, `l/`, or `r/` replaces that field; omitting it preserves the
+  existing value. These prefixes are single-use in one command.
+* `e/` with no value clears the email. `a/` with no value clears the address. `r/` with no value
+  clears the notes.
+* Supplying one or more `s/` values replaces all subjects. `+s/` appends and `-s/` removes subjects.
+  At least one subject must remain, and equivalent subjects cannot be repeated.
+* Supplying one or more `t/` values replaces all tags. `+t/` appends and `-t/` removes tags. `t/`
+  with no value clears all tags.
+* The edited record must not become a duplicate of another record. A rejected edit changes nothing.
+
+Example sequence: start with an empty test roster, then run each command below in order.
+The first command creates Ryan at index 1. Use a disposable roster when trying this sequence.
+
+```text
+add n/Ryan Tan p/81234567 e/ryan@example.com a/12 Main Street s/English s/Mathematics l/Secondary 4 t/old-tag
+edit 1 p/+6591234567 l/Secondary 5
+edit 1 s/Mathematics s/Physics
+edit 1 +s/Chemistry -s/Physics +t/exam-prep -t/old-tag
+edit 1 e/ a/
+edit 1 r/Prefers worked examples
+show 1
+```
+
+The subject replacement sets Mathematics and Physics. The next command appends Chemistry, which Ryan
+is not already studying, and removes Physics. It also adds `exam-prep` and removes `old-tag`.
+
+The final detail view shows Ryan Tan with phone `+6591234567`, subjects Mathematics and Chemistry,
+level Secondary 5, tag `exam-prep`, and notes `Prefers worked examples`. Email and address both show
+`Not provided`.
+
+**Edit success feedback:** `Edited student: NAME`.
+
+### List students: `list`
+
+**Format:** `list`
+
+Displays every stored student in roster order and clears the current search filter.
+
+**Success feedback:** `Listed all students.` The same message is shown for an empty roster.
+`list` accepts no arguments.
+
+### Find students: `find`
+
+**Format:** `find [--any] [n/NAME]... [p/PHONE]... [e/EMAIL]... [a/ADDRESS]... [s/SUBJECT]... [l/LEVEL]... [t/TAG]...`
+
+Supply at least one non-empty field. Searches are case-insensitive and match part of a field:
+
+* `n/` searches names.
+* `p/` searches phone numbers after ignoring an optional leading `+`, spaces, and hyphens.
+* `e/` searches email addresses.
+* `a/` searches addresses.
+* `s/` searches subjects.
+* `l/` searches education levels.
+* `t/` searches tags.
+
+By default, every supplied search term must match the same student. Put `--any` immediately after
+`find` to match a student that satisfies at least one supplied term. Every field can be repeated.
+
+Examples:
+
+```text
+find n/Ryan
+find n/Ryan s/Mathematics
+find --any n/Ryan n/Sarah
+find --any t/exam-prep t/group-class
+```
+
+The result area reports the number of matches as `1 student listed!` or `N students listed!` for zero
+or multiple matches. A search with no matches leaves an empty displayed list; it does not change stored
+records or undo history.
+
+`find` searches only the fields listed above; it does not search tutoring notes. Searching notes could
+be added as a future extension. For now, use `show INDEX` to read a student's notes after finding them
+by another field.
+
+### Show a student's details: `show`
+
+**Format:** `show INDEX`
+
+Opens the complete record for the student at `INDEX` in the currently displayed list. The modal shows
+the name, phone, email, subjects, education level, notes, address, and tags. Optional values that are
+not present show as `Not provided`. Close the modal with **Close** or `Esc`.
+
+**Success feedback:** `Showing student details.` `show` does not change the roster or search filter.
+
+### Delete a student: `delete`
+
+**Format:** `delete INDEX`
+
+Deletes the student at `INDEX` in the currently displayed list, then displays the complete remaining
+roster. There is no confirmation dialog. Check the name and contact details before submitting an
+index, especially after a search.
+
+**Success feedback:** `Student removed: NAME (phone: PHONE)`.
+
+An invalid or out-of-range index leaves the roster and displayed list unchanged. Use `undo` to recover
+a successful deletion during the same application session.
+
+### Clear the roster: `clear`
+
+**Format:** `clear`
+
+Removes every student and displays an empty roster.
+
+**Success feedback:** `Address book has been cleared!`
+
+There is no confirmation dialog. Use `undo` during the same session to restore the cleared roster.
+
+### Manage tags: `tag` and `untag`
+
+Tags are short labels for grouping students, such as `exam-prep` or `needs-follow-up`.
+
+| Format | Effect |
+| --- | --- |
+| `tag INDEX TAG` | Adds one tag without replacing existing tags. |
+| `untag INDEX TAG` | Removes one tag. |
+| `untag --all INDEX` | Removes every tag from that student. |
+
+Tag names are case-insensitive and stored in lowercase. New names contain 1–30 English letters or
+digits, with optional single hyphens between non-empty parts. A student can have at most 20 distinct
+new tags. Each command targets one student in the currently displayed list and keeps the current
+search filter.
+
+Changing a tag can change which students match the active search. The displayed list may grow, shrink,
+or show different indices straight away. For example, after `find t/exam-prep`, `untag 1 exam-prep`
+removes that student from the results and may renumber the remaining students. Re-read the displayed
+indices after every `tag` or `untag` before using another index.
+
+Successful feedback includes the student and tag, for example `Tag added to Ryan Tan: exam-prep`,
+`Tag removed from Ryan Tan: exam-prep`, or `All tags removed from Ryan Tan.`
+
+Adding an existing tag, removing an absent tag, or clearing an already empty tag set is a successful
+warning-only operation. It shows a `Warning:` message, does not save anything, and does not create an
+undo step.
+
+### Undo and redo: `undo` and `redo`
+
+**Formats:** `undo` and `redo` (no arguments)
+
+`undo` reverses the most recent successful roster change. `redo` reapplies the most recently undone
+change. In the current version, the changes tracked are `add`, `edit`, `delete`, `clear`, `tag`, and
+`untag` when they actually change a record.
+
+* Undo and redo restore complete student records and their original roster order.
+* A successful undo or redo displays the complete roster, even if a search was active.
+* `find`, `list`, `show`, `help`, rejected commands, and warning-only tag outcomes do not create
+  history entries.
+* After an undo, a new successful roster change discards the remaining redo branch.
+* History lasts only for the current session. Restarting keeps the saved roster but starts with no
+  changes available to undo or redo.
+
+| Situation | Feedback |
+| --- | --- |
+| Successful undo | `Undo successful.` |
+| Successful redo | `Redo successful.` |
+| Nothing to undo | `There are no changes to undo.` |
+| Nothing to redo | `There are no changes to redo.` |
+
+### Exit: `exit`
+
+**Format:** `exit`
+
+Closes TutorRoster. You can also close the main window. Successfully saved records remain available
+when TutorRoster is reopened from the same launch folder.
+
+## Saving and restoring records
+
+TutorRoster saves automatically after every successful roster change, including undo and redo. Search,
+list, show, help, and failed commands do not write the roster file.
+
+The files are relative to the folder from which TutorRoster is launched:
+
+* `data/addressbook.json` stores the student roster.
+* `preferences.json` stores window size and position.
+
+The status bar shows the roster file path. Launch TutorRoster from the same folder each time if you
+want to use the same roster.
+
+### Back up or transfer a roster
+
+1. Close TutorRoster.
+1. Copy `data/addressbook.json` to a safe location.
+1. To restore it, close TutorRoster and place the copy at `data/addressbook.json` in the destination
+   launch folder.
+1. Start TutorRoster from that folder.
+
+Do not edit the JSON file manually unless you understand the format; invalid data can prevent records
+from loading.
+
+### Existing tags from older files
+
+When opening a roster that contains tags with mixed case or duplicates, TutorRoster normalises the tags
+to lowercase, merges equivalent tags, and saves the normalised file atomically. It then shows:
+
+```text
+Existing tags were updated to lowercase and duplicate tags were merged.
+```
+
+Existing tags longer than 30 characters or students with more than 20 existing tags are retained so
+that older rosters remain readable. New tag additions still follow the current limits. If the migration
+cannot be saved, startup stops and the original roster file is left unchanged.
+
+### Write and load problems
+
+TutorRoster must be placed in a writable folder. A write-protected folder or data file can prevent
+changes, preference updates, or tag migration from being saved. Move the JAR to a folder where your
+user account has write permission and try again.
+
+If a roster change cannot be saved, the live roster and its undo/redo history are left unchanged. Add
+and tag operations show `Unable to save student data. No changes were made.`; other save failures begin
+with `Could not save data` and include the reported cause.
+
+If an existing roster cannot be loaded, TutorRoster stops at startup and shows an error. It does not
+open an editable empty roster, and it leaves the original `data/addressbook.json` unchanged. Repair the
+file or restore a readable backup, then restart TutorRoster.
+
+## FAQ and known issues
+
+**Why does an index refer to a different student after a search?**
+
+Commands that accept an index use the list currently displayed. Search results start at 1, so check the
+displayed name and phone before using `show`, `edit`, `delete`, `tag`, or `untag`.
+
+**Why does double-clicking the JAR do nothing?**
+
+Some systems do not launch JavaFX JAR files by double-clicking. Open a terminal in the JAR's folder and
+run `java -jar TutorRoster.jar` instead.
+
+**Why does the app open empty?**
+
+If you used `clear`, TutorRoster saved the empty roster automatically and will load it when reopened.
+Add students to start a new roster, or restore a backup of `data/addressbook.json` while the app is
+closed. `undo` can restore the cleared roster only during the same session.
+
+If there is no data file, sample students should be displayed. If an existing data file cannot be read,
+TutorRoster shows an error and stops before opening the roster. Repair the file or restore a readable
+backup before restarting; TutorRoster leaves the unreadable file unchanged.
+
+**Why does the app fail to save?**
+
+Check that the launch folder and its `data` subfolder are writable and that the data file is not
+read-only. Then retry the command.
+
+**What happens in macOS fullscreen mode?**
+
+Secondary windows such as Help may behave unexpectedly when the main app is in fullscreen mode. Use
+TutorRoster in a normal window if the Help window cannot be focused or dismissed correctly.
+
+**Why did the app reopen off-screen?**
+
+If the app was last used with a second monitor that has since been disconnected, it may reopen outside
+the visible area. Close TutorRoster, remove `preferences.json` from the launch folder, and reopen it.
+This resets window preferences but does not remove the roster.

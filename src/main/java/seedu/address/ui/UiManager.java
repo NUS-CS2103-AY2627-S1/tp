@@ -12,6 +12,7 @@ import seedu.address.MainApp;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
+import seedu.address.logic.Messages;
 
 /**
  * The manager of the UI component.
@@ -26,14 +27,21 @@ public class UiManager implements Ui {
     private Logic logic;
     private Path dataFilePath;
     private MainWindow mainWindow;
+    private final String startupFeedback;
 
     /**
      * Creates a {@code UiManager} with the given {@code Logic} and the data file path
      * to show in the status bar.
      */
     public UiManager(Logic logic, Path dataFilePath) {
+        this(logic, dataFilePath, "");
+    }
+
+    /** Creates the UI with an optional notice about a completed data migration. */
+    public UiManager(Logic logic, Path dataFilePath, String startupFeedback) {
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.startupFeedback = java.util.Objects.requireNonNull(startupFeedback);
     }
 
     @Override
@@ -47,10 +55,13 @@ public class UiManager implements Ui {
             mainWindow = new MainWindow(primaryStage, logic, dataFilePath);
             mainWindow.show(); //This should be called before creating other UI parts
             mainWindow.fillInnerParts();
+            if (!startupFeedback.isEmpty()) {
+                mainWindow.showStartupFeedback(startupFeedback);
+            }
 
         } catch (Throwable e) {
             logger.severe(StringUtil.getDetails(e));
-            showFatalErrorDialogAndShutdown("Fatal error during initializing", e);
+            showFatalErrorDialogAndShutdown("TutorRoster could not start", e);
         }
     }
 
@@ -69,7 +80,7 @@ public class UiManager implements Ui {
     private static void showAlertDialogAndWait(Stage owner, AlertType type, String title, String headerText,
                                                String contentText) {
         final Alert alert = new Alert(type);
-        alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
+        alert.getDialogPane().getStylesheets().add("view/DesignSystem.css");
         alert.initOwner(owner);
         alert.setTitle(title);
         alert.setHeaderText(headerText);
@@ -83,8 +94,9 @@ public class UiManager implements Ui {
      * and exits the application after the user has closed the alert dialog.
      */
     private void showFatalErrorDialogAndShutdown(String title, Throwable e) {
-        logger.severe(title + " " + e.getMessage() + StringUtil.getDetails(e));
-        showAlertDialogAndWait(Alert.AlertType.ERROR, title, e.getMessage(), e.toString());
+        String message = e == null ? "An unexpected error occurred." : e.getMessage();
+        logger.severe(title + " " + message + (e == null ? "" : StringUtil.getDetails(e)));
+        showAlertDialogAndWait(Alert.AlertType.ERROR, "TutorRoster error", title, Messages.formatError(message));
         Platform.exit();
         System.exit(1);
     }

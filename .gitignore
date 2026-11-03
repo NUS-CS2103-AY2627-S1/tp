@@ -1,12 +1,16 @@
-# Gradle build files
+# Gradle build files and build output
 /.gradle/
 /build/
+/bin/
 src/main/resources/docs/
 
 # IDEA files
 /.idea/
 /out/
 /*.iml
+
+# VS Code workspace settings
+/.vscode/
 
 # Storage/log files
 /data/
@@ -29,3 +33,4 @@ CLAUDE.md
 
 # Temp files
 _temp/
+docs/_markbind/logs/

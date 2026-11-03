@@ -39,9 +39,20 @@ public class Email {
      * @param email A valid email address.
      */
     public Email(String email) {
+        this(email, true);
+    }
+
+    private Email(String email, boolean validate) {
         requireNonNull(email);
-        checkArgument(isValidEmail(email), MESSAGE_CONSTRAINTS);
+        if (validate) {
+            checkArgument(isValidEmail(email), MESSAGE_CONSTRAINTS);
+        }
         value = email;
+    }
+
+    /** Creates an email from validated student data or compatible stored data. */
+    public static Email fromStoredValue(String email) {
+        return new Email(email, false);
     }
 
     /**

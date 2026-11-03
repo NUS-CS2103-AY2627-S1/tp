@@ -7,16 +7,20 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -36,6 +40,10 @@ public class MainWindow extends UiPart<Stage> {
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandBox commandBox;
+    private StudentDetailModal studentDetailModal;
+
+    private boolean isFocusingCommandBoxFromSlash = false;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -52,6 +60,9 @@ public class MainWindow extends UiPart<Stage> {
     @FXML
     private StackPane statusbarPlaceholder;
 
+    @FXML
+    private StackPane modalOverlay;
+
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
      * and the data file path to show in the status bar.
@@ -67,9 +78,9 @@ public class MainWindow extends UiPart<Stage> {
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
 
-        setAccelerators();
-
         helpWindow = new HelpWindow();
+
+        setAccelerators();
     }
 
     public Stage getPrimaryStage() {
@@ -78,6 +89,7 @@ public class MainWindow extends UiPart<Stage> {
 
     private void setAccelerators() {
         setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
+        setupKeyboardShortcuts();
     }
 
     /**
@@ -111,6 +123,57 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
+     * Sets up global keyboard shortcuts for focusing and unfocusing the command box.
+     */
+    private void setupKeyboardShortcuts() {
+        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE && modalOverlay != null && modalOverlay.isVisible()) {
+                hideStudentDetails();
+                event.consume();
+            } else if (isSlashKey(event) && commandBox != null && !commandBox.isFocused()) {
+                isFocusingCommandBoxFromSlash = true;
+                commandBox.focus();
+                event.consume();
+            } else if (event.getCode() == KeyCode.ESCAPE && commandBox != null && commandBox.isFocused()) {
+                if (commandBox.hasSuggestionsVisible()) {
+                    commandBox.hideSuggestions();
+                    event.consume();
+                } else if (personListPanel != null) {
+                    personListPanel.focus();
+                    event.consume();
+
+                }
+            }
+        });
+
+        getRoot().addEventFilter(KeyEvent.KEY_TYPED, event -> {
+            if (isFocusingCommandBoxFromSlash) {
+                isFocusingCommandBoxFromSlash = false;
+                if ("/".equals(event.getCharacter())) {
+                    event.consume();
+                }
+            }
+        });
+
+        getRoot().addEventFilter(KeyEvent.KEY_RELEASED, event -> {
+            isFocusingCommandBoxFromSlash = false;
+        });
+    }
+
+    /**
+     * Checks if the given {@code KeyEvent} corresponds to the '/' key without modifiers.
+     */
+    static boolean isSlashKey(KeyEvent event) {
+        if (event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        if ("/".equals(event.getText())) {
+            return true;
+        }
+        return event.getCode() == KeyCode.SLASH && !event.isShiftDown();
+    }
+
+    /**
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
@@ -119,11 +182,13 @@ public class MainWindow extends UiPart<Stage> {
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        // Reserve the feedback's preferred height before giving remaining space to the roster.
+        resultDisplayPlaceholder.setMinHeight(Region.USE_PREF_SIZE);
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
     }
 
@@ -140,10 +205,21 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Opens the help window or focuses on it if it's already opened.
+     * Opens the help window or closes it if it's already opened.
      */
     @FXML
     public void handleHelp() {
+        if (!helpWindow.isShowing()) {
+            helpWindow.show();
+        } else {
+            helpWindow.hide();
+        }
+    }
+
+    /**
+     * Shows the help window, or focuses on it if it's already opened.
+     */
+    public void showHelp() {
         if (!helpWindow.isShowing()) {
             helpWindow.show();
         } else {
@@ -171,6 +247,19 @@ public class MainWindow extends UiPart<Stage> {
         return personListPanel;
     }
 
+    /** Shows startup information after the result area has been initialized. */
+    void showStartupFeedback(String message) {
+        resultDisplay.setFeedbackToUser(message);
+    }
+
+    public CommandBox getCommandBox() {
+        return commandBox;
+    }
+
+    public HelpWindow getHelpWindow() {
+        return helpWindow;
+    }
+
     /**
      * Executes the command and returns the result.
      *
@@ -183,18 +272,40 @@ public class MainWindow extends UiPart<Stage> {
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
-                handleHelp();
+                showHelp();
             }
 
             if (commandResult.isExit()) {
                 handleExit();
             }
 
+            commandResult.getPersonToShow().ifPresent(this::showStudentDetails);
+
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            resultDisplay.setFeedbackToUser(Messages.formatError(e.getMessage()));
             throw e;
+        }
+    }
+
+    /** Shows the complete record for a student in the modal overlay. */
+    private void showStudentDetails(Person person) {
+        studentDetailModal = new StudentDetailModal(person, this::hideStudentDetails);
+        modalOverlay.getChildren().setAll(studentDetailModal.getRoot());
+        modalOverlay.setManaged(true);
+        modalOverlay.setVisible(true);
+        modalOverlay.requestFocus();
+    }
+
+    /** Closes the student detail modal and returns focus to the displayed student list. */
+    private void hideStudentDetails() {
+        modalOverlay.setVisible(false);
+        modalOverlay.setManaged(false);
+        modalOverlay.getChildren().clear();
+        studentDetailModal = null;
+        if (personListPanel != null) {
+            personListPanel.focus();
         }
     }
 }

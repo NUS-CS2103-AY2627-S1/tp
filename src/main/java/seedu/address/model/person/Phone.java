@@ -11,7 +11,7 @@ public class Phone {
 
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
+            "Phone numbers should only contain digits, and should be at least 3 digits long.";
     public static final String VALIDATION_REGEX = "\\d{3,}";
     public final String value;
 
@@ -21,9 +21,20 @@ public class Phone {
      * @param phone A valid phone number.
      */
     public Phone(String phone) {
+        this(phone, true);
+    }
+
+    private Phone(String phone, boolean validate) {
         requireNonNull(phone);
-        checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
+        if (validate) {
+            checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
+        }
         value = phone;
+    }
+
+    /** Creates a phone from validated student data or compatible stored data. */
+    public static Phone fromStoredValue(String phone) {
+        return new Phone(phone, false);
     }
 
     /**
