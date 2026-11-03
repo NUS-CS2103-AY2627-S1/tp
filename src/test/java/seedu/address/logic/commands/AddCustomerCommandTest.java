@@ -1,0 +1,231 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.beans.Observable;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import seedu.address.commons.core.GuiSettings;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.ReadOnlyWatchDog;
+import seedu.address.model.activity.Activity;
+import seedu.address.model.activity.ActivityName;
+import seedu.address.model.activity.Recurrence;
+import seedu.address.model.customer.BackupContact;
+import seedu.address.model.customer.Customer;
+import seedu.address.model.customer.Email;
+import seedu.address.model.customer.Name;
+import seedu.address.model.customer.Phone;
+import seedu.address.model.dog.Dog;
+import seedu.address.model.dog.exceptions.EnrolException;
+
+public class AddCustomerCommandTest {
+
+    private static final Customer ALICE = new Customer(1, new Name("Alice Tan"), new Phone("91234567"),
+            new Email("alice@example.com"), new BackupContact("98765432"));
+
+    @Test
+    public void constructor_nullCustomer_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AddCustomerCommand(null));
+    }
+
+    @Test
+    public void execute_customerAcceptedByModel_addsCustomerAndReportsSuccess() throws CommandException {
+        ModelStubAcceptingCustomerAdded model = new ModelStubAcceptingCustomerAdded();
+
+        CommandResult result = new AddCustomerCommand(ALICE).execute(model);
+
+        assertEquals(AddCustomerCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertEquals(List.of(ALICE), model.customersAdded);
+    }
+
+    @Test
+    public void execute_nullModel_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AddCustomerCommand(ALICE).execute(null));
+    }
+
+    @Test
+    public void execute_duplicateCustomerId_throwsCommandException() {
+        Model model = new ModelManager();
+        model.addCustomer(ALICE);
+        Customer duplicateId = new Customer(1, new Name("Bob Lim"), new Phone("92345678"),
+                new Email("bob@example.com"), new BackupContact("93456789"));
+
+        assertThrows(CommandException.class, AddCustomerCommand.MESSAGE_DUPLICATE_CUSTOMER, () ->
+                new AddCustomerCommand(duplicateId).execute(model));
+        assertEquals(List.of(ALICE), model.getCustomerList());
+    }
+
+    @Test
+    public void equalsAndToString() {
+        AddCustomerCommand command = new AddCustomerCommand(ALICE);
+
+        assertEquals(command, command);
+        assertEquals(command, new AddCustomerCommand(ALICE));
+        assertFalse(command.equals(new AddCustomerCommand(new Customer(2, new Name("Bob Lim"), new Phone("92345678"),
+                new Email("bob@example.com"), new BackupContact("93456789")))));
+        assertFalse(command.equals(null));
+        assertFalse(command.equals(1));
+        assertEquals(AddCustomerCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}", command.toString());
+    }
+
+    private abstract static class ModelStub implements Model {
+        @Override
+        public List<Dog> getDogsEnrolledOn(LocalDate date) {
+            throw unused();
+        }
+
+        @Override
+        public void enrolDogs(int activityId, LocalDate date, List<Integer> dogIds) throws EnrolException {
+            throw unused();
+        }
+
+        @Override
+        public void unenrolDogs(int activityId, LocalDate date, List<Integer> dogIds) throws EnrolException {
+            throw unused();
+        }
+
+        @Override
+        public Activity addActivity(ActivityName name, LocalDate date, LocalTime start, LocalTime end,
+                Recurrence recurrence) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Activity> getFilteredActivityList() {
+            throw unused();
+        }
+
+        @Override
+        public void showActivitiesOnOrAfter(LocalDate date) {
+            throw unused();
+        }
+
+        @Override
+        public void deleteActivity(Activity activity) {
+            throw unused();
+        }
+
+        @Override
+        public void setActivity(Activity target, Activity editedActivity) {
+            throw unused();
+        }
+
+        @Override
+        public void unlinkDogs(List<Integer> dogIds) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void unlinkCustomerDogs(int customerId) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void linkDogs(int customerId, List<Integer> dogIds) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Dog> getFilteredDogList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredDogList(Predicate<Dog> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override public void updateFilteredActivityList(Predicate<Activity> predicate) {
+            throw unused();
+        }
+
+        @Override public void setActivityEnrolmentDogPredicate(Predicate<Dog> predicate) {
+            throw unused();
+        }
+        @Override public String getActivityEnrolmentSummary(Activity activity) {
+            throw unused();
+        }
+        @Override public Observable getActivityEnrolmentContextChanges() {
+            throw unused();
+        }
+
+
+        @Override public ReadOnlyUserPrefs getUserPrefs() {
+            throw unused();
+        }
+        @Override public GuiSettings getGuiSettings() {
+            throw unused();
+        }
+        @Override public void setGuiSettings(GuiSettings guiSettings) {
+            throw unused();
+        }
+        @Override public void setWatchDog(ReadOnlyWatchDog watchDog) {
+            throw unused();
+        }
+        @Override public ReadOnlyWatchDog getWatchDog() {
+            throw unused();
+        }
+        @Override public void deleteCustomer(Customer customer) {
+            throw unused();
+        }
+        @Override public void setCustomer(Customer target, Customer editedCustomer) {
+            throw unused();
+        }
+        @Override public ObservableList<Customer> getFilteredCustomerList() {
+            throw unused();
+        }
+        @Override public void updateFilteredCustomerList(Predicate<Customer> predicate) {
+            throw unused();
+        }
+        @Override public Dog addDog(Dog dog) {
+            throw unused();
+        }
+        @Override public boolean hasDog(Dog dog) {
+            throw unused();
+        }
+        @Override public void deleteDog(Dog dog) {
+            throw unused();
+        }
+        @Override public void setDog(Dog target, Dog editedDog) {
+            throw unused();
+        }
+
+        protected final AssertionError unused() {
+            return new AssertionError("This method should not be called.");
+        }
+    }
+
+    private static class ModelStubAcceptingCustomerAdded extends ModelStub {
+        private final List<Customer> customersAdded = new ArrayList<>();
+
+        @Override
+        public ObservableList<Customer> getCustomerList() {
+            return FXCollections.observableArrayList(customersAdded);
+        }
+
+        @Override
+        public boolean hasCustomer(Customer customer) {
+            return customersAdded.stream().anyMatch(customer::isSameCustomer);
+        }
+
+        @Override
+        public void addCustomer(Customer customer) {
+            customersAdded.add(requireNonNull(customer));
+        }
+    }
+}

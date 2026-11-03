@@ -1,0 +1,64 @@
+package seedu.address.ui;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.layout.Region;
+import seedu.address.model.dog.Dog;
+
+/** Displays dog cards in a list. */
+public class DogListPanel extends UiPart<Region> {
+    private static final String FXML = "RecordListPanel.fxml";
+
+    @FXML
+    private ListView<Supplier<Region>> recordListView;
+
+    private final ObservableList<Dog> dogs;
+
+    /** Creates a panel that displays the supplied dogs. */
+    public DogListPanel(ObservableList<Dog> dogs) {
+        super(FXML);
+        this.dogs = dogs;
+        recordListView.setPlaceholder(createEmptyState("No dogs to display."));
+        recordListView.setCellFactory(listView -> new RecordListViewCell());
+        dogs.addListener((ListChangeListener<Dog>) change -> updateDogs());
+        updateDogs();
+    }
+
+    /** Reconciles visible dog cards with the current filtered dog list. */
+    private void updateDogs() {
+        List<CardListEntry> cards = new ArrayList<>();
+        dogs.forEach(dog -> {
+            Supplier<Region> cardFactory = () -> new DogCard(dog).getRoot();
+            cards.add(new CardListEntry("dog:" + dog.getId(), dog, cardFactory));
+        });
+        CardListUpdater.reconcile(recordListView, cards);
+    }
+
+    /** Scrolls to the first dog after an explicit display-changing command. */
+    void scrollToTop() {
+        CardListUpdater.scrollToTop(recordListView);
+    }
+
+    private static Label createEmptyState(String message) {
+        Label placeholder = new Label(message);
+        placeholder.getStyleClass().add("empty-state");
+        return placeholder;
+    }
+
+    private static class RecordListViewCell extends ListCell<Supplier<Region>> {
+        @Override
+        protected void updateItem(Supplier<Region> card, boolean empty) {
+            super.updateItem(card, empty);
+            setText(null);
+            setGraphic(empty || card == null ? null : card.get());
+        }
+    }
+}

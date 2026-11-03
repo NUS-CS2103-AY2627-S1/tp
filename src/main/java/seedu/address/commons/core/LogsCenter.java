@@ -10,6 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import seedu.address.commons.util.ApplicationHome;
+
 /**
  * Configures and manages loggers and handlers, including their logging level.
  * Named {@link Logger}s can be obtained from this class.<br>
@@ -23,14 +25,13 @@ public class LogsCenter {
 
     private static final int MAX_FILE_COUNT = 5;
     private static final int MAX_FILE_SIZE_IN_BYTES = (int) (Math.pow(2, 20) * 5); // 5MB
-    private static final String LOG_FILE = "addressbook.log";
-    private static final Logger logger; // logger for this class
+    private static final String LOG_FILE = ApplicationHome.getHome().resolve("watchdog.log")
+            .toString().replace("%", "%%");
     private static Logger baseLogger; // to be used as the parent of all other loggers created by this class.
 
     // This static block ensures essential loggers are created early
     static {
         setBaseLogger();
-        logger = LogsCenter.getLogger(LogsCenter.class);
     }
 
     /**
@@ -66,11 +67,11 @@ public class LogsCenter {
     }
 
     /**
-     * Creates a logger named 'ab3', containing a {@code ConsoleHandler} and a {@code FileHandler}.
+     * Creates a logger named 'watchdog', containing a {@code ConsoleHandler} and a {@code FileHandler}.
      * Sets it as the {@code baseLogger}, to be used as the parent logger of all other loggers.
      */
     private static void setBaseLogger() {
-        baseLogger = Logger.getLogger("ab3");
+        baseLogger = Logger.getLogger("watchdog");
         baseLogger.setUseParentHandlers(false);
         removeHandlers(baseLogger);
         // set the level of the baseLogger, which will be inherited by other loggers
@@ -91,7 +92,7 @@ public class LogsCenter {
             fileHandler.setLevel(Level.ALL);
             baseLogger.addHandler(fileHandler);
         } catch (IOException e) {
-            logger.warning("Error adding file handler for logger.");
+            baseLogger.warning("Could not create an application log in " + ApplicationHome.getHome() + ": " + e);
         }
     }
 

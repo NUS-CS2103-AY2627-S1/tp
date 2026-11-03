@@ -1,0 +1,157 @@
+package seedu.address.logic.parser;
+
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddActivityCommand;
+import seedu.address.logic.commands.AddCustomerCommand;
+import seedu.address.logic.commands.AddDogCommand;
+import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.DeleteActivityCommand;
+import seedu.address.logic.commands.DeleteCustomerCommand;
+// @@author XanderGoh
+import seedu.address.logic.commands.DeleteDogCommand;
+// @@author
+import seedu.address.logic.commands.EditActivityCommand;
+import seedu.address.logic.commands.EditCustomerCommand;
+import seedu.address.logic.commands.EditDogCommand;
+import seedu.address.logic.commands.EnrolDogCommand;
+import seedu.address.logic.commands.ExitCommand;
+// @@author XanderGoh
+import seedu.address.logic.commands.FilterUnlinkedCommand;
+// @@author
+import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.LinkCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.ResetDisplayCommand;
+// @@author XanderGoh
+import seedu.address.logic.commands.SearchActivityCommand;
+import seedu.address.logic.commands.SearchCustomerCommand;
+import seedu.address.logic.commands.SearchDogCommand;
+// @@author
+import seedu.address.logic.commands.SummaryCommand;
+import seedu.address.logic.commands.TodayCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UnenrolDogCommand;
+import seedu.address.logic.commands.UnlinkCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses user input.
+ */
+public class WatchDogParser {
+
+    /**
+     * Used for initial separation of command word and args.
+     */
+    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
+    private static final Logger logger = LogsCenter.getLogger(WatchDogParser.class);
+
+    /**
+     * Parses user input into command for execution.
+     *
+     * @param userInput full user input string
+     * @return the command based on the user input
+     * @throws ParseException if the user input does not conform to the expected format
+     */
+    public Command parseCommand(String userInput) throws ParseException {
+        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
+        if (!matcher.matches()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
+        }
+
+        final String commandWord = matcher.group("commandWord");
+        final String arguments = matcher.group("arguments");
+
+        // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
+        // log messages such as the one below.
+        // Lower level log messages are used sparingly to minimize noise in the code.
+        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
+
+        return switch (commandWord) {
+            case AddActivityCommand.COMMAND_WORD -> new AddActivityCommandParser().parse(arguments);
+            // @@author XanderGoh
+            case SearchActivityCommand.COMMAND_WORD -> new SearchActivityCommandParser().parse(arguments);
+            // @@author
+            // @@author lilosy
+            case AddCustomerCommand.COMMAND_WORD -> new AddCustomerCommandParser().parse(arguments);
+            // @@author
+            case AddDogCommand.COMMAND_WORD -> new AddDogCommandParser().parse(arguments);
+            // @@author lilosy
+            case DeleteActivityCommand.COMMAND_WORD -> new DeleteActivityCommandParser().parse(arguments);
+            // @@author
+            // @@author XanderGoh
+            case DeleteDogCommand.COMMAND_WORD -> new DeleteDogCommandParser().parse(arguments);
+            // @@author
+            //@@author its-shoutime
+            case DeleteCustomerCommand.COMMAND_WORD -> new DeleteCustomerCommandParser().parse(arguments);
+            //@@author
+            // @@author lilosy
+            case EditActivityCommand.COMMAND_WORD -> new EditActivityCommandParser().parse(arguments);
+            case EditCustomerCommand.COMMAND_WORD -> new EditCustomerCommandParser().parse(arguments);
+            // @@author
+            case EditDogCommand.COMMAND_WORD -> new EditDogCommandParser().parse(arguments);
+            // @@author XanderGoh
+            case SearchDogCommand.COMMAND_WORD -> new SearchDogCommandParser().parse(arguments);
+            case SearchCustomerCommand.COMMAND_WORD -> new SearchCustomerCommandParser().parse(arguments);
+            case FilterUnlinkedCommand.COMMAND_WORD -> new FilterUnlinkedCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            ClearCommand.MESSAGE_USAGE));
+                }
+                yield new ClearCommand();
+            }
+            case LinkCommand.COMMAND_WORD -> new LinkCommandParser().parse(arguments);
+            case UnlinkCommand.COMMAND_WORD -> new UnlinkCommandParser().parse(arguments);
+            case EnrolDogCommand.COMMAND_WORD -> new EnrolDogCommandParser().parse(arguments);
+            case UnenrolDogCommand.COMMAND_WORD -> new UnenrolDogCommandParser().parse(arguments);
+            case SummaryCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            SummaryCommand.MESSAGE_USAGE));
+                }
+                yield new SummaryCommand();
+            }
+            case TodayCommand.COMMAND_WORD -> new TodayCommandParser().parse(arguments);
+            // @@author lilosy
+            case ResetDisplayCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            ResetDisplayCommand.MESSAGE_USAGE));
+                }
+                yield new ResetDisplayCommand();
+            }
+            // @@author
+            case ExitCommand.COMMAND_WORD -> new ExitCommand();
+            //@@author its-shoutime
+            case HelpCommand.COMMAND_WORD -> new HelpCommandParser().parse(arguments);
+            case RedoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            RedoCommand.COMMAND_WORD));
+                }
+                yield new RedoCommand();
+            }
+            case UndoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT,
+                            UndoCommand.COMMAND_WORD));
+                }
+                yield new UndoCommand();
+            }
+            //@@author
+            default -> {
+                logger.finer("This user input caused a ParseException: " + userInput);
+                throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
+            }
+        };
+    }
+
+}

@@ -1,0 +1,25 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:UnenrolDogCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+Command -> Model : unenrolDogs(activityId, date, dogIds)
+note right of Model
+  Validates every requested dog and exact
+  activity/dog/date enrolment before removal.
+  Removes only the requested dated records
+  and refreshes displayed records.
+end note
+[<-- Command : commandResult
+
+legend bottom
+  Unenrols one batch of dogs. Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml

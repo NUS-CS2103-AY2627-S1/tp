@@ -1,0 +1,355 @@
+//@@author its-shoutime-unused
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.ResetDisplayCommand;
+import seedu.address.logic.commands.SearchCustomerCommand;
+import seedu.address.logic.commands.SearchDogCommand;
+import seedu.address.logic.commands.UnlinkCommand;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.WatchDog;
+import seedu.address.model.customer.Customer;
+import seedu.address.model.customer.CustomerSearchPredicate;
+import seedu.address.model.dog.Breed;
+import seedu.address.model.dog.Dog;
+import seedu.address.model.dog.DogName;
+import seedu.address.model.dog.DogSearchPredicate;
+import seedu.address.model.dog.Size;
+import seedu.address.model.dog.exceptions.LinkException;
+
+public class RecordListPanelTest {
+    private static final Dog BUDDY = new Dog(42, new DogName("Buddy"), new Breed("Poodle"), new Size("small"));
+    private static final Customer ALEX = new Customer(7, "Alex", "91234567", "alex@example.com", "98765432");
+
+    @BeforeAll
+    public static void startJavaFx() throws Exception {
+        // JavaFX controls need a display. Linux CI can run these tests under xvfb-run.
+        assumeTrue(!System.getProperty("os.name").startsWith("Linux") || System.getenv("DISPLAY") != null,
+                "JavaFX UI tests require a display (use xvfb-run on headless Linux)");
+        try {
+            CountDownLatch started = new CountDownLatch(1);
+            Platform.startup(() -> {
+                Platform.setImplicitExit(false);
+                started.countDown();
+            });
+            assertTrue(started.await(10, TimeUnit.SECONDS));
+        } catch (IllegalStateException alreadyStarted) {
+            Platform.setImplicitExit(false);
+        }
+    }
+
+    @Test
+    public void dogCard_displaysPersistentIdAndAllFields() throws Exception {
+        runOnFxThread(() -> {
+            Region card = new DogCard(BUDDY).getRoot();
+            assertEquals("42. ", label(card, "id"));
+            assertEquals("Buddy", label(card, "name"));
+            assertEquals("Breed: Poodle", label(card, "breed"));
+            assertEquals("Size: small", label(card, "size"));
+            assertEquals("\uD83D\uDC64 None", label(card, "owner"));
+            assertTrue(((Label) card.lookup("#name")).isWrapText());
+            assertEquals(1, ((Label) card.lookup("#name")).getLineSpacing());
+            Tooltip breedTooltip = CardInteractionUtil.getFullValueTooltip(card.lookup("#breedRow"));
+            Tooltip ownerTooltip = CardInteractionUtil.getFullValueTooltip(card.lookup("#ownerRow"));
+            assertEquals("Breed: Poodle", breedTooltip.getText());
+            assertEquals("Customer ID: None", ownerTooltip.getText());
+            HBox nameRow = (HBox) card.lookup("#name").getParent();
+            assertEquals(Pos.TOP_LEFT, nameRow.getAlignment());
+            assertEquals(2, ((VBox) nameRow.getParent()).getSpacing());
+            assertEquals(new Insets(10, 14, 10, 14), ((VBox) nameRow.getParent()).getPadding());
+            assertTrue(CardInteractionUtil.getCopyMenu(card).getItems().get(1).isDisable());
+        });
+    }
+
+    @Test
+    public void dogCard_copyMenu_copiesIndividualAndLabelledDogDetails() throws Exception {
+        runOnFxThread(() -> {
+            AtomicReference<String> copiedText = new AtomicReference<>();
+            Dog linkedDog = BUDDY.withOwner(7);
+            DogCard dogCard = new DogCard(linkedDog, recordingWriter(copiedText));
+            Region card = dogCard.getRoot();
+            ContextMenu copyMenu = CardInteractionUtil.getCopyMenu(card);
+
+            assertTrue(card.getOnContextMenuRequested() != null);
+            assertEquals(4, copyMenu.getItems().size());
+            assertEquals("Copy breed", copyMenu.getItems().get(0).getText());
+            assertEquals("Copy customer ID", copyMenu.getItems().get(1).getText());
+            assertTrue(!copyMenu.getItems().get(1).isDisable());
+            assertTrue(copyMenu.getItems().get(2).getStyleClass().contains("separator-menu-item"));
+            assertEquals("Copy all dog details", copyMenu.getItems().get(3).getText());
+
+            copyMenu.getItems().get(0).fire();
+            assertEquals("Poodle", copiedText.get());
+            copyMenu.getItems().get(1).fire();
+            assertEquals("7", copiedText.get());
+            copyMenu.getItems().get(3).fire();
+            assertEquals(CardCopyFormatter.formatDog(linkedDog), copiedText.get());
+        });
+    }
+
+    @Test
+    public void dogCard_copyMenu_preservesLongValuesAndIgnoresDisabledCustomerCopy() throws Exception {
+        runOnFxThread(() -> {
+            String longBreed = "German-Shepherd-Mixed-With-Very-Long-Breed-Name";
+            Dog longValueDog = new Dog(43, new DogName("O'Neil-Dog"), new Breed(longBreed), new Size("Large"));
+            AtomicReference<String> copiedText = new AtomicReference<>("unchanged");
+            ContextMenu copyMenu = CardInteractionUtil.getCopyMenu(
+                    new DogCard(longValueDog, recordingWriter(copiedText)).getRoot());
+
+            copyMenu.getItems().get(0).fire();
+            assertEquals(longBreed, copiedText.get());
+            copiedText.set("unchanged");
+            assertTrue(copyMenu.getItems().get(1).isDisable());
+            copyMenu.getItems().get(1).fire();
+            assertEquals("unchanged", copiedText.get());
+            assertFalse(copyMenu.getItems().get(3).isDisable());
+            copyMenu.getItems().get(3).fire();
+            assertEquals(CardCopyFormatter.formatDog(longValueDog), copiedText.get());
+        });
+    }
+
+    @Test
+    public void panel_customerDogIds_includeHiddenDogsAndRefreshAfterLinkAndDelete() throws Exception {
+        runOnFxThread(() -> {
+            WatchDog book = new WatchDog();
+            book.addCustomer(ALEX);
+            book.addDogFromStorage(BUDDY);
+            book.addDogFromStorage(new Dog(3, new DogName("Max"), new Breed("Poodle"), new Size("small")));
+            ModelManager model = new ModelManager(book, new UserPrefs());
+            model.updateFilteredDogList(dog -> false);
+            var list = listView(new RecordListPanel(model.getFilteredCustomerList(), model.getFilteredDogList(),
+                    model.getDogList()));
+            Region initialCard = list.getItems().get(0).get();
+            assertEquals("None", label(initialCard, "dogIds"));
+            var backupContactRow = initialCard.lookup("#backupContact").getParent();
+            var fields = backupContactRow.getParent().getChildrenUnmodifiable();
+            assertEquals(fields.indexOf(backupContactRow) + 1,
+                    fields.indexOf(initialCard.lookup("#dogIds").getParent()));
+            try {
+                model.linkDogs(7, List.of(42, 3));
+            } catch (LinkException e) {
+                throw new AssertionError(e);
+            }
+            assertEquals(1, list.getItems().size());
+            assertEquals("3, 42", label(list.getItems().get(0).get(), "dogIds"));
+            model.deleteDog(model.getDogList().get(0));
+            assertEquals("3", label(list.getItems().get(0).get(), "dogIds"));
+            model.deleteDog(model.getDogList().get(0));
+            assertEquals("None", label(list.getItems().get(0).get(), "dogIds"));
+        });
+    }
+
+    @Test
+    public void panel_unlink_updatesBothCardsAndKeepsRecords() throws Exception {
+        for (UnlinkCommand command : List.of(new UnlinkCommand(List.of(42)), new UnlinkCommand(7))) {
+            runOnFxThread(() -> {
+                WatchDog book = new WatchDog();
+                book.addCustomer(ALEX);
+                book.addDogFromStorage(BUDDY.withOwner(7));
+                ModelManager model = new ModelManager(book, new UserPrefs());
+                var list = listView(new RecordListPanel(model.getFilteredCustomerList(), model.getFilteredDogList(),
+                        model.getDogList()));
+                assertEquals("42", label(list.getItems().get(0).get(), "dogIds"));
+                try {
+                    command.execute(model);
+                } catch (CommandException e) {
+                    throw new AssertionError(e);
+                }
+                assertEquals(2, list.getItems().size());
+                assertEquals("None", label(list.getItems().get(0).get(), "dogIds"));
+                assertEquals("\uD83D\uDC64 None", label(list.getItems().get(1).get(), "owner"));
+            });
+        }
+    }
+
+    @Test
+    public void panel_linkAndCustomerDeletion_refreshesOwnerAndKeepsDogs() throws Exception {
+        runOnFxThread(() -> {
+            WatchDog book = new WatchDog();
+            book.addCustomer(ALEX);
+            book.addDogFromStorage(BUDDY);
+            ModelManager model = new ModelManager(book, new UserPrefs());
+            var list = listView(new RecordListPanel(model.getFilteredCustomerList(), model.getFilteredDogList()));
+            try {
+                model.linkDogs(7, List.of(42));
+            } catch (LinkException e) {
+                throw new AssertionError(e);
+            }
+            assertEquals("\uD83D\uDC64 7", label(list.getItems().get(1).get(), "owner"));
+            model.deleteCustomer(ALEX);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Buddy", label(list.getItems().get(0).get(), "name"));
+            assertEquals("\uD83D\uDC64 None", label(list.getItems().get(0).get(), "owner"));
+        });
+    }
+
+    @Test
+    public void panel_mixedRecords_rendersCustomersBeforeDogs() throws Exception {
+        runOnFxThread(() -> {
+            RecordListPanel panel = new RecordListPanel(FXCollections.observableArrayList(ALEX),
+                    FXCollections.observableArrayList(BUDDY));
+            ListView<Supplier<Region>> list = listView(panel);
+            assertEquals(2, list.getItems().size());
+            Region customer = list.getItems().get(0).get();
+            assertEquals("Alex", label(customer, "name"));
+            assertEquals("91234567", label(customer, "phone"));
+            assertEquals("alex@example.com", label(customer, "email"));
+            assertEquals("Backup Contact:", label(customer, "backupContactLabel"));
+            assertEquals("98765432", label(customer, "backupContact"));
+            assertEquals("Buddy", label(list.getItems().get(1).get(), "name"));
+
+            new Scene(panel.getRoot(), 450, 600);
+            panel.getRoot().applyCss();
+            panel.getRoot().layout();
+            assertTrue(panel.getRoot().lookupAll("#name").stream()
+                    .anyMatch(node -> ((Label) node).getText().equals("Buddy")));
+        });
+    }
+
+    @Test
+    public void panel_sourceChangesAndCustomerFilter_updateCards() throws Exception {
+        runOnFxThread(() -> {
+            var customers = FXCollections.<Customer>observableArrayList();
+            var filteredCustomers = new FilteredList<>(customers);
+            var dogs = FXCollections.<Dog>observableArrayList();
+            var list = listView(new RecordListPanel(filteredCustomers, dogs));
+            assertTrue(list.getItems().isEmpty());
+
+            customers.add(ALEX);
+            dogs.add(BUDDY);
+            assertEquals(2, list.getItems().size());
+            filteredCustomers.setPredicate(customer -> false);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Buddy", label(list.getItems().get(0).get(), "name"));
+
+            dogs.set(0, new Dog(42, new DogName("Buddy Updated"), new Breed("Poodle"), new Size("large")));
+            assertEquals("Buddy Updated", label(list.getItems().get(0).get(), "name"));
+            assertEquals("Size: large", label(list.getItems().get(0).get(), "size"));
+            filteredCustomers.setPredicate(customer -> true);
+            assertEquals(2, list.getItems().size());
+            dogs.clear();
+            assertEquals(1, list.getItems().size());
+            assertEquals("Alex", label(list.getItems().get(0).get(), "name"));
+            customers.clear();
+            assertTrue(list.getItems().isEmpty());
+        });
+    }
+
+    @Test
+    public void panel_searchAndResetCommands_displayMatchingCategoryAndRestoreCards() throws Exception {
+        runOnFxThread(() -> {
+            WatchDog book = new WatchDog();
+            book.addCustomer(ALEX);
+            book.addDogFromStorage(BUDDY);
+            book.addDogFromStorage(new Dog(43, new DogName("Max"), new Breed("Poodle"), new Size("small")));
+            ModelManager model = new ModelManager(book, new UserPrefs());
+            var list = listView(new RecordListPanel(model.getFilteredCustomerList(), model.getFilteredDogList()));
+
+            executeCommand(new SearchDogCommand(new DogSearchPredicate("bud")), model);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Buddy", label(list.getItems().get(0).get(), "name"));
+            assertEquals("42. ", label(list.getItems().get(0).get(), "id"));
+
+            executeCommand(new SearchDogCommand(new DogSearchPredicate("missing")), model);
+            assertTrue(list.getItems().isEmpty());
+            new ResetDisplayCommand().execute(model);
+            assertEquals(3, list.getItems().size());
+            assertEquals("Alex", label(list.getItems().get(0).get(), "name"));
+            assertEquals("Buddy", label(list.getItems().get(1).get(), "name"));
+            assertEquals("Max", label(list.getItems().get(2).get(), "name"));
+
+            executeCommand(new SearchDogCommand(new DogSearchPredicate(43)), model);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Max", label(list.getItems().get(0).get(), "name"));
+            assertEquals(book, model.getWatchDog());
+        });
+    }
+
+    @Test
+    public void panel_customerSearch_switchesBetweenCategoriesAndRestoresCustomers() throws Exception {
+        runOnFxThread(() -> {
+            WatchDog book = new WatchDog();
+            book.addCustomer(ALEX);
+            book.addCustomer(new Customer(42, "Beth", "92345678", "beth@example.com", "97654321"));
+            book.addDogFromStorage(BUDDY);
+            ModelManager model = new ModelManager(book, new UserPrefs());
+            var list = listView(new RecordListPanel(model.getFilteredCustomerList(), model.getFilteredDogList()));
+
+            executeCommand(new SearchDogCommand(new DogSearchPredicate("bud")), model);
+            executeCommand(new SearchCustomerCommand(new CustomerSearchPredicate("alex")), model);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Alex", label(list.getItems().get(0).get(), "name"));
+            executeCommand(new SearchCustomerCommand(new CustomerSearchPredicate(42)), model);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Beth", label(list.getItems().get(0).get(), "name"));
+            executeCommand(new SearchCustomerCommand(new CustomerSearchPredicate("missing")), model);
+            assertTrue(list.getItems().isEmpty());
+            new ResetDisplayCommand().execute(model);
+            assertEquals(3, list.getItems().size());
+            executeCommand(new SearchDogCommand(new DogSearchPredicate("bud")), model);
+            assertEquals(1, list.getItems().size());
+            assertEquals("Buddy", label(list.getItems().get(0).get(), "name"));
+            assertEquals(book, model.getWatchDog());
+        });
+    }
+
+    private static String label(Region card, String id) {
+        return ((Label) card.lookup("#" + id)).getText();
+    }
+
+    private static ClipboardWriter recordingWriter(AtomicReference<String> copiedText) {
+        return value -> {
+            copiedText.set(value);
+            return true;
+        };
+    }
+
+    private static void executeCommand(Command command, ModelManager model) {
+        try {
+            command.execute(model);
+        } catch (CommandException exception) {
+            throw new AssertionError(exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ListView<Supplier<Region>> listView(RecordListPanel panel) {
+        return (ListView<Supplier<Region>>) panel.getRoot().lookup("#recordListView");
+    }
+
+    private static void runOnFxThread(Runnable assertions) throws Exception {
+        FutureTask<Void> task = new FutureTask<>(assertions, null);
+        Platform.runLater(task);
+        task.get(10, TimeUnit.SECONDS);
+    }
+}

@@ -1,39 +1,44 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
 
-Actor User as user USER_COLOR
-Participant ":UI" as ui UI_COLOR
-Participant ":Logic" as logic LOGIC_COLOR
-Participant ":Model" as model MODEL_COLOR
-Participant ":Storage" as storage STORAGE_COLOR
+actor User USER_COLOR
+participant "UI" as UI UI_COLOR
+participant "Logic" as Logic LOGIC_COLOR
+participant "Model" as Model MODEL_COLOR
+participant "Storage" as Storage STORAGE_COLOR
 
-user -[USER_COLOR]> ui : "delete 1"
-activate ui UI_COLOR
+User -> UI : deletedog 1
+UI -> Logic : execute("deletedog 1")
+ref over Logic
+  Parse delete-dog command
+end ref
+Logic -> Model : createState()
+Model --> Logic : stateBeforeCommand
+Logic -> Model : getDogList()
+Model --> Logic : dogs
+note right of Logic
+  Finds dog with persistent ID 1.
+end note
+Logic -> Model : deleteDog(dog)
+note right of Logic
+  Keeps the pre-command state for undo
+  and clears redo before saving.
+end note
+Logic -> Model : getWatchDog()
+Model --> Logic : watchDog
+Logic -> Storage : saveWatchDog(watchDog)
+Logic --> UI : commandResult
+UI --> User : feedback displayed
 
-ui -[UI_COLOR]> logic : execute("delete 1")
-activate logic LOGIC_COLOR
-
-logic -[LOGIC_COLOR]> model : deletePerson(p)
-activate model MODEL_COLOR
-
-model -[MODEL_COLOR]-> logic
-deactivate model
-
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
-activate storage STORAGE_COLOR
-
-storage -[STORAGE_COLOR]> storage : Save to file
-activate storage STORAGE_COLOR_T1
-storage --[STORAGE_COLOR]> storage
-deactivate storage
-
-storage --[STORAGE_COLOR]> logic
-deactivate storage
-
-logic --[LOGIC_COLOR]> ui
-deactivate logic
-
-ui--[UI_COLOR]> user
-deactivate ui
+legend bottom
+  Successful deletion and saving; UI, Logic, Model and Storage are components.
+  UI includes CommandBox input and MainWindow command dispatch.
+  Calls from Logic include calls made by its command objects.
+  Parsing is expanded in "Parse delete-dog command".
+  Internal execution calls and model/storage internals are omitted.
+  Observable-list updates refresh the UI; notifications are omitted.
+endlegend
 @enduml

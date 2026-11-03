@@ -10,6 +10,13 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+//@@author its-shoutime
+run {
+    enableAssertions = true
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+//@@author
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -26,8 +33,22 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    //@@author its-shoutime
+    enableAssertions = true
+    //@@author
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
     finalizedBy jacocoTestReport
 }
+
+//@@author its-shoutime
+tasks.register('repositoryChecks', Exec) {
+    description = 'Runs the text checks used by Linux CI.'
+    commandLine 'sh', "${rootDir}/.github/run-checks.sh"
+    onlyIf { !org.gradle.internal.os.OperatingSystem.current().isWindows() }
+}
+
+check.dependsOn tasks.named('repositoryChecks')
+//@@author
 
 task coverage(type: JacocoReport) {
     dependsOn test
@@ -44,6 +65,26 @@ task coverage(type: JacocoReport) {
         xml.required = true
     }
 }
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn test
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.90
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.90
+            }
+        }
+    }
+}
+
+check.dependsOn tasks.named('jacocoTestCoverageVerification')
 
 dependencies {
     String jUnitVersion = '5.14.4'
@@ -72,7 +113,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'WatchDog.jar'
 }
 
 defaultTasks 'clean', 'test'

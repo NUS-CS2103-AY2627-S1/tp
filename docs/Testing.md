@@ -1,12 +1,15 @@
 ---
-layout: page
-title: Testing guide
+  layout: default.md
+  title: "Testing guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Testing guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Running tests
 
@@ -19,12 +22,18 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
-<div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
-</div>
+<box type="info" seamless>
+
+**Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Types of tests
+
+Tests for cards, list panels, the command box, and the main window exercise JavaFX rendering and interactions.
+They require a graphical display. On headless Linux, run the full suite with `xvfb-run ./gradlew test` when
+Xvfb is installed; otherwise JavaFX-dependent tests are skipped.
 
 This project has three types of tests:
 

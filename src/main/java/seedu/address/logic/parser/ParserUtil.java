@@ -2,52 +2,96 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
-import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.activity.ActivityName;
+import seedu.address.model.customer.BackupContact;
+import seedu.address.model.dog.Breed;
+import seedu.address.model.dog.DogName;
+import seedu.address.model.dog.Size;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
  */
 public class ParserUtil {
 
-    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    // @@author lilosy
+    /** Parses a positive persistent customer ID, rejecting values outside the supported integer range. */
+    public static int parseCustomerId(String customerId) throws ParseException {
+        requireNonNull(customerId);
+        String trimmedId = customerId.trim();
+        if (!StringUtil.isNonZeroUnsignedInteger(trimmedId)) {
+            throw new ParseException("Please provide a valid positive customer ID");
+        }
+        try {
+            return Integer.parseInt(trimmedId);
+        } catch (NumberFormatException e) {
+            throw new ParseException("Please provide a valid positive customer ID", e);
+        }
+    }
+    // @@author
 
     /**
-     * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
-     * trimmed.
-     * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
+     * Parses a string into a {@code DogName}.
+     * Leading and trailing whitespace is trimmed.
+     *
+     * @throws ParseException if the given name is invalid
      */
-    public static Index parseIndex(String oneBasedIndex) throws ParseException {
-        String trimmedIndex = oneBasedIndex.trim();
-        if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
-            throw new ParseException(MESSAGE_INVALID_INDEX);
+
+    public static DogName parseDogName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!DogName.isValidName(trimmedName)) {
+            throw new ParseException(DogName.MESSAGE_CONSTRAINTS);
         }
-        return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+        return new DogName(trimmedName);
     }
 
+    /**
+     * Parses a string into a {@code Breed}.
+     * Leading and trailing whitespace is trimmed.
+     *
+     * @throws ParseException if the given breed is invalid
+     */
+    public static Breed parseBreed(String breed) throws ParseException {
+        requireNonNull(breed);
+        String trimmedBreed = breed.trim();
+        if (!Breed.isValidBreed(trimmedBreed)) {
+            throw new ParseException(Breed.MESSAGE_CONSTRAINTS);
+        }
+        return new Breed(trimmedBreed);
+    }
+
+    /**
+     * Parses a string into a {@code Size}.
+     * Leading and trailing whitespace is trimmed.
+     *
+     * @throws ParseException if the given size is invalid
+     */
+    public static Size parseSize(String size) throws ParseException {
+        requireNonNull(size);
+        String trimmedSize = size.trim();
+        if (!Size.isValidSize(trimmedSize)) {
+            throw new ParseException(Size.MESSAGE_CONSTRAINTS);
+        }
+        return new Size(trimmedSize);
+    }
+
+    // @@author lilosy
+    //==========================CUSTOMER RELATED====================================
     /**
      * Parses a {@code String name} into a {@code Name}.
      * Leading and trailing whitespaces will be trimmed.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
-    public static Name parseName(String name) throws ParseException {
+    public static seedu.address.model.customer.Name parseCustomerName(String name) throws ParseException {
         requireNonNull(name);
         String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
-            throw new ParseException(Name.MESSAGE_CONSTRAINTS);
+        if (!seedu.address.model.customer.Name.isValidName(trimmedName)) {
+            throw new ParseException(seedu.address.model.customer.Name.MESSAGE_CONSTRAINTS);
         }
-        return new Name(trimmedName);
+        return new seedu.address.model.customer.Name(trimmedName);
     }
 
     /**
@@ -56,69 +100,57 @@ public class ParserUtil {
      *
      * @throws ParseException if the given {@code phone} is invalid.
      */
-    public static Phone parsePhone(String phone) throws ParseException {
+    public static seedu.address.model.customer.Phone parseCustomerPhone(String phone) throws ParseException {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+        if (!seedu.address.model.customer.Phone.isValidPhone(trimmedPhone)) {
+            throw new ParseException(seedu.address.model.customer.Phone.MESSAGE_CONSTRAINTS);
         }
-        return new Phone(trimmedPhone);
+        return new seedu.address.model.customer.Phone(trimmedPhone);
     }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
-    }
-
     /**
      * Parses a {@code String email} into an {@code Email}.
      * Leading and trailing whitespaces will be trimmed.
      *
      * @throws ParseException if the given {@code email} is invalid.
      */
-    public static Email parseEmail(String email) throws ParseException {
+    public static seedu.address.model.customer.Email parseCustomerEmail(String email) throws ParseException {
         requireNonNull(email);
         String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
+        if (!seedu.address.model.customer.Email.isValidEmail(trimmedEmail)) {
+            throw new ParseException(seedu.address.model.customer.Email.MESSAGE_CONSTRAINTS);
         }
-        return new Email(trimmedEmail);
+        return new seedu.address.model.customer.Email(trimmedEmail);
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
+     * Parses a {@code String backupcontact} into a {@code BackupContact}.
      * Leading and trailing whitespaces will be trimmed.
      *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * @throws ParseException if the given {@code phone} is invalid.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static BackupContact parseCustomerBackupContact(String backupContact) throws ParseException {
+        requireNonNull(backupContact);
+        String trimmedPhone = backupContact.trim();
+        if (!BackupContact.isValidBackupContact(trimmedPhone)) {
+            throw new ParseException(BackupContact.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return new BackupContact(trimmedPhone);
     }
 
-    /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
-     */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    //==========================ACTIVITY RELATED====================================
+    /** Parses a nonblank activity name. */
+    public static ActivityName parseActivityName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!ActivityName.isValidName(trimmedName)) {
+            throw new ParseException(ActivityName.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new ActivityName(trimmedName);
     }
+    // @@author
+
+
+
+
 }

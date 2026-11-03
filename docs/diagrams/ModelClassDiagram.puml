@@ -1,54 +1,58 @@
 @startuml
 !include style.puml
 skinparam arrowThickness 1.1
-skinparam arrowColor MODEL_COLOR
+skinparam arrowColor MODEL_COLOR_T4
 skinparam classBackgroundColor MODEL_COLOR
+show members
 
-Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
-Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
-Class ModelManager
-Class UserPrefs
-
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
-
-Class I #FFFFFF
+class "<<interface>>\nModel" as Model
+class ModelManager
+class "<<interface>>\nReadOnlyWatchDog" as ReadOnlyWatchDog
+class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
+class WatchDog
+class UserPrefs
+class UniqueCustomerList
+class UniqueDogList
+class Customer {
+  -id: int
+}
+class Dog {
+  -id: int
+  -ownerId: Integer
+}
+class Activity {
+  -id: int
+}
+class Enrolment {
+  -activityId: int
+  -dogId: int
+  -date: LocalDate
 }
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Model
-
-AddressBook .up.|> ReadOnlyAddressBook
-
 ModelManager .up.|> Model
-Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
-ModelManager -right-> "1" UserPrefs
+ModelManager --> "1" WatchDog : watchDog
+ModelManager --> "1" UserPrefs : userPrefs
+Model ..> ReadOnlyWatchDog : exposes
+Model ..> ReadOnlyUserPrefs : exposes
+WatchDog .up.|> ReadOnlyWatchDog
 UserPrefs .up.|> ReadOnlyUserPrefs
+WatchDog --> "1" UniqueCustomerList : customers
+WatchDog --> "1" UniqueDogList : dogs
+WatchDog --> "*" Activity : activities
+WatchDog --> "*" Enrolment : enrolments
+UniqueCustomerList --> "*" Customer
+UniqueDogList --> "*" Dog
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+note bottom of ModelManager
+  Maintains filtered observable views of
+  customers, dogs and activities.
+  Views share the stored records.
+end note
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
-
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
-ModelManager --> "~* filtered" Person
+note bottom of Dog
+  ownerId is null for an unlinked dog.
+  Ownership and enrolment endpoints use IDs,
+  not direct references to other records.
+  Other record details and APIs are omitted.
+end note
 @enduml

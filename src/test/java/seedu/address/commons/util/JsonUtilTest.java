@@ -1,12 +1,14 @@
 package seedu.address.commons.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.testutil.SerializableTestClass;
 import seedu.address.testutil.TestUtil;
 
@@ -39,7 +41,30 @@ public class JsonUtilTest {
         assertEquals(serializableTestClass.getMapOfIntegerToString(), SerializableTestClass.getHashMapTestValues());
     }
 
-    //TODO: @Test jsonUtil_readJsonStringToObjectInstance_correctObject()
+    @Test
+    public void fromJsonString_validJson_returnsObject() throws IOException {
+        SerializableTestClass result = JsonUtil.fromJsonString(
+                SerializableTestClass.JSON_STRING_REPRESENTATION, SerializableTestClass.class);
 
-    //TODO: @Test jsonUtil_writeThenReadObjectToJson_correctObject()
+        assertEquals(SerializableTestClass.getNameTestValue(), result.getName());
+        assertEquals(SerializableTestClass.getListTestValues(), result.getListOfLocalDateTimes());
+        assertEquals(SerializableTestClass.getHashMapTestValues(), result.getMapOfIntegerToString());
+    }
+
+    @Test
+    public void readJsonFile_nullJson_throwsDataLoadingException() throws IOException {
+        Path nullJson = TestUtil.getFilePathInSandboxFolder("null.json");
+        FileUtil.writeToFile(nullJson, "null");
+
+        assertThrows(DataLoadingException.class, () -> JsonUtil.readJsonFile(nullJson, SerializableTestClass.class));
+    }
+
+    @Test
+    public void toJsonString_object_returnsExpectedJson() throws IOException {
+        SerializableTestClass serializableTestClass = new SerializableTestClass();
+        serializableTestClass.setTestValues();
+
+        assertEquals(SerializableTestClass.JSON_STRING_REPRESENTATION,
+                JsonUtil.toJsonString(serializableTestClass));
+    }
 }

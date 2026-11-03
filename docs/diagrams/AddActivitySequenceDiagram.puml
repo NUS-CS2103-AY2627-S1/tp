@@ -1,0 +1,34 @@
+/'
+// @@author Kenneth-Chia
+'/
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:AddActivityCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+note over Command
+  Holds validated schedule details with a placeholder ID.
+  Parsing has not consumed a persistent ID.
+end note
+Command -> Model : addActivity(name, date, start, end, recurrence)
+note right of Model
+  Assigns the next persistent activity ID.
+  Adds the schedule with zero dogs.
+end note
+Model --> Command : addedActivity
+note over Command
+  Builds feedback with the assigned ID.
+end note
+[<-- Command : commandResult
+
+legend bottom
+  Adds an activity schedule. Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml

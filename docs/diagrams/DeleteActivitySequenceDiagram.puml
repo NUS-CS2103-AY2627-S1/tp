@@ -1,0 +1,29 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:DeleteActivityCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+Command -> Model : getActivityList()
+Model --> Command : activities
+note over Command
+  Finds the activity with persistent ID 21.
+end note
+Command -> Model : deleteActivity(activityToDelete)
+note right of Model
+  Removes the schedule and all its enrolments.
+  The next activity ID is unchanged;
+  deleted IDs are not reused.
+end note
+[<-- Command : commandResult
+
+legend bottom
+  Deletes activity 21. Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml

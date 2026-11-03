@@ -1,59 +1,57 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+Report bugs and suggestions through the [WatchDog issue tracker](https://github.com/AY2627S1-CS2103T-T15-4/tp/issues).
 
 ## Project team
 
-### John Doe
+### Shou An
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/its-shoutime.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/its-shoutime)]
 
 * Role: Project Advisor
+* Responsibilities: Testing, Documentation, Coordinator
 
-### Jane Doe
+### Kenneth Chia
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kenneth-chia.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/Kenneth-Chia)] [[portfolio](team/kenneth-chia.md)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: UI, Code Quality, Testing
 
-### Johnny Doe
+### Xander Goh
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/xandergoh.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/xandergoh)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Data, Debugging, Testing
 
-### James Doe
+### Umaiza
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/umaiza-15.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Umaiza-15)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: testing, scheduling, UI
+
+### Aseera Jannath
+
+<img src="images/lilosy.png" width="200px">
+
+[[github](http://github.com/lilosy)]
+
+* Role: Developer
+* Responsibilities: Testing, UI, Code quality

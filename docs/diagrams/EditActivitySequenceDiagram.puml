@@ -1,0 +1,35 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:EditActivityCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+Command -> Model : getActivityList()
+Model --> Command : activities
+note over Command
+  Finds the target by persistent ID.
+  Builds an edited activity with the same ID;
+  omitted fields retain their values.
+end note
+Command -> Model : setActivity(target, editedActivity)
+note right of Model
+  Rejects an activity with any enrolments.
+  For an unenrolled activity, validates
+  and replaces the stored schedule.
+  Editing never removes enrolments.
+end note
+note over Command
+  Reports the edited activity ID.
+end note
+[<-- Command : commandResult
+
+legend bottom
+  Edits an activity with no enrolments. Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml

@@ -1,0 +1,26 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:EditDogCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+Command -> Model : getDogList()
+Model --> Command : dogs
+note over Command
+  Finds ID 1 in the complete list.
+  Builds editedDog with the same ID
+  and owner, replacing its size.
+end note
+Command -> Model : setDog(target, editedDog)
+[<-- Command : commandResult
+
+legend bottom
+  Edits dog 1 using a parsed size descriptor. Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml

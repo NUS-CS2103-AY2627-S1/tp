@@ -1,0 +1,57 @@
+@startuml
+!include style.puml
+skinparam arrowColor MODEL_COLOR_T4
+skinparam classBackgroundColor MODEL_COLOR
+skinparam ArrowFontStyle plain
+show members
+
+class WatchDog {
+  -nextActivityId: long
+  +addActivity(...): Activity
+  +removeActivity(activity: Activity): void
+  +setActivity(target, editedActivity): void
+  +enrolDogs(activityId, date, dogIds): void
+  +unenrolDogs(activityId, date, dogIds): void
+}
+
+class Activity {
+  -id: int
+  -startDate: LocalDate
+  -startTime: LocalTime
+  -endTime: LocalTime
+  +occursOn(date: LocalDate): boolean
+  +nextOccurrenceOnOrAfter(...)
+}
+
+class Enrolment {
+  -activityId: int
+  -dogId: int
+  -date: LocalDate
+}
+
+class ActivityName {
+  +fullName: String
+}
+
+class "<<enumeration>>\nRecurrence" as Recurrence {
+  ONCE
+  DAILY
+  WEEKLY
+}
+
+WatchDog --> "*" Activity : activities
+WatchDog --> "*" Enrolment : enrolments
+Activity --> "1" ActivityName : name
+Activity --> "1" Recurrence : recurrence
+
+note bottom of Enrolment
+  IDs identify the stored activity and dog;
+  these are not object references.
+end note
+
+note bottom of Activity
+  Immutable schedule.
+  Recurrence is calculated;
+  enrolments are stored separately.
+end note
+@enduml

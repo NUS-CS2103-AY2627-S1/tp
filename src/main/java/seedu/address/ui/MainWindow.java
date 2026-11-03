@@ -1,20 +1,44 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Group;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Ellipse;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.FilterUnlinkedCommand;
+import seedu.address.logic.commands.ResetDisplayCommand;
+import seedu.address.logic.commands.SearchActivityCommand;
+import seedu.address.logic.commands.SearchCustomerCommand;
+import seedu.address.logic.commands.SearchDogCommand;
+import seedu.address.logic.commands.TodayCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 
@@ -25,15 +49,27 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final DateTimeFormatter TODAY_HEADER_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy");
+    private static final long PAW_PATTERN_SEED = 2103L;
+    private static final Set<String> DISPLAY_CHANGING_COMMAND_WORDS = Set.of(
+            FilterUnlinkedCommand.COMMAND_WORD,
+            ResetDisplayCommand.COMMAND_WORD,
+            SearchActivityCommand.COMMAND_WORD,
+            SearchCustomerCommand.COMMAND_WORD,
+            SearchDogCommand.COMMAND_WORD,
+            TodayCommand.COMMAND_WORD);
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
     private Logic logic;
-    private Path dataFilePath;
+    private final Clock clock;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private CustomerListPanel customerListPanel;
+    private DogListPanel dogListPanel;
+    private ActivityListPanel activityListPanel;
+    private TodayActivityListPanel todayActivityListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
 
@@ -44,28 +80,51 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane customerListPanelPlaceholder;
+
+    @FXML
+    private StackPane dogListPanelPlaceholder;
+
+    @FXML
+    private StackPane activityListPanelPlaceholder;
+
+    @FXML
+    private StackPane todayActivityListPanelPlaceholder;
+
+    @FXML
+    private Label todayActivitiesHeader;
+
+    @FXML
+    private Pane pawPattern;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
 
     @FXML
-    private StackPane statusbarPlaceholder;
+    private HBox recordLists;
+
+    @FXML
+    private ScrollPane recordScrollPane;
 
     /**
-     * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
-     * and the data file path to show in the status bar.
+     * Creates a {@code MainWindow} with the given {@code Stage} and {@code Logic}.
+     * The data-file path parameter is retained for compatibility with the UI construction API.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
+        this(primaryStage, logic, dataFilePath, Clock.systemDefaultZone());
+    }
+
+    /** Creates a main window with an injectable clock for deterministic date-sensitive views. */
+    MainWindow(Stage primaryStage, Logic logic, Path dataFilePath, Clock clock) {
         super(FXML, primaryStage);
 
         // Set dependencies
         this.primaryStage = primaryStage;
         this.logic = logic;
-        this.dataFilePath = dataFilePath;
-
+        this.clock = Objects.requireNonNull(clock);
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
+        configureRecordScrolling();
 
         setAccelerators();
 
@@ -78,19 +137,43 @@ public class MainWindow extends UiPart<Stage> {
 
     private void setAccelerators() {
         setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
+        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (!event.isControlDown() || !event.isAltDown()) {
+                return;
+            }
+            int panelIndex = switch (event.getCode()) {
+                case DIGIT1 -> 0;
+                case DIGIT2 -> 1;
+                case DIGIT3 -> 2;
+                case DIGIT4 -> 3;
+                default -> -1;
+            };
+            if (panelIndex >= 0) {
+                revealPanel(panelIndex);
+                event.consume();
+            }
+        });
+    }
+
+    /** Keeps the four-panel row wide enough for readable cards and scrolls it only when needed. */
+    private void configureRecordScrolling() {
+        recordLists.prefWidthProperty().bind(Bindings.createDoubleBinding(() ->
+                Math.max(recordLists.minWidth(-1), recordScrollPane.getWidth() - 2),
+                recordScrollPane.widthProperty()));
     }
 
     /**
      * Sets the accelerator of a MenuItem.
-     * @param keyCombination the KeyCombination value of the accelerator
+     * @param keyCombination The KeyCombination value of the accelerator.
      */
     private void setAccelerator(MenuItem menuItem, KeyCombination keyCombination) {
         menuItem.setAccelerator(keyCombination);
 
         /*
-         * TODO: the code below can be removed once the bug reported here
-         * https://bugs.openjdk.java.net/browse/JDK-8131666
-         * is fixed in a later version of the SDK.
+         * JavaFX SDK 17.0.7 still consumes function-key events in TextInputControl.
+         * Revisit this workaround when the project upgrades to an SDK version that
+         * includes the fix for OpenJDK issue JDK-8131666; remove it only after
+         * accelerator tests pass while a TextField or TextArea has focus.
          *
          * According to the bug report, TextInputControl (TextField, TextArea) will
          * consume function-key events. Because CommandBox contains a TextField and
@@ -114,29 +197,114 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        addPawPattern();
+
+        customerListPanel = new CustomerListPanel(logic.getFilteredCustomerList(), logic.getDogList());
+        customerListPanelPlaceholder.getChildren().add(customerListPanel.getRoot());
+
+        dogListPanel = new DogListPanel(logic.getFilteredDogList());
+        dogListPanelPlaceholder.getChildren().add(dogListPanel.getRoot());
+
+        activityListPanel = new ActivityListPanel(logic.getFilteredActivityList(), logic.getEnrolmentList(),
+                clock, logic.getActivityEnrolmentContextChanges(), logic::getActivityEnrolmentSummary);
+        activityListPanelPlaceholder.getChildren().add(activityListPanel.getRoot());
+
+        todayActivityListPanel = new TodayActivityListPanel(logic.getActivityList(), logic.getEnrolmentList(), clock);
+        todayActivityListPanelPlaceholder.getChildren().add(todayActivityListPanel.getRoot());
+        refreshActivityPanels();
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
-
-        StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
-        statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
     }
 
-    /**
-     * Sets the default size based on {@code guiSettings}.
-     */
-    private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+    /** Adds a subtle repeating paw pattern behind the main window content. */
+    private void addPawPattern() {
+        pawPattern.widthProperty().addListener((observable, oldWidth, newWidth) ->
+                renderPawPattern());
+        pawPattern.heightProperty().addListener((observable, oldHeight, newHeight) ->
+                renderPawPattern());
+        renderPawPattern();
+    }
+
+    /** Redraws the paw pattern to cover the currently available background area. */
+    private void renderPawPattern() {
+        double width = pawPattern.getWidth();
+        double height = pawPattern.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
         }
+
+        pawPattern.getChildren().clear();
+        Color pawColor = Color.web("#90D1CA");
+        double horizontalSpacing = 112;
+        double verticalSpacing = 96;
+        Random random = new Random(PAW_PATTERN_SEED);
+
+        // Start above the visible area and finish beyond the bottom edge so that
+        // the pattern remains continuous across the entire resizable background.
+        for (int row = -1; row * verticalSpacing < height + 60; row++) {
+            double rowJitter = random.nextDouble() * 28 - 14;
+            double y = -18 + row * verticalSpacing + rowJitter;
+            double rowOffset = row % 2 == 0 ? 0 : horizontalSpacing / 2;
+            for (double x = 35 - rowOffset; x < width + 45; x += horizontalSpacing) {
+                double xJitter = random.nextDouble() * 36 - 18;
+                double yJitter = random.nextDouble() * 24 - 12;
+                double rotation = random.nextDouble() * 50 - 25;
+                Group paw = createPaw(x + xJitter, y + yJitter, pawColor, rotation);
+                pawPattern.getChildren().add(paw);
+            }
+        }
+    }
+
+    /** Creates one small paw mark for the background pattern. */
+    private Group createPaw(double x, double y, Color color, double rotation) {
+        Ellipse pad = new Ellipse(x, y + 11, 9, 7);
+        pad.setFill(color);
+
+        Group paw = new Group(
+                pad,
+                createToe(x - 8, y + 0.5, 3, color),
+                createToe(x - 3, y - 4, 3, color),
+                createToe(x + 3, y - 4, 3, color),
+                createToe(x + 8, y + 0.5, 3, color));
+        paw.setOpacity(0.20);
+        paw.setRotate(rotation);
+        return paw;
+    }
+
+    /** Creates one toe for a paw mark. */
+    private Circle createToe(double x, double y, double radius, Color color) {
+        Circle toe = new Circle(x, y, radius);
+        toe.setFill(color);
+        return toe;
+    }
+
+    /** Fits restored window settings within the visible bounds of the saved screen, or the primary screen. */
+    private void setWindowDefaultSize(GuiSettings guiSettings) {
+        var savedPosition = guiSettings.getWindowCoordinates();
+        List<Screen> matchingScreens = savedPosition == null ? List.of()
+                : Screen.getScreensForRectangle(savedPosition.x, savedPosition.y, 1, 1);
+        Screen screen = matchingScreens.isEmpty() ? Screen.getPrimary() : matchingScreens.get(0);
+        Rectangle2D fitted = fitWindowToBounds(guiSettings, screen.getVisualBounds());
+        primaryStage.setWidth(fitted.getWidth());
+        primaryStage.setHeight(fitted.getHeight());
+        primaryStage.setX(fitted.getMinX());
+        primaryStage.setY(fitted.getMinY());
+    }
+
+    /** Calculates a restored size and position that remain entirely inside a screen's visual bounds. */
+    static Rectangle2D fitWindowToBounds(GuiSettings guiSettings, Rectangle2D bounds) {
+        var savedPosition = guiSettings.getWindowCoordinates();
+        double width = Math.min(guiSettings.getWindowWidth(), bounds.getWidth());
+        double height = Math.min(guiSettings.getWindowHeight(), bounds.getHeight());
+        double x = savedPosition == null ? bounds.getMinX() + (bounds.getWidth() - width) / 2 : savedPosition.x;
+        double y = savedPosition == null ? bounds.getMinY() + (bounds.getHeight() - height) / 2 : savedPosition.y;
+        x = Math.max(bounds.getMinX(), Math.min(x, bounds.getMaxX() - width));
+        y = Math.max(bounds.getMinY(), Math.min(y, bounds.getMaxY() - height));
+        return new Rectangle2D(x, y, width, height);
     }
 
     /**
@@ -167,8 +335,16 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public CustomerListPanel getCustomerListPanel() {
+        return customerListPanel;
+    }
+
+    public DogListPanel getDogListPanel() {
+        return dogListPanel;
+    }
+
+    public ActivityListPanel getActivityListPanel() {
+        return activityListPanel;
     }
 
     /**
@@ -176,9 +352,12 @@ public class MainWindow extends UiPart<Stage> {
      *
      * @see seedu.address.logic.Logic#execute(String)
      */
-    private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+    CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
+            refreshActivityPanels();
+            resetListScrollForDisplayCommand(commandText);
+            revealCommandPanel(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
@@ -196,5 +375,62 @@ public class MainWindow extends UiPart<Stage> {
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }
+    }
+
+    /** Refreshes date-sensitive activity cards and their shared Today heading. */
+    private void refreshActivityPanels() {
+        LocalDate today = LocalDate.now(clock);
+        activityListPanel.refresh(today);
+        todayActivityListPanel.refresh(today);
+        todayActivitiesHeader.setText("Today · " + today.format(TODAY_HEADER_FORMAT));
+    }
+
+    /** Resets every record panel after a command intentionally changes the displayed result set. */
+    private void resetListScrollForDisplayCommand(String commandText) {
+        String strippedCommand = commandText.stripLeading();
+        if (strippedCommand.isEmpty()) {
+            return;
+        }
+        String commandWord = strippedCommand.split("\\s+", 2)[0];
+        if (!DISPLAY_CHANGING_COMMAND_WORDS.contains(commandWord)) {
+            return;
+        }
+        customerListPanel.scrollToTop();
+        dogListPanel.scrollToTop();
+        activityListPanel.scrollToTop();
+        todayActivityListPanel.scrollToTop();
+    }
+
+    /** Reveals the panel most relevant to a successful command while preserving the other card scroll positions. */
+    private void revealCommandPanel(String commandText) {
+        String commandWord = commandText.stripLeading().split("\\s+", 2)[0];
+        int panelIndex = switch (commandWord) {
+            case "addcustomer", "editcustomer", "deletecustomer", "searchc", "reset" -> 0;
+            case "adddog", "editdog", "deletedog", "searchd", "link", "unlink" -> 1;
+            case "addactivity", "editactivity", "deleteactivity", "searcha", "enrol", "unenrol" -> 2;
+            case "filterun" -> commandText.stripTrailing().endsWith("dog") ? 1 : 0;
+            case "today" -> 3;
+            default -> -1;
+        };
+        if (panelIndex >= 0) {
+            revealPanel(panelIndex);
+        }
+    }
+
+    /** Scrolls the panel row horizontally until the requested panel is visible. */
+    private void revealPanel(int panelIndex) {
+        if (panelIndex == 0) {
+            recordScrollPane.setHvalue(0);
+            return;
+        }
+        recordLists.applyCss();
+        recordLists.layout();
+        double overflow = recordLists.getWidth() - recordScrollPane.getViewportBounds().getWidth();
+        if (overflow <= 0) {
+            recordScrollPane.setHvalue(0);
+            return;
+        }
+        double panelX = recordLists.getChildren().get(panelIndex).getBoundsInParent().getMinX();
+        recordScrollPane.setHvalue(Math.max(0, Math.min(1, panelX / overflow)));
     }
 }

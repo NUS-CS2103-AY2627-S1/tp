@@ -1,0 +1,32 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+skinparam maxMessageSize 180
+
+participant "command:AddDogCommand" as Command LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+
+[-> Command : execute(model)
+note over Command
+  The parser has supplied an unassigned Dog.
+end note
+Command -> Model : addDog(dog)
+note right of Model
+  Delegates to WatchDog.addDog(dog),
+  which assigns the persistent ID.
+  Refreshes displayed records.
+end note
+Model --> Command : addedDog
+note over Command
+  Builds feedback using addedDog,
+  including its assigned ID.
+end note
+[<-- Command : commandResult
+
+legend bottom
+  Adds a dog; Model internals are omitted.
+  Parsing and saving follow the shared Logic flow.
+  Successful execution only; validation failures are omitted.
+endlegend
+@enduml
