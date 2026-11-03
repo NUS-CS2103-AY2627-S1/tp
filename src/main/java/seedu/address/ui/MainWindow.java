@@ -3,13 +3,17 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -26,6 +30,10 @@ public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
 
+    // Below this content width, such as at the window's minimum width, the gaps around the customer list shrink
+    private static final double COMPACT_WIDTH = 900;
+    private static final PseudoClass COMPACT = PseudoClass.getPseudoClass("compact");
+
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
@@ -35,7 +43,7 @@ public class MainWindow extends UiPart<Stage> {
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
+    private SidePanel sidePanel;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +53,15 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane searchCriteriaDisplayPlaceholder;
+
+    @FXML
+    private StackPane sidePanelPlaceholder;
+
+    @FXML
+    private Region windowContent;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -69,7 +86,9 @@ public class MainWindow extends UiPart<Stage> {
 
         setAccelerators();
 
-        helpWindow = new HelpWindow();
+        // The whole window's width, unlike a column's, does not change when the compact gaps are applied
+        windowContent.widthProperty().addListener((observable, oldWidth, newWidth) ->
+                windowContent.pseudoClassStateChanged(COMPACT, newWidth.doubleValue() < COMPACT_WIDTH));
     }
 
     public Stage getPrimaryStage() {
@@ -114,8 +133,17 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        SearchCriteriaDisplay searchCriteriaDisplay = new SearchCriteriaDisplay(logic.activeSearchCriteriaProperty());
+        searchCriteriaDisplayPlaceholder.getChildren().add(searchCriteriaDisplay.getRoot());
+
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.activeSearchCriteriaProperty());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+
+        ProductSummaryPanel productSummary = new ProductSummaryPanel(logic.getFilteredPersonList(),
+                logic.activeSearchCriteriaProperty());
+        DeliverySummaryPanel deliverySummary = new DeliverySummaryPanel(logic.getFilteredPersonList());
+        sidePanel = new SidePanel(new HelpPanel().getRoot(), productSummary.getRoot(), deliverySummary.getRoot());
+        sidePanelPlaceholder.getChildren().add(sidePanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -131,8 +159,11 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
+        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+        primaryStage.setHeight(fitWindowLength(guiSettings.getWindowHeight(), primaryStage.getMinHeight(),
+                screen.getHeight()));
+        primaryStage.setWidth(fitWindowLength(guiSettings.getWindowWidth(), primaryStage.getMinWidth(),
+                screen.getWidth()));
         if (guiSettings.getWindowCoordinates() != null) {
             primaryStage.setX(guiSettings.getWindowCoordinates().getX());
             primaryStage.setY(guiSettings.getWindowCoordinates().getY());
@@ -140,15 +171,20 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Opens the help window or focuses on it if it's already opened.
+     * Returns the window's width or height to open with: the saved length, shortened to fit the screen, such as
+     * a 1280x720 screen at 150%, but no shorter than the window allows.
+     * A size saved before the side panel was added can be narrower than the window now allows.
+     */
+    static double fitWindowLength(double savedLength, double minLength, double screenLength) {
+        return Math.max(Math.min(savedLength, screenLength), minLength);
+    }
+
+    /**
+     * Shows help in the side panel, until the next command is run.
      */
     @FXML
     public void handleHelp() {
-        if (!helpWindow.isShowing()) {
-            helpWindow.show();
-        } else {
-            helpWindow.focus();
-        }
+        sidePanel.showHelp();
     }
 
     void show() {
@@ -163,7 +199,6 @@ public class MainWindow extends UiPart<Stage> {
         GuiSettings guiSettings = new GuiSettings(primaryStage.getWidth(), primaryStage.getHeight(),
                 (int) primaryStage.getX(), (int) primaryStage.getY());
         logic.setGuiSettings(guiSettings);
-        helpWindow.hide();
         primaryStage.hide();
     }
 
@@ -179,11 +214,16 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
+            if (commandText.isEmpty() && commandResult.getFeedbackToUser().isEmpty()) {
+                return commandResult;
+            }
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
+            } else {
+                sidePanel.showSummary();
             }
 
             if (commandResult.isExit()) {

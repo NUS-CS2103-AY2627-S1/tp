@@ -1,0 +1,94 @@
+package seedu.address.model.search;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+
+import java.util.Locale;
+import java.util.Objects;
+
+import seedu.address.commons.util.StringUtil;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.person.Person;
+import seedu.address.model.preorder.Preorder;
+
+/**
+ * Tests whether a customer field or their preorder's handover notes contain the search text, ignoring case.
+ * Search text is a fragment, so it need not be a valid complete name, phone number, email or address.
+ */
+public final class TextContainsCriterion implements PersonCriterion {
+    /**
+     * Identifies the customer fields that support substring searches.
+     */
+    public enum Field {
+        NAME, PHONE, EMAIL, ADDRESS, HANDOVER_NOTES
+    }
+
+    private final Field field;
+    private final String query;
+
+    /**
+     * Creates a criterion for {@code field}, stripping surrounding whitespace, including no-break spaces, from
+     * {@code query}.
+     * Internal whitespace and punctuation remain significant. Case normalization is locale-independent.
+     *
+     * @throws NullPointerException If either argument is null.
+     * @throws IllegalArgumentException If the query is blank.
+     */
+    public TextContainsCriterion(Field field, String query) {
+        this.field = requireNonNull(field);
+        String strippedQuery = StringUtil.stripSpaces(requireNonNull(query));
+        checkArgument(!strippedQuery.isEmpty(), "Search text must not be blank.");
+        this.query = strippedQuery.toLowerCase(Locale.ROOT);
+    }
+
+    public Field getField() {
+        return field;
+    }
+
+    /**
+     * Returns the normalized text used for matching, including significant internal whitespace and punctuation.
+     */
+    public String getQuery() {
+        return query;
+    }
+
+    @Override
+    public boolean test(Person person) {
+        requireNonNull(person);
+        return getFieldValue(person).toLowerCase(Locale.ROOT).contains(query);
+    }
+
+    private String getFieldValue(Person person) {
+        return switch (field) {
+            case NAME -> person.getName().fullName;
+            case PHONE -> person.getPhone().value;
+            case EMAIL -> person.getEmail().value;
+            case ADDRESS -> person.getAddress().value;
+            case HANDOVER_NOTES -> person.getPreorder().flatMap(Preorder::getHandoverNotes)
+                    .map(notes -> notes.value).orElse("");
+        };
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        if (!(other instanceof TextContainsCriterion otherCriterion)) {
+            return false;
+        }
+
+        return field == otherCriterion.field && query.equals(otherCriterion.query);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(field, query);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this).add("field", field).add("query", query).toString();
+    }
+}

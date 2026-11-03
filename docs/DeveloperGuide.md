@@ -1,15 +1,39 @@
 ---
-layout: page
-title: Developer Guide
+  layout: default.md
+  title: "Developer Guide"
+  pageNav: 3
 ---
-* Table of Contents
-{:toc}
+
+# LeBake Developer Guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* LeBake is based on [AddressBook-Level3](https://se-education.org/addressbook-level3/) by the
+  [SE-EDU initiative](https://se-education.org). Its code, this guide and the User Guide started from AB3's.
+* Libraries: [JavaFX](https://openjfx.io/) for the GUI, [Jackson](https://github.com/FasterXML/jackson) for the JSON
+  data file, and [JUnit 5](https://github.com/junit-team/junit5) for the tests.
+
+### Use of AI tools
+
+The team used OpenAI Codex and Claude Code throughout development, including substantial assistance with implementation 
+and test code generation. Notable uses included:
+
+* **Preliminary feature planning:** exploring implementation approaches, breaking down requirements, and identifying
+  edge cases.
+* **Preliminary pull request reviews:** identifying potential defects, inconsistencies, and opportunities for improvement.
+* **GitHub issue creation:** drafting issue descriptions, reproduction steps, and acceptance criteria.
+* **Code and test generation:** generating and refining implementation code and automated tests, including validation
+  and boundary cases.
+* **Documentation updates:** drafting, revising, and checking explanations against the application's behaviour.
+
+Team members made the final requirements and design decisions, evaluated and adapted AI-generated suggestions, and
+integrated the resulting changes into LeBake. The team remained responsible for correctness and validated changes
+through testing and code review.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -21,14 +45,9 @@ Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+<puml src="diagrams/ArchitectureDiagram.puml" width="280" />
 
 The ***Architecture Diagram*** given above explains the high-level design of the App.
 
@@ -36,7 +55,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -53,7 +72,7 @@ The bulk of the app's work is done by the following four components:
 
 The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<puml src="diagrams/ArchitectureSequenceDiagram.puml" width="574" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -62,41 +81,81 @@ Each of the four main components (also shown in the diagram above),
 
 For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
 
-<img src="images/ComponentManagers.png" width="300" />
+<puml src="diagrams/ComponentManagers.puml" width="300" />
 
 The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/ui/Ui.java)
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<puml src="diagrams/UiClassDiagram.puml" alt="Structure of the UI Component"/>
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `SearchCriteriaDisplay`, `PersonListPanel`, `SidePanel` and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
 * executes user commands using the `Logic` component.
 * listens for changes to `Model` data so that the UI can be updated with the modified data.
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+* depends on some classes in the `Model` component because it displays `Person` objects and structured search criteria.
+
+`MainWindow` lays out two columns. The left one holds the `CommandBox`, `ResultDisplay`, `SearchCriteriaDisplay` and
+`PersonListPanel`, and keeps at least 450 px so that cards still wrap whole words. The right one is the `SidePanel`,
+at least 300 px wide, which shows one long output at a time: the `HelpPanel` after `help`, the `ProductSummaryPanel`
+while it is visible during a product search, and the `DeliverySummaryPanel` otherwise. `MainWindow` shows help when a
+`CommandResult` asks for it, and returns the panel to the summaries after the next successful command. A window
+narrower than 900 px gets the `:compact` pseudo-class, which `DarkTheme.css` uses to tighten the gaps around the
+customer list.
+
+`MainWindow` owns one `SearchCriteriaDisplay`, places it above the customer list and supplies
+`Logic.activeSearchCriteriaProperty()`. The display renders the current value immediately and observes criteria
+changes directly, including searches with identical results. It delegates formatting to `SearchCriteriaFormatter`,
+which creates an immutable `SearchCriteriaSummary`. The display uses the summary's heading and complete criterion
+labels to render its badges in predictable order. These dependencies are shown with dashed arrows in the UI diagram.
+Formatting stays separate from matching and does not parse diagnostic `toString()` output.
+
+`PostalCodeCriterion.getPostalCodePrefix()` exposes the immutable search digits for a `Postal` badge, preserving
+leading zeros and the supplied prefix length. Postal badges are ordered after Address and before Tag badges.
+
+`ItemCriterion` exposes its stripped display product name and immutable accepted statuses. The formatter keeps
+the capitalization typed by the user and both conditions in one `Item` badge after customer badges, reflecting
+same-item matching. All statuses on a product
+criterion display as `Any status`; subsets display their readable labels joined by `or` in fulfilment order.
+A criterion without a product uses `Item status`, retaining the status-only search and tracking labels. An empty
+status set displays `None`, so a criterion matching no items is still visible.
+
+`FulfilmentDateCriterion.getDate()` and `FulfilmentMethodCriterion.getMethod()` expose their immutable matching
+values. Date badges reuse `FulfilmentDate.toDisplayString()` for English dates such as `22 Oct 2026`; method badges
+show `Delivery` or `Collection`. Handover-note badges use the normalized query from `TextContainsCriterion`.
+The complete display order is Name, Phone, Email, Address, Postal, Tag, Item (or Item status), Date, Method and
+Handover notes, independent of prefix order or the model's unordered criteria set.
+
+The display uses a `FlowPane` of read-only labels. Badges wrap onto additional rows without a row limit, and each
+badge is limited to the available width so long values wrap inside it. Its preferred-height measurement also accounts
+for wrapping when `FlowPane` measures a row without supplying a width. Empty searches hide the badge container and
+show only `Showing: All customers`; active searches show `Filters · Match all`. No focus request is made during an
+update, and the display cannot receive mouse input or keyboard focus.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<puml src="diagrams/LogicClassDiagram.puml" width="550"/>
 
 The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+<puml src="diagrams/DeleteSequenceDiagram.puml" alt="Interactions Inside the Logic Component for the `delete 1` Command" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+<box type="info" seamless>
+
+**Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, the lifeline continues till the end of diagram.
+</box>
+
 
 How the `Logic` component works:
 
@@ -106,44 +165,214 @@ How the `Logic` component works:
    Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
 1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
 
+If parsing fails, the parser throws a `ParseException` before returning a `Command`, so `LogicManager` does not execute
+the command. Field-specific parsing errors may be refined before they are thrown, as described in
+[Prefix boundaries and error messages](#prefix-boundaries-and-error-messages).
+
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<puml src="diagrams/ParserClasses.puml" width="600"/>
 
 How the parsing works:
 * When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
-### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+`LogicManager` coordinates `clear` confirmation before normal command execution, retaining the pending `ClearCommand`
+instance to track whether confirmation is waiting. After `clear`, it accepts only `confirm`, case-insensitively, after
+removing surrounding whitespace, including non-breaking spaces. Any other input cancels the pending clear and is
+discarded; an empty input is also forwarded by `CommandBox` while confirmation is pending so it cancels the request.
+A `confirm` entered without a pending clear goes through normal parsing and produces the unknown-command message.
 
-<img src="images/ModelClassDiagram.png" width="450" />
+#### Prefix boundaries and error messages
+
+`ArgumentTokenizer` recognizes only the prefixes supplied by a command parser, at whitespace boundaries. A supported
+prefix ends the preceding value. An unsupported prefix-like token stays in the current value or preamble. Here, a
+prefix-like token for diagnostic purposes is one or more ASCII letters followed by `/` after whitespace.
+The tokenizer preserves conventional `c/o` text inside an address instead of treating it as a postal-code prefix.
+Quotation marks and backslashes do not escape supported prefixes.
+
+The following parsers refine errors from constrained fields using `ParserUtil.createFieldParseException`:
+
+| Parser | Fields with contextual prefix diagnostics |
+|--------|------------------------------------------|
+| `DeleteItemCommandParser` | Item index (`i/`) |
+| `EditCommandParser` | Customer name (`n/`), phone (`p/`), email (`e/`) and postal code (`c/`) |
+| `EditItemCommandParser` | Item index (`i/`), quantity (`q/`) and status (`s/`) |
+| `TrackCommandParser` | Status (`s/`) |
+| `AddItemCommandParser` | Quantity (`q/`) and status (`s/`) |
+| `PreorderCommandParser` | Date (`f/`) and method (`m/`) |
+| `AddCommandParser` | Name (`n/`), phone (`p/`), email (`e/`) and postal code (`c/`) |
+| `TagCommandParser` | Tag (`t/`) |
+| `UntagCommandParser` | Tag (`t/`) |
+| `FindCommandParser` | Name (`n/`), phone (`p/`), email (`e/`), postal code (`c/`), tag (`t/`), date (`f/`), method (`m/`) and status (`s/`) queries |
+
+Each field is validated normally first. If parsing fails, the parser passes the failed value, exception, command word
+and supported prefixes to `ParserUtil.createFieldParseException`. This shared helper uses `findUnsupportedPrefix`
+to find the first token matching `\s([A-Za-z]+/)` whose prefix is absent from that command's supported-prefix list.
+It preserves the prefix's case and formats `Messages.MESSAGE_UNSUPPORTED_PREFIX` with the offending prefix and
+command name, for example `Unsupported prefix 'd/' for track.` If no unsupported prefix is found, the original field
+constraint message is used. An overload accepts a custom fallback for item-index errors. Both overloads retain the
+original exception as the direct cause. The helper scans only a failed constrained field's value. Since its pattern
+requires preceding whitespace, a token at the start of that value, or one embedded without a whitespace boundary,
+does not trigger this diagnostic; the field's normal constraint message is used instead. Customer-index and
+duplicate-prefix checks retain their earlier precedence.
+
+`EditCommandParser` preserves its field-validation order: name, phone, email, address, then postal code. Customer
+names are constrained by `Name` and do not permit slashes. Address validation permits ordinary slash notation such
+as `#04/08` and conventional `c/o`, but rejects a letter-based token followed by `/` at the start or after whitespace,
+such as `s/pending` or `x/foo`.
+
+`TagCommandParser` and `UntagCommandParser` check the index format before calling `ParserUtil.parseSingleTag`
+with their format-error message and command word. This shared helper checks the required `t/` prefix and duplicate
+`t/` prefixes before calling `ParserUtil.parseTag`. Only a tag-value failure is passed to
+`ParserUtil.createFieldParseException`, so each command retains its own unsupported-prefix message.
+
+This is an error-message refinement rather than a global rejection rule. Address validation allows ordinary slash
+notation and conventional `c/o` while rejecting a letter-based token followed by `/` at the start or after whitespace,
+which could be mistaken for another field.
+Item names, remarks and handover notes reject forward slashes through their model validation. Do not apply the helper
+to valid free-text values or scan the complete command before field validation.
+`FindCommandParser` uses the shared tokenizer too. It validates name, phone, email and postal-code queries using
+search-specific constraints, and validates tags, dates, methods and statuses through their existing validators.
+Each failed constrained value is passed to `ParserUtil.createFieldParseException` to refine its error. For example,
+`find c/123 x/foo` identifies `x/` while `find c/123` remains a valid postal-prefix search. Address, product and
+handover-note queries are parsed as text. Product and handover-note queries reject slashes, while address queries
+retain ordinary slash text, including `c/o`. Only the failed field's value is inspected,
+so `find a/Block c/o Alice s/invalid` still reports the status constraint rather than an error about the address.
+Unsupported arguments in the preamble are rejected by the existing nonempty-preamble check.
+
+### Model component
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/model/Model.java)
+
+<puml src="diagrams/ModelClassDiagram.puml" width="450" />
 
 
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* stores each customer's preorder, if any, as a `Preorder` holding the `Item`s they ordered (see [Preorders and items](#preorders-and-items)).
+* retains one active `SearchCriteria` in `ModelManager` to select which customers appear in the filtered list
+  (see [Customer search criteria](#customer-search-criteria)).
+* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list, and shows them through a _sorted_ view of that list. `Model#getFilteredPersonList()` returns the sorted view as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes. The sorted view keeps the saved order until `sort date` or `group postal` sets an order (see [Sorting by fulfilment date](#sorting-by-fulfilment-date-sort-date)).
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
 
-<img src="images/BetterModelClassDiagram.png" width="450" />
+<box type="info" seamless>
 
-</div>
+**Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
 
+<puml src="diagrams/BetterModelClassDiagram.puml" width="450" />
+</box>
+
+
+#### Customer search criteria
+
+The `seedu.address.model.search` package provides reusable search predicates. `FindCommandParser` constructs a
+`SearchCriteria` from prefixed customer and item fields, and `FindCommand` applies it through the existing model filtering API.
+
+`ModelManager` keeps the active immutable `SearchCriteria` in memory and uses it to filter the customer list. The
+criteria are observable so the UI can refresh search badges even when the same customers still match. Search criteria
+are not saved with customer data.
+
+Each successful `find` or `track` replaces the active criteria. `list` applies `SEARCH_CRITERIA_SHOW_ALL_PERSONS`,
+an empty search, to reset the state and show every customer. Rejected commands leave the active criteria unchanged.
+`find` and `track` use the immutable `ItemCriterion` for item matching. It accepts a customer when any single item
+satisfies both its optional product name and accepted statuses. Customers without a preorder or with an empty
+preorder never match item criteria.
+
+Customer changes preserve the active criteria and re-evaluate the affected customer. A new customer is displayed
+only if they match, and an edited customer disappears when they stop matching. Commands resolve their target from
+the displayed list, so subsequent commands must use the updated displayed indexes. Rejected updates preserve both
+criteria and results.
+
+`SearchCriteria` combines zero or more `PersonCriterion` objects using **AND**, so a customer must match every
+criterion. An empty search matches every customer.
+
+The following diagram shows the criteria structure and its current implementations:
+
+<puml src="diagrams/SearchCriteriaClassDiagram.puml" width="550" alt="SearchCriteria combining zero or more PersonCriterion objects and the six criterion implementations" />
+
+`TextContainsCriterion` handles substring searches for names, phone numbers, email addresses, addresses and handover
+notes. Matching ignores case and surrounding whitespace while retaining internal spacing and punctuation. `TagCriterion`
+uses complete, case-insensitive tag matching. The parser applies search-specific validation to contact fragments; these
+rules differ from the validators used when saving complete contact details.
+
+Date and method criteria inspect fields shared by the `Preorder`, independently of its items. Handover-note searches
+also inspect the preorder and never inspect item remarks. Missing preorders or missing requested fields do not match,
+but an empty preorder can match when it has the requested shared detail.
+
+`PostalCodeCriterion` matches a one-to-six-digit prefix against the stored postal code. Leading zeros remain
+significant, and a six-digit query matches the complete code. Stored postal codes remain mandatory and `add` and
+`edit` require all six digits. Postal criteria combine with other conditions, so `find n/Alice c/53` requires both a
+matching name and a postal code beginning with `53`.
+
+To add a new search condition, implement an immutable `PersonCriterion` and combine it in `SearchCriteria`. Keep CLI
+prefix parsing in `FindCommandParser`.
+
+`FindCommandParser` combines `d/` (`PREFIX_DETAILS`) and `s/` into **one** `ItemCriterion`. Separate predicates for
+"has this product" and "has this status" would incorrectly allow different items to satisfy the conditions.
+
+For `find`, omitting `s/` means all item statuses. `track` uses a different default; see
+[Tracking preorders](#tracking-preorders) for its status selection and feedback behavior.
+
+Date, method and postal conditions remain separate customer criteria because they describe the preorder or customer
+rather than an individual item.
+
+#### Preparation summary and matching-item highlighting
+
+`ProductPreparationSummary.from` creates an immutable snapshot from the filtered customers and a product
+`ItemCriterion`. It reuses `ItemCriterion.matches`, retaining matching entries in customer/item order,
+including duplicates. Each `MatchingItem` retains its customer and original one-based item number for
+remark attribution. Customer count is distinct, item count counts entries, and the quantities of all
+matching items are summed into a `long` total quantity. Constructors reject null inputs and invalid item
+references; collections are defensively copied.
+
+`MainWindow` puts `ProductSummaryPanel` in the `SidePanel`. The summary listens to both the filtered
+customer list and `Logic.activeSearchCriteriaProperty()`, so changing criteria refreshes it even when the
+same customers remain visible. Its criteria invalidation listener also refreshes the heading for capitalization-only
+changes, which are equal for filtering purposes. It is visible and managed only when a product criterion exists. Updates
+recompute the snapshot, including zero results. Labels wrap inside a focusable scroll pane, whose key
+handler supports arrows, Page Up/Down and Home/End with scroll values clamped to the valid range.
+
+`PersonListPanel` also refreshes its cells when active criteria change. Each `PersonCard` receives the
+current criteria and reuses the item matcher to add the `matching-item` style, a yellow box. It keeps
+all items, original numbering and status styles. Status-only criteria (including `track`) also highlight
+matching items; criteria without item conditions produce no highlights. The customer list uses native
+JavaFX keyboard navigation and selects its first entry when focused without an existing selection.
+
+#### Delivery preparation summary
+
+`DeliveryPreparationSummary` takes a snapshot of the current displayed customer results. It reuses
+`ItemCriterion` with no product condition and statuses `PENDING` and `PREPARED`, then requires the preorder's method
+to be `DELIVERY`. It counts customers, not matching items. Collection, unset methods, empty wrappers and completed-only
+preorders are excluded. Dates and notes may be unset without excluding an otherwise outstanding delivery.
+The immutable snapshot orders contacts by postal code and name,
+without mutating the address book or the active search criteria.
+
+`MainWindow` puts a `DeliverySummaryPanel` in the `SidePanel`. The panel observes the existing
+`Logic.getFilteredPersonList()` observable view and rebuilds its snapshot when results or customer records change.
+It reuses `GroupPostalCommand.getPostalGroupKey` for contact headings and `FulfilmentDate.toDisplayString` for dates.
+Names, phones, addresses, postal codes and shared handover notes are shown in a keyboard-scrollable area
+with wrapped text. Missing dates display `Not scheduled`; absent handover notes display `Handover notes: None`.
+The panel stays installed and visible when there are no outstanding deliveries, showing zero totals and
+`No outstanding deliveries in the current results.` The UI tests cover exclusion of ineligible preorders, one contact
+per customer with multiple outstanding items, postal headings, and layout at the minimum FXML window dimensions.
+
+This adds a derived model snapshot and a UI part within the existing Model/Logic/UI boundaries. It does not introduce
+stored summary state or change the fulfilment fields, JSON schema, customer reconstruction, or grouping command.
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/storage/Storage.java)
 
-<img src="images/StorageClassDiagram.png" width="550" />
+<puml src="diagrams/StorageClassDiagram.puml" width="550" />
 
 The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+* saves preorders through `JsonAdaptedPreorder` and `JsonAdaptedItem` (see [Saving preorders](#saving-preorders)).
 
 ### Common classes
 
@@ -155,94 +384,550 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Safe startup after a data loading failure
 
-#### Proposed Implementation
+`JsonUtil.readJsonFile` reads the file directly and returns `Optional.empty()` only for `NoSuchFileException`.
+Other read failures, malformed JSON and a JSON `null` document produce `DataLoadingException`. A genuinely missing
+`data/lebake.json` retains the first-run behavior: load sample data and create the file after a successful command.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+The JSON adapters report invalid fields through `DataValidationException`, a subtype of `IllegalValueException`.
+It carries a concise user message while preserving the detailed validation message and cause for diagnostics.
+`JsonSerializableAddressBook` adds the person's position, and `JsonAdaptedPreorder` adds the item's position.
+These positions start at 1 and follow the JSON list order. For example, the dialog can report
+`Person 2: item 3: invalid quantity.` The whole file is rejected at the first failure.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+`MainApp.init()` remembers a loading failure and skips model, logic and main UI initialization. It allows the JavaFX
+lifecycle to reach `start(Stage)`, which shows a standalone error alert containing the absolute file path, reason and
+recovery instructions. Malformed JSON errors include their line and column when available. Dismissing the alert
+invokes the exit callback, which defaults to `Platform::exit`, and `stop()` safely handles incomplete initialization.
+The saved data file is never written on this failure path.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+`MainAppTest` covers normal and missing-file startup, failed initialization, dialog content and dismissal, safe
+shutdown, and preservation of existing file contents. It also checks JSON errors without a location and uses a
+recording exit callback to verify that shutdown is requested exactly once, after the dialog closes, without stopping
+the shared JavaFX runtime. `DataValidationExceptionTest` checks concise record context and preservation of detailed
+diagnostics. The packaged-JAR checks below verify the actual JavaFX process exit.
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+### Customer field length validation
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+`Name`, `Email`, `Address` and `Tag` define `MAX_LENGTH` values of 100, 254, 300 and 30 respectively.
+Lengths use `String.length()` (UTF-16 code units). Names are trimmed and consecutive ASCII spaces collapse before
+validation. `ParserUtil` trims other command values; JSON adapters validate those strings as stored.
 
-![UndoRedoState0](images/UndoRedoState0.png)
+Constructors, `ParserUtil`, `JsonAdaptedPerson` and `JsonAdaptedTag` share the value classes' validators and
+`getValidationErrorMessage(String)`. Oversized fields use `MESSAGE_LENGTH_CONSTRAINTS`; other invalid values use
+`MESSAGE_CONSTRAINTS`. Length takes precedence over format within a field, while command syntax checks may fail
+earlier. Parsers may refine either field error into an [unsupported-prefix diagnostic](#prefix-boundaries-and-error-messages).
+`JsonAddressBookStorage` wraps adapter failures in `DataLoadingException`, rejecting the whole file.
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+Text queries for names, emails, addresses, products and handover notes have no stored-field length limit.
+Phone queries accept one to eight digits. Tag queries use `ParserUtil.parseTag` and share the 30-character limit.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+Automated tests cover N−1/N/N+1 across model, parser, command and storage layers, including normalization, UTF-16
+counting and error precedence. Integration tests verify saving and reloading, and preservation of data, search
+state and saved JSON after rejected commands.
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+### Preorders and items
 
-![UndoRedoState2](images/UndoRedoState2.png)
+A customer's preorder records the products they ordered and how they will be handed over. Each customer has at most
+one `Preorder`, and each `Preorder` holds the customer's `Item`s in the order they were added.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+<puml src="diagrams/PreorderClassDiagram.puml" width="600" />
 
-</div>
+* `Person` stores its preorder as an `Optional<Preorder>`, which is empty for a customer without one.
+* `Preorder` keeps an unmodifiable copy of its items and may have none yet. The number shown before an item on
+  the customer's card is its position in this list, starting from 1.
+* `Preorder` also has an optional `FulfilmentDate`, `FulfilmentMethod` (`DELIVERY` or `COLLECTION`) and
+  `HandoverNotes`, such as "Call on arrival". They belong to the whole preorder, so all of its items are handed
+  over together. `Preorder#withItems()` keeps them when a command changes the items.
+* `Item` has an `ItemName` of up to 200 characters, a `Quantity`, an `ItemStatus`, and an optional `Remark`.
+  `ItemName` turns each run of spaces, including Unicode spaces, into one space, so `Butter   Cake` and
+  `Butter Cake` are the same product in `find` and the preparation summary.
+  `ItemName` and `Remark` reject forward slashes, so a slash is refused in a command and also stops a data file
+  from loading. A `Quantity` is a whole number from 1 to 999, and a `Remark` is a special request of up to 100
+  characters.
+* Every item has a quantity. The `Item` constructor rejects a `null` quantity, and the data file loader rejects an
+  item without one (see [Saving preorders](#saving-preorders)).
+* `ItemStatus` belongs to each item, so a customer can have one item `PREPARED` while another is still
+  `PENDING`. There is no overall status for a customer or a preorder. `track` matches a customer when any item
+  has one of the requested statuses.
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+`Preorder` and `Item` are immutable. A command that changes a customer creates a new `Person` and replaces the old
+one through `Model#setPerson`. Commands that do this for other reasons, such as `edit`, `tag` and `untag`, pass the
+existing preorder to the new `Person`, so it is not lost.
 
-![UndoRedoState3](images/UndoRedoState3.png)
+#### Saving preorders
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+`JsonAdaptedPerson` saves a customer's preorder in a `"preorders"` list, which holds one `JsonAdaptedPreorder`, or
+none for a customer without a preorder. Each `JsonAdaptedPreorder` holds its `JsonAdaptedItem`s, and saves the date
+in `YYYY-MM-DD` form, the method by its name, and the handover notes. Each `JsonAdaptedItem` saves each field as a
+string. A missing fulfilment detail or remark is saved as `null`. Every item is saved with its quantity.
+```json
+"preorders" : [ {
+  "items" : [ {
+    "name" : "Pineapple Tarts",
+    "quantity" : "2",
+    "status" : "PENDING",
+    "remark" : "Less sugar"
+  } ],
+  "date" : "2026-12-20",
+  "method" : "DELIVERY",
+  "handoverNotes" : "Call on arrival"
+} ]
+```
 
-</div>
+When the file is loaded, a customer with more than one preorder, a `null` preorder or item, or a preorder or item
+field that breaks its rules is reported as invalid data, in the same way as an invalid name or phone number. An item
+whose `"quantity"` is missing, `null` or blank breaks these rules, just like a missing name or status. A preorder
+without an `"items"` field loads as a preorder with no items.
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+Before checking a fulfilment detail, `JsonAdaptedPreorder#toModelType()` strips surrounding whitespace, treats a
+blank value as `null`, and uppercases the method. A hand-edited file is therefore read with the same rules as the
+`preorder` command, so `"delivery"` or `""` loads, while a value the command would reject, such as `"PICKUP"` or
+`"2026-02-30"`, still makes the file invalid.
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+#### Design considerations
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+**Aspect: where the status is kept**
 
-</div>
+* **Alternative 1 (current choice):** each `Item` has its own `ItemStatus`.
+  * Pros: Items that are prepared at different times can be tracked separately.
+  * Cons: There is no single status for a customer, so a summary has to look at every item.
+* **Alternative 2:** one status per `Preorder`.
+  * Pros: Simpler to display and to filter by.
+  * Cons: Cannot show that one product is ready while another is not, which is common when a customer orders
+    several products.
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+**Aspect: where the date and method are kept**
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
+* **Alternative 1 (current choice):** one date, method and set of handover notes per `Preorder`.
+  * Pros: A preorder is handed over in one trip, so its items cannot disagree on when or how.
+  * Cons: Items for different days cannot share a preorder. As the data file already saves a list of preorders
+    (see "how preorders are saved" below), a later version can give such a customer a second preorder instead.
+* **Alternative 2:** a date and method on each `Item`.
+  * Pros: Each product can be handed over on its own day.
+  * Cons: The same details are repeated on every item, and changing the date of an order means editing each item.
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+**Aspect: how a quantity is stored**
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+* **Alternative 1 (current choice):** a `Quantity` class.
+  * Pros: The rule and its error message are in one place, shared by `ParserUtil#parseQuantity` and the JSON
+    loader.
+  * Cons: One more small class.
+* **Alternative 2:** a plain `int`.
+  * Pros: Less code.
+  * Cons: Each place that creates an item has to repeat the range check.
 
-</div>
+**Aspect: how preorders are saved**
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+* **Alternative 1 (current choice):** a list of preorders in the data file, while the model allows only one.
+  * Pros: Allowing several preorders per customer later will not change the file format again.
+  * Cons: The loader has to reject a list with more than one preorder.
+* **Alternative 2:** a single `"preorder"` object.
+  * Pros: Matches the model exactly.
+  * Cons: Supporting several preorders later would require a change to the saved-data format.
 
-![UndoRedoState4](images/UndoRedoState4.png)
+### Tracking preorders
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+`track [s/STATUS]` displays customers with at least one matching preorder item. Bare `track` selects active items
+(`PENDING` or `PREPARED`); supplying `s/` selects only that status. Status belongs to each item, so a customer with
+mixed-status items can appear in more than one status search. Customers without a preorder, or with an empty
+preorder, never match.
 
-![UndoRedoState5](images/UndoRedoState5.png)
+**Parsing.** `TrackCommandParser` tokenizes the optional `s/` prefix, rejects a nonempty preamble, then rejects
+duplicate status prefixes. With no status prefix, it constructs `TrackCommand(Optional.empty())`. Otherwise,
+`ParserUtil#parseItemStatus` trims surrounding whitespace and accepts `PENDING`, `PREPARED` or `COMPLETED`
+case-insensitively. An empty or invalid status is rejected before execution. An unsupported prefix after the status,
+such as `track s/pending d/Cake`, uses the contextual diagnostic described under
+[Prefix boundaries and error messages](#prefix-boundaries-and-error-messages). A rejected command leaves the
+active criteria and displayed results unchanged.
 
-The following activity diagram summarizes what happens when a user executes a new command:
+**Execution.** The sequence diagram below shows `TrackCommand#execute` for `track s/pending`. It starts after
+parsing and shows the command's interactions with the model and the shared item criterion.
 
-<img src="images/CommitActivityDiagram.png" width="250" />
+<puml src="diagrams/TrackSequenceDiagram.puml" alt="Interactions inside TrackCommand for the track s/pending command" />
 
-#### Design considerations:
+1. `createItemCriterion` creates an `ItemCriterion` with no product condition and either the supplied status or
+   the default set `{PENDING, PREPARED}`.
+1. The command wraps this criterion in a `SearchCriteria` and calls `Model#updateFilteredPersonList`. This replaces
+   the previous `find` or `track` criteria and filters all stored customers, while keeping the current sort order.
+   The model's observable filtering mechanism is described under [Customer search criteria](#customer-search-criteria).
+1. `Model#getFilteredPersonList` returns the matching customers. Each customer appears once, even if several of
+   their items match. Filtering selects customers; their other preorder items remain visible, with matching items
+   highlighted (see [Preparation summary and matching-item highlighting](#preparation-summary-and-matching-item-highlighting)).
+1. For each matching customer, the command calls `ItemCriterion#getMatchingItems` and sums the list sizes into a
+   `long` total. This counts item entries, including repeated products, rather than adding their quantities.
+1. `formatFeedback` creates the message for a new `CommandResult`. Bare `track` reports
+   `N customer(s) with M matching item(s) listed!`; an explicit status reports
+   `N customer(s) with M matching item(s) for STATUS listed!`, including when both counts are zero.
 
-**Aspect: How undo & redo execute:**
+For example, if one customer has two pending Cake entries with quantities 10 and 20, and another has one pending
+Cookies entry, `track s/pending` reports `2 customer(s) with 3 matching item(s) for PENDING listed!`.
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+Tracking changes the active search without editing customer or preorder data. Later item changes are re-evaluated
+against the same criteria automatically, so a customer disappears when their final matching item changes to a
+nonmatching status or is removed. `list` clears the criteria and restores the saved customer order.
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+#### Design considerations
 
-_{more aspects and alternatives to be added}_
+The alternatives below describe tradeoffs in the current implementation. The choice to store status on each item
+is covered under [Preorders and items](#preorders-and-items).
 
-### \[Proposed\] Data archiving
+**Aspect: which statuses bare `track` includes**
 
-_{Explain here how the data archiving feature will be implemented}_
+* **Alternative 1 (current choice):** include `PENDING` and `PREPARED` items.
+  * Pros: Shows orders that still need preparation or handover in one command, while excluding completed work.
+  * Cons: Does not distinguish work still to be prepared from work ready for handover. The baker must supply
+    `s/PENDING` or `s/PREPARED` to focus on one stage.
+* **Alternative 2:** include all three statuses.
+  * Pros: Gives an overview of every customer with preorder items, including completed work.
+  * Cons: Completed orders remain in the default results, making outstanding work harder to identify.
 
+**Aspect: how tracking applies its filter**
+
+* **Alternative 1 (current choice):** use the shared `ItemCriterion` and `SearchCriteria` infrastructure.
+  * Pros: `track` and `find` share item-matching rules. The existing observable search state updates the customer
+    list, criteria badges and item highlighting, and re-evaluates customers after edits.
+  * Cons: Changes to the shared item-matching rules can affect both commands, so both need checking when those
+    rules change.
+* **Alternative 2:** keep a separate tracking predicate and result list.
+  * Pros: Tracking rules can change independently of `find`.
+  * Cons: Repeats filtering logic and needs separate handling to keep results and search displays consistent
+    after customer or item changes.
+
+**Aspect: what the feedback counts**
+
+* **Alternative 1 (current choice):** report both customers and matching item entries.
+  * Pros: Distinguishes the number of customers to serve from the number of matching entries in their preorders.
+    Repeated products count separately, matching the entries shown on the cards.
+  * Cons: The item count does not indicate the number of units to bake; quantities must be read separately.
+* **Alternative 2:** report only the customer count.
+  * Pros: Shorter feedback that corresponds directly to the number of displayed cards.
+  * Cons: Hides how many items match when customers have mixed-product or mixed-status preorders.
+
+### Preorder item addition and editing
+
+`AddItemCommandParser` parses a customer index and the required name, quantity and status, with an optional remark.
+`EditItemCommandParser` additionally requires `i/ITEM_INDEX` and constructs an `EditItemDescriptor` for supplied fields.
+Both parsers validate the customer-index syntax first, reject duplicate prefixes, check required inputs, and validate
+item fields in the order name, quantity, status, remark. They reuse the model validators through `ParserUtil`.
+`ParserUtil` trims remarks and handover notes with `StringUtil#stripSpaces()` rather than `String#strip()`, which
+keeps no-break spaces, so a value pasted with one around it is still accepted. Spaces inside the value are kept.
+
+For `edititem`, failures in `i/`, `q/` and `s/` use the contextual diagnostics described under
+[Prefix boundaries and error messages](#prefix-boundaries-and-error-messages). Names and remarks retain their
+normal validation and reject forward slashes.
+
+The edit descriptor distinguishes an omitted remark (`null`), removal (`Optional.empty()`) and replacement
+(`Optional.of(remark)`). The command copies the descriptor defensively. Empty remarks are rejected when adding.
+Every item has a quantity: `additem` requires `q/`, and `edititem` keeps the existing quantity unless `q/` is supplied.
+
+Both commands resolve the customer against the filtered list, copy the immutable item list, and rebuild the preorder
+and person before calling `model.setPerson`. Addition appends an item, creating a preorder if absent. Editing validates
+preorder existence and the full item-list index before replacing only the selected item. No explicit filter reset occurs.
+User errors produce exceptions before mutation; assertions check already-validated internal assumptions.
+
+The sequence diagram below shows the item replacement performed by `EditItemCommand`. Addition and deletion use the
+same immutable preorder/person replacement path, with the item list appended or removed instead.
+
+<puml src="diagrams/EditItemSequenceDiagram.puml" alt="Interactions for editing one preorder item" />
+
+Success messages use `Added/Edited item NUMBER for CUSTOMER: NAME (quantity: QUANTITY, STATUS)`.
+Remarks remain visible on the customer card. A missing `i/` produces usage instructions. Empty, non-positive or
+malformed item-index values produce `Item index must be a positive integer.`, unless an unsupported prefix-like token
+is present, in which case the contextual diagnostic above is used. A syntactically valid positive index beyond the
+preorder's item count produces `The item index provided is invalid.`
+`deleteorder` still removes the whole preorder; its item-level replacement is a separate feature.
+
+### Preorder item deletion
+
+`DeleteItemCommandParser` parses `deleteitem INDEX i/ITEM_INDEX`. It validates the customer-index preamble,
+rejects duplicate `i/` prefixes, and parses the required item index using `ParserUtil.parseIndex`.
+A missing `i/` shows usage instructions. An unsupported prefix after the item-index value, such as
+`deleteitem 1 i/1 x/2`, shows `Unsupported prefix 'x/' for deleteitem.` An item index that is empty, non-positive
+or malformed shows `Item index must be a positive integer.` A positive item index beyond the preorder's item count is
+parsed and later produces `The item index provided is invalid.`
+`AddressBookParser` dispatches `deleteitem` to this parser.
+
+`DeleteItemCommand` resolves the customer from `model.getFilteredPersonList()`, checks that a preorder exists,
+and validates the item index against its full item list. Invalid input raises `ParseException` or `CommandException`
+before the model changes. Constructor arguments are checked for null, and assertions verify already-validated
+preconditions in the update helper.
+
+The command copies the immutable item list, removes only the selected position, and constructs a replacement
+`Preorder` and `Person`. It preserves other customer fields and calls `model.setPerson` without resetting the filter.
+An empty item list remains wrapped in a preorder. The success message uses the deleted item's original number,
+name, quantity and status.
+
+The replacement person preserves the customer's postal code. `Preorder.withItems` preserves the fulfilment date,
+method and handover notes, including when the final item is removed. Missing optional fields remain absent.
+
+### Deleting a preorder
+
+`deleteorder INDEX` removes a customer's entire preorder, including its items, fulfilment date, method and handover
+notes. The customer remains stored with the same contact details, postal code and tags.
+
+**Parsing.** `AddressBookParser` dispatches the command to `DeleteOrderCommandParser`, which passes the arguments
+to `ParserUtil#parseIndex` and constructs a `DeleteOrderCommand`. Missing, non-positive or malformed indices, including
+extra arguments, produce `Invalid command format!` followed by the command's usage instructions.
+
+**Execution.** `DeleteOrderCommand#execute`:
+
+1. Resolves the customer from `model.getFilteredPersonList()`, using their currently displayed index. An index beyond
+   this list produces `The customer index provided is invalid.`
+1. Checks that the customer has a preorder. If not, it throws a `CommandException` with
+   `CUSTOMER has no preorder to delete.` before changing the model. A preorder with no items can still be deleted.
+1. Calls `createPersonWithoutPreorder` to construct a replacement `Person` with the same name, phone, email, address,
+   postal code and tags, and `Optional.empty()` for its preorder. `Model#setPerson` replaces the original customer.
+1. Returns `Deleted preorder for CUSTOMER`. `LogicManager` then saves the updated address book through storage.
+
+The command keeps the active search. Replacing the customer re-evaluates the displayed results, so they disappear
+from `track` or a search requiring preorder details, but remain in a matching name search. Use `list` to display all
+customers again. The preorder is saved as an empty `"preorders"` list (see [Saving preorders](#saving-preorders)).
+
+#### Design considerations
+
+**Aspect: representing a deleted preorder**
+
+* **Alternative 1 (current choice):** remove the preorder entirely using `Optional.empty()`.
+  * Pros: Distinguishes cancellation from an empty preorder awaiting items, and removes the cancelled order's
+    fulfilment details.
+  * Cons: Those details must be entered again if the customer places a new preorder.
+* **Alternative 2:** clear the items but retain an empty preorder and its fulfilment details.
+  * Pros: The details can be reused when new items are added.
+  * Cons: A cancelled order's date, method and notes could be reused unintentionally. Removing the final item with
+    `deleteitem` already supports keeping these details (see [Preorder item deletion](#preorder-item-deletion)).
+
+### Setting fulfilment details: `preorder`
+
+`preorder INDEX [f/DATE] [m/METHOD] [h/HANDOVER_NOTES]` sets when and how a customer's preorder is handed over.
+The three details belong to the whole `Preorder`, not to its items (see [Preorders and items](#preorders-and-items)).
+
+**Parsing.** `PreorderCommandParser` parses the index with `ParserUtil#parsePreambleIndex`, rejects repeated
+prefixes, and fills an `EditFulfilmentDescriptor`. For each detail, the descriptor records whether its prefix was
+supplied and, if so, the new value:
+
+* a prefix with a value, such as `f/2026-12-20`, sets that detail. The value is checked by
+  `ParserUtil#parseFulfilmentDate`, `#parseFulfilmentMethod` (case-insensitive) or `#parseHandoverNotes`.
+* a prefix with no value, such as `h/`, clears that detail.
+* a prefix that is not supplied leaves that detail unchanged.
+
+If no prefix is supplied, the parser rejects the command, so a command that changes nothing never reaches the model.
+An invalid date or method that contains another prefix, such as `m/delivery x/1`, is reported as an unsupported
+prefix (see [Prefix boundaries and error messages](#prefix-boundaries-and-error-messages)). Handover notes are free
+text, so they keep such text.
+
+**Execution.** The sequence diagram below shows `PreorderCommand#execute` for `preorder 1 m/delivery`. Parsing is
+the same as for `delete` (see the [Logic component](#logic-component)), so the diagram starts at `execute(m)`.
+
+<puml src="diagrams/PreorderSequenceDiagram.puml" alt="Interactions inside PreorderCommand for the `preorder 1 m/delivery` command" />
+
+1. The command gets the customer at `INDEX` in the displayed list, or throws a `CommandException` if the index is
+   out of range.
+1. If the customer has no preorder and the command only clears details, it returns
+   `CUSTOMER has no preorder, so there is nothing to clear. No changes made.` and the model is not changed.
+1. Otherwise, it starts from the customer's preorder, or from an empty `Preorder` if they have none.
+   `createUpdatedPreorder` builds a new `Preorder` with the same items, taking each detail from the descriptor if
+   it was supplied and from the current preorder if not.
+1. `createPersonWithPreorder` builds a new `Person` with the same contact details, postal code and tags, and the
+   updated preorder. `Model#setPerson` replaces the customer. The active search is kept.
+1. The success message shows all three details through `Messages#formatFulfilmentDetails`, using `Not scheduled`,
+   `Not set` and `None` for missing ones. If the supplied date is before today, a second line adds
+   `Note: DATE is in the past.`
+
+#### Design considerations
+
+**Aspect: how to clear a detail**
+
+* **Alternative 1 (current choice):** an empty prefix clears that detail, e.g. `preorder 1 h/`.
+  * Pros: One command both sets and clears details, so there is one less command to learn. It works the same way
+    as removing a remark with an empty `r/` in `edititem`.
+  * Cons: The descriptor has to tell "not supplied" apart from "supplied but empty", which needs a flag per detail.
+* **Alternative 2:** a separate `clearpreorder INDEX` command.
+  * Pros: Clearing is explicit.
+  * Cons: Another command word. It clears all three details at once, so clearing only the notes still needs
+    another way.
+
+**Aspect: dates in the past**
+
+* **Alternative 1 (current choice):** accept the date and add a note.
+  * Pros: A baker may record an order that has already been handed over, or fix an old record. Blocking these
+    would be overzealous validation.
+  * Cons: A mistyped year from 2000 onwards, such as 2016 for 2026, is saved; the baker has to notice the note.
+* **Alternative 2:** reject past dates.
+  * Pros: Catches some typing mistakes.
+  * Cons: Blocks legitimate records, and depends on the computer's clock being right.
+
+To catch the worst typos, such as `0026` for `2026`, a date must also be from the year 2000 onwards
+(`FulfilmentDate.MIN_YEAR`). No real preorder is that old, and the check needs no clock.
+`FulfilmentDate#isValidDate` applies it, so dates typed in `preorder` and `find` and dates loaded from the data
+file follow the same rule, and every saved date can be searched with `find f/`. A hand-edited file with an
+earlier date is rejected on load, like any other invalid value.
+
+**Aspect: what `preorder` does for a customer without a preorder**
+
+* **Alternative 1 (current choice):** create a preorder with no items.
+  * Pros: The baker can record the date and method first and add items later, in any order.
+  * Cons: An empty preorder must be handled by `track`, `find`, `sort date` and the summaries.
+* **Alternative 2:** require an item first.
+  * Pros: Every preorder has at least one item.
+  * Cons: The baker has to enter the order in a fixed sequence.
+
+### Grouping customers by postal code: `group postal`
+
+`group postal` orders the currently displayed customers by postal code and shows a heading for each two-digit
+postal prefix. It keeps the active search criteria and the saved customer order.
+
+**Parsing.** `LogicManager#execute` passes the input to `AddressBookParser#parseCommand`, which routes the lowercase
+command word `group` to `GroupPostalParser#parse`. The parser accepts only `postal`, ignoring case and surrounding
+spaces, and returns a `GroupPostalCommand`. Missing or extra arguments, including `c/` parameters, produce the
+invalid-command-format message followed by `GroupPostalCommand.MESSAGE_USAGE`.
+
+**Execution.** `GroupPostalCommand#execute` calls
+`Model#updatePersonListComparator(GroupPostalCommand.POSTAL_COMPARATOR)` and returns
+`Customers grouped by postal code.` The comparator is defined in
+[`GroupPostalCommand.java`](https://github.com/AY2627S1-CS2103T-F09-3/tp/blob/master/src/main/java/seedu/address/logic/commands/GroupPostalCommand.java).
+
+`getPostalGroupKey` returns the first two digits using `substring(0, 2)`. Within each prefix, customers are ordered
+by the complete six-digit code, then by name ignoring case. `PostalCode` stores six digits as a string, preserving
+leading zeros. Every `Person` must have a valid, non-null postal code, so there is no missing-code group (see
+[Customer search criteria](#customer-search-criteria) for the separate rules for stored codes and search prefixes).
+
+`ModelManager` keeps the data in `AddressBook`, selects customers through a `FilteredList<Person>`, and wraps that
+in a `SortedList<Person>`. `ModelManager#updatePersonListComparator` changes only the sorted view's comparator;
+`Model#getFilteredPersonList()` exposes this view to the UI and index-based commands. The grouping command never
+replaces the active criteria or reorders the backing list. After execution, `LogicManager#executeAndSave` saves
+`model.getAddressBook()`, so the full saved list retains its order even though the displayed list is grouped.
+
+**Display.** `MainWindow` supplies the displayed view to `PersonListPanel`. Its `PersonListViewCell#updateItem`
+adds a `POSTAL PREFIX XX` label above the `PersonCard` when the customer is first in the displayed list or their
+prefix differs from the preceding displayed customer's prefix. Headings are enabled only when the list is a
+`SortedList` using the exact `GroupPostalCommand.POSTAL_COMPARATOR` instance. Each heading is part of a customer
+cell, not a separate list entry, so the card's one-based index remains `getIndex() + 1`.
+
+The panel refreshes cells when the list or its comparator changes. The comparator listener also adds or removes
+headings when the customers were already in the required order and no list permutation occurs. Customer edits
+refresh the sorted view and headings, so changing a postal code can move a customer and change their index.
+
+`find` and `track` replace the criteria but keep postal ordering; only matching customers are grouped. Empty results
+still return the normal success message, with no customer cards or headings. `sort date` replaces the postal
+comparator and removes the customer-list headings. `list` clears the criteria and comparator; a confirmed `clear`
+also resets both. Restarting creates a model without a comparator, displaying all saved customers in saved order.
+See [Sorting by fulfilment date](#sorting-by-fulfilment-date-sort-date) for the shared ordering/reset mechanism.
+
+The command neither selects outstanding deliveries nor calculates routes or group totals. The side panel's
+[Delivery preparation summary](#delivery-preparation-summary) derives its own stops and prefix headings independently.
+
+#### Design considerations
+
+**Aspect: grouping a view rather than the saved list**
+
+The current choice uses the same sorted view as `sort date`, keeping searching and ordering separate. It preserves
+the saved order for `list` and restart; reordering `AddressBook` instead would persist an unintended order change.
+The trade-off is that displayed indexes can change after edits. Index-based commands must continue to use the
+displayed view (see the [date-sort design discussion](#sorting-by-fulfilment-date-sort-date)).
+
+**Aspect: prefix headings and grouping state**
+
+The fixed two-digit prefix gives one heading to codes with the same first two digits, while the full-code/name
+comparator makes the order within that heading deterministic. String values preserve leading zeros; numeric
+conversion would discard them.
+This is a grouping convention, not validation that an address exists or a delivery-route calculation.
+
+Using the shared comparator instance to enable headings avoids a separate grouping flag that could disagree with
+the ordering. The trade-off is coupling between `GroupPostalCommand` and `PersonListPanel`: a replacement or wrapped
+comparator must preserve this detection or deliberately replace it. An explicit ordering-mode property would make
+that state independent of comparator identity, but would need to stay synchronized with sorting and reset commands.
+
+### Sorting by fulfilment date: `sort date`
+
+`sort date` orders the displayed customers by the date of their preorder, earliest first.
+
+`ModelManager` wraps its `FilteredList<Person>` in a JavaFX `SortedList<Person>`, and
+`Model#getFilteredPersonList()` returns the sorted view. The UI and every index-based command use this view, so the
+index a command uses is always the number shown on screen. `Model#updatePersonListComparator(comparator)` sets the
+comparator of the sorted view; `null` restores the saved order.
+
+`SortCommandParser` accepts only the word `date`, ignoring case and surrounding spaces. `SortCommand#execute` calls
+`updatePersonListComparator(SortCommand.DATE_COMPARATOR)`, which orders customers by:
+
+1. fulfilment date, earliest first. Customers with no preorder, or a preorder with no date, use `LocalDate.MAX`, so
+   they are listed last.
+1. name, ignoring case, for customers with the same date (or no date).
+
+The comparator lives in the model, separately from the search criteria, so:
+
+* `find` and `track` change which customers are shown but keep the sort.
+* `group postal` sets its own comparator, which replaces the date sort, and `sort date` replaces the grouping.
+* `list` and `clear` set the comparator to `null`, which restores the saved order.
+* when a command changes a customer, such as `preorder 1 f/2026-12-24`, the `SortedList` moves them to their new
+  place, so their index may change.
+* the sort is not saved, so the app starts in the saved order.
+
+#### Design considerations
+
+**Aspect: how to sort**
+
+* **Alternative 1 (current choice):** sort a view of the list with a comparator.
+  * Pros: The data file keeps its order, so sorting never changes saved data. Searching and sorting are kept apart,
+    and each can change without resetting the other.
+  * Cons: Indices can change after an edit, as described above; the UG warns about this.
+* **Alternative 2:** reorder the customers in `AddressBook`.
+  * Pros: The order would survive a restart.
+  * Cons: Sorting would rewrite the data file, and `list` could no longer show the order in which customers were added.
+
+### Tagging customers: `tag` and `untag`
+
+`tag INDEX t/TAG` adds one tag to the customer at `INDEX` in the displayed list,
+and `untag INDEX t/TAG` removes one.
+
+**Parsing.** Both commands take the same input, so `TagCommandParser` and
+`UntagCommandParser` share two helpers: `ParserUtil#parsePreambleIndex` for the
+index, and `ParserUtil#parseSingleTag`, which requires exactly one `t/` and
+checks that the tag is one word of letters and digits, at most 30 characters.
+The index is checked first, so `tag 0 t/!` reports the index error.
+
+**Execution.** Both commands follow the same pattern as `delete`, shown in the
+sequence diagram under [Logic component](#logic-component). They get the customer
+from the displayed list, build a new `Person` with the updated tags and the same
+contact details, postal code and preorder, and replace the customer with
+`Model#setPerson`, keeping the active search and sort. If the customer already
+has the tag, `tag` shows `CUSTOMER already has tag [TAG]. No changes made.` and
+leaves the model unchanged.
+
+#### Design considerations
+
+**Aspect: where tags are changed**
+
+* **Alternative 1 (current choice):** separate `tag` and `untag` commands; `add`
+  and `edit` do not take tags.
+  * Pros: Adding a tag never removes the others. In AB3, `edit 1 t/vip`
+    replaced all of a customer's tags.
+  * Cons: Two more command words.
+* **Alternative 2:** `t/` in `add` and `edit`, as in AB3.
+  * Pros: Fewer commands.
+  * Cons: Adding one tag means retyping all the others.
+
+**Aspect: case of tags**
+
+* **Alternative 1 (current choice):** `Tag#equals` and `Tag#hashCode` ignore
+  case.
+  * Pros: `VIP` and `vip` cannot both be on one customer, `untag 1 t/vip`
+    removes `VIP`, and `find t/` follows the same rule.
+  * Cons: A tag keeps the capitalisation it was first typed with.
+* **Alternative 2:** compare case-insensitively only in the tag commands.
+  * Pros: Smaller change to `Tag`.
+  * Cons: Other commands could disagree about which tags are the same.
+
+**Aspect: adding a tag the customer already has**
+
+* **Alternative 1 (current choice):** show a note and change nothing.
+  * Pros: The customer already has the tag the user wanted, so nothing went
+    wrong, and repeating a command does no harm.
+  * Cons: A user who picked the wrong customer is not stopped as firmly.
+* **Alternative 2:** reject the command with an error.
+  * Pros: The mistake stands out more.
+  * Cons: Treats a harmless request as a failure.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -261,71 +946,335 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
+* is a tech-savvy independent home baker
+* manages a high volume of seasonal pre-orders
+* handles customer and order management independently
+* wants to spend less time on administrative tasks and more time baking
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: LeBake helps solo home bakers manage seasonal pre-orders efficiently, so they can spend less time juggling customers and more time baking.
 
 
 ### User stories
 
+The user stories below include both implemented features and possible future enhancements. Refer to the
+[User Guide](UserGuide.html) for the features currently available in LeBake.
+
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …                                              | I want to …                                                                       | So that I can …                                                   |
+|----------|-----------------------------------------------------|-----------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| `* * *`  | first-time home baker                               | view usage instructions                                                           | learn how to manage my customer contacts                          |
+| `* * *`  | home baker                                          | add a customer with their name, phone number, email address, and delivery address | keep their essential contact information in one place             |
+| `* * *`  | home baker                                          | list all saved customers                                                          | see everyone in my customer address book                          |
+| `* * *`  | home baker                                          | view a customer’s complete profile                                                | retrieve their contact details when needed                        |
+| `* * *`  | home baker                                          | edit a customer’s details                                                         | keep their contact information accurate                           |
+| `* * *`  | home baker                                          | find customers by name                                                            | retrieve a customer without scanning the entire address book      |
+| `* * *`  | home baker                                          | delete a customer profile                                                         | remove records I no longer need                                   |
+| `* * *`  | home baker                                          | clear all customer records                                                        | start again with an empty address book when necessary             |
+| `* * *`  | home baker                                          | assign tags to customers                                                          | organise contacts into meaningful groups                          |
+| `* * *`  | busy home baker                                     | have my changes saved automatically                                               | keep my customer information after closing the application        |
+| `* * *`  | returning home baker                                | retrieve my previously saved contacts after reopening LeBake                      | continue where I left off                                         |
+| `* * *`  | keyboard-oriented home baker                        | exit LeBake using a command                                                       | complete my workflow without using a mouse                        |
+| `* * *`  | home baker                                          | add or remove tags from an existing customer                                      | keep the customer’s classifications current                       |
+| `* * *`  | home baker entering contacts quickly                | be warned about possible duplicate profiles                                       | avoid recording the same customer twice                           |
+| `* * *`  | home baker                                          | record the products and quantities a customer pre-ordered                         | keep the order connected to the correct customer                  |
+| `* * *`  | home baker                                          | update a customer’s current pre-order requirements                                | record later changes accurately                                   |
+| `* * *`  | home baker preparing an order                       | view its requirements together with the customer’s contact and address details    | avoid searching in separate places                                |
+| `* * *`  | home baker                                          | record the fulfilment status of each item in a pre-order                          | know which products are pending, prepared, or completed           |
+| `* * *`  | home baker during a busy season                     | filter customer profiles by fulfilment status                                     | focus on customers requiring the same next action                 |
+| `* * *`  | home baker                                          | view only customers with active pre-orders                                        | focus on active orders without distraction from inactive contacts |
+| `* * *`  | keyboard-oriented home baker                        | perform common customer-management tasks without using a mouse                    | work efficiently through the CLI                                  |
+| `* * *`  | home baker with a large customer base               | receive search and update results promptly                                        | keep using LeBake efficiently during peak periods                 |
+| `* * *`  | home baker taking mixed-product orders              | record multiple products and quantities in one preorder                           | keep mixed orders organised                                       |
+| `* * *`  | home baker arranging order handovers                | set a preorder's fulfilment date and method                                       | know when and how to hand it over                                 |
+| `* *`    | home baker                                          | find a customer by phone number                                                   | identify someone who contacts me by phone                         |
+| `* *`    | home baker                                          | find a customer by email address                                                  | identify someone from an email enquiry                            |
+| `* *`    | home baker who remembers only part of a name        | search using partial and case-insensitive text                                    | still locate the correct customer                                 |
+| `* *`    | home baker                                          | filter customers by tag                                                           | focus on a relevant group of contacts                             |
+| `* *`    | home baker                                          | record notes about a customer                                                     | remember information relevant to serving them                     |
+| `* *`    | home baker serving repeat customers                 | record their contact and delivery preferences                                     | provide consistent service                                        |
+| `* *`    | home baker                                          | archive an inactive customer without deleting them                                | keep my active address book free of old contacts                  |
+| `* *`    | home baker                                          | restore an archived customer                                                      | serve a returning customer without re-entering their details      |
+| `* *`    | home baker                                          | identify customer profiles with missing essential information                     | complete them before fulfilment begins                            |
+| `* *`    | home baker migrating from another system            | import existing customer contacts                                                 | avoid re-entering every profile manually                          |
+| `* *`    | home baker                                          | export my customer contacts                                                       | keep a backup or use them outside LeBake                          |
+| `* *`    | home baker                                          | record handover notes for a delivery or collection                                | remember access details such as gate codes or drop-off directions |
+| `* *`    | home baker preparing deliveries                     | mark an address as verified or unverified                                         | identify addresses that still require confirmation                |
+| `* *`    | home baker                                          | find customers using an address or postal-code keyword                            | retrieve contacts based on delivery location                      |
+| `* *`    | home baker planning deliveries                      | filter customers by neighbourhood or postal area                                  | focus on customers in the same vicinity                           |
+| `* *`    | home baker preparing a seasonal delivery run        | view customers who do not have a delivery address                                 | obtain the missing information in advance                         |
+| `* *`    | home baker                                          | group customer contacts by delivery area                                          | organise delivery batches efficiently                             |
+| `* *`    | home baker making deliveries                        | produce a list containing selected customers’ names, phone numbers, and addresses | have the necessary contact information on hand during delivery    |
+| `* *`    | home baker                                          | record customer-provided special requirements with their pre-order                | refer to them while fulfilling it                                 |
+| `* *`    | home baker                                          | associate customers with a seasonal campaign                                      | distinguish orders from different occasions                       |
+| `* *`    | home baker serving a repeat customer                | view their previous seasonal order summaries                                      | understand their past preferences                                 |
+| `* *`    | home baker handling a partial cancellation          | remove an item from a customer's preorder                                         | record partial cancellations                                      |
+| `* *`    | home baker handling an order cancellation           | delete a preorder without deleting the customer                                   | retain their details for future orders                            |
+| `* *`    | home baker narrowing a large customer list          | combine customer and preorder search criteria                                     | find customers matching all my conditions                         |
+| `* *`    | home baker preparing a particular product           | find customers by product and item status                                         | identify orders needing the same preparation                      |
+| `* *`    | home baker organising fulfilment                    | find preorders by date, method or handover notes                                  | organise deliveries and collections                               |
+| `* *`    | home baker prioritising upcoming orders             | sort customers by preorder fulfilment date                                        | prioritise orders due soonest                                     |
+| `* *`    | home baker planning a production batch              | view a product's preparation totals and special requests                          | plan the required baking quantities                               |
+| `* *`    | home baker reviewing search results                 | see which preorder items match my search                                          | identify the relevant items quickly                               |
+| `* *`    | home baker working through a filtered batch         | retain my search filters after updating records                                   | continue working on the same group                                |
+| `* *`    | home baker using several search conditions          | view my active search conditions                                                  | understand why customers appear in the results                    |
+| `* *`    | home baker planning a delivery run                  | view counts of outstanding delivery stops and postal groups                       | estimate my delivery workload                                     |
+| `*`      | home baker with many customers                      | sort customer profiles alphabetically                                             | browse them predictably                                           |
+| `*`      | home baker                                          | store an alternative contact number for a customer                                | reach them another way if necessary                               |
+| `*`      | home baker who makes occasional input mistakes      | undo my most recent change                                                        | recover quickly without reconstructing the original profile       |
+| `*`      | home baker serving customers at different locations | store multiple addresses for a customer                                           | retain their commonly used delivery destinations                  |
+| `*`      | home baker                                          | mark one address as a customer’s preferred delivery address                       | know which address to use by default                              |
+| `*`      | home baker planning deliveries                      | sort customers by postal area                                                     | see nearby addresses together                                     |
+| `*`      | home baker processing many contacts                 | add multiple customer profiles in one batch                                       | spend less time on initial data entry                             |
+| `*`      | home baker managing a seasonal campaign             | apply or remove a tag from multiple customers at once                             | organise large groups efficiently                                 |
+| `*`      | experienced LeBake user                             | reuse previously entered commands                                                 | repeat common operations with fewer keystrokes                    |
+| `*`      | experienced LeBake user                             | use short forms for frequently used operations                                    | do repetitive customer-management work faster                     |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
-
-**Use case: Delete a person**
-
+**Use case: U1. Add a customer**\
+**System: LeBake**\
+**Actor: User**\
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. User requests to add a customer.
+2. LeBake adds the customer.
 
     Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 1a. The given input is invalid.
+
+    * 1a1. LeBake shows an error message.
+
+      Use case resumes at step 1.
+
+* 1b. The customer already exists in LeBake.
+
+    * 1b1. LeBake shows an error message.
+
+      Use case resumes at step 1.
+
+**Use case: U2. Find a customer**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
+
+1. User searches for a customer.
+2. LeBake shows a list of matching customers.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. No customers match the search.
+
+    * 1a1. LeBake shows an empty list.
+
+      Use case ends.
+
+* 1b. The search criteria are invalid.
+
+    * 1b1. LeBake shows an error message.
+
+      Use case resumes at step 1.
+
+* 2a. The search returns other customers, but not the one the user wants.
 
   Use case ends.
 
-* 3a. The given index is invalid.
+**Use case: U3. Delete a customer**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
 
-    * 3a1. AddressBook shows an error message.
+1. User finds a customer (<u>U2. Find a customer</u>).
+2. User requests to delete that customer from the displayed list.
+3. LeBake deletes the customer.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The intended customer is not found.
+
+  Use case ends.
+
+* 2a. The customer selection is invalid.
+
+    * 2a1. LeBake shows an error message.
 
       Use case resumes at step 2.
 
-*{More to be added}*
+**Use case: U4. Add a customer's pre-order item**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
+
+1. User finds a customer (<u>U2. Find a customer</u>).
+2. User requests to add an item to the customer's pre-order.
+3. User provides the item's name, quantity, fulfilment status and optional remark.
+4. LeBake adds the item to the customer's current pre-order, creating one if necessary, and displays the updated
+   pre-order.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The intended customer is not found.
+
+  Use case ends.
+
+* 2a. The customer selection is invalid.
+
+    * 2a1. LeBake shows an error message.
+
+      Use case resumes at step 2.
+
+* 3a. The item information is invalid.
+
+    * 3a1. LeBake shows an error message.
+
+      Use case resumes at step 3.
+
+**Use case: U5. Track pre-order items by fulfilment status**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
+
+1. User requests to view pre-order items in a chosen fulfilment status.
+2. LeBake finds customers with matching pre-order items.
+3. LeBake displays the matching customers and reports how many of their items match.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The user does not provide a status.
+
+    * 1a1. LeBake uses `PENDING` and `PREPARED` as the chosen statuses.
+
+      Use case resumes at step 2.
+
+* 1b. The status is invalid.
+
+    * 1b1. LeBake shows an error message.
+
+      Use case resumes at step 1.
+
+* 2a. No pre-order items match the chosen status.
+
+    * 2a1. LeBake shows an empty list.
+
+      Use case ends.
+
+**Use case: U6. Update a pre-order item's fulfilment status**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
+
+1. User finds a customer (<u>U2. Find a customer</u>).
+2. User requests to change the fulfilment status of one of the customer's pre-order items.
+3. User provides a valid fulfilment status.
+4. LeBake updates the item and displays the updated pre-order.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The intended customer is not found.
+
+  Use case ends.
+
+* 2a. The customer selection or the item selection is invalid.
+
+    * 2a1. LeBake shows an error message.
+
+      Use case resumes at step 2.
+
+* 3a. The fulfilment status is invalid.
+
+    * 3a1. LeBake shows an error message.
+
+      Use case resumes at step 3.
+
+**Use case: U7. Set a pre-order's shared fulfilment details**\
+**System: LeBake**\
+**Actor: User**\
+**MSS**
+
+1. User finds a customer (<u>U2. Find a customer</u>).
+2. User requests to set or clear one or more shared fulfilment details: date, method or handover notes.
+3. LeBake updates the customer's pre-order without changing its items.
+4. LeBake displays the updated fulfilment details.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The intended customer is not found.
+
+  Use case ends.
+
+* 2a. The customer selection is invalid.
+
+    * 2a1. LeBake shows an error message.
+
+      Use case resumes at step 2.
+
+* 2b. A fulfilment detail is invalid, or no detail is provided.
+
+    * 2b1. LeBake shows an error message.
+
+      Use case resumes at step 2.
+
+* 2c. The customer has no pre-order, and the user supplies at least one nonempty detail.
+
+    * 2c1. LeBake creates an empty pre-order with the supplied details.
+
+      Use case resumes at step 3.
+
+* 2d. The customer has no pre-order, and every detail the user supplies is empty.
+
+    * 2d1. LeBake shows that there is nothing to clear and makes no changes.
+
+      Use case ends.
+
+* 3a. The supplied date is before today.
+
+    * 3a1. LeBake saves the date and shows a note that it is in the past.
+
+      Use case resumes at step 4.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+1.  Should work on any _mainstream OS_ and must run on Java `25` without requiring any other Java version to be installed.
+2.  Should support storing up to 1,000 customer details.
+3.  Should display the result or an error message within 3 seconds of submitting a command.
+4.  User with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+5.  All core customer and pre-order management functionalities should remain available without an internet connection.
+6.  Invalid commands should produce a message identifying the error and explaining the correct syntax or accepted values. 
+7.  If changes cannot be saved, LeBake should clearly inform the user that those changes have not been saved. 
+8.  Commands operating on the same customer fields should use consistent parameter names and field formats, unless a difference is explicitly documented.
 
 ### Glossary
 
+* **Active order**: A pre-order with at least one item whose fulfilment status is `PENDING` or `PREPARED`
+* **Archived customer**: A customer hidden from the active customer list but kept, so that it can be restored for a future seasonal campaign. Archiving is a planned feature and is not implemented yet
+* **Customer**: A person whose contact and delivery details are stored in LeBake, represented by the `Person` class in the code
+* **Duplicate customer**: A customer with the same name as an existing customer, ignoring case and extra spaces (phone number, email and address are not compared)
+* **Fulfilment date**: The date a pre-order is to be delivered or collected, shared by all items in the pre-order
+* **Fulfilment method**: How a pre-order is handed over, which is `DELIVERY` (the baker brings it to the customer) or `COLLECTION` (the customer picks it up)
+* **Fulfilment status**: The stage an item in a pre-order has reached, which is `PENDING` (recorded but not ready), `PREPARED` (ready for collection or delivery), or `COMPLETED` (collected or delivered). Each item has its own status, represented by `ItemStatus` in the code; a pre-order has no overall status
+* **Handover notes**: A short note about handing over a pre-order, such as "Call on arrival" or "Collect from side gate", shared by all items in the pre-order
+* **Item**: One product in a pre-order, with its name, quantity, fulfilment status and an optional remark
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Postal area**: A postal group identified by the first two digits of a customer's postal code, used by `group postal` and the delivery preparation summary
+* **Pre-order**: An order placed in advance for a later collection or delivery, made up of the items the customer ordered, with each customer having at most one current pre-order
+* **Remark**: An optional special request for one item in a pre-order, such as "Less sugar"
+* **Seasonal campaign**: A period of high order demand tied to an occasion, such as Chinese New Year or Christmas
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -333,50 +1282,1074 @@ Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unli
 
 Given below are instructions to test the app manually.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
+<box type="info" seamless>
 
-</div>
+**Note:** These instructions only provide a starting point for testers to work on;
+testers are expected to do more *exploratory* testing.
+</box>
+
+Unless stated otherwise, start each test subsection with fresh sample data using the
+[sample-data setup](#setting-up-and-resetting-sample-data). Run the steps within each subsection in order,
+keeping any changes needed by later steps. Reset between groups only when explicitly instructed. For tests that
+edit the data file directly, close LeBake before every edit unless the test explicitly requires it to stay running.
+Follow that test's specific backup and restoration instructions.
+
+### Setting up and resetting sample data
+
+Use a separate, writable test folder so that manual tests do not affect real customer data. All paths below
+are relative to this folder. Always launch LeBake from a terminal opened in the same folder.
+
+1. Initial setup
+
+   1. Download `LeBake.jar` and copy it into the empty test folder.
+
+   1. Run `java -jar LeBake.jar` from that folder.<br>
+      Expected: The GUI opens with six sample customers because `data/lebake.json` does not exist.
+
+   1. Run `list`, then close LeBake.<br>
+      Expected: All six customers are displayed, and `data/lebake.json` contains the saved sample data.
+
+1. Resetting before a test section or independent group
+
+   1. Close LeBake before changing any data files.
+
+   1. Remove only the test folder's `data/lebake.json` to load the built-in sample data again.
+
+   1. Run `java -jar LeBake.jar` from the same test folder, then run `list`.<br>
+      Expected: The original six sample customers reappear in their saved order, with Alex Yeoh first.
 
 ### Launch and shutdown
 
+Run these groups in order. The initial-launch group starts in an empty test folder instead of applying the
+sample-data reset first. Keep the same folder and saved preferences for the remaining groups.
+
 1. Initial launch
 
-   1. Download the JAR file and copy it into an empty folder.
+   1. Download the JAR file and copy it into an empty, writable test folder.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar LeBake.jar`.<br>
+      Expected: The GUI opens with a set of sample customers. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app with `java -jar LeBake.jar`.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+1. Using the smallest window
 
-### Deleting a person
+   1. Make the window as small as it allows.<br>
+      Expected: The window stops at 800 px wide and 420 px tall, which fits a 1280x720 screen at 150%. The customer
+      list and the side panel are both still readable, and long names and addresses wrap between words. The gaps to
+      the left of the cards become smaller.
 
-1. Deleting a person while all persons are being shown
+   1. In the same window, run `find n/Alex d/Pineapple Tarts s/pending m/delivery`, then `edititem`.<br>
+      Expected: The customer list still shows the top of the first card, with its index and name. The usage message
+      scrolls in the result box instead of pushing the customer list out of the window.
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. In the same window, run `tag 1 t/WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW` (30 `W` characters).<br>
+      Expected: The tag is accepted. Its full text stays inside its chip and the card, wrapping as needed, and
+      the rest of the card moves down to make room for it.
+
+### Using the side panel
+
+Run `list` before starting.
+
+1. Look at the side panel on the right.<br>
+   Expected: It shows **Delivery preparation** with `2 outstanding customer stop(s) | 2 postal group(s)`, and stops for
+   `Alex Yeoh` and `Charlotte Oliveiro`.
+1. Run `find d/Pineapple Tarts`.<br>
+   Expected: The side panel shows `Preparation: Pineapple Tarts | All statuses`, `2 customer(s) | 2 matching item(s)`
+   and `Total quantity: 5` instead of the delivery summary. The Pineapple Tarts rows of both customers are in a yellow box.
+1. Run `find d/Pineapple Tarts s/PENDING`.<br>
+   Expected: The heading shows `PENDING`, and the summary counts only pending Pineapple Tarts among the current results.
+   Only items matching both the product and status are highlighted; other items remain visible and unhighlighted, with
+   their original item numbers.
+1. Run `find n/Alex d/Pineapple Tarts`.<br>
+   Expected: Only customers matching both criteria contribute to the summary; it does not include other customers who
+   ordered Pineapple Tarts.
+1. Run `find d/No Such Product`.<br>
+   Expected: The summary remains visible with `0 customer(s) | 0 matching item(s)`, `Total quantity: 0`, and
+   `No special requests for matching items.`
+1. Run `help`.<br>
+   Expected: `Showing help in the side panel.` The side panel shows **Help**, with the format of every command and the
+   User Guide URL.
+1. Scroll to the bottom of **Help**, click **Copy URL**, then paste into a text editor.<br>
+   Expected: The User Guide URL is pasted.
+1. Run `add` with nothing after it.<br>
+   Expected: An invalid command format error. Help stays in the side panel.
+1. Run `list`.<br>
+   Expected: The side panel shows the delivery summary again, and only `Showing: All customers` is above the customer
+   list.
+1. Press F1.<br>
+   Expected: Help shows in the side panel again.
+
+### Displaying active search criteria
+
+1. Run `list`.<br>
+   Expected: `Showing: All customers` appears above the list, with no badges.
+1. Run `find n/Alex p/874 e/example.com a/geylang t/friends` using the sample data.<br>
+   Expected: Alex Yeoh is listed. `Filters · Match all` appears with separate `Name: alex`, `Phone: 874`,
+   `Email: example.com`, `Address: geylang` and `Tag: friends` badges, in that order. Narrowing the window wraps
+   badges onto additional rows.
+1. Run `find a/Block 123 near the main entrance beside the sheltered walkway opposite the community centre with collection at the side gate after calling the customer on arrival`.<br>
+   Expected: The entire fragment is visible in a wrapping `Address` badge, even if no customers match. No hover or
+   expansion action is needed. Widening the window reflows the badge.
+1. Run `track`, then `track s/PENDING`.<br>
+   Expected: One status badge changes from `Item status: Pending or Prepared` to `Item status: Pending`.
+1. Run `find c/01`, then `find d/Pineapple Tarts s/PENDING`.<br>
+   Expected: A `Postal: 01` badge is replaced by one `Item: Pineapple Tarts · Pending` badge. Product and status
+   stay together, including when the search has no results.
+1. Run `find f/2026-10-22 m/delivery h/arrival`.<br>
+   Expected: Separate `Date: 22 Oct 2026`, `Method: Delivery` and `Handover notes: arrival` badges appear in that order.
+1. Run `find m/collection`, then `track s/PENDING`.<br>
+   Expected: The method badge shows `Method: Collection`, then is replaced by `Item status: Pending`.
+1. Run `find n/`.<br>
+   Expected: An error is shown and the status badge remains unchanged.
+1. Run `list` again.<br>
+   Expected: All badges disappear and `Showing: All customers` returns.
+
+After each command above, verify that you can immediately type the next command without clicking the command box.
+
+### Preserving searches after customer changes
+
+Run `list` and confirm that all six sample customers are displayed in their original order. The name fragment
+`Li` matches Charlotte Oliveiro and David Li. After each addition or edit below, the name filter must remain active.
+
+1. Run `find n/Li`.<br>
+   Expected: Only Charlotte Oliveiro (1) and David Li (2) are shown.
+1. Run `add n/Liam Tan p/81111111 e/liam@example.com a/Test Street c/123456`.<br>
+   Expected: Liam joins the results. Only Charlotte (1), David (2) and Liam (3) are shown.
+1. Run `add n/Beth Ong p/82222222 e/beth@example.com a/Other Street c/123456`.<br>
+   Expected: Beth is saved but does not match `Li`. The same three customers remain displayed at the same indexes.
+1. Run `edit 1 n/Charlotte Tan`.<br>
+   Expected: Charlotte disappears from the results. David Li and Liam Tan remain at indexes 1 and 2.
+1. Run `edit 1 p/89999999`.<br>
+   Expected: David's phone number changes; only David and Liam remain displayed at indexes 1 and 2.
+1. Run `list`.<br>
+   Expected: All eight customers are shown in saved order: Alex Yeoh, Bernice Yu, Charlotte Tan, David Li,
+   Irfan Ibrahim, Roy Balakrishnan, Liam Tan and Beth Ong. Charlotte's new name and David's new phone number are
+   retained. Existing tags and preorders are unchanged.
+
+### Duplicate customer feedback
+
+For every rejected command below, verify that customer details, tags, preorders, saved data, active search criteria
+and displayed results remain unchanged.
+
+1. Run `list`.<br>
+   Expected: `Listed all customers.` Alex Yeoh and Bernice Yu are at indexes 1 and 2.
+1. Run `add n/alex yeoh p/91234567 e/alex2@example.com a/1 Test Road c/123456`.<br>
+   Expected: `A customer named "alex yeoh" already exists. Customer names must be unique (ignoring capitalisation and extra spaces). Choose a different name.`
+1. Run `edit 2 n/alex yeoh`.<br>
+   Expected: `A customer named "alex yeoh" already exists. Customer names must be unique (ignoring capitalisation and extra spaces). Choose a different name.`
+   Bernice's original name and other details are unchanged.
+1. Run `add n/  ALEX   YEOH  p/91234567 e/alex2@example.com a/1 Test Road c/123456`, then
+   `edit 2 n/  ALEX   YEOH  `.<br>
+   Expected: Both show `A customer named "ALEX YEOH" already exists. Customer names must be unique (ignoring capitalisation and extra spaces). Choose a different name.`
+   Extra spaces are normalized, and the supplied capitalization is preserved in the message.
+1. Run `find n/Bernice`.<br>
+   Expected: `1 customer(s) listed!` Only Bernice is shown, at index 1.
+1. Repeat the rejected `add n/alex yeoh p/91234567 e/alex2@example.com a/1 Test Road c/123456`, then run
+   `edit 1 n/alex yeoh`.<br>
+   Expected: Both show `A customer named "alex yeoh" already exists. Customer names must be unique (ignoring capitalisation and extra spaces). Choose a different name.`
+   Alex is detected even though hidden, and Bernice remains the only displayed customer.
+1. Run `edit 1 n/  BERNICE   YU  `.<br>
+   Expected: The edit succeeds. Feedback begins with `Edited customer: BERNICE YU;`, followed by Bernice's
+   other details. Her phone, email, address, postal code, tags and preorder are preserved. The active search remains.
+1. Run `find n/NoMatchingCustomer`.<br>
+   Expected: `0 customer(s) listed!` The displayed list is empty, and the saved customers are unchanged.
+1. Run `list`, then `add n/Message Test p/91234567 e/message@example.com a/1 Test Road c/123456`.<br>
+   Expected: The customer is added. Feedback begins with `New customer added: Message Test;`, followed by their
+   contact details. They have no tags or preorder.
+
+### Deleting a customer
+
+Reset to fresh sample data before each group below.
+Reset again after testing if you want the original sample data.
+
+For every rejected deletion below, compare customer details, tags, preorders, saved data, active search criteria
+and the displayed customer list with their state immediately before the command; all must remain unchanged.
+
+1. Deleting a customer while all customers are being shown
+
+   1. Prerequisites: List all customers using the `list` command, with multiple customers in the list.
 
    1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+      Expected: The first customer is deleted from the list. Feedback begins with `Deleted customer:`, followed by
+      that customer's details.
 
    1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+      Expected: No customer is deleted. The status message shows `Invalid command format!`, followed by the
+      usage instructions for `delete`.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Test cases: `delete abc` and `delete` (run separately).<br>
+      Expected: Each shows `Invalid command format!`, followed by the usage instructions for `delete`.
+      No customer data is changed.
 
-1. _{ more test cases …​ }_
+   1. Test case: `delete 100` (where 100 is larger than the displayed list size)<br>
+      Expected: No customer is deleted. The status message shows `The customer index provided is invalid.`
+
+1. Deleting a customer with a preorder from a filtered list, then checking persistence
+
+   1. Reset to fresh sample data, then run `list`.<br>
+      Expected: Six customers are shown, with Alex Yeoh at index 1 and Bernice Yu at index 2. Bernice has the
+      `colleagues` and `friends` tags and a preorder containing one `Butter Cake` item with status `COMPLETED`.
+
+   1. Run `find n/Bernice`.<br>
+      Expected: `1 customer(s) listed!` Only Bernice is shown, now at displayed index 1.
+
+   1. Run `delete 2`.<br>
+      Expected: `The customer index provided is invalid.` Bernice remains visible and all data is unchanged,
+      even though index 2 existed in the full list.
+
+   1. Run `delete 1`.<br>
+      Expected: Deletion happens without a confirmation prompt. Feedback begins with `Deleted customer: Bernice Yu;`,
+      followed by her details. The search remains active and its displayed list is empty.
+
+   1. Run `list`.<br>
+      Expected: Five customers remain: Alex Yeoh, Charlotte Oliveiro, David Li, Irfan Ibrahim and Roy Balakrishnan.
+      Their details, tags and preorders are unchanged. Bernice and her Butter Cake preorder are absent.
+
+   1. Run `exit`, relaunch with `java -jar LeBake.jar` from the same test folder, and run `list`.<br>
+      Expected: The same five customers and their data are retained. Inspect `data/lebake.json` without editing it:
+      Bernice's customer record and its preorder are absent, and the other customers' data is unchanged.
+
+### Clearing customers and exiting
+
+Start each group below with fresh sample data.
+Run the steps within each group in order. The save-failure group below has its own backup and restoration steps.
+
+1. Cancelling clear and discarding ordinary input
+
+   1. Run `find n/Bernice`, then `group postal`.<br>
+      Expected: Only Bernice Yu is shown, with a `POSTAL PREFIX 55` heading and an active name filter.
+   1. Run `clear`.<br>
+      Expected: `This will permanently delete all customers and their preorder data. Type 'confirm' to proceed; any other input cancels and is discarded.`
+      Customer data, saved data, the filter and ordering remain unchanged.
+   1. Enter `list` at the confirmation prompt.<br>
+      Expected: `Clear cancelled. No data was deleted. Any typed input was discarded; enter it again if needed.`
+      Only Bernice remains visible with the same filter and heading; `list` was discarded, not executed.
+   1. Enter `list` again.<br>
+      Expected: `Listed all customers.` All six customers appear in saved order, with their data unchanged.
+   1. Run `clear`, then press Enter with the command box empty.<br>
+      Expected: The same cancellation message; all customer and saved data remain unchanged.
+   1. Enter `confirm` without starting another clear request.<br>
+      Expected: `Unknown command.` No data is changed.
+
+1. Confirming clear, removing hidden customers and resetting the view
+
+   1. Run `find n/Bernice`, then `group postal`.<br>
+      Expected: Bernice is the only displayed customer; the other five sample customers are hidden.
+   1. Run `clear`, then enter `CoNfIrM`.<br>
+      Expected: The confirmation prompt appears first, then `All customers have been cleared!`. The list is empty
+      and the search display shows **Showing: All customers**, with no filter badges.
+   1. Before running `list` or restarting, add these customers in order:
+      * `add n/Zoe Clearcheck p/81111111 e/zoe@example.com a/Test Street c/999999`
+      * `add n/Amy Clearcheck p/82222222 e/amy@example.com a/Test Street c/000001`
+
+      Expected: Only Zoe and Amy appear, in that order, without postal headings. Their visibility confirms the
+      name filter was cleared; their insertion order and missing headings confirm postal grouping was reset.
+   1. Run `clear`, `confirm`, then `list`.<br>
+      Expected: Clearing succeeds after confirmation. `list` shows `Listed all customers.` and an empty list,
+      including no previously hidden sample customers.
+   1. Run `exit`, then relaunch with `java -jar LeBake.jar` from the same test folder.<br>
+      Expected: LeBake closes and reopens with an empty list; cleared customers and preorders do not return.
+
+   Reset to fresh sample data, then repeat this group using `sort date` instead of `group postal`. Zoe must still
+   appear before Amy after clearing, confirming date sorting was reset too.
+
+1. Entering exit while clear confirmation is pending
+
+   1. Run `clear`, then enter `exit` at the confirmation prompt.<br>
+      Expected: `Clear cancelled. No data was deleted. Any typed input was discarded; enter it again if needed.`
+      LeBake remains open with customer and saved data unchanged; this `exit` was discarded.
+   1. Enter `exit` again, then relaunch from the same test folder.<br>
+      Expected: LeBake closes normally. All six sample customers and their preorders are retained after relaunch.
+
+1. Normal typed exit
+
+   1. Run `edit 1 p/89999999`.<br>
+      Expected: Alex Yeoh's phone number changes and is saved successfully.
+   1. Enter `exit`, then relaunch from the same test folder.<br>
+      Expected: LeBake closes after its customer-data save attempt. All six customers return, with Alex's phone
+      number still `89999999`.
+
+1. Typed exit on a save failure, compared with menu and window closing
+
+   1. Start LeBake with fresh sample data in the disposable test folder, then run `list` to ensure the data file exists.
+   1. While LeBake is still running, move `data/lebake.json` to a backup location outside the `data` folder.
+   1. Open a terminal in the disposable test folder. Run the following commands to create a directory named
+      `data/lebake.json` and a marker file named `marker.txt` inside it:
+
+      ```bash
+      mkdir data/lebake.json
+      touch data/lebake.json/marker.txt
+      ```
+
+      This creates a directory where LeBake expects the customer-data file, deliberately causing the subsequent
+      save attempt to fail. Use only a disposable test copy; do not use real customer data or restart LeBake while
+      this directory occupies the save path.
+   1. Run `edit 1 p/89999999`.<br>
+      Expected: An error beginning with `Could not save data` appears. Alex's changed phone number is visible
+      only in memory, and LeBake stays open.
+   1. Replace the failed command text with `exit` and press Enter.<br>
+      Expected: Another error beginning with `Could not save data` appears. LeBake remains open with Alex's
+      in-memory change intact. The directory and marker file remain unchanged.
+   1. Choose **File → Exit**.<br>
+      Expected: LeBake closes without retrying the customer-data save. The directory and marker are unchanged.
+      With LeBake closed, move the directory aside and restore the sample-data backup as `data/lebake.json`.
+      Relaunch from the same folder: Alex's phone is `87438807`; the unsaved change was lost.
+   1. Repeat this group from the restored baseline, using the window close button instead of **File → Exit**.<br>
+      Expected: The same closing behaviour and loss of the unsaved change. Restore the backup with LeBake closed
+      before relaunching.
+
+### Customer field length boundaries
+
+Run each numbered group independently, resetting to fresh sample data before it. Run `list`; Alex Yeoh is at
+index 1 and has the tag `friends`. Replace `VALUE` in the commands below with the constructed text, without quotes
+or the word `VALUE` itself.
+
+| Field | Lengths (N−1 / N / N+1) | How to construct `VALUE` |
+|-------|------------------------|-------------------------|
+| Name | 99 / 100 / 101 | Repeat `A` 99 / 100 / 101 times. |
+| Email | 253 / 254 / 255 | Join 64 copies of `a`, `@`, 63 copies of `b`, `.`, 63 copies of `c`, `.`, then 60 / 61 / 62 copies of `d`, with no spaces. |
+| Address | 299 / 300 / 301 | Repeat `A` 299 / 300 / 301 times. |
+| Tag | 29 / 30 / 31 | Repeat `T` 29 / 30 / 31 times. |
+
+Use these command templates for name, email and address cases:
+
+| Field | Adding a customer | Editing Alex |
+|-------|-------------------|--------------|
+| Name | `add n/VALUE p/81111111 e/length@example.com a/Test Street c/123456` | `edit 1 n/VALUE` |
+| Email | `add n/Length Test p/81111111 e/VALUE a/Test Street c/123456` | `edit 1 e/VALUE` |
+| Address | `add n/Length Test p/81111111 e/length@example.com a/VALUE c/123456` | `edit 1 a/VALUE` |
+
+1. Accepting and saving N−1 and N customer fields
+
+   For each name, email and address value at N−1 and N, treat the corresponding `add` and `edit` templates as
+   separate cases. Complete these steps for each case:
+
+   1. Reset to fresh sample data and run `list` so added customers and edited names do not carry over.
+   1. Run the command template with the constructed value.<br>
+      Expected: Each `add` succeeds and creates customer 7. Each `edit` succeeds and changes only Alex's supplied
+      field; the other five customers are unchanged.
+   1. Run `exit`, relaunch from the same test folder, then run `list`.<br>
+      Expected: The supplied value is retained in the added customer or Alex's edited field, including at N.
+
+1. Accepting, saving and removing N−1 and N tags
+
+   Complete these steps with the 29-character tag, then repeat them with the 30-character tag:
+
+   1. Reset to fresh sample data, run `list`, then run `tag 1 t/VALUE`.<br>
+      Expected: The tag is added to Alex alongside `friends`.
+   1. Run `exit`, relaunch from the same test folder, then run `find t/VALUE`.<br>
+      Expected: The tag remains saved, and only Alex is displayed at index 1.
+   1. Run `untag 1 t/VALUE`, then `list`.<br>
+      Expected: The long tag is removed, and all six customers are shown. Alex retains `friends` and his preorder.
+
+1. Rejecting N+1 values
+
+   1. Use each N+1 name, email and address value with both corresponding command templates. For the N+1 tag,
+      try `tag 1 t/VALUE`, `find t/VALUE` and `untag 1 t/VALUE`. Run each command separately.<br>
+      Expected: Every command is rejected with the relevant maximum: name 100, email 254, address 300 or tag 30
+      characters. All six sample customers, their data and the saved JSON remain unchanged.
+   1. Run `find n/Alex`, then repeat the rejected commands, still using displayed index 1.<br>
+      Expected: The same length errors appear. Alex remains the only displayed customer, and the active name
+      filter, customer data and saved JSON are unchanged after each rejection.
+
+1. Name normalization
+
+   1. Construct a name from 49 copies of `A`, three spaces and 50 copies of `B`, with two extra spaces at each end.
+      Use it in `edit 1 n/VALUE`.<br>
+      Expected: The edit succeeds. The saved name has one internal space and no surrounding spaces, for a total
+      normalized length of 100.
+
+1. Error precedence
+
+   1. Run `edit 1 e/VALUE` with 254 copies of `a`, then with 255 copies.<br>
+      Expected: The first command shows the email-format constraints; the second shows the maximum length of 254.
+      Alex's original email and saved data are unchanged after both rejections.
+
+1. Search exceptions
+
+   1. Run `find n/VALUE` with 101 copies of `A`.<br>
+      Expected: The search is accepted with no matches; the stored-name length limit does not apply to name queries.
+   1. Run `find t/VALUE` with 31 copies of `T`.<br>
+      Expected: The tag-length error appears. The previous name filter remains active with an empty displayed list,
+      and all six sample customers remain saved.
+
+### Tagging a customer
+
+1. Tagging a customer while all customers are being shown
+
+   1. Prerequisites: List all customers using the `list` command. The first customer is `Alex Yeoh`, who has the tag
+      `friends`.
+
+   1. Test case: `tag 1 t/regular`<br>
+      Expected: `regular` is added to the first customer's tags. The status message shows `Added tag [regular] to Alex Yeoh`.
+
+   1. Test case: `tag 1 t/FRIENDS`<br>
+      Expected: The customer's tags are unchanged. The status message shows `Alex Yeoh already has tag [FRIENDS]. No changes made.`
+
+   1. Test case: `tag 1 t/gluten-free`<br>
+      Expected: No tag is added. The status message shows `Tag names must not be blank and must contain only letters (A-Z, a-z) and digits (0-9), with no spaces or special characters. Examples: VIP, friends, regular123.`
+
+   1. Test case: `tag 1 t/vip t/regular`<br>
+      Expected: No tag is added. The status message shows `Multiple values specified for the following single-valued field(s): t/`.
+
+   1. Test case: `tag 0 t/vip`<br>
+      Expected: No tag is added. The status message shows `Invalid command format!`, followed by the usage instructions for `tag`.
+
+   1. Other incorrect tag commands to try: `tag`, `tag 1`, `tag t/vip`, `tag x t/vip`<br>
+      Expected: Each shows `Invalid command format!`, followed by the usage instructions for `tag`. No tags or
+      other customer data are changed.
+
+   1. Test case: `tag 0 t/!`<br>
+      Expected: No tag is added. The index format error and usage instructions are shown, rather than the tag constraint message, because the index format is checked first.
+
+   1. Test case: `tag 100 t/vip` (where 100 is larger than the list size)<br>
+      Expected: No tag is added. The status message shows `The customer index provided is invalid.`
+
+1. Tagging a customer in a filtered list
+
+   1. Prerequisites: Find a customer using `find n/Bernice`. Only `Bernice Yu` is shown.
+
+   1. Test case: `tag 1 t/vip`<br>
+      Expected: `vip` is added to `Bernice Yu`'s tags. The status message shows `Added tag [vip] to Bernice Yu`. Only `Bernice Yu` remains displayed; the filter is preserved.
+
+### Untagging a customer
+
+Run each group below independently, resetting to fresh sample data unless stated otherwise. Within a group, run
+the test cases in order. For every rejected command, verify that all customers' tags, contact details, preorders,
+and the displayed list remain unchanged.
+
+1. Removing tags while all customers are being shown
+
+   1. Prerequisites: Run `list`. The first customer is `Alex Yeoh`, who has the tag `friends`. Run `tag 1 t/regular` to give Alex a second tag.
+
+   1. Test case: `untag 1 t/FRIENDS`<br>
+      Expected: The `friends` tag is removed despite the different capitalization. The `regular` tag and Alex's contact details remain unchanged. The status message shows `Removed tag [FRIENDS] from Alex Yeoh`.
+
+   1. Test case: `untag 1 t/regular`<br>
+      Expected: Alex has no tags left, but remains in the list with the same contact details. The status message shows `Removed tag [regular] from Alex Yeoh`.
+
+   1. Test case: Repeat `untag 1 t/regular`.<br>
+      Expected: No data is changed. The status message shows `Alex Yeoh does not have tag [regular]`.
+
+1. Rejecting invalid input
+
+   1. Prerequisites: Run `list` with the sample customers displayed.
+
+   1. Test cases: `untag 0 t/friends`, `untag -1 t/friends`, `untag abc t/friends`<br>
+      Expected: Each command shows `Invalid command format!`, followed by the usage instructions for `untag`.
+
+   1. Test cases: `untag`, `untag t/friends`, `untag 1`<br>
+      Expected: Each command shows the same format error and usage instructions.
+
+   1. Test cases: `untag 1 t/`, `untag 1 t/close friends`, `untag 1 t/gluten-free`<br>
+      Expected: Each command shows `Tag names must not be blank and must contain only letters (A-Z, a-z) and digits (0-9), with no spaces or special characters. Examples: VIP, friends, regular123.`
+
+   1. Test case: `untag 1 t/friends t/regular`<br>
+      Expected: The status message shows `Multiple values specified for the following single-valued field(s): t/`.
+
+   1. Test case: `untag 0 t/!`<br>
+      Expected: The index format error and usage instructions are shown, rather than the tag constraint message, because the index format is checked first.
+
+   1. Test case: `untag 100 t/friends` (where 100 is larger than the displayed list size)<br>
+      Expected: The status message shows `The customer index provided is invalid.`
+
+1. Removing a tag in a filtered list
+
+   1. Prerequisites: Run `find n/Bernice`. Only `Bernice Yu` is shown, at index 1, with the tags `colleagues` and `friends`.
+
+   1. Test case: `untag 2 t/friends`<br>
+      Expected: The status message shows `The customer index provided is invalid.`, even though the full customer list contains more than one customer.
+
+   1. Test case: `untag 1 t/FRIENDS`<br>
+      Expected: Bernice's `friends` tag is removed and `colleagues` remains. The status message shows `Removed tag [FRIENDS] from Bernice Yu`. Only Bernice remains displayed; the filter is preserved. Other customers are unchanged.
+
+   1. Test case: `untag 1 t/FRIENDS` again.<br>
+      Expected: The status message shows `Bernice Yu does not have tag [FRIENDS]`. Only Bernice remains displayed.
+
+   1. Test case: Run `find n/NoMatchingCustomer`, confirm that the displayed list is empty, then run `untag 1 t/friends`.<br>
+      Expected: The status message shows `The customer index provided is invalid.` The list remains empty and no data is changed.
+
+1. Removing the tag used by the active filter
+
+   1. Prerequisites: Run `find t/friends`. Confirm that Bernice Yu is among the displayed customers and has the
+      `friends` tag.
+
+   1. Test case: Note Bernice's index as `INDEX`, then run `untag INDEX t/friends`.<br>
+      Expected: The status message confirms that Bernice's tag was removed. Bernice disappears from the displayed
+      results because she no longer matches the active `find t/friends` filter, but remains in the saved customer data.
+
+   1. Test case: Run `list`, then `find n/Bernice`.<br>
+      Expected: Bernice is still present and no longer has the `friends` tag.
+
+1. Preserving a preorder and saving tag removal
+
+   1. Prerequisites: Run `list`. Alex Yeoh is at index 1 with the tag `friends`, a pending Pineapple Tarts item and
+      a prepared Almond Cookies item. Record his contact and fulfilment details, then run `tag 1 t/untagtest`.
+
+   1. Test case: `untag 1 t/untagtest`<br>
+      Expected: Only `untagtest` is removed. Alex retains `friends`, his contact and fulfilment details, and both
+      preorder items with their original quantities and statuses.
+
+   1. Test case: Run `exit`, relaunch from the same test folder, then run `find n/Alex`.<br>
+      Expected: Alex is displayed at index 1. The removed tag remains absent, and his other data is preserved.
+
+### Unsupported prefix diagnostics
+
+Run `list` before starting.
+For every rejected command below, confirm that customer data, saved data, active search criteria and displayed results
+remain unchanged.
+
+1. Try `deleteitem 1 i/1 x/2`.<br>
+   Expected: `Unsupported prefix 'x/' for deleteitem.` No data changes.
+1. Try `deleteitem 1 i/x/` and `deleteitem 1 i/1x/2`.<br>
+   Expected: `Item index must be a positive integer.` Neither value produces an unsupported-prefix diagnostic because
+   `x/` is at the start of the value or embedded without a whitespace boundary. No data changes.
+1. Try `edititem 1 i/1 c/012345`.<br>
+   Expected: `Unsupported prefix 'c/' for edititem.` No data changes.
+1. Try `track s/pending d/Cake`.<br>
+   Expected: `Unsupported prefix 'd/' for track.` The current criteria and displayed list remain unchanged.
+1. Run `find n/Alex`, then try each command below. Each error must identify `x/` for the specified command, while
+   Alex remains the only displayed customer.
+
+   | Input | Expected feedback |
+   |-------|-------------------|
+   | `add n/Prefix Test p/91234567 x/foo e/prefix@example.com a/Block 123 c/123456` | `Unsupported prefix 'x/' for add.` |
+   | `additem 1 d/Cake q/2 x/foo s/pending` | `Unsupported prefix 'x/' for additem.` |
+   | `additem 1 d/Cake q/2 s/pending x/foo` | `Unsupported prefix 'x/' for additem.` |
+   | `preorder 1 f/2026-12-20 x/foo` | `Unsupported prefix 'x/' for preorder.` |
+   | `preorder 1 m/delivery x/foo` | `Unsupported prefix 'x/' for preorder.` |
+   | `tag 1 t/VIP x/foo` | `Unsupported prefix 'x/' for tag.` |
+
+   Repeat the `add` test with `x/foo` after the name, email and postal code instead of the phone. All four constrained
+   fields must identify `x/`.
+1. Try each of `find n/Ali x/foo`, `find p/9123 x/foo`, `find e/example.com x/foo`, `find c/123 x/foo`,
+   `find t/VIP x/foo`, `find f/2026-12-20 x/foo`, `find m/delivery x/foo` and `find s/pending x/foo`.<br>
+   Expected: `Unsupported prefix 'x/' for find.` The active Alex search remains unchanged.
+1. Try `find h/Leave ringing s/pending y/later`.<br>
+   Expected: `Unsupported prefix 'y/' for find.` The notes text must not mask the invalid status argument.
+1. Try `find n/Ali2`, `find p/91-23`, `find e/example!.com` and `find c/1234567`.<br>
+   Expected: The corresponding query constraint message, with no unsupported-prefix error.
+1. Run `find n/Alex`, then try `edit 1 p/91234567 x/foo`.<br>
+   Expected: `Unsupported prefix 'x/' for edit.` Customer data, the displayed list and the active criteria are unchanged.
+1. Try `untag 1 t/VIP x/foo`.<br>
+   Expected: `Unsupported prefix 'x/' for untag.` Customer data, the displayed list and the active criteria are unchanged,
+   whether or not the customer has a `VIP` tag.
+1. Try `edit 1 n/Alex Yeoh x/foo`, `edit 1 e/alex@example.com x/foo` and `edit 1 c/012345 x/foo`.<br>
+   Expected: Each command shows `Unsupported prefix 'x/' for edit.` No data or filter changes.
+1. Try `edit 1 p/12345` and `untag 1 t/close friends`.<br>
+   Expected: The existing phone and tag constraint messages respectively. No data or filter changes.
+1. Try `edit 0 p/91234567 x/foo` and `untag 1 t/VIP x/foo t/friends`.<br>
+   Expected: Respectively, the edit format error and usage instructions, and the duplicate-`t/` error.
+   No data or filter changes.
+1. Run `edit 1 a/Block 123 c/o Alice #04/08`.<br>
+   Expected: The complete address is `Block 123 c/o Alice #04/08`. Other contact details, tags, postal code and preorder
+   are preserved. The active criteria are unchanged. Run `list` before continuing.
+1. Run `edititem 1 i/1 r/Pack without nuts`.<br>
+   Expected: The edit succeeds and the remark is exactly `Pack without nuts`.
+1. Run `preorder 1 h/Leave at side gate`.<br>
+   Expected: The handover notes are exactly `Leave at side gate`.
+1. Run `edititem 1 i/1 r/Less sugar s/prepared`.<br>
+   Expected: The remark is `Less sugar` and the status is `PREPARED`; the supported `s/` starts a separate field.
+1. Run `add n/Prefix Test p/91234567 e/prefix@example.com a/Block 123 c/o Prefix Test #04/08 c/123456`, followed by
+   `find n/Pre p/9123 e/example.com a/Block 123 c/o Prefix Test #04/08`.<br>
+   Expected: Only `Prefix Test` is displayed. The address keeps both `c/o` and `#04/08`; contact fragments remain valid.
+1. Run `additem 1 d/Cake with candles q/2 s/pending r/Pack without nuts`, then
+   `preorder 1 h/Leave at side gate f/2026-12-20 m/delivery`, then `tag 1 t/VIP`.<br>
+   Expected: The item name, remark and handover notes are stored correctly. Date, method, quantity, status and tag
+   are stored as separate fields.
+1. Run `find d/Cake with candles h/Leave at side gate`, then
+   `find n/Pre p/9123 e/example.com c/123 t/VIP f/2026-12-20 m/delivery s/pending`.<br>
+   Expected: Both searches show only `Prefix Test`.
+1. Restart LeBake, run `find n/Prefix`, and inspect the customer.<br>
+   Expected: All fields, including the address, item name, remark and notes, are preserved after reloading.
+1. Run `preorder 1 f/ m/ h/`.<br>
+   Expected: Date, method and handover notes are cleared. The item, its remark, contact details and tag remain, and
+   `Prefix Test` remains displayed under the active name search.
+
+### Tracking preorders
+
+Start each group below with fresh sample data, then run `list`. Run the steps within each group in order.
+Initially, Alex Yeoh has one pending and one prepared item, Bernice Yu has one completed item,
+Charlotte Oliveiro has one prepared item, David Li has an empty preorder, and Irfan Ibrahim and Roy Balakrishnan
+have no preorder. Tracking commands should preserve all customer and preorder data.
+
+1. Default tracking, status selection and replacing searches
+
+   1. Run `track`.<br>
+      Expected: Alex Yeoh and Charlotte Oliveiro appear, in that order, with
+      `2 customer(s) with 3 matching item(s) listed!`. David, Irfan and Roy are excluded, as is Bernice, whose only
+      item is completed. Both of Alex's items and Charlotte's item are highlighted.
+   1. Run `track s/pEnDiNg`.<br>
+      Expected: Only Alex appears, with `1 customer(s) with 1 matching item(s) for PENDING listed!`.
+      His prepared Almond Cookies remains visible, but only his pending Pineapple Tarts is highlighted.
+   1. Run `track s/PREPARED`.<br>
+      Expected: Alex and Charlotte appear, with `2 customer(s) with 2 matching item(s) for PREPARED listed!`.
+      Only their prepared items are highlighted.
+   1. Run `track s/COMPLETED`.<br>
+      Expected: Only Bernice appears, with `1 customer(s) with 1 matching item(s) for COMPLETED listed!`.
+      She appears even though the previous tracking results excluded her.
+   1. Run `find n/Bernice`, then `track`.<br>
+      Expected: The name search is replaced. Alex and Charlotte appear again, with
+      `2 customer(s) with 3 matching item(s) listed!` and only the `Item status: Pending or Prepared` badge.
+   1. Run `list`.<br>
+      Expected: All six customers appear in their original order. The tracking highlights and status badge are
+      removed, and `Showing: All customers` appears above the list.
+
+1. Rejecting invalid input without changing the search
+
+   1. Run `track s/PENDING`, then try `track s/` and `track s/done`.<br>
+      Expected: Both show `Invalid status! Status must be PENDING, PREPARED, or COMPLETED.`
+   1. Run `track s/PENDING s/PREPARED`.<br>
+      Expected: `Multiple values specified for the following single-valued field(s): s/`.
+   1. Try `track PENDING` and `track 1 s/PENDING`.<br>
+      Expected: Both show `Invalid command format!`, followed by the usage instructions for `track`.
+   1. Run `track s/pending d/Cake`.<br>
+      Expected: `Unsupported prefix 'd/' for track.`
+
+   After each rejected command, verify that only Alex remains displayed, his pending item remains highlighted,
+   and the `Item status: Pending` badge is unchanged. His items, quantities, statuses and customer details are
+   unchanged.
+
+1. Counting repeated item entries and showing empty results
+
+   1. Run `additem 1 d/Pineapple Tarts q/10 s/pending`, then `additem 1 d/Pineapple Tarts q/20 s/pending`.<br>
+      Expected: Alex now has four separate item entries; the two new pending entries are items 3 and 4.
+   1. Run `track s/PENDING`.<br>
+      Expected: Only Alex appears, with `1 customer(s) with 3 matching item(s) for PENDING listed!`.
+      The three pending Pineapple Tarts entries are highlighted and count separately; their quantities are not summed
+      in the feedback. The prepared Almond Cookies remains visible and is not highlighted.
+   1. Run `edititem 1 i/1 s/completed`, then `edititem 1 i/3 s/completed`.<br>
+      Expected: Alex remains displayed because item 4 is still pending. The changed items lose their tracking
+      highlights. The feedback describes each edit; run `track s/PENDING` again to obtain updated tracking counts.
+   1. Run `edititem 1 i/4 s/completed`, then `track s/PENDING`.<br>
+      Expected: Alex disappears after the edit. Tracking reports
+      `0 customer(s) with 0 matching item(s) for PENDING listed!`. The list is empty and the pending-status badge
+      remains visible.
+   1. Run `list`.<br>
+      Expected: All six customers reappear. Alex still has four items, with items 1, 3 and 4 completed and item 2
+      prepared. His quantities and other details are preserved; tracking did not delete any data.
+
+### Adding and editing preorder items
+
+Run `list`. Irfan Ibrahim is at index 5 with the tag `classmates` and no preorder. Record his contact details
+before starting. For every rejected command below, verify that customer and preorder data, saved data and the
+displayed list remain unchanged.
+
+1. Run `edititem 5 i/1 q/3`.<br>
+   Expected: `This customer has no preorder.` Nothing changes.
+1. Run `additem 5 d/Cake q/2 s/pending r/Less sugar`.<br>
+   Expected: `Added item 1 for Irfan Ibrahim: Cake (quantity: 2, PENDING)`. A preorder is created with item 1 and
+   the remark `Less sugar`. Irfan's contact details and `classmates` tag are unchanged.
+1. Repeat the same command.<br>
+   Expected: `Added item 2 for Irfan Ibrahim: Cake (quantity: 2, PENDING)`. A separate identical item 2 is appended;
+   item 1 is unchanged.
+1. Run `edititem 5 i/2 q/3`, followed by `edititem 5 i/2 r/`.<br>
+   Expected: Only item 2 changes. Its quantity becomes 3 and its remark is removed. Its name and status are preserved.
+1. Try `additem 5 d/Cake q/0 s/invalid`, then `edititem 5 i/2 q/0 s/invalid`.<br>
+   Expected: Both report the quantity constraint first, with no data changes.
+1. Try `additem 5 d/Cake d/Tarts`, then `edititem 5 d/Cake d/Tarts`.<br>
+   Expected: Both report duplicate `d/` before the missing required fields, with no data changes.
+1. Try `additem 5 d/Cake q/2 s/pending r/`, `edititem 5 i/2`, and `edititem 5 i/999 q/1`.<br>
+   Expected: Respectively, a remark constraint error, no-changes error, and invalid-item-index error. No data changes.
+1. Run `track s/pending`.<br>
+   Expected: Only Alex Yeoh (1) and Irfan Ibrahim (2) are displayed. Both of Irfan's Cake items are highlighted.
+1. Run `edititem 2 i/1 s/completed`.<br>
+   Expected: Irfan remains at displayed index 2 because his second Cake item is still pending.
+1. Run `edititem 2 i/2 s/completed`.<br>
+   Expected: Irfan disappears from the tracked view, leaving only Alex. Both Cake items remain saved as completed.
+1. Run `list`.<br>
+   Expected: All six customers return in saved order. Irfan is at index 5 with Cake quantities 2 and 3. Item 1
+   retains `Less sugar`, item 2 has no remark, and his contact details and tag are unchanged.
+1. Run `exit`, relaunch from the same test folder, then run `list`.<br>
+   Expected: Irfan is still at index 5 with both completed items, their quantities and the same remarks.
+1. Run `edititem 5 i/1 s/pending`.<br>
+   Expected: `Edited item 1 for Irfan Ibrahim: Cake (quantity: 2, PENDING)`. Only item 1's status changes; its
+   quantity remains 2 and item 2 remains completed with quantity 3.
+
+### Deleting a preorder item
+
+Run `list` before starting.
+Initially, Alex Yeoh is customer 1 with two items,
+Charlotte Oliveiro is customer 3 with one item, David Li is customer 4 with an empty preorder, and Irfan Ibrahim
+is customer 5 without a preorder.
+
+1. Run `deleteitem 1 i/2`.<br>
+   Expected: `Deleted item 2 for Alex Yeoh: Almond Cookies (quantity: 1, PREPARED)`.
+   Only Almond Cookies disappears. Pineapple Tarts and its quantity, status and remark remain unchanged.
+   Alex's contact details and tags are unchanged.
+1. Run `deleteitem 1 i/1`.<br>
+   Expected: The final item is removed. Alex remains a customer with an empty preorder.
+1. Run `deleteitem 1 i/1` again, then `deleteitem 4 i/1`.<br>
+   Expected: Both show `The item index provided is invalid.` because both preorders are empty. Nothing changes.
+1. Run `deleteitem 5 i/1`.<br>
+   Expected: `This customer has no preorder.` Nothing changes.
+1. Try `deleteitem`, `deleteitem 0 i/1`, `deleteitem 1`, and `deleteitem 1 o/1`.<br>
+   Expected: An invalid-command-format error followed by usage instructions. Nothing changes.
+1. Try `deleteitem 1 i/`, `deleteitem 1 i/0`, and `deleteitem 1 i/abc`.<br>
+   Expected: `Item index must be a positive integer.` Nothing changes.
+1. Run `deleteitem 1 i/1 i/2`.<br>
+   Expected: `Multiple values specified for the following single-valued field(s): i/`. Nothing changes.
+1. Run `deleteitem 100 i/1`, where 100 exceeds the displayed list size.<br>
+   Expected: `The customer index provided is invalid.` Nothing changes.
+1. Run `track`, then delete Charlotte's item using her current displayed customer index and `i/1`.<br>
+   Expected: Charlotte disappears from the tracked view because her preorder is now empty. Run `list` to confirm
+   that she remains a customer. The success message identifies her deleted item, quantity and status.
+1. Close and reopen the app.<br>
+   Expected: Alex's and Charlotte's preorders remain empty. Their other customer details are preserved.
+1. Reset to fresh sample data, run `list`, then `deleteitem 1 i/1`.<br>
+   Expected: Only Pineapple Tarts is removed. Almond Cookies remains and is renumbered from 2 to 1.
+
+### Updating items under an active `find` filter
+
+Run `list`. Alex Yeoh is at index 1 with Pineapple Tarts as item 1 and Almond Cookies as item 2.
+
+1. Run `find n/Alex d/Pineapple Tarts`.<br>
+   Expected: Only Alex is displayed at index 1, with Pineapple Tarts as a matching item.
+1. Run `additem 1 d/Cake q/1 s/pending`.<br>
+   Expected: Alex remains displayed because the existing Pineapple Tarts item still matches the active filter.
+   Cake is appended as item 3.
+1. Run `deleteitem 1 i/1`.<br>
+   Expected: Alex disappears from the results because no remaining item matches Pineapple Tarts. The active
+   name and item criteria remain unchanged.
+1. Run `find n/Alex`.<br>
+   Expected: Alex is still saved and is displayed at index 1. Almond Cookies is now item 1 and Cake is item 2.
+1. Run `find n/Alex d/Cake`.<br>
+   Expected: Alex remains the only displayed customer, with Cake highlighted at its full item-list index 2.
+1. Run `edititem 1 i/2 d/Tart`.<br>
+   Expected: Alex disappears because the edited item no longer matches Cake. The active name and item criteria
+   remain unchanged.
+1. Run `find n/Alex`.<br>
+   Expected: Alex is displayed again with Almond Cookies as item 1 and Tart as item 2. Tart retains Cake's
+   quantity 1 and pending status; Alex's contact details, tags and fulfilment details are unchanged.
+
+### Deleting a preorder
+
+Start each group with fresh sample data, then run `list`. Run the steps within each group in order.
+Initially, Alex Yeoh (1) has Pineapple Tarts and Almond Cookies,
+Charlotte Oliveiro (3) has Pineapple Tarts, David Li (4) has an empty preorder with fulfilment details, and
+Irfan Ibrahim (5) has no preorder.
+
+For every successful deletion, verify that the customer's name, phone, email, address, postal code and tags are
+unchanged. For every rejected command, verify that customer and preorder data, saved data, displayed results and
+active search criteria are unchanged.
+
+1. Deleting whole and empty preorders, then checking persistence
+
+   1. Run `deleteorder 1`.<br>
+      Expected: `Deleted preorder for Alex Yeoh`. Alex remains displayed. His entire preorder panel disappears,
+      including both items, the 20 Dec 2026 delivery date and the notes `Call on arrival`.
+   1. Run `deleteorder 1` again.<br>
+      Expected: `Alex Yeoh has no preorder to delete.` Nothing changes.
+   1. Run `deleteorder 4`.<br>
+      Expected: `Deleted preorder for David Li`. David remains displayed. His empty preorder panel, including the
+      23 Dec 2026 delivery date and the notes `Leave at the guardhouse`, disappears.
+   1. Run `deleteorder 5`.<br>
+      Expected: `Irfan Ibrahim has no preorder to delete.` Nothing changes.
+   1. Run `exit`, relaunch with `java -jar LeBake.jar` from the same test folder, then run `list`.<br>
+      Expected: All six customers remain. Alex and David still have no preorder. Their contact details, postal codes
+      and tags are preserved, and the other customers and their preorders are unchanged.
+
+1. Rejecting invalid input and indices
+
+   1. Try invalid inputs described in [Implementation: Deleting a preorder](#deleting-a-preorder), such as
+      `deleteorder 0`.<br>
+      Expected: Each shows `Invalid command format!` followed by the usage instructions for `deleteorder`.
+   1. Run `deleteorder 100`.<br>
+      Expected: `The customer index provided is invalid.` because only six customers are displayed.
+   1. Run `find n/Charlotte`, then `deleteorder 2`.<br>
+      Expected: `The customer index provided is invalid.` because Charlotte is the only displayed customer.
+      The name search remains active, and Charlotte's preorder is unchanged.
+
+1. Deleting from filtered lists
+
+   1. Run `track`.<br>
+      Expected: Only Alex Yeoh (1) and Charlotte Oliveiro (2) are displayed.
+   1. Run `deleteorder 2`.<br>
+      Expected: `Deleted preorder for Charlotte Oliveiro`. Charlotte disappears, leaving Alex displayed.
+      The active tracking criteria remain unchanged.
+   1. Run `find n/Bernice`, then `deleteorder 1`.<br>
+      Expected: `Deleted preorder for Bernice Yu`. Bernice remains displayed with no preorder panel because the name
+      search still matches. The active name criterion remains unchanged.
+   1. Run `list`.<br>
+      Expected: All six customers appear. Charlotte and Bernice have no preorder; Alex's two items and David's empty
+      preorder with its fulfilment details are unchanged.
+
+### Setting delivery or collection details
+
+Run `list` before starting.
+`Alex Yeoh` (1) has
+a delivery on 20 Dec 2026 with the notes `Call on arrival`; `Irfan Ibrahim` (5) and `Roy Balakrishnan` (6) have no
+preorder. Run the steps in order. For every rejected command, check that no card changes.
+
+1. Run `preorder 1 f/2026-12-24`.<br>
+   Expected: `Updated preorder details for Alex Yeoh: Date: 24 Dec 2026 | Method: DELIVERY | Handover notes: Call on arrival`.
+   Only the date on Alex's card changes; both items, their quantities and statuses are unchanged.
+1. Run `preorder 1 m/Collection h/`.<br>
+   Expected: `Updated preorder details for Alex Yeoh: Date: 24 Dec 2026 | Method: COLLECTION | Handover notes: None`.
+   The method changes and the handover notes are removed from the card.
+1. Run `preorder 1 h/Gate code 1234`.<br>
+   Expected: Succeeds. The handover notes are `Gate code 1234`.
+1. Run `preorder 5 m/delivery`.<br>
+   Expected: `Updated preorder details for Irfan Ibrahim: Date: Not scheduled | Method: DELIVERY | Handover notes: None`.
+   Irfan's card now shows a preorder with `No items yet`.
+1. Run `preorder 6 f/ m/ h/`.<br>
+   Expected: `Roy Balakrishnan has no preorder, so there is nothing to clear. No changes made.` Roy still has no preorder.
+1. Run `preorder 1 f/2025-12-20`.<br>
+   Expected: The update succeeds, and a second line says `Note: 20 Dec 2025 is in the past.`
+1. Try `preorder 1 f/2026-02-30` and `preorder 1 f/20-12-2026`.<br>
+   Expected: `Invalid date! Dates must be real calendar dates in YYYY-MM-DD format from the year 2000 onwards, e.g. 2026-12-20.`
+1. Run `preorder 1 f/0026-12-20`.<br>
+   Expected: the same error message. Nothing changes.
+1. Run `preorder 1 m/drone`.<br>
+   Expected: `Invalid method! Method must be DELIVERY or COLLECTION.`
+1. Run `preorder 1 m/delivery x/2`.<br>
+   Expected: `Unsupported prefix 'x/' for preorder.`
+1. Run `preorder 1 h/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (101 characters of notes).<br>
+   Expected: `Invalid handover notes! Handover notes must not be blank, must be on a single line, and must be at most 100 characters long.`
+1. Run `preorder 1 f/2026-12-24 f/2026-12-25`.<br>
+   Expected: `Multiple values specified for the following single-valued field(s): f/`
+1. Run `preorder 1`.<br>
+   Expected: `At least one of f/DATE, m/METHOD or h/HANDOVER_NOTES must be provided.`
+1. Try `preorder 0 f/2026-12-24`, `preorder f/2026-12-24` and `preorder x m/delivery`.<br>
+   Expected: `Invalid command format!`, followed by the usage instructions for `preorder`.
+1. Run `preorder 100 m/delivery` (where 100 is larger than the list size).<br>
+   Expected: `The customer index provided is invalid.`
+1. Run `find n/Bernice`, then `preorder 1 m/delivery`.<br>
+   Expected: Bernice Yu's method changes to `DELIVERY`. Only Bernice remains displayed; the search is kept.
+
+### Loading preorder data
+
+These steps edit the data file; close LeBake before each edit. Keep an unmodified sample-data backup outside
+the `data` folder. Restore it before each invalid-quantity variation and before starting the next group.
+
+1. Loading a data file with an invalid item
+
+   1. Prerequisites: Change the `"quantity"` of the first customer's first item (Alex Yeoh's `Pineapple Tarts` in
+      the sample data) to `"0"`.
+
+   1. Test case: Launch LeBake.<br>
+      Expected: An error dialog appears before the main window and reports `Person 1: item 1: invalid quantity.`
+      Person and item numbers follow the order in the file, starting at 1.
+
+   1. Test case: Press `Enter` to dismiss the dialog.<br>
+      Expected: LeBake exits, and the invalid file is unchanged. Restore the valid file from your copy and relaunch;
+      the saved customers and preorders load normally.
+
+   1. Test case: Repeat from the valid backup with the item's `"quantity"` set to `null`, and then repeat from
+      the valid backup with the `"quantity"` line removed.<br>
+      Expected: The dialog reports `Person 1: item 1: missing quantity.` Dismissing it exits LeBake and leaves
+      the file unchanged. The log retains the detailed error `Item's Quantity field is missing!`.
+
+1. Loading hand-edited fulfilment details
+
+   1. Prerequisites: Restore the unmodified sample-data backup. In `data/lebake.json`, change the first customer's
+      (Alex Yeoh's) `"method"` to `"delivery"` and their `"handoverNotes"` to `""`. Keep a copy of this valid file.
+
+   1. Test case: Launch LeBake.<br>
+      Expected: The data file loads. The customer's preorder panel shows `Delivery` as the method and no
+      handover notes line. Their items and other details are unchanged.
+
+   1. Test case: Close LeBake, change the same `"method"` to `"pickup"`, then launch LeBake.<br>
+      Expected: An error dialog appears before the main window and reports `Person 1: invalid preorder method.`
+      Dismissing it exits LeBake and leaves the file unchanged. Restore the file from
+      your copy before relaunching.
+
+   1. Test case: Close LeBake, restore the file from your copy, change the same customer's `"date"` to
+      `"1999-12-31"`, then launch LeBake.<br>
+      Expected: An error dialog appears before the main window and reports `Person 1: invalid preorder date.`
+      for the first customer. Dismissing it exits LeBake and leaves the file unchanged. Restore the file from
+      your copy before relaunching.
+
+### Grouping customers by postal code
+
+This subsection uses four custom customers to test shared postal codes, shared prefixes and name ordering.
+In the disposable test folder, replace the sample customers with this test dataset by entering each command
+separately, in order:
+
+```text
+clear
+confirm
+add n/Zara Lim p/91234567 e/zara@example.com a/Test Road c/012345
+add n/ben Tan p/91234568 e/ben@example.com a/Test Road c/012345
+add n/Aaron Goh p/91234569 e/aaron@example.com a/Test Road c/019876
+add n/alice Ong p/91234570 e/alice@example.com a/Test Road c/531234
+list
+```
+
+Expected: `clear` asks for confirmation, `confirm` empties the list, and the four `add` commands succeed. The saved
+order is Zara, ben, Aaron, alice. All four have no tags or preorder. The fixture deliberately puts shared codes and
+shared prefixes in a different order from their names.
+
+Each numbered group below can be run independently with this dataset. Before each group, run `list` and confirm
+the saved order, postal codes and absence of tags and preorders described above. Keep this dataset between groups;
+do not reset to the built-in sample customers. Groups that edit data include restoration steps. If the dataset
+does not match, or a group was interrupted, repeat the full setup above before continuing. All heading checks
+refer to the customer list, not the separate delivery summary in the side panel.
+
+1. Grouping identical codes and different codes with the same prefix
+
+   1. Run `group postal`.<br>
+      Expected: `Customers grouped by postal code.` The list is:
+
+      | Displayed index | Customer | Postal code | Heading above the card |
+      | --- | --- | --- | --- |
+      | 1 | ben Tan | `012345` | `POSTAL PREFIX 01` |
+      | 2 | Zara Lim | `012345` | None |
+      | 3 | Aaron Goh | `019876` | None |
+      | 4 | alice Ong | `531234` | `POSTAL PREFIX 53` |
+
+      The equal-code names ignore capitalization. Aaron follows Zara because the full code is compared before the
+      name. The first three customers share one heading, and headings do not consume customer indexes.
+   1. Run `group postal` again.<br>
+      Expected: The same message, order and headings, with four customers and no duplicates.
+
+1. Keeping filters and handling empty results
+
+   1. Run `find c/01`, then `group postal`.<br>
+      Expected: Only ben, Zara and Aaron, numbered 1–3, under one `POSTAL PREFIX 01` heading. The postal filter remains
+      active; alice is not introduced by grouping.
+   1. Run `find c/53`.<br>
+      Expected: Postal ordering remains active. Only alice is shown, at index 1 under `POSTAL PREFIX 53`; the `01`
+      heading disappears.
+   1. Run `find n/Nobody`, then `group postal`.<br>
+      Expected: No customers or list headings. Grouping still reports `Customers grouped by postal code.`
+   1. Run `list`.<br>
+      Expected: All four customers return in saved order, without customer-list headings.
+
+1. Switching between grouping, date sorting and normal display
+
+   1. Run `group postal`, then `sort date`.<br>
+      Expected: `Sorted 4 customer(s) by fulfilment date. Customers without a date are listed last.` Since all four
+      have no preorder, they are ordered by name: Aaron, alice, ben, Zara, numbered 1–4. No customer-list postal
+      headings remain.
+   1. Run `group postal`.<br>
+      Expected: The first group's ben, Zara, Aaron, alice order and `01`/`53` headings return.
+   1. Run `list`.<br>
+      Expected: Zara, ben, Aaron, alice, numbered 1–4, without customer-list headings.
+
+1. Using displayed indexes and refreshing headings after an edit
+
+   1. Run `group postal`, then `tag 1 t/groupcheck`.<br>
+      Expected: The tag is added to ben, the first displayed customer, rather than Zara, the first saved customer.
+   1. Run `edit 1 c/540001`.<br>
+      Expected: Zara, Aaron, alice, ben, numbered 1–4. `POSTAL PREFIX 01` is above Zara, `53` above alice and `54` above
+      ben. Ben retains the tag and other contact details. Zara and Aaron have no duplicate prefix heading.
+   1. Restore the fixture with `edit 4 c/012345`, then `untag 1 t/groupcheck`.<br>
+      Expected: Ben moves back to index 1 under `01`, and the tag is removed. The order and headings match the first
+      group; there is no `54` heading.
+   1. Run `list`.<br>
+      Expected: The original saved order returns.
+
+1. Accepting the postal argument and rejecting extra input
+
+   1. Run `group POSTAL`, then enter `  group PoStAl  ` with spaces before and after it.<br>
+      Expected: Both succeed with the first group's order and headings.
+   1. Try `group`, `group name`, `group postal extra` and `group postal c/012345`, separately.<br>
+      Expected: Each reports `Invalid command format!` followed by the group usage instructions. Customers, displayed
+      order, headings and current search criteria do not change.
+
+1. Leading zeros, boundary values and invalid stored-code input
+
+   1. Run `edit 1 c/999999`, then `edit 2 c/000000`, starting from the saved-order fixture.<br>
+      Expected: Zara now has `999999` and ben has `000000`; the other fields are unchanged.
+   1. Run `group postal`.<br>
+      Expected: ben (`000000`), Aaron (`019876`), alice (`531234`), Zara (`999999`), numbered 1–4. Each has a heading:
+      `POSTAL PREFIX 00`, `01`, `53`, `99`, respectively. Both boundary values are ordinary accepted codes, and leading
+      zeros are retained.
+   1. Try `edit 1 c/12345` and `edit 1 c/12A456`.<br>
+      Expected: `Postal codes must contain exactly six digits.` The records, order and headings are unchanged.
+      Invalid codes are rejected during editing, not placed in a missing-code group.
+   1. Restore the fixture with `list`, `edit 1 c/012345` and `edit 2 c/012345`.<br>
+      Expected: The original codes and saved order are restored.
+
+1. Keeping saved order across a restart
+
+   1. Run `group postal`, then close the window and relaunch with `java -jar LeBake.jar` from the same test folder.<br>
+      Expected: All four saved customers load as Zara, ben, Aaron, alice, numbered 1–4. Their codes remain
+      `012345`, `012345`, `019876`, `531234`. Grouping and customer-list headings are not restored.
+   1. Run `group postal`.<br>
+      Expected: The first group's order and headings return. Grouping has not changed the order saved on disk.
+
+### Sorting customers by fulfilment date
+
+Run `list` before starting.
+
+1. Run `sort date`.<br>
+   Expected: `Sorted 6 customer(s) by fulfilment date. Customers without a date are listed last.`
+   The order is `Bernice Yu` (19 Dec), `Alex Yeoh` and `Charlotte Oliveiro` (both 20 Dec, ordered by name),
+   `David Li` (23 Dec, no items), then `Irfan Ibrahim` and `Roy Balakrishnan` (no preorder).
+1. Run `sort DATE`.<br>
+   Expected: Same message and order as above.
+1. Run `tag 1 t/sorttest`.<br>
+   Expected: The tag is added to `Bernice Yu`, the first customer in the sorted list.
+1. Run `find t/friends`.<br>
+   Expected: The sort stays in place. `Bernice Yu` is shown before `Alex Yeoh`.
+1. Run `list`.<br>
+   Expected: All 6 customers are shown in their saved order, with `Alex Yeoh` first.
+1. Run `find t/friends`, then `sort date`.<br>
+   Expected: `Sorted 2 customer(s) by fulfilment date. Customers without a date are listed last.`
+   Only `Bernice Yu` and `Alex Yeoh` are shown, in that order.
+1. Run `list`, `group postal`, then `sort date`.<br>
+   Expected: The postal grouping is replaced. The order is the same as in step 1.
+1. Try `sort`, `sort name`, `sort date 2026-12-20` and `sort date x`.<br>
+   Expected: `Invalid command format!` followed by the sort usage instructions. The displayed list does not change.
+1. Close and relaunch the app.<br>
+   Expected: Customers are shown in their saved order, with `Alex Yeoh` first. Sorting is not restored.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+Run these groups in order without resetting to fresh sample data between them. Keep the valid backup created
+in the **Valid manual edit** group for the remaining groups. Close LeBake before changing its data file. For the
+missing-file test, move the test folder's `data/lebake.json` aside before launching; follow the remaining tests'
+specific backup and restoration instructions.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Missing data file
 
-1. _{ more test cases …​ }_
+   1. Prerequisites: The test folder has no `data/lebake.json`.
+   1. Test case: Launch LeBake, run `list`, and close the app.<br>
+      Expected: Sample customers appear, and `data/lebake.json` is created after the successful command.
+
+1. Valid manual edit
+
+   1. Prerequisites: In the saved file, change Alex Yeoh's email to `updated@example.com`. Keep a backup of this
+      valid file outside the `data` folder.
+   1. Test case: Launch LeBake.<br>
+      Expected: The saved customers load, and Alex's edited email is shown. Close the app before the next test.
+
+1. Malformed JSON
+
+   1. Prerequisites: Replace the file's contents with `{invalid json` and keep a copy of those exact contents.
+   1. Test case: Launch LeBake.<br>
+      Expected: An error dialog shows the absolute data path and parsing error, including its line and column.
+      The main window does not open.
+   1. Test case: Press `Enter`.<br>
+      Expected: The dialog closes, the Java process exits, and the malformed file matches the copy byte for byte.
+
+1. Invalid field in a saved record
+
+   1. Prerequisites: Restore the valid backup, change the second person's email to `not-an-email`, and keep a copy
+      of the invalid file.
+   1. Test case: Launch LeBake.<br>
+      Expected: The dialog reports `Person 2: invalid email.` and the main window does not open.
+   1. Test case: Choose `OK`.<br>
+      Expected: LeBake exits, and the invalid file matches the copy byte for byte.
+
+1. Unreadable data path
+
+   1. Prerequisites: Keep the valid backup outside the `data` folder. Move the data file aside and create a directory
+      named `data/lebake.json` containing a marker file.
+   1. Test case: Launch LeBake and dismiss the error dialog.<br>
+      Expected: LeBake reports a read error and exits. It does not show sample customers or replace the directory;
+      the marker file is unchanged. Move the test directory aside before restoring the backup.
+
+1. Recovery
+
+   1. Prerequisites: Restore the valid backup as `data/lebake.json`.
+   1. Test case: Launch LeBake again.<br>
+      Expected: The main window opens with the restored customers, edited email and saved preorder details.

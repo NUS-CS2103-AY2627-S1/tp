@@ -5,39 +5,59 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
  * Represents a Person's name in the address book.
- * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
+ * Guarantees: immutable; is valid as declared in {@link #isValidName(String)};
+ * has no leading, trailing or consecutive spaces; preserves capitalization.
  */
 public class Name {
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+    /** Maximum normalized length in UTF-16 code units. */
+    public static final int MAX_LENGTH = 100;
 
-    /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
-     */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String MESSAGE_CONSTRAINTS =
+            "Invalid name! Names must contain at least one English letter and only English letters, spaces, "
+                    + "apostrophes or hyphens.";
+
+    public static final String MESSAGE_LENGTH_CONSTRAINTS = "Names must be at most " + MAX_LENGTH
+            + " characters long after spaces are normalized.";
+
+    public static final String VALIDATION_REGEX = "(?=.*[A-Za-z])[A-Za-z '-]+";
 
     public final String fullName;
 
     /**
-     * Constructs a {@code Name}.
+     * Constructs a {@code Name}, trimming surrounding whitespace and collapsing consecutive spaces.
+     * Capitalization is preserved.
      *
      * @param name A valid name.
      */
     public Name(String name) {
         requireNonNull(name);
-        checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
-        fullName = name;
+        checkArgument(isValidName(name), getValidationErrorMessage(name));
+        fullName = normalize(name);
     }
 
     /**
-     * Returns true if a given string is a valid name.
+     * Returns true if a given string contains at least one English letter and only English letters,
+     * spaces, apostrophes or hyphens after trimming surrounding whitespace and collapsing consecutive spaces.
+     * The normalized name must have at most {@link #MAX_LENGTH} UTF-16 code units.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        String normalizedName = normalize(test);
+        return !normalizedName.isEmpty() && normalizedName.length() <= MAX_LENGTH
+                && normalizedName.matches(VALIDATION_REGEX);
     }
 
+    /**
+     * Returns the length constraint message if the normalized name exceeds the limit,
+     * or the format constraint message otherwise. Length violations take precedence over invalid characters.
+     */
+    public static String getValidationErrorMessage(String test) {
+        return normalize(test).length() > MAX_LENGTH ? MESSAGE_LENGTH_CONSTRAINTS : MESSAGE_CONSTRAINTS;
+    }
+
+    private static String normalize(String name) {
+        return name.trim().replaceAll(" +", " ");
+    }
 
     @Override
     public String toString() {

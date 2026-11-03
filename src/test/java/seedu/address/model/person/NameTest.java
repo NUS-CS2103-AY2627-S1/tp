@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -15,8 +16,22 @@ public class NameTest {
 
     @Test
     public void constructor_invalidName_throwsIllegalArgumentException() {
-        String invalidName = "";
-        assertThrows(IllegalArgumentException.class, () -> new Name(invalidName));
+        for (String invalidName : new String[]{"", " ", "John2", "John@Tan", "John\tTan", "-", "'", " - ' ",
+            "José Tan"}) {
+            assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(invalidName));
+        }
+    }
+
+    @Test
+    public void constructor_extraSpaces_normalizesName() {
+        Name name = new Name("  Mary-Jane   O'Brien  ");
+        assertEquals("Mary-Jane O'Brien", name.fullName);
+        assertEquals("Mary-Jane O'Brien", name.toString());
+    }
+
+    @Test
+    public void constructor_mixedCase_preservesCapitalization() {
+        assertEquals("mArY-JaNe O'BRIEN", new Name(" mArY-JaNe  O'BRIEN ").fullName);
     }
 
     @Test
@@ -27,15 +42,87 @@ public class NameTest {
         // invalid name
         assertFalse(Name.isValidName("")); // empty string
         assertFalse(Name.isValidName(" ")); // spaces only
-        assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
-        assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("\t\r\n")); // whitespace only
+        assertFalse(Name.isValidName("^")); // unsupported symbol
+        assertFalse(Name.isValidName("peter*")); // contains an unsupported symbol
+        assertFalse(Name.isValidName("12345")); // numbers only
+        assertFalse(Name.isValidName("peter the 2nd")); // contains numbers
+        assertFalse(Name.isValidName("John\tTan")); // internal tab
+        assertFalse(Name.isValidName("John\nTan")); // internal newline
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
-        assertTrue(Name.isValidName("12345")); // numbers only
-        assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
-        assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("David Roger Jackson Ray Junior")); // long names
+        assertTrue(Name.isValidName("O'Brien")); // apostrophe
+        assertTrue(Name.isValidName("Mary-Jane")); // hyphen
+        assertTrue(Name.isValidName("  Mary-Jane   O'Brien  ")); // extra spaces
+        assertTrue(Name.isValidName("A")); // one letter
+        assertTrue(Name.isValidName("Al")); // short name
+        assertTrue(Name.isValidName("Jo")); // short name
+        assertTrue(Name.isValidName("'A-")); // no additional punctuation-placement restriction
+    }
+
+    @Test
+    public void isValidName_punctuationOnly_returnsFalse() {
+        for (String name : new String[]{"-", "'", "---", "'''", " - ' "}) {
+            assertFalse(Name.isValidName(name));
+        }
+    }
+
+    @Test
+    public void isValidName_nonEnglishLetters_returnsFalse() {
+        for (String name : new String[]{"José Tan", "Аlex", "Ｊohn"}) {
+            assertFalse(Name.isValidName(name));
+        }
+    }
+
+    @Test
+    public void isValidName_lengthBoundaries_returnsExpectedResult() {
+        assertTrue(Name.isValidName("A".repeat(99)));
+        assertTrue(Name.isValidName("A".repeat(100)));
+        assertFalse(Name.isValidName("A".repeat(101)));
+    }
+
+    @Test
+    public void constructor_lengthBoundaries_enforcesLimit() {
+        for (int length : new int[]{99, 100}) {
+            String name = "A".repeat(length);
+            assertEquals(name, new Name(name).fullName);
+        }
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_LENGTH_CONSTRAINTS, () -> new Name("A".repeat(101)));
+    }
+
+    @Test
+    public void isValidName_extraSpaces_checksNormalizedLength() {
+        assertTrue(Name.isValidName("  " + "A".repeat(97) + "   B  "));
+        assertTrue(Name.isValidName("  " + "A".repeat(98) + "   B  "));
+        assertFalse(Name.isValidName("  " + "A".repeat(99) + "   B  "));
+    }
+
+    @Test
+    public void constructor_extraSpacesAtLengthBoundaries_checksNormalizedLength() {
+        for (int length : new int[]{99, 100}) {
+            String name = "  " + "A".repeat(length - 2) + "   B  ";
+            String normalizedName = "A".repeat(length - 2) + " B";
+            assertTrue(name.length() > 100);
+            assertEquals(normalizedName, new Name(name).fullName);
+        }
+        String overLimitName = "  " + "A".repeat(99) + "   B  ";
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_LENGTH_CONSTRAINTS, () -> new Name(overLimitName));
+    }
+
+    @Test
+    public void constructor_lengthAndFormatViolations_prioritizesLengthMessage() {
+        for (int length : new int[]{99, 100}) {
+            String invalidName = "  " + "A".repeat(length - 2) + "   !  ";
+            assertTrue(invalidName.length() > 100);
+            assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(invalidName));
+        }
+        String overLimitName = "  " + "A".repeat(99) + "   !  ";
+        assertThrows(IllegalArgumentException.class,
+                "Names must be at most 100 characters long after spaces are normalized.", ()
+                    -> new Name(overLimitName));
     }
 
     @Test
@@ -44,6 +131,12 @@ public class NameTest {
 
         // same values -> returns true
         assertTrue(name.equals(new Name("Valid Name")));
+
+        // same normalized values -> returns true
+        assertTrue(name.equals(new Name("  Valid   Name  ")));
+
+        // different capitalization -> returns false
+        assertFalse(name.equals(new Name("valid name")));
 
         // same object -> returns true
         assertTrue(name.equals(name));
@@ -56,5 +149,10 @@ public class NameTest {
 
         // different values -> returns false
         assertFalse(name.equals(new Name("Other Valid Name")));
+    }
+
+    @Test
+    public void hashCode_sameNormalizedName_returnsSameHashCode() {
+        assertEquals(new Name("Valid Name").hashCode(), new Name("  Valid   Name  ").hashCode());
     }
 }

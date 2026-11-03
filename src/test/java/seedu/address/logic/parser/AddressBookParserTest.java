@@ -4,26 +4,43 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Locale;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteItemCommand;
+import seedu.address.logic.commands.DeleteOrderCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PreorderCommand;
+import seedu.address.logic.commands.PreorderCommand.EditFulfilmentDescriptor;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.TrackCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.preorder.FulfilmentMethod;
+import seedu.address.model.preorder.ItemStatus;
+import seedu.address.model.search.SearchCriteria;
+import seedu.address.model.search.TagCriterion;
+import seedu.address.model.search.TextContainsCriterion;
+import seedu.address.model.tag.Tag;
+import seedu.address.testutil.EditFulfilmentDescriptorBuilder;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -34,7 +51,7 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
+        Person person = new PersonBuilder().withPostalCode("123456").build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
     }
@@ -53,12 +70,43 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_deleteItem() throws Exception {
+        DeleteItemCommand command = (DeleteItemCommand) parser.parseCommand(
+                DeleteItemCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " i/1");
+        assertEquals(new DeleteItemCommand(INDEX_FIRST_PERSON, INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_deleteOrder() throws Exception {
+        DeleteOrderCommand command = (DeleteOrderCommand) parser.parseCommand(
+                DeleteOrderCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new DeleteOrderCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_preorder() throws Exception {
+        PreorderCommand command = (PreorderCommand) parser.parseCommand(PreorderCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " f/2026-12-20 m/delivery h/Call on arrival");
+        EditFulfilmentDescriptor descriptor = new EditFulfilmentDescriptorBuilder().withDate("2026-12-20")
+                .withMethod(FulfilmentMethod.DELIVERY).withHandoverNotes("Call on arrival").build();
+        assertEquals(new PreorderCommand(INDEX_FIRST_PERSON, descriptor), command);
+    }
+
+    @Test
     public void parseCommand_edit() throws Exception {
         Person person = new PersonBuilder().build();
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
         EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
                 + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
         assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+    }
+
+    @Test
+    public void parseCommand_editWithUnsupportedPrefix_throwsParseException() {
+        for (String field : new String[]{"n/Amy Bee", "p/91234567", "e/amy@example.com", "c/012345"}) {
+            assertThrows(ParseException.class, "Unsupported prefix 'x/' for edit.", ()
+                -> parser.parseCommand("edit 1 " + field + " x/foo"));
+        }
     }
 
     @Test
@@ -69,10 +117,12 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_find() throws Exception {
-        List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+                FindCommand.COMMAND_WORD + " n/Alice Tan t/regular");
+        SearchCriteria criteria = new SearchCriteria(List.of(
+                new TextContainsCriterion(TextContainsCriterion.Field.NAME, "Alice Tan"),
+                new TagCriterion(new Tag("regular"))));
+        assertEquals(new FindCommand(criteria), command);
     }
 
     @Test
@@ -82,9 +132,78 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_sort() throws Exception {
+        String sortDateInput = SortCommand.COMMAND_WORD + " " + SortCommand.DATE_ARGUMENT;
+        assertEquals(new SortCommand(), parser.parseCommand(sortDateInput));
+    }
+
+    @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_track() throws Exception {
+        assertEquals(new TrackCommand(Optional.empty()), parser.parseCommand("track"));
+        assertEquals(new TrackCommand(Optional.empty()), parser.parseCommand("  track  "));
+    }
+
+    @Test
+    public void parseCommand_trackWithStatus() throws Exception {
+        for (ItemStatus status : ItemStatus.values()) {
+            TrackCommand expectedCommand = new TrackCommand(Optional.of(status));
+            assertEquals(expectedCommand, parser.parseCommand("track s/" + status));
+            assertEquals(expectedCommand, parser.parseCommand("track s/" + status.name().toLowerCase(Locale.ROOT)));
+        }
+        assertEquals(new TrackCommand(Optional.of(ItemStatus.PENDING)),
+                parser.parseCommand("  track\t s/ Pending  "));
+    }
+
+    @Test
+    public void parseCommand_invalidTrackFormat_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, TrackCommand.MESSAGE_USAGE);
+        String[] invalidCommands = {"track PENDING", "track 1 s/PENDING", "track S/PENDING", "track t/vip"};
+        for (String command : invalidCommands) {
+            assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+        }
+    }
+
+    @Test
+    public void parseCommand_invalidTrackStatus_throwsParseException() {
+        String[] invalidCommands = {"track s/", "track s/DONE"};
+        for (String command : invalidCommands) {
+            assertThrows(ParseException.class, ItemStatus.MESSAGE_CONSTRAINTS, () -> parser.parseCommand(command));
+        }
+        assertThrows(ParseException.class, "Unsupported prefix 't/' for track.", ()
+            -> parser.parseCommand("track s/PENDING t/vip"));
+        assertThrows(ParseException.class, "Unsupported prefix 'd/' for track.", ()
+            -> parser.parseCommand("track s/pending d/Cake"));
+    }
+
+    @Test
+    public void parseCommand_repeatedTrackStatus_throwsParseException() {
+        String expectedMessage = "Multiple values specified for the following single-valued field(s): s/";
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("track s/PENDING s/PREPARED"));
+    }
+
+    @Test
+    public void parseCommand_untag() throws Exception {
+        assertEquals(new UntagCommand(INDEX_FIRST_PERSON, new Tag("friends")),
+                parser.parseCommand(UntagCommand.COMMAND_WORD + " 1 t/friends"));
+    }
+
+    @Test
+    public void parseCommand_untagWithUnsupportedPrefix_throwsParseException() {
+        assertThrows(ParseException.class, "Unsupported prefix 'x/' for untag.", ()
+            -> parser.parseCommand("untag 1 t/VIP x/foo"));
+    }
+
+    @Test
+    public void parseCommand_tag() throws Exception {
+        TagCommand command = (TagCommand) parser.parseCommand(TagCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_TAG + VALID_TAG_HUSBAND);
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, new Tag(VALID_TAG_HUSBAND)), command);
     }
 
     @Test

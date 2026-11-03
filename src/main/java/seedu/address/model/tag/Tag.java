@@ -3,13 +3,24 @@ package seedu.address.model.tag;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Tag in the address book.
- * Guarantees: immutable; name is valid as declared in {@link #isValidTagName(String)}
+ * Guarantees: immutable; name is valid as declared in {@link #isValidTagName(String)}.
+ * Tags are compared case-insensitively, so {@code VIP} and {@code vip} are the same tag.
  */
 public class Tag {
 
-    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric";
+    /** Maximum length in UTF-16 code units. */
+    public static final int MAX_LENGTH = 30;
+
+    public static final String MESSAGE_CONSTRAINTS = "Tag names must not be blank and must contain only "
+            + "letters (A-Z, a-z) and digits (0-9), with no spaces or special characters. "
+            + "Examples: VIP, friends, regular123.";
+
+    public static final String MESSAGE_LENGTH_CONSTRAINTS = "Tag names must be at most " + MAX_LENGTH
+            + " characters long.";
     public static final String VALIDATION_REGEX = "\\p{Alnum}+";
 
     public final String tagName;
@@ -18,18 +29,32 @@ public class Tag {
      * Constructs a {@code Tag}.
      *
      * @param tagName A valid tag name.
+     * @throws NullPointerException If {@code tagName} is null.
+     * @throws IllegalArgumentException If {@code tagName} does not satisfy the tag constraints.
      */
     public Tag(String tagName) {
         requireNonNull(tagName);
-        checkArgument(isValidTagName(tagName), MESSAGE_CONSTRAINTS);
+        checkArgument(isValidTagName(tagName), getValidationErrorMessage(tagName));
         this.tagName = tagName;
     }
 
     /**
-     * Returns true if a given string is a valid tag name.
+     * Returns true if the string contains one or more ASCII letters or digits only.
+     * The tag name must have at most {@link #MAX_LENGTH} UTF-16 code units.
+     * Whitespace is not trimmed before validation.
+     *
+     * @throws NullPointerException If {@code test} is null.
      */
     public static boolean isValidTagName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.length() <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns the length constraint message if the tag name exceeds the limit,
+     * or the format constraint message otherwise. Length violations take precedence over invalid characters.
+     */
+    public static String getValidationErrorMessage(String test) {
+        return test.length() > MAX_LENGTH ? MESSAGE_LENGTH_CONSTRAINTS : MESSAGE_CONSTRAINTS;
     }
 
     @Override
@@ -43,12 +68,12 @@ public class Tag {
             return false;
         }
 
-        return tagName.equals(otherTag.tagName);
+        return tagName.equalsIgnoreCase(otherTag.tagName);
     }
 
     @Override
     public int hashCode() {
-        return tagName.hashCode();
+        return tagName.toLowerCase(Locale.ROOT).hashCode();
     }
 
     /**

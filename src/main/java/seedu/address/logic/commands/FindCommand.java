@@ -1,35 +1,61 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DETAILS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FULFILMENT_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FULFILMENT_METHOD;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_HANDOVER_NOTES;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_POSTAL_CODE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STATUS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.search.SearchCriteria;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists customers who satisfy every supplied search criterion.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    // The matching rules for each field are in the user guide, so this stays short enough to read at a glance
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds customers matching all supplied criteria.\n"
+            + "Parameters (at least one, each at most once): [" + PREFIX_NAME + "NAME] [" + PREFIX_PHONE + "PHONE] ["
+            + PREFIX_EMAIL + "EMAIL] [" + PREFIX_ADDRESS + "ADDRESS] ["
+            + PREFIX_POSTAL_CODE + "POSTAL_CODE_PREFIX] [" + PREFIX_TAG + "TAG] ["
+            + PREFIX_DETAILS + "PRODUCT] [" + PREFIX_STATUS + "STATUS] ["
+            + PREFIX_FULFILMENT_DATE + "YYYY-MM-DD] [" + PREFIX_FULFILMENT_METHOD + "METHOD] ["
+            + PREFIX_HANDOVER_NOTES + "HANDOVER_NOTES]\n"
+            + "Example: " + COMMAND_WORD + " " + PREFIX_POSTAL_CODE + "53 "
+            + PREFIX_FULFILMENT_DATE + "2026-12-20 " + PREFIX_FULFILMENT_METHOD + "delivery "
+            + PREFIX_HANDOVER_NOTES + "arrival";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private final SearchCriteria criteria;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
-        this.predicate = predicate;
+    /**
+     * Creates a command that lists customers satisfying {@code criteria}.
+     *
+     * @throws NullPointerException If {@code criteria} is null.
+     * @throws IllegalArgumentException If {@code criteria} is empty.
+     */
+    public FindCommand(SearchCriteria criteria) {
+        this.criteria = requireNonNull(criteria);
+        checkArgument(!criteria.isEmpty(), "Find requires at least one search criterion.");
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
+        model.updateFilteredPersonList(criteria);
         return new CommandResult(
                 String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
     }
@@ -45,13 +71,18 @@ public class FindCommand extends Command {
             return false;
         }
 
-        return predicate.equals(otherFindCommand.predicate);
+        return criteria.equals(otherFindCommand.criteria);
+    }
+
+    @Override
+    public int hashCode() {
+        return criteria.hashCode();
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("predicate", predicate)
+                .add("criteria", criteria)
                 .toString();
     }
 }

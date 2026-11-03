@@ -5,9 +5,11 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.preorder.Preorder;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,18 +25,29 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final PostalCode postalCode;
     private final Set<Tag> tags = new HashSet<>();
+    private final Preorder preorder; // null when the customer has no current preorder
+
+    /** Creates a person without a preorder. Every field must be present and not null. */
+    public Person(Name name, Phone phone, Email email, Address address, PostalCode postalCode, Set<Tag> tags) {
+        this(name, phone, email, address, postalCode, tags, Optional.empty());
+    }
 
     /**
-     * Every field must be present and not null.
+     * Creates a person with the given details and preorder.
+     * Every argument must be non-null. Use {@code Optional.empty()} for a person without a preorder.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, PostalCode postalCode, Set<Tag> tags,
+            Optional<Preorder> preorder) {
+        requireAllNonNull(name, phone, email, address, postalCode, tags, preorder);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.postalCode = postalCode;
         this.tags.addAll(tags);
+        this.preorder = preorder.orElse(null);
     }
 
     public Name getName() {
@@ -53,6 +66,10 @@ public class Person {
         return address;
     }
 
+    public PostalCode getPostalCode() {
+        return postalCode;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,7 +79,15 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns the person's current preorder, or an empty {@code Optional} if there is none.
+     */
+    public Optional<Preorder> getPreorder() {
+        return Optional.ofNullable(preorder);
+    }
+
+    /**
+     * Returns true if both persons have the same normalized name, ignoring capitalization.
+     * Leading, trailing and consecutive spaces are normalized by {@link Name}.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +96,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().fullName.equalsIgnoreCase(getName().fullName);
     }
 
     /**
@@ -93,13 +118,15 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && Objects.equals(postalCode, otherPerson.postalCode)
+                && tags.equals(otherPerson.tags)
+                && Objects.equals(preorder, otherPerson.preorder);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, postalCode, tags, preorder);
     }
 
     @Override
@@ -109,7 +136,9 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("postalCode", postalCode)
                 .add("tags", tags)
+                .add("preorder", getPreorder())
                 .toString();
     }
 

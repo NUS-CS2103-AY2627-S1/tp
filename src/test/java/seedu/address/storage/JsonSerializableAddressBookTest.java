@@ -2,15 +2,20 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
+import seedu.address.model.person.Name;
+import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.TypicalPersons;
 
 public class JsonSerializableAddressBookTest {
@@ -19,6 +24,11 @@ public class JsonSerializableAddressBookTest {
     private static final Path TYPICAL_PERSONS_FILE = TEST_DATA_FOLDER.resolve("typicalPersonsAddressBook.json");
     private static final Path INVALID_PERSON_FILE = TEST_DATA_FOLDER.resolve("invalidPersonAddressBook.json");
     private static final Path DUPLICATE_PERSON_FILE = TEST_DATA_FOLDER.resolve("duplicatePersonAddressBook.json");
+    private static final Path NAMES_WITH_EXTRA_SPACES_FILE =
+            TEST_DATA_FOLDER.resolve("namesWithExtraSpacesAddressBook.json");
+    private static final Path INVALID_NAME_FILE = TEST_DATA_FOLDER.resolve("invalidNameAddressBook.json");
+    private static final Path CASE_AND_SPACING_DUPLICATE_PERSON_FILE =
+            TEST_DATA_FOLDER.resolve("caseAndSpacingDuplicatePersonAddressBook.json");
 
     @Test
     public void toModelType_typicalPersonsFile_success() throws Exception {
@@ -27,6 +37,25 @@ public class JsonSerializableAddressBookTest {
         AddressBook addressBookFromFile = dataFromFile.toModelType();
         AddressBook typicalPersonsAddressBook = TypicalPersons.getTypicalAddressBook();
         assertEquals(addressBookFromFile, typicalPersonsAddressBook);
+    }
+
+    @Test
+    public void toModelType_namesWithExtraSpacesFile_success() throws Exception {
+        JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(NAMES_WITH_EXTRA_SPACES_FILE,
+                JsonSerializableAddressBook.class).get();
+        AddressBook expectedAddressBook = new AddressBook();
+        expectedAddressBook.addPerson(new PersonBuilder(ALICE).withName("mArY-JaNe O'BrIeN").build());
+        expectedAddressBook.addPerson(new PersonBuilder(BENSON).withName("Jose Tan").build());
+
+        assertEquals(expectedAddressBook, dataFromFile.toModelType());
+    }
+
+    @Test
+    public void toModelType_nameWithDigitsFile_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(INVALID_NAME_FILE,
+                JsonSerializableAddressBook.class).get();
+
+        assertThrows(IllegalValueException.class, Name.MESSAGE_CONSTRAINTS, dataFromFile::toModelType);
     }
 
     @Test
@@ -40,6 +69,24 @@ public class JsonSerializableAddressBookTest {
     public void toModelType_duplicatePersons_throwsIllegalValueException() throws Exception {
         JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(DUPLICATE_PERSON_FILE,
                 JsonSerializableAddressBook.class).get();
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_PERSON,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidPostalCode_throwsIllegalValueException() {
+        JsonAdaptedPerson invalidPerson = new JsonAdaptedPerson(
+                "Alice Pauline", "94351253", "alice@example.com", "123, Jurong West Ave 6, #08-111",
+                "12345", List.of());
+        JsonSerializableAddressBook data = new JsonSerializableAddressBook(List.of(invalidPerson));
+        assertThrows(IllegalValueException.class, data::toModelType);
+    }
+
+    @Test
+    public void toModelType_caseAndSpacingDuplicatePersons_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(CASE_AND_SPACING_DUPLICATE_PERSON_FILE,
+                JsonSerializableAddressBook.class).get();
+
         assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_PERSON,
                 dataFromFile::toModelType);
     }

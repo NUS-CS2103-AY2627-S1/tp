@@ -12,16 +12,75 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.preorder.Item;
+import seedu.address.model.preorder.ItemStatus;
+import seedu.address.model.preorder.Preorder;
+import seedu.address.testutil.ItemBuilder;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
 
     @Test
+    public void constructor_nullPostalCode_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), null, ALICE.getTags()));
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), null, ALICE.getTags(), Optional.empty()));
+    }
+
+    @Test
     public void asObservableList_modifyList_throwsUnsupportedOperationException() {
         Person person = new PersonBuilder().build();
         assertThrows(UnsupportedOperationException.class, () -> person.getTags().remove(0));
+    }
+
+    @Test
+    public void constructor_nullPreorder_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), ALICE.getPostalCode(), ALICE.getTags(), null));
+    }
+
+    @Test
+    public void getPreorder_createdWithoutPreorder_returnsEmpty() {
+        Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getPostalCode(), ALICE.getTags());
+        assertEquals(Optional.empty(), person.getPreorder());
+    }
+
+    @Test
+    public void getPreorder_createdWithPreorder_returnsPreorder() {
+        Item tarts = new ItemBuilder().build();
+        Person person = new PersonBuilder(ALICE).withPreorder(tarts).build();
+        assertEquals(Optional.of(new Preorder(List.of(tarts))), person.getPreorder());
+    }
+
+    @Test
+    public void constructor_withPostalCode_preservesOptionalPreorder() {
+        Preorder preorder = new Preorder(List.of(new ItemBuilder().build()));
+        for (Optional<Preorder> optionalPreorder : List.of(Optional.<Preorder>empty(), Optional.of(preorder))) {
+            Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                    ALICE.getPostalCode(), ALICE.getTags(), optionalPreorder);
+            assertEquals(ALICE.getPostalCode(), person.getPostalCode());
+            assertEquals(optionalPreorder, person.getPreorder());
+        }
+    }
+
+    @Test
+    public void equals_postalCodeChanges_equalityChangesButIdentityDoesNot() {
+        Person original = new PersonBuilder(ALICE).withPostalCode("012345").build();
+        Person copy = new PersonBuilder(original).build();
+        Person differentPostalCode = new PersonBuilder(original).withPostalCode("654321").build();
+
+        assertEquals(original, copy);
+        assertEquals(original.hashCode(), copy.hashCode());
+        assertFalse(original.equals(differentPostalCode));
+        assertFalse(differentPostalCode.equals(original));
+        assertTrue(original.isSamePerson(differentPostalCode));
     }
 
     @Test
@@ -41,14 +100,32 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
-        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        // name differs in case, all other attributes same -> returns true
+        Person editedBob = new PersonBuilder(BOB).withName("bob choo").build();
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void isSamePerson_nameDiffersOnlyInCaseAndSpaces_returnsTrue() {
+        Person editedAlice = new PersonBuilder(ALICE).withName("  aLiCe   pAuLiNe  ")
+                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB).withAddress(VALID_ADDRESS_BOB)
+                .withTags(VALID_TAG_HUSBAND).build();
+        assertTrue(ALICE.isSamePerson(editedAlice));
+        assertTrue(editedAlice.isSamePerson(ALICE));
+    }
+
+    @Test
+    public void isSamePerson_differentWordBoundariesOrPunctuation_returnsFalse() {
+        Person person = new PersonBuilder().withName("Mary-Jane O'Brien").build();
+        for (String differentName : new String[]{"Mary Jane O'Brien", "Mary-Jane OBrien", "Mary-JaneO'Brien"}) {
+            Person otherPerson = new PersonBuilder(person).withName(differentName).build();
+            assertFalse(person.isSamePerson(otherPerson));
+        }
     }
 
     @Test
@@ -73,6 +150,10 @@ public class PersonTest {
         Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different capitalization -> returns false
+        editedAlice = new PersonBuilder(ALICE).withName("ALICE PAULINE").build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different phone -> returns false
         editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
@@ -88,12 +169,33 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // one has a preorder, the other does not -> returns false
+        Person aliceWithPreorder = new PersonBuilder(ALICE).withPreorder("2 chocolate cakes", ItemStatus.PENDING)
+                .build();
+        assertFalse(ALICE.equals(aliceWithPreorder));
+
+        // same preorder -> returns true
+        assertTrue(aliceWithPreorder.equals(new PersonBuilder(aliceWithPreorder).build()));
+
+        // different preorder status -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPreorder("2 chocolate cakes", ItemStatus.COMPLETED).build();
+        assertFalse(aliceWithPreorder.equals(editedAlice));
+    }
+
+    @Test
+    public void hashCode_equalPersonsWithPreorder_sameHashCode() {
+        Person aliceWithPreorder = new PersonBuilder(ALICE).withPreorder("2 chocolate cakes", ItemStatus.PENDING)
+                .build();
+        assertEquals(aliceWithPreorder.hashCode(), new PersonBuilder(aliceWithPreorder).build().hashCode());
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", postalCode="
+                + ALICE.getPostalCode() + ", tags=" + ALICE.getTags()
+                + ", preorder=" + ALICE.getPreorder() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

@@ -1,21 +1,33 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_ITEM_INDEX;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.preorder.FulfilmentDate;
+import seedu.address.model.preorder.FulfilmentMethod;
+import seedu.address.model.preorder.HandoverNotes;
+import seedu.address.model.preorder.ItemName;
+import seedu.address.model.preorder.ItemStatus;
+import seedu.address.model.preorder.Quantity;
+import seedu.address.model.preorder.Remark;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
@@ -24,15 +36,182 @@ public class ParserUtilTest {
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_ITEM_NAME = "Pineapple Tarts\nAlmond Cookies"; // more than one line
+    private static final String INVALID_QUANTITY = "0";
+    private static final String INVALID_REMARK = "Less sugar\nNo nuts"; // more than one line
+    private static final String INVALID_ITEM_STATUS = "done";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "91234567";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_ITEM_NAME = "Pineapple Tarts";
+    private static final String VALID_QUANTITY = "12";
+    private static final String VALID_REMARK = "Less sugar";
+    private static final String VALID_HANDOVER_NOTES = "Call on arrival";
+    private static final String INVALID_HANDOVER_NOTES = "Call on arrival\nLeave at door"; // more than one line
 
     private static final String WHITESPACE = " \t\r\n";
+
+    @Test
+    public void findUnsupportedPrefix_nullInput_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.findUnsupportedPrefix(null));
+        assertThrows(NullPointerException.class, () -> ParserUtil.findUnsupportedPrefix("1", (Prefix[]) null));
+    }
+
+    @Test
+    public void findUnsupportedPrefix_whitespaceBoundary_returnsPrefix() {
+        for (String separator : List.of(" ", "\t", "\n", "\r\n", " \t ")) {
+            assertEquals(Optional.of(new Prefix("x/")),
+                    ParserUtil.findUnsupportedPrefix("1" + separator + "x/2", CliSyntax.PREFIX_ITEM_INDEX));
+        }
+    }
+
+    @Test
+    public void findUnsupportedPrefix_letterBasedTokens_preservesPrefix() {
+        for (String prefix : List.of("x/", "Q/", "status/")) {
+            assertEquals(Optional.of(new Prefix(prefix)),
+                    ParserUtil.findUnsupportedPrefix("1 " + prefix + "2", CliSyntax.PREFIX_ITEM_INDEX));
+        }
+    }
+
+    @Test
+    public void findUnsupportedPrefix_commandSpecificSupport_skipsSupportedPrefixes() {
+        assertEquals(Optional.empty(),
+                ParserUtil.findUnsupportedPrefix("1 i/2 q/3", CliSyntax.PREFIX_ITEM_INDEX, CliSyntax.PREFIX_QUANTITY));
+        assertEquals(Optional.of(CliSyntax.PREFIX_QUANTITY),
+                ParserUtil.findUnsupportedPrefix("1 i/2 q/3", CliSyntax.PREFIX_ITEM_INDEX));
+    }
+
+    @Test
+    public void findUnsupportedPrefix_multipleUnsupportedPrefixes_returnsFirst() {
+        assertEquals(Optional.of(new Prefix("x/")),
+                ParserUtil.findUnsupportedPrefix("1 i/2 x/3 q/4", CliSyntax.PREFIX_ITEM_INDEX));
+    }
+
+    @Test
+    public void findUnsupportedPrefix_noPrefixBoundary_returnsEmpty() {
+        for (String value : List.of("", "1", "1x/2", "x/2", "1 x /2", "1 #04/08",
+                "1 https://example.com/path", "1 2x/3")) {
+            assertEquals(Optional.empty(), ParserUtil.findUnsupportedPrefix(value, CliSyntax.PREFIX_ITEM_INDEX));
+        }
+    }
+
+    @Test
+    public void createFieldParseException_unsupportedPrefix_usesCommandWordAndPreservesCause() {
+        ParseException cause = new ParseException(ItemStatus.MESSAGE_CONSTRAINTS);
+        for (String commandWord : List.of("track", "find")) {
+            ParseException actual = ParserUtil.createFieldParseException("invalid s/pending X/foo y/bar", cause,
+                    commandWord, CliSyntax.PREFIX_STATUS);
+            assertEquals("Unsupported prefix 'X/' for " + commandWord + ".", actual.getMessage());
+            assertSame(cause, actual.getCause());
+        }
+    }
+
+    @Test
+    public void createFieldParseException_noUnsupportedPrefix_keepsOriginalMessageAndCause() {
+        ParseException cause = new ParseException(ItemStatus.MESSAGE_CONSTRAINTS);
+        for (String value : List.of("done", "donex/foo", "done s/pending")) {
+            ParseException actual = ParserUtil.createFieldParseException(value, cause, "track",
+                    CliSyntax.PREFIX_STATUS);
+            assertEquals(ItemStatus.MESSAGE_CONSTRAINTS, actual.getMessage());
+            assertSame(cause, actual.getCause());
+        }
+    }
+
+    @Test
+    public void createFieldParseException_customFallback_usesFallbackAndPreservesCause() {
+        ParseException cause = new ParseException(MESSAGE_INVALID_INDEX);
+        ParseException actual = ParserUtil.createFieldParseException("0", cause, "deleteitem",
+                MESSAGE_INVALID_ITEM_INDEX, CliSyntax.PREFIX_ITEM_INDEX);
+        assertEquals(MESSAGE_INVALID_ITEM_INDEX, actual.getMessage());
+        assertSame(cause, actual.getCause());
+    }
+
+    @Test
+    public void createFieldParseException_customFallbackWithUnsupportedPrefix_namesPrefix() {
+        ParseException cause = new ParseException(MESSAGE_INVALID_INDEX);
+        ParseException actual = ParserUtil.createFieldParseException("1 x/foo", cause, "deleteitem",
+                MESSAGE_INVALID_ITEM_INDEX, CliSyntax.PREFIX_ITEM_INDEX);
+        assertEquals("Unsupported prefix 'x/' for deleteitem.", actual.getMessage());
+        assertSame(cause, actual.getCause());
+    }
+
+    @Test
+    public void parseFulfilmentDate_validAndInvalidCalendarDates() throws Exception {
+        assertEquals(new FulfilmentDate("2024-02-29"), ParserUtil.parseFulfilmentDate(" 2024-02-29 "));
+        assertEquals(new FulfilmentDate("2000-01-01"), ParserUtil.parseFulfilmentDate("2000-01-01"));
+        for (String date : List.of("2026-02-29", "2026-02-30", "2026-1-05", "2026/12/20", "",
+                "0026-12-20", "1999-12-31")) {
+            assertThrows(ParseException.class, FulfilmentDate.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseFulfilmentDate(date));
+        }
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFulfilmentDate(null));
+    }
+
+    @Test
+    public void parseFulfilmentMethod_normalizesCaseAndRejectsUnknownMethods() throws Exception {
+        assertEquals(FulfilmentMethod.DELIVERY, ParserUtil.parseFulfilmentMethod(" delivery "));
+        assertEquals(FulfilmentMethod.COLLECTION, ParserUtil.parseFulfilmentMethod("CoLlEcTiOn"));
+        assertThrows(ParseException.class, FulfilmentMethod.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseFulfilmentMethod("pickup"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFulfilmentMethod(null));
+    }
+
+    @Test
+    public void parsePreambleIndex_invalidIndex_usesSuppliedMessage() {
+        ArgumentMultimap args = ArgumentTokenizer.tokenize("0 t/VIP", CliSyntax.PREFIX_TAG);
+        assertThrows(ParseException.class, "Expected a positive index", ()
+            -> ParserUtil.parsePreambleIndex(args, "Expected a positive index"));
+    }
+
+    @Test
+    public void parseSingleTag_missingPrefix_usesSuppliedMessage() {
+        ArgumentMultimap args = ArgumentTokenizer.tokenize("1", CliSyntax.PREFIX_TAG);
+        for (String commandWord : List.of("tag", "untag")) {
+            assertThrows(ParseException.class, "Expected t/TAG", ()
+                -> ParserUtil.parseSingleTag(args, "Expected t/TAG", commandWord));
+        }
+    }
+
+    @Test
+    public void parseSingleTag_validTag_returnsTag() throws Exception {
+        ArgumentMultimap args = ArgumentTokenizer.tokenize("1 t/  VIP123  ", CliSyntax.PREFIX_TAG);
+        for (String commandWord : List.of("tag", "untag")) {
+            assertEquals(new Tag("VIP123"), ParserUtil.parseSingleTag(args, "Expected t/TAG", commandWord));
+        }
+    }
+
+    @Test
+    public void parseSingleTag_duplicatePrefixes_reportsDuplicateBeforeTagError() {
+        ArgumentMultimap args = ArgumentTokenizer.tokenize("1 t/VIP t/friends x/foo", CliSyntax.PREFIX_TAG);
+        for (String commandWord : List.of("tag", "untag")) {
+            assertThrows(ParseException.class, Messages.getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_TAG), ()
+                -> ParserUtil.parseSingleTag(args, "Expected t/TAG", commandWord));
+        }
+    }
+
+    @Test
+    public void parseSingleTag_invalidTag_keepsConstraintMessage() {
+        for (String commandWord : List.of("tag", "untag")) {
+            for (String value : List.of("", "close friends", "VIP!", "VIPx/foo")) {
+                ArgumentMultimap args = ArgumentTokenizer.tokenize("1 t/" + value, CliSyntax.PREFIX_TAG);
+                assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, ()
+                    -> ParserUtil.parseSingleTag(args, "Expected t/TAG", commandWord));
+            }
+        }
+    }
+
+    @Test
+    public void parseSingleTag_unsupportedPrefix_usesCommandWord() {
+        ArgumentMultimap args = ArgumentTokenizer.tokenize("1 t/VIP x/foo p/91234567", CliSyntax.PREFIX_TAG);
+        for (String commandWord : List.of("tag", "untag")) {
+            assertThrows(ParseException.class, "Unsupported prefix 'x/' for " + commandWord + ".", ()
+                -> ParserUtil.parseSingleTag(args, "Expected t/TAG", commandWord));
+        }
+    }
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
@@ -40,9 +219,18 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseIndex_outOfRangeInput_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+    public void parseIndex_overflowingPositiveValue_returnsOutOfRangeIndex() throws Exception {
+        Index outOfRangeIndex = Index.fromZeroBased(Integer.MAX_VALUE);
+        assertEquals(outOfRangeIndex, ParserUtil.parseIndex("2147483648"));
+        assertEquals(outOfRangeIndex, ParserUtil.parseIndex("9".repeat(1000)));
+    }
+
+    @Test
+    public void parseIndex_nonPositiveOrMalformedValue_throwsParseException() {
+        for (String invalidIndex : List.of("", "0", "000", "-1", "+1", "1.5", "1 a")) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
+                    -> ParserUtil.parseIndex(invalidIndex));
+        }
     }
 
     @Test
@@ -61,7 +249,10 @@ public class ParserUtilTest {
 
     @Test
     public void parseName_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseName(INVALID_NAME));
+        for (String invalidName : new String[]{INVALID_NAME, "John2", " ", "John\tTan", "-", "'", " - ' ",
+            "José Tan"}) {
+            assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName(invalidName));
+        }
     }
 
     @Test
@@ -75,6 +266,24 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_commonNameWithExtraSpaces_returnsNormalizedName() throws Exception {
+        Name parsedName = ParserUtil.parseName("  Mary-Jane   O'Brien  ");
+        assertEquals("Mary-Jane O'Brien", parsedName.fullName);
+    }
+
+    @Test
+    public void parseName_lengthBoundaries_checksNormalizedLength() throws Exception {
+        for (int length : new int[]{99, 100}) {
+            String normalizedName = "A".repeat(length - 2) + " B";
+            String input = WHITESPACE + "A".repeat(length - 2) + "   B" + WHITESPACE;
+            assertTrue(input.length() > 100);
+            assertEquals(normalizedName, ParserUtil.parseName(input).fullName);
+        }
+        String overLimitName = WHITESPACE + "A".repeat(99) + "   B" + WHITESPACE;
+        assertThrows(ParseException.class, Name.MESSAGE_LENGTH_CONSTRAINTS, () -> ParserUtil.parseName(overLimitName));
     }
 
     @Test
@@ -124,6 +333,28 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAddress_lengthBoundaries_checksTrimmedLength() throws Exception {
+        for (int length : new int[]{299, 300}) {
+            String address = "A".repeat(length);
+            assertEquals(address, ParserUtil.parseAddress(WHITESPACE + address + WHITESPACE).value);
+        }
+        String overLimitAddress = WHITESPACE + "A".repeat(301) + WHITESPACE;
+        assertThrows(ParseException.class, Address.MESSAGE_LENGTH_CONSTRAINTS, ()
+            -> ParserUtil.parseAddress(overLimitAddress));
+    }
+
+    @Test
+    public void parseAddress_supplementaryCharacters_countsUtf16CodeUnits() throws Exception {
+        String emoji = "\uD83D\uDE00";
+        for (String address : new String[]{emoji.repeat(149) + "A", emoji.repeat(150)}) {
+            assertEquals(address, ParserUtil.parseAddress(WHITESPACE + address + WHITESPACE).value);
+        }
+        String overLimitAddress = emoji.repeat(150) + "A";
+        assertThrows(ParseException.class, Address.MESSAGE_LENGTH_CONSTRAINTS, ()
+            -> ParserUtil.parseAddress(overLimitAddress));
+    }
+
+    @Test
     public void parseEmail_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
     }
@@ -144,6 +375,17 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseEmail_lengthBoundaries_checksTrimmedLength() throws Exception {
+        for (int length : new int[]{253, 254}) {
+            String email = createEmailWithLength(length);
+            assertEquals(email, ParserUtil.parseEmail(WHITESPACE + email + WHITESPACE).value);
+        }
+        String overLimitEmail = WHITESPACE + createEmailWithLength(255) + WHITESPACE;
+        assertThrows(ParseException.class, Email.MESSAGE_LENGTH_CONSTRAINTS, ()
+            -> ParserUtil.parseEmail(overLimitEmail));
     }
 
     @Test
@@ -170,6 +412,16 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseTag_lengthBoundaries_checksTrimmedLength() throws Exception {
+        for (int length : new int[]{29, 30}) {
+            String tag = "A".repeat(length);
+            assertEquals(tag, ParserUtil.parseTag(WHITESPACE + tag + WHITESPACE).tagName);
+        }
+        String overLimitTag = WHITESPACE + "A".repeat(31) + WHITESPACE;
+        assertThrows(ParseException.class, Tag.MESSAGE_LENGTH_CONSTRAINTS, () -> ParserUtil.parseTag(overLimitTag));
+    }
+
+    @Test
     public void parseTags_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseTags(null));
     }
@@ -190,5 +442,219 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTags_lengthBoundaries_checksEachTag() throws Exception {
+        String belowLimitTag = "A".repeat(29);
+        String atLimitTag = "B".repeat(30);
+        assertEquals(Set.of(new Tag(belowLimitTag), new Tag(atLimitTag)),
+                ParserUtil.parseTags(List.of(belowLimitTag, atLimitTag)));
+        assertThrows(ParseException.class, Tag.MESSAGE_LENGTH_CONSTRAINTS, () ->
+                ParserUtil.parseTags(List.of(atLimitTag, "C".repeat(31))));
+    }
+
+    @Test
+    public void parseItemName_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseItemName(null));
+    }
+
+    @Test
+    public void parseItemName_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, ItemName.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseItemName(INVALID_ITEM_NAME));
+        assertThrows(ParseException.class, () -> ParserUtil.parseItemName(WHITESPACE));
+        assertThrows(ParseException.class, () -> ParserUtil.parseItemName("a".repeat(ItemName.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseItemName_validValueWithWhitespace_returnsTrimmedItemName() throws Exception {
+        String nameWithWhitespace = WHITESPACE + VALID_ITEM_NAME + WHITESPACE;
+        assertEquals(new ItemName(VALID_ITEM_NAME), ParserUtil.parseItemName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseItemName_unicodeSpacesOnly_throwsParseException() {
+        assertThrows(ParseException.class, ItemName.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseItemName("\u2003"));
+    }
+
+    @Test
+    public void parseItemName_repeatedSpaces_returnsItemNameWithOneSpace() throws Exception {
+        assertEquals("Butter Cake", ParserUtil.parseItemName("Butter   Cake").value);
+        assertEquals("Butter Cake", ParserUtil.parseItemName("\u2003Butter\u2003Cake\u00A0").value);
+    }
+
+    @Test
+    public void parseItemName_maxLengthAfterTrimming_returnsItemName() throws Exception {
+        String longestName = "a".repeat(ItemName.MAX_LENGTH);
+        assertEquals(new ItemName(longestName), ParserUtil.parseItemName(" " + longestName + " "));
+    }
+
+    @Test
+    public void parseQuantity_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseQuantity(null));
+    }
+
+    @Test
+    public void parseQuantity_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Quantity.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseQuantity(INVALID_QUANTITY));
+        assertThrows(ParseException.class, () -> ParserUtil.parseQuantity(WHITESPACE));
+        assertThrows(ParseException.class, () -> ParserUtil.parseQuantity("1 2"));
+    }
+
+    @Test
+    public void parseQuantity_validValueWithWhitespace_returnsTrimmedQuantity() throws Exception {
+        String quantityWithWhitespace = WHITESPACE + VALID_QUANTITY + WHITESPACE;
+        assertEquals(new Quantity(VALID_QUANTITY), ParserUtil.parseQuantity(quantityWithWhitespace));
+    }
+
+    @Test
+    public void parseRemark_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseRemark(null));
+    }
+
+    @Test
+    public void parseRemark_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Remark.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseRemark(INVALID_REMARK));
+        assertThrows(ParseException.class, () -> ParserUtil.parseRemark(WHITESPACE));
+        assertThrows(ParseException.class, () -> ParserUtil.parseRemark("a".repeat(Remark.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseRemark_validValueWithWhitespace_returnsTrimmedRemark() throws Exception {
+        String remarkWithWhitespace = WHITESPACE + VALID_REMARK + WHITESPACE;
+        assertEquals(new Remark(VALID_REMARK), ParserUtil.parseRemark(remarkWithWhitespace));
+        assertEquals(new Remark(VALID_REMARK), ParserUtil.parseRemark("\u2003" + VALID_REMARK + "\u2003"));
+    }
+
+    @Test
+    public void parseRemark_unicodeSpacesOnly_throwsParseException() {
+        assertThrows(ParseException.class, Remark.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseRemark("\u2003"));
+    }
+
+    @Test
+    public void parseRemark_noBreakSpacesAround_returnsTrimmedRemark() throws Exception {
+        assertEquals(new Remark(VALID_REMARK), ParserUtil.parseRemark("\u00A0" + VALID_REMARK + "\u202F"));
+        assertEquals(new Remark("Less\u00A0 sugar"), ParserUtil.parseRemark("\u2007Less\u00A0 sugar\u00A0"));
+    }
+
+    @Test
+    public void parseFreeText_slashesRejected() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseRemark("Pack w/o nuts x/2"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseHandoverNotes("Leave w/o ringing x/2"));
+    }
+
+    @Test
+    public void parseItemStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseItemStatus(null));
+    }
+
+    @Test
+    public void parseItemStatus_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, ItemStatus.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseItemStatus(INVALID_ITEM_STATUS));
+        assertThrows(ParseException.class, () -> ParserUtil.parseItemStatus(WHITESPACE));
+    }
+
+    @Test
+    public void parseItemStatus_anyLetterCase_returnsStatus() throws Exception {
+        assertEquals(ItemStatus.PENDING, ParserUtil.parseItemStatus("PENDING"));
+        assertEquals(ItemStatus.PENDING, ParserUtil.parseItemStatus("pending"));
+        assertEquals(ItemStatus.PREPARED, ParserUtil.parseItemStatus("Prepared"));
+        assertEquals(ItemStatus.COMPLETED, ParserUtil.parseItemStatus(WHITESPACE + "completed" + WHITESPACE));
+    }
+
+    @Test
+    public void parseHandoverNotes_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseHandoverNotes(null));
+    }
+
+    @Test
+    public void parseHandoverNotes_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, HandoverNotes.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseHandoverNotes(INVALID_HANDOVER_NOTES));
+        assertThrows(ParseException.class, () -> ParserUtil.parseHandoverNotes(WHITESPACE));
+        assertThrows(ParseException.class, ()
+            -> ParserUtil.parseHandoverNotes("a".repeat(HandoverNotes.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseHandoverNotes_validValueWithWhitespace_returnsTrimmedHandoverNotes() throws Exception {
+        String handoverNotesWithWhitespace = WHITESPACE + VALID_HANDOVER_NOTES + WHITESPACE;
+        assertEquals(new HandoverNotes(VALID_HANDOVER_NOTES),
+                ParserUtil.parseHandoverNotes(handoverNotesWithWhitespace));
+        assertEquals(new HandoverNotes(VALID_HANDOVER_NOTES),
+                ParserUtil.parseHandoverNotes("\u2003" + VALID_HANDOVER_NOTES + "\u2003"));
+    }
+
+    @Test
+    public void parseHandoverNotes_noBreakSpacesAround_returnsTrimmedHandoverNotes() throws Exception {
+        assertEquals(new HandoverNotes(VALID_HANDOVER_NOTES),
+                ParserUtil.parseHandoverNotes("\u00A0" + VALID_HANDOVER_NOTES + "\u202F"));
+        assertEquals(new HandoverNotes("Call\u00A0 on arrival"),
+                ParserUtil.parseHandoverNotes("\u2007Call\u00A0 on arrival\u00A0"));
+    }
+
+    @Test
+    public void parseHandoverNotes_unicodeSpacesOnly_throwsParseException() {
+        assertThrows(ParseException.class, HandoverNotes.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseHandoverNotes("\u2003"));
+    }
+
+    @Test
+    public void parseHandoverNotes_maximumLength_returnsHandoverNotes() throws Exception {
+        String longestHandoverNotes = "a".repeat(HandoverNotes.MAX_LENGTH);
+        assertEquals(new HandoverNotes(longestHandoverNotes), ParserUtil.parseHandoverNotes(longestHandoverNotes));
+    }
+
+    @Test
+    public void parseName_lengthAndFormatViolations_prioritizesLengthMessage() {
+        for (int length : new int[]{99, 100}) {
+            String invalidName = WHITESPACE + "A".repeat(length - 2) + "   !" + WHITESPACE;
+            assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName(invalidName));
+        }
+        String overLimitName = WHITESPACE + "A".repeat(99) + "   !" + WHITESPACE;
+        assertThrows(ParseException.class,
+                "Names must be at most 100 characters long after spaces are normalized.", ()
+                    -> ParserUtil.parseName(overLimitName));
+    }
+
+    @Test
+    public void parseAddress_lengthAndFormatViolations_prioritizesLengthMessage() {
+        for (int length : new int[]{299, 300}) {
+            String invalidAddress = WHITESPACE + "A".repeat(length - 2) + "\nB" + WHITESPACE;
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, ()
+                -> ParserUtil.parseAddress(invalidAddress));
+        }
+        String overLimitAddress = WHITESPACE + "A".repeat(299) + "\nB" + WHITESPACE;
+        assertThrows(ParseException.class, "Addresses must be at most 300 characters long.", ()
+            -> ParserUtil.parseAddress(overLimitAddress));
+    }
+
+    @Test
+    public void parseEmail_lengthAndFormatViolations_prioritizesLengthMessage() {
+        for (int length : new int[]{253, 254}) {
+            String invalidEmail = WHITESPACE + "a".repeat(length) + WHITESPACE;
+            assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail(invalidEmail));
+        }
+        assertThrows(ParseException.class, "Emails must be at most 254 characters long.", ()
+            -> ParserUtil.parseEmail(WHITESPACE + "a".repeat(255) + WHITESPACE));
+    }
+
+    @Test
+    public void parseTag_lengthAndFormatViolations_prioritizesLengthMessage() {
+        for (int length : new int[]{29, 30}) {
+            String invalidTag = WHITESPACE + "A".repeat(length - 1) + "!" + WHITESPACE;
+            assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseTag(invalidTag));
+        }
+        assertThrows(ParseException.class, "Tag names must be at most 30 characters long.", ()
+            -> ParserUtil.parseTag(WHITESPACE + "A".repeat(30) + "!" + WHITESPACE));
+    }
+
+    private static String createEmailWithLength(int length) {
+        String prefix = "a".repeat(64) + "@" + "b".repeat(63) + "." + "c".repeat(63) + ".";
+        return prefix + "d".repeat(length - prefix.length());
     }
 }

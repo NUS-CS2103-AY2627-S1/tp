@@ -3,14 +3,18 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
-import java.util.function.Predicate;
+import java.util.Comparator;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
+import seedu.address.model.search.SearchCriteria;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -21,6 +25,9 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final ReadOnlyObjectWrapper<SearchCriteria> activeSearchCriteria =
+            new ReadOnlyObjectWrapper<>(SEARCH_CRITERIA_SHOW_ALL_PERSONS);
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +40,8 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredPersons.predicateProperty().bind(activeSearchCriteria);
+        sortedPersons = new SortedList<>(filteredPersons);
     }
 
     public ModelManager() {
@@ -83,7 +92,6 @@ public class ModelManager implements Model {
     @Override
     public void addPerson(Person person) {
         addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
     @Override
@@ -101,13 +109,30 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
-        requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+    public SearchCriteria getActiveSearchCriteria() {
+        return activeSearchCriteria.get();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<SearchCriteria> activeSearchCriteriaProperty() {
+        return activeSearchCriteria.getReadOnlyProperty();
+    }
+
+    @Override
+    public void updateFilteredPersonList(SearchCriteria criteria) {
+        activeSearchCriteria.set(requireNonNull(criteria));
+        String operation = criteria.isEmpty() ? "reset" : "applied";
+        logger.info(() -> "Search criteria " + operation + ": " + criteria.getLogSummary()
+                + ", matchingCustomers=" + filteredPersons.size());
+    }
+
+    @Override
+    public void updatePersonListComparator(Comparator<Person> comparator) {
+        sortedPersons.setComparator(comparator);
     }
 
     @Override
@@ -123,7 +148,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && getActiveSearchCriteria().equals(otherModelManager.getActiveSearchCriteria());
     }
 
 }
