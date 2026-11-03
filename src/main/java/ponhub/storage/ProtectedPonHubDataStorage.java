@@ -1,0 +1,162 @@
+package ponhub.storage;
+
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.util.Optional;
+
+import ponhub.commons.exceptions.DataLoadingException;
+import ponhub.model.PonHubData;
+import ponhub.model.PonHubDataState;
+
+/**
+ * Session-scoped canonical startup and write protection for the application runtime.
+ * Rejected files remain locked for this instance even if repaired or removed externally.
+ * Preferences are outside this operational storage boundary.
+ */
+public final class ProtectedPonHubDataStorage {
+    /**
+     * Distinguishes startup outcomes without treating rejected files as new stores.
+     */
+    public enum LoadStatus {
+        NOT_LOADED, MISSING, LOADED, UNREADABLE, CORRUPT, UNSUPPORTED_VERSION, LEGACY
+    }
+
+    private final Path path;
+    private final FileReader reader;
+    private CanonicalDataFileGuard saveGuard;
+    private LoadStatus status = LoadStatus.NOT_LOADED;
+    private String loadError;
+
+    public ProtectedPonHubDataStorage(Path path) {
+        this(path, Files::readString);
+    }
+
+    ProtectedPonHubDataStorage(Path path, FileReader reader) {
+        this.path = requireNonNull(path);
+        this.reader = requireNonNull(reader);
+    }
+
+    public LoadStatus getLoadStatus() {
+        return status;
+    }
+
+    public Path getDataFilePath() {
+        return path;
+    }
+
+    /**
+     * Returns guidance whenever operational writes are forbidden, including before startup validation.
+     */
+    public Optional<String> getDataLoadError() {
+        if (status == LoadStatus.NOT_LOADED) {
+            return Optional.of("Load and validate canonical data before saving.");
+        }
+        return Optional.ofNullable(loadError);
+    }
+
+    /**
+     * Loads a fully validated snapshot or creates an unwritten fresh root only for confirmed absence.
+     * A session may attempt loading once; create a new instance after deliberate recovery and restart.
+     * No fallback state is returned for rejected data, and unrelated programming exceptions propagate.
+     */
+    public PonHubDataState load() throws DataLoadingException {
+        if (status != LoadStatus.NOT_LOADED) {
+            throw new IllegalStateException("Canonical startup was already attempted; restart to reload.");
+        }
+        String json;
+        try {
+            json = reader.read(path);
+        } catch (NoSuchFileException missing) {
+            if (Files.notExists(path, LinkOption.NOFOLLOW_LINKS)) {
+                try {
+                    saveGuard = new CanonicalDataFileGuard(path, null);
+                } catch (IOException failure) {
+                    throw reject(LoadStatus.UNREADABLE, failure);
+                }
+                PonHubDataState loadedState = new PonHubData().exportState();
+                status = LoadStatus.MISSING;
+                return loadedState;
+            }
+            throw reject(LoadStatus.UNREADABLE, missing);
+        } catch (CharacterCodingException failure) {
+            throw reject(LoadStatus.CORRUPT, new IOException("The data file is not valid UTF-8."
+                    + " Back it up, then save a corrected copy using UTF-8 encoding and restart.", failure));
+        } catch (IOException failure) {
+            throw reject(LoadStatus.UNREADABLE, failure);
+        }
+        if (json.startsWith("\uFEFF")) {
+            throw reject(LoadStatus.CORRUPT, new IOException("The data file starts with a byte-order mark (BOM)."
+                    + " Back it up, then save a corrected copy as UTF-8 without BOM and restart."));
+        }
+        JsonDataVersionDetector.Format format = JsonDataVersionDetector.detect(json);
+        switch (format) {
+            case LEGACY_AB3:
+                throw reject(LoadStatus.LEGACY, new IOException("Unversioned AB3 data requires manual re-entry."));
+            case UNSUPPORTED_VERSION:
+                throw reject(LoadStatus.UNSUPPORTED_VERSION, new IOException("Unsupported schemaVersion."));
+            case PONHUB_V1_CANDIDATE:
+                break;
+            default:
+                throw reject(LoadStatus.CORRUPT, new IOException("Invalid JSON format: " + format));
+        }
+        PonHubDataState loadedState;
+        try {
+            loadedState = JsonPonHubDataCodec.decode(json);
+        } catch (IOException failure) {
+            throw reject(LoadStatus.CORRUPT, failure);
+        }
+        try {
+            saveGuard = new CanonicalDataFileGuard(path, json);
+        } catch (IOException failure) {
+            throw reject(LoadStatus.UNREADABLE, failure);
+        }
+        status = LoadStatus.LOADED;
+        return loadedState;
+    }
+
+    /**
+     * Saves only after successful startup validation; protected sessions cannot bypass the lock.
+     * The complete snapshot goes through the canonical codec, including its unsupported-collection checks.
+     */
+    public void saveData(PonHubDataState state) throws IOException {
+        Optional<String> error = getDataLoadError();
+        if (error.isPresent()) {
+            throw new IOException(error.get());
+        }
+        saveGuard.save(JsonPonHubDataCodec.encode(state));
+    }
+
+    private DataLoadingException reject(LoadStatus reason, IOException failure) {
+        status = reason;
+        String recovery = reason == LoadStatus.LEGACY
+                ? "Back up the original file. Configure a separate, previously unused data file path and"
+                    + " restart, then manually re-enter records with explicit roles. Automatic import is unavailable."
+                : "Back up the original file. Restore a known-good supported file, correct its JSON/access permissions,"
+                    + " or use a compatible build on a separate copy, then restart.";
+        String problem = switch (reason) {
+            case LEGACY -> "legacy file format";
+            case UNSUPPORTED_VERSION -> "unsupported file version";
+            case CORRUPT -> "invalid file contents";
+            default -> "file access problem";
+        };
+        loadError = "Could not load data file at " + path.toAbsolutePath() + " (" + problem + "). "
+                + "The original file has not been changed. Changes cannot be saved in this session;"
+                + " only help, list and exit are available. An empty view is not your saved data. "
+                + recovery + " Do not delete the original to bypass protection. Cause: " + failure.getMessage();
+        return new DataLoadingException(new IOException(loadError, failure));
+    }
+
+    /**
+     * File access seam for deterministic access-failure tests.
+     */
+    @FunctionalInterface
+    interface FileReader {
+        String read(Path path) throws IOException;
+    }
+}

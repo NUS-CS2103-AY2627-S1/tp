@@ -1,19 +1,36 @@
 ---
 layout: page
-title: AddressBook Level 3
+title: PonHub
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+[![Java CI](https://github.com/AY2627S1-CS2103T-F13-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-F13-3/tp/actions/workflows/gradle.yml)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-F13-3/tp/branch/master/graph/badge.svg)](https://codecov.io/gh/AY2627S1-CS2103T-F13-3/tp)
 
-![Ui](images/Ui.png)
+PonHub helps tuition centre administrators manage students, tutors, parents, shared recurring lessons and
+dated attendance through a keyboard-focused desktop interface.
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+![Student lessons active beside a filtered Tutor list, with the bottom command box](images/LessonBoardNavigation.png)
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+*[Screenshot sources and credits](images/README.html).*
 
+The Lesson board above uses fictitious records. Released v1.6 supports creating, editing and
+searching people and shared lessons, enrolment/unenrolment, attendance marking/removal and guarded deletion.
+Roster and attendance-history views retain dated records after unenrolment. Person and Lesson edits retain
+stable IDs and linked records, with validation and schedule checks protecting changes.
+
+Download **`ponhub.jar`** from the latest published release,
+[v1.6](https://github.com/AY2627S1-CS2103T-F13-3/tp/releases/tag/v1.6), and follow its
+[v1.6 User Guide](UserGuide.html#quick-start).
+Use Java 25 and launch it with `java -jar ponhub.jar` in a writable application folder.
+
+* [Command summary](UserGuide.html#current-command-summary) — commands and examples;
+  use `help` or `help COMMAND` in the app for inline guidance.
+* [Developer Guide](DeveloperGuide.html)
+* [About Us](AboutUs.html)
+* [Report a problem](https://github.com/AY2627S1-CS2103T-F13-3/tp/issues)
 
 **Acknowledgements**
 
-* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+
+* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit 5](https://junit.org/junit5/)

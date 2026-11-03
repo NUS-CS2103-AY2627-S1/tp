@@ -1,0 +1,106 @@
+name: Verify Linux release package
+
+on:
+  push:
+    paths:
+      - '.github/workflows/linux-package.yml'
+      - '.github/scripts/verify_linux_package.py'
+      - '.github/scripts/test_verify_linux_package.py'
+      - '.github/scripts/resolve_candidate_version.py'
+  pull_request:
+    paths:
+      - '.github/workflows/linux-package.yml'
+      - '.github/scripts/verify_linux_package.py'
+      - '.github/scripts/test_verify_linux_package.py'
+      - '.github/scripts/resolve_candidate_version.py'
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Reviewed team source commit to package
+        required: true
+      expected_sha256:
+        description: SHA-256 of the exact candidate JAR
+        required: true
+      expected_version:
+        description: Product version from the reviewed candidate handoff (for example 1.5)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CANDIDATE_REF: ${{ inputs.candidate_ref || github.sha }}
+      EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+    steps:
+      - name: Check out verification tooling
+        uses: actions/checkout@v7
+      - name: Check out the reviewed candidate
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ env.CANDIDATE_REF }}
+          path: _temp/candidate
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: '25'
+          java-package: jdk
+      - name: Install virtual-display verification tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb xdotool xclip imagemagick
+      - name: Check the verification tool's outcome handling
+        run: python3 -m unittest discover -s .github/scripts -p 'test_verify_linux_package.py'
+      - name: Resolve the expected candidate version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          version_args=()
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            version_args+=(--require-expected)
+            if [[ -z "$EXPECTED_SHA256" ]]; then
+              echo 'Manual dispatch requires the exact candidate SHA-256' >&2
+              exit 1
+            fi
+          fi
+          python3 .github/scripts/resolve_candidate_version.py \
+            --build-file _temp/candidate/build.gradle \
+            --expected-version "$EXPECTED_VERSION" "${version_args[@]}" >> "$GITHUB_ENV"
+      - name: Build the exact candidate
+        working-directory: _temp/candidate
+        shell: bash
+        run: |
+          mkdir -p ../linux-package
+          git rev-parse HEAD > ../linux-package/source.txt
+          ./gradlew shadowJar --no-daemon 2>&1 | tee ../linux-package/build.log
+      - name: Resolve the candidate checksum
+        shell: bash
+        run: |
+          actual_sha256="$(sha256sum _temp/candidate/build/libs/ponhub.jar | cut -d ' ' -f 1)"
+          if [[ -z "$EXPECTED_SHA256" ]]; then
+            echo "EXPECTED_SHA256=$actual_sha256" >> "$GITHUB_ENV"
+          fi
+      - name: Launch, exercise and restart the packaged application
+        run: |
+          xvfb-run --auto-servernum --server-args='-screen 0 1280x800x24' \
+            python3 .github/scripts/verify_linux_package.py \
+            --jar _temp/candidate/build/libs/ponhub.jar \
+            --source "$(cat _temp/linux-package/source.txt)" \
+            --expected-sha256 "$EXPECTED_SHA256" \
+            --expected-version "$EXPECTED_VERSION" \
+            --evidence _temp/linux-package
+      - name: Retain exact JAR, runtime, logs, data and screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-package-evidence
+          path: _temp/linux-package
+          if-no-files-found: error
+          retention-days: 30

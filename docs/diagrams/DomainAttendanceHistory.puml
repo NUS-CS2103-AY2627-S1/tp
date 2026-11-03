@@ -1,0 +1,40 @@
+@startuml
+' Simplified domain draft by Vincent Lin with OpenAI Codex assistance.
+' Self-contained source; renderer: PlantUML 1.2025.3.
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam classBackgroundColor #FFF2F3
+skinparam classBorderColor #9D0012
+skinparam classArrowColor #9D0012
+skinparam noteBackgroundColor #FFFBE6
+skinparam noteBorderColor #777777
+skinparam nodesep 70
+skinparam ranksep 70
+
+skinparam stateBackgroundColor #FFF2F3
+skinparam stateBorderColor #9D0012
+hide empty description
+state "Enrolled\nNo attendance record" as A
+state "Enrolled\nAttendance recorded" as B
+state "Unenrolled\nAttendance retained" as C
+state "Unenrolled\nNo attendance record" as D
+[*] --> D
+D -up-> A : enrol
+A -down-> D : unenrol
+A --> B : mark
+B --> A : unmark
+B -down-> C : unenrol
+C -up-> B : enrol
+C -left-> D : unmark
+B --> B : mark / correct existing date
+C --> C : mark / correct existing date
+note as AttendanceScope
+  Membership and attendance for one existing Student,
+  Lesson and matching-weekday date, initially unenrolled.
+  Guards such as schedule clashes still apply.
+  New dated records require current enrolment;
+  retained records remain correctable after unenrolment.
+end note
+@enduml

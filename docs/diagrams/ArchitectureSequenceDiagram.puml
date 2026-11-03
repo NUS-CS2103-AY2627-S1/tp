@@ -1,39 +1,31 @@
 @startuml
-!include style.puml
-skinparam ArrowFontStyle plain
-
-Actor User as user USER_COLOR
-Participant ":UI" as ui UI_COLOR
-Participant ":Logic" as logic LOGIC_COLOR
-Participant ":Model" as model MODEL_COLOR
-Participant ":Storage" as storage STORAGE_COLOR
-
-user -[USER_COLOR]> ui : "delete 1"
-activate ui UI_COLOR
-
-ui -[UI_COLOR]> logic : execute("delete 1")
-activate logic LOGIC_COLOR
-
-logic -[LOGIC_COLOR]> model : deletePerson(p)
-activate model MODEL_COLOR
-
-model -[MODEL_COLOR]-> logic
-deactivate model
-
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
-activate storage STORAGE_COLOR
-
-storage -[STORAGE_COLOR]> storage : Save to file
-activate storage STORAGE_COLOR_T1
-storage --[STORAGE_COLOR]> storage
-deactivate storage
-
-storage --[STORAGE_COLOR]> logic
-deactivate storage
-
-logic --[LOGIC_COLOR]> ui
-deactivate logic
-
-ui--[UI_COLOR]> user
-deactivate ui
+' Original command flow by Ernest Chua with OpenAI Codex assistance (#220).
+' Earlier readability layout by Vincent with Codex assistance (#393).
+' Focused overview by Vincent Lin with OpenAI Codex assistance (#600).
+' Grouped operation descriptions; not literal Java method signatures.
+hide footbox
+skinparam defaultFontName Arial
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 190
+skinparam sequence {
+  LifeLineBorderColor #64748B
+  ParticipantBorderColor #64748B
+  GroupBorderColor #64748B
+}
+participant "session :\nCanonicalPeopleSession" as Session #EDE9FE
+participant "executor :\nCanonicalCommandExecutor" as Executor #DBEAFE
+participant "writer :\nSnapshotWriter" as Writer #FEF3C7
+Session -> Executor : Run allowed, valid edit
+Executor -> Executor : Prepare candidate data\nand result separately
+Executor -> Writer : Save complete candidate
+alt save succeeds
+  Writer --> Executor : Saved
+  Executor -> Executor : Publish saved data\nand refresh views
+  Executor --> Session : Prepared success result
+else save fails
+  Writer --> Executor : I/O failure
+  Executor --> Session : Save error; live state unchanged
+end
 @enduml

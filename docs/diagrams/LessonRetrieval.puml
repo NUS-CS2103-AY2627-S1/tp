@@ -1,0 +1,69 @@
+@startuml
+' UI operation descriptions group MainWindow's owned panel and ListView helpers.
+' Renderer: PlantUML 1.2025.3, using the committed style.puml unchanged.
+' From the repository root:
+' java -jar plantuml-1.2025.3.jar -charset UTF-8 -tpng -o ../images docs/diagrams/LessonRetrieval.puml
+!include style.puml
+skinparam DefaultFontName Arial
+skinparam DefaultFontSize 14
+skinparam ArrowFontStyle normal
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 280
+skinparam BoxPadding 10
+skinparam NoteBackgroundColor #FFFBE6
+skinparam NoteBorderColor #777777
+skinparam sequenceLifeLineBorderColor #999999
+skinparam sequenceParticipantBorderColor #FFFFFF
+skinparam sequenceParticipantFontColor #FFFFFF
+hide footbox
+
+
+participant "window:MainWindow" as UI UI_COLOR
+participant "displayed:ObservableList" as Displayed LOGIC_COLOR
+participant "retrieval:LessonRetrieval" as Retrieval LOGIC_COLOR
+participant "previous:ObservableList" as Previous MODEL_COLOR
+participant "selected:ObservableList" as Next MODEL_COLOR
+
+note over UI, Next
+  Bind once at UI setup
+end note
+UI -> Retrieval : getDisplayedLessons()\n(via Logic and session)
+Retrieval --> UI : same read-only observable list
+UI -> UI : Bind list and heading once\nvia LessonListPanel
+note over Displayed, Retrieval
+  LessonRetrieval owns the backing list and exposes
+  one stable read-only wrapper to the UI.
+end note
+
+note over UI, Next
+  Choose a result source
+end note
+UI -> Retrieval : Request lessons, search or lesson details\n(via Logic and commands)
+Retrieval -> Retrieval : Resolve request; set heading context
+note over Retrieval, Next
+  Source: catalogue, student's lessons, search results,
+  or LessonRetrieval's own lesson-detail list.
+  Student index is resolved once to a stable ID.
+end note
+
+opt Selected source changes
+    Retrieval -> Previous : removeListener(refresh)
+    Retrieval -> Retrieval : selected = new source
+    Retrieval -> Next : addListener(refresh)
+end
+
+Retrieval -> Displayed : Refresh backing contents\nfrom selected source
+Displayed -> UI : Notify registered list-change listener
+
+note over UI, Next
+  Later changes
+end note
+Next -> Retrieval : Selected source changes\n(refresh listener)
+Retrieval -> Displayed : Refresh backing contents
+Displayed -> UI : Notify registered list-change listener
+
+note over UI, Next
+  People-list changes do not retarget the lesson selection or heading.
+  Context retains the selected stable IDs or filters independently.
+end note
+@enduml

@@ -1,0 +1,73 @@
+package ponhub.model.lesson;
+
+import static java.util.Objects.requireNonNull;
+import static ponhub.commons.util.AppUtil.checkArgument;
+
+import java.util.Locale;
+
+/**
+ * Represents a lesson room identifier.
+ * Guarantees: immutable; case-normalized; valid as declared in {@link #isValidRoom(String)}.
+ */
+public final class Room {
+
+    public static final String MESSAGE_CONSTRAINTS =
+            "Rooms should contain 1 to 10 characters in total, including any hyphens, "
+                    + "using English letters (A-Z, a-z) or digits (0-9) optionally separated by single hyphens.";
+    public static final String VALIDATION_REGEX = "[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*";
+
+    private static final int MAX_LENGTH = 10;
+
+    private final String value;
+
+    /**
+     * Constructs a {@code Room}. Surrounding whitespace is removed and letters are normalized to upper case.
+     */
+    public Room(String room) {
+        requireNonNull(room);
+        String normalizedRoom = normalize(room);
+        checkArgument(isNormalizedRoomValid(normalizedRoom), MESSAGE_CONSTRAINTS);
+        value = normalizedRoom.toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Returns true if {@code test} is a valid room after normalization.
+     */
+    public static boolean isValidRoom(String test) {
+        requireNonNull(test);
+        return isNormalizedRoomValid(normalize(test));
+    }
+
+    private static String normalize(String room) {
+        return room.strip();
+    }
+
+    private static boolean isNormalizedRoomValid(String room) {
+        return room.length() <= MAX_LENGTH && room.matches(VALIDATION_REGEX);
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    @Override
+    public String toString() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+        if (!(other instanceof Room otherRoom)) {
+            return false;
+        }
+        return value.equals(otherRoom.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return value.hashCode();
+    }
+}

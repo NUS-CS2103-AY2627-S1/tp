@@ -1,0 +1,55 @@
+package ponhub.logic.parser;
+
+import static java.util.Objects.requireNonNull;
+
+import java.time.LocalDate;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import ponhub.commons.core.index.Index;
+import ponhub.logic.parser.exceptions.ParseException;
+import ponhub.model.attendance.Attendance;
+import ponhub.model.attendance.AttendanceStatus;
+import ponhub.model.lesson.LessonId;
+
+/**
+ * Parses a current people-list Student index and optional Lesson, exact date and status filters.
+ */
+public final class HistoryArgumentsParser {
+    public static final String MESSAGE_USAGE =
+            "Format: history STUDENT_INDEX [lid/LESSON_ID] [d/YYYY-MM-DD] [s/present|absent]";
+    private static final Pattern LINE_BREAK_PATTERN = Pattern.compile("\\R");
+    private static final Set<String> PREFIXES = Set.of("lid/", "d/", "s/");
+
+    /**
+     * Returns a positive current people index and validated optional filters in any order.
+     */
+    public Input parse(String arguments) throws ParseException {
+        requireNonNull(arguments);
+        if (LINE_BREAK_PATTERN.matcher(arguments).find()
+                || arguments.codePoints().anyMatch(Character::isISOControl)) {
+            throw new ParseException(MESSAGE_USAGE);
+        }
+        String stripped = ParserUtil.stripUnicodeBoundaryWhitespace(arguments);
+        if (stripped.matches("\\p{javaDigit}+")) {
+            return new Input(ParserUtil.parseIndex(stripped), Optional.empty(), Optional.empty(), Optional.empty());
+        }
+        AttendanceArguments parsed = AttendanceArguments.extract(stripped, "history", PREFIXES, MESSAGE_USAGE);
+        Index studentIndex = ParserUtil.parseIndex(parsed.getStudentIndex());
+        try {
+            return new Input(studentIndex, parsed.getOptionalValue("lid/").map(LessonId::new),
+                    parsed.getOptionalValue("d/").map(Attendance::parseDate),
+                    parsed.getOptionalValue("s/").map(AttendanceStatus::parse));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
+        }
+    }
+
+    /**
+     * Parsed command selectors, prior to current-view role and reference validation.
+     */
+    public record Input(Index studentIndex, Optional<LessonId> lessonId, Optional<LocalDate> date,
+            Optional<AttendanceStatus> status) {
+    }
+}

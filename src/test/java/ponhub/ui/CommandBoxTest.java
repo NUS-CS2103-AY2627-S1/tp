@@ -1,0 +1,503 @@
+package ponhub.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static ponhub.testutil.FxTestUtil.runOnFxThread;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import ponhub.logic.CanonicalCommandCatalog;
+import ponhub.logic.commands.CommandResult;
+import ponhub.logic.commands.exceptions.CommandException;
+import ponhub.logic.parser.exceptions.ParseException;
+
+public class CommandBoxTest {
+
+    @Test
+    public void replacement_controlsRejectWholeChangeAndBlockEnterUntilTextEdit() throws Exception {
+        runOnFxThread(() -> {
+            for (String control : List.of("\n", "\r\n", "\t", "\u0000", "\u001b", "\u0085",
+                    "\u2028", "\u2029")) {
+                List<String> commands = new ArrayList<>();
+                List<String> feedback = new ArrayList<>();
+                TextField input = createInput(command -> {
+                    commands.add(command);
+                    return new CommandResult("Success");
+                }, feedback::add);
+                input.setText("edit 1 e/");
+                input.selectRange(9, 7);
+                input.replaceSelection("original" + control + "@example.com");
+                assertEquals("edit 1 e/", input.getText());
+                assertEquals(9, input.getAnchor());
+                assertEquals(7, input.getCaretPosition());
+                assertEquals(List.of(CommandBox.MESSAGE_REJECTED_INPUT), feedback);
+                input.end();
+                enter(input);
+                enter(input);
+                assertTrue(commands.isEmpty(), "Rejected paste must not submit the preserved clearing draft.");
+                assertFalse(isArrowPressConsumed(input, KeyCode.UP, false), "Rejected input must not enter history.");
+                input.appendText("corrected@example.com");
+                enter(input);
+                assertEquals(List.of("edit 1 e/corrected@example.com"), commands);
+            }
+        });
+    }
+
+    @Test
+    public void replacement_legalUnicodeSpacesAndIntentionalClearRemainAvailable() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            String command = "add\u2003r/student n/Alex\u00a0Tan\u202fLee";
+            input.replaceSelection(command);
+            enter(input);
+            assertEquals(List.of(command), commands);
+            input.setText("edit 1 e/x");
+            input.deleteText(9, 10);
+            enter(input);
+            assertEquals(List.of(command, "edit 1 e/"), commands);
+        });
+    }
+
+    @Test
+    public void tab_completesAndCyclesWithoutExecuting_enterSubmitsCompletedDraft() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            input.setText("  ad  r/student n/Alex  ");
+            input.positionCaret(4);
+            assertTab(input, "  add  r/student n/Alex  ", 5);
+            assertTab(input, "  addlesson  r/student n/Alex  ", 11);
+            assertTab(input, "  add  r/student n/Alex  ", 5);
+            assertTrue(commands.isEmpty());
+            enter(input);
+            assertEquals(List.of("  add  r/student n/Alex  "), commands);
+            assertEquals("", input.getText());
+        });
+    }
+
+    @Test
+    public void tab_editAndCaretMovement_resetOriginalPrefix() throws Exception {
+        runOnFxThread(() -> {
+            TextField input = createInput(command -> new CommandResult("Success"));
+            input.setText("ad");
+            input.end();
+            assertTab(input, "add", 3);
+            assertTab(input, "addlesson", 9);
+            // Move away and back, ending at the previous completion: this must still reset cycling.
+            input.positionCaret(8);
+            input.end();
+            assertTab(input, "addlesson", 9);
+            input.setText("sho");
+            input.end();
+            assertTab(input, "showlesson", 10);
+            input.setText("shoxxx lid/L1");
+            input.positionCaret(3);
+            assertTab(input, "showlesson lid/L1", 10);
+            input.setText("ad");
+            input.end();
+            assertTab(input, "add", 3);
+        });
+    }
+
+    @Test
+    public void tab_horizontalSpaces_preservesSurroundingsWhileCyclingAndReplacingSuffix() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            // Include existing ordinary/em-space behavior and every omitted no-break space category.
+            for (String space : List.of(" ", "\u2003", "\u00a0", "\u2007", "\u202f")) {
+                String leading = space + " ";
+                String arguments = space + "r/student n/Alex" + space + "  ";
+                input.setText(leading + "adxxx" + arguments);
+                input.positionCaret(leading.length() + 2);
+                assertTab(input, leading + "add" + arguments, leading.length() + 3);
+                assertTab(input, leading + "addlesson" + arguments, leading.length() + 9);
+                assertTab(input, leading + "add" + arguments, leading.length() + 3);
+                // Moving within the completed word resets the cycle but still preserves the entire suffix.
+                input.positionCaret(leading.length() + 1);
+                input.positionCaret(leading.length() + 3);
+                assertTab(input, leading + "add" + arguments, leading.length() + 3);
+                assertTrue(commands.isEmpty(), "Tab must not submit any completed draft.");
+                enter(input);
+                assertEquals(leading + "add" + arguments, commands.getLast());
+                commands.clear();
+            }
+        });
+    }
+
+    @Test
+    public void tab_horizontalSpaces_outsideCommandLeavesDraftForTraversal() throws Exception {
+        runOnFxThread(() -> {
+            TextField input = createInput(command -> {
+                throw new AssertionError("Tab must never execute");
+            });
+            for (String space : List.of("\u00a0", "\u2007", "\u202f")) {
+                String draft = space + "li" + space + "r/student";
+                input.setText(draft);
+                // Caret at the command's start or after its separator must leave focus traversal available.
+                for (int caret : List.of(0, 1, 4, draft.length())) {
+                    input.positionCaret(caret);
+                    assertFalse(isTabPressConsumed(input, false, false, false, false));
+                    assertEquals(draft, input.getText());
+                    assertEquals(caret, input.getCaretPosition());
+                    assertEquals(caret, input.getAnchor());
+                }
+                // The last command-word position completes while preserving its following separator.
+                input.positionCaret(3);
+                assertTab(input, space + "list" + space + "r/student", 5);
+            }
+        });
+    }
+
+    @Test
+    public void tab_ineligibleInputAndModifiers_leaveDraftAndEventForTraversal() throws Exception {
+        runOnFxThread(() -> {
+            TextField input = createInput(command -> {
+                throw new AssertionError("Tab must never execute");
+            });
+            for (String draft : List.of("", "  ", "unknown", "SHO", "sho ", "help sho")) {
+                input.setText(draft);
+                input.end();
+                assertFalse(isTabPressConsumed(input, false, false, false, false));
+                assertEquals(draft, input.getText());
+            }
+            input.setText("sho");
+            input.end();
+            assertFalse(isTabPressConsumed(input, true, false, false, false));
+            assertFalse(isTabPressConsumed(input, false, true, false, false));
+            assertFalse(isTabPressConsumed(input, false, false, true, false));
+            assertFalse(isTabPressConsumed(input, false, false, false, true));
+            assertEquals("sho", input.getText());
+            input.selectAll();
+            assertFalse(isTabPressConsumed(input, false, false, false, false));
+            assertEquals("sho", input.getSelectedText());
+        });
+    }
+
+    @Test
+    public void tab_failedDraft_recoversStyleOnReplacementAndRetainsUnmatchedError() throws Exception {
+        runOnFxThread(() -> {
+            TextField input = createInput(command -> {
+                throw new ParseException("Invalid command");
+            });
+            input.setText("sho lid/L1");
+            input.positionCaret(3);
+            enter(input);
+            assertTrue(input.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+            assertTab(input, "showlesson lid/L1", 10);
+            assertFalse(input.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+            input.setText("unknown");
+            input.end();
+            enter(input);
+            assertFalse(isTabPressConsumed(input, false, false, false, false));
+            assertEquals("unknown", input.getText());
+            assertTrue(input.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+        });
+    }
+
+    private static void assertTab(TextField input, String expected, int caret) {
+        assertTrue(isTabPressConsumed(input, false, false, false, false),
+                "A completion must consume Tab before focus traversal.");
+        assertEquals(expected, input.getText());
+        assertEquals(caret, input.getCaretPosition());
+        assertEquals(caret, input.getAnchor());
+    }
+
+    /**
+     * Fires a Tab press and returns whether the command box consumes it.
+     */
+    private static boolean isTabPressConsumed(TextField input, boolean shift, boolean control, boolean alt,
+            boolean meta) {
+        // Record consumption after CommandBox's filter but before the control's default traversal behavior.
+        boolean[] consumed = {false};
+        javafx.event.EventHandler<KeyEvent> observer = event -> consumed[0] = event.isConsumed();
+        input.addEventFilter(KeyEvent.KEY_PRESSED, observer);
+        Event.fireEvent(input, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.TAB,
+                shift, control, alt, meta));
+        input.removeEventFilter(KeyEvent.KEY_PRESSED, observer);
+        return consumed[0];
+    }
+
+    @Test
+    public void arrows_recallWithoutExecuting_andRestoreDraftSelection() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            for (String command : List.of("help", "list r/student")) {
+                input.setText(command);
+                enter(input);
+            }
+            input.setText("  unfinished draft  ");
+            input.selectRange(12, 3);
+            assertTrue(isArrowPressConsumed(input, KeyCode.UP, false));
+            assertEquals("list r/student", input.getText());
+            assertEquals(input.getLength(), input.getCaretPosition());
+            isArrowPressConsumed(input, KeyCode.UP, false);
+            isArrowPressConsumed(input, KeyCode.UP, false);
+            assertEquals("help", input.getText());
+            isArrowPressConsumed(input, KeyCode.DOWN, false);
+            isArrowPressConsumed(input, KeyCode.DOWN, false);
+            assertEquals("  unfinished draft  ", input.getText());
+            assertEquals(12, input.getAnchor());
+            assertEquals(3, input.getCaretPosition());
+            assertEquals(List.of("help", "list r/student"), commands);
+            assertFalse(isArrowPressConsumed(input, KeyCode.DOWN, false));
+        });
+    }
+
+    @Test
+    public void arrows_failedSubmissionAndEditedRecall_preserveEnterAndCompletion() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                if (command.equals("invalid")) {
+                    throw new ParseException("Invalid command");
+                }
+                return new CommandResult("Success");
+            });
+            input.setText("invalid");
+            enter(input);
+            input.setText("sho");
+            input.end();
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, true));
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, false, true, false, false));
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, false, false, true, false));
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, false, false, false, true));
+            assertEquals("sho", input.getText());
+            isArrowPressConsumed(input, KeyCode.UP, false);
+            assertEquals("invalid", input.getText());
+            isArrowPressConsumed(input, KeyCode.DOWN, false);
+            assertTab(input, "showlesson", 10);
+            isArrowPressConsumed(input, KeyCode.UP, false);
+            input.setText("help");
+            assertFalse(isArrowPressConsumed(input, KeyCode.DOWN, false));
+            isArrowPressConsumed(input, KeyCode.UP, false);
+            assertEquals("invalid", input.getText());
+            isArrowPressConsumed(input, KeyCode.DOWN, false);
+            assertEquals("help", input.getText());
+            enter(input);
+            assertEquals(List.of("invalid", "help"), commands);
+            assertEquals("", input.getText());
+        });
+    }
+
+    @Test
+    public void arrows_historyIsBoundedAndSessionLocal() throws Exception {
+        runOnFxThread(() -> {
+            TextField input = createInput(command -> new CommandResult("Success"));
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, false));
+            input.setText("   ");
+            enter(input);
+            assertFalse(isArrowPressConsumed(input, KeyCode.UP, false));
+            for (int i = 0; i <= CommandBox.HISTORY_LIMIT; i++) {
+                input.setText("help " + i);
+                enter(input);
+            }
+            for (int i = 0; i <= CommandBox.HISTORY_LIMIT; i++) {
+                isArrowPressConsumed(input, KeyCode.UP, false);
+            }
+            assertEquals("help 1", input.getText());
+            TextField another = createInput(command -> new CommandResult("Success"));
+            assertFalse(isArrowPressConsumed(another, KeyCode.UP, false));
+            assertEquals("", another.getText());
+        });
+    }
+
+    /**
+     * Fires an arrow press with optional Shift and returns whether the command box consumes it.
+     */
+    private static boolean isArrowPressConsumed(TextField input, KeyCode code, boolean shift) {
+        return isArrowPressConsumed(input, code, shift, false, false, false);
+    }
+
+    /**
+     * Fires an arrow press with the supplied modifiers and returns whether the command box consumes it.
+     */
+    private static boolean isArrowPressConsumed(TextField input, KeyCode code, boolean shift, boolean control,
+            boolean alt, boolean meta) {
+        boolean[] consumed = {false};
+        javafx.event.EventHandler<KeyEvent> observer = event -> consumed[0] = event.isConsumed();
+        input.addEventFilter(KeyEvent.KEY_PRESSED, observer);
+        Event.fireEvent(input, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", code, shift, control, alt, meta));
+        input.removeEventFilter(KeyEvent.KEY_PRESSED, observer);
+        return consumed[0];
+    }
+
+    @Test
+    public void enter_emptyInput_doesNotExecute() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            List<String> originalStyles = List.copyOf(input.getStyleClass());
+
+            enter(input);
+            enter(input);
+
+            assertEquals(List.of(), commands);
+            assertEquals("", input.getText());
+            assertEquals(originalStyles, input.getStyleClass());
+        });
+    }
+
+    @Test
+    public void enter_success_forwardsUnchangedOnceAndClearsInput() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                return new CommandResult("Success");
+            });
+            List<String> originalStyles = List.copyOf(input.getStyleClass());
+            String command = "  add r/student n/Zoë Tan l/P1 pp/91234567  ";
+            input.setText(command);
+            assertEquals(List.of(), commands, "Editing must not execute the draft.");
+
+            enter(input);
+
+            assertEquals(List.of(command), commands);
+            assertEquals("", input.getText());
+            assertEquals(originalStyles, input.getStyleClass());
+            enter(input);
+            assertEquals(List.of(command), commands, "Enter on the cleared field must not execute again.");
+        });
+    }
+
+    @Test
+    public void enter_parseFailure_repeatsAndRecoversAfterEdit() throws Exception {
+        assertFailureAndEditing(command -> {
+            throw new ParseException("Invalid command format");
+        });
+    }
+
+    @Test
+    public void enter_commandFailure_repeatsAndRecoversAfterEdit() throws Exception {
+        assertFailureAndEditing(command -> {
+            throw new CommandException("Unable to save changes");
+        });
+    }
+
+    @Test
+    public void enter_successfulRetry_clearsRetainedInputAndErrorStyle() throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            TextField input = createInput(command -> {
+                commands.add(command);
+                if (commands.size() == 1) {
+                    throw new CommandException("Unable to save changes");
+                }
+                return new CommandResult("Success");
+            });
+            List<String> originalStyles = List.copyOf(input.getStyleClass());
+            String command = "add r/parent n/Pat Tan p/91234567";
+            input.setText(command);
+            enter(input);
+            assertFailure(input, command, originalStyles);
+
+            // Retry the same draft without a text change that could clear its error style.
+            enter(input);
+
+            assertEquals(List.of(command, command), commands);
+            assertEquals("", input.getText());
+            assertEquals(originalStyles, input.getStyleClass());
+            enter(input);
+            assertEquals(List.of(command, command), commands);
+        });
+    }
+
+    private static void assertFailureAndEditing(CommandBox.CommandExecutor executor) throws Exception {
+        runOnFxThread(() -> {
+            List<String> commands = new ArrayList<>();
+            String command = "  invalid command  ";
+            TextField input = createInput(text -> {
+                commands.add(text);
+                if (text.equals(command)) {
+                    return executor.execute(text);
+                }
+                return new CommandResult("Corrected command succeeded");
+            });
+            List<String> originalStyles = List.copyOf(input.getStyleClass());
+            input.setText(command);
+
+            for (int attempt = 1; attempt <= 3; attempt++) {
+                enter(input);
+                assertEquals(Collections.nCopies(attempt, command), commands,
+                        "Every Enter must forward the unchanged failed draft exactly once.");
+                assertFailure(input, command, originalStyles);
+            }
+
+            input.appendText(" corrected");
+            String correctedCommand = command + " corrected";
+            assertEquals(correctedCommand, input.getText());
+            assertEquals(originalStyles, input.getStyleClass(), "Editing must clear only the error style.");
+            assertEquals(Collections.nCopies(3, command), commands, "Editing must not execute a command.");
+
+            enter(input);
+            assertEquals(List.of(command, command, command, correctedCommand), commands);
+            assertEquals("", input.getText(), "A successful corrected command must clear the draft.");
+            assertEquals(originalStyles, input.getStyleClass());
+
+            input.setText(command);
+            enter(input);
+            assertFailure(input, command, originalStyles);
+            List<String> commandsBeforeClearing = List.copyOf(commands);
+            input.clear();
+            enter(input);
+            assertEquals(originalStyles, input.getStyleClass());
+            assertEquals(commandsBeforeClearing, commands, "Clearing and empty Enter must not execute.");
+        });
+    }
+
+    private static TextField createInput(CommandBox.CommandExecutor executor) {
+        return createInput(executor, message -> { });
+    }
+
+    private static TextField createInput(CommandBox.CommandExecutor executor, Consumer<String> feedback) {
+        CommandBox box = new CommandBox(executor, CanonicalCommandCatalog.getCommandWords(false), feedback);
+        TextField input = (TextField) box.getRoot().lookup("#commandTextField");
+        assertNotNull(input.getOnAction(), "The FXML must bind the Enter action.");
+        input.getStyleClass().add("custom-command-style");
+        return input;
+    }
+
+    private static void enter(TextField input) {
+        Event.fireEvent(input, new ActionEvent());
+    }
+
+    private static void assertFailure(TextField input, String command, List<String> originalStyles) {
+        assertEquals(command, input.getText(), "A failed command must remain available for correction or retry.");
+        assertEquals(1, Collections.frequency(input.getStyleClass(), CommandBox.ERROR_STYLE_CLASS),
+                "Repeated failure must retain exactly one error style.");
+        List<String> remainingStyles = new ArrayList<>(input.getStyleClass());
+        remainingStyles.remove(CommandBox.ERROR_STYLE_CLASS);
+        assertEquals(originalStyles, remainingStyles, "Failure must preserve unrelated styles.");
+    }
+}

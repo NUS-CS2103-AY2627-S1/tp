@@ -1,60 +1,52 @@
 @startuml
+' Renderer: PlantUML 1.2025.3, using the committed style.puml unchanged.
+' From the repository root:
+' java -jar plantuml-1.2025.3.jar -charset UTF-8 -tpng -o ../images docs/diagrams/UiClassDiagram.puml
 !include style.puml
+skinparam packageStyle Folder
 skinparam arrowThickness 1.1
 skinparam arrowColor UI_COLOR_T4
 skinparam classBackgroundColor UI_COLOR
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam linetype polyline
 
-package UI <<Rectangle>>{
-Class "<<interface>>\nUi" as Ui
-Class "{abstract}\nUiPart" as UiPart
-Class UiManager
-Class MainWindow
-Class HelpWindow
-Class ResultDisplay
-Class PersonListPanel
-Class PersonCard
-Class StatusBarFooter
-Class CommandBox
+package UI as UiPackage {
+    class "<<interface>>\nUi" as UiApi
+    class UiManager
+    class MainWindow
+    class ResultDisplay
+    class CommandBox
+    class StatusBarFooter
+    class PersonRecordListPanel
+    class LessonListPanel
+    class HistoryListPanel
+    class PersonRecordCard
+    class LessonCard
+    class AttendanceHistoryCard
+}
+package Logic as LogicPackage {
+    class "<<interface>>\nLogic" as LogicApi LOGIC_COLOR
 }
 
-package Model <<Rectangle>> {
-Class HiddenModel #FFFFFF
-}
+UiManager .left.|> UiApi
+UiManager .down.> MainWindow
+UiManager -[norank]-> LogicApi
+MainWindow -[norank]-> LogicApi
 
-package Logic <<Rectangle>> {
-Class HiddenLogic #FFFFFF
-}
+MainWindow --> ResultDisplay
+MainWindow ..> CommandBox
+MainWindow ..> StatusBarFooter
+MainWindow --> PersonRecordListPanel
+MainWindow ..> LessonListPanel
+MainWindow ..> HistoryListPanel
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Ui
+PersonRecordListPanel ..> PersonRecordCard
+LessonListPanel ..> LessonCard
+HistoryListPanel ..> AttendanceHistoryCard
 
-UiManager .left.|> Ui
-UiManager -down-> "1" MainWindow
-MainWindow *-down->  "1" CommandBox
-MainWindow *-down-> "1" ResultDisplay
-MainWindow *-down-> "1" PersonListPanel
-MainWindow *-down-> "1" StatusBarFooter
-MainWindow --> "0..1" HelpWindow
-
-PersonListPanel -down-> "*" PersonCard
-
-MainWindow -left-|> UiPart
-
-ResultDisplay --|> UiPart
-CommandBox --|> UiPart
-PersonListPanel --|> UiPart
-PersonCard --|> UiPart
-StatusBarFooter --|> UiPart
-HelpWindow --|> UiPart
-
-PersonCard ..> Model
-UiManager -right-> Logic
-MainWindow -left-> Logic
-
-PersonListPanel -[hidden]left- HelpWindow
-HelpWindow -[hidden]left- CommandBox
-CommandBox -[hidden]left- ResultDisplay
-ResultDisplay -[hidden]left- StatusBarFooter
-
-MainWindow -[hidden]-|> UiPart
+note bottom of UiPackage
+  MainWindow, its six components, and the three cards
+  all extend abstract UiPart (inheritance arrows omitted).
+end note
 @enduml

@@ -1,0 +1,56 @@
+@startuml
+!include style.puml
+skinparam packageStyle Folder
+!pragma layout smetana
+
+skinparam linetype ortho
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+
+package "Canonical aggregate" {
+    class PonHubDataState
+}
+
+package "People" {
+    class PeopleRegistryState
+    class PersonRecord <<interface>>
+    class Student
+    class Tutor
+    class Parent
+    class PersonId
+    class ContactDetails
+    class Name
+    class Phone
+    class Email
+    class Address
+    class EducationLevel
+}
+
+' A line break clears the package border; padding clears arrowhead barbs.
+PonHubDataState "\n0..*" --> "1<U+00A0><U+00A0>" PeopleRegistryState : people
+PeopleRegistryState "0..*" --> "0..*<U+00A0><U+00A0>" PersonRecord : ordered records
+
+' Keep interface realizations separate from the labelled identity and contact associations.
+Parent .up.|> PersonRecord
+Tutor .up.|> PersonRecord
+Student .up.|> PersonRecord
+PersonRecord "0..*" -left-> "1" PersonId : id
+PersonRecord "0..*" -right-> "1" ContactDetails : contactDetails
+ContactDetails "0..*" -right-> "1" Name : name
+' Offset the downward multiplicities from their arrow shafts and heads.
+ContactDetails "0..*<U+00A0><U+00A0>" -down-> "0..1<U+00A0><U+00A0>" Phone : phone
+ContactDetails "0..*" -up-> "0..1<U+00A0><U+00A0>" Email : email
+' Keep the Address source count beside its own curved connector, clear of the name association.
+ContactDetails "<U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0><U+00A0>0..*" -down-> "0..1<U+00A0><U+00A0>" Address : address
+Student "0..*" -down-> "1<U+00A0><U+00A0>" EducationLevel : level
+Student "0..*" -right-> "1" Phone : parentPhone
+
+' Hidden links control visual ordering only; they do not add domain relationships.
+Parent -[hidden]right- Tutor
+Tutor -[hidden]right- Student
+Phone -[hidden]right- Address
+
+@enduml

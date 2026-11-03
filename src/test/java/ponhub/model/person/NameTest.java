@@ -1,0 +1,164 @@
+package ponhub.model.person;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static ponhub.testutil.Assert.assertThrows;
+
+import java.text.Normalizer;
+
+import org.junit.jupiter.api.Test;
+
+public class NameTest {
+
+    @Test
+    public void constructor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Name(null));
+    }
+
+    @Test
+    public void constructor_invalidName_throwsIllegalArgumentException() {
+        String[] invalidNames = {"", " ", "' - .", "12345", "Peter the 2nd", "Peter*", "Peter/Jack",
+            "Peter\tJack", "Peter\nJack", "\rPeter", "Peter\0", "Peter\u007f", "Peter\u00a0Jack",
+            "\u0301Peter", "Peter \u0301Jack", "Peter-\u0301Jack", "Peter😀", "A".repeat(101),
+            "\u2028Peter", "Peter\u2029", "Peter\u200b", "\u202ePeter", "Peter\ud800", "\udc00Peter"};
+        for (String invalidName : invalidNames) {
+            assertFalse(Name.isValidName(invalidName));
+            assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(invalidName));
+        }
+    }
+
+    @Test
+    public void isValidName() {
+        // null name
+        assertThrows(NullPointerException.class, () -> Name.isValidName(null));
+
+        String[] validNames = {"A", "peter jack", "Capital Tan", "Anne-Marie O'Neill Jr.", "  Peter   Jack  ",
+            "A".repeat(100), "  " + "A  ".repeat(49) + "AA  ", "José Santos", "Jose\u0301 Santos",
+            "李明", "தமிழ்", "Anne-Marie O’Neill", "\u00a0José\u2003", "\uD801\uDC00".repeat(100)};
+        for (String validName : validNames) {
+            assertTrue(Name.isValidName(validName));
+            assertDoesNotThrow(() -> new Name(validName));
+        }
+    }
+
+    @Test
+    public void constructor_repeatedSpaces_normalizesName() {
+        Name name = new Name("  Anne-Marie   O'Neill Jr.  ");
+        assertEquals("Anne-Marie O'Neill Jr.", name.fullName);
+        assertEquals("Anne-Marie O'Neill Jr.", name.toString());
+    }
+
+    @Test
+    public void equals_normalizedNames_returnsTrue() {
+        Name normalizedName = new Name("Anne-Marie O'Neill Jr.");
+        Name unnormalizedName = new Name("  Anne-Marie   O'Neill Jr.  ");
+        assertEquals(normalizedName, unnormalizedName);
+        assertEquals(normalizedName.hashCode(), unnormalizedName.hashCode());
+        assertFalse(normalizedName.equals(new Name("anne-marie o'neill jr.")));
+    }
+
+    @Test
+    public void constructor_canonicalUnicodeAndBoundarySpaces_normalizesDisplayAndEquality() {
+        Name composed = new Name("José Santos");
+        Name decomposed = new Name("\u00a0Jose\u0301   Santos\u2003");
+        assertEquals("José Santos", decomposed.fullName);
+        assertEquals(composed, decomposed);
+        assertEquals(composed.hashCode(), decomposed.hashCode());
+        assertFalse(composed.equals(new Name("Jose Santos")));
+    }
+
+    @Test
+    public void constructor_enclosingMark_requiresAttachedLetter() {
+        String attachedMark = "A\u20dd";
+        assertTrue(Name.isValidName(attachedMark));
+        assertEquals(attachedMark, new Name(attachedMark).fullName);
+
+        for (String unattachedMark : new String[] {"\u20ddA", "A \u20dd", "A-\u20dd"}) {
+            assertFalse(Name.isValidName(unattachedMark));
+            assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(unattachedMark));
+        }
+    }
+
+    @Test
+    public void constructor_normalizedCodePointLimit_countsCompositionAndSupplementaryLetters() {
+        assertEquals("é".repeat(100), new Name("e\u0301".repeat(100)).fullName);
+        assertFalse(Name.isValidName("\uD801\uDC00".repeat(101)));
+        assertFalse(Name.isValidName("A" + "\u0301".repeat(101)));
+        assertEquals("A B", new Name(" ".repeat(100_000) + "A" + " ".repeat(100_000) + "B").fullName);
+    }
+
+    @Test
+    public void constructor_decomposedLengthBudget_preservesNormalizedBoundaryAndReordering() {
+        for (String composed : new String[] {"é", "각", "\u1f82"}) {
+            String boundary = composed.repeat(Name.MAX_LENGTH);
+            String decomposed = Normalizer.normalize(boundary, Normalizer.Form.NFD);
+            assertTrue(Name.isValidName(decomposed));
+            assertEquals(boundary, new Name(decomposed).fullName);
+            assertFalse(Name.isValidName(decomposed + composed));
+            assertThrows(IllegalArgumentException.class, () -> new Name(decomposed + composed));
+        }
+        assertEquals("A\u0327\u0315", new Name("A\u0315\u0327").fullName);
+        assertEquals("A" + "\u0315".repeat(99), new Name("A" + "\u0315".repeat(99)).fullName);
+    }
+
+    @Test
+    public void constructor_excessiveCombiningRuns_rejectsBothValidationRoutes() {
+        String reorderedMarks = "A" + "\u0315\u0327".repeat(100_000);
+        assertFalse(Name.isValidName(reorderedMarks));
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(reorderedMarks));
+    }
+
+    @Test
+    public void normalizationBudget_supportedUnicodeScalars_expandToAtMostFourCanonicalCodePoints() {
+        int largestDecomposition = 0;
+        for (int codePoint = Character.MIN_CODE_POINT; codePoint <= Character.MAX_CODE_POINT; codePoint++) {
+            if (codePoint >= Character.MIN_SURROGATE && codePoint <= Character.MAX_SURROGATE) {
+                continue;
+            }
+            String decomposition = Normalizer.normalize(Character.toString(codePoint), Normalizer.Form.NFD);
+            largestDecomposition = Math.max(largestDecomposition,
+                    decomposition.codePointCount(0, decomposition.length()));
+        }
+        assertEquals(4, largestDecomposition, "Revisit the raw-input budget if Java's canonical expansion changes.");
+    }
+
+    @Test
+    public void constructor_legalNameMarkers_requiresSeparateLetterBearingText() {
+        for (String name : new String[] {"Ravi s/o Kumar", "Anita d/o Kumar", "José s/o 李明",
+            "A s/o B d/o C", "  Ravi   s/o   Kumar  "}) {
+            assertTrue(Name.isValidName(name));
+            assertDoesNotThrow(() -> new Name(name));
+        }
+        assertEquals("Ravi s/o Kumar", new Name("  Ravi   s/o   Kumar  ").fullName);
+        for (String name : new String[] {"s/o", "d/o Kumar", "Ravi s/o", "Ravi s/o .", ". d/o Kumar",
+            "Ravi s/o d/o Kumar", "Ravi s/other Kumar", "Ravi S/o Kumar", "Ravi s/O Kumar",
+            "Ravis/o Kumar", "Ravi s/oKumar", "Ravi / Kumar", "A s/o \u0301B"}) {
+            assertFalse(Name.isValidName(name), name);
+            assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name(name));
+        }
+        assertTrue(Name.isValidName("A".repeat(94) + " s/o B"));
+        assertFalse(Name.isValidName("A".repeat(95) + " s/o B"));
+    }
+
+    @Test
+    public void equals() {
+        Name name = new Name("Valid Name");
+
+        // same values -> returns true
+        assertTrue(name.equals(new Name("Valid Name")));
+
+        // same object -> returns true
+        assertTrue(name.equals(name));
+
+        // null -> returns false
+        assertFalse(name.equals(null));
+
+        // different types -> returns false
+        assertFalse(name.equals(5.0f));
+
+        // different values -> returns false
+        assertFalse(name.equals(new Name("Other Valid Name")));
+    }
+}

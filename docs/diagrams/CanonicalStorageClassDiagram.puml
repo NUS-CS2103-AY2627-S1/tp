@@ -1,0 +1,46 @@
+@startuml
+skinparam arrowThickness 1.1
+' Match the storage palette in style.puml without unrelated sequence-diagram settings.
+skinparam arrowColor #A38300
+skinparam classBackgroundColor #A38300
+skinparam classFontColor #FFFFFF
+skinparam classFontName Arial
+skinparam classBorderColor #FFFFFF
+skinparam packageBackgroundColor #FFFFFF
+hide empty members
+hide circle
+top to bottom direction
+
+package "Operational storage" {
+    class ProtectedPonHubDataStorage
+    class JsonDataVersionDetector
+    class JsonPonHubDataCodec
+    class CanonicalDataFileGuard
+}
+
+package "Preferences (separate file)" {
+    class JsonUserPrefsStorage
+    class JsonUtil
+}
+
+package "Shared file writing" {
+    class FileUtil
+    class AtomicFileWriter
+    note as SaveFallback
+      AtomicFileWriter:
+      Temporary sibling, then replacement.
+      Backup/recovery fallback is not atomic.
+    end note
+}
+
+' The label-only line break separates the multiplicity from the horizontal arrowhead.
+ProtectedPonHubDataStorage -right-> "\n0..1" CanonicalDataFileGuard : save guard
+ProtectedPonHubDataStorage ..> JsonDataVersionDetector : classify load
+ProtectedPonHubDataStorage ..> JsonPonHubDataCodec : encode/decode
+CanonicalDataFileGuard ..> FileUtil : save JSON
+JsonUserPrefsStorage ..> JsonUtil : preferences JSON
+JsonUtil ..> FileUtil : save JSON
+FileUtil ..> AtomicFileWriter : create writer
+JsonPonHubDataCodec -[hidden]down-> FileUtil
+
+@enduml

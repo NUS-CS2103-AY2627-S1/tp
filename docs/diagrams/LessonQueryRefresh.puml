@@ -1,0 +1,88 @@
+@startuml
+' Renderer: PlantUML 1.2025.3, using committed style.puml unchanged.
+' Readability layout by Vincent with Codex assistance (#393); existing model/feature credit retained.
+!include style.puml
+skinparam ParticipantFontColor #FFFFFF
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 280
+skinparam ParticipantPadding 5
+skinparam ArrowFontSize 14
+skinparam ArrowFontStyle normal
+skinparam defaultFontSize 14
+skinparam ParticipantFontSize 14
+skinparam noteFontSize 14
+participant "executor:\nCanonicalCommandExecutor" as executor LOGIC_COLOR
+participant "transaction:\nCanonicalTransaction" as transaction MODEL_COLOR
+participant "writer:\nSnapshotWriter" as writer STORAGE_COLOR
+participant "live:\nPonHubData" as live MODEL_COLOR
+participant "queries:\nLessonQueries" as queries MODEL_COLOR
+participant "retrieval:\nLessonRetrieval" as retrieval LOGIC_COLOR
+
+note over live, retrieval
+  Query: Mon, 1600, Math,
+  Mei, R1, sn/a.
+  Candidates [L1, L2] -> result [L1].
+  Jamie matches L1; L2 fails the weekday.
+end note
+
+executor -> transaction : get staged root and view
+note over transaction
+  Staged editlesson lid/L1 s/English
+  command prepares English L1.
+  Live root and results: Math L1.
+end note
+executor -> writer : save changed candidate snapshot
+alt save fails
+    writer --> executor : IOException
+    note over executor, retrieval
+      Discard candidate; no publication.
+      Live Math L1 and all view state
+      stay unchanged.
+    end note
+else save succeeds
+    writer --> executor : saved
+end
+@enduml
+
+@startuml
+' Renderer: PlantUML 1.2025.3, using committed style.puml unchanged.
+' Readability layout by Vincent with Codex assistance (#393); existing model/feature credit retained.
+!include style.puml
+skinparam ParticipantFontColor #FFFFFF
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 280
+skinparam ParticipantPadding 5
+skinparam ArrowFontSize 14
+skinparam ArrowFontStyle normal
+skinparam defaultFontSize 14
+skinparam ParticipantFontSize 14
+skinparam noteFontSize 14
+participant "executor:\nCanonicalCommandExecutor" as executor LOGIC_COLOR
+participant "transaction:\nCanonicalTransaction" as transaction MODEL_COLOR
+participant "live:\nPonHubData" as live MODEL_COLOR
+participant "queries:\nLessonQueries" as queries MODEL_COLOR
+participant "retrieval:\nLessonRetrieval" as retrieval LOGIC_COLOR
+
+note over executor, retrieval
+  Continuation after the candidate was saved successfully.
+  Active search: Mon, 1600, Math, Mei, R1, sn/a.
+  L1's subject changes from Math to English.
+end note
+opt save succeeded
+    executor -> transaction : commit()
+    transaction -> live : resetData(candidate)
+    live -> queries : stateProperty change
+    queries -> queries : rebuild complete derived indexes
+    queries -> queries : refresh held lists / active filter
+    queries -> retrieval : selected filtered list changes to []
+    retrieval -> retrieval : replace displayed entries
+    retrieval --> queries : display refreshed
+    queries --> live : query refresh complete
+    note over queries, retrieval
+      Same held/displayed list objects.
+      Jamie's held list now has English L1.
+      The active Math search no longer matches L1.
+    end note
+    transaction --> executor : committed
+end
+@enduml

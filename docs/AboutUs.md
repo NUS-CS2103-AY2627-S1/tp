@@ -5,55 +5,70 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Zhu Zhi Yu
+{: .team-member-name}
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ultramanarm.png" width="200px" alt="Zhu Zhi Yu">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ultramanarm)] [[PPP](team/ultramanarm.html)]
 
-* Role: Project Advisor
+* Role: Developer (People and Testing)
+* Responsibilities:
+  * Implement and maintain commands to add, delete, and list student, tutor, and parent records.
+  * Coordinate testing and maintain representative sample data.
+  * Maintain the Developer Guide's target user profile, value proposition, and prioritised user stories.
 
-### Jane Doe
+### Vincent Lin
+{: .team-member-name}
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/gugrusaurus.jpg" width="200px" alt="Vincent Lin">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/gugrusaurus)] [[PPP](team/gugrusaurus.html)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Developer, Deliverables and Deadlines, Documentation
+* Responsibilities:
+  * Implement saving, validated loading, rollback and retained attendance-history persistence.
+  * Coordinate deliverables, deadlines and milestone closeout; maintain README and quick-start material.
+  * Coordinate release notes and integrated application screenshots/demos.
 
-### Johnny Doe
+### Benjamin Ng
+{: .team-member-name}
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ben58882.png" width="200px" alt="Benjamin Ng">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/ben58882)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Developer (Retrieval and Views)
+* Responsibilities:
+  * Develop Model filtering and UI results for search and lesson-information retrieval.
+  * Implement shared-lesson, roster and attendance-history views; contribute retrieval feature facts and media.
+  * Maintain retrieval/view feature documentation and Developer Guide use cases.
 
-### Jean Doe
+### Ernest Chua
+{: .team-member-name}
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ernestchuaa.png" width="200px" alt="Ernest Chua">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ErnestChuaa)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Developer (Help), Code Quality, Documentation Coordination
+* Responsibilities:
+  * Implement and maintain the help command and command assistance.
+  * Maintain person-edit commands, tests and guidance; Benjamin retains authorship of the underlying person-edit model support.
+  * Coordinate code quality and the integration of project documentation.
+  * Maintain help documentation, shared command conventions and the command summary; reconcile each owner's own UG/DG feature contributions.
 
-### James Doe
+### Yang Shuo
+{: .team-member-name}
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ys000009.jpg" width="200px" alt="Yang Shuo">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ys000009)] [[PPP](team/ys000009.html)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Developer (Lessons, Enrolment and Attendance)
+* Responsibilities:
+  * Implement shared lessons, Lesson editing, enrolment/unenrolment, and attendance marking/unmarking.
+  * Maintain lesson/attendance feature documentation, domain diagrams, non-functional requirements and glossary.
+  * Coordinate DevOps and packaged application verification.

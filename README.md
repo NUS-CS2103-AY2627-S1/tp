@@ -1,14 +1,30 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![Java CI](https://github.com/AY2627S1-CS2103T-F13-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-F13-3/tp/actions/workflows/gradle.yml)
 
-![Ui](docs/images/Ui.png)
+# PonHub
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+PonHub helps tuition centre administrators manage students, tutors, parents, shared recurring lessons and
+dated attendance through a keyboard-focused desktop interface.
+
+![Student lessons active beside a filtered Tutor list, with the bottom command box](docs/images/LessonBoardNavigation.png)
+
+*[Screenshot sources and credits](docs/images/README.md).*
+
+The Lesson board above uses fictitious records. Released v1.6 supports creating, editing and
+searching people and shared lessons, enrolment/unenrolment, attendance marking/removal and guarded deletion.
+Roster and attendance-history views retain dated records after unenrolment. Person and Lesson edits retain
+stable IDs and linked records, with validation and schedule checks protecting changes.
+
+Download **`ponhub.jar`** from the latest published release,
+[v1.6](https://github.com/AY2627S1-CS2103T-F13-3/tp/releases/tag/v1.6), and follow its
+[v1.6 User Guide](https://ay2627s1-cs2103t-f13-3.github.io/tp/UserGuide.html#quick-start).
+Use Java 25 and launch it with `java -jar ponhub.jar` in a writable application folder.
+
+* [Command summary](docs/UserGuide.md#current-command-summary) — commands and examples;
+  use `help` or `help COMMAND` in the app for inline guidance.
+* [Developer Guide](docs/DeveloperGuide.md)
+* [Project website](https://ay2627s1-cs2103t-f13-3.github.io/tp/)
+* [Report a problem](https://github.com/AY2627S1-CS2103T-F13-3/tp/issues)
+
+##### Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

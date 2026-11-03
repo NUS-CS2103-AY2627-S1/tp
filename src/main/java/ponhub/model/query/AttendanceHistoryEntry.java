@@ -1,0 +1,40 @@
+package ponhub.model.query;
+
+import java.time.LocalDate;
+
+import ponhub.model.attendance.AttendanceStatus;
+import ponhub.model.lesson.LessonId;
+import ponhub.model.person.PersonId;
+
+/**
+ * Read-only projection of one recorded student, lesson and date attendance key.
+ * Current membership is derived separately from the lesson roster; retained history survives unenrollment.
+ * An unrecorded occurrence has no history entry.
+ * Implementations expose non-null, immutable values and a student-role ID. Changes replace the whole entry.
+ */
+public interface AttendanceHistoryEntry {
+    /**
+     * Returns the student's stable identity.
+     */
+    PersonId getStudentId();
+
+    /**
+     * Returns the lesson's stable identity.
+     */
+    LessonId getLessonId();
+
+    /**
+     * Returns the date of this recorded occurrence.
+     */
+    LocalDate getDate();
+
+    /**
+     * Returns the recorded attendance status.
+     */
+    AttendanceStatus getStatus();
+
+    /**
+     * Returns whether the student is currently enrolled in this lesson.
+     */
+    boolean isCurrentlyEnrolled();
+}
