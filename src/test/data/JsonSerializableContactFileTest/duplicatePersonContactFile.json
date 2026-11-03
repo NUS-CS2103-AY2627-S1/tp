@@ -1,0 +1,14 @@
+{
+  "persons": [ {
+    "name": "Alice Pauline",
+    "company": "Shopee",
+    "phone": "94351253",
+    "email": "alice@example.com",
+    "tags": [ "friends" ]
+  }, {
+    "name": "Alice Pauline",
+    "company": "Grab",
+    "phone": "94351253",
+    "email": "alice@example.com"
+  } ]
+}

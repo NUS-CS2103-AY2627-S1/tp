@@ -1,116 +1,468 @@
 package seedu.address.model.person;
 
-import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
 
 /**
- * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * Represents a Person in the contact file.
+ * Guarantees: the name, tag set, events, ordered action list and interaction history
+ * are present and immutable.
+ * Contact details other than the name are optional; all field values are validated.
  */
 public class Person {
 
-    // Identity fields
     private final Name name;
+    private final Company company;
+    private final Role role;
     private final Phone phone;
     private final Email email;
-
-    // Data fields
-    private final Address address;
+    private final Linkedin linkedin;
+    private final Name introducer;
     private final Set<Tag> tags = new HashSet<>();
+    private final Set<Event> events = new HashSet<>();
+    private final List<FollowUp> followUps = new ArrayList<>();
+    private final boolean starred;
+    private final int lastFollowUpId;
+    private final List<Interaction> interactions;
 
     /**
-     * Every field must be present and not null.
+     * Constructs a person without events, follow-ups or starred status.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, Set.of(), List.of(), false);
+    }
+
+    /**
+     * Constructs a person with an optional introducer name.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Name introducer, Set<Tag> tags) {
+        this(name, company, role, phone, email, linkedin,
+                introducer, tags, Set.of(), List.of(), false);
+    }
+
+    /**
+     * Constructs a person with follow-ups but without events or starred status.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags, List<FollowUp> followUps) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, Set.of(), followUps, false);
+    }
+
+    /**
+     * Constructs a person with events but without follow-ups or starred status.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags, Set<Event> events) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, events, List.of(), false);
+    }
+
+    /**
+     * Constructs a person with follow-ups but without events or starred status.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags, List<FollowUp> followUps,
+            boolean starred) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, Set.of(), followUps, starred);
+    }
+
+    /**
+     * Constructs a person with starred status but without events or follow-ups.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags, boolean starred) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, Set.of(), List.of(), starred);
+    }
+
+    /**
+     * Constructs a person with introducer and follow-ups but without events.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Name introducer, Set<Tag> tags,
+            List<FollowUp> followUps, boolean starred) {
+        this(name, company, role, phone, email, linkedin,
+                introducer, tags, Set.of(), followUps, starred);
+    }
+
+    /**
+     * Constructs a person with events, follow-ups and starred status.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Set<Tag> tags, Set<Event> events,
+            List<FollowUp> followUps, boolean starred) {
+        this(name, company, role, phone, email, linkedin,
+                null, tags, events, followUps, starred);
+    }
+
+    /**
+     * Constructs a person with introducer, events, follow-ups and starred status,
+     * and no interactions.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Name introducer, Set<Tag> tags, Set<Event> events,
+            List<FollowUp> followUps, boolean starred) {
+        //@@author Yx0905
+        this(name, company, role, phone, email, linkedin,
+                introducer, tags, events, followUps, starred, List.of());
+    }
+    //@@author
+
+    /**
+     * Constructs a person with every field.
+     * All other constructors and copy methods go through this one,
+     * so no field is lost when a contact is copied.
+     * Interactions are kept in date order.
+     */
+    //@@author Yx0905
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Name introducer, Set<Tag> tags, Set<Event> events,
+            //@@author
+            List<FollowUp> followUps, boolean starred,
+            List<Interaction> interactions) {
+        this(name, company, role, phone, email, linkedin, introducer, tags, events, followUps, starred,
+                interactions, followUps.stream().mapToInt(FollowUp::getId).max().orElse(0));
+    }
+
+    /**
+     * Constructs a contact retaining the greatest allocated action ID, including deleted actions.
+     */
+    public Person(Name name, Company company, Role role, Phone phone, Email email,
+            Linkedin linkedin, Name introducer, Set<Tag> tags, Set<Event> events,
+            List<FollowUp> followUps, boolean starred, List<Interaction> interactions, int lastFollowUpId) {
+        requireNonNull(name);
+        requireNonNull(tags);
+        requireNonNull(events);
+        requireNonNull(followUps);
+        requireNonNull(interactions);
+
         this.name = name;
+        this.company = company;
+        this.role = role;
         this.phone = phone;
         this.email = email;
-        this.address = address;
+        this.linkedin = linkedin;
+        this.introducer = introducer;
+        this.starred = starred;
+        checkArgument(lastFollowUpId >= 0, "The last follow-up ID must not be negative.");
+        this.lastFollowUpId = lastFollowUpId;
+
         this.tags.addAll(tags);
+        this.events.addAll(events);
+        this.followUps.addAll(followUps);
+
+        //@@author Yx0905
+        List<Interaction> sortedInteractions = new ArrayList<>(interactions);
+        sortedInteractions.sort(Comparator.comparing(Interaction::getDate));
+        this.interactions = List.copyOf(sortedInteractions);
+        //@@author
+
+        Set<Integer> actionIds = new HashSet<>();
+        for (FollowUp action : this.followUps) {
+            requireNonNull(action);
+            checkArgument(action.getId() <= lastFollowUpId, "An action ID exceeds the last allocated ID.");
+
+            if (!actionIds.add(action.getId())) {
+                throw new IllegalArgumentException(
+                        "Follow-up IDs must be unique within a contact.");
+            }
+        }
     }
 
     public Name getName() {
         return name;
     }
 
-    public Phone getPhone() {
-        return phone;
+    public Optional<Company> getCompany() {
+        return Optional.ofNullable(company);
     }
 
-    public Email getEmail() {
-        return email;
+    public Optional<Role> getRole() {
+        return Optional.ofNullable(role);
     }
 
-    public Address getAddress() {
-        return address;
+    public Optional<Phone> getPhone() {
+        return Optional.ofNullable(phone);
+    }
+
+    public Optional<Email> getEmail() {
+        return Optional.ofNullable(email);
+    }
+
+    public Optional<Linkedin> getLinkedin() {
+        return Optional.ofNullable(linkedin);
+    }
+
+    public Optional<Name> getIntroducer() {
+        return Optional.ofNullable(introducer);
     }
 
     /**
-     * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
-     * if modification is attempted.
+     * Returns an immutable tag set.
      */
     public Set<Tag> getTags() {
         return Collections.unmodifiableSet(tags);
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns an immutable event set.
+     */
+    public Set<Event> getEvents() {
+        return Collections.unmodifiableSet(events);
+    }
+
+    /**
+     * Returns an immutable follow-up list.
+     */
+    public List<FollowUp> getFollowUps() {
+        return Collections.unmodifiableList(followUps);
+    }
+
+    /**
+     * Returns true if this person is starred.
+     */
+    public boolean isStarred() {
+        return starred;
+    }
+
+    /**
+     * Returns the interaction history in date order, oldest first.
+     */
+    public List<Interaction> getInteractions() {
+        return interactions;
+    }
+
+    /**
+     * Returns a copy of this person with the requested starred status.
+     */
+    public Person withStarred(boolean starred) {
+        return new Person(name, company, role, phone, email, linkedin,
+                introducer, tags, events, followUps, starred, interactions, lastFollowUpId);
+    }
+
+    /**
+     * Returns true if this person is associated with the given event.
+     */
+    public boolean hasEvent(Event event) {
+        requireNonNull(event);
+        return events.contains(event);
+    }
+
+    /**
+     * Returns a copy of this person with the given event added.
+     */
+    public Person withEvent(Event event) {
+        requireNonNull(event);
+
+        Set<Event> updatedEvents = new HashSet<>(events);
+        updatedEvents.add(event);
+
+        return new Person(name, company, role, phone, email, linkedin,
+                introducer, tags, updatedEvents, followUps, starred, interactions, lastFollowUpId);
+    }
+
+    /**
+     * Returns a copy with the given follow-up appended.
+     */
+    public Person appendFollowUp(FollowUp action) {
+        requireNonNull(action);
+
+        checkArgument(action.getId() > lastFollowUpId, "Follow-up IDs must not be reused.");
+        List<FollowUp> updatedFollowUps = new ArrayList<>(followUps);
+
+        updatedFollowUps.add(action);
+
+        return new Person(name, company, role, phone, email, linkedin,
+                introducer, tags, events, updatedFollowUps, starred, interactions, action.getId());
+    }
+
+    /**
+     * Returns a copy with the follow-up having the given ID replaced.
+     *
+     * @param followUpId ID of the follow-up to replace.
+     * @param replacement Replacement follow-up with the same ID.
+     * @return A new person with the updated follow-up.
+     */
+    public Person replaceFollowUp(int followUpId, FollowUp replacement) {
+        requireNonNull(replacement);
+        checkArgument(replacement.getId() == followUpId, "Replacing an action must preserve its ID.");
+
+        List<FollowUp> updatedFollowUps = new ArrayList<>(followUps);
+
+        for (int index = 0; index < updatedFollowUps.size(); index++) {
+            if (updatedFollowUps.get(index).getId() == followUpId) {
+                updatedFollowUps.set(index, replacement);
+
+                return new Person(name, company, role, phone, email, linkedin,
+                        introducer, tags, events, updatedFollowUps, starred, interactions, lastFollowUpId);
+            }
+        }
+
+        throw new IllegalArgumentException(
+                "Follow-up with the specified ID does not exist.");
+    }
+
+    /**
+     * Returns the greatest allocated follow-up ID, including deleted history.
+     */
+    public int getLastFollowUpId() {
+        return lastFollowUpId;
+    }
+
+    /**
+     * Returns a copy without the specified follow-up, preserving order and retired IDs.
+     */
+    public Person removeFollowUp(int followUpId) {
+        checkArgument(followUps.stream().anyMatch(action -> action.getId() == followUpId),
+                "Follow-up with the specified ID does not exist.");
+        List<FollowUp> remainingFollowUps = followUps.stream()
+                .filter(action -> action.getId() != followUpId)
+                .toList();
+        assert remainingFollowUps.size() == followUps.size() - 1 : "Exactly one follow-up must be removed";
+        return new Person(name, company, role, phone, email, linkedin,
+                introducer, tags, events, remainingFollowUps, starred, interactions, lastFollowUpId);
+    }
+
+    /**
+     * Returns a copy with the given interaction history.
+     */
+    //@@author Yx0905
+    public Person withInteractions(List<Interaction> interactions) {
+        return new Person(name, company, role, phone, email, linkedin,
+                //@@author
+                introducer, tags, events, followUps, starred, interactions, lastFollowUpId);
+    }
+
+    /**
+     * Returns a copy with an interaction added.
+     */
+    //@@author Yx0905
+    public Person withInteraction(Interaction interaction) {
+        requireNonNull(interaction);
+
+        List<Interaction> updatedInteractions = new ArrayList<>(interactions);
+        updatedInteractions.add(interaction);
+
+        return withInteractions(updatedInteractions);
+    }
+    //@@author
+
+    /**
+     * Returns true if this person has an interaction with the same date and note.
+     */
+    public boolean hasInteraction(Interaction interaction) {
+        return interactions.stream()
+                .anyMatch(existing -> existing.isSameInteraction(interaction));
+    }
+
+    /**
+     * Returns true if names match ignoring case and emails are both absent or match ignoring case.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
             return true;
         }
 
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        if (otherPerson == null || !otherPerson.getName().isSameName(getName())) {
+            return false;
+        }
+
+        Optional<Email> otherEmail = otherPerson.getEmail();
+        Optional<Email> email = getEmail();
+
+        return otherEmail.isEmpty() && email.isEmpty()
+                || otherEmail.isPresent() && email.isPresent()
+                        && email.orElseThrow()
+                                .matches(otherEmail.orElseThrow().value);
     }
 
     /**
-     * Returns true if both persons have the same identity and data fields.
-     * This defines a stronger notion of equality between two persons.
+     * Returns true if both persons have a phone and matching numbers.
      */
+    public boolean hasSamePhone(Person otherPerson) {
+        return otherPerson != null
+                && getPhone().isPresent()
+                && otherPerson.getPhone().isPresent()
+                && otherPerson.getPhone().equals(getPhone());
+    }
+
+    /**
+     * Returns true if both persons have the same email.
+     */
+    public boolean hasSameEmail(Person otherPerson) {
+        return otherPerson != null
+                && getEmail().isPresent()
+                && otherPerson.getEmail().isPresent()
+                && getEmail().orElseThrow()
+                        .matches(otherPerson.getEmail().orElseThrow().value);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (other == this) {
             return true;
         }
 
-        // instanceof handles nulls
         if (!(other instanceof Person otherPerson)) {
             return false;
         }
 
         return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && Objects.equals(company, otherPerson.company)
+                && Objects.equals(role, otherPerson.role)
+                && Objects.equals(phone, otherPerson.phone)
+                && Objects.equals(email, otherPerson.email)
+                && Objects.equals(linkedin, otherPerson.linkedin)
+                && Objects.equals(introducer, otherPerson.introducer)
+                && tags.equals(otherPerson.tags)
+                && events.equals(otherPerson.events)
+                && followUps.equals(otherPerson.followUps)
+                && lastFollowUpId == otherPerson.lastFollowUpId
+                //@@author Yx0905
+                && starred == otherPerson.starred
+                && interactions.equals(otherPerson.interactions);
+        //@@author
     }
 
     @Override
     public int hashCode() {
-        // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, company, role, phone, email, linkedin,
+                introducer, tags, events, followUps, starred, interactions, lastFollowUpId);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("name", name)
+                .add("company", company)
+                .add("role", role)
                 .add("phone", phone)
                 .add("email", email)
-                .add("address", address)
+                .add("linkedin", linkedin)
+                .add("introducer", introducer)
                 .add("tags", tags)
+                .add("events", events)
+                .add("followUps", followUps)
+                .add("lastFollowUpId", lastFollowUpId)
+                .add("starred", starred)
+                .add("interactions", interactions)
                 .toString();
     }
-
 }

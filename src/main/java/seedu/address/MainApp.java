@@ -13,17 +13,19 @@ import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
-import seedu.address.model.AddressBook;
+import seedu.address.model.ContactFile;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.util.SampleDataUtil;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.ContactFileLock;
+import seedu.address.storage.JsonContactFileStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StartupLoadResult;
+import seedu.address.storage.StartupResetPlan;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
+import seedu.address.ui.StartupMessageFormatter;
 import seedu.address.ui.Ui;
 import seedu.address.ui.UiManager;
 
@@ -32,58 +34,113 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "v1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path CONTACT_FILE_PATH = Paths.get("data", "contactfile.json");
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
 
+    private final Path userPrefsFilePath;
+    private final Path contactFilePath;
+    private IOException startupFailure;
+    private StartupResetPlan startupResetPlan;
+    private UserPrefs startupPrefs;
+    private ContactFileLock contactFileLock;
+
+    public MainApp() {
+        this(USER_PREFS_FILE_PATH, CONTACT_FILE_PATH);
+    }
+
+    MainApp(Path userPrefsFilePath, Path contactFilePath) {
+        this.userPrefsFilePath = userPrefsFilePath;
+        this.contactFilePath = contactFilePath;
+    }
+
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing ContactFile ]===========================");
         super.init();
 
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
-        UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        if (!acquireContactFile()) {
+            return;
+        }
+        try {
+            initializeStorage();
+            loadContacts();
+        } catch (RuntimeException | Error e) {
+            releaseContactFile();
+            throw e;
+        }
+    }
 
-        model = initModelManager(storage, userPrefs);
+    private boolean acquireContactFile() {
+        try {
+            contactFileLock = ContactFileLock.acquire(contactFilePath);
+            return true;
+        } catch (IOException e) {
+            startupFailure = e;
+            return false;
+        }
+    }
 
-        logic = new LogicManager(model, storage);
-
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+    private void initializeStorage() {
+        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(userPrefsFilePath);
+        startupPrefs = initPrefs(userPrefsStorage);
+        storage = createStorage(userPrefsStorage);
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Assembles persistent storage independently of startup decisions.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
+    protected Storage createStorage(JsonUserPrefsStorage userPrefsStorage) {
+        return new StorageManager(new JsonContactFileStorage(contactFilePath), userPrefsStorage);
+    }
 
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+    private void loadContacts() {
         try {
-            addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
-            }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
-        } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            StartupLoadResult loadResult = storage.loadForStartup();
+            initializeComponents(loadResult);
+        } catch (IOException e) {
+            startupFailure = e;
+            logger.severe("Contact startup failed: " + StringUtil.getDetails(e));
+            prepareReset(e);
         }
+    }
 
-        return new ModelManager(initialData, userPrefs);
+    private void prepareReset(IOException failure) {
+        try {
+            startupResetPlan = storage.prepareStartupReset(failure);
+        } catch (IOException archiveFailure) {
+            startupFailure = new IOException(
+                    StartupMessageFormatter.formatResetUnavailable(failure, archiveFailure), failure);
+        }
+    }
+
+    private void initializeComponents(StartupLoadResult loadResult) {
+        model = initModelManager(loadResult, startupPrefs);
+        logic = new LogicManager(model, storage);
+        ui = createUi(logic, loadResult);
+    }
+
+    /**
+     * Creates the command interface after contact loading or an explicit reset succeeds.
+     */
+    protected Ui createUi(Logic initializedLogic, StartupLoadResult loadResult) {
+        return new UiManager(initializedLogic, loadResult);
+    }
+
+    /**
+     * Creates the model from a completed startup loading result.
+     */
+    private Model initModelManager(StartupLoadResult loadResult, ReadOnlyUserPrefs userPrefs) {
+        ContactFile contactFile = new ContactFile();
+        contactFile.setPersons(loadResult.contacts());
+        return new ModelManager(contactFile, userPrefs);
     }
 
     /**
@@ -120,17 +177,75 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        if (startupFailure != null) {
+            showStartupError(primaryStage, startupFailure);
+            return;
+        }
+
+        logger.info("Starting ContactFile " + MainApp.VERSION);
         ui.start(primaryStage);
+    }
+
+    /**
+     * Presents a loading failure without starting the command interface.
+     */
+    protected void showStartupError(Stage primaryStage, IOException failure) {
+        if (startupResetPlan == null) {
+            UiManager.showStartupError(primaryStage, failure);
+        } else {
+            showStartupReset(primaryStage, failure, startupResetPlan);
+        }
+    }
+
+    /**
+     * Presents the reset choice only when a preserved snapshot is available.
+     */
+    protected void showStartupReset(Stage primaryStage, IOException failure, StartupResetPlan plan) {
+        UiManager.showStartupReset(primaryStage, failure, plan.archive(), () -> startAnew(primaryStage));
+    }
+
+    /**
+     * Opens an empty contact file after the user explicitly chooses to start anew.
+     */
+    protected void startAnew(Stage primaryStage) {
+        try {
+            StartupLoadResult reset = storage.resetForStartup(startupResetPlan);
+            startupFailure = null;
+            startupResetPlan = null;
+            initializeComponents(reset);
+            ui.start(primaryStage);
+        } catch (IOException e) {
+            startupResetPlan = null;
+            startupFailure = e;
+            showStartupError(primaryStage, e);
+        }
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping ContactFile ] =============================");
+
         try {
-            storage.saveUserPrefs(model.getUserPrefs());
+            if (model != null) {
+                storage.saveUserPrefs(model.getUserPrefs());
+            }
         } catch (IOException e) {
             logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+        } finally {
+            releaseContactFile();
+        }
+    }
+
+    private void releaseContactFile() {
+        if (contactFileLock == null) {
+            return;
+        }
+        try {
+            contactFileLock.close();
+        } catch (IOException e) {
+            logger.severe("Failed to release contact file " + StringUtil.getDetails(e));
+        } finally {
+            contactFileLock = null;
         }
     }
 }

@@ -5,55 +5,50 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+You can reach us through our [issue tracker](https://github.com/AY2627S1-CS2103-F13-2/tp/issues).
 
 ## Project team
 
-### John Doe
+### Ng Xuan Jin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ngxuanjin.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ngxuanjin)]
 
 * Role: Project Advisor
 
-### Jane Doe
+### Yuxiang Liu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yx0905.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Yx0905)]
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Kafka
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kafka03.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/Kafka03)]
+
+* Role: Team Lead
+* Responsibilities: UI
+
+### Yao Zhu
+
+<img src="images/cookiemunchrr.png" width="200px">
+
+[[github](https://github.com/Cookiemunchrr)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Logic
+
+
+### Kee Yen Cheng
+
+<img src="images/keeyencheng.png" width="200px">
+
+[[github](https://github.com/KeeYenCheng)]
+
+* Role: Developer

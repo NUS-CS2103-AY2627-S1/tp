@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -41,6 +42,30 @@ public class JsonUserPrefsStorageTest {
     @Test
     public void readUserPrefs_notJsonFormat_exceptionThrown() {
         assertThrows(DataLoadingException.class, () -> readUserPrefs("NotJsonFormatUserPrefs.json"));
+    }
+
+    @Test
+    public void readUserPrefs_nullDocument_throwsDataLoadingException() throws IOException {
+        Path source = testFolder.resolve("preferences.json");
+        Files.writeString(source, "null");
+
+        assertThrows(DataLoadingException.class, () -> new JsonUserPrefsStorage(source).readUserPrefs());
+    }
+
+    @Test
+    public void readUserPrefs_nullGuiSettings_throwsDataLoadingException() throws IOException {
+        Path source = testFolder.resolve("preferences.json");
+        Files.writeString(source, "{\"guiSettings\": null}");
+
+        assertThrows(DataLoadingException.class, () -> new JsonUserPrefsStorage(source).readUserPrefs());
+    }
+
+    @Test
+    public void readUserPrefs_nullCommandAliases_noShortcuts() throws IOException, DataLoadingException {
+        Path source = testFolder.resolve("preferences.json");
+        Files.writeString(source, "{\"commandAliases\": null}");
+        UserPrefs actual = new JsonUserPrefsStorage(source).readUserPrefs().get();
+        assertEquals(new UserPrefs(), actual);
     }
 
     private Path addToTestDataPathIfNotNull(String userPrefsFileInTestDataFolder) {
@@ -114,6 +139,7 @@ public class JsonUserPrefsStorageTest {
 
         //Try saving when the file exists
         original.setGuiSettings(new GuiSettings(5, 5, 5, 5));
+        original.setCommandAlias("fn", "find /notes");
         jsonUserPrefsStorage.saveUserPrefs(original);
         readBack = jsonUserPrefsStorage.readUserPrefs().get();
         assertEquals(original, readBack);

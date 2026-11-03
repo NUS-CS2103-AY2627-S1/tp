@@ -3,8 +3,10 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import seedu.address.commons.util.StringUtil;
+
 /**
- * Represents a Person's email in the address book.
+ * Represents a Person's email in the contact file.
  * Guarantees: immutable; is valid as declared in {@link #isValidEmail(String)}
  */
 public class Email {
@@ -41,14 +43,21 @@ public class Email {
     public Email(String email) {
         requireNonNull(email);
         checkArgument(isValidEmail(email), MESSAGE_CONSTRAINTS);
-        value = email;
+        value = StringUtil.normalise(email);
     }
 
     /**
      * Returns true if a given string is a valid email.
      */
     public static boolean isValidEmail(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return StringUtil.normalise(test).matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns whether {@code candidate} is the same complete address, ignoring letter case.
+     */
+    public boolean matches(String candidate) {
+        return value.equalsIgnoreCase(StringUtil.normalise(candidate));
     }
 
     @Override

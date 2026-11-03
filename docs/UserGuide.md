@@ -3,7 +3,7 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+Astra is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, Astra can help you manage contacts faster than traditional GUI applications.
 
 * Table of Contents
 {:toc}
@@ -15,12 +15,12 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103-F13-2/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for Astra.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar contactfile.jar`.<br>
+   A GUI similar to the one below should appear in a few seconds. On first launch, Astra shows sample contacts and a welcome message. Type `clear` and then `y` to remove the sample contacts when you are ready to add your own.<br>
    ![Ui](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
@@ -28,15 +28,58 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
    * `list` : Lists all contacts.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `filter mode/or t/mentor t/referral` : Lists contacts tagged with mentor or referral.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `add n/John Doe c/Acme r/Engineer p/98765432 e/johnd@example.com` : Adds a contact named `John Doe` to the Contact File.
 
-   * `clear` : Deletes all contacts.
+   * `delete 3`, then `y`: Deletes the 3rd contact shown in the current list.
+
+   * `followup 1 a/Send portfolio`: Records a pending action for the first displayed contact.
+   * `followups overdue`: Lists overdue follow-ups across all contacts. Use `followups` to list all pending follow-ups.
+
+   * `order name phone email company role tags linkedin followups introducer interactions`: Changes the field order for every contact.
+
+   * `clear`, then `y`: Deletes all contacts.
 
    * `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
+
+--------------------------------------------------------------------------------------------------------------------
+
+## Starting Astra
+
+Always launch Astra from the same home folder so it can find your saved contacts in `data/contactfile.json`.
+
+* **No saved contact file:** Astra shows sample contacts and a welcome message explaining how to clear them.
+  The samples include starred contacts, introducers, events, tags, dated interaction notes, and
+  pending and completed follow-ups. Try `followups`, `followups today`, `followups upcoming`,
+  `followups completed`, or `followups undated` to explore them. Sample dates are based on the
+  day the samples are first loaded; once saved, they stay as recorded. Existing saved contacts
+  are never replaced by the sample data.
+* **Saved contacts load successfully:** The message area shows the number of loaded contacts and the full path to the contact file. A saved empty contact file stays empty.
+* **Another Astra instance is using the same contact file:** Startup stops with an error. Close that instance, then launch Astra again.
+
+### Recovering contacts at startup
+
+If the file can be read but contains some invalid or duplicate contacts, Astra automatically keeps the valid contacts and skips the affected records. For duplicate contacts, the first valid record is kept. Recovery proceeds only if at least one valid contact remains.
+
+An invalid saved event entry, such as `null` in a contact's `events` list, causes that entire contact to be skipped and reported. Astra does not recover individual fields or events from the damaged contact.
+
+Before replacing the active file with the recovered contacts, Astra preserves the original file as `contactfile.original.json` and writes a `report.txt` in a separate folder under `data/recovery/`. The startup message shows how many contacts were recovered and skipped, along with the paths to the active file, backup, and report.
+
+Read the report for the positions and reasons for skipped records in the original file. Keep the backup unchanged; use it to look up missing details, correct them, and add those contacts through Astra. Recovery is complete only when Astra displays the successful recovery message.
+
+### When contacts cannot be loaded
+
+If the file is malformed, no valid contacts can be recovered, or recovery cannot finish safely, Astra displays **Astra startup failed** before opening the main window.
+
+When Astra can safely preserve the original contact file, it saves `contactfile.original.json` and `report.txt` in a separate folder under `data/reports/`. The error dialog shows their paths and offers two choices:
+
+* **Start anew:** Replaces the active contact file with an empty one and opens Astra. The startup message confirms the reset and shows the backup and report paths. Keep the backup if you want to restore contact details manually later.
+* **Exit:** Closes Astra and leaves the active contact file unchanged. Closing the dialog also exits. You can repair the file or restore a known good backup while Astra is closed, then launch it again.
+
+If Astra cannot safely prepare a reset, **Start anew** is unavailable and the contact file is not cleared. Follow the error message, check that the contact file is readable and its folder is writable, and restart after resolving the problem. If a reset fails, Astra displays an error instead of opening an empty contact file.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -50,16 +93,22 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`. For `add`, every field except the name is optional.
 
 * Items followed by `…`​ can appear zero or more times.<br>
   For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
 
-* Parameters can be in any order.<br>
+* In `view`, `edit`, `delete`, `drop`, `introduce`, `log`, `editlog`, `unlog`, `star`, and `unstar`,
+  a positive whole-number selector searches both the current displayed index and names containing that number.
+  For example, `view 7` can find the 7th displayed contact and a contact named `7 Eleven`, even if that name is hidden.
+  A contact matching both appears only once. If several contacts match, reply with a candidate number by itself,
+  or `n`/`cancel` to stop and restore the previous list. The command's usual confirmation still follows selection.
+
+* Prefixed contact fields for `add` and `edit` can be in any order.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `starred`, and `exit`, are ignored.<br>
+  For example, `help 123` is interpreted as `help`. `clear`, `undo` and `history` are the exceptions: they reject extra parameters instead of ignoring them.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
 </div>
@@ -75,76 +124,871 @@ Format: `help`
 
 ### Adding a person: `add`
 
-Adds a person to the address book.
+Adds a person to the contact file.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add n/NAME [c/COMPANY] [r/ROLE] [p/PHONE_NUMBER] [e/EMAIL] [l/LINKEDIN] [i/INTRODUCER] [ev/EVENT] [t/TAG]…​`
+
+* Only the contact's name is required. Add whichever details you managed to collect and fill in the rest later with `edit`.
+* Use `i/INTRODUCER` to record who introduced the contact. This name is optional and does not need to belong to an existing Astra contact.
+  A contact cannot be their own introducer; the comparison ignores letter case and normalizes spacing.
+* Use `ev/EVENT` to record an event associated with the contact. The event name must not be blank.
+  <!-- @@author Yx0905 -->
+* `l/LINKEDIN` accepts a `linkedin.com` profile URL with a path after `linkedin.com/`, such as `linkedin.com/in/johndoe` or `https://www.linkedin.com/in/johndoe`, or a profile handle of 3 to 100 unaccented English letters, digits and hyphens, such as `john-doe`. Spaces are not allowed.
+  <!-- @@author -->
+* The phone number and email must not already belong to another contact. Two contacts can share a name unless neither of them has an email. Names are compared without regard to letter case, so adding `john doe` without an email is rejected if `John Doe` without an email already exists.
 
 <div markdown="span" class="alert alert-primary">:bulb: **Tip:**
 A person can have any number of tags, including zero.
 </div>
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add n/John Doe c/Acme r/Software Engineer p/98765432 e/johnd@example.com l/linkedin.com/in/johndoe`
+* `add n/John Doe i/O'Brien-Smith` Adds John Doe and records O'Brien-Smith as the introducer.
+* `add n/Betsy Crowe c/Newgate e/betsycrowe@example.com t/careerfair`
+* `add n/Hans Gruber` Adds a contact with only a name, which you can complete later with `edit`.
+* `add n/Alice Tan ev/NUS Career Fair` Adds Alice Tan and records the NUS Career Fair event.
+
+![Astra after running add n/Betsy Crowe c/Newgate e/betsycrowe@example.com t/careerfair](images/ug/add.png)
+*Astra after `add n/Betsy Crowe c/Newgate e/betsycrowe@example.com t/careerfair`, using the sample contacts.*
 
 ### Listing all persons: `list`
 
-Shows a list of all persons in the address book.
+Shows a list of all persons in the contact file.
 
 Format: `list`
 
+### Starring an important contact: `star`
+
+Marks a contact as important so you can retrieve it later with `starred`.
+
+Format: `star INDEX` or `star QUERY`
+
+* `INDEX` must be a positive integer from the currently displayed list.
+* If the contact is already starred, Astra reports that status without changing contact data.
+* Starred status is saved automatically and preserved across restarts and edits.
+
+Example: `find Charlotte` followed by `star 1` stars the 1st search result.
+
+Both `star QUERY` and `unstar QUERY` accept the same search criteria as [`find`](#locating-persons-find):
+
+* `NAME` or `/fuzzy NAME` for a name search.
+* `/contact PHONE_NUMBER` or `/email EMAIL` for a phone or email search.
+* `/company COMPANY`, `/role ROLE`, or `/company COMPANY /role ROLE` for a company,
+  role, or combined company-and-role search.
+* `/event EVENT` for an event search.
+* `/notes KEYWORDS` for an interaction-note search.
+
+Use the query after `star` or `unstar`, without the word `find`.
+The matching and combination rules described in the `find` section also apply.
+
+* Queries search all contacts and replace the current displayed filter with the search results.
+* One match: the contact's starred status is updated. If it already has the requested status, Astra reports this without changing contact data.
+* Multiple matches: Astra displays the results without changing any contacts and asks you to retry with `star INDEX` or `unstar INDEX`.
+* No matches: Astra reports `Contact not found.` and keeps the current list displayed.
+* A positive whole-number selector also searches contact names. If several contacts match, reply with a candidate number by itself.
+
+Examples: `star Charlotte`, `star /company Grab`, `star /company DBS /role Analyst`,
+and `unstar /email alexyeoh@example.com`.
+
+![Astra after running star 3](images/ug/star.png)
+*Astra after `star 3`, using the sample contacts.*
+
+
+### Removing a contact's star: `unstar`
+
+Removes a contact's starred status.
+
+Format: `unstar INDEX` or `unstar QUERY`
+
+* `INDEX` must be a positive integer from the currently displayed list.
+* If the contact is not starred, Astra reports that status without changing contact data.
+* The change is saved automatically. In the starred list, the contact disappears and the remaining contacts are renumbered.
+
+Example: `starred` followed by `unstar 1` unstars the 1st starred contact.
+
+### Retrieving starred contacts: `starred`
+
+Shows all starred contacts in their existing order, replacing any previous search filter.
+
+Format: `starred`
+
+* If none are starred, the list is empty and Astra reports `There are no starred contacts.`
+* Use `list` to return to all contacts.
+
+![Astra after running starred](images/ug/starred.png)
+*Astra after `starred`, using the sample contacts.*
+
 ### Editing a person: `edit`
 
-Edits an existing person in the address book.
+Edits an existing person in the contact file.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [n/NAME] [c/COMPANY] [r/ROLE] [p/PHONE] [e/EMAIL] [l/LINKEDIN] [ev/EVENT] [t/TAG]…​` or `edit NAME [n/NAME] [c/COMPANY] [r/ROLE] [p/PHONE] [e/EMAIL] [l/LINKEDIN] [ev/EVENT] [t/TAG]…​`
 
 * Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
+* Instead of an index, you can give all or part of the person's name, e.g. `edit John Lim p/91234567`. Letter case is ignored.
+  * If exactly one person's name contains it, Astra previews an edit for that person.
+  * If several do, they are listed with numbers and nothing is edited. Enter the command again with the person's number from that list in place of the name.
 * At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
+* If every value you enter is the same as the current one, nothing is changed and an error message is shown.
+* Valid edits first show the proposed changes and resulting contact in the confirmation panel.
+  Enter `y` or choose **Confirm (y)** to apply; `n`/`cancel` or **Cancel (n)** discards them.
+  Other replies repeat the prompt. Nothing is saved before confirmation.
+* Existing values will be updated to the input values after confirmation.
+* An edit is rejected if, afterwards, the contact would have the same name as another contact (ignoring letter case) and neither of them has an email. This applies both to renaming a contact and to removing its email with `e/`.
+* The new phone number or email must not already belong to another person. Emails are compared without regard to letter case, so `JohnDoe@example.com` and `johndoe@example.com` are the same email.
 * When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
+* Use `ev/EVENT` to add one event to the contact. Existing events are retained. An event the contact already has is rejected, and `ev/` without an event name is not accepted. Events cannot be removed in this version.
 * To remove all of a person's tags, enter `t/` without a tag after it.
+* To remove a person's company, role, phone, email or LinkedIn, enter its prefix with nothing after it, e.g. `c/`. The name cannot be removed.
+* To change an introducer, use `introduce NAME i/INTRODUCER`. `edit` does not accept `i/`;
+  unsupported prefixes are identified in the error message.
+* After confirmation, each updated field is listed, e.g. `Updated John Lim's phone to 91234567.`
+* After confirmation, the full contact list is shown again.
 
 Examples:
 *  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
 *  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+*  `edit Betsy p/91234567` Edits the phone number of the person named Betsy, if she is the only person whose name contains `Betsy`.
+*  `edit 3 c/ r/` Removes the company and role of the 3rd person.
 
-### Locating persons by name: `find`
+![Astra after running edit 3 r/Senior Engineer](images/ug/edit.png)
+*Astra after `edit 3 r/Senior Engineer`, using the sample contacts.*
 
-Finds persons whose names contain any of the given keywords.
+### Removing selected details: `drop`
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Removes only the explicitly selected detail values from a contact, after confirmation.
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Format: `drop INDEX FIELD/VALUE…​ [--confirm]` or `drop NAME FIELD/VALUE…​ [--confirm]`
+
+* `INDEX` refers to the contact's number in the displayed list. You can instead provide all or part of the contact's name; if several contacts match, Astra lists them with numbered indexes. Enter the index of the contact by itself, or `n`/`cancel` to stop. Astra then continues as if you had given that index.
+* Select a saved value using its field prefix, such as `p/PHONE`, `e/EMAIL`, `t/TAG`, or `i/INTRODUCER`. Values must match a value currently saved for that contact. The contact's name cannot be removed.
+* Astra first displays the proposed removal in the confirmation panel. Reply `y` to apply it,
+  or `n`/`cancel` to stop. Until confirmed, the contact file is unchanged and not saved.
+  <!-- @@author Yx0905 -->
+  You do not need to type the command again with `--confirm`.
+* Ending the command with `--confirm` skips the preview and removes the values immediately,
+  without asking. Use it only when you are sure of the values.
+  <!-- @@author -->
+* Repeating `t/TAG` removes only those selected tags; all other tags and contact details are retained.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+* `drop 1 t/outdated` Shows the selected tag removal for the 1st contact.
+  <!-- @@author Yx0905 -->
+* `drop 1 t/outdated --confirm` Removes that tag immediately, without a preview, while keeping the contact's other tags.
+  <!-- @@author -->
+* `drop Jane Doe e/jane@example.com` Proposes removing the selected email from Jane Doe.
+* `drop 1 i/Old Introducer` Proposes removing the saved introducer from the 1st contact.
+
+![Astra after running drop 1 t/engineering](images/ug/drop.png)
+*Astra after `drop 1 t/engineering`, using the sample contacts.*
+
+### Introducing a person: `introduce`
+
+Records the name of the person who introduced a contact. The introducer does not need to be an existing Astra contact.
+
+<!-- @@author Yx0905 -->
+
+Format: `introduce INDEX i/INTRODUCER` or `introduce NAME i/INTRODUCER`
+
+* `INDEX` refers to the contact's number in the currently displayed list. It must be a positive integer.
+  <!-- @@author -->
+* `NAME` can be the full or partial name of the contact. Matching is case-insensitive. If multiple contacts match, Astra lists them with numbered indexes. Enter the index of the contact by itself, or `n`/`cancel` to stop.
+* Enter the introducer's full name after `i/`. A name is required and follows the same name validation as `add`.
+* The introducer's name must differ from the contact's name, ignoring letter case and normalized spacing.
+  Renaming a contact to their saved introducer's name is also rejected.
+* Re-entering the same introducer reports that the name is already recorded and does not ask for confirmation.
+* If a different introducer is already recorded, Astra displays that name in the confirmation panel.
+  Reply `y` to replace it or `n`/`cancel` to stop. Adding `--confirm` to the original command
+  replaces it immediately without asking.
+* Astra displays the updated contact after recording the introducer.
+
+Examples:
+* `introduce John Doe i/Jane Smith` Records Jane Smith as the person who introduced John Doe.
+  <!-- @@author Yx0905 -->
+* `introduce 1 i/Jane Smith` Records Jane Smith as the introducer of the 1st contact in the displayed list.
+  <!-- @@author -->
+* `introduce John i/Jane Smith --confirm` Confirms replacing the introducer for the uniquely matched John Doe.
+
+Ambiguous-name example: suppose the candidates are `1. Alice Tan` and `2. Alice Lim`.
+
+1. Enter `introduce Alice i/Jane` to display the matching contacts.
+2. Reply with `2` by itself to choose Alice Lim from those candidates. Do not repeat the `introduce` command.
+3. Reply with `y` **only if** Astra asks to replace a different existing introducer;
+   `n` or `cancel` keeps the existing introducer. With no saved introducer, Jane is recorded after step 2.
+   If Jane is already recorded, Astra reports no change and does not ask for confirmation.
+
+![Astra after running introduce 3 i/Roy Balakrishnan](images/ug/introduce.png)
+*Astra after `introduce 3 i/Roy Balakrishnan`, using the sample contacts.*
+
+### Locating persons: `find`
+
+Finds contacts by name, approximate name, phone number, email address, company, role, event, or interaction notes.
+
+Formats:
+
+```text
+find NAME
+find /fuzzy NAME
+find /contact PHONE_NUMBER
+find /email EMAIL
+find /company COMPANY
+find /role ROLE
+find /company COMPANY /role ROLE
+find /event EVENT
+find /notes KEYWORDS
+```
+
+Searching by name:
+
+* The search is case-insensitive, so `alex` matches `Alex`.
+* Part of a name is enough and does not have to be a whole word: `Yeo` matches `Alex Yeoh`.
+* The search text must appear continuously and in the same order.
+* Extra spaces do not matter, so `find  alex   yeoh` is read as `find alex yeoh`.
+
+Examples:
+
+* `find Alex Yeoh` returns `Alex Yeoh`.
+* `find Yeo` returns `Alex Yeoh`.
+
+Searching approximately by name:
+
+* `find /fuzzy NAME` performs a case-insensitive fuzzy name search.
+* Minor spelling differences are accepted: a name, or any word in it, may differ from your search by up to two letters. A search of only one or two letters must keep at least one of them, so `find /fuzzy Al` does not match `Bernice Yu`.
+* Fuzzy matching also supports full-name queries, such as
+  `find /fuzzy Alicee Pauline` matching `Alice Pauline`.
+
+Example:
+
+* `find /fuzzy Alicee` can match `Alice`.
+
+Searching by phone number or email:
+
+* `find /contact PHONE_NUMBER` matches the complete phone number, ignoring spaces, hyphens, and parentheses. Partial numbers do not match.
+* `find /email EMAIL` matches an email exactly, ignoring letter case.
+* The phone number or email must be valid, or Astra reports the problem instead of searching.
+
+Examples:
+
+* `find /contact 87438807` returns the person with that exact number.
+* `find /email berniceyu@example.com` returns `Bernice Yu`.
+
+Searching by company or role:
+
+* `find /company COMPANY` finds contacts whose company matches the search value.
+* `find /role ROLE` finds contacts whose role matches the search value.
+* Both selectors can be used together. A contact must match both criteria when both are provided.
+
+Examples:
+
+* `find /company Google`
+* `find /role Engineer`
+* `find /company Google /role Engineer`
+
+Searching by event:
+
+* `find /event EVENT` finds contacts associated with an event containing the search text.
+* Event searches are case-insensitive and accept partial event names.
+
+Example:
+
+* `find /event Career Fair` finds contacts associated with `NUS Career Fair`.
+
+Searching interaction notes:
+
+* `find /notes KEYWORDS` finds contacts with a logged interaction whose note contains any of the keywords.
+* Letter case is ignored and partial words are accepted.
+* The result lists each matching contact with the date and note of every matching interaction. Notes longer than 60 characters are shortened to an excerpt around the first match.
+* Everything after `/notes` is treated as keywords, so `/notes` cannot be combined with other search criteria such as `/company`.
+* If no note matches, Astra reports `No matching notes were found.` and leaves the previous list unchanged.
+
+Example:
+
+* `find /notes internship coffee` finds contacts whose notes mention an internship or coffee.
+
+If no contacts match an ordinary search, Astra reports `Contact not found.` and keeps the current list displayed.
+
+If a name query matches several contacts, Astra displays the matching contacts. Use the displayed index when editing one of them. For example:
+
+```text
+edit Alice ev/Tech Conference
+edit 1 ev/Tech Conference
+```
+
+Use `list` to return to all contacts.
+
+![Astra after running find Yeo](images/ug/find.png)
+*Astra after `find Yeo`, using the sample contacts.*
+
+### Filtering contacts by tags: `filter`
+
+Shows contacts matching the tags you request, in their stored order.
+
+Formats:
+
+```text
+filter t/TAG [t/TAG]...
+filter mode/and t/TAG [t/TAG]...
+filter mode/or t/TAG [t/TAG]...
+```
+
+| Mode | A contact is included when... | Example |
+| --- | --- | --- |
+| AND (default) | It has every requested tag. | `filter t/work t/friend` |
+| OR | It has at least one requested tag. | `filter mode/or t/work t/friend` |
+
+* Provide at least one tag, using a separate `t/` for each. Use the same
+  alphanumeric tag names you assign through `add` and `edit`.
+* Tags are case-sensitive: `work` and `Work` are different. Mode values ignore
+  case, so `mode/OR` is also accepted. The prefixes `mode/` and `t/` use lower case.
+* You may put `mode/` before, between, or after the tags, but specify it only
+  once. One mode applies to the whole request; mixed Boolean expressions are
+  not supported. Repeated tags have the same effect as requesting them once.
+* Every filter searches all stored contacts and replaces the previous search
+  or filter. Results keep their stored order; each contact appears once.
+* No matches show an empty list with `No contacts match the requested tags.`
+  Run another filter or `list` to show contacts again.
+* Invalid input, including missing/invalid tags or an empty, unknown, or
+  repeated mode, preserves your previous view. Type `filter` to see the format.
+* `view INDEX` uses the numbers in the filtered results. `list` restores all
+  contacts. Filtering and viewing do not change or save contact data.
+
+Examples:
+
+* `filter t/work t/friend` shows contacts tagged with both `work` and `friend`.
+* `filter mode/or t/work t/friend` shows contacts with either or both tags.
+* `filter t/work`, then `view 1` shows the full details of the first result.
+
+![Astra after running filter mode/or t/mentor t/referral](images/ug/filter.png)
+*Astra after `filter mode/or t/mentor t/referral`, using the sample contacts.*
+
+### Viewing a person's full details: `view`
+
+Shows everything Astra has stored about one person, including details the contact list does not show.
+
+Format: `view INDEX` or `view NAME`
+
+* `INDEX` is a positive integer from the **displayed list**, including filtered results.
+* `NAME` searches every stored contact, even if the current filter hides it. Matching ignores letter case,
+  trims and collapses whitespace, and accepts a contiguous part of a name, just like `find`, `edit`, and `delete`.
+* A unique name match shows the contact's full details and narrows the list to that contact.
+* Several matches show a numbered list with names, companies, and emails where present, in stored order.
+  Run `view INDEX` using those new numbers to choose one. There is no confirmation prompt.
+* If neither an index nor a name matches a numeric selector, Astra shows an error and keeps the previous list.
+* Details the person does not have are omitted. Viewing never changes contacts or saves the contact file.
+  Use `list` to show everyone again.
+* An argument beginning with an integer must use a single positive whole-number selector. `view 0`, `view -1`, and `view 1 Alice`
+  are invalid. Name queries use the same allowed characters as contact names; prefixes such as `n/`
+  are not supported.
+
+Examples:
+* `list` followed by `view 2` shows the full details of the 2nd stored person.
+* `find Yeo` followed by `view 1` shows the full details of the first search result.
+* `view alex yeoh` or `view Yeoh` shows Alex Yeoh when he is the only match.
+* `view an` lists Irfan Ibrahim and Roy Balakrishnan; `view 2` then shows Roy's full details.
+* `find Bernice` followed by `view Alex Yeoh` still finds Alex, because name lookup searches all contacts.
+
+![Astra after running view 2](images/ug/view.png)
+*Astra after `view 2`, using the sample contacts.*
+
+### Logging an interaction: `log`
+
+Records a conversation or meeting with a person, so you can look back at what you discussed before you next meet.
+
+Format: `log INDEX [d/DATE] nt/NOTE` or `log NAME [d/DATE] nt/NOTE`
+
+* Identifies the person by `INDEX` or by all or part of their `NAME`, the same way as `edit`. If several people match the name, they are listed with numbers and nothing is logged; enter the command again with the person's number in place of the name.
+* `DATE` is when the interaction happened. It can use `yyyy-MM-dd` (for example
+  `2026-10-01`), `dd/MM/yyyy` (`01/10/2026`), or `d MMM yyyy` (`1 Oct 2026`).
+  Month names use English three-letter abbreviations and are case-insensitive.
+  Dates before `2000-01-01` are not accepted. If omitted, today's date is used.
+  <!-- @@author Yx0905 -->
+* The date cannot be in the future, since the interaction has already happened.
+* `NOTE` is what was discussed, and cannot be blank.
+* Interactions are kept in date order, so an interaction you log late is placed where it belongs. After logging, the person's full interaction history is shown.
+* Logging the same note on the same date twice is rejected, so an accidental repeat does not add a second copy. Letter case is ignored when comparing notes.
+* When you give an `INDEX`, the displayed list stays as it was. When you give a `NAME`, the list shows the people matching that name.
+* By default, `view` shows a person's interaction history after their other details, except events, which always come last. Use `order` to move the interaction history.
+
+Examples:
+* `log John Lim nt/Discussed backend internships` logs today's conversation with John Lim.
+* `log 2 d/2026-10-01 nt/Met at the career fair` logs an earlier meeting with the 2nd person in the list.
+
+![Astra after running log 2 d/2026-11-02 nt/Met again at the product meetup](images/ug/log.png)
+*Astra after `log 2 d/2026-11-02 nt/Met again at the product meetup`, using the sample contacts.*
+
+### Removing a logged interaction: `unlog`
+
+Removes an interaction you logged by mistake, e.g. one with the wrong date or for the wrong person.
+
+Format: `unlog INDEX i/ENTRY` or `unlog NAME i/ENTRY`
+
+* Identifies the person by `INDEX` or by all or part of their `NAME`, the same way as `log`.
+* `ENTRY` is the interaction's number in the person's interaction history, as shown by `view` and after `log`. It must be a positive whole number.
+* Astra first shows the interaction and asks you to confirm. Enter `y` to remove it, or `n` or `cancel` to keep it.
+* After removing it, Astra shows what was removed and the person's remaining history, renumbered.
+* When you give an `INDEX`, the displayed list stays as it was, so the same index still points to the same person. When you give a `NAME`, the list shows the people matching that name, the same way as `log`.
+  <!-- @@author -->
+  This also applies when removing the last note matching a `find /notes` search. Run the search again
+  to refresh its results.
+* If the person has fewer interactions than `ENTRY`, nothing is removed.
+* To correct an interaction's date or note instead of removing it, use `editlog`.
+
+Examples:
+* `unlog John Lim i/2` removes the 2nd interaction in John Lim's history.
+* `unlog 1 i/1` removes the earliest interaction with the 1st person in the list.
+
+![Astra after running unlog 1 i/1](images/ug/unlog.png)
+*Astra after `unlog 1 i/1`, using the sample contacts.*
+
+### Editing a logged interaction: `editlog`
+
+Corrects the date or note of an interaction you have logged, e.g. a typo in the note or the wrong date.
+
+Format: `editlog INDEX i/ENTRY [d/DATE] [nt/NOTE]` or `editlog NAME i/ENTRY [d/DATE] [nt/NOTE]`
+
+* Identifies the person by `INDEX` or by all or part of their `NAME`, the same way as `log`.
+* `ENTRY` is the interaction's number in the person's interaction history, as shown by `view` and after `log`. It must be a positive whole number.
+* Give at least one of `d/DATE` and `nt/NOTE`. A part you leave out keeps its current value.
+* `DATE` and `NOTE` follow the same rules as in `log`: the date must use one of
+  the supported date formats, be on or after `2000-01-01`, and cannot be in the
+  future; the note cannot be blank.
+* Interactions stay in date order, so changing the date can move the interaction to a different number. Astra shows its new number and the full history after the edit.
+* An edit that leaves the interaction exactly as it was, or that makes it the same as another of the person's interactions (same date and note, ignoring letter case), is rejected and nothing changes.
+* When you give an `INDEX`, the displayed list stays as it was, so the same index still points to the same person. When you give a `NAME`, the list shows the people matching that name, the same way as `log`.
+  This also applies when an edited note no longer matches a `find /notes` search. Run the search again
+  to refresh its results.
+
+Examples:
+* `editlog John Lim i/2 nt/Discussed frontend internships` corrects the note of the 2nd interaction in John Lim's history.
+* `editlog 1 i/1 d/2026-09-30` moves the earliest interaction with the 1st person in the list to 30 September 2026.
+
+![Astra after running editlog 1 i/1 nt/Discussed backend internships at the careers fair](images/ug/editlog.png)
+*Astra after `editlog 1 i/1 nt/Discussed backend internships at the careers fair`, using the sample contacts.*
 
 ### Deleting a person: `delete`
 
-Deletes the specified person from the address book.
+Previews the selected contacts and asks for confirmation before deleting them.
 
-Format: `delete INDEX`
+Formats:
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+```text
+delete INDEX
+delete NAME
+delete /contact PHONE_NUMBER
+delete /email EMAIL [EMAIL]...
+```
+
+* `INDEX` is a positive integer referring to the currently displayed list. A number may also match
+  contact names; see the notes about the command format.
+* A name can be partial and is matched without regard to letter case. Names,
+  phone numbers, and emails search every stored contact, even when filtered.
+* If a name matches several contacts, Astra displays numbered candidates. Enter
+  the index of the candidate by itself. Astra then previews that contact and asks
+  for confirmation; selection alone never deletes anything.
+* Phone numbers match the complete number, ignoring spaces, hyphens, and
+  parentheses. A leading plus remains significant. Emails match complete
+  addresses without regard to letter case.
+* An email batch is validated and resolved in full before confirmation. One
+  malformed or missing address rejects the entire request. Repeated addresses
+  select a contact once.
+* After reviewing the preview, enter `y` to delete or `n`/`cancel` to stop.
+  Invalid replies repeat the prompt. To run another command, cancel first.
+* Successful deletion shows all remaining contacts in their stored order and
+  reports the deleted details and remaining count. Cancellation restores your
+  previous view. A failed save preserves the contact file, contacts, and view.
+* If no contacts are stored, Astra reports that there is nothing to delete.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+
+* `find Bernice`, then `delete 1`, then `y` deletes the first displayed result.
+* `delete Alex Yeoh`, then `y` deletes him if exactly one contact matches.
+* `delete an`, then `2`, then `y` deletes the second numbered candidate (Roy Balakrishnan in the sample data).
+* `delete /contact 8743 8807`, then `n` previews and cancels deletion.
+* `delete /email alexyeoh@example.com berniceyu@example.com`, then `y` deletes both
+  contacts in one save if every address resolves successfully.
+
+![Astra after running delete 2](images/ug/delete.png)
+*Astra after `delete 2`, using the sample contacts.*
+
+### Undoing an edit or deletion: `undo`
+
+Reverses the most recent successful edit or deletion in the current Astra session.
+
+Format: `undo`
+
+* Run `undo` to see which edit or deletion will be reversed.
+* Enter `y` to restore the contact information; Astra displays the restored contact and saves the contact file.
+* Enter `n` or `cancel` to keep the current contact information.
+* Only edits and deletions can be undone. Adding, clearing, or otherwise changing contact data after an edit or deletion makes that earlier change unavailable to undo.
+* If restoring the information would violate contact uniqueness rules, Astra reports the conflict and makes no changes.
+* Undo history is kept only for the current session and is cleared when Astra closes.
+
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+Review the deletion preview before entering `y`. Undo is available only for the
+most recent edit or deletion and is cleared by any later contact data change.
+</div>
+
+Examples:
+* `edit 1 p/91234567`, followed by `undo`, previews the edit that would be reversed.
+* Enter `y` after the preview to restore the previous phone number.
+* `delete John Lim`, followed by `undo` and `y`, restores John Lim.
+
+![Astra after running delete 6, y, then undo](images/ug/undo.png)
+*Astra after `delete 6`, `y`, then `undo`, using the sample contacts.*
+
+### Viewing data-change history: `history`
+
+Shows successful changes made with `add`, `edit`, `delete`, `drop`, `clear`, and `introduce` during the current Astra session. Edits and deletions remain in the history even if they are undone. Entries are shown newest first.
+
+Format: `history`
+
+* The history is cleared when Astra closes.
+* Other command types, including viewing commands, are not included.
+
+![Astra after running edit 3 r/Senior Engineer, y, then history](images/ug/history.png)
+*Astra after `edit 3 r/Senior Engineer`, `y`, then `history`, using the sample contacts.*
+
+### Recording a follow-up: `followup`
+
+Adds a pending action to the contact at the currently displayed index.
+
+Format: `followup INDEX a/DESCRIPTION [d/DATE]`
+
+* `INDEX` must be a positive number from the displayed list, including filtered
+  results. The contact stays in the current view after adding an action.
+* Provide one non-blank description after `a/`. Outer whitespace is removed;
+  letter case and internal spacing are kept. Additional command prefixes such
+  as `p/`, repeated `a/`, and `confirm/` are rejected. URLs such as
+  `https://example.com/portfolio` can be part of the description. Any other word
+  that ends in `/`, such as `and/or` or `c/o`, is also read as a prefix and
+  rejected, so rephrase such words.
+* Optionally add one `d/DATE` before or after `a/DESCRIPTION`. For example,
+  `followup 1 d/2026-11-30 a/Call back` is also accepted. Accepted formats are
+  `yyyy-MM-dd` (for example `2026-11-25`), `dd/MM/yyyy` (`25/11/2026`), and
+  `d MMM yyyy` (`25 Nov 2026`). Month names use English three-letter abbreviations
+  and are case-insensitive. Slash-separated dates use day/month/year.
+  Dates before `2000-01-01` are rejected.
+  Omitting `d/` creates an action with no due date. Empty or repeated `d/`
+  parameters and impossible dates are rejected without saving an action;
+  date errors show the supported formats.
+* A new action is saved immediately with status `PENDING`. The response and
+  contact card show the ordered list with stable IDs, for example
+  `#4 [PENDING] Send portfolio | Due: 2026-11-25`. `view INDEX` also shows the full history.
+  All dates display as `yyyy-MM-dd`, regardless of the input format. Undated
+  actions display `No due date`. Past dates are accepted: pending actions due
+  before today show `[OVERDUE]`. Actions due today or later and completed
+  actions are not overdue. Today follows the computer's local date.
+* If an identical description already has a pending action, Astra shows it and
+  asks **Add another?** Enter `y` to add another, or `n`/`cancel` to stop.
+  Comparison is case-sensitive after trimming: `Call` and `call` are different.
+  A different due date still triggers confirmation for the same pending description.
+  The prompt shows the existing action and the requested date. Confirming creates
+  another action with the requested date and leaves the existing action unchanged.
+  Other replies repeat the prompt; cancel before entering another command.
+* A completed action with the same description does not require confirmation.
+  Completed history is retained. Use `completefollowup` and `reopenfollowup` to
+  change an action's status, `editfollowup` to correct an action, and
+  `deletefollowup` to remove a mistaken action.
+* Action IDs are unique within each contact and are never renumbered or reused, even after
+  deletion or restart.
+* Actions survive restart and ordinary contact edits. A failed save preserves
+  the file, previous action history, and current view.
+
+Example:
+
+Start with a fresh copy of the sample contacts and run `list`, so Alex Yeoh is
+contact 1. Alex already has follow-ups `#1` to `#3`, so these additions get
+`#4` and `#5`. With other data, use the IDs shown in your contact's history.
+The dated examples assume today is 3 November 2026. If you try them later,
+choose future dates to avoid an additional `[OVERDUE]` label on pending actions.
+
+```text
+followup 1 a/Send portfolio d/25 Nov 2026
+followup 1 a/Send portfolio d/01/12/2026
+```
+
+The first command adds `#4 [PENDING] Send portfolio | Due: 2026-11-25`.
+The second asks whether another is wanted; enter `y` to add `#5` due on
+`2026-12-01`, or `n` to keep just the new `#4` and Alex's original actions. The original
+command does not need to be repeated while answering the prompt.
+
+![Astra after running followup 3 a/Send a thank-you note d/2026-11-20](images/ug/followup.png)
+*Astra after `followup 3 a/Send a thank-you note d/2026-11-20`, using the sample contacts.*
+
+### Reviewing follow-ups: `followups`
+
+Lists follow-ups across all contacts, including contacts hidden by
+the current `find` or `filter` results. Your contact filter stays unchanged.
+Results appear as selectable rows in the left panel. Selecting a row shows its
+contact and selected action in the right detail card. The bottom area shows
+command summaries and errors, rather than the full follow-up list or contact details.
+
+Format: `followups [overdue|today|upcoming|completed|undated]`
+
+* Omit the selector to list all pending actions, including undated actions.
+* `overdue` includes pending actions due before today; `today` includes those due today.
+* `upcoming` includes pending actions due after today, with no upper date limit.
+* `completed` includes completed actions with or without due dates.
+* `undated` includes pending actions without due dates; completed undated actions are excluded.
+* Date-based views exclude completed and undated actions. Selectors ignore letter case.
+* Supply at most one selector. Unknown selectors and extra arguments show usage instructions.
+* Today uses your computer's local date when the command runs. Each view has its own heading
+  and empty-result message.
+* Dated actions appear in ascending due-date order, followed by undated actions.
+* Equal dates retain contact order, then each contact's stored action order.
+  Undated actions retain that same order.
+* Each numbered entry shows the contact name, stable action ID, status,
+  description, and due date in `yyyy-MM-dd` format or `No due date`.
+* Pending actions due before today show `[OVERDUE]`. Actions due today are not overdue.
+* Completed actions appear only in the `completed` view. The default view displays
+  `No pending follow-ups remain.` when empty. Other views use their own empty-result messages.
+* When entries are shown, click a row or use the arrow keys to preview the associated contact.
+  You can also enter a displayed number to open the associated contact using
+  the same display as `view`. The selected action is retained as context. Use the numbered row, not the action's
+  `#ID` or a contact index. The contact filter stays unchanged, even if the
+  selected contact is hidden by it.
+* Invalid numeric replies keep the list visible and show a short error below it. Non-number input
+  leaves selection and runs as a normal command: for example, `list`, `view 1`,
+  `help`, or `followup 1 a/Call`. Unknown or malformed commands show their usual
+  error and still end selection. Enter `n` or `cancel` to leave without running
+  another command. An empty result requires no reply.
+* Numbered selection uses the exact order shown in the list. If the selected contact
+  or its follow-ups have changed or the contact was deleted, Astra asks you to
+  run `followups` again rather than opening stale details.
+* Running this command does not change or save contact data. Run it again to
+  refresh the results after selecting or cancelling, adding an action, or when
+  the day changes. Pending selections are not retained across restart.
+
+Example list contents (when today is 2026-10-21):
+
+```text
+Pending follow-ups (3):
+1. Alice | #2 [PENDING] Call | Due: 2026-10-19 [OVERDUE]
+2. Benson | #1 [PENDING] Send portfolio | Due: 2026-10-25
+3. Alice | #3 [PENDING] Check in | No due date
+Enter a follow-up number, another command, or n/cancel to stop.
+```
+
+Enter `2` to display Benson's `Send portfolio` action and full contact details.
+Enter `cancel` instead to leave the list without selecting an action.
+
+![Astra after running followups](images/ug/followups.png)
+*Astra after `followups`, using the sample contacts.*
+
+### Editing a follow-up: `editfollowup`
+
+Edits an existing follow-up while preserving its ID and pending or completed status.
+
+Format:
+
+`editfollowup CONTACT_INDEX i/FOLLOW_UP_ID [a/DESCRIPTION] [d/DATE]`
+
+* `CONTACT_INDEX` is the index of the contact in the currently displayed list.
+* `FOLLOW_UP_ID` is the ID of the follow-up to edit.
+* At least one of `a/DESCRIPTION` or `d/DATE` must be provided.
+* The follow-up's ID and status are preserved.
+* A pending follow-up cannot be changed to a description that duplicates another
+  pending follow-up for the same contact.
+* Use `d/` without a value to remove the due date.
+* The same date formats and `2000-01-01` minimum supported by `followup` apply.
+
+Examples:
+
+After creating `#5` in the `followup` example above, keep Alex as contact 1.
+The following are alternative edits to that action. With other data, replace
+`i/5` with the ID shown in the contact's history.
+
+```text
+editfollowup 1 i/5 a/Call client
+editfollowup 1 i/5 d/2026-12-05
+editfollowup 1 i/5 a/Call client d/2026-12-05
+editfollowup 1 i/5 d/
+```
+
+![Astra after running editfollowup 1 i/2 d/2026-11-10](images/ug/editfollowup.png)
+*Astra after `editfollowup 1 i/2 d/2026-11-10`, using the sample contacts.*
+
+### Completing or reopening a follow-up: `completefollowup`, `reopenfollowup`
+
+Marks a pending follow-up as completed, or reopens a completed follow-up as pending.
+
+Format:
+
+`completefollowup CONTACT_INDEX i/FOLLOW_UP_ID`<br>
+`reopenfollowup CONTACT_INDEX i/FOLLOW_UP_ID`
+
+* `CONTACT_INDEX` is the index of the contact in the currently displayed list.
+* `FOLLOW_UP_ID` is the follow-up's stable ID, shown as `#ID` on the contact card,
+  in `view`, and in `followups`. It is not the row number of the `followups` list.
+* Only the status changes. The ID, description, due date and position in the
+  contact's history are kept.
+* A completed follow-up moves to `followups completed` and leaves the default,
+  `overdue`, `today`, `upcoming` and `undated` views. It is never shown as
+  `[OVERDUE]`. Reopening it moves it back to the views that match its due date.
+* Completing a follow-up that is already completed, or reopening one that is
+  already pending, is rejected and changes nothing.
+* A follow-up cannot be reopened while another pending follow-up of the same
+  contact has the same description. Complete or edit that follow-up first.
+* The change is saved immediately and survives restart.
+
+Examples:
+
+Continue with `#5` from the `followup` example above. If needed, first run
+`editfollowup 1 i/5 a/Call client d/2026-12-05` so its description and due date
+match the result below. Then change its status:
+
+```text
+completefollowup 1 i/5
+reopenfollowup 1 i/5
+```
+
+The completion command changes `#5 [PENDING] Call client | Due: 2026-12-05` to
+`#5 [COMPLETED] Call client | Due: 2026-12-05`. The reopening command reverts it to pending.
+
+![Astra after running completefollowup 1 i/2](images/ug/completefollowup.png)
+*Astra after `completefollowup 1 i/2`, using the sample contacts.*
+
+### Deleting a follow-up: `deletefollowup`
+
+Previews one pending or completed action before permanently removing it.
+
+Format: `deletefollowup CONTACT_INDEX i/FOLLOW_UP_ID`
+
+* `CONTACT_INDEX` refers to the currently displayed contact list. `FOLLOW_UP_ID` is
+  the stable number after `#` in that contact's history, not a row number in the `followups` list.
+  Both values must be positive integers.
+* The confirmation panel shows the contact, action ID, description, status, and due date.
+  Enter `y` or choose **Confirm** to delete; `n`/`cancel` or **Cancel** keeps the action.
+  Other replies, including other commands, only repeat the prompt; cancel first to run another command.
+* Only that action is removed. Remaining action order and IDs, contact fields, tags,
+  events, introducer, star, and interactions are preserved. The current contact filter remains active.
+* IDs are never reused, even after deleting the highest ID or the entire history and restarting.
+* Invalid contact indices or action IDs change nothing. A failed save restores the
+  original file, contact history, retired IDs, and pre-request view. Start a new request to retry.
+
+Example: after the examples above, `deletefollowup 1 i/5`, then `y`, removes
+action `#5` from Alex. His remaining action IDs are unchanged.
+
+![Astra after running deletefollowup 1 i/2](images/ug/deletefollowup.png)
+*Astra after `deletefollowup 1 i/2`, using the sample contacts.*
+
+### Using the confirmation panel
+
+Contact edits, contact deletion, clear, follow-up deletion, and duplicate follow-up creation
+share one scrollable panel, and so do the `undo`, `unlog`, `drop` and `introduce` confirmations. Read the
+preview, then choose **Confirm (y)** or **Cancel (n)**, or enter `y`, `n`, or `cancel` in the command box.
+Tab reaches the buttons, and Space activates the focused button (Enter also works on Windows and Linux).
+Showing the panel does not take focus from the command box.
+
+Invalid replies leave the panel open. Completion, cancellation, or failure hides it.
+Clicking a button on a panel that has already closed has no effect. When a name matches several
+contacts, Astra first asks for a candidate number, then shows the confirmation panel.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Previews the total number of stored contacts and asks for confirmation before
+clearing them. The count includes contacts hidden by a filter.
 
 Format: `clear`
+
+* Enter `y` to clear every contact, or `n`/`cancel` to stop. Invalid replies
+  repeat the prompt. Cancel before running an unrelated command.
+* Nothing is cleared until you enter `y`. Success reports how many were cleared
+  and that 0 remain. A failed save preserves the file, contacts, and prior view.
+* `clear` takes no parameters. `clear 3` is rejected and changes nothing.
+* An already empty contact file reports that there is nothing to clear.
+
+Examples:
+
+* `clear`, then `y`, with 12 stored contacts, reports
+  `Cleared 12 contact(s). 0 contact(s) remaining.`
+* `find Alex`, then `clear`, then `cancel` preserves every contact and restores
+  the results of `find Alex`.
+
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+Confirmed clearing cannot be undone. Check the count before entering `y`.
+</div>
+
+![Astra after running clear](images/ug/clear.png)
+*Astra after `clear`, using the sample contacts.*
+
+### Reordering contact fields: `order`
+
+Changes the order of information within every contact card and in full details.
+The order of the contacts themselves stays the same.
+
+Formats:
+
+```text
+order
+order FIELD FIELD FIELD FIELD FIELD FIELD FIELD FIELD FIELD FIELD
+```
+
+* `order` shows the current global field order.
+* To change it, supply each of these ten field names **exactly once**:
+  `name`, `tags`, `company`, `role`, `phone`, `email`, `linkedin`, `followups`, `introducer`, `interactions`.
+  If you leave out only `interactions`, it is placed last. If you leave out only `introducer`, it is placed just
+  before `interactions`; if you leave out both, they are added last. Field names ignore letter case.
+  Any other missing field, or an unknown or repeated one, is rejected with the accepted fields;
+  your existing preference and view remain.
+* The default is `name tags company role phone email linkedin followups introducer interactions`,
+  placing the introducer before interaction history. Interaction history
+  appears only in a contact's details (`view`, `log`), not on the contact cards. Contacts without optional
+  values omit those rows, even when an absent field appears early in the order. Events are not part
+  of the field order; they always appear last.
+* A successful change immediately refreshes existing cards. If you are viewing
+  a contact's details, they are redisplayed in the new order alongside the
+  confirmation. Later `view INDEX` and `view NAME` output use the same order.
+* The preference applies to every contact and survives restart. Earlier
+  preference files without an order use the default.
+* Querying the order or setting the same order performs no save. A changed
+  order saves preferences once and does not write contact data. Your current
+  search/filter and contact order remain in place.
+* If saving fails, Astra reports the error and restores the previous field
+  order in preferences, cards, and any displayed contact details. The previous
+  preference file remains intact.
+
+Examples:
+
+* `order` shows the active order.
+* `order name phone email company role tags linkedin followups introducer interactions` puts phone and
+  email near the top while retaining all fields.
+* `order interactions name tags company role phone email linkedin followups introducer` shows interaction
+  history first in a contact's details.
+* `order followups name tags company role phone email linkedin introducer interactions` puts follow-up
+  history first on contacts that have it.
+
+<!-- @@author Yx0905 -->
+
+![Astra after running order name company role phone email linkedin tags followups introducer interactions, then view 1](images/ug/order.png)
+*Astra after `order name company role phone email linkedin tags followups introducer interactions`, then `view 1`, using the sample contacts.*
+
+### Creating command shortcuts: `alias`
+
+Saves a short word that stands for a command you type often. Entering the shortcut then runs that command, followed by anything you type after the shortcut.
+
+Format: `alias SHORTCUT COMMAND…​`
+
+* `SHORTCUT` must be one word of letters and digits that starts with a letter, e.g. `fe`. Letter case does not matter: `FE` and `fe` are the same shortcut.
+* `COMMAND` must start with one of Astra's commands other than `alias` (see the [command summary](#command-summary)), and can include part of its parameters.
+* A shortcut cannot have the same name as one of Astra's commands, and cannot stand for another shortcut or for `alias`.
+* When you use a shortcut, the command runs exactly as if you had typed it in full, with the same checks and confirmations.
+* The result starts with `Ran:` followed by the full command the shortcut stood for, so you can see exactly what ran. Error messages show it too.
+* If the shortcut already exists, Astra shows what it currently runs and changes nothing. To replace it, use `alias /replace SHORTCUT COMMAND…​`.
+* `alias` on its own lists your shortcuts. `alias /remove SHORTCUT` removes one.
+* Shortcuts are saved in `preferences.json` as soon as you create them, so they are still there the next time you start Astra. If saving fails, the shortcut is not created.
+* If you edit `preferences.json` by hand, shortcut names are read ignoring letter case, and any shortcut that breaks the rules above is dropped when Astra starts.
+
+Examples:
+* `alias fe find /email` saves the shortcut. Entering `fe john.lim@example.com` then runs `find /email john.lim@example.com`, and the result starts with `Ran: find /email john.lim@example.com`.
+* `alias fe find /contact` when `fe` already exists reports `Shortcut fe already runs: find /email` and tells you how to replace it.
+* `alias /replace fe find /contact` replaces it.
+* `alias list find` is rejected, because `list` is already a command.
+
+<!-- @@author -->
+
+![Astra after running alias fe find /email, then fe berniceyu@example.com](images/ug/alias.png)
+*Astra after `alias fe find /email`, then `fe berniceyu@example.com`, using the sample contacts.*
 
 ### Exiting the program: `exit`
 
@@ -154,34 +998,33 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+Astra automatically saves successful contact changes. You do not need to save
+manually. Viewing, searching, pending prompts, cancellation, and commands that
+change nothing do not rewrite the contact file. Display-field order is saved
+separately in `preferences.json`. If saving fails, Astra reports
+the error and keeps the previous file, contact data, and displayed view.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+Contact data is saved automatically as a JSON file `data/contactfile.json` in the folder from which you launch Astra (the home folder when following Quick start). Advanced users can edit this file while Astra is closed.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+Back up the file before editing it. On the next launch, Astra may recover valid contacts and skip invalid or duplicate records, or stop with an error and offer **Start anew** if a safe backup can be made. See [Starting Astra](#starting-astra) for the recovery process and backup locations.<br>
+Furthermore, certain edits can cause Astra to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous Astra home folder.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+There are no known issues at the moment.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +1032,31 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
+**Add** | `add n/NAME [c/COMPANY] [r/ROLE] [p/PHONE_NUMBER] [e/EMAIL] [l/LINKEDIN] [i/INTRODUCER] [ev/EVENT] [t/TAG]…​` <br> e.g., `add n/James Ho c/Acme r/Analyst p/22224444 e/jamesho@example.com ev/Career Fair i/Jane Smith t/colleague`
+**Alias** | `alias SHORTCUT COMMAND…​`, `alias /replace SHORTCUT COMMAND…​`, `alias /remove SHORTCUT`, or `alias` (lists shortcuts)<br> e.g., `alias fe find /email`
+**Clear** | `clear`, then `y` to confirm or `n`/`cancel` to stop
+**Delete** | `delete INDEX`, `delete NAME`, `delete /contact PHONE_NUMBER`, or `delete /email EMAIL [EMAIL]...`, then `y`, `n`, or `cancel`<br> e.g., `delete 3`, `delete Alex Yeoh`, `delete /email alexyeoh@example.com berniceyu@example.com`
+**Drop** | `drop INDEX FIELD/VALUE…​ [--confirm]` or `drop NAME FIELD/VALUE…​ [--confirm]`<br> e.g., `drop 1 t/outdated`, `drop 1 i/Old Introducer --confirm`
+**Edit** | `edit INDEX [n/NAME] [c/COMPANY] [r/ROLE] [p/PHONE_NUMBER] [e/EMAIL] [l/LINKEDIN] [ev/EVENT] [t/TAG]…​` or `edit NAME …​` (same fields), then `y` to confirm or `n`/`cancel` to stop<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`, `edit James Ho p/91234567`, `edit 1 ev/Tech Conference`, `edit 3 c/` (removes the company)
+**Introduce** | `introduce INDEX i/INTRODUCER` or `introduce NAME i/INTRODUCER`<br> e.g., `introduce John Doe i/Jane Smith`, `introduce 1 i/Jane Smith`
+**Undo** | `undo` to preview the most recent edit or deletion; enter `y` to restore it or `n`/`cancel` to stop
+**History** | `history`
+**Find** | `find NAME`, `find /fuzzy NAME`, `find /contact PHONE_NUMBER`, `find /email EMAIL`, `find /company COMPANY`, `find /role ROLE`, `find /event EVENT`, or `find /notes KEYWORDS`<br> e.g., `find Alex Yeoh`, `find /fuzzy Alicee`, `find /contact 87438807`, `find /email alexyeoh@example.com`, `find /company Google /role Engineer`, `find /event Career Fair`, `find /notes internship`
+**Filter** | `filter [mode/and] t/TAG [t/TAG]...` or `filter mode/or t/TAG [t/TAG]...`<br> Default AND; e.g., `filter mode/or t/mentor t/referral`
+**Follow-up** | `followup INDEX a/DESCRIPTION [d/DATE]`<br> e.g., `followup 1 a/Send portfolio d/25 Nov 2026`; duplicate pending actions ask `y`/`n`/`cancel`
+**Delete follow-up** | `deletefollowup CONTACT_INDEX i/FOLLOW_UP_ID`, then `y` or `n`/`cancel`<br> e.g., `deletefollowup 1 i/5`
+**Edit follow-up** | `editfollowup CONTACT_INDEX i/FOLLOW_UP_ID [a/DESCRIPTION] [d/DATE]`<br> e.g., `editfollowup 1 i/5 a/Call client d/2026-12-05`
+**Complete follow-up** | `completefollowup CONTACT_INDEX i/FOLLOW_UP_ID`<br> e.g., `completefollowup 1 i/5`
+**Reopen follow-up** | `reopenfollowup CONTACT_INDEX i/FOLLOW_UP_ID`<br> e.g., `reopenfollowup 1 i/5`
+**Log** | `log INDEX [d/DATE] nt/NOTE` or `log NAME [d/DATE] nt/NOTE`<br> e.g., `log John Lim d/2026-10-01 nt/Met at the career fair`
+**Follow-ups** | `followups [FILTER]`, where `FILTER` is `overdue`, `today`, `upcoming`, `completed` or `undated`, then a displayed number to view details/contact or `n`/`cancel` to stop<br> e.g., `followups overdue`
+**Unlog** | `unlog INDEX i/ENTRY` or `unlog NAME i/ENTRY`, then `y` to confirm<br> e.g., `unlog John Lim i/2`
+**Edit log** | `editlog INDEX i/ENTRY [d/DATE] [nt/NOTE]` or `editlog NAME i/ENTRY [d/DATE] [nt/NOTE]`<br> e.g., `editlog John Lim i/2 nt/Discussed frontend internships`
 **List** | `list`
+**View** | `view INDEX` or `view NAME`<br> e.g., `view 2`, `view Alex Yeoh`
+**Order** | `order` to query; `order name phone email company role tags linkedin followups introducer interactions` to change
+**Star** | `star INDEX` or `star QUERY`<br> e.g., `star 2`
+**Unstar** | `unstar INDEX` or `unstar QUERY`<br> e.g., `unstar 1`
+**Starred** | `starred`
 **Help** | `help`
+**Exit** | `exit`

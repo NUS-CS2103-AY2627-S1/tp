@@ -1,0 +1,60 @@
+{
+  "_comment": "ContactFile save file which contains the same Person values as in TypicalPersons#getTypicalContactFile()",
+  "persons" : [ {
+    "name" : "Alice Pauline",
+    "company" : "Shopee",
+    "role" : "Software Engineer",
+    "phone" : "94351253",
+    "email" : "alice@example.com",
+    "linkedin" : "linkedin.com/in/alicepauline",
+    "tags" : [ "friends" ]
+  }, {
+    "name" : "Benson Meier",
+    "company" : "GovTech",
+    "role" : "Product Manager",
+    "phone" : "98765432",
+    "email" : "johnd@example.com",
+    "linkedin" : "linkedin.com/in/bensonmeier",
+    "tags" : [ "owesMoney", "friends" ]
+  }, {
+    "name" : "Carl Kurz",
+    "company" : "Grab",
+    "role" : "Data Analyst",
+    "phone" : "95352563",
+    "email" : "heinz@example.com",
+    "linkedin" : "linkedin.com/in/carlkurz",
+    "tags" : [ ]
+  }, {
+    "name" : "Daniel Meier",
+    "company" : "DBS",
+    "role" : "Consultant",
+    "phone" : "87652533",
+    "email" : "cornelia@example.com",
+    "linkedin" : "linkedin.com/in/danielmeier",
+    "tags" : [ "friends" ]
+  }, {
+    "name" : "Elle Meyer",
+    "company" : "Sea",
+    "role" : "Designer",
+    "phone" : "9482224",
+    "email" : "werner@example.com",
+    "linkedin" : "linkedin.com/in/ellemeyer",
+    "tags" : [ ]
+  }, {
+    "name" : "Fiona Kunz",
+    "company" : "Stripe",
+    "role" : "Recruiter",
+    "phone" : "9482427",
+    "email" : "lydia@example.com",
+    "linkedin" : "linkedin.com/in/fionakunz",
+    "tags" : [ ]
+  }, {
+    "name" : "George Best",
+    "company" : "Visa",
+    "role" : "Engineering Manager",
+    "phone" : "9482442",
+    "email" : "anna@example.com",
+    "linkedin" : "linkedin.com/in/georgebest",
+    "tags" : [ ]
+  } ]
+}

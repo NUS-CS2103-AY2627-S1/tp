@@ -1,21 +1,30 @@
 package seedu.address.storage;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 
 /**
- * A class to access UserPrefs stored on the hard disk as a JSON file
+ * Reads preferences and saves validated snapshots through atomic file replacement.
  */
 public class JsonUserPrefsStorage {
+    private static final Logger logger = LogsCenter.getLogger(JsonUserPrefsStorage.class);
 
-    private Path filePath;
+    private final Path filePath;
 
+    /**
+     * Creates preference storage at the given path.
+     */
     public JsonUserPrefsStorage(Path filePath) {
         this.filePath = filePath;
     }
@@ -25,31 +34,60 @@ public class JsonUserPrefsStorage {
     }
 
     /**
-     * Returns UserPrefs data from storage.
-     * Returns {@code Optional.empty()} if storage file is not found.
+     * Returns preferences, or an empty result when the file is absent.
      *
-     * @throws DataLoadingException if the loading of data from preference file failed.
+     * @throws DataLoadingException if the file cannot be read or validated.
      */
     public Optional<UserPrefs> readUserPrefs() throws DataLoadingException {
         return readUserPrefs(filePath);
     }
 
     /**
-     * Similar to {@link #readUserPrefs()}
-     * @param prefsFilePath location of the data. Cannot be null.
-     * @throws DataLoadingException if the file format is not as expected.
+     * Returns validated preferences from the specified file.
+     *
+     * @throws DataLoadingException if the file cannot be read or validated.
      */
     public Optional<UserPrefs> readUserPrefs(Path prefsFilePath) throws DataLoadingException {
-        return JsonUtil.readJsonFile(prefsFilePath, UserPrefs.class);
+        Optional<UserPrefs> prefs = JsonUtil.readJsonFile(prefsFilePath, UserPrefs.class);
+        if (prefs.isPresent() && (prefs.get().getGuiSettings() == null || prefs.get().getFieldOrder() == null)) {
+            throw new DataLoadingException(new IOException("User preferences must contain non-null settings."));
+        }
+        return prefs;
     }
 
     /**
-     * Saves the given {@link seedu.address.model.ReadOnlyUserPrefs} to the storage.
-     * @param userPrefs cannot be null.
-     * @throws IOException if there was any problem writing to the file.
+     * Saves a snapshot after verifying a sibling temporary file, preserving the active file on failure.
+     *
+     * @throws IOException if writing, validation, or atomic replacement fails.
      */
     public void saveUserPrefs(ReadOnlyUserPrefs userPrefs) throws IOException {
-        JsonUtil.saveJsonFile(userPrefs, filePath);
+        UserPrefs expected = new UserPrefs(requireNonNull(userPrefs));
+        Path target = requireNonNull(filePath).toAbsolutePath().normalize();
+        Files.createDirectories(target.getParent());
+        logger.fine("Writing and validating temporary preferences");
+        AtomicFileWriter.write(target, ".astra-prefs-",
+                temporary -> writeCandidate(expected, temporary),
+                temporary -> verifyCandidate(expected, temporary), this::replaceActiveFile);
+        logger.fine("Atomically replaced validated preferences");
     }
 
+    void writeCandidate(UserPrefs expected, Path temporary) throws IOException {
+        JsonUtil.saveJsonFile(expected, temporary);
+    }
+
+    void verifyCandidate(UserPrefs expected, Path temporary) throws IOException {
+        try {
+            UserPrefs reloaded = readUserPrefs(temporary)
+                    .orElseThrow(() -> new IOException("Temporary preference file is missing."));
+            if (!expected.equals(reloaded)) {
+                throw new IOException("Temporary preferences do not match the requested settings.");
+            }
+        } catch (DataLoadingException e) {
+            throw new IOException("Could not validate temporary preferences.", e);
+        }
+    }
+
+    void replaceActiveFile(Path temporary, Path target) throws IOException {
+        AtomicFileWriter.replace(temporary, target);
+    }
 }

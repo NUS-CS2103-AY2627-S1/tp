@@ -1,5 +1,7 @@
 package seedu.address.model;
 
+import java.util.Map;
+
 import seedu.address.commons.core.GuiSettings;
 
 /**
@@ -8,5 +10,12 @@ import seedu.address.commons.core.GuiSettings;
 public interface ReadOnlyUserPrefs {
 
     GuiSettings getGuiSettings();
+
+    FieldOrder getFieldOrder();
+
+    /**
+     * Returns the command shortcuts, mapping each shortcut name to the command it stands for.
+     */
+    Map<String, String> getCommandAliases();
 
 }

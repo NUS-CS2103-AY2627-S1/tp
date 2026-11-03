@@ -1,6 +1,8 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
@@ -27,15 +29,44 @@ public class PhoneTest {
         // invalid phone numbers
         assertFalse(Phone.isValidPhone("")); // empty string
         assertFalse(Phone.isValidPhone(" ")); // spaces only
-        assertFalse(Phone.isValidPhone("91")); // less than 3 numbers
+        assertFalse(Phone.isValidPhone("91")); // fewer than 3 digits
+        assertFalse(Phone.isValidPhone("+ ()")); // separators but no digits at all
         assertFalse(Phone.isValidPhone("phone")); // non-numeric
         assertFalse(Phone.isValidPhone("9011p041")); // alphabets within digits
-        assertFalse(Phone.isValidPhone("9312 1534")); // spaces within digits
+        assertFalse(Phone.isValidPhone("65+93121534")); // plus is only allowed at the start
+        assertFalse(Phone.isValidPhone("++6593121534")); // at most one leading plus
+        assertFalse(Phone.isValidPhone("93121534+")); // trailing plus
+        assertFalse(Phone.isValidPhone("(6591234567")); // unclosed parenthesis
+        assertFalse(Phone.isValidPhone("6591234567)")); // unopened parenthesis
+        assertFalse(Phone.isValidPhone(")65(91234567")); // parentheses in the wrong order
+        //@@author Yx0905
+        assertFalse(Phone.isValidPhone("()123")); // empty parentheses
+        assertFalse(Phone.isValidPhone("( - )9312 1534")); // parentheses around separators only
+        assertFalse(Phone.isValidPhone("(()65) 9312 1534")); // empty nested parentheses
+        //@@author
+        assertFalse(Phone.isValidPhone("123\u00BD")); // vulgar fraction is a number but not a digit
+        assertFalse(Phone.isValidPhone("\u00B2\u00B3123")); // superscripts are numbers but not digits
 
         // valid phone numbers
-        assertTrue(Phone.isValidPhone("911")); // exactly 3 numbers
+        assertTrue(Phone.isValidPhone("911")); // exactly 3 digits
         assertTrue(Phone.isValidPhone("93121534"));
         assertTrue(Phone.isValidPhone("124293842033123")); // long phone numbers
+        assertTrue(Phone.isValidPhone("9312 1534")); // spaces as grouping
+        assertTrue(Phone.isValidPhone("9312-1534")); // hyphens as grouping
+        assertTrue(Phone.isValidPhone("+65 9312 1534")); // country code
+        assertTrue(Phone.isValidPhone("(65) 9312 1534")); // balanced parentheses
+        assertTrue(Phone.isValidPhone("((65)) 9312 1534")); // nested balanced parentheses
+        assertTrue(Phone.isValidPhone("\u0669\u0668\u0667\u0666\u0665\u0664\u0663\u0662")); // Arabic-Indic digits
+    }
+
+    @Test
+    public void constructor_valueWithUntidySpacing_isNormalised() {
+        assertEquals("9312 1534", new Phone("  9312   1534  ").value);
+    }
+
+    @Test
+    public void equals_sameNumberSpacedDifferently_returnsTrue() {
+        assertTrue(new Phone("9312  1534").equals(new Phone(" 9312 1534 ")));
     }
 
     @Test
@@ -56,5 +87,22 @@ public class PhoneTest {
 
         // different values -> returns false
         assertFalse(phone.equals(new Phone("995")));
+    }
+
+    @Test
+    public void hashCode_equalValues_areEqual() {
+        assertEquals(new Phone("999").hashCode(), new Phone("999").hashCode());
+
+        // unequal values should not be required to differ, but these ones do
+        assertNotEquals(new Phone("999").hashCode(), new Phone("995").hashCode());
+    }
+
+    @Test
+    public void equals_groupingDiffers_hashCodesMatch() {
+        Phone grouped = new Phone("+65 (9312)-1534");
+        Phone compact = new Phone("+6593121534");
+        assertEquals(grouped, compact);
+        assertEquals(grouped.hashCode(), compact.hashCode());
+        assertNotEquals(compact, new Phone("6593121534"));
     }
 }

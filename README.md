@@ -1,14 +1,26 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![CI Status](https://github.com/AY2627S1-CS2103-F13-2/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103-F13-2/tp/actions)
+
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103-F13-2/tp/graph/badge.svg?token=AH8IY34U2W)](https://codecov.io/gh/AY2627S1-CS2103-F13-2/tp)
 
 ![Ui](docs/images/Ui.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# Astra
+
+**Astra is a contact book for people who network a lot.** Capture each new person you meet in the seconds between conversations, remember what you talked about and what you promised, and pull them up again before you next meet. You type commands; Astra shows the results beside each contact's details.
+
+* **Who it is for:** students and early-career professionals who attend networking events, career fairs and conferences, type fast, and are comfortable with a command line.
+* **What it does:**
+  * `add`, `edit`, `drop` and `introduce` keep each contact's name, company, role, phone, email, LinkedIn, introducer, events and tags up to date
+  * `find` by name (with `/fuzzy` for typos), phone, email, company, role, event or conversation notes, and `filter` by tags
+  * `view` everything about a contact, `star` the important ones, and `order` the fields to suit you
+  * `log` conversations, and record, review, complete and edit `followup`s with due dates
+  * `delete` contacts by index, name, phone or several emails, or `clear` them all, after previewing the change; `undo` the last edit or deletion
+  * `alias` your own command shortcuts
+  * Saves after every change, keeps your previous data if a save fails, and recovers what it can from a damaged data file
+
+* **Getting started:** see the [User Guide](https://ay2627s1-cs2103-f13-2.github.io/tp/UserGuide.html).
+* **For developers:** see the [Developer Guide](https://ay2627s1-cs2103-f13-2.github.io/tp/DeveloperGuide.html).
+
+## Acknowledgements
+
+* This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).

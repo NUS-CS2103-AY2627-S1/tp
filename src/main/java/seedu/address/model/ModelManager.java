@@ -3,40 +3,51 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.FollowUp;
 import seedu.address.model.person.Person;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of the contact file data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final ContactFile contactFile;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final ReadOnlyObjectWrapper<FieldOrder> fieldOrder;
 
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given contactFile and userPrefs.
      */
-    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+    public ModelManager(ReadOnlyContactFile contactFile, ReadOnlyUserPrefs userPrefs) {
+        requireAllNonNull(contactFile, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing with contact file: " + contactFile + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.contactFile = new ContactFile(contactFile);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        fieldOrder = new ReadOnlyObjectWrapper<>(this.userPrefs.getFieldOrder());
+        filteredPersons = new FilteredList<>(this.contactFile.getPersonList());
     }
 
+    /**
+     * Creates an empty model with default preferences.
+     */
     public ModelManager() {
-        this(new AddressBook(), new UserPrefs());
+        this(new ContactFile(), new UserPrefs());
     }
 
     //=========== UserPrefs ==================================================================================
@@ -57,32 +68,100 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
-    //=========== AddressBook ================================================================================
-
+    //@@author Yx0905
     @Override
-    public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+    public Map<String, String> getCommandAliases() {
+        return userPrefs.getCommandAliases();
     }
 
     @Override
-    public ReadOnlyAddressBook getAddressBook() {
-        return addressBook;
+    public void setCommandAlias(String shortcut, String command) {
+        requireAllNonNull(shortcut, command);
+        userPrefs.setCommandAlias(shortcut, command);
+    }
+
+    @Override
+    public void removeCommandAlias(String shortcut) {
+        requireNonNull(shortcut);
+        userPrefs.removeCommandAlias(shortcut);
+    }
+
+    @Override
+    public void setCommandAliases(Map<String, String> commandAliases) {
+        requireNonNull(commandAliases);
+        userPrefs.setCommandAliases(commandAliases);
+    }
+    //@@author
+
+    @Override
+    public FieldOrder getFieldOrder() {
+        return fieldOrder.get();
+    }
+
+    @Override
+    public void setFieldOrder(FieldOrder order) {
+        userPrefs.setFieldOrder(requireNonNull(order));
+        fieldOrder.set(order);
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<FieldOrder> getFieldOrderProperty() {
+        return fieldOrder.getReadOnlyProperty();
+    }
+
+    //=========== ContactFile ================================================================================
+
+    @Override
+    public void setContactFile(ReadOnlyContactFile contactFile) {
+        this.contactFile.resetData(contactFile);
+    }
+
+    @Override
+    public ReadOnlyContactFile getContactFile() {
+        return contactFile;
+    }
+
+    @Override
+    public List<FollowUpEntry> getPendingFollowUps() {
+        return getFollowUps().stream()
+                .filter(entry -> entry.followUp().getStatus() == FollowUp.Status.PENDING)
+                .toList();
+    }
+
+    @Override
+    public List<FollowUpEntry> getFollowUps() {
+        return contactFile.getPersonList().stream()
+                .flatMap(contact -> contact.getFollowUps().stream()
+                        .map(action -> new FollowUpEntry(contact, action)))
+                .sorted(Comparator.comparing(entry -> entry.followUp().getDueDate().orElse(null),
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
     }
 
     @Override
     public boolean hasPerson(Person person) {
+        return contactFile.hasPerson(person);
+    }
+
+    @Override
+    public boolean hasEmail(Person person) {
+        return contactFile.hasEmail(person);
+    }
+
+    @Override
+    public boolean hasPhone(Person person) {
         requireNonNull(person);
-        return addressBook.hasPerson(person);
+        return contactFile.hasPhone(person);
     }
 
     @Override
     public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+        contactFile.removePerson(target);
     }
 
     @Override
     public void addPerson(Person person) {
-        addressBook.addPerson(person);
+        contactFile.addPerson(person);
         updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
@@ -90,18 +169,24 @@ public class ModelManager implements Model {
     public void setPerson(Person target, Person editedPerson) {
         requireAllNonNull(target, editedPerson);
 
-        addressBook.setPerson(target, editedPerson);
+        contactFile.setPerson(target, editedPerson);
     }
 
     //=========== Filtered Person List Accessors =============================================================
 
     /**
      * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * {@code contactFile}
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return filteredPersons;
+    }
+
+    @Override
+    public Predicate<Person> getPersonFilter() {
+        Predicate<? super Person> predicate = filteredPersons.getPredicate();
+        return predicate == null ? null : predicate::test;
     }
 
     @Override
@@ -121,7 +206,7 @@ public class ModelManager implements Model {
             return false;
         }
 
-        return addressBook.equals(otherModelManager.addressBook)
+        return contactFile.equals(otherModelManager.contactFile)
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
     }

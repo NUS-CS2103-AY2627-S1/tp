@@ -1,17 +1,17 @@
 ---
 layout: page
-title: AddressBook Level 3
+title: Astra
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+[![CI Status](https://github.com/AY2627S1-CS2103-F13-2/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103-F13-2/tp/actions)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103-F13-2/tp/graph/badge.svg?token=AH8IY34U2W)](https://codecov.io/gh/AY2627S1-CS2103-F13-2/tp)
 
 ![Ui](images/Ui.png)
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+**Astra is a contact book for people who network a lot.** Record the people you meet, what you talked about and what you promised to do next, then find them again before you next meet. You work by typing commands, and Astra shows the results beside each contact's details.
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+* If you are interested in using Astra, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
+* If you are interested in developing Astra, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
 
 
 **Acknowledgements**

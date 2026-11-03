@@ -1,0 +1,84 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+/'
+// @@author Cookiemunchrr
+'/
+end box
+
+box Model MODEL_COLOR_T1
+participant "s:ModelSnapshot" as ModelSnapshot MODEL_COLOR
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("delete 1")
+activate LogicManager
+
+create ModelSnapshot
+LogicManager -> ModelSnapshot : ModelSnapshot(m)
+activate ModelSnapshot
+ModelSnapshot --> LogicManager
+deactivate ModelSnapshot
+
+ref over LogicManager, Model : create delete confirmation c
+
+[<-- LogicManager : preview and y/n prompt
+deactivate LogicManager
+
+alt y
+  [-> LogicManager : execute("y")
+  activate LogicManager
+
+  ref over LogicManager, Model : run confirmed delete
+
+  LogicManager -> ModelSnapshot : hasDataChanged(m)
+  activate ModelSnapshot
+  ModelSnapshot --> LogicManager : true
+  deactivate ModelSnapshot
+
+  alt save succeeds
+    LogicManager -> Storage : saveContactFile(contactFile)
+    activate Storage
+    Storage --> LogicManager
+    deactivate Storage
+
+    [<-- LogicManager : result
+  else save throws IOException
+    LogicManager -> Storage : saveContactFile(contactFile)
+    activate Storage
+    Storage --> LogicManager : IOException
+    deactivate Storage
+
+    LogicManager -> ModelSnapshot : restore(m)
+    activate ModelSnapshot
+    ModelSnapshot -> Model : setContactFile(saved copy)
+    activate Model
+    Model --> ModelSnapshot
+    deactivate Model
+    ModelSnapshot --> LogicManager
+    deactivate ModelSnapshot
+
+    [<-- LogicManager : CommandException
+  end
+  deactivate LogicManager
+
+else n or cancel
+  [-> LogicManager : execute("n")
+  activate LogicManager
+
+  LogicManager -> ModelSnapshot : restore(m)
+  activate ModelSnapshot
+  ModelSnapshot --> LogicManager
+  deactivate ModelSnapshot
+
+  [<-- LogicManager : request cancelled
+  deactivate LogicManager
+end
+@enduml

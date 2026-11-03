@@ -1,6 +1,8 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
@@ -29,6 +31,9 @@ public class NameTest {
         assertFalse(Name.isValidName(" ")); // spaces only
         assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
         assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("-peter")); // starts with punctuation
+        assertFalse(Name.isValidName("'")); // punctuation only
+        assertFalse(Name.isValidName("\u0301abc")); // starts with a combining accent
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
@@ -36,6 +41,28 @@ public class NameTest {
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("Jean-Luc")); // hyphenated
+        assertTrue(Name.isValidName("Siti O'Brien")); // apostrophe
+        assertTrue(Name.isValidName("A. Kumar")); // initial followed by a full stop
+
+        // valid names using letters outside English (NFR 9)
+        assertTrue(Name.isValidName("Jose Garcia"));
+        assertTrue(Name.isValidName("Zoe Muller"));
+        assertTrue(Name.isValidName("Bjorn Borg"));
+
+        // valid names using combining marks
+        assertTrue(Name.isValidName("\u092A\u094D\u0930\u093F\u092F\u093E")); // Devanagari "Priya" with vowel signs
+        assertTrue(Name.isValidName("Jose\u0301")); // "Jose" followed by a combining acute accent
+    }
+
+    @Test
+    public void constructor_valueWithUntidySpacing_isNormalised() {
+        assertEquals("John Doe", new Name("  John   Doe  ").fullName);
+    }
+
+    @Test
+    public void equals_sameNameSpacedDifferently_returnsTrue() {
+        assertTrue(new Name("John  Doe").equals(new Name(" John Doe ")));
     }
 
     @Test
@@ -56,5 +83,30 @@ public class NameTest {
 
         // different values -> returns false
         assertFalse(name.equals(new Name("Other Valid Name")));
+    }
+
+    @Test
+    public void isSameName() {
+        Name name = new Name("John Doe");
+
+        // same spelling in a different letter case -> returns true
+        assertTrue(name.isSameName(new Name("john DOE")));
+
+        // same spelling spaced differently -> returns true
+        assertTrue(name.isSameName(new Name(" John  Doe ")));
+
+        // different spelling -> returns false
+        assertFalse(name.isSameName(new Name("John Do")));
+
+        // null -> returns false
+        assertFalse(name.isSameName(null));
+    }
+
+    @Test
+    public void hashCode_equalValues_areEqual() {
+        assertEquals(new Name("Valid Name").hashCode(), new Name("Valid Name").hashCode());
+
+        // unequal values should not be required to differ, but these ones do
+        assertNotEquals(new Name("Valid Name").hashCode(), new Name("Other Valid Name").hashCode());
     }
 }

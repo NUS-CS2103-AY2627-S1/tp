@@ -14,13 +14,31 @@ activate ui UI_COLOR
 ui -[UI_COLOR]> logic : execute("delete 1")
 activate logic LOGIC_COLOR
 
+logic -[LOGIC_COLOR]> model : getFilteredPersonList()
+activate model MODEL_COLOR
+
+model --[MODEL_COLOR]> logic : displayed contacts
+deactivate model
+
+logic --[LOGIC_COLOR]> ui : preview and y/n prompt
+deactivate logic
+
+ui --[UI_COLOR]> user
+deactivate ui
+
+user -[USER_COLOR]> ui : "y"
+activate ui UI_COLOR
+
+ui -[UI_COLOR]> logic : execute("y")
+activate logic LOGIC_COLOR
+
 logic -[LOGIC_COLOR]> model : deletePerson(p)
 activate model MODEL_COLOR
 
-model -[MODEL_COLOR]-> logic
+model --[MODEL_COLOR]> logic
 deactivate model
 
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
+logic -[LOGIC_COLOR]> storage : saveContactFile(contactFile)
 activate storage STORAGE_COLOR
 
 storage -[STORAGE_COLOR]> storage : Save to file
@@ -31,9 +49,9 @@ deactivate storage
 storage --[STORAGE_COLOR]> logic
 deactivate storage
 
-logic --[LOGIC_COLOR]> ui
+logic --[LOGIC_COLOR]> ui : deletion result
 deactivate logic
 
-ui--[UI_COLOR]> user
+ui --[UI_COLOR]> user
 deactivate ui
 @enduml

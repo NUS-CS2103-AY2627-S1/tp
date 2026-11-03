@@ -1,10 +1,15 @@
 package seedu.address.logic;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
+import seedu.address.model.FieldOrder;
+import seedu.address.model.person.FollowUp;
+import seedu.address.model.person.Interaction;
 import seedu.address.model.person.Person;
 
 /**
@@ -32,20 +37,84 @@ public class Messages {
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Formats the {@code person} for display to the user. Fields the person does not have are omitted.
      */
     public static String format(Person person) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
-        return builder.toString();
+        return format(person, FieldOrder.DEFAULT);
+    }
+
+    /**
+     * Formats full details in the requested order, omitting absent fields.
+     * Every field, including the introducer, is displayed according to the supplied order.
+     */
+    public static String format(Person person, FieldOrder order) {
+        List<String> details = new ArrayList<>();
+        for (FieldOrder.Field field : order.getFields()) {
+            details.add(formatField(person, field));
+        }
+        details.add(formatEvents(person));
+        return details.stream().filter(value -> !value.isEmpty()).collect(Collectors.joining("; "));
+    }
+
+    private static String formatField(Person person, FieldOrder.Field field) {
+        return switch (field) {
+            case NAME -> person.getName().toString();
+            case TAGS -> person.getTags().isEmpty() ? "" : "Tags: " + person.getTags().stream()
+                    .map(Object::toString).sorted().collect(Collectors.joining());
+            case COMPANY -> person.getCompany().map(value -> "Company: " + value).orElse("");
+            case ROLE -> person.getRole().map(value -> "Role: " + value).orElse("");
+            case PHONE -> person.getPhone().map(value -> "Phone: " + value).orElse("");
+            case EMAIL -> person.getEmail().map(value -> "Email: " + value).orElse("");
+            case LINKEDIN -> person.getLinkedin().map(value -> "LinkedIn: " + value).orElse("");
+            case FOLLOWUPS -> person.getFollowUps().isEmpty() ? "" : "Follow-ups:\n" + formatFollowUps(person);
+            case INTRODUCER -> person.getIntroducer().map(value -> "Introduced by: " + value).orElse("");
+            //@@author Yx0905
+            case INTERACTIONS -> person.getInteractions().isEmpty() ? ""
+                    : "Interaction history:\n" + formatInteractions(person.getInteractions());
+                    //@@author
+        };
+    }
+
+    /**
+     * Formats the events associated with a person.
+     */
+    private static String formatEvents(Person person) {
+        return person.getEvents().isEmpty() ? ""
+                : "Events: " + person.getEvents().stream()
+                        .map(Object::toString)
+                        .sorted(String.CASE_INSENSITIVE_ORDER)
+                        .collect(Collectors.joining(", "));
+    }
+
+    //@@author Yx0905
+    /**
+     * Returns the interactions as numbered lines in the given order, e.g. "1. 2026-10-15: Discussed internships".
+     */
+    public static String formatInteractions(List<Interaction> interactions) {
+        StringBuilder history = new StringBuilder();
+        for (int i = 0; i < interactions.size(); i++) {
+            if (i > 0) {
+                history.append("\n");
+            }
+            history.append(i + 1).append(". ").append(interactions.get(i));
+            //@@author
+        }
+        return history.toString();
+    }
+
+    /**
+     * Formats actions in stored order with their stable IDs, statuses and due dates.
+     */
+    public static String formatFollowUps(Person person) {
+        return person.getFollowUps().stream().map(Messages::formatFollowUp).collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * Formats one action with an ISO due date or an explicit undated label and a current overdue indicator.
+     */
+    public static String formatFollowUp(FollowUp action) {
+        return action + " | " + action.getDueDate().map(date -> "Due: " + date).orElse("No due date")
+                + (action.isOverdue() ? " [OVERDUE]" : "");
     }
 
 }

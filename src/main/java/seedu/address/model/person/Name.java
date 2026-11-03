@@ -3,20 +3,26 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import seedu.address.commons.util.StringUtil;
+
 /**
- * Represents a Person's name in the address book.
+ * Represents a Person's name in the contact file.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
  */
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain letters, numbers, spaces, hyphens, apostrophes and full stops, "
+            + "and should not be blank.";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * \p{L} and \p{N} match letters and numbers in any language, not just English, and \p{M} matches
+     * the accents and vowel signs that many scripts combine with a letter, so that names such as
+     * "Nurul Aisyah", "José García" and "प्रिया" are accepted (NFR 9). Hyphens, apostrophes and full
+     * stops are allowed inside a name for the likes of "Jean-Luc", "O'Brien" and "A. Kumar", but a
+     * name must still start with a letter or a number.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} '.-]*";
 
     public final String fullName;
 
@@ -28,16 +34,23 @@ public class Name {
     public Name(String name) {
         requireNonNull(name);
         checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
-        fullName = name;
+        fullName = StringUtil.normalise(name);
     }
 
     /**
-     * Returns true if a given string is a valid name.
+     * Returns true if a given string is a valid name, once normalised.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return StringUtil.normalise(test).matches(VALIDATION_REGEX);
     }
 
+    /**
+     * Returns true if {@code otherName} spells the same name, ignoring letter case.
+     * Contact identity uses this so that "John Doe" and "john doe" are not kept as two people.
+     */
+    public boolean isSameName(Name otherName) {
+        return otherName != null && fullName.equalsIgnoreCase(otherName.fullName);
+    }
 
     @Override
     public String toString() {
