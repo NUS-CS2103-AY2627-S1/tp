@@ -10,6 +10,7 @@ package "Parser Classes" as ParserClasses{
 }
 Class XYZCommand
 Class CommandResult
+Enum DisplayMode
 Class "{abstract}\nCommand" as Command
 
 
@@ -18,7 +19,6 @@ Class LogicManager
 }
 
 package Model {
-Class HiddenModel #FFFFFF
 }
 
 package Storage {
@@ -39,9 +39,10 @@ LogicManager --> Storage
 Storage --[hidden] Model
 Command .[hidden]up.> Storage
 Command .right.> Model
-note right of XYZCommand: XYZCommand = AddCommand, \nFindCommand, etc
+note right of XYZCommand: XYZCommand = AddCommand, \nFilterCommand, etc
 
 Logic ..> CommandResult
 LogicManager .down.> CommandResult
 Command .up.> CommandResult : <<create>>
+CommandResult -left-> "1" DisplayMode
 @enduml

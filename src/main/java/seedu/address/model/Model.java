@@ -37,7 +37,7 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a person with the same normalized name, school, and level exists in the address book.
      */
     boolean hasPerson(Person person);
 
@@ -56,7 +56,7 @@ public interface Model {
     /**
      * Replaces the given person {@code target} with {@code editedPerson}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * No other person may have the same normalized name, school, and level as {@code editedPerson}.
      */
     void setPerson(Person target, Person editedPerson);
 
@@ -68,4 +68,15 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Keeps {@code person} in the filtered person list on top of the current filter,
+     * so that it stays visible even if it does not match the filter.
+     * Does nothing if the list is not filtered.
+     *
+     * @return True if {@code person} does not match the current filter,
+     *         so it is shown only because it was kept.
+     * @throws NullPointerException if {@code person} is null.
+     */
+    boolean keepPersonInFilteredList(Person person);
 }

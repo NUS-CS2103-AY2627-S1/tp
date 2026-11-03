@@ -14,35 +14,92 @@ import seedu.address.model.person.Person;
 /**
  * Deletes a person identified using its displayed index from the address book.
  */
-public class DeleteCommand extends Command {
+public class DeleteCommand extends Command implements ConfirmationCommand {
 
     public static final String COMMAND_WORD = "delete";
+    public static final String FORCE_OPTION = "-f";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
-            + "Parameters: INDEX (must be a positive integer)\n"
-            + "Example: " + COMMAND_WORD + " 1";
+            + ": Deletes the student identified by the index number used in the displayed student list.\n"
+            + "Parameters: [" + FORCE_OPTION + "] INDEX (must be a positive integer)\n"
+            + "Example: " + COMMAND_WORD + " 1 (asks for confirmation)\n"
+            + COMMAND_WORD + " " + FORCE_OPTION + " 1 (deletes immediately)";
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_STUDENT_SUCCESS = "Deleted student: %1$s at %2$s (%3$s).";
+    public static final String MESSAGE_CONFIRMATION =
+            "This will delete %1$s at %2$s (%3$s) and all their notes.";
+    public static final String MESSAGE_CONFIRMATION_INSTRUCTION =
+            "Type CONFIRM (uppercase) to delete this student and all their notes.";
+    public static final String MESSAGE_FILTERED_LIST_EMPTY =
+            "The filtered list is now empty, so all remaining students are shown.";
+
+    public static final String MESSAGE_INVALID_STUDENT_INDEX = Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 
     private final Index targetIndex;
+    private final boolean isForced;
 
+    /**
+     * Creates a DeleteCommand that asks for confirmation.
+     */
     public DeleteCommand(Index targetIndex) {
+        this(targetIndex, false);
+    }
+
+    /**
+     * Creates a DeleteCommand that bypasses confirmation when {@code isForced} is true.
+     */
+    public DeleteCommand(Index targetIndex, boolean isForced) {
         this.targetIndex = targetIndex;
+        this.isForced = isForced;
+    }
+
+    @Override
+    public boolean isForced() {
+        return isForced;
+    }
+
+    @Override
+    public ConfirmationCommand withoutForce() {
+        return new DeleteCommand(targetIndex);
+    }
+
+    @Override
+    public String getCommandWord() {
+        return COMMAND_WORD;
+    }
+
+    @Override
+    public String getConfirmationInstruction() {
+        return MESSAGE_CONFIRMATION_INSTRUCTION;
+    }
+
+    @Override
+    public String getConfirmationMessage(Model model) throws CommandException {
+        Person person = getTargetPerson(model);
+        return String.format(MESSAGE_CONFIRMATION, person.getName(), person.getSchool(), person.getLevel());
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
-
-        if (targetIndex.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
-        }
-
-        Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
+        Person personToDelete = getTargetPerson(model);
         model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        String message = String.format(MESSAGE_DELETE_STUDENT_SUCCESS, personToDelete.getName(),
+                personToDelete.getSchool(), personToDelete.getLevel());
+        boolean hasRemainingStudents = !model.getAddressBook().getPersonList().isEmpty();
+        if (hasRemainingStudents && model.getFilteredPersonList().isEmpty()) {
+            model.updateFilteredPersonList(Model.PREDICATE_SHOW_ALL_PERSONS);
+            message += System.lineSeparator() + MESSAGE_FILTERED_LIST_EMPTY;
+        }
+        return CommandResult.showList(message);
+    }
+
+    private Person getTargetPerson(Model model) throws CommandException {
+        List<Person> lastShownList = model.getFilteredPersonList();
+        if (targetIndex.getZeroBased() >= lastShownList.size()) {
+            throw new CommandException(MESSAGE_INVALID_STUDENT_INDEX);
+        }
+        return lastShownList.get(targetIndex.getZeroBased());
     }
 
     @Override
@@ -56,13 +113,14 @@ public class DeleteCommand extends Command {
             return false;
         }
 
-        return targetIndex.equals(otherDeleteCommand.targetIndex);
+        return targetIndex.equals(otherDeleteCommand.targetIndex) && isForced == otherDeleteCommand.isForced;
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("targetIndex", targetIndex)
+                .add("isForced", isForced)
                 .toString();
     }
 }

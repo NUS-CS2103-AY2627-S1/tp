@@ -1,60 +1,102 @@
 package seedu.address.model.util;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Band;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Guardian;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
+
+    private static final String SAMPLE_TAG = "sample";
+
+    private SampleDataUtil() {}
+
+    /**
+     * Returns fictional sample students with contact details, subjects, bands, guardians, and tutoring notes.
+     */
     public static Person[] getSamplePersons() {
         return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+            new Person(new Name("Chloe Tan"), new Phone("91234567"),
+                    new School("Bedok Green Secondary School"),
+                    new Address("Blk 123 Bedok North Avenue 2, #04-111"),
+                    new Email("chloe.tan@example.com"), Level.S2,
+                    List.of(new Subject("Mathematics", Band.G1), new Subject("Science", Band.G2)),
+                    getTagSet(SAMPLE_TAG, "exams", "paid"),
+                    List.of(new Note("Needs more practice with algebra.")),
+                    new Guardian(new Name("Amy Tan"), new Phone("92345678"))),
+            new Person(new Name("Marcus Lim"), new Phone("82345678"),
+                    new School("Tampines Secondary School"),
+                    new Address("Blk 311 Tampines Street 33, #05-212"),
+                    new Email("marcus.lim@example.com"), Level.S5,
+                    List.of(new Subject("English", Band.G2), new Subject("Mathematics", Band.G2)),
+                    getTagSet(SAMPLE_TAG, "unpaid"),
+                    List.of(new Note("Review comprehension techniques before the next lesson.")),
+                    new Guardian(new Name("Grace Lim"), new Phone("98765432"))),
+            new Person(new Name("Aisha Rahman"), new Phone("93456789"),
+                    new School("Pasir Ris Secondary School"),
+                    new Address("Blk 258 Pasir Ris Street 21, #09-303"), null, Level.S3,
+                    List.of(new Subject("Chemistry", Band.G3), new Subject("Mathematics", Band.G3)),
+                    getTagSet(SAMPLE_TAG),
+                    List.of(new Note("Strong in calculations; revise chemical bonding."))),
+            new Person(new Name("Daniel Lee"), null,
+                    new School("Victoria School"), new Address("12 Bukit Timah Road"), null, Level.S1,
+                    List.of(new Subject("Mathematics", Band.G2), new Subject("Science", Band.G2)),
+                    getTagSet(SAMPLE_TAG),
+                    List.of(new Note("Practise fractions before the next lesson."))),
+            new Person(new Name("Natalie Goh"), new Phone("84567890"),
+                    new School("Cedar Girls' Secondary School"),
+                    new Address("Blk 107 Toa Payoh Lorong 1, #08-212"),
+                    new Email("natalie.goh@example.com"), Level.S4,
+                    List.of(new Subject("Physics", Band.G3), new Subject("Chemistry", Band.G3)),
+                    getTagSet(SAMPLE_TAG, "online"),
+                    List.of(new Note("WA2 Physics: 36/50. Focus on electricity.")),
+                    new Guardian(new Name("Michelle Goh"), new Phone("81234567"))),
+            new Person(new Name("Ethan Kumar"), new Phone("95678901"),
+                    new School("Springfield Secondary School"),
+                    new Address("Blk 420 Tampines Street 41, #03-144"), null, Level.S2,
+                    List.of(new Subject("Geography", Band.G1), new Subject("English", Band.G2)),
+                    getTagSet(SAMPLE_TAG),
+                    List.of(new Note("Bring the completed map-reading worksheet.")))
         };
     }
 
+    /**
+     * Returns a tag set containing the given strings, in order.
+     */
+    public static Set<Tag> getTagSet(String... strings) {
+        return Arrays.stream(strings)
+                .map(Tag::new)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /**
+     * Returns an address book containing the sample persons.
+     */
     public static ReadOnlyAddressBook getSampleAddressBook() {
         AddressBook sampleAb = new AddressBook();
         for (Person samplePerson : getSamplePersons()) {
             sampleAb.addPerson(samplePerson);
         }
         return sampleAb;
-    }
-
-    /**
-     * Returns a tag set containing the list of strings given.
-     */
-    public static Set<Tag> getTagSet(String... strings) {
-        return Arrays.stream(strings)
-                .map(Tag::new)
-                .collect(Collectors.toSet());
     }
 
 }

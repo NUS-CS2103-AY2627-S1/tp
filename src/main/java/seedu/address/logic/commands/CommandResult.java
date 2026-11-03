@@ -3,13 +3,23 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import java.util.Optional;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.person.Person;
 
 /**
  * Represents the result of a command execution.
  */
 public class CommandResult {
+
+    /** Describes how the main content area should respond to a successful command. */
+    public enum DisplayMode {
+        KEEP_CURRENT,
+        SHOW_LIST,
+        SHOW_STUDENT
+    }
 
     private final String feedbackToUser;
 
@@ -19,13 +29,40 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
+    /** The feedback should be displayed as a warning. */
+    private final boolean isWarning;
+
+    private final DisplayMode displayMode;
+
+    private final Person personToDisplay;
+
+    private final Index displayedIndex;
+
+    private final String cancellationNotice;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+        this(feedbackToUser, showHelp, exit, false, DisplayMode.KEEP_CURRENT, null, null, null);
+    }
+
+    private CommandResult(String feedbackToUser, boolean showHelp, boolean exit,
+            boolean isWarning, DisplayMode displayMode, Person personToDisplay,
+            Index displayedIndex, String cancellationNotice) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.isWarning = isWarning;
+        this.displayMode = requireNonNull(displayMode);
+        this.personToDisplay = personToDisplay;
+        this.displayedIndex = displayedIndex;
+        this.cancellationNotice = cancellationNotice;
+        boolean requiresStudent = displayMode == DisplayMode.SHOW_STUDENT;
+        if (requiresStudent) {
+            requireNonNull(personToDisplay);
+            requireNonNull(displayedIndex);
+        }
     }
 
     /**
@@ -48,6 +85,93 @@ public class CommandResult {
         return exit;
     }
 
+    public boolean isWarning() {
+        return isWarning;
+    }
+
+    public DisplayMode getDisplayMode() {
+        return displayMode;
+    }
+
+    public Optional<Person> getPersonToDisplay() {
+        return Optional.ofNullable(personToDisplay);
+    }
+
+    public Optional<Index> getDisplayedIndex() {
+        return Optional.ofNullable(displayedIndex);
+    }
+
+    public Optional<String> getCancellationNotice() {
+        return Optional.ofNullable(cancellationNotice);
+    }
+
+    /**
+     * Creates a result that shows the student list without a selected student record.
+     */
+    public static CommandResult showList(String feedbackToUser) {
+        return new CommandResult(feedbackToUser, false, false, false,
+                DisplayMode.SHOW_LIST, null, null, null);
+    }
+
+    /**
+     * Creates a result that shows {@code person} in the student details panel.
+     */
+    public static CommandResult showStudent(String feedbackToUser, Person person, Index displayedIndex) {
+        return new CommandResult(feedbackToUser, false, false, false,
+                DisplayMode.SHOW_STUDENT, person, displayedIndex, null);
+    }
+
+    /**
+     * Creates a warning result that shows {@code person} in the student details panel.
+     */
+    public static CommandResult showStudentWarning(
+            String feedbackToUser, Person person, Index displayedIndex) {
+        return new CommandResult(feedbackToUser, false, false, true,
+                DisplayMode.SHOW_STUDENT, person, displayedIndex, null);
+    }
+
+    /**
+     * Creates a result whose feedback should be displayed as a warning.
+     */
+    public static CommandResult warning(String feedbackToUser) {
+        return new CommandResult(feedbackToUser, false, false, true,
+                DisplayMode.KEEP_CURRENT, null, null, null);
+    }
+
+    /**
+     * Returns a copy of this result with {@code warning} added on a new line,
+     * displayed as a warning. The display mode is kept.
+     */
+    public CommandResult withWarning(String warning) {
+        requireNonNull(warning);
+        return new CommandResult(feedbackToUser + "\n" + warning, showHelp, exit, true,
+                displayMode, personToDisplay, displayedIndex, cancellationNotice);
+    }
+
+    /**
+     * Returns a copy of this result with each given warning that is present added on its own line, in order.
+     * Returns this result unchanged if no warning is present.
+     */
+    @SafeVarargs
+    public final CommandResult withWarnings(Optional<String>... warnings) {
+        CommandResult result = this;
+        for (Optional<String> warning : warnings) {
+            if (warning.isPresent()) {
+                result = result.withWarning(warning.get());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns a copy of this result with a separate cancellation notice for display.
+     */
+    public CommandResult withCancellationNotice(String notice) {
+        requireNonNull(notice);
+        return new CommandResult(feedbackToUser, showHelp, exit, isWarning,
+                displayMode, personToDisplay, displayedIndex, notice);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (other == this) {
@@ -61,12 +185,18 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && isWarning == otherCommandResult.isWarning
+                && displayMode == otherCommandResult.displayMode
+                && Objects.equals(personToDisplay, otherCommandResult.personToDisplay)
+                && Objects.equals(displayedIndex, otherCommandResult.displayedIndex)
+                && Objects.equals(cancellationNotice, otherCommandResult.cancellationNotice);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, isWarning,
+                displayMode, personToDisplay, displayedIndex, cancellationNotice);
     }
 
     @Override
@@ -75,6 +205,11 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("isWarning", isWarning)
+                .add("displayMode", displayMode)
+                .add("personToDisplay", personToDisplay)
+                .add("displayedIndex", displayedIndex)
+                .add("cancellationNotice", cancellationNotice)
                 .toString();
     }
 

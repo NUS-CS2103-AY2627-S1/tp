@@ -7,13 +7,17 @@ import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.ELLE;
+import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalPersons.getTypicalPersons;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.predicate.NameContainsKeywordsPredicate;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -71,6 +75,38 @@ public class ModelManagerTest {
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void keepPersonInFilteredList_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.keepPersonInFilteredList(null));
+    }
+
+    @Test
+    public void keepPersonInFilteredList_noFilter_listUnchanged() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        assertFalse(modelManager.keepPersonInFilteredList(BENSON));
+        assertEquals(getTypicalPersons(), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void keepPersonInFilteredList_filtered_showsMatchesAndPersonOnly() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        modelManager.updateFilteredPersonList(ALICE::equals);
+        assertTrue(modelManager.keepPersonInFilteredList(CARL));
+        assertEquals(List.of(ALICE, CARL), modelManager.getFilteredPersonList());
+
+        // a second call keeps both earlier persons
+        assertTrue(modelManager.keepPersonInFilteredList(ELLE));
+        assertEquals(List.of(ALICE, CARL, ELLE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void keepPersonInFilteredList_personMatchesFilter_returnsFalse() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        modelManager.updateFilteredPersonList(ALICE::equals);
+        assertFalse(modelManager.keepPersonInFilteredList(ALICE));
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
     }
 
     @Test

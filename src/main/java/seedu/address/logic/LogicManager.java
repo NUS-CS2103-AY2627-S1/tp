@@ -9,6 +9,7 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ConfirmationCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -30,6 +31,7 @@ public class LogicManager implements Logic {
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+    private final ConfirmationManager confirmationManager = new ConfirmationManager();
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -44,10 +46,59 @@ public class LogicManager implements Logic {
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
-        CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        if (confirmationManager.hasPendingConfirmation()) {
+            ConfirmationCommand pendingCommand = confirmationManager.clearPending().orElseThrow();
+            if (ConfirmationManager.isConfirmInput(commandText)) {
+                ConfirmationCommand confirmedCommand = pendingCommand;
+                return executeAndSave(confirmedCommand.execute(model));
+            }
+            String cancellationNotice = confirmationManager.getCancellationNotice(pendingCommand);
+            try {
+                Command command = addressBookParser.parseCommand(commandText);
+                CommandResult result = executeCommand(command);
+                return isRepeatOf(pendingCommand, command)
+                        ? result
+                        : result.withCancellationNotice(cancellationNotice);
+            } catch (CommandException e) {
+                throw new CommandException(cancellationNotice + System.lineSeparator() + e.getMessage(), e);
+            } catch (ParseException e) {
+                throw new ParseException(cancellationNotice + System.lineSeparator() + e.getMessage(), e);
+            }
+        }
 
+        if (ConfirmationManager.isConfirmInput(commandText)) {
+            logger.info("CONFIRM entered with no command waiting for confirmation");
+            throw new ParseException(ConfirmationManager.MESSAGE_NOTHING_TO_CONFIRM);
+        }
+
+        Command command = addressBookParser.parseCommand(commandText);
+        return executeCommand(command);
+    }
+
+    private CommandResult executeCommand(Command command) throws CommandException, ParseException {
+        if (command instanceof ConfirmationCommand confirmableCommand) {
+            String confirmationMessage = confirmableCommand.getConfirmationMessage(model);
+            if (!confirmableCommand.isForced() && confirmationMessage != null) {
+                return confirmationManager.requestConfirmation(confirmableCommand, confirmationMessage);
+            }
+            if (confirmableCommand.isForced()) {
+                return executeAndSave(confirmableCommand.execute(model));
+            }
+        }
+
+        return executeAndSave(command.execute(model));
+    }
+
+    /**
+     * Returns whether {@code command} repeats {@code pendingCommand}, either exactly or in its forced form,
+     * so it replaces the pending request instead of cancelling it.
+     */
+    private static boolean isRepeatOf(ConfirmationCommand pendingCommand, Command command) {
+        return command instanceof ConfirmationCommand newCommand
+                && pendingCommand.equals(newCommand.withoutForce());
+    }
+
+    private CommandResult executeAndSave(CommandResult commandResult) throws CommandException {
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {

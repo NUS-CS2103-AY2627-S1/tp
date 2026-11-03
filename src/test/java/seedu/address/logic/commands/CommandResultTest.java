@@ -3,9 +3,15 @@ package seedu.address.logic.commands;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 public class CommandResultTest {
     @Test
@@ -33,6 +39,46 @@ public class CommandResultTest {
 
         // different exit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+
+        // different display mode -> returns false
+        assertFalse(commandResult.equals(CommandResult.showList("feedback")));
+
+        // different warning value -> returns false
+        assertFalse(commandResult.equals(CommandResult.warning("feedback")));
+
+        // same student display values -> returns true
+        assertTrue(CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON)
+                .equals(CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON)));
+    }
+
+    @Test
+    public void withWarnings_nonePresent_returnsSameResult() {
+        CommandResult result = CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON);
+        assertEquals(result, result.withWarnings(Optional.empty(), Optional.empty()));
+        assertFalse(result.withWarnings().isWarning());
+    }
+
+    @Test
+    public void withWarnings_twoPresent_addsBothInOrder() {
+        CommandResult result = CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON)
+                .withWarnings(Optional.of("first"), Optional.empty(), Optional.of("second"));
+        assertEquals("feedback\nfirst\nsecond", result.getFeedbackToUser());
+        assertTrue(result.isWarning());
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, result.getDisplayMode());
+    }
+
+    @Test
+    public void withWarning() {
+        CommandResult listResult = CommandResult.showList("feedback").withWarning("note");
+        assertEquals("feedback\nnote", listResult.getFeedbackToUser());
+        assertTrue(listResult.isWarning());
+        assertEquals(CommandResult.DisplayMode.SHOW_LIST, listResult.getDisplayMode());
+
+        CommandResult studentResult = CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON)
+                .withWarning("note");
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, studentResult.getDisplayMode());
+        assertEquals(ALICE, studentResult.getPersonToDisplay().get());
+        assertEquals(INDEX_FIRST_PERSON, studentResult.getDisplayedIndex().get());
     }
 
     @Test
@@ -50,6 +96,12 @@ public class CommandResultTest {
 
         // different exit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+
+        // different display mode -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(), CommandResult.showList("feedback").hashCode());
+
+        // different warning value -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(), CommandResult.warning("feedback").hashCode());
     }
 
     @Test
@@ -57,7 +109,57 @@ public class CommandResultTest {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", isWarning=" + commandResult.isWarning()
+                + ", displayMode=" + commandResult.getDisplayMode()
+                + ", personToDisplay=null, displayedIndex=null, cancellationNotice=null}";
         assertEquals(expected, commandResult.toString());
+    }
+
+    @Test
+    public void warning_validFeedback_containsWarningInstruction() {
+        CommandResult commandResult = CommandResult.warning("feedback");
+
+        assertTrue(commandResult.isWarning());
+        assertEquals(CommandResult.DisplayMode.KEEP_CURRENT, commandResult.getDisplayMode());
+    }
+
+    @Test
+    public void showList_validFeedback_containsListDisplayInstruction() {
+        CommandResult commandResult = CommandResult.showList("feedback");
+
+        assertEquals(CommandResult.DisplayMode.SHOW_LIST, commandResult.getDisplayMode());
+        assertTrue(commandResult.getPersonToDisplay().isEmpty());
+        assertTrue(commandResult.getDisplayedIndex().isEmpty());
+    }
+
+    @Test
+    public void showStudent_validStudent_containsStudentDisplayInstruction() {
+        CommandResult commandResult = CommandResult.showStudent("feedback", ALICE, INDEX_FIRST_PERSON);
+
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, commandResult.getDisplayMode());
+        assertEquals(ALICE, commandResult.getPersonToDisplay().orElseThrow());
+        assertEquals(INDEX_FIRST_PERSON, commandResult.getDisplayedIndex().orElseThrow());
+    }
+
+    @Test
+    public void showStudentWarning_validStudent_containsWarningAndStudentDisplayInstruction() {
+        CommandResult commandResult = CommandResult.showStudentWarning("feedback", ALICE, INDEX_FIRST_PERSON);
+
+        assertTrue(commandResult.isWarning());
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, commandResult.getDisplayMode());
+        assertEquals(ALICE, commandResult.getPersonToDisplay().orElseThrow());
+        assertEquals(INDEX_FIRST_PERSON, commandResult.getDisplayedIndex().orElseThrow());
+    }
+
+    @Test
+    public void showStudent_missingStudent_throwsNullPointerException() {
+        Executable showMissingStudent = () -> CommandResult.showStudent("feedback", null, INDEX_FIRST_PERSON);
+
+        assertThrows(NullPointerException.class, showMissingStudent);
+    }
+
+    @Test
+    public void showStudent_missingIndex_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> CommandResult.showStudent("feedback", ALICE, null));
     }
 }

@@ -1,28 +1,44 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.Messages.MESSAGE_GUARDIAN_PAIR;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_SUBJECT_BAND_PAIR;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_BAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SCHOOL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Guardian;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new AddCommand object
  */
 public class AddCommandParser implements Parser<AddCommand> {
+    private static final String REPEATED_SPACES_REGEX = " {2,}";
+    private static final String SINGLE_SPACE = " ";
+
 
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
@@ -31,31 +47,79 @@ public class AddCommandParser implements Parser<AddCommand> {
      */
     public AddCommand parse(String args) throws ParseException {
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenize(normalizeRepeatedSpaces(args), PREFIX_NAME, PREFIX_PHONE,
+                        PREFIX_SCHOOL, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_LEVEL,
+                        PREFIX_SUBJECT, PREFIX_BAND, PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE, PREFIX_TAG);
 
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
-                || !argMultimap.getPreamble().isEmpty()) {
+        // no parameters, or text before the first prefix, means the user needs the format, so show the usage
+        if (args.isBlank() || !argMultimap.getPreamble().isEmpty()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
+            AddressPrefixChecker.verifyNoJoinedPrefix(argMultimap.getValue(PREFIX_ADDRESS).get(), PREFIX_NAME,
+                    PREFIX_PHONE, PREFIX_SCHOOL, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_LEVEL, PREFIX_SUBJECT,
+                    PREFIX_BAND, PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE, PREFIX_TAG);
+        }
+        // a missing sub/ also requires band/, so the user adds the whole pair in one go
+        Prefix[] requiredPrefixes = argMultimap.getValue(PREFIX_SUBJECT).isPresent()
+                ? new Prefix[] {PREFIX_NAME, PREFIX_SCHOOL, PREFIX_LEVEL, PREFIX_SUBJECT}
+                : new Prefix[] {PREFIX_NAME, PREFIX_SCHOOL, PREFIX_LEVEL, PREFIX_SUBJECT, PREFIX_BAND};
+        argMultimap.verifyAllPrefixesPresent(requiredPrefixes);
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_SCHOOL, PREFIX_ADDRESS, PREFIX_EMAIL,
+                PREFIX_LEVEL, PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE);
         Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
+        // Phone is optional; a person added without p/ has no phone
+        Phone phone = argMultimap.getValue(PREFIX_PHONE).isPresent()
+                ? ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get())
+                : null;
+        School school = ParserUtil.parseSchool(argMultimap.getValue(PREFIX_SCHOOL).get());
+        Address address = argMultimap.getValue(PREFIX_ADDRESS).isPresent()
+                ? ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()) : null;
+        Email email = argMultimap.getValue(PREFIX_EMAIL).isPresent()
+                ? ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()) : null;
+        Level level = ParserUtil.parseLevel(argMultimap.getValue(PREFIX_LEVEL).get());
 
-        Person person = new Person(name, phone, email, address, tagList);
+        ParserUtil.verifySubjectNamesHaveNoSlash(argMultimap.getAllValues(PREFIX_SUBJECT));
+        argMultimap.verifyEachFollowedBy(PREFIX_SUBJECT, PREFIX_BAND, MESSAGE_SUBJECT_BAND_PAIR);
+        List<Subject> subjects = ParserUtil.parseSubjects(
+                argMultimap.getAllValues(PREFIX_SUBJECT), argMultimap.getAllValues(PREFIX_BAND));
+        // Guardian is optional; gn/ and gp/ must be given together
+        verifyGuardianHasNoSlash(argMultimap);
+        argMultimap.verifyGivenTogether(PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE, MESSAGE_GUARDIAN_PAIR);
+        Guardian guardian = argMultimap.getValue(PREFIX_GUARDIAN_NAME).isPresent()
+                ? ParserUtil.parseGuardian(argMultimap.getValue(PREFIX_GUARDIAN_NAME).get(),
+                        argMultimap.getValue(PREFIX_GUARDIAN_PHONE).get())
+                : null;
+        // t/ may repeat, one tag each
+        Set<Tag> tags = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
+        Person person = new Person(name, phone, school, address, email, level, subjects, tags, List.of(),
+                guardian);
 
         return new AddCommand(person);
     }
 
     /**
-     * Returns true if none of the prefixes contains empty {@code Optional} values in the given
-     * {@code ArgumentMultimap}.
+     * Throws a {@code ParseException} if the guardian name or phone contains {@code /}.
+     * A {@code gp/} with no space before it is read as part of the name, and a {@code gn/} as part of the
+     * phone, so the user would otherwise see that {@code gn/} and {@code gp/} must be given together.
      */
-    private static boolean arePrefixesPresent(ArgumentMultimap argumentMultimap, Prefix... prefixes) {
-        return Stream.of(prefixes).allMatch(prefix -> argumentMultimap.getValue(prefix).isPresent());
+    private static void verifyGuardianHasNoSlash(ArgumentMultimap argMultimap) throws ParseException {
+        Optional<String> guardianName = argMultimap.getValue(PREFIX_GUARDIAN_NAME);
+        if (guardianName.isPresent()) {
+            ParserUtil.verifyNoSlash(guardianName.get(), Guardian.MESSAGE_NAME_CONSTRAINTS);
+        }
+        Optional<String> guardianPhone = argMultimap.getValue(PREFIX_GUARDIAN_PHONE);
+        if (guardianPhone.isPresent() && ParserUtil.getSlashHint(guardianPhone.get()).isPresent()) {
+            // a phone cannot contain /, so this throws with the phone's reason and the hint
+            ParserUtil.parseGuardianPhone(guardianPhone.get());
+        }
     }
 
+    /**
+     * Returns the arguments with repeated ordinary spaces collapsed to one.
+     */
+    private static String normalizeRepeatedSpaces(String args) {
+        return args.replaceAll(REPEATED_SPACES_REGEX, SINGLE_SPACE);
+    }
 }

@@ -3,6 +3,8 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
@@ -10,15 +12,16 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names must start with an English letter (A-Z) or digit (0-9) and use only English letters, "
+                    + "digits, and spaces.";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Names use ASCII letters and digits so their accepted character set matches School.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[A-Za-z0-9][A-Za-z0-9 ]*";
 
     public final String fullName;
+    private final String comparisonValue;
 
     /**
      * Constructs a {@code Name}.
@@ -29,6 +32,7 @@ public class Name {
         requireNonNull(name);
         checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
         fullName = name;
+        comparisonValue = name.trim().replaceAll(" +", " ").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -36,6 +40,13 @@ public class Name {
      */
     public static boolean isValidName(String test) {
         return test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns true if the names match after trimming and collapsing spaces and ignoring case.
+     */
+    public boolean hasSameNormalizedName(Name otherName) {
+        return otherName != null && comparisonValue.equals(otherName.comparisonValue);
     }
 
 

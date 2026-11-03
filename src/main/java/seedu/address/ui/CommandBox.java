@@ -3,7 +3,9 @@ package seedu.address.ui;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.Region;
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -15,6 +17,8 @@ public class CommandBox extends UiPart<Region> {
 
     public static final String ERROR_STYLE_CLASS = "error";
     private static final String FXML = "CommandBox.fxml";
+    /** A run of line breaks or tabs, which a text field would otherwise delete without a trace. */
+    private static final String LINE_BREAKS_OR_TABS_REGEX = "[\\r\\n\\t]+";
 
     private final CommandExecutor commandExecutor;
 
@@ -29,6 +33,17 @@ public class CommandBox extends UiPart<Region> {
         this.commandExecutor = commandExecutor;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
         commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.setTextFormatter(new TextFormatter<>(CommandBox::replaceLineBreaksWithSpaces));
+    }
+
+    /**
+     * Returns {@code change} with each run of line breaks or tabs in its new text replaced by one space,
+     * so that pasted multi-line text keeps its words apart instead of joining them.
+     */
+    private static TextFormatter.Change replaceLineBreaksWithSpaces(TextFormatter.Change change) {
+        String newText = change.getText();
+        change.setText(newText.replaceAll(LINE_BREAKS_OR_TABS_REGEX, " "));
+        return change;
     }
 
     /**
@@ -37,7 +52,8 @@ public class CommandBox extends UiPart<Region> {
     @FXML
     private void handleCommandEntered() {
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        if (StringUtil.normalizeInput(commandText).isBlank()) {
+            commandTextField.setText("");
             return;
         }
 

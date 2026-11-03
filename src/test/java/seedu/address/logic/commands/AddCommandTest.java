@@ -7,14 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
@@ -40,7 +41,71 @@ public class AddCommandTest {
 
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, commandResult.getDisplayMode());
+        assertEquals(validPerson, commandResult.getPersonToDisplay().orElseThrow());
+        assertEquals(Index.fromOneBased(1), commandResult.getDisplayedIndex().orElseThrow());
+        assertFalse(commandResult.isWarning());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_nonSingaporePhone_addSuccessfulWithWarning() throws Exception {
+        assertAddedWithWarning(new PersonBuilder().withPhone("+447911123456").build(),
+                String.format(Messages.MESSAGE_NOT_SINGAPORE_PHONE, "phone +447911123456"));
+    }
+
+    @Test
+    public void execute_nonSingaporeGuardianPhone_addSuccessfulWithWarning() throws Exception {
+        assertAddedWithWarning(new PersonBuilder().withGuardian("Mary Tan", "+60123456789").build(),
+                "Warning: guardian phone +60123456789 doesn't look like a Singapore number (8 digits starting "
+                + "with 6, 8, or 9, with or without +65). Use edit to fix it if it's wrong.");
+    }
+
+    @Test
+    public void execute_bothPhonesNotSingapore_addSuccessfulWithOneWarning() throws Exception {
+        assertAddedWithWarning(new PersonBuilder().withPhone("+447911123456")
+                        .withGuardian("Mary Tan", "+60123456789").build(),
+                String.format(Messages.MESSAGE_NOT_SINGAPORE_PHONES,
+                        "phone +447911123456 and guardian phone +60123456789"));
+
+        // the same number for student and guardian is named for both
+        assertAddedWithWarning(new PersonBuilder().withPhone("+60123456789")
+                        .withGuardian("Mary Tan", "+60123456789").build(),
+                String.format(Messages.MESSAGE_NOT_SINGAPORE_PHONES,
+                        "phone +60123456789 and guardian phone +60123456789"));
+    }
+
+    @Test
+    public void execute_emailWithoutDomainDot_addSuccessfulWithWarning() throws Exception {
+        assertAddedWithWarning(new PersonBuilder().withEmail("john@gmail").build(),
+                "Warning: email john@gmail has no \".\" after the \"@\", so an ending such as \".com\" "
+                + "may be missing. Use edit to fix it if it's wrong.");
+    }
+
+    @Test
+    public void execute_nonSingaporePhoneAndEmailWithoutDomainDot_addSuccessfulWithBothWarnings()
+            throws Exception {
+        assertAddedWithWarning(new PersonBuilder().withPhone("+447911123456").withEmail("john@gmail").build(),
+                String.format(Messages.MESSAGE_NOT_SINGAPORE_PHONE, "phone +447911123456") + "\n"
+                + String.format(Messages.MESSAGE_EMAIL_NO_DOMAIN_DOT, "john@gmail"));
+    }
+
+    /**
+     * Executes an {@code AddCommand} for {@code person} and checks that it is added,
+     * with {@code expectedWarning} after the success message.
+     */
+    private void assertAddedWithWarning(Person person, String expectedWarning) throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+
+        CommandResult commandResult = new AddCommand(person).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(person)) + "\n" + expectedWarning,
+                commandResult.getFeedbackToUser());
+        assertTrue(commandResult.isWarning());
+        assertEquals(CommandResult.DisplayMode.SHOW_STUDENT, commandResult.getDisplayMode());
+        assertEquals(person, commandResult.getPersonToDisplay().orElseThrow());
+        assertEquals(Index.fromOneBased(1), commandResult.getDisplayedIndex().orElseThrow());
+        assertEquals(List.of(person), modelStub.personsAdded);
     }
 
     @Test
@@ -49,7 +114,9 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expectedMessage = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, validPerson.getName(),
+                validPerson.getSchool(), validPerson.getLevel());
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -141,6 +208,11 @@ public class AddCommandTest {
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
+
+        @Override
+        public boolean keepPersonInFilteredList(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
     }
 
     /**
@@ -159,13 +231,20 @@ public class AddCommandTest {
             requireNonNull(person);
             return this.person.isSamePerson(person);
         }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
+        }
     }
 
     /**
      * A Model stub that always accepts the person being added.
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
-        final ArrayList<Person> personsAdded = new ArrayList<>();
+        final ObservableList<Person> personsAdded = FXCollections.observableArrayList();
 
         @Override
         public boolean hasPerson(Person person) {
@@ -177,6 +256,11 @@ public class AddCommandTest {
         public void addPerson(Person person) {
             requireNonNull(person);
             personsAdded.add(person);
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return personsAdded;
         }
 
         @Override
