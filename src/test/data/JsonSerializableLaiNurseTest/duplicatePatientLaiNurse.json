@@ -1,0 +1,14 @@
+{
+  "patients": [ {
+    "id": "S1234567A",
+    "name": "Alice Pauline",
+    "phone": "94351253",
+    "address": "123, Jurong West Ave 6, #08-111",
+    "medicalHistory": "Type 2 diabetes"
+  }, {
+    "id": "s1234567a",
+    "name": "Pauline Alice",
+    "phone": "94351253",
+    "address": "4th street"
+  } ]
+}

@@ -2,20 +2,25 @@ package seedu.address.ui;
 
 import java.util.logging.Logger;
 
+import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.util.HelpBookUtil;
 
 /**
- * Controller for a help page
+ * Controller for a help page.
  */
 public class HelpWindow extends UiPart<Stage> {
 
-    public static final String USERGUIDE_URL = "https://se-education.org/addressbook-level3/UserGuide.html";
+    public static final String USERGUIDE_URL = "https://ay2627s1-cs2103t-f08-2.github.io/tp/UserGuide.html";
     public static final String HELP_MESSAGE = "Refer to the user guide: " + USERGUIDE_URL;
 
     private static final Logger logger = LogsCenter.getLogger(HelpWindow.class);
@@ -26,6 +31,12 @@ public class HelpWindow extends UiPart<Stage> {
 
     @FXML
     private Label helpMessage;
+
+    @FXML
+    private ScrollPane scrollPane;
+
+    @FXML
+    private VBox contentContainer;
 
     /**
      * Creates a new HelpWindow.
@@ -38,10 +49,27 @@ public class HelpWindow extends UiPart<Stage> {
     }
 
     /**
-     * Creates a new HelpWindow.
+     * Creates a new HelpWindow with a new Stage.
      */
     public HelpWindow() {
         this(new Stage());
+    }
+
+    /**
+     * Initializes the HelpWindow by loading and rendering the local bundled User Guide.
+     */
+    @FXML
+    public void initialize() {
+        try {
+            String rawMarkdown = HelpBookUtil.getBundledUserGuide();
+            VBox renderedContent = MarkdownRenderer.render(rawMarkdown);
+            contentContainer.getChildren().setAll(renderedContent.getChildren());
+        } catch (Exception e) {
+            logger.warning("Failed to load local user guide: " + e.getMessage());
+            Label errorLabel = new Label("Unable to load offline User Guide. Please use the link above.");
+            errorLabel.setStyle("-fx-text-fill: #f85149; -fx-padding: 10;");
+            contentContainer.getChildren().add(errorLabel);
+        }
     }
 
     /**
@@ -90,7 +118,7 @@ public class HelpWindow extends UiPart<Stage> {
     }
 
     /**
-     * Copies the URL to the user guide to the clipboard.
+     * Copies the URL to the user guide to the clipboard and gives brief visual feedback.
      */
     @FXML
     private void copyUrl() {
@@ -98,5 +126,16 @@ public class HelpWindow extends UiPart<Stage> {
         final ClipboardContent url = new ClipboardContent();
         url.putString(USERGUIDE_URL);
         clipboard.setContent(url);
+
+        String originalText = copyButton.getText();
+        copyButton.setText("Copied!");
+        copyButton.setDisable(true);
+
+        PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+        pause.setOnFinished(event -> {
+            copyButton.setText(originalText);
+            copyButton.setDisable(false);
+        });
+        pause.play();
     }
 }

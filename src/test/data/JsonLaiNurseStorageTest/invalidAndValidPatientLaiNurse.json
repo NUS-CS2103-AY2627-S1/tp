@@ -1,0 +1,13 @@
+{
+  "patients": [ {
+    "id": "S1234567A",
+    "name": "Valid Patient",
+    "phone": "9482424",
+    "address": "4th street"
+  }, {
+    "id": "S2345678B",
+    "name": "Patient With Invalid Phone Field",
+    "phone": "94asf",
+    "address": "4th street"
+  } ]
+}

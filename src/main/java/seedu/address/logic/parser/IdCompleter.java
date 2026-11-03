@@ -1,0 +1,91 @@
+package seedu.address.logic.parser;
+
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import seedu.address.commons.core.FeatureFlags;
+import seedu.address.logic.commands.AddAppointmentCommand;
+import seedu.address.logic.commands.ArchiveCommand;
+import seedu.address.logic.commands.ClearAppointmentCommand;
+import seedu.address.logic.commands.DeleteAppointmentCommand;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.EditAppointmentCommand;
+import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.MarkAppointmentCommand;
+import seedu.address.logic.commands.UnarchiveCommand;
+import seedu.address.logic.commands.UnmarkAppointmentCommand;
+import seedu.address.logic.commands.ViewCommand;
+import seedu.address.model.patient.PatientId;
+
+/**
+ * Completes the patient ID in a command that expects the ID of an existing patient, such as {@code view S12},
+ * or {@code edit S12 --phone 91234567}.
+ */
+public class IdCompleter {
+
+    /** Commands whose only parameter is the ID of an existing patient. */
+    private static final Set<String> COMMANDS_TAKING_ONLY_ID =
+            Set.of(ViewCommand.COMMAND_WORD, DeleteCommand.COMMAND_WORD, ArchiveCommand.COMMAND_WORD,
+                    UnarchiveCommand.COMMAND_WORD);
+
+    /** Commands whose first parameter is the ID of an existing patient, with further arguments after it. */
+    private static final Set<String> COMMANDS_TAKING_ID_FIRST =
+            Set.of(EditCommand.COMMAND_WORD, EditAppointmentCommand.COMMAND_WORD,
+                    AddAppointmentCommand.COMMAND_WORD, DeleteAppointmentCommand.COMMAND_WORD,
+                    MarkAppointmentCommand.COMMAND_WORD, UnmarkAppointmentCommand.COMMAND_WORD);
+
+    /**
+     * A command word, optionally followed by whitespace and the start of an ID, and then optionally by the rest of
+     * the command, which starts with whitespace.
+     */
+    private static final Pattern COMMAND_FORMAT = Pattern.compile(
+            "(?<commandWord>\\S+)(?:(?<separator>\\s+)(?<partialId>\\S*)(?<rest>\\s.*)?)?", Pattern.DOTALL);
+
+    private IdCompleter() {}
+
+    /**
+     * Returns true if {@code commandWord} takes the ID of an existing patient first, with further arguments after
+     * it, such as {@code clearappt} once it is released (#217).
+     */
+    private static boolean isTakingIdFirst(String commandWord) {
+        return COMMANDS_TAKING_ID_FIRST.contains(commandWord) || FeatureFlags.isSelectiveClearEnabled()
+                && commandWord.equals(ClearAppointmentCommand.COMMAND_WORD);
+    }
+
+    /**
+     * Returns each way to complete {@code commandText} with one of {@code ids}, in the order of {@code ids}.
+     * The text after the ID, such as the options of {@code edit}, is kept unchanged.
+     * Returns an empty list if {@code commandText} has no patient ID where its command expects one,
+     * or if no ID starts with what was typed. Matching ignores case.
+     */
+    public static List<Completion> complete(String commandText, List<PatientId> ids) {
+        requireAllNonNull(commandText, ids);
+        Matcher matcher = COMMAND_FORMAT.matcher(commandText.stripLeading());
+        if (!matcher.matches()) {
+            return List.of();
+        }
+
+        String commandWord = matcher.group("commandWord");
+        String rest = matcher.group("rest") == null ? "" : matcher.group("rest");
+        boolean isIdLast = COMMANDS_TAKING_ONLY_ID.contains(commandWord) && rest.isEmpty();
+        if (!isIdLast && !isTakingIdFirst(commandWord)) {
+            return List.of();
+        }
+
+        String separator = matcher.group("separator") == null ? " " : matcher.group("separator");
+        String partialId = matcher.group("partialId") == null
+                ? ""
+                : matcher.group("partialId").toUpperCase(Locale.ROOT);
+        String commandStart = commandWord + separator;
+        return ids.stream()
+                .map(id -> id.value)
+                .filter(id -> id.startsWith(partialId))
+                .map(id -> new Completion(commandStart + id + rest, id))
+                .toList();
+    }
+}

@@ -3,40 +3,71 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
+import seedu.address.commons.core.FeatureFlags;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientAppointment;
+import seedu.address.model.patient.PatientId;
+import seedu.address.model.patient.PatientNameComparator;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of the LaiNurse data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
+    /** Archived patients come last, whatever else orders the list. */
+    private static final Comparator<Patient> ARCHIVED_LAST = Comparator.comparing(Patient::isArchived);
 
-    private final AddressBook addressBook;
+    private final LaiNurse laiNurse;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Patient> filteredPatients;
+    private final SortedList<Patient> sortedPatients;
+    private final ObservableList<PatientAppointment> appointments = FXCollections.observableArrayList();
+    private final ObjectProperty<PatientScope> scope = new SimpleObjectProperty<>(PatientScope.DEFAULT);
+    /** The settings that apply, which are the user's only once the settings are released. */
+    private final ObjectProperty<Settings> settings = new SimpleObjectProperty<>(Settings.DEFAULT);
+    /** The filter of the patient list, which chooses among the patients in the scope. */
+    private Predicate<Patient> filter = PREDICATE_SHOW_ALL_PATIENTS;
+    /** Whether {@link #filter} is a filter, not the predicate that keeps every patient. */
+    private final BooleanProperty isFiltered = new SimpleBooleanProperty(false);
 
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given laiNurse and userPrefs.
      */
-    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+    public ModelManager(ReadOnlyLaiNurse laiNurse, ReadOnlyUserPrefs userPrefs) {
+        requireAllNonNull(laiNurse, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing with LaiNurse: " + laiNurse + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.laiNurse = new LaiNurse(laiNurse);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        settings.set(effective(this.userPrefs.getSettings()));
+        filteredPatients = new FilteredList<>(new SortedList<>(this.laiNurse.getPatientList(),
+                ARCHIVED_LAST.thenComparing(PatientNameComparator.PATIENT_NAME_ORDER)));
+        sortedPatients = new SortedList<>(filteredPatients);
+        applyFilter();
+        this.laiNurse.getPatientList().addListener((ListChangeListener<Patient>) change -> refreshAppointments());
+        refreshAppointments();
     }
 
     public ModelManager() {
-        this(new AddressBook(), new UserPrefs());
+        this(new LaiNurse(), new UserPrefs());
     }
 
     //=========== UserPrefs ==================================================================================
@@ -44,6 +75,26 @@ public class ModelManager implements Model {
     @Override
     public ReadOnlyUserPrefs getUserPrefs() {
         return userPrefs;
+    }
+
+    @Override
+    public ObservableValue<Settings> getSettings() {
+        return settings;
+    }
+
+    @Override
+    public void setSettings(Settings newSettings) {
+        requireNonNull(newSettings);
+        userPrefs.setSettings(newSettings);
+        settings.set(effective(newSettings));
+    }
+
+    /**
+     * Returns the settings that apply when the user has {@code userSettings}: theirs once the settings are
+     * released, and the default ones before.
+     */
+    private static Settings effective(Settings userSettings) {
+        return FeatureFlags.isSettingsEnabled() ? userSettings : Settings.DEFAULT;
     }
 
     @Override
@@ -57,57 +108,131 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
-    //=========== AddressBook ================================================================================
+    //=========== LaiNurse ================================================================================
 
     @Override
-    public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+    public void setLaiNurse(ReadOnlyLaiNurse laiNurse) {
+        this.laiNurse.resetData(laiNurse);
     }
 
     @Override
-    public ReadOnlyAddressBook getAddressBook() {
-        return addressBook;
+    public ReadOnlyLaiNurse getLaiNurse() {
+        return laiNurse;
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasPatient(Patient patient) {
+        requireNonNull(patient);
+        return laiNurse.hasPatient(patient);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public Optional<Patient> findPatientById(PatientId id) {
+        requireNonNull(id);
+        return laiNurse.findPatientById(id);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void deletePatient(Patient target) {
+        laiNurse.removePatient(target);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
+    public void addPatient(Patient patient) {
+        laiNurse.addPatient(patient);
+        updateFilteredPatientList(PREDICATE_SHOW_ALL_PATIENTS);
     }
 
-    //=========== Filtered Person List Accessors =============================================================
+    @Override
+    public void setPatient(Patient target, Patient editedPatient) {
+        requireAllNonNull(target, editedPatient);
+
+        laiNurse.setPatient(target, editedPatient);
+    }
+
+    //=========== Filtered Patient List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * Returns an unmodifiable view of the filtered and ordered patients, backed by {@code laiNurse}.
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public ObservableList<Patient> getFilteredPatientList() {
+        return sortedPatients;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public void updateFilteredPatientList(Predicate<Patient> predicate) {
+        updateFilteredPatientList(predicate, null);
+    }
+
+    @Override
+    public void updateFilteredPatientList(Predicate<Patient> predicate, Comparator<Patient> comparator) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filter = predicate;
+        isFiltered.set(predicate != PREDICATE_SHOW_ALL_PATIENTS);
+        applyFilter();
+        sortedPatients.setComparator(comparator == null ? null : ARCHIVED_LAST.thenComparing(comparator));
+        logger.fine(() -> "Updated patient filter: " + sortedPatients.size() + " patients, "
+                + (comparator == null ? "name order" : "custom order"));
+    }
+
+    @Override
+    public boolean hasPatientFilter() {
+        return isFiltered.get();
+    }
+
+    @Override
+    public ObservableValue<Boolean> isPatientListFiltered() {
+        return isFiltered;
+    }
+
+    @Override
+    public ObservableValue<PatientScope> getPatientListScope() {
+        return scope;
+    }
+
+    @Override
+    public void setPatientListScope(PatientScope scope) {
+        requireNonNull(scope);
+        this.scope.set(scope);
+        applyFilter();
+        logger.fine(() -> "Updated patient scope: " + scope);
+    }
+
+    @Override
+    public void showInPatientList(Patient patient) {
+        requireNonNull(patient);
+        if (!scope.get().includes(patient)) {
+            setPatientListScope(PatientScope.ALL);
+        }
+    }
+
+    /**
+     * Shows the patients in the scope that the filter keeps.
+     */
+    private void applyFilter() {
+        PatientScope currentScope = scope.get();
+        Predicate<Patient> currentFilter = filter;
+        filteredPatients.setPredicate(patient -> currentScope.includes(patient) && currentFilter.test(patient));
+    }
+
+    //=========== Appointment List Accessors ==================================================================
+
+    @Override
+    public ObservableList<PatientAppointment> getAppointmentList() {
+        return FXCollections.unmodifiableObservableList(appointments);
+    }
+
+    /**
+     * Rebuilds the appointment list from the patients. A patient has few appointments, so rebuilding the whole
+     * list on each change is fast enough, and simpler than following each change.
+     */
+    private void refreshAppointments() {
+        appointments.setAll(laiNurse.getPatientList().stream()
+                .flatMap(patient -> patient.getSchedule().asList().stream()
+                        .map(appointment -> new PatientAppointment(patient, appointment)))
+                .sorted()
+                .toList());
     }
 
     @Override
@@ -121,9 +246,10 @@ public class ModelManager implements Model {
             return false;
         }
 
-        return addressBook.equals(otherModelManager.addressBook)
+        return laiNurse.equals(otherModelManager.laiNurse)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && sortedPatients.equals(otherModelManager.sortedPatients)
+                && scope.get() == otherModelManager.scope.get();
     }
 
 }

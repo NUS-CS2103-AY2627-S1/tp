@@ -2,106 +2,131 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADD_MEDICAL_HISTORY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADD_NOTES;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MEDICAL_HISTORY;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTES;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PATIENTS;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
+import java.util.logging.Logger;
 
-import seedu.address.commons.core.index.Index;
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
+import seedu.address.logic.commands.CommandResult.Navigation;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.patient.Address;
+import seedu.address.model.patient.MedicalHistory;
+import seedu.address.model.patient.Name;
+import seedu.address.model.patient.Notes;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientId;
+import seedu.address.model.patient.Phone;
 
 /**
- * Edits the details of an existing person in the address book.
+ * Edits the details of an existing patient in LaiNurse.
  */
 public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
-            + "Parameters: INDEX (must be a positive integer) "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the patient with the given ID. "
+            + "Existing values will be overwritten by the input values. The ID itself cannot be edited. "
+            + PREFIX_MEDICAL_HISTORY.toString().trim() + " or " + PREFIX_NOTES.toString().trim()
+            + " with no value clears that field, and " + PREFIX_ADD_MEDICAL_HISTORY.toString().trim() + " or "
+            + PREFIX_ADD_NOTES.toString().trim() + " adds text to the end of it, after \""
+            + OptionalFieldEdit.APPEND_SEPARATOR + "\". A field cannot be both replaced and added to.\n"
+            + "Parameters: ID "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
-            + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + "[" + PREFIX_MEDICAL_HISTORY + "[MEDICAL_HISTORY]] "
+            + "[" + PREFIX_ADD_MEDICAL_HISTORY + "MORE_HISTORY] "
+            + "[" + PREFIX_NOTES + "[NOTES]] "
+            + "[" + PREFIX_ADD_NOTES + "MORE_NOTES]\n"
+            + "Examples: " + COMMAND_WORD + " T0123456B " + PREFIX_PHONE + "91234567, "
+            + COMMAND_WORD + " T0123456B " + PREFIX_ADD_MEDICAL_HISTORY + "Asthma " + PREFIX_NOTES.toString().trim();
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_EDIT_PATIENT_SUCCESS = "Edited patient: %1$s";
+    public static final String MESSAGE_NOT_EDITED = "At least one of " + PREFIX_NAME.toString().trim() + ", "
+            + PREFIX_PHONE.toString().trim() + ", " + PREFIX_ADDRESS.toString().trim() + ", "
+            + PREFIX_MEDICAL_HISTORY.toString().trim() + ", " + PREFIX_ADD_MEDICAL_HISTORY.toString().trim() + ", "
+            + PREFIX_NOTES.toString().trim() + " and " + PREFIX_ADD_NOTES.toString().trim() + " must be provided.";
 
-    private final Index index;
-    private final EditPersonDescriptor editPersonDescriptor;
+    private static final Logger logger = LogsCenter.getLogger(EditCommand.class);
+
+    private final PatientId targetId;
+    private final EditPatientDescriptor editPatientDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * @param targetId ID of the patient to edit
+     * @param editPatientDescriptor details to edit the patient with
      */
-    public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
-        requireNonNull(index);
-        requireNonNull(editPersonDescriptor);
+    public EditCommand(PatientId targetId, EditPatientDescriptor editPatientDescriptor) {
+        requireNonNull(targetId);
+        requireNonNull(editPatientDescriptor);
 
-        this.index = index;
-        this.editPersonDescriptor = new EditPersonDescriptor(editPersonDescriptor);
+        this.targetId = targetId;
+        this.editPatientDescriptor = new EditPatientDescriptor(editPatientDescriptor);
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
-
-        if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        Optional<Patient> foundPatient = model.findPatientById(targetId);
+        if (foundPatient.isEmpty()) {
+            logger.fine("Rejected edit: no patient has the given ID.");
+            throw new CommandException(String.format(Messages.MESSAGE_PATIENT_NOT_FOUND, targetId));
         }
+        Patient patientToEdit = foundPatient.get();
+        Patient editedPatient = createEditedPatient(patientToEdit, editPatientDescriptor);
+        assert editedPatient.getId().equals(patientToEdit.getId()) : "An edit never changes the patient's ID.";
 
-        Person personToEdit = lastShownList.get(index.getZeroBased());
-        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
-
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
-        }
-
-        model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        model.setPatient(patientToEdit, editedPatient);
+        assert model.findPatientById(targetId).filter(editedPatient::equals).isPresent()
+                : "The edited patient must be stored with all their details.";
+        model.updateFilteredPatientList(PREDICATE_SHOW_ALL_PATIENTS);
+        model.showInPatientList(editedPatient);
+        String warning = Messages.formatSameNameWarning(model.getLaiNurse().getPatientList(), editedPatient);
+        logger.fine("Edited patient " + targetId + (warning.isEmpty() ? "." : " with a same-name warning."));
+        CommandResult result = new CommandResult(
+                String.format(MESSAGE_EDIT_PATIENT_SUCCESS, Messages.format(editedPatient)))
+                .withNavigation(Navigation.toPatient(editedPatient.getId()));
+        return warning.isEmpty() ? result : result.withNoteAppended(warning);
     }
 
     /**
-     * Creates and returns a {@code Person} with the details of {@code personToEdit}
-     * edited with {@code editPersonDescriptor}.
+     * Creates and returns a {@code Patient} with the details of {@code patientToEdit}
+     * edited with {@code editPatientDescriptor}. The patient ID is never changed.
+     * The patient's appointments are kept.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
-        assert personToEdit != null;
+    private static Patient createEditedPatient(Patient patientToEdit, EditPatientDescriptor editPatientDescriptor) {
+        assert patientToEdit != null;
+        assert editPatientDescriptor != null;
 
-        Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
-        Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
-        Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
-        Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Name updatedName = editPatientDescriptor.getName().orElse(patientToEdit.getName());
+        Phone updatedPhone = editPatientDescriptor.getPhone().orElse(patientToEdit.getPhone());
+        Address updatedAddress = editPatientDescriptor.getAddress().orElse(patientToEdit.getAddress());
+        Optional<MedicalHistory> updatedMedicalHistory = editPatientDescriptor.getMedicalHistory()
+                .map(edit -> edit.applyTo(patientToEdit.getMedicalHistory(), MedicalHistory::new))
+                .orElse(patientToEdit.getMedicalHistory());
+        Optional<Notes> updatedNotes = editPatientDescriptor.getNotes()
+                .map(edit -> edit.applyTo(patientToEdit.getNotes(), Notes::new))
+                .orElse(patientToEdit.getNotes());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Patient(patientToEdit.getId(), updatedName, updatedPhone, updatedAddress,
+                updatedMedicalHistory, updatedNotes, patientToEdit.getSchedule(), patientToEdit.isArchived());
+    }
+
+    @Override
+    public Optional<CommandResult.View> getView() {
+        return Optional.of(CommandResult.View.PATIENTS);
     }
 
     @Override
@@ -115,48 +140,48 @@ public class EditCommand extends Command {
             return false;
         }
 
-        return index.equals(otherEditCommand.index)
-                && editPersonDescriptor.equals(otherEditCommand.editPersonDescriptor);
+        return targetId.equals(otherEditCommand.targetId)
+                && editPatientDescriptor.equals(otherEditCommand.editPatientDescriptor);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("index", index)
-                .add("editPersonDescriptor", editPersonDescriptor)
+                .add("targetId", targetId)
+                .add("editPatientDescriptor", editPatientDescriptor)
                 .toString();
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the details to edit the patient with. Each non-empty field value will replace the
+     * corresponding field value of the patient. The medical history and notes are stored as edits, which can also
+     * clear the field or add text to the end of it.
      */
-    public static class EditPersonDescriptor {
+    public static class EditPatientDescriptor {
         private Name name;
         private Phone phone;
-        private Email email;
         private Address address;
-        private Set<Tag> tags;
+        private OptionalFieldEdit<MedicalHistory> medicalHistory;
+        private OptionalFieldEdit<Notes> notes;
 
-        public EditPersonDescriptor() {}
+        public EditPatientDescriptor() {}
 
         /**
          * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
          */
-        public EditPersonDescriptor(EditPersonDescriptor toCopy) {
+        public EditPatientDescriptor(EditPatientDescriptor toCopy) {
             setName(toCopy.name);
             setPhone(toCopy.phone);
-            setEmail(toCopy.email);
             setAddress(toCopy.address);
-            setTags(toCopy.tags);
+            setMedicalHistory(toCopy.medicalHistory);
+            setNotes(toCopy.notes);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, address, medicalHistory, notes);
         }
 
         public void setName(Name name) {
@@ -175,14 +200,6 @@ public class EditCommand extends Command {
             return Optional.ofNullable(phone);
         }
 
-        public void setEmail(Email email) {
-            this.email = email;
-        }
-
-        public Optional<Email> getEmail() {
-            return Optional.ofNullable(email);
-        }
-
         public void setAddress(Address address) {
             this.address = address;
         }
@@ -191,21 +208,20 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
-        /**
-         * Sets {@code tags} to this object's {@code tags}.
-         * A defensive copy of {@code tags} is used internally.
-         */
-        public void setTags(Set<Tag> tags) {
-            this.tags = (tags != null) ? new HashSet<>(tags) : null;
+        public void setMedicalHistory(OptionalFieldEdit<MedicalHistory> medicalHistory) {
+            this.medicalHistory = medicalHistory;
         }
 
-        /**
-         * Returns an unmodifiable tag set, which throws {@code UnsupportedOperationException}
-         * if modification is attempted.
-         * Returns {@code Optional#empty()} if {@code tags} is null.
-         */
-        public Optional<Set<Tag>> getTags() {
-            return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+        public Optional<OptionalFieldEdit<MedicalHistory>> getMedicalHistory() {
+            return Optional.ofNullable(medicalHistory);
+        }
+
+        public void setNotes(OptionalFieldEdit<Notes> notes) {
+            this.notes = notes;
+        }
+
+        public Optional<OptionalFieldEdit<Notes>> getNotes() {
+            return Optional.ofNullable(notes);
         }
 
         @Override
@@ -215,15 +231,15 @@ public class EditCommand extends Command {
             }
 
             // instanceof handles nulls
-            if (!(other instanceof EditPersonDescriptor otherEditPersonDescriptor)) {
+            if (!(other instanceof EditPatientDescriptor otherEditPatientDescriptor)) {
                 return false;
             }
 
-            return Objects.equals(name, otherEditPersonDescriptor.name)
-                    && Objects.equals(phone, otherEditPersonDescriptor.phone)
-                    && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+            return Objects.equals(name, otherEditPatientDescriptor.name)
+                    && Objects.equals(phone, otherEditPatientDescriptor.phone)
+                    && Objects.equals(address, otherEditPatientDescriptor.address)
+                    && Objects.equals(medicalHistory, otherEditPatientDescriptor.medicalHistory)
+                    && Objects.equals(notes, otherEditPatientDescriptor.notes);
         }
 
         @Override
@@ -231,9 +247,9 @@ public class EditCommand extends Command {
             return new ToStringBuilder(this)
                     .add("name", name)
                     .add("phone", phone)
-                    .add("email", email)
                     .add("address", address)
-                    .add("tags", tags)
+                    .add("medicalHistory", medicalHistory)
+                    .add("notes", notes)
                     .toString();
         }
     }

@@ -4,45 +4,61 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientId;
 
 /**
- * Deletes a person identified using its displayed index from the address book.
+ * Deletes the patient with the given ID from LaiNurse.
  */
-public class DeleteCommand extends Command {
+public class DeleteCommand extends Command implements Confirmable {
 
     public static final String COMMAND_WORD = "delete";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
-            + "Parameters: INDEX (must be a positive integer)\n"
-            + "Example: " + COMMAND_WORD + " 1";
+            + ": Deletes the patient with the given ID and all their appointments, after you confirm it.\n"
+            + "Parameters: ID\n"
+            + "Example: " + COMMAND_WORD + " T0123456B";
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_PATIENT_SUCCESS = "Deleted patient: %1$s";
+    public static final String MESSAGE_DELETES = "This deletes %1$s (%2$s) and their %3$s.";
 
-    private final Index targetIndex;
+    private final PatientId targetId;
 
-    public DeleteCommand(Index targetIndex) {
-        this.targetIndex = targetIndex;
+    /**
+     * Creates a DeleteCommand to delete the patient with the specified {@code targetId}.
+     */
+    public DeleteCommand(PatientId targetId) {
+        requireNonNull(targetId);
+        this.targetId = targetId;
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
+        Patient patientToDelete = findPatientToDelete(model);
+        model.deletePatient(patientToDelete);
+        return new CommandResult(String.format(MESSAGE_DELETE_PATIENT_SUCCESS, Messages.format(patientToDelete)))
+                .withSelectionCleared();
+    }
 
-        if (targetIndex.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
-        }
+    @Override
+    public String describeDeletion(Model model) throws CommandException {
+        requireNonNull(model);
+        Patient patientToDelete = findPatientToDelete(model);
+        return String.format(MESSAGE_DELETES, patientToDelete.getName(), patientToDelete.getId(),
+                Messages.formatCount(patientToDelete.getSchedule().asList().size(), "appointment"));
+    }
 
-        Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
-        model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+    private Patient findPatientToDelete(Model model) throws CommandException {
+        List<Patient> listAllPatients = model.getLaiNurse().getPatientList();
+
+        return listAllPatients.stream().filter(patient -> patient.getId().equals(targetId))
+                        .findFirst().orElseThrow(() -> new CommandException(
+                                String.format(Messages.MESSAGE_PATIENT_NOT_FOUND, targetId)));
     }
 
     @Override
@@ -56,13 +72,13 @@ public class DeleteCommand extends Command {
             return false;
         }
 
-        return targetIndex.equals(otherDeleteCommand.targetIndex);
+        return targetId.equals(otherDeleteCommand.targetId);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("targetIndex", targetIndex)
+                .add("targetId", targetId)
                 .toString();
     }
 }

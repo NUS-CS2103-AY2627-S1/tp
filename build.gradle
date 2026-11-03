@@ -10,6 +10,10 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -27,6 +31,12 @@ checkstyle {
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
+}
+
+processResources {
+    from("$rootDir/docs/UserGuide.md") {
+        into 'docs'
+    }
 }
 
 task coverage(type: JacocoReport) {
@@ -72,7 +82,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'lainurse.jar'
 }
 
 defaultTasks 'clean', 'test'

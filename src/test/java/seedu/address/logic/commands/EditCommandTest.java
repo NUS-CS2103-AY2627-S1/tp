@@ -5,154 +5,302 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ID_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ID_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_MEDICAL_HISTORY_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.logic.commands.CommandTestUtil.showPatientAtIndex;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PATIENT;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PATIENT;
+import static seedu.address.testutil.TypicalPatients.BENSON;
+import static seedu.address.testutil.TypicalPatients.getTypicalLaiNurse;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.AddressBook;
+import seedu.address.logic.commands.CommandResult.Navigation;
+import seedu.address.logic.commands.EditCommand.EditPatientDescriptor;
+import seedu.address.model.LaiNurse;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
+import seedu.address.model.PatientScope;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientId;
+import seedu.address.testutil.EditPatientDescriptorBuilder;
+import seedu.address.testutil.PatientBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) and unit tests for EditCommand.
  */
 public class EditCommandTest {
 
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+    private Model model = new ModelManager(getTypicalLaiNurse(), new UserPrefs());
 
     @Test
-    public void execute_allFieldsSpecifiedUnfilteredList_success() {
-        Person editedPerson = new PersonBuilder().build();
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(editedPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+    public void execute_allFieldsSpecified_success() {
+        // The descriptor copies no appointments and the ID cannot be edited, so these are kept from the first patient
+        Patient firstPatient = model.getFilteredPatientList().get(INDEX_FIRST_PATIENT);
+        Patient editedPatient = new PatientBuilder(firstPatient).withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).withAddress(VALID_ADDRESS_BOB).build();
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder(editedPatient).build();
+        EditCommand editCommand = new EditCommand(firstPatient.getId(), descriptor);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(firstPatient, editedPatient);
 
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, firstPatient.getId()), expectedModel);
     }
 
     @Test
-    public void execute_someFieldsSpecifiedUnfilteredList_success() {
-        Index indexLastPerson = Index.fromOneBased(model.getFilteredPersonList().size());
-        Person lastPerson = model.getFilteredPersonList().get(indexLastPerson.getZeroBased());
+    public void execute_archivedPatient_staysArchivedAndShown() {
+        Patient archivedBenson = BENSON.withArchived(true);
+        model.setPatient(BENSON, archivedBenson);
+        Patient editedPatient = new PatientBuilder(archivedBenson).withPhone(VALID_PHONE_BOB).build();
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
 
-        PersonBuilder personInList = new PersonBuilder(lastPerson);
-        Person editedPerson = personInList.withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB)
-                .withTags(VALID_TAG_HUSBAND).build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(archivedBenson, editedPatient);
+        // The scope shows archived patients too, so that the patient's row is in the list to select
+        expectedModel.setPatientListScope(PatientScope.ALL);
 
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB)
-                .withPhone(VALID_PHONE_BOB).withTags(VALID_TAG_HUSBAND).build();
-        EditCommand editCommand = new EditCommand(indexLastPerson, descriptor);
-
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
-
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(lastPerson, editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertCommandSuccess(new EditCommand(BENSON.getId(), descriptor), model,
+                new CommandResult(expectedMessage).withNavigation(Navigation.toPatient(BENSON.getId())),
+                expectedModel);
     }
 
     @Test
-    public void execute_noFieldSpecifiedUnfilteredList_success() {
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
-        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+    public void execute_someFieldsSpecified_success() {
+        Patient lastPatient = model.getFilteredPatientList().get(model.getFilteredPatientList().size() - 1);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        PatientBuilder patientInList = new PatientBuilder(lastPatient);
+        Patient editedPatient = patientInList.withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB).build();
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).build();
+        EditCommand editCommand = new EditCommand(lastPatient.getId(), descriptor);
 
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
+
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(lastPatient, editedPatient);
+
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, lastPatient.getId()), expectedModel);
     }
 
     @Test
-    public void execute_filteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_medicalHistorySpecified_success() {
+        // Only the medical history changes; the other fields are kept
+        Patient firstPatient = model.getFilteredPatientList().get(INDEX_FIRST_PATIENT);
+        Patient editedPatient = new PatientBuilder(firstPatient).withMedicalHistory(VALID_MEDICAL_HISTORY_BOB).build();
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder()
+                .withMedicalHistory(VALID_MEDICAL_HISTORY_BOB).build();
+        EditCommand editCommand = new EditCommand(firstPatient.getId(), descriptor);
 
-        Person personInFilteredList = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        Person editedPerson = new PersonBuilder(personInFilteredList).withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(firstPatient, editedPatient);
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, firstPatient.getId()), expectedModel);
     }
 
     @Test
-    public void execute_duplicatePersonUnfilteredList_failure() {
-        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(firstPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
-
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+    public void execute_notesSpecified_success() {
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withNotes("Enjoys gardening").build();
+        Patient editedPatient = new PatientBuilder(BENSON).withNotes("Enjoys gardening").build();
+        assertEditSuccess(BENSON, descriptor, editedPatient);
     }
 
     @Test
-    public void execute_duplicatePersonFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
-
-        // edit person in filtered list into a duplicate in address book
-        Person personInList = model.getAddressBook().getPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder(personInList).build());
-
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+    public void execute_clearMedicalHistoryAndNotes_success() {
+        Patient bensonWithNotes = new PatientBuilder(BENSON).withNotes("Enjoys gardening").build();
+        model.setPatient(BENSON, bensonWithNotes);
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withoutMedicalHistory().withoutNotes()
+                .build();
+        Patient editedPatient = new PatientBuilder(BENSON).withoutMedicalHistory().withoutNotes().build();
+        assertEditSuccess(bensonWithNotes, descriptor, editedPatient);
     }
 
     @Test
-    public void execute_invalidPersonIndexUnfilteredList_failure() {
-        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(outOfBoundIndex, descriptor);
+    public void execute_clearEmptyNotes_success() {
+        // BENSON has no notes, so clearing them changes nothing
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withoutNotes().build();
+        assertEditSuccess(BENSON, descriptor, BENSON);
+    }
 
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    @Test
+    public void execute_addToMedicalHistory_addedAfterSeparator() {
+        // BENSON's medical history is HYPERTENSION, ALLERGIC TO PENICILLIN
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withMedicalHistoryAdded("Asthma")
+                .build();
+        Patient editedPatient = new PatientBuilder(BENSON)
+                .withMedicalHistory("Hypertension, allergic to penicillin; Asthma").build();
+        assertEditSuccess(BENSON, descriptor, editedPatient);
+    }
+
+    @Test
+    public void execute_addToEmptyNotes_setsNotes() {
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withNotesAdded("Enjoys gardening")
+                .build();
+        Patient editedPatient = new PatientBuilder(BENSON).withNotes("Enjoys gardening").build();
+        assertEditSuccess(BENSON, descriptor, editedPatient);
+    }
+
+    @Test
+    public void execute_noFieldSpecified_success() {
+        Patient firstPatient = model.getFilteredPatientList().get(INDEX_FIRST_PATIENT);
+        EditCommand editCommand = new EditCommand(firstPatient.getId(), new EditPatientDescriptor());
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(firstPatient));
+
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, firstPatient.getId()), expectedModel);
+    }
+
+    @Test
+    public void execute_patientHiddenByFilter_success() {
+        // Patients are found by ID, so a patient hidden by a filter can still be edited,
+        // and the list is reset to show every patient afterwards
+        showPatientAtIndex(model, INDEX_FIRST_PATIENT);
+        Patient secondPatient = model.getLaiNurse().getPatientList().get(INDEX_SECOND_PATIENT);
+        Patient editedPatient = new PatientBuilder(secondPatient).withName(VALID_NAME_BOB).build();
+        EditCommand editCommand = new EditCommand(secondPatient.getId(),
+                new EditPatientDescriptorBuilder().withName(VALID_NAME_BOB).build());
+
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
+
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(secondPatient, editedPatient);
+
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, secondPatient.getId()), expectedModel);
+    }
+
+    @Test
+    public void execute_sameDetailsAsOtherPatient_successAndKeepsId() {
+        // Patients are identified by ID, which edit cannot change, so copying another patient's
+        // name, phone, address and medical history does not create a duplicate
+        Patient firstPatient = model.getFilteredPatientList().get(INDEX_FIRST_PATIENT);
+        Patient secondPatient = model.getFilteredPatientList().get(INDEX_SECOND_PATIENT);
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder(firstPatient).build();
+        EditCommand editCommand = new EditCommand(secondPatient.getId(), descriptor);
+
+        PatientBuilder editedPatientBuilder = new PatientBuilder(secondPatient)
+                .withName(firstPatient.getName().fullName).withPhone(firstPatient.getPhone().value)
+                .withAddress(firstPatient.getAddress().value);
+        firstPatient.getMedicalHistory().ifPresent(history -> editedPatientBuilder.withMedicalHistory(history.value));
+        Patient editedPatient = editedPatientBuilder.build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient)) + "\nWarning: this name is also used by " + firstPatient.getName()
+                + " (" + firstPatient.getId() + "). Check the patient IDs.";
+
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(secondPatient, editedPatient);
+
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, secondPatient.getId()), expectedModel);
+    }
+
+    @Test
+    public void execute_sharedNameWithoutNameChange_warns() {
+        Patient other = new PatientBuilder(BENSON).withId("SHARED1").build();
+        model.addPatient(other);
+        Patient editedPatient = new PatientBuilder(BENSON).withPhone(VALID_PHONE_BOB).build();
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS, Messages.format(editedPatient))
+                + "\nWarning: this name is also used by BENSON MEIER (SHARED1). Check the patient IDs.";
+
+        Model expectedModel = new ModelManager(model.getLaiNurse(), new UserPrefs());
+        expectedModel.setPatient(BENSON, editedPatient);
+        assertCommandSuccess(new EditCommand(BENSON.getId(), descriptor), model,
+                editResult(expectedMessage, BENSON.getId()), expectedModel);
+
+        // Explicitly giving the same normalized name still warns, even though the edit changes no details.
+        EditPatientDescriptor sameName = new EditPatientDescriptorBuilder().withName("  benson   meier  ").build();
+        assertCommandSuccess(new EditCommand(BENSON.getId(), sameName), model,
+                editResult(expectedMessage, BENSON.getId()), expectedModel);
+    }
+
+    @Test
+    public void execute_renameAwayFromSharedName_successWithoutWarning() {
+        model.addPatient(new PatientBuilder(BENSON).withId("SHARED1").build());
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withName("Unique Name").build();
+        Patient editedPatient = new PatientBuilder(BENSON).withName("Unique Name").build();
+
+        assertEditSuccess(BENSON, descriptor, editedPatient);
+    }
+
+    @Test
+    public void execute_archivedPatientWithSharedName_warnsAndStaysArchived() {
+        Patient archivedBenson = BENSON.withArchived(true);
+        model.setPatient(BENSON, archivedBenson);
+        model.addPatient(new PatientBuilder(BENSON).withId("SHARED1").build());
+        Patient editedPatient = new PatientBuilder(archivedBenson).withPhone(VALID_PHONE_BOB).build();
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS, Messages.format(editedPatient))
+                + "\nWarning: this name is also used by BENSON MEIER (SHARED1). Check the patient IDs.";
+
+        Model expectedModel = new ModelManager(model.getLaiNurse(), new UserPrefs());
+        expectedModel.setPatient(archivedBenson, editedPatient);
+        expectedModel.setPatientListScope(PatientScope.ALL);
+
+        assertCommandSuccess(new EditCommand(BENSON.getId(), descriptor), model,
+                editResult(expectedMessage, BENSON.getId()), expectedModel);
+    }
+
+    @Test
+    public void execute_idNotFound_failure() {
+        // VALID_ID_AMY is not one of the typical patients
+        EditPatientDescriptor descriptor = new EditPatientDescriptorBuilder().withName(VALID_NAME_BOB).build();
+        EditCommand editCommand = new EditCommand(new PatientId(VALID_ID_AMY), descriptor);
+
+        assertCommandFailure(editCommand, model, String.format(Messages.MESSAGE_PATIENT_NOT_FOUND, VALID_ID_AMY));
     }
 
     /**
-     * Edit filtered list where index is larger than size of filtered list,
-     * but smaller than size of address book
+     * Asserts that editing {@code patientToEdit} with {@code descriptor} succeeds and gives {@code editedPatient}.
      */
-    @Test
-    public void execute_invalidPersonIndexFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
-        Index outOfBoundIndex = INDEX_SECOND_PERSON;
-        // ensures that outOfBoundIndex is still in bounds of address book list
-        assertTrue(outOfBoundIndex.getZeroBased() < model.getAddressBook().getPersonList().size());
+    private void assertEditSuccess(Patient patientToEdit, EditPatientDescriptor descriptor, Patient editedPatient) {
+        EditCommand editCommand = new EditCommand(patientToEdit.getId(), descriptor);
 
-        EditCommand editCommand = new EditCommand(outOfBoundIndex,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PATIENT_SUCCESS,
+                Messages.format(editedPatient));
 
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        Model expectedModel = new ModelManager(new LaiNurse(model.getLaiNurse()), new UserPrefs());
+        expectedModel.setPatient(patientToEdit, editedPatient);
+
+        assertCommandSuccess(editCommand, model, editResult(expectedMessage, patientToEdit.getId()), expectedModel);
+    }
+
+    /**
+     * Returns the result of an edit that succeeds with {@code message}, which selects the patient with {@code id}.
+     */
+    private static CommandResult editResult(String message, PatientId id) {
+        return new CommandResult(message).withNavigation(Navigation.toPatient(id));
     }
 
     @Test
     public void equals() {
-        final EditCommand standardCommand = new EditCommand(INDEX_FIRST_PERSON, DESC_AMY);
+        PatientId firstId = new PatientId(VALID_ID_AMY);
+        PatientId secondId = new PatientId(VALID_ID_BOB);
+        final EditCommand standardCommand = new EditCommand(firstId, DESC_AMY);
 
         // same values -> returns true
-        EditPersonDescriptor copyDescriptor = new EditPersonDescriptor(DESC_AMY);
-        EditCommand commandWithSameValues = new EditCommand(INDEX_FIRST_PERSON, copyDescriptor);
+        EditPatientDescriptor copyDescriptor = new EditPatientDescriptor(DESC_AMY);
+        EditCommand commandWithSameValues = new EditCommand(firstId, copyDescriptor);
         assertTrue(standardCommand.equals(commandWithSameValues));
 
         // same object -> returns true
@@ -164,20 +312,20 @@ public class EditCommandTest {
         // different types -> returns false
         assertFalse(standardCommand.equals(new ClearCommand()));
 
-        // different index -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_SECOND_PERSON, DESC_AMY)));
+        // different ID -> returns false
+        assertFalse(standardCommand.equals(new EditCommand(secondId, DESC_AMY)));
 
         // different descriptor -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_FIRST_PERSON, DESC_BOB)));
+        assertFalse(standardCommand.equals(new EditCommand(firstId, DESC_BOB)));
     }
 
     @Test
     public void toStringMethod() {
-        Index index = Index.fromOneBased(1);
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-        EditCommand editCommand = new EditCommand(index, editPersonDescriptor);
-        String expected = EditCommand.class.getCanonicalName() + "{index=" + index + ", editPersonDescriptor="
-                + editPersonDescriptor + "}";
+        PatientId id = new PatientId(VALID_ID_AMY);
+        EditPatientDescriptor editPatientDescriptor = new EditPatientDescriptor();
+        EditCommand editCommand = new EditCommand(id, editPatientDescriptor);
+        String expected = EditCommand.class.getCanonicalName() + "{targetId=" + id + ", editPatientDescriptor="
+                + editPatientDescriptor + "}";
         assertEquals(expected, editCommand.toString());
     }
 

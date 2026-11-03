@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 public class ArgumentTokenizerTest {
 
@@ -147,4 +150,42 @@ public class ArgumentTokenizerTest {
         assertNotEquals(aaa, new Prefix("aab"));
     }
 
+
+    @Test
+    public void normalizeOptionSeparators_knownOptions_spacedOut() throws Exception {
+        Prefix name = new Prefix("--name ");
+        Prefix phone = new Prefix("--phone ");
+
+        // tab-separated options
+        assertEquals("S1  --name  Alex  --phone  9123", ArgumentTokenizer.normalizeOptionSeparators(
+                "S1\t--name\tAlex\t--phone\t9123", "invalid", name, phone).replace("\t", " "));
+
+        // option with no value at the end is followed by a space, so tokenize recognizes it
+        String normalized = ArgumentTokenizer.normalizeOptionSeparators("S1 --name", "invalid", name);
+        assertEquals("", ArgumentTokenizer.tokenize(normalized, name).getValue(name).get());
+
+        // "--" inside a word is not an option
+        assertEquals("Anne--Marie", ArgumentTokenizer.normalizeOptionSeparators("Anne--Marie", "invalid", name));
+    }
+
+    @Test
+    public void normalizeOptionSeparators_unknownOption_throwsParseException() {
+        Prefix name = new Prefix("--name ");
+        assertThrows(ParseException.class, "invalid", () ->
+                ArgumentTokenizer.normalizeOptionSeparators("S1 --nmae Alex", "invalid", name));
+        assertThrows(ParseException.class, "invalid", () ->
+                ArgumentTokenizer.normalizeOptionSeparators("S1 --name=Alex", "invalid", name));
+    }
+
+    @Test
+    public void normalizeOptionSeparators_narrowSpacesLeftToTheCommandParser() throws Exception {
+        Prefix name = new Prefix("--name ");
+        Prefix phone = new Prefix("--phone ");
+
+        // horizontal spaces such as the non-breaking space are not translated here; the command
+        // parser translates them before parsing, so a word they join is not passed over as an option
+        String narrowSpaced = "S1\u00A0--name\u00A0Alex\u00A0--phone\u00A09123";
+        assertEquals(narrowSpaced,
+                ArgumentTokenizer.normalizeOptionSeparators(narrowSpaced, "invalid", name, phone));
+    }
 }

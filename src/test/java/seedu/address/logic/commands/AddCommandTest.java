@@ -5,57 +5,93 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPatients.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
+import seedu.address.logic.commands.CommandResult.Navigation;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.model.AddressBook;
+import seedu.address.model.LaiNurse;
 import seedu.address.model.Model;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.PatientScope;
+import seedu.address.model.ReadOnlyLaiNurse;
 import seedu.address.model.ReadOnlyUserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.Settings;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientAppointment;
+import seedu.address.model.patient.PatientId;
+import seedu.address.testutil.PatientBuilder;
 
 public class AddCommandTest {
 
     @Test
-    public void constructor_nullPerson_throwsNullPointerException() {
+    public void constructor_nullPatient_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> new AddCommand(null));
     }
 
     @Test
-    public void execute_personAcceptedByModel_addSuccessful() throws Exception {
-        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
-        Person validPerson = new PersonBuilder().build();
+    public void execute_patientAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingPatientAdded modelStub = new ModelStubAcceptingPatientAdded();
+        Patient validPatient = new PatientBuilder().build();
 
-        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+        CommandResult commandResult = new AddCommand(validPatient).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPatient)),
                 commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals(Optional.of(Navigation.toPatient(validPatient.getId())), commandResult.getNavigation());
+        assertEquals(List.of(validPatient), modelStub.patientsAdded);
     }
 
     @Test
-    public void execute_duplicatePerson_throwsCommandException() {
-        Person validPerson = new PersonBuilder().build();
-        AddCommand addCommand = new AddCommand(validPerson);
-        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+    public void execute_sameNameWithDifferentId_warnsAndAddsPatient() throws Exception {
+        ModelStubAcceptingPatientAdded modelStub = new ModelStubAcceptingPatientAdded();
+        Patient existing = new PatientBuilder().withId("S1").withName("Alex Yeoh").build();
+        modelStub.addPatient(existing);
+        Patient toAdd = new PatientBuilder().withId("S2").withName("  alex   yeoh  ").build();
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        CommandResult result = new AddCommand(toAdd).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(toAdd))
+                + "\nWarning: this name is also used by ALEX YEOH (S1). Check the patient IDs.",
+                result.getFeedbackToUser());
+        assertEquals(Optional.of(Navigation.toPatient(toAdd.getId())), result.getNavigation());
+        assertEquals(List.of(existing, toAdd), modelStub.patientsAdded);
+    }
+
+    @Test
+    public void execute_duplicatePatient_throwsCommandException() {
+        Patient validPatient = new PatientBuilder().build();
+        AddCommand addCommand = new AddCommand(validPatient);
+        ModelStub modelStub = new ModelStubWithPatient(validPatient);
+
+        assertThrows(CommandException.class, String.format(AddCommand.MESSAGE_DUPLICATE_PATIENT,
+                validPatient.getName(), validPatient.getId()), () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_duplicateArchivedPatient_suggestsUnarchive() {
+        Patient archivedPatient = new PatientBuilder().withArchived(true).build();
+        AddCommand addCommand = new AddCommand(new PatientBuilder().build());
+        ModelStub modelStub = new ModelStubWithPatient(archivedPatient);
+
+        assertThrows(CommandException.class, String.format(AddCommand.MESSAGE_DUPLICATE_ARCHIVED_PATIENT,
+                archivedPatient.getName(), archivedPatient.getId()), () -> addCommand.execute(modelStub));
     }
 
     @Test
     public void equals() {
-        Person alice = new PersonBuilder().withName("Alice").build();
-        Person bob = new PersonBuilder().withName("Bob").build();
+        Patient alice = new PatientBuilder().withName("Alice").build();
+        Patient bob = new PatientBuilder().withName("Bob").build();
         AddCommand addAliceCommand = new AddCommand(alice);
         AddCommand addBobCommand = new AddCommand(bob);
 
@@ -72,7 +108,7 @@ public class AddCommandTest {
         // null -> returns false
         assertFalse(addAliceCommand.equals(null));
 
-        // different person -> returns false
+        // different patient -> returns false
         assertFalse(addAliceCommand.equals(addBobCommand));
     }
 
@@ -103,85 +139,154 @@ public class AddCommandTest {
         }
 
         @Override
-        public void addPerson(Person person) {
+        public void addPatient(Patient patient) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void setAddressBook(ReadOnlyAddressBook newData) {
+        public void setLaiNurse(ReadOnlyLaiNurse newData) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
+        public ReadOnlyLaiNurse getLaiNurse() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public boolean hasPerson(Person person) {
+        public boolean hasPatient(Patient patient) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void deletePerson(Person target) {
+        public Optional<Patient> findPatientById(PatientId id) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void setPerson(Person target, Person editedPerson) {
+        public boolean hasPatientFilter() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ObservableList<Person> getFilteredPersonList() {
+        public ObservableValue<Settings> getSettings() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
+        public void setSettings(Settings settings) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableValue<Boolean> isPatientListFiltered() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableValue<PatientScope> getPatientListScope() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setPatientListScope(PatientScope scope) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void showInPatientList(Patient patient) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deletePatient(Patient target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setPatient(Patient target, Patient editedPatient) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Patient> getFilteredPatientList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPatientList(Predicate<Patient> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPatientList(Predicate<Patient> predicate, Comparator<Patient> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<PatientAppointment> getAppointmentList() {
             throw new AssertionError("This method should not be called.");
         }
     }
 
     /**
-     * A Model stub that contains a single person.
+     * A Model stub that contains a single patient.
      */
-    private class ModelStubWithPerson extends ModelStub {
-        private final Person person;
+    private class ModelStubWithPatient extends ModelStub {
+        private final Patient patient;
 
-        ModelStubWithPerson(Person person) {
-            requireNonNull(person);
-            this.person = person;
+        ModelStubWithPatient(Patient patient) {
+            requireNonNull(patient);
+            this.patient = patient;
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public boolean hasPatient(Patient patient) {
+            requireNonNull(patient);
+            return this.patient.isSamePatient(patient);
+        }
+
+        @Override
+        public Optional<Patient> findPatientById(PatientId id) {
+            requireNonNull(id);
+            return patient.getId().equals(id) ? Optional.of(patient) : Optional.empty();
         }
     }
 
     /**
-     * A Model stub that always accepts the person being added.
+     * A Model stub that always accepts the patient being added.
      */
-    private class ModelStubAcceptingPersonAdded extends ModelStub {
-        final ArrayList<Person> personsAdded = new ArrayList<>();
+    private class ModelStubAcceptingPatientAdded extends ModelStub {
+        final ArrayList<Patient> patientsAdded = new ArrayList<>();
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+        public boolean hasPatient(Patient patient) {
+            requireNonNull(patient);
+            return patientsAdded.stream().anyMatch(patient::isSamePatient);
         }
 
         @Override
-        public void addPerson(Person person) {
-            requireNonNull(person);
-            personsAdded.add(person);
+        public Optional<Patient> findPatientById(PatientId id) {
+            requireNonNull(id);
+            return patientsAdded.stream().filter(patient -> patient.getId().equals(id)).findFirst();
         }
 
         @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+        public void addPatient(Patient patient) {
+            requireNonNull(patient);
+            patientsAdded.add(patient);
+        }
+
+        @Override
+        public void showInPatientList(Patient patient) {
+            requireNonNull(patient);
+        }
+
+        @Override
+        public ReadOnlyLaiNurse getLaiNurse() {
+            LaiNurse laiNurse = new LaiNurse();
+            laiNurse.setPatients(patientsAdded);
+            return laiNurse;
         }
     }
 

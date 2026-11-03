@@ -1,0 +1,129 @@
+package seedu.address.model;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+import java.util.Optional;
+
+import javafx.collections.ObservableList;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.patient.Patient;
+import seedu.address.model.patient.PatientId;
+import seedu.address.model.patient.UniquePatientList;
+
+/**
+ * Wraps all data at the LaiNurse level.
+ * Duplicates are not allowed (by .isSamePatient comparison).
+ */
+public class LaiNurse implements ReadOnlyLaiNurse {
+
+    private final UniquePatientList patients = new UniquePatientList();
+
+    public LaiNurse() {}
+
+    /**
+     * Creates a LaiNurse using the Patients in the {@code toBeCopied}
+     */
+    public LaiNurse(ReadOnlyLaiNurse toBeCopied) {
+        this();
+        resetData(toBeCopied);
+    }
+
+    //// list overwrite operations
+
+    /**
+     * Replaces the contents of the patient list with {@code patients}.
+     * {@code patients} must not contain duplicate patients.
+     */
+    public void setPatients(List<Patient> patients) {
+        this.patients.setPatients(patients);
+    }
+
+    /**
+     * Resets the existing data of this {@code LaiNurse} with {@code newData}.
+     */
+    public void resetData(ReadOnlyLaiNurse newData) {
+        requireNonNull(newData);
+
+        setPatients(newData.getPatientList());
+    }
+
+    //// patient-level operations
+
+    /**
+     * Returns true if a patient with the same identity as {@code patient} exists in LaiNurse.
+     */
+    public boolean hasPatient(Patient patient) {
+        requireNonNull(patient);
+        return patients.contains(patient);
+    }
+
+    /**
+     * Returns the patient with the given {@code id}, or {@code Optional#empty()} if there is none.
+     */
+    public Optional<Patient> findPatientById(PatientId id) {
+        requireNonNull(id);
+        return patients.findById(id);
+    }
+
+    /**
+     * Adds a patient to LaiNurse.
+     * The patient must not already exist in LaiNurse.
+     */
+    public void addPatient(Patient p) {
+        patients.add(p);
+    }
+
+    /**
+     * Replaces the given patient {@code target} in the list with {@code editedPatient}.
+     * {@code target} must exist in LaiNurse.
+     * The patient identity of {@code editedPatient} must not be the same as another existing patient
+     * in LaiNurse.
+     */
+    public void setPatient(Patient target, Patient editedPatient) {
+        requireNonNull(editedPatient);
+
+        patients.setPatient(target, editedPatient);
+    }
+
+    /**
+     * Removes {@code key} from this {@code LaiNurse}.
+     * {@code key} must exist in LaiNurse.
+     */
+    public void removePatient(Patient key) {
+        patients.remove(key);
+    }
+
+    //// util methods
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("patients", patients)
+                .toString();
+    }
+
+    @Override
+    public ObservableList<Patient> getPatientList() {
+        return patients.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof LaiNurse otherLaiNurse)) {
+            return false;
+        }
+
+        return patients.equals(otherLaiNurse.patients);
+    }
+
+    @Override
+    public int hashCode() {
+        return patients.hashCode();
+    }
+}

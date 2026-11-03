@@ -1,0 +1,66 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":LaiNurseParser" as LaiNurseParser LOGIC_COLOR
+participant ":FindCommandParser" as FindCommandParser LOGIC_COLOR
+participant "command:FindCommand" as FindCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:Model" as Model MODEL_COLOR
+end box
+
+[-> LogicManager : execute("find ~--name Alex ~--address Serangoon")
+activate LogicManager
+
+LogicManager -> LaiNurseParser : parseCommand("find ~--name Alex ~--address Serangoon")
+activate LaiNurseParser
+
+create FindCommandParser
+LaiNurseParser -> FindCommandParser : FindCommandParser()
+activate FindCommandParser
+
+FindCommandParser --> LaiNurseParser
+deactivate FindCommandParser
+
+LaiNurseParser -> FindCommandParser : parse(" ~--name Alex ~--address Serangoon")
+activate FindCommandParser
+
+create FindCommand
+FindCommandParser -> FindCommand : FindCommand(predicate, Optional.empty())
+activate FindCommand
+
+FindCommand --> FindCommandParser
+deactivate FindCommand
+
+FindCommandParser --> LaiNurseParser : command
+deactivate FindCommandParser
+
+LaiNurseParser --> LogicManager : command
+deactivate LaiNurseParser
+
+LogicManager -> FindCommand : execute(model)
+activate FindCommand
+
+FindCommand -> Model : updateFilteredPatientList(predicate, comparator)
+activate Model
+
+Model --> FindCommand
+deactivate Model
+
+FindCommand -> Model : getFilteredPatientList()
+activate Model
+
+Model --> FindCommand : patients
+deactivate Model
+
+
+FindCommand --> LogicManager : new CommandResult(...)\n.withNavigation(Navigation.toView(View.PATIENTS))
+deactivate FindCommand
+
+[<-- LogicManager : finalResult
+deactivate LogicManager
+@enduml
