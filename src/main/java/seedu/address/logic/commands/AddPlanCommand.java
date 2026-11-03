@@ -1,0 +1,86 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DESCRIPTION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutPlan;
+import seedu.address.model.workoutplan.exceptions.DuplicateWorkoutPlanException;
+
+/**
+ * Adds a workout plan to the Student currently being viewed.
+ */
+public class AddPlanCommand extends Command {
+
+    public static final String COMMAND_WORD = "addPlan";
+
+    public static final String MESSAGE_DESCRIPTION =
+            "Adds a workout plan to the Student currently being viewed.";
+    public static final String MESSAGE_PARAMETERS = "PLAN_NAME " + PREFIX_DESCRIPTION + " DESCRIPTION " + PREFIX_DATE
+            + " DDMMYYYY [" + PREFIX_TAG + " TAG]...";
+    public static final String MESSAGE_EXAMPLE = COMMAND_WORD + " Leg Day " + PREFIX_DESCRIPTION + " focus on form "
+            + PREFIX_DATE + " 20102026";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": " + MESSAGE_DESCRIPTION + "\n"
+            + "Parameters: " + MESSAGE_PARAMETERS + "\n"
+            + "Example: " + MESSAGE_EXAMPLE;
+
+    public static final String MESSAGE_SUCCESS = "New workout added: %1$s";
+    public static final String MESSAGE_NO_STUDENT_SELECTED =
+            "No student is currently selected. Use viewStudent first.";
+    public static final String MESSAGE_DUPLICATE_PLAN = "This workout plan already exists.";
+
+    private final WorkoutPlan toAdd;
+
+    /**
+     * Creates a command to add the given workout plan to the current student.
+     *
+     * @param toAdd workout plan to add
+     */
+    public AddPlanCommand(WorkoutPlan toAdd) {
+        requireNonNull(toAdd);
+        this.toAdd = toAdd;
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+
+        Student currentStudent = model.getCurrentStudent()
+                .orElseThrow(() -> new CommandException(MESSAGE_NO_STUDENT_SELECTED));
+
+        try {
+            model.addWorkoutPlanForStudent(currentStudent, toAdd);
+        } catch (DuplicateWorkoutPlanException e) {
+            throw new CommandException(MESSAGE_DUPLICATE_PLAN, e);
+        }
+        model.updateStudentWorkoutsState(model.getCurrentStudent().orElseThrow());
+        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof AddPlanCommand otherAddPlanCommand)) {
+            return false;
+        }
+
+        return toAdd.equals(otherAddPlanCommand.toAdd);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("toAdd", toAdd)
+                .toString();
+    }
+}

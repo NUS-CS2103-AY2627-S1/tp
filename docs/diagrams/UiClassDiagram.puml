@@ -1,60 +1,72 @@
 @startuml
 !include style.puml
+left to right direction
+skinparam linetype ortho
 skinparam arrowThickness 1.1
 skinparam arrowColor UI_COLOR_T4
 skinparam classBackgroundColor UI_COLOR
 
-package UI <<Rectangle>>{
-Class "<<interface>>\nUi" as Ui
-Class "{abstract}\nUiPart" as UiPart
-Class UiManager
-Class MainWindow
-Class HelpWindow
-Class ResultDisplay
-Class PersonListPanel
-Class PersonCard
-Class StatusBarFooter
-Class CommandBox
-}
+package UI <<Rectangle>> {
+    Class "<<interface>>\nUi" as Ui
+    Class UiManager
+    Class "{abstract}\nUiPart\n(base class of all UI parts)" as UiPart
+    Class MainWindow
 
-package Model <<Rectangle>> {
-Class HiddenModel #FFFFFF
+    together {
+        Class CommandBox
+        Class ResultDisplay
+        Class StatusBarFooter
+        Class HelpWindow
+    }
+
+    together {
+        Class StudentListPanel
+        Class StudentCard
+    }
+
+    together {
+        Class WorkoutPlanListPanel
+        Class WorkoutPlanCard
+    }
 }
 
 package Logic <<Rectangle>> {
 Class HiddenLogic #FFFFFF
 }
 
+package Model <<Rectangle>> {
+Class HiddenModel #FFFFFF
+}
+
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Ui
 
-UiManager .left.|> Ui
-UiManager -down-> "1" MainWindow
-MainWindow *-down->  "1" CommandBox
-MainWindow *-down-> "1" ResultDisplay
-MainWindow *-down-> "1" PersonListPanel
-MainWindow *-down-> "1" StatusBarFooter
-MainWindow --> "0..1" HelpWindow
+UiManager .up.|> Ui
+UiManager *-right-> "1" MainWindow : owns >
 
-PersonListPanel -down-> "*" PersonCard
+MainWindow -up-|> UiPart
+HelpWindow -left-|> UiPart
 
-MainWindow -left-|> UiPart
+MainWindow *-right-> "1" CommandBox
+MainWindow *-right-> "1" ResultDisplay
+MainWindow *-right-> "1" StatusBarFooter
+MainWindow -right-> "0..1" HelpWindow
+MainWindow *-down-> "1" StudentListPanel
+MainWindow *-down-> "1" WorkoutPlanListPanel
 
-ResultDisplay --|> UiPart
-CommandBox --|> UiPart
-PersonListPanel --|> UiPart
-PersonCard --|> UiPart
-StatusBarFooter --|> UiPart
-HelpWindow --|> UiPart
+StudentListPanel *-down-> "*" StudentCard
+WorkoutPlanListPanel *-down-> "*" WorkoutPlanCard
 
-PersonCard ..> Model
-UiManager -right-> Logic
-MainWindow -left-> Logic
+StudentCard ..> Model
+WorkoutPlanCard ..> Model
+UiManager -up-> Logic
+MainWindow -up-> Logic
+HelpWindow .down.> Logic
 
-PersonListPanel -[hidden]left- HelpWindow
-HelpWindow -[hidden]left- CommandBox
-CommandBox -[hidden]left- ResultDisplay
-ResultDisplay -[hidden]left- StatusBarFooter
+CommandBox -[hidden]down- ResultDisplay
+ResultDisplay -[hidden]down- StatusBarFooter
+StatusBarFooter -[hidden]down- HelpWindow
+StudentListPanel -[hidden]right- WorkoutPlanListPanel
+StudentCard -[hidden]right- WorkoutPlanCard
 
-MainWindow -[hidden]-|> UiPart
 @enduml

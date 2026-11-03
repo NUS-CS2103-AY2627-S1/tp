@@ -1,11 +1,17 @@
 package seedu.address.logic;
 
+import java.util.List;
+import java.util.Optional;
+
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.metadata.CommandCategory;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutPlan;
 
 /**
  * API of the Logic component
@@ -20,8 +26,20 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered list of students */
+    ObservableList<Student> getFilteredStudentList();
+
+    /** Returns the student currently selected by {@code viewStudent}, if any. */
+    Optional<Student> getCurrentStudent();
+
+    /** Returns the current student as a read-only observable property. */
+    ReadOnlyObjectProperty<Student> currentStudentProperty();
+
+    /** Returns the selected workout plan as a read-only observable property. */
+    ReadOnlyObjectProperty<WorkoutPlan> currentWorkoutPlanProperty();
+
+    /** Returns the command categories displayed by the Help window. */
+    List<CommandCategory> getCommandCategories();
 
     /**
      * Returns the user prefs' GUI settings.

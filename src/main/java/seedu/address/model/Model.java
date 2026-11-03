@@ -1,17 +1,25 @@
 package seedu.address.model;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.exercise.Exercise;
+import seedu.address.model.exercise.exceptions.DuplicateExerciseException;
+import seedu.address.model.exercise.exceptions.ExerciseNotFoundException;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.exceptions.StudentNotFoundException;
+import seedu.address.model.workoutplan.WorkoutPlan;
+import seedu.address.model.workoutplan.exceptions.WorkoutPlanNotFoundException;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Student> PREDICATE_SHOW_ALL_STUDENTS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -29,43 +37,131 @@ public interface Model {
     void setGuiSettings(GuiSettings guiSettings);
 
     /**
-     * Replaces address book data with the data in {@code addressBook}.
+     * Replaces BrotherGym data with the data in {@code brotherGym}.
      */
-    void setAddressBook(ReadOnlyAddressBook addressBook);
+    void setBrotherGym(ReadOnlyBrotherGym brotherGym);
 
-    /** Returns the AddressBook */
-    ReadOnlyAddressBook getAddressBook();
+    /** Returns the BrotherGym */
+    ReadOnlyBrotherGym getBrotherGym();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a student with the same identity as {@code student} exists in the student list.
      */
-    boolean hasPerson(Person person);
+    boolean hasStudent(Student student);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Deletes the given student.
+     * The student must exist in the student list.
      */
-    void deletePerson(Person target);
+    void deleteStudent(Student target);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Adds the given student.
+     * {@code student} must not already exist in the student list.
      */
-    void addPerson(Person person);
+    void addStudent(Student student);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Replaces the given student {@code target} with {@code editedStudent}.
+     * {@code target} must exist in the student list.
+     * The student identity of {@code editedStudent} must not be the same as
+     * another existing student in the student list.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    void setStudent(Student target, Student editedStudent);
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
-     * @throws NullPointerException if {@code predicate} is null.
+     * Appends a workout plan to the student and stores an updated student value.
+     * Refreshes the added plan's date-based status before checking for duplicates and storing it.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void addWorkoutPlanForStudent(Student student, WorkoutPlan plan);
+
+    /**
+     * Removes the matching plan and stores an updated student value.
+     * Prefers the same plan instance; otherwise matches name, description, date, tags, and status,
+     * ignoring exercises. If several plans match, removes the first one.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
+     * @throws WorkoutPlanNotFoundException If the student has no matching plan.
+     */
+    void removeWorkoutPlanForStudent(Student student, WorkoutPlan plan);
+
+    /**
+     * Replaces {@code target} with {@code editedPlan} at the same position and stores an updated student value.
+     * Refreshes the edited plan's date-based status before checking for duplicates and storing it.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
+     * @throws WorkoutPlanNotFoundException If the student has no matching plan.
+     */
+    void setWorkoutPlanForStudent(Student student, WorkoutPlan target, WorkoutPlan editedPlan);
+
+    /**
+     * Adds an exercise to the given workout plan belonging to the given student.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
+     * @throws WorkoutPlanNotFoundException If the plan is not in the student's plan list.
+     * @throws DuplicateExerciseException If the exercise already exists in the plan.
+     */
+    void addExerciseForWorkoutPlan(Student student, WorkoutPlan plan, Exercise exercise);
+
+    /**
+     * Replaces an exercise in the given workout plan at the same position.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
+     * @throws WorkoutPlanNotFoundException If the plan is not in the student's plan list.
+     * @throws ExerciseNotFoundException If the target exercise is absent.
+     * @throws DuplicateExerciseException If the replacement already exists in the plan.
+     */
+    void setExerciseForWorkoutPlan(Student student, WorkoutPlan plan,
+            Exercise target, Exercise editedExercise);
+
+    /**
+     * Removes an exercise from the given workout plan.
+     *
+     * @throws StudentNotFoundException If the student is not in the model.
+     * @throws WorkoutPlanNotFoundException If the plan is not in the student's plan list.
+     * @throws ExerciseNotFoundException If the target exercise is absent.
+     */
+    void removeExerciseForWorkoutPlan(Student student, WorkoutPlan plan, Exercise target);
+
+    /**
+     * Refreshes and stores the given student's workout statuses, then returns the stored student object.
+     * The student must exist in the model.
+     */
+    Student updateStudentWorkoutsState(Student student);
+
+    /** Returns the currently selected student as an observable, read-only property. */
+    ReadOnlyObjectProperty<Student> currentStudentProperty();
+
+    /** Returns the currently selected student, if any. */
+    Optional<Student> getCurrentStudent();
+
+    /** Selects a student. */
+    void setCurrentStudent(Student student);
+
+    /** Clears the current student selection. */
+    void clearCurrentStudent();
+
+    /** Returns the workout plan selected within the current student, if any. */
+    Optional<WorkoutPlan> getCurrentWorkoutPlan();
+
+    /** Returns the selected workout plan as an observable, read-only property. */
+    ReadOnlyObjectProperty<WorkoutPlan> currentWorkoutPlanProperty();
+
+    /** Selects a workout plan belonging to the current student. */
+    void setCurrentWorkoutPlan(WorkoutPlan plan);
+
+    /** Clears the current workout plan selection. */
+    void clearCurrentWorkoutPlan();
+
+    /** Returns an unmodifiable view of the filtered student list */
+    ObservableList<Student> getFilteredStudentList();
+
+    /**
+     * Updates the filter of the filtered student list to filter by the given {@code predicate}.
+     * @throws NullPointerException If {@code predicate} is null.
+     */
+    void updateFilteredStudentList(Predicate<Student> predicate);
+
 }

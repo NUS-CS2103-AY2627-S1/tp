@@ -1,59 +1,59 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Zhu Jiahang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kungfuxiongmao.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/kungfuxiongmao)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Model
 
-### Jean Doe
+### Inchara Praveen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/incharapraveen.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/IncharaPraveen)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Storage
+
+### Koh Luck Heng
+
+<img src="images/lol-hi.png" width="200px">
+
+[[github](http://github.com/lol-hi)]
+
+[//]: # ([[portfolio]&#40;team/johndoe.md&#41;])
+
+* Role: Developer
+* Responsibilities: User Input Parsing
+
+### Xinlin
+
+<img src="images/headphonesribbons.png" width="200px">
+
+[[github](https://github.com/headphonesribbons)]
+
+* Role: Developer
+* Responsibilities: Frontend
+
+### He Ziyang
+
+<img src="images/idkwattoput-689.png" width="200px">
+
+[[github](https://github.com/idkwattoput-689)]
+
+* Role: Developer
+* Responsibilities: Execution

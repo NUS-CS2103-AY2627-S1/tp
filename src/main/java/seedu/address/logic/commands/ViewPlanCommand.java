@@ -1,0 +1,93 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.exercise.Exercise;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutPlan;
+import seedu.address.model.workoutplan.exceptions.WorkoutPlanIndexOutOfBoundsException;
+
+/** Displays one workout plan belonging to the currently selected student. */
+public class ViewPlanCommand extends SingleIndexCommand {
+    public static final String COMMAND_WORD = "viewPlan";
+
+    public static final String MESSAGE_DESCRIPTION = "Displays selected workout plan";
+    public static final String MESSAGE_PARAMETERS = "PLAN_ID";
+    public static final String MESSAGE_EXAMPLE = COMMAND_WORD + " 2";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": " + MESSAGE_DESCRIPTION + "\n"
+            + "Parameters: " + MESSAGE_PARAMETERS + "\n"
+            + "Example: " + MESSAGE_EXAMPLE;
+
+    public static final String MESSAGE_SUCCESS = "Viewing workout plan:\n%1$s\nExercises:\n%2$s";
+    public static final String MESSAGE_NO_EXERCISES = "  (none)";
+    public static final String MESSAGE_NO_STUDENT_SELECTED =
+            "No student is currently selected. Use viewStudent first.";
+    public static final String MESSAGE_INVALID_WORKOUT_ID =
+            "Workout Plan ID exceeded total number of workout plans.";
+
+    /**
+     * Creates a command to view the workout plan of the student at the given workoutplan index.
+     *
+     * @param targetIndex index of the workoutplan to be viewed
+     */
+    public ViewPlanCommand(Index targetIndex) {
+        super(targetIndex);
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        Student currentStudent = model.getCurrentStudent()
+                .orElseThrow(() -> new CommandException(MESSAGE_NO_STUDENT_SELECTED));
+        final WorkoutPlan workoutPlan;
+        try {
+            workoutPlan = currentStudent.getWorkoutPlansList().getWorkoutPlan(targetIndex.getZeroBased());
+        } catch (WorkoutPlanIndexOutOfBoundsException e) {
+            throw new CommandException(MESSAGE_INVALID_WORKOUT_ID, e);
+        }
+        model.setCurrentWorkoutPlan(workoutPlan);
+        model.updateStudentWorkoutsState(model.getCurrentStudent().orElseThrow());
+
+        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(workoutPlan),
+                formatExercises(workoutPlan.getExercisesList().getExerciseList())));
+    }
+
+    private static String formatExercises(List<Exercise> exercises) {
+        if (exercises.isEmpty()) {
+            return MESSAGE_NO_EXERCISES;
+        }
+        return IntStream.range(0, exercises.size())
+                .mapToObj(index -> String.format("%d. %s", index + 1, exercises.get(index)))
+                .collect(Collectors.joining("\n"));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof ViewPlanCommand otherViewPlanCommand)) {
+            return false;
+        }
+
+        return targetIndex.equals(otherViewPlanCommand.targetIndex);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("targetIndex", targetIndex)
+                .toString();
+    }
+}

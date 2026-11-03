@@ -1,0 +1,160 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.testutil.TypicalStudents.ALICE;
+import static seedu.address.testutil.TypicalStudents.BENSON;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutDate;
+import seedu.address.model.workoutplan.WorkoutDescription;
+import seedu.address.model.workoutplan.WorkoutName;
+import seedu.address.model.workoutplan.WorkoutPlan;
+import seedu.address.model.workoutplan.WorkoutPlanStatus;
+import seedu.address.model.workoutplan.WorkoutPlansList;
+
+/** Tests status changes and validation for {@link UnmarkPlanCommand}. */
+public class UnmarkPlanCommandTest {
+
+    // EP: selected completed-plan index exists (valid).
+    @Test
+    public void execute_validIndex_updatesTargetAndRefreshesOtherPlans() throws Exception {
+        LocalDate today = LocalDate.now();
+        // BV: date < today (valid).
+        assertTransition(today.minusDays(1), WorkoutPlanStatus.COMPLETED, WorkoutPlanStatus.OVERDUE);
+        // BV: date = today (valid).
+        assertTransition(today, WorkoutPlanStatus.COMPLETED, WorkoutPlanStatus.PENDING);
+        // BV: date > today (valid).
+        assertTransition(today.plusDays(1), WorkoutPlanStatus.COMPLETED, WorkoutPlanStatus.PENDING);
+    }
+
+    private void assertTransition(LocalDate deadline, WorkoutPlanStatus initialStatus,
+            WorkoutPlanStatus expectedStatus) throws Exception {
+        WorkoutPlan target = plan("Target", deadline, initialStatus);
+        // Deliberately stale: the command should refresh other plans for the same student.
+        WorkoutPlan unchanged = plan("Other", LocalDate.now().minusDays(1), WorkoutPlanStatus.PENDING);
+        Student original = withPlans(ALICE, List.of(unchanged, target));
+        Student otherStudent = withPlans(BENSON, List.of(unchanged));
+        Model model = new ModelManager();
+        model.addStudent(original);
+        model.addStudent(otherStudent);
+        model.setCurrentStudent(original);
+        UnmarkPlanCommand command = new UnmarkPlanCommand(Index.fromOneBased(2));
+
+        CommandResult result = command.execute(model);
+
+        Student updated = model.getCurrentStudent().orElseThrow();
+        List<WorkoutPlan> updatedPlans = updated.getWorkoutPlansList().getWorkoutList();
+        WorkoutPlan expectedPlan = plan("Target", deadline, expectedStatus);
+        WorkoutPlan refreshed = unchanged.updateState(LocalDate.now());
+        assertEquals(withPlans(ALICE, List.of(refreshed, expectedPlan)), updated);
+        assertSame(updated, model.getBrotherGym().getStudentList().get(0));
+        assertSame(otherStudent, model.getBrotherGym().getStudentList().get(1));
+        assertEquals(refreshed, updatedPlans.get(0));
+        assertEquals(WorkoutPlanStatus.PENDING, unchanged.getStatus());
+        assertEquals(initialStatus, target.getStatus());
+        assertEquals(String.format(UnmarkPlanCommand.MESSAGE_SUCCESS, expectedPlan), result.getFeedbackToUser());
+
+        assertCommandFailure(command, model, UnmarkPlanCommand.MESSAGE_ALREADY_UNMARKED);
+        assertSame(updated, model.getCurrentStudent().orElseThrow());
+    }
+
+    // EP: selected plan is already unmarked (invalid).
+    @Test
+    public void execute_unmarkedPlan_throwsCommandExceptionWithoutChangingSelection() {
+        for (WorkoutPlanStatus status : List.of(WorkoutPlanStatus.PENDING, WorkoutPlanStatus.OVERDUE)) {
+            Student student = withPlans(ALICE, List.of(plan("Target", LocalDate.now().minusDays(1), status)));
+            Model model = new ModelManager();
+            model.addStudent(student);
+            model.setCurrentStudent(student);
+
+            assertCommandFailure(new UnmarkPlanCommand(Index.fromOneBased(1)), model,
+                    UnmarkPlanCommand.MESSAGE_ALREADY_UNMARKED);
+            assertSame(student, model.getCurrentStudent().orElseThrow());
+        }
+    }
+
+    // EP: no current student is selected (invalid).
+    @Test
+    public void execute_noStudentSelected_throwsCommandException() {
+        Model model = new ModelManager();
+        model.addStudent(ALICE);
+        assertCommandFailure(new UnmarkPlanCommand(Index.fromOneBased(1)), model,
+                UnmarkPlanCommand.MESSAGE_NO_STUDENT_SELECTED);
+    }
+
+    // BV: index > size (invalid).
+    @Test
+    public void execute_invalidIndex_throwsCommandExceptionWithoutChangingSelection() {
+        Model model = new ModelManager();
+        Student student = withPlans(ALICE, List.of(
+                plan("Target", LocalDate.now(), WorkoutPlanStatus.COMPLETED)));
+        model.addStudent(student);
+        model.setCurrentStudent(student);
+
+        assertCommandFailure(new UnmarkPlanCommand(Index.fromOneBased(2)), model,
+                UnmarkPlanCommand.MESSAGE_INVALID_WORKOUT_ID);
+        assertSame(student, model.getCurrentStudent().orElseThrow());
+    }
+
+    // BV: count < 1 (invalid).
+    @Test
+    public void execute_emptyPlans_throwsCommandException() {
+        Model model = new ModelManager();
+        model.addStudent(ALICE);
+        model.setCurrentStudent(ALICE);
+        assertCommandFailure(new UnmarkPlanCommand(Index.fromOneBased(1)), model,
+                UnmarkPlanCommand.MESSAGE_INVALID_WORKOUT_ID);
+    }
+
+    @Test
+    public void nullArguments_throwNullPointerException() {
+        // One invalid input at a time: only the command index is null.
+        assertThrows(NullPointerException.class, () -> new UnmarkPlanCommand(null));
+        // One invalid input at a time: only the model is null.
+        assertThrows(NullPointerException.class, () ->
+                new UnmarkPlanCommand(Index.fromOneBased(1)).execute(null));
+    }
+
+    @Test
+    public void equals_comparesCommandTypeAndIndex() {
+        UnmarkPlanCommand command = new UnmarkPlanCommand(Index.fromOneBased(1));
+        assertEquals(command, command);
+        assertEquals(command, new UnmarkPlanCommand(Index.fromOneBased(1)));
+        assertNotEquals(command, new UnmarkPlanCommand(Index.fromOneBased(2)));
+        assertNotEquals(command, new MarkPlanCommand(Index.fromOneBased(1)));
+        assertNotEquals(command, new DeletePlanCommand(Index.fromOneBased(1)));
+        assertNotEquals(command, null);
+    }
+
+    @Test
+    public void toStringMethod() {
+        Index targetIndex = Index.fromOneBased(1);
+        UnmarkPlanCommand command = new UnmarkPlanCommand(targetIndex);
+        String expected = UnmarkPlanCommand.class.getCanonicalName() + "{targetIndex=" + targetIndex + "}";
+
+        assertEquals(expected, command.toString());
+    }
+
+    private static Student withPlans(Student student, List<WorkoutPlan> plans) {
+        return new Student(student.getName(), student.getPhone(), student.getEmail(),
+                student.getAddress(), student.getTags(), new WorkoutPlansList(plans));
+    }
+
+    private static WorkoutPlan plan(String title, LocalDate deadline, WorkoutPlanStatus status) {
+        return new WorkoutPlan(new WorkoutName(title), new WorkoutDescription("Exercise"),
+                WorkoutDate.fromLocalDate(deadline), Set.of(), status);
+    }
+}

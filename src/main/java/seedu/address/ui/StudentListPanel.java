@@ -1,0 +1,66 @@
+package seedu.address.ui;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.Optional;
+
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
+import seedu.address.model.student.Student;
+
+/**
+ * Panel containing the list of students.
+ */
+public class StudentListPanel extends UiPart<Region> {
+    private static final String FXML = "StudentListPanel.fxml";
+
+    @FXML
+    private ListView<Student> studentListView;
+
+    /** Creates a panel whose highlight is controlled through commands. */
+    public StudentListPanel(ObservableList<Student> studentList) {
+        super(FXML);
+        requireNonNull(studentList);
+        studentListView.setItems(studentList);
+        studentListView.setCellFactory(listView -> new StudentListViewCell());
+    }
+
+    /** Highlights the selected student, or clears the selection when there is none. */
+    public void selectStudent(Optional<Student> student) {
+        requireNonNull(student);
+        if (student.isPresent()) {
+            studentListView.getSelectionModel().select(student.get());
+            studentListView.scrollTo(student.get());
+        } else {
+            studentListView.getSelectionModel().clearSelection();
+        }
+    }
+
+    /**
+     * Custom {@code ListCell} that displays the graphics of a {@code Student} using a {@code StudentCard}.
+     */
+    class StudentListViewCell extends ListCell<Student> {
+        StudentListViewCell() {
+            addEventFilter(MouseEvent.MOUSE_PRESSED, event -> event.consume());
+        }
+
+        @Override
+        protected void updateItem(Student student, boolean empty) {
+            super.updateItem(student, empty);
+
+            if (empty || student == null) {
+                setGraphic(null);
+                setText(null);
+            } else {
+                Region card = new StudentCard(student, getIndex() + 1).getRoot();
+                card.prefWidthProperty().bind(studentListView.widthProperty().subtract(24));
+                setGraphic(card);
+            }
+        }
+    }
+
+}

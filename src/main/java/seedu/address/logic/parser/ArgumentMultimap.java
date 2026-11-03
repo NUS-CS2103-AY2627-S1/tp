@@ -5,10 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
-
-import seedu.address.logic.Messages;
-import seedu.address.logic.parser.exceptions.ParseException;
+import java.util.Set;
 
 /**
  * Stores mapping of prefixes to their respective arguments.
@@ -63,16 +60,9 @@ public class ArgumentMultimap {
     }
 
     /**
-     * Throws a {@code ParseException} if any of the prefixes given in {@code prefixes} appeared more than
-     * once among the arguments.
+     * Returns the set of prefixes captured by the ArgumentMultiMap
      */
-    public void verifyNoDuplicatePrefixesFor(Prefix... prefixes) throws ParseException {
-        Prefix[] duplicatedPrefixes = Stream.of(prefixes).distinct()
-                .filter(prefix -> argMultimap.containsKey(prefix) && argMultimap.get(prefix).size() > 1)
-                .toArray(Prefix[]::new);
-
-        if (duplicatedPrefixes.length > 0) {
-            throw new ParseException(Messages.getErrorMessageForDuplicatePrefixes(duplicatedPrefixes));
-        }
+    public Set<Prefix> getPrefixSet() {
+        return Set.copyOf(argMultimap.keySet());
     }
 }

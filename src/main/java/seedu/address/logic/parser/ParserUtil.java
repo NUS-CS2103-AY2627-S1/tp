@@ -2,35 +2,83 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.parser.exceptions.FieldValueInvalidException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.exercise.ExerciseDescription;
+import seedu.address.model.exercise.ExerciseName;
+import seedu.address.model.student.Address;
+import seedu.address.model.student.Email;
+import seedu.address.model.student.Name;
+import seedu.address.model.student.Phone;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.workoutplan.WorkoutDate;
+import seedu.address.model.workoutplan.WorkoutDescription;
+import seedu.address.model.workoutplan.WorkoutName;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
  */
 public class ParserUtil {
 
-    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer between 1 and "
+            + Integer.MAX_VALUE + ", without leading zeros.";
+
+    /**
+     * Parses and validates an exercise name.
+     *
+     * @param name Exercise name to parse.
+     * @return The parsed exercise name.
+     * @throws ParseException If the name is invalid.
+     */
+    public static ExerciseName parseExerciseName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!ExerciseName.isValidName(trimmedName)) {
+            throw new FieldValueInvalidException(ExerciseName.MESSAGE_CONSTRAINTS);
+        }
+        return new ExerciseName(trimmedName);
+    }
+
+    /**
+     * Parses and validates an exercise description.
+     *
+     * @param description Exercise description to parse.
+     * @return The parsed exercise description.
+     * @throws ParseException If the description is invalid.
+     */
+    public static ExerciseDescription parseExerciseDescription(String description) throws ParseException {
+        requireNonNull(description);
+        String trimmedDescription = description.trim();
+        if (!ExerciseDescription.isValidExerciseDescription(trimmedDescription)) {
+            throw new FieldValueInvalidException(ExerciseDescription.MESSAGE_CONSTRAINTS);
+        }
+        return new ExerciseDescription(trimmedDescription);
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
-     * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
+     * @throws ParseException if the index is outside the positive integer range or has leading zeros.
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
+        requireNonNull(oneBasedIndex);
+
         String trimmedIndex = oneBasedIndex.trim();
-        if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
-            throw new ParseException(MESSAGE_INVALID_INDEX);
+        if (trimmedIndex.startsWith("0") || !StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
+            throw new FieldValueInvalidException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
     }
@@ -45,9 +93,24 @@ public class ParserUtil {
         requireNonNull(name);
         String trimmedName = name.trim();
         if (!Name.isValidName(trimmedName)) {
-            throw new ParseException(Name.MESSAGE_CONSTRAINTS);
+            throw new FieldValueInvalidException(Name.MESSAGE_CONSTRAINTS);
         }
         return new Name(trimmedName);
+    }
+
+    /**
+     * Parses whitespace-separated name search keywords, trimming leading and trailing whitespace.
+     * Keeps all keywords when at least one can match a valid student name.
+     *
+     * @throws FieldValueInvalidException if no keyword can match a valid student name.
+     */
+    public static List<String> parseNameKeywords(String queries) throws FieldValueInvalidException {
+        requireNonNull(queries);
+        List<String> nameKeywords = List.of(queries.trim().split("\\s+"));
+        if (nameKeywords.stream().noneMatch(Name::isValidName)) {
+            throw new FieldValueInvalidException(FindCommand.MESSAGE_INVALID_KEYWORDS);
+        }
+        return nameKeywords;
     }
 
     /**
@@ -60,7 +123,7 @@ public class ParserUtil {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
         if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+            throw new FieldValueInvalidException(Phone.MESSAGE_CONSTRAINTS);
         }
         return new Phone(trimmedPhone);
     }
@@ -75,7 +138,7 @@ public class ParserUtil {
         requireNonNull(address);
         String trimmedAddress = address.trim();
         if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
+            throw new FieldValueInvalidException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);
     }
@@ -90,35 +153,127 @@ public class ParserUtil {
         requireNonNull(email);
         String trimmedEmail = email.trim();
         if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
+            throw new FieldValueInvalidException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
+     * Parses a {@code String tag} into a {@code Tag} object, depending on the constructor provided.
      * Leading and trailing whitespaces will be trimmed.
      *
      * @throws ParseException if the given {@code tag} is invalid.
      */
-    public static Tag parseTag(String tag) throws ParseException {
+    private static <T extends Tag> T parseTag(String tag, Function<String, T> tagConstructor) throws ParseException {
         requireNonNull(tag);
         String trimmedTag = tag.trim();
         if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+            throw new FieldValueInvalidException(Tag.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return tagConstructor.apply(trimmedTag);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses {@code Collection<String> tags} into {@code Set<Tag>} based on {@code tagConstructor}.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
+    private static <T extends Tag> Set<T> parseTags(
+            Collection<String> tags,
+            Function<String, T> tagConstructor) throws ParseException {
         requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
+        final Set<T> tagSet = new HashSet<>();
         for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+            tagSet.add(parseTag(tagName, tagConstructor));
+        }
+        if (!Tag.isValidTagCount(tagSet.size())) {
+            throw new FieldValueInvalidException(Tag.MESSAGE_TAG_LIMIT);
         }
         return tagSet;
+    }
+
+    /**
+     * Parses tags if at least one tag value is supplied.
+     *
+     * @return an empty {@code Optional} when no tag prefix is supplied, or the parsed tags otherwise.
+     */
+    public static <T extends Tag> Optional<Set<T>> parseTagsIfPresent(
+            Collection<String> tags,
+            Function<String, T> tagConstructor) throws ParseException {
+        requireNonNull(tags);
+
+        if (tags.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(parseTags(tags, tagConstructor));
+    }
+
+    /**
+     * Parses a {@code String name} into a {@code WorkoutName}
+     *
+     * @throws ParseException if the given {@code name} is invalid
+     */
+    public static WorkoutName parseWorkoutName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!WorkoutName.isValidName(trimmedName)) {
+            throw new FieldValueInvalidException(WorkoutName.MESSAGE_CONSTRAINTS);
+        }
+        return new WorkoutName(trimmedName);
+    }
+
+    /**
+     * Parses a {@code String description} into a {@code WorkoutDescription}
+     *
+     * @throws ParseException if the given {@code description} is invalid
+     */
+    public static WorkoutDescription parseDescription(String description) throws ParseException {
+        requireNonNull(description);
+        String trimmedDescription = description.trim();
+        if (!WorkoutDescription.isValidWorkoutDescription(trimmedDescription)) {
+            throw new FieldValueInvalidException(WorkoutDescription.MESSAGE_CONSTRAINTS);
+        }
+        return new WorkoutDescription(trimmedDescription);
+    }
+
+    /**
+     * Parses a {@code String date} into a {@code WorkoutDate}
+     *
+     * @throws ParseException if the given {@code date} is invalid
+     */
+    public static WorkoutDate parseDate(String date) throws ParseException {
+        requireNonNull(date);
+        String trimmedDate = date.trim();
+        if (!WorkoutDate.isValidDateString(trimmedDate)) {
+            throw new FieldValueInvalidException(WorkoutDate.MESSAGE_CONSTRAINTS);
+        }
+        LocalDate dateObject;
+        try {
+            dateObject = LocalDate.parse(trimmedDate, WorkoutDate.INPUT_DATE_FORMAT);
+        } catch (DateTimeParseException e) {
+            throw new FieldValueInvalidException(WorkoutDate.MESSAGE_CONSTRAINTS, e);
+        }
+        return WorkoutDate.fromLocalDate(dateObject);
+    }
+
+    /**
+     * Checks that {@code emptyField} is an empty string
+     *
+     * @throws ParseException with {@code errorMessage} if {@code} emptyField is not an empty string
+     */
+    public static void validateEmptyField(String emptyField, String errorMessage) throws ParseException {
+        if (!emptyField.isEmpty()) {
+            throw new FieldValueInvalidException(errorMessage);
+        }
+    }
+
+    /**
+     * Validates that the value associated with a prefix is empty.
+     *
+     * @throws ParseException if the prefix has a non-empty value.
+     */
+    public static void validateEmptyPrefixValue(ArgumentMultimap argMultimap, Prefix prefix) throws ParseException {
+        requireNonNull(argMultimap);
+        requireNonNull(prefix);
+        validateEmptyField(argMultimap.getValue(prefix).get(),
+                Messages.getErrorMessageForExtraValues(prefix));
     }
 }

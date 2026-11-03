@@ -1,19 +1,28 @@
 package seedu.address.logic;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.metadata.CommandCategory;
+import seedu.address.logic.metadata.CommandMetadataCatalog;
+import seedu.address.logic.parser.BrotherGymParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutPlan;
 import seedu.address.storage.Storage;
 
 /**
@@ -29,30 +38,33 @@ public class LogicManager implements Logic {
 
     private final Model model;
     private final Storage storage;
-    private final AddressBookParser addressBookParser;
-
+    private final BrotherGymParser brotherGymParser;
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
      */
     public LogicManager(Model model, Storage storage) {
-        this.model = model;
-        this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        this.model = requireNonNull(model);
+        this.storage = requireNonNull(storage);
+        brotherGymParser = new BrotherGymParser();
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
+        requireNonNull(commandText);
+        logger.info("----------------[USER COMMAND]");
 
         CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        Command command = requireNonNull(brotherGymParser.parseCommand(commandText));
+
+        commandResult = requireNonNull(command.execute(model));
 
         try {
-            storage.saveAddressBook(model.getAddressBook());
+            storage.saveBrotherGym(model.getBrotherGym());
         } catch (AccessDeniedException e) {
+            logger.log(Level.WARNING, "Insufficient permissions while saving application data", e);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            logger.log(Level.WARNING, "Failed to save application data", ioe);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
@@ -60,8 +72,28 @@ public class LogicManager implements Logic {
     }
 
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return model.getFilteredPersonList();
+    public ObservableList<Student> getFilteredStudentList() {
+        return model.getFilteredStudentList();
+    }
+
+    @Override
+    public Optional<Student> getCurrentStudent() {
+        return model.getCurrentStudent();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<Student> currentStudentProperty() {
+        return model.currentStudentProperty();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<WorkoutPlan> currentWorkoutPlanProperty() {
+        return model.currentWorkoutPlanProperty();
+    }
+
+    @Override
+    public List<CommandCategory> getCommandCategories() {
+        return CommandMetadataCatalog.allCommandCategories();
     }
 
     @Override

@@ -1,78 +1,89 @@
 package seedu.address.logic.parser;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
- *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
- * 1. An argument's value can be an empty string e.g. the value of {@code k/} in the above example.<br>
+ *     e.g. {@code some preamble text --t 11.00 --t 12.00 --k --m July}  where prefixes are {@code --t --k --m}.<br>
+ * 1. An argument's value can be an empty string e.g. the value of {@code --k} in the above example.<br>
  * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
- * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
+ * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code --t}
  *    in the above example.<br>
  */
 public class ArgumentTokenizer {
+    private static final String PREFIX_REGEX = "--[A-Za-z0-9]+";
+    private static final Pattern PREFIX_PATTERN = Pattern.compile(" " + PREFIX_REGEX);
+    private static final Pattern FULL_PREFIX_PATTERN = Pattern.compile(PREFIX_REGEX);
 
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
-     * respective argument values. Only the given prefixes will be recognized in the arguments string.
+     * respective argument values.
      *
-     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
-     * @param prefixes   Prefixes to tokenize the arguments string with
+     * @param argsString Arguments string of the form: {@code preamble <prefix> value <prefix> value ...}
      * @return           ArgumentMultimap object that maps prefixes to their arguments
      */
-    public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
-        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+    public static ArgumentMultimap tokenize(String argsString) {
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString);
         return extractArguments(argsString, positions);
     }
 
     /**
-     * Finds all zero-based prefix positions in the given arguments string.
-     *
-     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
-     * @param prefixes   Prefixes to find in the arguments string
-     * @return           List of zero-based prefix positions in the given arguments string
+     * Find all zero-based prefix positions based on "--" in the given {@code argsString}
      */
-    private static List<PrefixPosition> findAllPrefixPositions(String argsString, Prefix... prefixes) {
-        return Arrays.stream(prefixes)
-                .flatMap(prefix -> findPrefixPositions(argsString, prefix).stream())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * @see #findAllPrefixPositions(String, Prefix...)
-     */
-    private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
+    private static List<PrefixPosition> findAllPrefixPositions(String argsString) {
         List<PrefixPosition> positions = new ArrayList<>();
 
-        int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
+        int prefixPosition = findNextPrefixPosition(argsString, 0);
         while (prefixPosition != -1) {
-            PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
-            positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+            String prefixString = getFullPrefix(argsString, prefixPosition);
+            int nextPrefixPosition = findNextPrefixPosition(argsString, prefixPosition);
+            assert nextPrefixPosition == -1 || nextPrefixPosition > prefixPosition
+                    : "Prefix scanning should always progress";
+
+            if (!isValidPrefix(prefixString)) {
+                prefixPosition = nextPrefixPosition;
+                continue;
+            }
+
+            positions.add(new PrefixPosition(new Prefix(prefixString), prefixPosition));
+            prefixPosition = nextPrefixPosition;
         }
 
         return positions;
     }
 
     /**
-     * Returns the index of the first occurrence of {@code prefix} in
-     * {@code argsString} starting from index {@code fromIndex}. An occurrence
-     * is valid if there is a whitespace before {@code prefix}. Returns -1 if no
-     * such occurrence can be found.
-     *
-     * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
-     * {@code fromIndex} = 0, this method returns -1 as there are no valid
-     * occurrences of "p/" with whitespace before it. However, if
-     * {@code argsString} = "e/hi p/900", {@code prefix} = "p/" and
-     * {@code fromIndex} = 0, this method returns 5.
+     * Returns the index of the first occurrence of any --prefix in {@code argsString}
+     * starting from index {@code fromIndex}.
+     * An --prefix is detected if there is a literal space before the --prefix, followed by at least one alphanumeric
+     * character.
+     * Returns -1 if no such occurrence can be found.
      */
-    private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+    private static int findNextPrefixPosition(String argsString, int fromIndex) {
+        Matcher matcher = PREFIX_PATTERN.matcher(argsString);
+        return matcher.find(fromIndex) ? matcher.start() + 1 : -1; // +1 as offset of whitespace
+    }
+
+    /**
+     * From the starting index of the --prefix given in {@code prefixStartIndex},
+     * get the entire --prefix string, delimited by a space at the end of the prefix.
+     */
+    private static String getFullPrefix(String argsString, int prefixStartIndex) {
+        int prefixEndIndex = argsString.indexOf(" ", prefixStartIndex);
+        // if end index is -1, the argsString ends with the index
+        prefixEndIndex = prefixEndIndex == -1 ? argsString.length() : prefixEndIndex;
+        return argsString.substring(prefixStartIndex, prefixEndIndex);
+    }
+
+    /**
+     * Returns whether {@code prefixString} has the form {@code --prefix}, where every character after the initial
+     * {@code --} is alphanumeric.
+     */
+    private static boolean isValidPrefix(String prefixString) {
+        return FULL_PREFIX_PATTERN.matcher(prefixString).matches();
     }
 
     /**
@@ -119,7 +130,14 @@ public class ArgumentTokenizer {
         Prefix prefix = currentPrefixPosition.getPrefix();
 
         int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
-        String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
+        assert valueStartPos >= 0 : "Current prefix position should be non-negative";
+
+        int valueEndPos = nextPrefixPosition.getStartPosition();
+        assert valueEndPos <= argsString.length() : "Next prefix position should be before end of string";
+
+        assert valueStartPos <= valueEndPos : "Prefix positions should define a valid substring range";
+
+        String value = argsString.substring(valueStartPos, valueEndPos);
 
         return value.trim();
     }

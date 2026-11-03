@@ -1,54 +1,53 @@
 @startuml
 !include style.puml
 skinparam arrowThickness 1.1
+skinparam nodesep 55
+skinparam ranksep 45
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
 
 Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
+Class "<<interface>>\nReadOnlyBrotherGym" as ReadOnlyBrotherGym
 Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
 Class "<<interface>>\nModel" as Model
-Class AddressBook
+Class BrotherGym
 Class ModelManager
 Class UserPrefs
 
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
+Class UniqueStudentList
+Class Student
+Class WorkoutPlan
+Class WorkoutPlansList
 
-Class I #FFFFFF
+
+note "Other details of Student class \n are omitted for clarity." as N1
+
 }
 
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Model
 
-AddressBook .up.|> ReadOnlyAddressBook
+BrotherGym .up.|> ReadOnlyBrotherGym
 
 ModelManager .up.|> Model
 Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
+Model .left.> ReadOnlyBrotherGym
+ModelManager -left-> "1" BrotherGym
 ModelManager -right-> "1" UserPrefs
 UserPrefs .up.|> ReadOnlyUserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+ReadOnlyBrotherGym -[hidden]right-> Model
+Model -[hidden]right-> ReadOnlyUserPrefs
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+BrotherGym *--> "1" UniqueStudentList
+UniqueStudentList -right-> "~* all" Student
 
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
+Student -down-> "1  " WorkoutPlansList
+WorkoutPlansList -right-> "*" WorkoutPlan
 
-ModelManager --> "~* filtered" Person
+Student -right- N1
+
+ModelManager --> "~* filtered" Student
+ModelManager -down-> "0..1" Student : selected
+ModelManager -down-> "0..1" WorkoutPlan : selected
 @enduml

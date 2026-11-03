@@ -1,8 +1,12 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.logging.Logger;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.MenuItem;
@@ -15,8 +19,11 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ViewStudentCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutPlan;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -28,14 +35,17 @@ public class MainWindow extends UiPart<Stage> {
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
-    private Stage primaryStage;
-    private Logic logic;
-    private Path dataFilePath;
+    private final Stage primaryStage;
+    private final Logic logic;
+    private final Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private StudentListPanel studentListPanel;
+    private WorkoutPlanListPanel workoutPlanListPanel;
     private ResultDisplay resultDisplay;
+    private CommandBox commandBox;
     private HelpWindow helpWindow;
+    private boolean workoutPlanRefreshPending;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +54,10 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane studentListPanelPlaceholder;
+
+    @FXML
+    private StackPane workoutPlanPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -57,19 +70,21 @@ public class MainWindow extends UiPart<Stage> {
      * and the data file path to show in the status bar.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
-        super(FXML, primaryStage);
+        super(FXML, requireNonNull(primaryStage));
 
         // Set dependencies
         this.primaryStage = primaryStage;
-        this.logic = logic;
-        this.dataFilePath = dataFilePath;
+        this.logic = requireNonNull(logic);
+        this.dataFilePath = requireNonNull(dataFilePath);
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
 
         setAccelerators();
 
-        helpWindow = new HelpWindow();
+        helpWindow = new HelpWindow(
+                logic.getCommandCategories(),
+                this::handleCommandFormatSelected);
     }
 
     public Stage getPrimaryStage() {
@@ -114,8 +129,22 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        studentListPanel = new StudentListPanel(logic.getFilteredStudentList());
+        studentListPanelPlaceholder.getChildren().add(studentListPanel.getRoot());
+
+        workoutPlanListPanel = new WorkoutPlanListPanel();
+        workoutPlanPanelPlaceholder.getChildren().add(workoutPlanListPanel.getRoot());
+        Optional<Student> initialStudent = Optional.ofNullable(logic.currentStudentProperty().get());
+        Optional<WorkoutPlan> initialWorkoutPlan = Optional.ofNullable(logic.currentWorkoutPlanProperty().get());
+        workoutPlanListPanel.showStudent(initialStudent, initialWorkoutPlan);
+        studentListPanel.selectStudent(initialStudent);
+        logic.currentStudentProperty().addListener((observable, oldStudent, newStudent) -> {
+            Optional<Student> selectedStudent = Optional.ofNullable(newStudent);
+            requestWorkoutPlanPanelRefresh();
+            studentListPanel.selectStudent(selectedStudent);
+        });
+        logic.currentWorkoutPlanProperty().addListener((observable, oldPlan, newPlan) ->
+                requestWorkoutPlanPanelRefresh());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -123,14 +152,41 @@ public class MainWindow extends UiPart<Stage> {
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+    }
+
+    private void requestWorkoutPlanPanelRefresh() {
+        if (workoutPlanRefreshPending) {
+            return;
+        }
+        workoutPlanRefreshPending = true;
+        Platform.runLater(() -> {
+            workoutPlanRefreshPending = false;
+            Optional<WorkoutPlan> selectedWorkoutPlan =
+                    Optional.ofNullable(logic.currentWorkoutPlanProperty().get());
+            workoutPlanListPanel.showStudent(logic.getCurrentStudent(), selectedWorkoutPlan);
+        });
+    }
+
+    /**
+     * Inserts a command format into the main command box and returns focus to the main window.
+     *
+     * @param commandFormat command format selected from the Help window
+     */
+    private void handleCommandFormatSelected(String commandFormat) {
+        requireNonNull(commandFormat);
+        helpWindow.hide();
+        primaryStage.toFront();
+        primaryStage.requestFocus();
+        commandBox.setCommandText(commandFormat);
     }
 
     /**
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
+        requireNonNull(guiSettings);
         primaryStage.setHeight(guiSettings.getWindowHeight());
         primaryStage.setWidth(guiSettings.getWindowWidth());
         if (guiSettings.getWindowCoordinates() != null) {
@@ -167,8 +223,8 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public StudentListPanel getStudentListPanel() {
+        return studentListPanel;
     }
 
     /**
@@ -179,8 +235,12 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
+            if (isViewStudentCommand(commandText)) {
+                workoutPlanListPanel.resetScrollPosition();
+                requestWorkoutPlanPanelRefresh();
+            }
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            resultDisplay.setCommandResult(commandText, commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -193,8 +253,13 @@ public class MainWindow extends UiPart<Stage> {
             return commandResult;
         } catch (CommandException | ParseException e) {
             logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            resultDisplay.setCommandResult(commandText, e.getMessage());
             throw e;
         }
+    }
+
+    private static boolean isViewStudentCommand(String commandText) {
+        String[] commandParts = commandText.strip().split("\\s+", 2);
+        return commandParts.length > 0 && commandParts[0].equals(ViewStudentCommand.COMMAND_WORD);
     }
 }

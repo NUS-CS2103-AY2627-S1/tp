@@ -1,0 +1,69 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.student.Student;
+
+/**
+ * Deletes a student identified using its displayed index from the student list.
+ */
+public class DeleteStudentCommand extends SingleIndexCommand {
+
+    public static final String COMMAND_WORD = "deleteStudent";
+
+    public static final String MESSAGE_DESCRIPTION =
+            "Deletes the student identified by the index number used in the displayed student list.";
+    public static final String MESSAGE_PARAMETERS = "STUDENT_ID";
+    public static final String MESSAGE_EXAMPLE = COMMAND_WORD + " 3";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": " + MESSAGE_DESCRIPTION + "\n"
+            + "Parameters: " + MESSAGE_PARAMETERS + "\n"
+            + "Example: " + MESSAGE_EXAMPLE;
+
+    public static final String MESSAGE_DELETE_STUDENT_SUCCESS = "Deleted student: %1$s";
+
+    public DeleteStudentCommand(Index targetIndex) {
+        super(targetIndex);
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        List<Student> lastShownList = model.getFilteredStudentList();
+
+        if (targetIndex.getZeroBased() >= lastShownList.size()) {
+            throw new CommandException(Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+        }
+
+        Student studentToDelete = lastShownList.get(targetIndex.getZeroBased());
+        model.deleteStudent(studentToDelete);
+        return new CommandResult(String.format(MESSAGE_DELETE_STUDENT_SUCCESS, Messages.format(studentToDelete)));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof DeleteStudentCommand otherDeleteStudentCommand)) {
+            return false;
+        }
+
+        return targetIndex.equals(otherDeleteStudentCommand.targetIndex);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("targetIndex", targetIndex)
+                .toString();
+    }
+}

@@ -1,15 +1,24 @@
 ---
-layout: page
-title: Developer Guide
+  layout: default.md
+  title: "Developer Guide"
+  pageNav: 3
 ---
-* Table of Contents
-{:toc}
+
+# BrotherGym Developer Guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+BrotherGym is based on and adapted from the [AddressBook-Level3 project](https://github.com/NUS-CS2103-AY2627-S1/tp), created by the [SE-EDU initiative](https://se-education.org).
+We reused and extended parts of its codebase, project structure, and documentation conventions to develop BrotherGym.
+
+During development, we used AI tools, including OpenAI Codex, Anthropic Claude and GitHub Copilot, to assist with coding, documentation, and GitHub issue management. All AI-assisted contributions were reviewed and adapted by the team.
+
+Libraries used include [JavaFX](https://openjfx.io/) for the GUI, [Jackson](https://github.com/FasterXML/jackson) for JSON data storage, and [JUnit 5](https://github.com/junit-team/junit5) for testing.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -21,14 +30,9 @@ Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+<puml src="diagrams/ArchitectureDiagram.puml" width="280" />
 
 The ***Architecture Diagram*** given above explains the high-level design of the App.
 
@@ -44,6 +48,7 @@ The bulk of the app's work is done by the following four components:
 
 * [**`UI`**](#ui-component): The UI of the App.
 * [**`Logic`**](#logic-component): The command executor.
+  * [**`Parser`**](#parser-classes): Parsers for user inputs
 * [**`Model`**](#model-component): Holds the data of the App in memory.
 * [**`Storage`**](#storage-component): Reads data from, and writes data to, the hard disk.
 
@@ -51,9 +56,9 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `deleteStudent 1`.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<puml src="diagrams/ArchitectureSequenceDiagram.puml" width="574" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -62,7 +67,7 @@ Each of the four main components (also shown in the diagram above),
 
 For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
 
-<img src="images/ComponentManagers.png" width="300" />
+<puml src="diagrams/ComponentManagers.puml" width="300" />
 
 The sections below give more details of each component.
 
@@ -70,80 +75,209 @@ The sections below give more details of each component.
 
 The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<puml src="diagrams/UiClassDiagram.puml" alt="Structure of the UI Component"/>
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI is coordinated by `MainWindow`, which owns the command box, result display, student list, workout-plan list, and status bar, and opens the Help window.
+
+* `StudentListPanel` displays students using `StudentCard` objects.
+* `WorkoutPlanListPanel` displays the current student's workout plans using `WorkoutPlanCard` objects. It also controls which card is expanded to show its numbered exercises.
+* `CommandBox` passes command text to `MainWindow`, while `ResultDisplay` shows the returned feedback or error message.
+* The visible UI classes inherit from the abstract `UiPart` class, which provides their common FXML-loading behavior.
 
 The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
 * executes user commands using the `Logic` component.
-* listens for changes to `Model` data so that the UI can be updated with the modified data.
+* listens for changes to the current student and selected workout plan exposed by `Logic`, so `MainWindow` can keep `StudentListPanel` and `WorkoutPlanListPanel` synchronized with the current navigation state.
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+  * the `HelpWindow` also requires [command metadata](#metadata-classes) from `Logic` to render the command cards of the help page.
+* depends on some classes in the `Model` component because it displays `Student` and `WorkoutPlan` objects from the model.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API**: [`Logic.java`](https://github.com/AY2627S1-CS2103T-T11-4/tp/blob/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<puml src="diagrams/LogicClassDiagram.puml" width="650"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the interactions within the `Logic` component, using `execute("deleteStudent 1")` as an example:
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+<puml src="diagrams/DeleteSequenceDiagram.puml" alt="Logic component interactions for the `deleteStudent 1` command" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+#### How the `Logic` component works
 
-How the `Logic` component works:
+##### Command execution
 
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
-   Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
-1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
+1. The UI calls `Logic.execute(commandText)`. `LogicManager` passes the command text to `BrotherGymParser`, which returns the corresponding `Command` object.
+2. `LogicManager` executes the command with the `Model`. Commands can read or update model data and return a `CommandResult`.
+3. After a command executes successfully, `LogicManager` saves the BrotherGym data through `Storage` and returns the `CommandResult` to the UI. `MainWindow` displays the result's feedback; parsing, command, and storage errors are also displayed there.
 
+##### Interaction with the UI
+
+`Logic` exposes the filtered student list, the current student and its read-only observable property, GUI settings, and the command categories displayed in the Help window to the UI.
+
+* **Student list and selection:** The UI observes the filtered student list so it reflects changes to the student filter. `MainWindow` observes the current-student property and updates the student selection and workout-plan panel when it changes.
+* **GUI settings:** The UI reads these settings when initializing the window and updates them through `Logic` when exiting.
+* **Workout plans and exercises:** The `home` command shows all students and clears the current selection. Plan commands operate on the selected student; `viewPlan` selects a plan within that student. Exercise commands operate only on this selected plan.
+* **Help page metadata:** `LogicManager#getCommandCategories()` obtains the command categories from `CommandMetadataCatalog` and exposes them through the `Logic` interface for the UI to display.
+
+#### Metadata Classes
+
+The `logic.metadata` package supplies the command information displayed in the Help window.
+
+<puml src="diagrams/CommandMetadataClasses.puml" width="500"/>
+
+* `CommandMetadataCatalog` constructs and exposes the ordered list of command categories.
+* `CommandCategory` groups related commands under a Help page section title.
+* `CommandMetadata` stores a command's word, parameters, description, and example. Its `format()` method produces the command format displayed by the UI.
+
+The `CommandMetadataCatalog` object is passed to the `HelpWindow` of the `Ui` component through the `LogicManager` facade, which uses it to create
+* one section for each `CommandCategory`; and
+* one command card for each `CommandMetadata` entry.
+
+#### Parser Classes
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<puml src="diagrams/ParserClasses.puml" width="800"/>
+
+Here are the classes dedicated to parsing the arguments of the command strings:
+
+<puml src="diagrams/ArgumentProcessors.puml" width="600"/>
 
 How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+
+* After identifying the command word, `BrotherGymParser` delegates the arguments to one of the following parser categories:
+
+| Parser category                    | Commands | Responsibility                                                                           |
+|------------------------------------|----------|------------------------------------------------------------------------------------------|
+| Dedicated `XYZCommandParser`       | `addStudent`, `addPlan`, `addExercise`, `editStudent`, `editPlan`, `editExercise`, `find` | Each command has its own dedicated parser (`XYZ` is a placeholder for the command name). |
+| Generic `SingleIndexCommandParser` | `viewStudent`, `viewPlan`, `deleteStudent`, `deletePlan`, `deleteExercise`, `markPlan`, `unmarkPlan` | Generic parser for `SingleIndexCommand`s that accept a single positive index.            |
+| Generic `NoArgumentCommandParser`  | `help`, `home`, `exit`, `clear` | Generic parser that rejects any arguments after the command word.                        |
+
+* Every concrete parser represented in the table implements the `Parser` interface.
+
+* The parser class uses a few dependencies to parse the user input into a valid command object (e.g. `AddStudentCommand`, `DeleteStudentCommand`):
+  1. The user input string is passed into `ArgumentTokenizer` to create a `ArgumentMultimap` object to store the entered arguments.
+  2. The `ArgumentValidator` ensures that the `ArgumentMultimap` contains the correct arguments for the command.
+  3. The arguments in the `ArgumentMultimap` is then passed into the relevant `ParserUtil` class to generate the objects required for creating the corresponding command object
+
+* The `BrotherGymParser` returns the created command as `Command` object.
+
+The sequence diagram shows how the parser classes create the `DeleteStudentCommand` object
+when `BrotherGymParser#parseCommand("deleteStudent 1")` is called from `LogicManager`:
+
+<puml src="diagrams/DeleteParserSequenceDiagram.puml" alt="Sequence Diagram for parsing 'delete 1'"/>
+
+#### Parser Exception Handling
+The `ArgumentValidator` and `ParserUtil` classes shown above also define the workflow’s two failure paths:
+* Format errors (e.g. incorrect use of prefixes) of command inputs produce an `InputFormatInvalidException` during argument validation by `ArgumentValidator`
+* Invalid values provided for the command arguments produce a `FieldValueInvalidException` during field parsing by `ParserUtil`.
+
+Both exception types are subclasses of `ParseException`, and the parser methods wrap the raw exceptions with the command usage message
+in another `ParseException` object to be thrown to the higher levels.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API**: [`Model.java`](https://github.com/AY2627S1-CS2103T-T11-4/tp/blob/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+The class diagram below shows the high-level structure of the `Model` component.
+
+<puml src="diagrams/ModelClassDiagram.puml" width="650" />
 
 
-The `Model` component,
+The `Model` component:
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
-* stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
-* does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
+* Stores all `Student` objects in a `UniqueStudentList`.
+* Exposes students matching the current filter, such as search results, as an unmodifiable `ObservableList<Student>` that the UI can observe and bind to.
+* Stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). Other components access these preferences through the `ReadOnlyUserPrefs` interface.
+* Tracks `currentStudent`, the `Student` whose workout plans the user has chosen to view or edit.
+* Tracks `currentWorkoutPlan`, the `WorkoutPlan` belonging to `currentStudent` that the user has chosen to view or edit.
+* Does not depend on the `UI`, `Logic`, or `Storage` components. Its domain entities are defined independently of these components.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
 
-<img src="images/BetterModelClassDiagram.png" width="450" />
+The following entity diagram expands `UniqueStudentList` and `Student` to show student details, tags, and each student's workout plan list.
 
-</div>
+<puml src="diagrams/ModelEntitiesClassDiagram.puml" alt="Student entities, tags, and workout plan list" width="800" />
 
+The following diagram shows the entities referenced by `WorkoutPlan`.
+
+<puml src="diagrams/WorkoutPlanClassDiagram.puml" alt="Workout plan entities, exercises, and tags" width="1000" />
+
+#### Model checks and state updates
+
+The `Model` package enforces domain rules when model objects are constructed or changed. These rules are enforced through validation in entity constructors and checks coordinated by `ModelManager` when updating stored data:
+
+1. Entities enforce constraints when they are created, such as character limits on certain fields.
+
+2. `ModelManager`, `BrotherGym`, and the list classes validate changes to stored data, checking that target objects exist and that uniqueness constraints are met.
+
+#### Interaction with `Model` during user input execution
+
+Changes to nested plan and exercise data follow an immutable update pattern: each edit creates replacement lists and entities, reuses unchanged fields, and builds a replacement `Student` to take the place of the stored student.
+
+#### Entity construction
+
+The timing of entity construction depends on whether the supplied fields are sufficient or existing model data is also required. Entities whose construction requires existing model data are created during command execution.
+
+For example, in `addPlan`, parsing can produce a complete plan without reading the selected student's data.
+
+<puml src="diagrams/AddPlanEntityCreationSequenceDiagram.puml" alt="Creating a workout plan from addPlan input" width="850" />
+
+For example, in `editPlan`, entity construction waits until command execution because some fields depend on the stored plan.
+<puml src="diagrams/EditPlanEntityCreationSequenceDiagram.puml" alt="Creating an edited workout plan from the selected student" width="1000" />
+
+#### Updating stored data
+
+The following diagrams show the relevant execution flow within `Model` for a successful `addPlan` command. Error handling and selection updates are omitted.
+
+<puml src="diagrams/AddPlanBrotherGymUpdateSequenceDiagram.puml" alt="Adding a workout plan to BrotherGym" width="1000" />
+
+<puml src="diagrams/AddPlanUpdatedStudentSequenceDiagram.puml" alt="Constructing the updated student for addPlan" width="900" />
+
+The command requests changes through the `Model` API, while `ModelManager` validates and updates the stored data.
+
+After replacing the selected student, `ModelManager` updates `currentStudent` and `currentWorkoutPlan` correspondingly.
+Selection maintenance is omitted from the diagrams for clarity.
+
+After a successful change to workout plans or exercises, the command refreshes the current student's workout statuses through `updateStudentWorkoutsState`.
+This may replace the student again if any of the student's workout plan statuses have changed. The internals of status refresh are omitted from the diagrams above for clarity.
 
 ### Storage component
-
 **API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
-<img src="images/StorageClassDiagram.png" width="550" />
+The `Storage` component persists BrotherGym data and user preferences as local JSON files. It converts stored data into model objects when the application starts and writes model data back to disk when requested by `LogicManager` or `MainApp`.
 
 The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
-* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
-* depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+
+<puml src="diagrams/StorageClassDiagram.puml" alt="Storage classes and their JSON adapters, including nested workout plans and exercises" width="450" />
+
+* `Storage` exposes methods to read and save BrotherGym data and user preferences, and to retrieve their file paths. Callers use this interface without handling JSON conversion themselves.
+* `StorageManager` implements `Storage` and delegates operations to `JsonBrotherGymStorage` and `JsonUserPrefsStorage`, with one storage object per file.
+* `JsonBrotherGymStorage` handles the BrotherGym data file, using JSON adapters to keep its stored representation separate from the model.
+* `JsonUserPrefsStorage` reads and writes `UserPrefs` directly, without a separate JSON adapter.
+
+Both file storage classes use `JsonUtil` from the `Commons` component for JSON file access. Storage depends on the model types it persists; the model does not depend on Storage.
+
+#### Loading and validation
+
+During startup, `MainApp` loads preferences and BrotherGym data through Storage. `StorageManager` delegates the data read to `JsonBrotherGymStorage`, which uses `JsonUtil` to deserialize JSON into adapters. The adapters reconstruct the model hierarchy of students, workout plans, exercises, and tags for student and workout-plan.
+
+<puml src="diagrams/StorageModelConversionSequenceDiagram.puml" alt="Nested conversion of JSON adapters into model objects" width="800" />
+
+Adapters validate stored values during conversion, while model classes enforce domain constraints such as uniqueness and list limits. Storage returns the reconstructed model only after the entire conversion succeeds.
+
+#### Writing data: from model objects to JSON
+
+`StorageManager` delegates saves to `JsonBrotherGymStorage`, which converts the `ReadOnlyBrotherGym` model into `JsonSerializableBrotherGym` and its nested adapters. This preserves the student, workout-plan, and exercise hierarchy without modifying the model.
+
+`JsonAdaptedWorkoutPlan` writes the plan's name under the existing `"title"` JSON key, so previously saved data remains readable.
+
+`JsonUtil` uses Jackson to serialize the adapters and write the JSON file. Keeping conversion in the adapters separates the stored representation from domain logic.
+
+#### Automatic saving
+
+`LogicManager.execute()` calls `storage.saveBrotherGym(model.getBrotherGym())` after a command executes successfully and before returning its `CommandResult`. This happens for every successful command, including commands that only change the view. Parsing errors and command execution errors prevent this save step from being reached.
 
 ### Common classes
 
@@ -155,89 +289,146 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
+### Workout plan display
+
+#### Implementation
+
+The workout plan display is facilitated by `WorkoutPlanListPanel` and `WorkoutPlanCard`. `MainWindow` observes the current student and selected plan through `Logic#currentStudentProperty()` and `Logic#currentWorkoutPlanProperty()`.
+
+Workout-plan statuses are refreshed explicitly when `viewStudent` is executed. `ViewStudentCommand` calls `Model#updateStudentWorkoutsState()` to recalculate each plan as pending or overdue for the current date, then calls `Model#setCurrentStudent()` with the refreshed student. This command-triggered refresh avoids a background timer and gives status changes a clear point in the application flow.
+
+Changing either selection notifies `MainWindow`, which coalesces related property changes before passing the final student and plan state to `WorkoutPlanListPanel#showStudent()`. With no selected plan, the panel shows the student's collapsed plan cards. `viewPlan` expands the selected card in its original list position and renders numbered exercises inside it, while sibling cards remain available through the same outer scroll pane. An empty plan shows an `Exercises (0)` heading and an inline empty message. With no current student, the panel prompts the user to select one.
+
+The same observable flow redraws the panel after commands such as `markPlan`, `unmarkPlan`, `editExercise`, and `deleteExercise` replace the selected plan. Because plans are immutable, `ModelManager` rebinds the selected plan to its replacement.
+
+The panel treats the same stored instance, or its replacement at the same list index, as a retained selection. It then restores the previous scroll offset. Selecting a different plan scrolls only far enough to reveal its card.
+
+Deleting another plan retains and reindexes the selection. Deleting the selected plan instead collapses the remaining list without selecting a replacement. Running `viewStudent` collapses the selection and returns the panel to the top, while navigating away from the student clears the panel state. This keeps the visible selection and subsequent exercise commands aligned with the same stored plan.
+
+Each `WorkoutPlanCard` reads the plan's name, date, workout description, tags, and status through `WorkoutPlan` getters. Tags are sorted by name and rendered individually as labels, giving a stable display order without relying on `WorkoutPlan#toString()`. The card maps the status to visible `DONE`, `OVERDUE`, or `PENDING` text and applies matching CSS classes to both the badge and card.
+
+The following sequence diagram shows how the panel is updated when the user executes `viewStudent 1`:
+
+<puml src="diagrams/WorkoutPlanUiSequenceDiagram.puml" alt="Command-triggered workout status refresh and workout plan panel update" />
+
+#### Design considerations
+
+**Aspect: When to refresh time-dependent workout-plan statuses:**
+
+* **Alternative 1 (current choice):** Refresh statuses explicitly when `viewStudent` is executed.
+  * Pros: Status changes happen at a predictable point without a background timer, and the model remains responsible for calculating status.
+  * Cons: A plan does not automatically become overdue while its student remains open across midnight; the user must execute `viewStudent` again to refresh it.
+* **Alternative 2:** Recalculate statuses continuously or whenever a card is rendered.
+  * Pros: The display always reflects the current time without requiring another command.
+  * Cons: A timer adds lifecycle complexity, while calculating status in the UI mixes model rules with presentation logic.
+
+**Aspect: Keeping the workout plan panel synchronized with navigation:**
+
+* **Alternative 1 (current choice):** Observe the selected student and plan properties in `Logic` and expand the selected card within the existing list.
+  * Pros: The panel updates when navigation or immutable replacements change either selection, while the surrounding plans remain visible for context.
+  * Cons: Commands and `Model` operations must update both properties correctly, and the panel must preserve a sensible viewport while cards expand, collapse, or are reindexed.
+* **Alternative 2:** Call `WorkoutPlanListPanel#showStudent()` manually after every successful command.
+  * Pros: The refresh is explicit in the command-execution flow.
+  * Cons: The UI is refreshed even for unrelated commands, and new commands can fail to refresh the panel if the manual call is omitted.
+
+### Deleting an exercise
+
+`deleteExercise EXERCISE_ID` uses `SingleIndexCommandParser` and the one-based exercise number shown by `viewPlan`. It requires a selected student and plan. Missing selection or an invalid index leaves the model unchanged.
+
+`Model#removeExerciseForWorkoutPlan` replaces the immutable exercise list, plan, and student. The selected plan is rebound to its replacement, so the panel and subsequent exercise indexes reflect the deletion. Student and plan edits and status changes retain exercises; removing a selected parent or clearing data clears its selection.
+
+### Editing an exercise
+
+`EditExerciseCommandParser` accepts the displayed one-based exercise index followed by optional `--name` and `--description` values. It validates the argument structure before parsing the index and supplied fields. Repeated or unsupported prefixes, invalid field values, and commands without an edited field are rejected before a command is created.
+
+When `EditExerciseCommand` executes, it first requires both a selected student and selected workout plan. It locates the exercise using the displayed index and copies any omitted field from the existing exercise. It then calls `Model#setExerciseForWorkoutPlan` with the replacement.
+
+The exercise remains at the same position, and the selected workout card stays expanded to show the updated value. An out-of-range index, duplicate result, or stale selection produces a command error without a partial update.
+
 ### \[Proposed\] Undo/redo feature
 
 #### Proposed Implementation
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+Undo/redo allows the user to move through complete application states. Each state contains the BrotherGym data, including students and their workout plans, together with the current student-list view. Undoing or redoing a command therefore restores both the data and where the user was working.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+The following example shows how undo/redo behaves when the user adds a student, selects an existing student, and manages a workout plan. Assume that Alice is the first student in the BrotherGym and has no workout plans initially.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+Step 1. The user launches the application. The initial state shows all students and no student is selected.
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+<puml src="diagrams/UndoRedoState0.puml" alt="UndoRedoState0" />
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+Step 2. The user executes `addStudent David Tan --hp 91234567 --email david@example.com --addr David Street`. The student data changes, but the user remains on the home view.
 
-![UndoRedoState0](images/UndoRedoState0.png)
+<puml src="diagrams/UndoRedoState1.puml" alt="UndoRedoState1" />
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+Step 3. The user executes `viewStudent 1` to select Alice and display her workout plans. This creates another restorable view state.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+<puml src="diagrams/UndoRedoState2.puml" alt="UndoRedoState2" />
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+<box type="info" seamless>
 
-![UndoRedoState2](images/UndoRedoState2.png)
+**Note:** If a command fails its execution, it does not create a history entry. The current data, view, and available redo states remain unchanged.
+</box>
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+Step 4. The user executes `addPlan Strength --plan Upper body --date 31122099`. The plan is added to Alice and Alice remains selected.
 
-</div>
+<puml src="diagrams/UndoRedoState3.puml" alt="UndoRedoState3" />
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+Step 5. The user executes `undo`. The workout plan disappears, but Alice remains selected because the previous state was Alice's student view.
 
-![UndoRedoState3](images/UndoRedoState3.png)
+<puml src="diagrams/UndoRedoState4.puml" alt="UndoRedoState4" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+<box type="info" seamless>
 
-</div>
+**Note:** If there is no previous state, the `undo` command returns an error rather than changing the data or view. The `redo` command behaves similarly when there is no previously undone state.
+</box>
 
 The following sequence diagram shows how an undo operation goes through the `Logic` component:
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+<puml src="diagrams/UndoSequenceDiagram-Logic.puml" alt="UndoSequenceDiagram-Logic" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+<box type="info" seamless>
 
-</div>
+**Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+</box>
 
 Similarly, how an undo operation goes through the `Model` component is shown below:
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
+<puml src="diagrams/UndoSequenceDiagram-Model.puml" alt="UndoSequenceDiagram-Model" />
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+Step 6. The user executes `undo` again. The application returns to the home view, with no student selected. David remains in the student list because the earlier `addStudent` change was not undone.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+<puml src="diagrams/UndoRedoState5.puml" alt="UndoRedoState5" />
 
-</div>
+The user can now execute `redo` twice. The first `redo` restores Alice's selected-student view, and the second `redo` restores the workout plan. The same process works for student mutations such as `addStudent`, `editStudent`, `deleteStudent`, and `clear`, and for the other workout-plan mutations `editPlan`, `deletePlan`, `markPlan`, and `unmarkPlan`.
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+If the user executes `undo` once more and then executes `home`, the application creates a new view state. This discards the available redo branch, so a subsequent `redo` returns an error. A new successful data or view change after an undo behaves in the same way.
 
-![UndoRedoState4](images/UndoRedoState4.png)
+<box type="info" seamless>
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+**Note:** Repeating an identical `home` or `viewStudent` operation does not create an extra history entry. A view-only command such as `viewPlan`, `help`, or `exit` also leaves the undo/redo history unchanged.
+</box>
 
-![UndoRedoState5](images/UndoRedoState5.png)
+`viewStudent` is a special case because it may refresh date-based workout-plan statuses. If the refresh changes a status, that data change and the new selected-student view are restored as one undoable step.
 
 The following activity diagram summarizes what happens when a user executes a new command:
 
-<img src="images/CommitActivityDiagram.png" width="250" />
+<puml src="diagrams/CommitActivityDiagram.puml" width="250" />
 
 #### Design considerations:
 
 **Aspect: How undo & redo execute:**
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
+* **Alternative 1 (current choice):** Saves the entire BrotherGym.
+  * Pros: Easy to implement and restores students together with their workout plans.
   * Cons: May have performance issues in terms of memory usage.
 
 * **Alternative 2:** Individual command knows how to undo/redo by
   itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
+  * Pros: Will use less memory (e.g. for `deleteStudent`, just save the student being deleted).
   * Cons: We must ensure that the implementation of each individual command is correct.
 
-_{more aspects and alternatives to be added}_
+The active BrotherGym data is saved after every successful command, including successful undo and redo. The undo/redo history and the current view are kept in memory only. After restarting the application, the latest saved data remains, but previous undo/redo steps are no longer available and the application starts at its default home view.
 
 ### \[Proposed\] Data archiving
 
@@ -260,123 +451,746 @@ _{Explain here how the data archiving feature will be implemented}_
 ### Product scope
 
 **Target user profile**:
-
+* Gym trainers who want to keep track of students and their workouts
 * has a need to manage a significant number of contacts
 * prefers desktop apps over other types of applications
 * can type fast
 * prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
-
+**Value proposition**:
+A gym trainer who wants to plan & track the workouts of his student. He wants to plan the workout split of his students, selecting exercises from different muscle groups studentalised to each student. Afterwards, while the student goes to the gym, the trainer can log the actual reps that student has done, tracking his--her sets, reps, rest time and weights for progressive overload.
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+**Student management**
 
-*{More to be added}*
+| Priority | As a ...                           | I want to ...                                               | So that I can ...                                                 |
+|----------|------------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------|
+| `* * *`  | gym trainer                        | add my student's contact number to the BrotherGym           | keep their contact information accessible                         |
+| `* * *`  | gym trainer with multiple students | hold multiple contact numbers in my BrotherGym              | keep track of all my students' contact information                |
+| `* * *`  | gym trainer                        | remove a student's record from the BrotherGym               | clear up space in the BrotherGym                                  |
+| `* * *`  | gym trainer                        | edit a student's details                                    | keep their information up to date                                 |
+| `* * *`  | gym trainer                        | search for students by name                                 | quickly find the student I need                                   |
+| `* * *`  | gym trainer                        | clear all students and their workout plans and exercises    | start with an empty BrotherGym                                    |
+| `* * *`  | gym trainer                        | categorise students                                         | identify students with shared characteristics                     |
+| `* * *`  | gym trainer                        | view all students                                           | get an overview of my trainees                                    |
+
+**Workout planning**
+
+| Priority | As a ...                           | I want to ...                                               | So that I can ...                                                 |
+|----------|------------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------|
+| `* * *`  | gym trainer                        | store different types of workout plans per student          | ensure each workout can focus on a different muscle group         |
+| `* * *`  | gym trainer                        | add different workouts to each workout plan                 | ensure that workout sessions are customised for each student      |
+| `* * *`  | gym trainer                        | view all the workout plans for each student                 | pick which plan to follow during the student's next session       |
+| `* * *`  | gym trainer                        | edit a workout plan's details                               | adapt the plan to a student's changing needs                      |
+| `* * *`  | gym trainer                        | mark workout plans as completed or undo a completion mark   | keep an accurate record of completed workouts                     |        |
+| `* * *`  | gym trainer                        | remove an unwanted workout plan                             | keep a student's workout plans relevant                           |
+| `* * *`  | gym trainer                        | categorise workout plans                                    | identify plans with a shared focus                                |
+
+**Exercise management**
+
+| Priority | As a ...                           | I want to ...                                               | So that I can ...                                                 |
+|----------|------------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------|
+| `* * *`  | gym trainer                        | store different types of exercises per workout plan         | ensure workout sessions cover all the necessary exercises         |
+| `* * *`  | gym trainer                        | add exercises to each workout plan                          | ensure workout sessions are further customised for each student   |
+| `* * *`  | gym trainer                        | remove an unwanted exercise from a workout plan             | clear up space in BrotherGym                                      |
+| `* * *`  | gym trainer                        | view the exercises in a workout plan                        | see which exercises the student should perform during the session |
+| `* * *`  | gym trainer                        | edit an exercise                     | adapt the exercise to a student's changing needs                  |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+Note: For all use cases below, the **Software System** is BrotherGym and the **Actor** is a Gym Trainer.
 
-**Use case: Delete a person**
+| ID | Use case |
+|----|----------|
+| U1 | [View all students](#u1-view-all-students) |
+| U2 | [Add a student](#u2-add-a-student) |
+| U3 | [Edit student details](#u3-edit-student-details) |
+| U4 | [View workout plans for a specific student](#u4-view-workout-plans-for-a-specific-student) |
+| U5 | [Search students by name](#u5-search-students-by-name) |
+| U6 | [Delete a student](#u6-delete-a-student) |
+| U7 | [Clear all students and nested data](#u7-clear-all-students-and-nested-data) |
+| U8 | [Add a workout plan](#u8-add-a-workout-plan) |
+| U9 | [Edit a workout plan](#u9-edit-a-workout-plan) |
+| U10 | [Mark a workout plan as completed](#u10-mark-a-workout-plan-as-completed) |
+| U11 | [Unmark a completed workout plan](#u11-unmark-a-completed-workout-plan) |
+| U12 | [View exercises of a workout plan](#u12-view-exercises-of-a-workout-plan) |
+| U13 | [Remove a workout plan](#u13-remove-a-workout-plan) |
+| U14 | [Add an exercise](#u14-add-an-exercise) |
+| U15 | [Edit an exercise](#u15-edit-an-exercise) |
+| U16 | [Delete an exercise](#u16-delete-an-exercise) |
 
-**MSS**
+### U1: View all students
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+Use case: U1 - View all students
+
+**MSS:**
+
+1. Trainer requests to view all students.
+2. BrotherGym displays all students in the system.
+3. Selected student and workout plan are cleared
+
+   Use case ends.
+
+### U2: Add a student
+
+Use case: U2 - Add a student
+
+**MSS:**
+
+1. Trainer <u>views all students (U1)</u>.
+2. Trainer requests to add a new student, providing the student's name and handphone number.
+3. BrotherGym adds the student.
+4. BrotherGym displays a success message.
+5. BrotherGym displays the updated list of students.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer provides student details in an invalid format.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+* 2b. The student already exists in BrotherGym.
+  * 2b1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+* 2c. The student list is full (999 students).
+  * 2c1. BrotherGym displays an error message asking the trainer to delete a student before adding another.
+
+    Use case ends without adding the student.
+
+### U3: Edit student details
+
+Use case: U3 - Edit student details
+
+**MSS:**
+
+1. Trainer <u>views all students (U1)</u>.
+2. Trainer identifies a student and provides changes to their name, phone, email, address, or tags.
+3. BrotherGym updates the specified fields, preserving omitted fields and the student's workout plans and exercises.
+4. BrotherGym displays a success message and the full student list with the updated details.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer specifies an invalid input
+  * 2a1. BrotherGym displays an error message without changing the student.
+
+
+* 2b. The edited student would duplicate another student.
+  * 2b1. BrotherGym displays an error message without changing the student.
+
+
+* 2c. Trainer requests to clear the student's tags.
+  * 2c1. BrotherGym removes all tags from the student and applies any other supplied changes.
+
+    Use case resumes at step 4.
+
+### U4: View workout plans for a specific student
+
+Use case: U4 - View workout plans for a specific student
+
+**MSS:**
+
+1. Trainer <u>views all students (U1)</u>.
+2. Trainer requests to view a specific student using `viewStudent`.
+3. BrotherGym clears the previously selected student or workout plan
+4. BrotherGym selects the student
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer selects an invalid student.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+
+* 4a. The student has no workout plans.
+  * 4a1. BrotherGym displays "No workout plans assigned."
 
     Use case ends.
 
-**Extensions**
+### U5: Search students by name
 
-* 2a. The list is empty.
+Use case: U5 - Search students by name
 
-  Use case ends.
+**MSS:**
 
-* 3a. The given index is invalid.
+1. Trainer provides one or more name keywords to search for.
+2. BrotherGym displays students whose names contain any keyword as a whole word, ignoring case, and reports the count.
 
-    * 3a1. AddressBook shows an error message.
+   Use case ends.
 
-      Use case resumes at step 2.
+**Extensions:**
 
-*{More to be added}*
+* 1a. Trainer provides no keywords or invalid keywords.
+  * 1a1. BrotherGym displays an error message.
+
+    Use case resumes at step 1.
+* 2a. No students match the keywords.
+  * 2a1. BrotherGym displays an empty list and reports zero matches.
+
+    Use case ends.
+* 2b. The selected student is excluded from the search results.
+  * 2b1. BrotherGym clears the selected student and workout plan.
+
+    Use case ends.
+
+### U6: Delete a student
+
+Use case: U6 - Delete a student
+
+**MSS:**
+
+1. Trainer <u>views all students (U1)</u>.
+2. Trainer requests to delete a selected student.
+3. BrotherGym deletes the student.
+4. BrotherGym displays a success message.
+5. BrotherGym displays the updated list of students.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer selects an invalid student.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+
+### U7: Clear all students and nested data
+
+Use case: U7 - Clear all students and nested data
+
+**MSS:**
+
+1. Trainer requests to clear BrotherGym.
+2. BrotherGym removes all students and their workout plans and exercises, 
+3. BrotherGym clears the selected student and plan.
+4. BrotherGym displays a success message and an empty student list.
+
+   Use case ends.
+
+**Extensions:**
+
+* 1a. BrotherGym is already empty.
+  * 1a1. BrotherGym displays a success message and keeps the student list empty.
+
+    Use case ends.
+
+### U8: Add a workout plan
+
+Use case: U8 - Add a workout plan
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before adding a plan.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer requests to add a workout plan for the student, providing its name, description, and date.
+3. BrotherGym assigns the workout plan to the student.
+4. BrotherGym displays a success message.
+5. BrotherGym displays the student's updated workout plans.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer provides invalid workout plan information.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+* 2b. Trainer provides optional tags.
+  * 2b1. BrotherGym includes the tags in the workout plan.
+
+    Use case resumes at step 3.
+* 2c. The workout plan already exists for the selected student.
+  * 2c1. BrotherGym displays an error message without adding the duplicate plan.
+
+    Use case resumes at step 2.
+
+### U9: Edit a workout plan
+
+Use case: U9 - Edit a workout plan
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before editing a plan.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer identifies a plan and provides changes to its name, description, or date.
+3. BrotherGym updates the specified fields, preserving omitted fields and the plan's exercises.
+4. BrotherGym displays a success message and the updated plan.
+
+   Use case ends.
+
+**Extensions:**
+  
+* 2a. Trainer specifies an invalid plan index, invalid details, or no fields to edit.
+  * 2a1. BrotherGym displays an error message without changing the plan.
+
+    Use case resumes at step 2.
+* 2b. The edited plan would duplicate another plan belonging to the student.
+  * 2b1. BrotherGym displays an error message without changing the plan.
+
+    Use case resumes at step 2.
+* 2c. Trainer requests to clear the plan's tags.
+  * 2c1. BrotherGym removes all tags from the plan and applies any other supplied changes.
+
+    Use case resumes at step 4.
+
+### U10: Mark a workout plan as completed
+
+Use case: U10 - Mark a workout plan as completed
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before marking a plan as completed.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer requests to mark a workout plan as completed.
+3. BrotherGym marks the plan as Completed and displays a success message and the updated plan.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer specifies an invalid workout plan index.
+  * 2a1. BrotherGym displays an error message without changing the plan.
+
+    Use case resumes at step 2.
+* 2b. The plan is already completed.
+  * 2b1. BrotherGym displays an error message without changing the plan.
+
+    Use case ends.
+
+### U11: Unmark a completed workout plan
+
+Use case: U11 - Unmark a completed workout plan
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before unmarking a plan.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer requests to unmark a completed workout plan.
+3. BrotherGym changes the plan to Overdue if its date has passed, or Pending otherwise.
+4. BrotherGym displays a success message and the updated plan.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer specifies an invalid workout plan index.
+  * 2a1. BrotherGym displays an error message without changing the plan.
+
+    Use case resumes at step 2.
+* 2b. The plan is already Pending or Overdue.
+  * 2b1. BrotherGym displays an error message without changing the plan.
+
+    Use case ends.
+
+### U12: View exercises of a workout plan
+
+Use case: U12 - View exercises of a workout plan
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before viewing a plan.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer selects a workout plan belonging to the student.
+3. BrotherGym displays information about the exercises in the selected workout plan.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer selects an invalid workout plan.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+
+* 3a. The selected workout plan has no exercises.
+  * 3a1. BrotherGym displays the plan details and indicates that there are no exercises.
+
+    Use case ends.
+
+### U13: Remove a workout plan
+
+Use case: U13 - Remove a workout plan
+
+**Precondition:** A student must be selected using `viewStudent` (U4) before removing a plan.
+
+**MSS:**
+
+1. Trainer <u>views workout plans for a specific student (U4)</u>.
+2. Trainer chooses a workout plan to remove.
+3. BrotherGym removes the selected workout plan.
+4. BrotherGym displays a success message.
+5. BrotherGym displays the student's updated workout plans.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer selects an invalid workout plan.
+  * 2a1. BrotherGym displays an error message.
+
+    Use case resumes at step 2.
+
+### U14: Add an exercise
+
+Use case: U14 - Add an exercise
+
+**Precondition:** A workout plan must be selected using `viewPlan` (U12) before adding an exercise.
+
+**MSS:**
+
+1. Trainer <u>views exercises of a workout plan (U12)</u>.
+2. Trainer requests to add an exercise, providing its name and description.
+3. BrotherGym adds the exercise to the selected plan.
+4. BrotherGym displays a success message and the updated exercise list.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer provides invalid or incomplete exercise details.
+  * 2a1. BrotherGym displays an error message without adding the exercise.
+
+    Use case resumes at step 2.
+* 2b. The exercise already exists in the selected plan.
+  * 2b1. BrotherGym displays an error message without adding the duplicate exercise.
+
+    Use case resumes at step 2.
+* 2c. The plan already contains 100 exercises.
+  * 2c1. BrotherGym displays an error message without adding the exercise.
+
+    Use case ends.
+
+### U15: Edit an exercise
+
+Use case: U15 - Edit an exercise
+
+**Precondition:** A workout plan must be selected using `viewPlan` (U12) before editing an exercise.
+
+**MSS:**
+
+1. Trainer <u>views exercises of a workout plan (U12)</u>.
+2. Trainer identifies an exercise and provides a new name, description, or both.
+3. BrotherGym updates the exercise, preserving any omitted field.
+4. BrotherGym displays a success message and the updated exercise list.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer specifies an invalid exercise index, invalid details, or no fields to edit.
+  * 2a1. BrotherGym displays an error message without changing the exercise.
+
+    Use case resumes at step 2.
+* 2b. The edited exercise would duplicate another exercise in the plan.
+  * 2b1. BrotherGym displays an error message without changing the exercise.
+
+    Use case resumes at step 2.
+
+### U16: Delete an exercise
+
+Use case: U16 - Delete an exercise
+
+**Precondition:** A workout plan must be selected using `viewPlan` (U12) before deleting an exercise.
+
+**MSS:**
+
+1. Trainer <u>views exercises of a workout plan (U12)</u>.
+2. Trainer identifies an exercise to delete.
+3. BrotherGym deletes the exercise from the selected plan.
+4. BrotherGym displays a success message and the updated exercise list.
+
+   Use case ends.
+
+**Extensions:**
+
+* 2a. Trainer specifies an invalid exercise index.
+  * 2a1. BrotherGym displays an error message without deleting an exercise.
+
+    Use case resumes at step 2.
+* 4a. The deleted exercise was the last exercise in the plan.
+  * 4a1. BrotherGym indicates that the plan has no exercises.
+
+    Use case ends.
 
 ### Non-Functional Requirements
 
 1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+2.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+3.  The application should support at least 1,000 students and 10,000 workout records on a typical modern computer.
+4.  Common commands should complete within 2 seconds during typical usage.
+5.  Student and workout data should be stored locally and should not be transmitted to external services by the application.
+6.  Successfully completed changes to student and workout records should be saved automatically and remain recoverable from the local data file after a normal application restart.
+7.  Invalid commands should display a clear error message without causing the application to crash or terminate unexpectedly.
+8.  Commands should follow a consistent syntax and provide consistent feedback when they succeed or fail.
+9.  New workout types and workout-planning features should be addable without requiring major changes to existing student-management features.
+10. Core student-management and workout-tracking functions should work without an Internet connection.
+11. The application should be distributable as a JAR file and should not require additional services to launch.
+12. Core application logic should be sufficiently modular to support automated unit and integration testing.
+13. Invalid student or workout data should be rejected without corrupting or unintentionally modifying existing records.
+14. The application should launch within 5 seconds when using a data file containing up to 1,000 students and 10,000 workout records.
+15. Student and workout information should be displayed in a clear and readable format so that trainers can identify relevant records quickly.
 
 ### Glossary
 
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Trainer**: The user who manages students’ workout plans and records their workout progress.
+* **Student**: A student whose workouts are planned and tracked by a trainer.
+* **Workout plan**: A prescribed set of exercises and targets prepared for a student.
+* **Workout session**: A specific occasion on which a student carries out a workout plan and their progress may be recorded.
+* **Exercise**: A physical activity within a workout plan, such as a bench press.
+* **Set**: A group of consecutive repetitions of an exercise.
+* **Repetition (rep)**: One complete performance of an exercise movement.
+* **Weight**: The resistance prescribed or recorded for an exercise, in kilograms.
+* **Student ID**: The positive integer used to identify a student within BrotherGym.
+* **Workout plan ID**: The positive integer used to identify a workout plan belonging to a student.
 
 --------------------------------------------------------------------------------------------------------------------
 
-## **Appendix: Instructions for manual testing**
+## **Appendix: Instructions for Manual Testing**
 
-Given below are instructions to test the app manually.
+The following walkthrough provides a starting point for manual testing. Testers are encouraged to explore
+additional variations. Refer to the [User Guide](UserGuide.md#features) for command syntax and field constraints.
+This appendix should only serve as a starting point to familiarise testers with the functionalities of BrotherGym.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
+### Before you begin
 
-</div>
+* Follow the [Quick start](UserGuide.md#quick-start) instructions to launch the JAR from a separate, empty
+  test folder. Keep the same working directory when relaunching so the app uses the same data file.
+* Use only test data: the walkthrough includes `clear` and deletion commands.
+* Enter `help` and check that the help window opens with readable command instructions; close it to continue.
+* Run the sections in order and enter each command on a separate line. Unless a step says otherwise, retain the
+  data from the previous section. IDs below assume this order; after exploratory changes, use the displayed IDs
+  or recreate the dataset.
 
-### Launch and shutdown
+### Prepare a predictable dataset
 
-1. Initial launch
+Enter the following commands. `clear` removes the initial sample data in this test instance.
 
-   1. Download the JAR file and copy it into an empty folder.
+```text
+clear
+addStudent Alex Tan --hp 91234567 --email alex@example.com --addr 10 Clementi Road --tag beginner
+addStudent Beth Lim --hp 92345678 --email beth@example.com --addr 20 Dover Road
+viewStudent 1
+addPlan Strength Session --plan Practise controlled movements --date 31122099 --tag strength
+addPlan Previous Session --plan Review completed training --date 01012000
+viewPlan 1
+addExercise Squat --description 3 sets of 8 reps at 30kg
+addExercise Plank --description 3 sets of 30 seconds
+```
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+Expected: There are two students. Alex has two plans, with two numbered exercises in the expanded first plan.
+Beth has no plans. The first plan is `PENDING` and the second is `OVERDUE`, assuming the test date is between
+2 January 2000 and 31 December 2099 (inclusive). For the later checks, which change the first plan
+to 30 December 2099, the expected `PENDING` status assumes the test date is on or before that date.
 
-1. Saving window preferences
+### Manage students and navigate between views
 
-   1. Resize the window to an optimal size. Move the window to a different location. Close the window.
+1. Enter the following commands:
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
-       Expected: The most recent window size and location are retained.
+   ```text
+   find bEtH
+   viewStudent 1
+   home
+   viewStudent 1
+   ```
 
-1. _{ more test cases …​ }_
+   Expected: The search displays only Beth, numbered 1, and `viewStudent 1` shows her empty workout list.
+   `home` restores both students and clears the selection. The final command shows Alex's two plans.
 
-### Deleting a person
+2. Update Alex's details and tags:
 
-1. Deleting a person while all persons are being shown
+   ```text
+   editStudent 1 --name Alex Teo --hp 93456789 --email alexteo@example.com --addr 30 Clementi Road --tag regular
+   editStudent 1 --clearTags
+   ```
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   Expected: The first command updates the specified details and replaces `beginner` with `regular`.
+   The second removes all student tags. Alex's plans and exercises remain intact.
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+3. Try adding a duplicate:
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+   ```text
+   addStudent alex teo --hp 94567890 --email duplicate@example.com --addr 40 Dover Road
+   ```
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   Expected: The command is rejected despite the different letter case and contact details. There are still two students.
 
-1. _{ more test cases …​ }_
+### Manage workout plans and track progress
 
-### Saving data
+1. Select Alex and edit the first plan:
 
-1. Dealing with missing/corrupted data files
+   ```text
+   viewStudent 1
+   viewPlan 1
+   editPlan 1 --name Strength Training --plan Focus on controlled technique --date 30122099 --tag technique
+   editPlan 1 --clearTags
+   ```
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+   Expected: The first plan's details update, its tags are replaced and then cleared, and its two exercises remain.
+   The plan stays expanded throughout these edits.
+   Try `addPlan Strength Training --plan Focus on controlled technique --date 30122099`.
+   Expected: The duplicate is rejected and there are still two plans.
 
-1. _{ more test cases …​ }_
+2. Check status changes:
+
+   ```text
+   viewStudent 1
+   markPlan 1
+   markPlan 1
+   unmarkPlan 1
+   markPlan 2
+   unmarkPlan 2
+   unmarkPlan 2
+   ```
+
+   Expected: Plan 1 becomes `DONE`, the repeated mark is rejected, and unmarking restores `PENDING`.
+   Plan 2 becomes `DONE`, then returns to `OVERDUE`; the repeated unmark is rejected.
+
+3. Check calendar validation:
+
+   ```text
+   editPlan 1 --date 31022027
+   editPlan 1 --date 29022028
+   editPlan 1 --date 30122099
+   ```
+
+   Expected: The impossible date is rejected without changing the plan. The leap-day date is accepted, and the
+   final command restores the future date. For the today boundary, temporarily set an unmarked plan's date to
+   today's date in `DDMMYYYY` format: its status should be `PENDING`. Restore the original date afterward.
+
+4. Enter `viewPlan 2`, then `viewPlan 1`.
+
+   Expected: Only the selected plan expands, while both plans remain in their original order from the one
+   scrollable list. Plan 2 shows an empty exercise list. The selected plan's details and numbered exercises
+   are readable.
+   `viewStudent 1` collapses the expansion and returns the list to the top; enter `viewPlan 1` again to
+   continue.
+
+### Manage exercises within a selected plan
+
+Prerequisite: Alex's first plan is expanded and still contains Squat and Plank.
+
+1. Enter:
+
+   ```text
+   editExercise 1 --description 3 sets of 10 reps at 30kg
+   addExercise Squat --description 3 sets of 10 reps at 30kg
+   editExercise 2 --name Squat --description 3 sets of 10 reps at 30kg
+   ```
+
+   Expected: The first exercise keeps its name and position while its description changes. Both subsequent
+   commands are rejected as duplicates, leaving the two exercises unchanged.
+
+2. Enter:
+
+   ```text
+   editExercise 2 --name Side Plank
+   deleteExercise 1
+   deleteExercise 1
+   ```
+
+   Expected: Renaming retains the second exercise's description. The first deletion leaves Side Plank numbered 1;
+   the second leaves an empty plan showing `Exercises (none)` and an empty message. The plan stays expanded.
+
+3. Add an exercise back for the saving checks:
+
+   ```text
+   addExercise Goblet Squat --description 3 sets of 10 reps at 12kg
+   viewPlan 2
+   viewStudent 2
+   viewStudent 1
+   viewPlan 1
+   ```
+
+   Expected: Plan 2 remains empty and Beth still has no plans. Returning to Alex's first plan shows Goblet Squat,
+   confirming that exercise changes affected only the selected plan.
+
+### Check selection rules and rejected inputs
+
+1. Enter these commands in order:
+
+   ```text
+   home
+   addPlan Unselected Session --plan Selection check --date 31122099
+   viewStudent 1
+   addExercise Unselected Exercise --description Selection check
+   viewPlan 1
+   ```
+
+   Expected: The plan command is rejected because no student is selected. The exercise command is rejected
+   because no plan is selected. Selecting the student and plan afterward succeeds without losing existing data.
+
+2. With Alex and plan 1 selected, try this representative set of invalid inputs:
+
+   | Input | What to check |
+   | --- | --- |
+   | `viewStudent 0` | Non-positive index is rejected. |
+   | `viewPlan 01` | Leading-zero index is rejected. |
+   | `deleteExercise 999` | Out-of-range index is rejected; Goblet Squat remains. |
+   | `addExercise Curl` | Missing required description is reported. |
+   | `editExercise 1 --tag strength` | Unsupported prefix is rejected. |
+   | `editExercise 1 --name Curl --name Row` | Repeated single-value prefix is rejected. |
+   | `editStudent 1` | An edit without any fields is rejected. |
+   | `find !!!` | Search without a valid keyword is rejected. |
+   | `home extra` | Extra arguments to a no-argument command are rejected. |
+
+   Expected for each: Feedback explains the error and no student, plan, or exercise data changes.
+   Enter `viewStudent 1` and `viewPlan 2` afterward to confirm that valid commands still work.
+
+### Verify saving, deletion, and recovery
+
+1. **Persist the nested data.** Enter `markPlan 2`, then `exit`. Relaunch from the same working directory and
+   enter `viewStudent 1`, then `viewPlan 1`.
+
+   Expected: Alex's edited contact details, cleared tags, both plans, and Goblet Squat are retained. Plan 2 is
+   still `DONE`. Check the saved data rather than expecting the previous view selection to be restored.
+
+2. **Delete plans around an expanded plan.** Enter `viewPlan 2`, then `deletePlan 1`.
+
+   Expected: Previous Session remains expanded and becomes plan 1. Enter `deletePlan 1` again.
+   The selected plan disappears and the list collapses without selecting another plan.
+
+3. **Delete a student with nested data.** Recreate a plan and exercise for Alex:
+
+   ```text
+   addPlan Cleanup Session --plan Check nested deletion --date 31122099
+   viewPlan 1
+   addExercise Lunge --description 2 sets of 10 reps
+   home
+   find Alex
+   deleteStudent 1
+   home
+   ```
+
+   Expected: Alex and the associated plan and exercise are removed. Beth remains unchanged. Enter `clear`,
+   then `exit`, and relaunch. The student list remains empty rather than being replaced by sample data.
+
+4. **Missing data file.** Close the app and copy `data/brothergym.json` to a backup outside the `data` folder.
+   Remove the original file and relaunch from the same working directory.
+
+   Expected: The app opens with sample data. Close the app and restore the backup before the next check.
+
+5. **Corrupted data file.** With the app closed and the backup retained, replace the contents of
+   `data/brothergym.json` with the following invalid JSON, then relaunch:
+
+   ```text
+   { invalid json
+   ```
+
+   Expected: The app opens with an empty student list. Before entering any command, inspect the file externally:
+   it should still contain the invalid text. Enter `home` and inspect it again: the successful command saves
+   valid data for the empty list. Close the app, restore the backup, and relaunch to verify recovery.

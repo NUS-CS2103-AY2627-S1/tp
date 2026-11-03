@@ -1,0 +1,37 @@
+@startuml
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+
+Class UniqueStudentList
+Class Student
+Class Address
+Class Email
+Class Name
+Class Phone
+Class "{abstract}\n Tag" as Tag
+Class StudentTag
+Class WorkoutPlansList
+Class WorkoutPlan
+
+UniqueStudentList --> "*" Student
+Student --> "1" Name
+Student --> "1" Phone
+Student --> "1" Email
+Student --> "1" Address
+Student --> "*" StudentTag
+Student --> "1  " WorkoutPlansList
+WorkoutPlansList --> "*" WorkoutPlan
+
+note right of WorkoutPlan
+  Details of WorkoutPlan are omitted for clarity.
+end note
+
+StudentTag --|> Tag
+
+Name -[hidden]right-> Phone
+Phone -[hidden]right-> Address
+Address -[hidden]right-> WorkoutPlansList
+WorkoutPlansList -[hidden]right-> Email
+@enduml

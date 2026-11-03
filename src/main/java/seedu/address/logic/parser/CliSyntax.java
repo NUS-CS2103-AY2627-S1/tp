@@ -5,11 +5,23 @@ package seedu.address.logic.parser;
  */
 public class CliSyntax {
 
-    /* Prefix definitions */
-    public static final Prefix PREFIX_NAME = new Prefix("n/");
-    public static final Prefix PREFIX_PHONE = new Prefix("p/");
-    public static final Prefix PREFIX_EMAIL = new Prefix("e/");
-    public static final Prefix PREFIX_ADDRESS = new Prefix("a/");
-    public static final Prefix PREFIX_TAG = new Prefix("t/");
+    /* Common Prefixes */
+    public static final Prefix PREFIX_NAME = new Prefix("--name");
+    public static final Prefix PREFIX_TAG = new Prefix("--tag");
+    public static final Prefix PREFIX_CLEAR_TAGS = new Prefix("--clearTags");
 
+    /* Student Prefixes */
+    public static final Prefix PREFIX_PHONE = new Prefix("--hp");
+    public static final Prefix PREFIX_EMAIL = new Prefix("--email");
+    public static final Prefix PREFIX_ADDRESS = new Prefix("--addr");
+
+    /* Workout Plan Prefixes */
+    public static final Prefix PREFIX_DATE = new Prefix("--date");
+
+    /* Exercise Prefixes */
+    public static final Prefix PREFIX_DESCRIPTION = new Prefix("--description");
+
+    /* Invalid Prefixes */
+    public static final Prefix PREFIX_INVALID = new Prefix("--invalid");
+    public static final Prefix PREFIX_UNKNOWN = new Prefix("--unknown");
 }

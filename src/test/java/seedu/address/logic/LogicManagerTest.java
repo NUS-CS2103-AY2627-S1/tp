@@ -1,37 +1,49 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.NAME_PREAMBLE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalStudents.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddStudentCommand;
 import seedu.address.logic.commands.CommandResult;
-import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.HomeCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.metadata.CommandMetadataCatalog;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ReadOnlyBrotherGym;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.model.exercise.Exercise;
+import seedu.address.model.exercise.ExerciseDescription;
+import seedu.address.model.exercise.ExerciseName;
+import seedu.address.model.student.Student;
+import seedu.address.model.workoutplan.WorkoutDate;
+import seedu.address.model.workoutplan.WorkoutDescription;
+import seedu.address.model.workoutplan.WorkoutName;
+import seedu.address.model.workoutplan.WorkoutPlan;
+import seedu.address.storage.JsonBrotherGymStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.StudentBuilder;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -42,40 +54,75 @@ public class LogicManagerTest {
 
     private Model model = new ModelManager();
     private Logic logic;
+    private StorageManager storage;
 
     @BeforeEach
     public void setUp() {
-        JsonAddressBookStorage addressBookStorage =
-                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        JsonBrotherGymStorage brotherGymStorage =
+                new JsonBrotherGymStorage(temporaryFolder.resolve("brotherGym.json"));
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        storage = new StorageManager(brotherGymStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
     }
 
+    // EP: command violates parser format (invalid).
     @Test
     public void execute_invalidCommandFormat_throwsParseException() {
         String invalidCommand = "uicfhmowqewca";
         assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
     }
 
+    // EP: parsed command cannot execute (invalid).
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteStudentCommand = "deleteStudent 9";
+        assertCommandException(deleteStudentCommand, MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+    }
+
+    // EP: command parses and executes (valid).
+    @Test
+    public void execute_validCommand_success() throws Exception {
+        String listCommand = HomeCommand.COMMAND_WORD;
+        assertCommandSuccess(listCommand, HomeCommand.MESSAGE_SUCCESS, model);
+    }
+
+    // EP: nested exercise persists (valid).
+    @Test
+    public void getCommandCategories_returnsCatalogCategories() {
+        assertSame(CommandMetadataCatalog.allCommandCategories(), logic.getCommandCategories());
     }
 
     @Test
-    public void execute_validCommand_success() throws Exception {
-        String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+    public void execute_addExercise_savesSelectedPlanExercise() throws Exception {
+        Student student = new StudentBuilder().build();
+        model.addStudent(student);
+        model.setCurrentStudent(student);
+        WorkoutPlan plan = new WorkoutPlan(new WorkoutName("Leg day"),
+                new WorkoutDescription("Lower body"), WorkoutDate.fromLocalDate(LocalDate.of(2026, 10, 29)));
+        model.addWorkoutPlanForStudent(student, plan);
+        model.setCurrentWorkoutPlan(model.getCurrentStudent().orElseThrow()
+                .getWorkoutPlansList().getWorkoutList().get(0));
+
+        CommandResult result = logic.execute("addExercise Squats --description Barbell back squat");
+
+        Exercise expected = new Exercise(new ExerciseName("Squats"),
+                new ExerciseDescription("Barbell back squat"));
+        assertEquals("New exercise added: " + expected, result.getFeedbackToUser());
+        assertEquals(List.of(expected), model.getCurrentWorkoutPlan().orElseThrow()
+                .getExercisesList().getExerciseList());
+        ReadOnlyBrotherGym restored = storage.readBrotherGym().orElseThrow();
+        assertEquals(List.of(expected), restored.getStudentList().get(0)
+                .getWorkoutPlansList().getWorkoutList().get(0).getExercisesList().getExerciseList());
     }
 
+    // EP: save throws IOException (invalid).
     @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
     }
 
+    // EP: save throws application-data exception (invalid).
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
@@ -83,8 +130,27 @@ public class LogicManagerTest {
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    public void getFilteredStudentList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredStudentList().remove(0));
+    }
+
+    @Test
+    public void currentStudentProperty_exposesModelProperty() {
+        assertSame(model.currentStudentProperty(), logic.currentStudentProperty());
+    }
+
+    @Test
+    public void getCurrentStudent_delegatesToModel() {
+        Optional<Student> selectedStudent = Optional.of(AMY);
+        Model modelStub = new ModelManager() {
+            @Override
+            public Optional<Student> getCurrentStudent() {
+                return selectedStudent;
+            }
+        };
+        Logic logicWithStubModel = new LogicManager(modelStub, storage);
+
+        assertSame(selectedStudent, logicWithStubModel.getCurrentStudent());
     }
 
     /**
@@ -123,7 +189,7 @@ public class LogicManagerTest {
      */
     private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
             String expectedMessage) {
-        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        Model expectedModel = new ModelManager(model.getBrotherGym(), new UserPrefs());
         assertCommandFailure(inputCommand, expectedException, expectedMessage, expectedModel);
     }
 
@@ -149,26 +215,26 @@ public class LogicManagerTest {
     private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
-        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
+        // Inject LogicManager with a JsonBrotherGymStorage that throws the IOException e when saving
+        JsonBrotherGymStorage brotherGymStorage = new JsonBrotherGymStorage(prefPath) {
             @Override
-            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+            public void saveBrotherGym(ReadOnlyBrotherGym brotherGym) throws IOException {
                 throw e;
             }
         };
 
         JsonUserPrefsStorage userPrefsStorage =
                 new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        StorageManager storage = new StorageManager(brotherGymStorage, userPrefsStorage);
 
         logic = new LogicManager(model, storage);
 
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+        // Triggers the saveBrotherGym method by executing an addStudent command
+        String addStudentCommand = AddStudentCommand.COMMAND_WORD + NAME_PREAMBLE_AMY + PHONE_DESC_AMY
                 + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+        Student expectedStudent = new StudentBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        expectedModel.addStudent(expectedStudent);
+        assertCommandFailure(addStudentCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.model.tag.StudentTag;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.tag.WorkoutPlanTag;
 
 /**
  * Jackson-friendly version of {@link Tag}.
@@ -14,7 +16,9 @@ class JsonAdaptedTag {
     private final String tagName;
 
     /**
-     * Constructs a {@code JsonAdaptedTag} with the given {@code tagName}.
+     * Constructs a JSON-adapted tag from its serialized name.
+     *
+     * @param tagName The serialized tag name.
      */
     @JsonCreator
     public JsonAdaptedTag(String tagName) {
@@ -22,27 +26,49 @@ class JsonAdaptedTag {
     }
 
     /**
-     * Converts a given {@code Tag} into this class for Jackson use.
+     * Converts a model tag into its JSON-adapted representation.
+     *
+     * @param source The model tag to adapt.
      */
     public JsonAdaptedTag(Tag source) {
         tagName = source.tagName;
     }
 
+    /**
+     * Returns the serialized tag name.
+     *
+     * @return The tag name.
+     */
     @JsonValue
     public String getTagName() {
         return tagName;
     }
 
     /**
-     * Converts this Jackson-friendly adapted tag object into the model's {@code Tag} object.
+     * Converts this JSON-adapted tag into a student tag.
      *
-     * @throws IllegalValueException if there were any data constraints violated in the adapted tag.
+     * @return The student tag.
+     * @throws IllegalValueException If the tag name is missing or invalid.
      */
-    public Tag toModelType() throws IllegalValueException {
-        if (!Tag.isValidTagName(tagName)) {
-            throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
-        }
-        return new Tag(tagName);
+    public StudentTag toStudentTag() throws IllegalValueException {
+        validateTagName();
+        return new StudentTag(tagName);
     }
 
+    /**
+     * Converts this JSON-adapted tag into a workout plan tag.
+     *
+     * @return The workout plan tag.
+     * @throws IllegalValueException If the tag name is missing or invalid.
+     */
+    public WorkoutPlanTag toWorkoutPlanTag() throws IllegalValueException {
+        validateTagName();
+        return new WorkoutPlanTag(tagName);
+    }
+
+    private void validateTagName() throws IllegalValueException {
+        if (tagName == null || !Tag.isValidTagName(tagName)) {
+            throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
+        }
+    }
 }
