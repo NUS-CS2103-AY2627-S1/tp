@@ -7,6 +7,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 
@@ -15,14 +18,70 @@ import seedu.address.commons.core.LogsCenter;
  */
 public class HelpWindow extends UiPart<Stage> {
 
-    public static final String USERGUIDE_URL = "https://se-education.org/addressbook-level3/UserGuide.html";
-    public static final String HELP_MESSAGE = "Refer to the user guide: " + USERGUIDE_URL;
+    public static final String USERGUIDE_URL =
+            "https://ay2627s1-cs2103t-t08-3.github.io/tp/UserGuide.html";
+
+    public static final String HELP_MESSAGE = """
+            Parameters in square brackets are optional.
+
+            add n/NAME p/PHONE e/EMAIL t/EVENT_TYPE d/EVENT_DATE [s/STAGE]
+                Add an engagement. STAGE defaults to Enquiry.
+
+            edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [t/EVENT_TYPE] [d/EVENT_DATE] [s/STAGE]
+                Update one or more details of the engagement at INDEX.
+
+            advance INDEX
+                Advance the engagement at INDEX to the next stage.
+
+            delete INDEX
+                Immediately delete the engagement at INDEX.
+
+            find n/SEARCH_TEXT
+                Show engagements whose client name contains SEARCH_TEXT.
+
+            find p/SEARCH_TEXT
+                Show engagements whose stored phone number contains SEARCH_TEXT.
+
+            find e/SEARCH_TEXT
+                Show engagements whose email address contains SEARCH_TEXT.
+
+            find t/SEARCH_TEXT
+                Show engagements whose event type contains SEARCH_TEXT.
+
+            find s/STAGE
+                Show engagements at the complete named stage (case-insensitive).
+
+            list
+                Show all engagements in insertion order.
+
+            list sort/date
+                Show all engagements sorted by event date.
+
+            upcoming
+                Show events taking place today or within the next six dates.
+
+            clear
+                Delete every engagement.
+
+            help
+                Open this Help panel.
+
+            exit
+                Exit ShutterLink.
+            """
+            + "\nRefer to the user guide: " + USERGUIDE_URL;
 
     private static final Logger logger = LogsCenter.getLogger(HelpWindow.class);
+    private static final String COPY_LINK_BUTTON_TEXT = "Copy User Guide link";
     private static final String FXML = "HelpWindow.fxml";
 
+    private final Runnable onHidden;
+
     @FXML
-    private Button copyButton;
+    private Button closeButton;
+
+    @FXML
+    private Button copyLinkButton;
 
     @FXML
     private Label helpMessage;
@@ -32,16 +91,42 @@ public class HelpWindow extends UiPart<Stage> {
      *
      * @param root Stage to use as the root of the HelpWindow.
      */
-    public HelpWindow(Stage root) {
+    public HelpWindow(Stage root, Runnable onHidden) {
         super(FXML, root);
+        this.onHidden = onHidden;
         helpMessage.setText(HELP_MESSAGE);
+        getRoot().getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+        getRoot().setOnHidden(event -> this.onHidden.run());
+    }
+
+    /**
+     * Creates a new HelpWindow owned by the supplied stage.
+     */
+    public HelpWindow(Stage root, Stage owner, Runnable onHidden) {
+        this(root, onHidden);
+        root.initOwner(owner);
+        root.initModality(Modality.WINDOW_MODAL);
     }
 
     /**
      * Creates a new HelpWindow.
      */
     public HelpWindow() {
-        this(new Stage());
+        this(() -> { });
+    }
+
+    /**
+     * Creates a new HelpWindow that invokes {@code onHidden} whenever it closes.
+     */
+    public HelpWindow(Runnable onHidden) {
+        this(new Stage(), onHidden);
+    }
+
+    /**
+     * Creates a new HelpWindow using the supplied stage.
+     */
+    public HelpWindow(Stage root) {
+        this(root, () -> { });
     }
 
     /**
@@ -64,6 +149,7 @@ public class HelpWindow extends UiPart<Stage> {
      */
     public void show() {
         logger.fine("Showing help page about the application.");
+        copyLinkButton.setText(COPY_LINK_BUTTON_TEXT);
         getRoot().show();
         getRoot().centerOnScreen();
     }
@@ -73,6 +159,17 @@ public class HelpWindow extends UiPart<Stage> {
      */
     public boolean isShowing() {
         return getRoot().isShowing();
+    }
+
+    /**
+     * Copies the User Guide URL and reports whether the clipboard accepted it.
+     */
+    @FXML
+    private void copyUserGuideLink() {
+        ClipboardContent content = new ClipboardContent();
+        content.putString(USERGUIDE_URL);
+        boolean isCopied = Clipboard.getSystemClipboard().setContent(content);
+        copyLinkButton.setText(isCopied ? "Link copied" : "Copy failed");
     }
 
     /**
@@ -86,17 +183,23 @@ public class HelpWindow extends UiPart<Stage> {
      * Focuses on the help window.
      */
     public void focus() {
+        getRoot().setIconified(false);
+        getRoot().toFront();
         getRoot().requestFocus();
     }
 
     /**
-     * Copies the URL to the user guide to the clipboard.
+     * Closes the Help panel.
      */
     @FXML
-    private void copyUrl() {
-        final Clipboard clipboard = Clipboard.getSystemClipboard();
-        final ClipboardContent url = new ClipboardContent();
-        url.putString(USERGUIDE_URL);
-        clipboard.setContent(url);
+    private void close() {
+        hide();
+    }
+
+    private void handleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ESCAPE) {
+            close();
+            event.consume();
+        }
     }
 }

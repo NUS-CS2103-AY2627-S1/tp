@@ -1,19 +1,17 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EVENT_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EVENT_TYPE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STAGE;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
@@ -21,36 +19,40 @@ import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.EventDate;
+import seedu.address.model.person.EventType;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.Stage;
 
 /**
- * Edits the details of an existing person in the address book.
+ * Edits the details of an existing contact.
  */
 public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the engagement identified "
+            + "by the index number used in the displayed engagement list. "
+            + "Only the given fields are changed.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_EVENT_TYPE + "EVENT_TYPE] "
+            + "[" + PREFIX_EVENT_DATE + "EVENT_DATE] "
+            + "[" + PREFIX_STAGE + "STAGE]\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Engagement updated: %1$s.";
+    public static final String MESSAGE_NOT_EDITED = "No fields to edit. Please specify at least one field.";
+    public static final String MESSAGE_NO_CHANGES = "No changes were made.";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "This edit would create a duplicate engagement. No changes were made.";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -79,13 +81,26 @@ public class EditCommand extends Command {
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        if (editedPerson.equals(personToEdit)) {
+            return new CommandResult(MESSAGE_NO_CHANGES);
+        }
+
+        if (!personToEdit.isSameEngagement(editedPerson) && model.hasPerson(editedPerson)) {
+            throw new CommandException(MESSAGE_DUPLICATE_PERSON
+                    + Messages.formatExistingEngagement(model.getAddressBook().getPersonList(), editedPerson));
         }
 
         model.setPerson(personToEdit, editedPerson);
+        // Show all contacts so that the displayed list contains every contact, and the indexes in the warning
+        // match what the user sees.
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        boolean hasChangedClientDetails = !personToEdit.isSameClient(editedPerson);
+        String warning = hasChangedClientDetails
+                ? SimilarContactWarning.generate(model.getFilteredPersonList(), editedPerson)
+                : "";
+        String successMessage = String.format(MESSAGE_EDIT_PERSON_SUCCESS,
+                Messages.formatSummary(editedPerson));
+        return new CommandResult(successMessage + warning);
     }
 
     /**
@@ -98,10 +113,11 @@ public class EditCommand extends Command {
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
-        Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        EventType updatedEventType = editPersonDescriptor.getEventType().orElse(personToEdit.getEventType());
+        EventDate updatedEventDate = editPersonDescriptor.getEventDate().orElse(personToEdit.getEventDate());
+        Stage updatedStage = editPersonDescriptor.getStage().orElse(personToEdit.getStage());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedEventType, updatedEventDate, updatedStage);
     }
 
     @Override
@@ -135,28 +151,27 @@ public class EditCommand extends Command {
         private Name name;
         private Phone phone;
         private Email email;
-        private Address address;
-        private Set<Tag> tags;
+        private EventType eventType;
+        private EventDate eventDate;
+        private Stage stage;
 
         public EditPersonDescriptor() {}
 
-        /**
-         * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
-         */
+        /** Copy constructor. */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
             setPhone(toCopy.phone);
             setEmail(toCopy.email);
-            setAddress(toCopy.address);
-            setTags(toCopy.tags);
+            setEventType(toCopy.eventType);
+            setEventDate(toCopy.eventDate);
+            setStage(toCopy.stage);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, eventType, eventDate, stage);
         }
 
         public void setName(Name name) {
@@ -183,29 +198,28 @@ public class EditCommand extends Command {
             return Optional.ofNullable(email);
         }
 
-        public void setAddress(Address address) {
-            this.address = address;
+        public void setEventType(EventType eventType) {
+            this.eventType = eventType;
         }
 
-        public Optional<Address> getAddress() {
-            return Optional.ofNullable(address);
+        public Optional<EventType> getEventType() {
+            return Optional.ofNullable(eventType);
         }
 
-        /**
-         * Sets {@code tags} to this object's {@code tags}.
-         * A defensive copy of {@code tags} is used internally.
-         */
-        public void setTags(Set<Tag> tags) {
-            this.tags = (tags != null) ? new HashSet<>(tags) : null;
+        public void setEventDate(EventDate eventDate) {
+            this.eventDate = eventDate;
         }
 
-        /**
-         * Returns an unmodifiable tag set, which throws {@code UnsupportedOperationException}
-         * if modification is attempted.
-         * Returns {@code Optional#empty()} if {@code tags} is null.
-         */
-        public Optional<Set<Tag>> getTags() {
-            return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+        public Optional<EventDate> getEventDate() {
+            return Optional.ofNullable(eventDate);
+        }
+
+        public void setStage(Stage stage) {
+            this.stage = stage;
+        }
+
+        public Optional<Stage> getStage() {
+            return Optional.ofNullable(stage);
         }
 
         @Override
@@ -222,8 +236,9 @@ public class EditCommand extends Command {
             return Objects.equals(name, otherEditPersonDescriptor.name)
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(eventType, otherEditPersonDescriptor.eventType)
+                    && Objects.equals(eventDate, otherEditPersonDescriptor.eventDate)
+                    && Objects.equals(stage, otherEditPersonDescriptor.stage);
         }
 
         @Override
@@ -232,8 +247,9 @@ public class EditCommand extends Command {
                     .add("name", name)
                     .add("phone", phone)
                     .add("email", email)
-                    .add("address", address)
-                    .add("tags", tags)
+                    .add("eventType", eventType)
+                    .add("eventDate", eventDate)
+                    .add("stage", stage)
                     .toString();
         }
     }

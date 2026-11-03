@@ -3,6 +3,7 @@
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+hide <<Rectangle>> stereotype
 
 Package Model as ModelPackage <<Rectangle>>{
 Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
@@ -14,17 +15,24 @@ Class UserPrefs
 
 Class UniquePersonList
 Class Person
-Class Address
 Class Email
+Class EventDate
+Class EventType
 Class Name
 Class Phone
-Class Tag
+enum "<<enumeration>>\nStage" as Stage
 
 Class I #FFFFFF
 }
 
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Model
+
+Package "JavaFX collections" as JavaFxPackage <<Rectangle>> {
+Class "<<interface>>\nObservableList" as ObservablePersonList
+Class "FilteredList" as FilteredPersonList
+Class "SortedList" as SortedPersonList
+}
 
 AddressBook .up.|> ReadOnlyAddressBook
 
@@ -40,15 +48,28 @@ UniquePersonList --> "~* all" Person
 Person *--> Name
 Person *--> Phone
 Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+Person *--> EventType
+Person *--> EventDate
+Person --> Stage
 
 Person -[hidden]up--> I
 UniquePersonList -[hidden]right-> I
 
 Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
+Phone -[hidden]right-> Email
+Email -[hidden]right-> EventType
+EventType -[hidden]right-> EventDate
+EventDate -[hidden]right-> Stage
 
-ModelManager --> "~* filtered" Person
+ModelManager -right-> "1" FilteredPersonList : filteredPersons
+ModelManager -right-> "1" SortedPersonList : displayedPersons
+UniquePersonList -right-> "1" ObservablePersonList : exposes insertion order
+FilteredPersonList -up-> "1" ObservablePersonList : source
+SortedPersonList -up-> "1" FilteredPersonList : source
+
+note bottom of SortedPersonList
+  All collection elements are Person instances.
+  Display order may differ from saved insertion order.
+  Equal event dates retain insertion order.
+end note
 @enduml

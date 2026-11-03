@@ -1,4 +1,5 @@
-title: "AB-3"
+title: ShutterLink
+description: A desktop application for freelance photographers to manage photography engagements.
 theme: minima
 
 header_pages:
@@ -8,7 +9,7 @@ header_pages:
 
 markdown: kramdown
 
-repository: "se-edu/addressbook-level3"
+repository: "AY2627S1-CS2103T-T08-3/tp"
 github_icon: "images/github-icon.png"
 
 plugins:

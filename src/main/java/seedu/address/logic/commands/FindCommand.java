@@ -2,36 +2,70 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonSearchPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists contacts whose selected field contains the search value.
+ * Matching is case-insensitive; stages match the complete value.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds engagements by exactly one field.\n"
+            + "Parameters: n/NAME, p/PHONE, e/EMAIL, t/EVENT_TYPE, or s/STAGE\n"
+            + "Stage searches require a complete stage name.\n"
+            + "Examples:\n"
+            + "find n/Alice Pauline\n"
+            + "find p/91234567\n"
+            + "find e/alice@example.com\n"
+            + "find t/Wedding\n"
+            + "find s/Booked";
 
-    private final NameContainsKeywordsPredicate predicate;
+    public static final String MESSAGE_NO_MATCHING_CONTACTS = "No matching engagements found.";
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    private static final Logger logger = LogsCenter.getLogger(FindCommand.class);
+
+    private final PersonSearchPredicate predicate;
+
+
+    /**
+     * Creates a command that filters contacts using the given predicate.
+     *
+     * @param predicate the predicate used to select matching contacts
+     */
+    public FindCommand(PersonSearchPredicate predicate) {
         this.predicate = predicate;
+    }
+
+    @Override
+    public boolean modifiesAddressBook() {
+        return false;
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
+
+        logger.fine("Executing find command.");
         model.updateFilteredPersonList(predicate);
+
+        int matchCount = model.getFilteredPersonList().size();
+        logger.info("Find command completed with " + matchCount + " matching contact(s).");
+
+        if (matchCount == 0) {
+            return new CommandResult(MESSAGE_NO_MATCHING_CONTACTS);
+        }
+
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, matchCount));
     }
 
     @Override

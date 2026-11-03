@@ -68,9 +68,13 @@ public class ArgumentTokenizer {
      * occurrences of "p/" with whitespace before it. However, if
      * {@code argsString} = "e/hi p/900", {@code prefix} = "p/" and
      * {@code fromIndex} = 0, this method returns 5.
+     * Occurrences that start a name relation marker, such as "s/o " in "n/Raj s/o Kumar", are skipped.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
         int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
+        while (prefixIndex != -1 && CliSyntax.isNameRelationMarkerAt(argsString, prefixIndex + 1)) {
+            prefixIndex = argsString.indexOf(" " + prefix, prefixIndex + 1);
+        }
         return prefixIndex == -1 ? -1
                 : prefixIndex + 1; // +1 as offset for whitespace
     }
@@ -88,6 +92,8 @@ public class ArgumentTokenizer {
 
         // Sort by start position
         prefixPositions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
+
+        keepTrailingRelationMarkerInName(argsString, prefixPositions);
 
         // Insert a PrefixPosition to represent the preamble
         PrefixPosition preambleMarker = new PrefixPosition(new Prefix(""), 0);
@@ -107,6 +113,23 @@ public class ArgumentTokenizer {
         }
 
         return argMultimap;
+    }
+
+    /**
+     * Drops the last prefix position if it starts a name relation marker that ends {@code argsString}
+     * directly after a name, so that {@code n/Ravi s/o} keeps {@code s/o} in the name. No stage or date
+     * is "o", and a marker after any other prefix (e.g. {@code edit 1 s/o}) is still read as a prefix.
+     * The positions must be sorted by start position.
+     */
+    private static void keepTrailingRelationMarkerInName(String argsString,
+                                                         List<PrefixPosition> prefixPositions) {
+        int last = prefixPositions.size() - 1;
+        if (last >= 1
+                && prefixPositions.get(last - 1).getPrefix().equals(CliSyntax.PREFIX_NAME)
+                && CliSyntax.isTrailingNameRelationMarkerAt(argsString,
+                        prefixPositions.get(last).getStartPosition())) {
+            prefixPositions.remove(last);
+        }
     }
 
     /**

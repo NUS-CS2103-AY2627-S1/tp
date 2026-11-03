@@ -1,15 +1,12 @@
 package seedu.address.testutil;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.EventDate;
+import seedu.address.model.person.EventType;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
-import seedu.address.model.util.SampleDataUtil;
+import seedu.address.model.person.Stage;
 
 /**
  * A utility class to help with building Person objects.
@@ -19,13 +16,15 @@ public class PersonBuilder {
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_EVENT_TYPE = "Wedding";
+    public static final String DEFAULT_EVENT_DATE = "2026-12-01";
 
     private Name name;
     private Phone phone;
     private Email email;
-    private Address address;
-    private Set<Tag> tags;
+    private EventType eventType;
+    private EventDate eventDate;
+    private Stage stage;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -34,8 +33,9 @@ public class PersonBuilder {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        eventType = new EventType(DEFAULT_EVENT_TYPE);
+        eventDate = new EventDate(DEFAULT_EVENT_DATE);
+        stage = Stage.ENQUIRY;
     }
 
     /**
@@ -45,8 +45,9 @@ public class PersonBuilder {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        eventType = personToCopy.getEventType();
+        eventDate = personToCopy.getEventDate();
+        stage = personToCopy.getStage();
     }
 
     /**
@@ -58,18 +59,18 @@ public class PersonBuilder {
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
+     * Sets the {@code EventType} of the {@code Person} that we are building.
      */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
+    public PersonBuilder withEventType(String eventType) {
+        this.eventType = new EventType(eventType);
         return this;
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
+     * Sets the {@code EventDate} of the {@code Person} that we are building.
      */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
+    public PersonBuilder withEventDate(String eventDate) {
+        this.eventDate = new EventDate(eventDate);
         return this;
     }
 
@@ -89,8 +90,20 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the engagement stage of the {@code Person} being built.
+     *
+     * @param stage engagement stage to assign
+     * @return this builder
+     */
+    public PersonBuilder withStage(String stage) {
+        this.stage = Stage.fromString(stage);
+        return this;
+    }
+
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, eventType, eventDate, stage);
     }
 
 }

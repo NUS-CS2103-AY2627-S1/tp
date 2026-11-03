@@ -3,13 +3,15 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EVENT_DATE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EVENT_TYPE_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +42,8 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withName(ALICE.getName().fullName.toUpperCase())
+                .withEventType(ALICE.getEventType().value.toLowerCase()).build();
         assertTrue(uniquePersonList.contains(editedAlice));
     }
 
@@ -83,8 +85,8 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withEventType(VALID_EVENT_TYPE_BOB)
+                .withEventDate(VALID_EVENT_DATE_BOB).build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
         expectedUniquePersonList.add(editedAlice);
@@ -126,6 +128,15 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void remove_personWithSameIdentityButDifferentDetails_throwsPersonNotFoundException() {
+        uniquePersonList.add(ALICE);
+        Person editedAlice = new PersonBuilder(ALICE).withStage("Booked").build();
+
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.remove(editedAlice));
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
     public void setPersons_nullUniquePersonList_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((UniquePersonList) null));
     }
@@ -158,6 +169,35 @@ public class UniquePersonListTest {
     public void setPersons_listWithDuplicatePersons_throwsDuplicatePersonException() {
         List<Person> listWithDuplicatePersons = List.of(ALICE, ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(listWithDuplicatePersons));
+    }
+
+    @Test
+    public void setPersons_listWithNullPerson_throwsNullPointerException() {
+        List<Person> listWithNullPerson = new ArrayList<>();
+        listWithNullPerson.add(ALICE);
+        listWithNullPerson.add(null);
+
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons(listWithNullPerson));
+    }
+
+    @Test
+    public void iterator_returnsPersonsInInsertionOrder() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+
+        List<Person> iteratedPersons = StreamSupport.stream(uniquePersonList.spliterator(), false).toList();
+
+        assertEquals(List.of(ALICE, BOB), iteratedPersons);
+    }
+
+    @Test
+    public void equals_differentValuesOrType_returnsFalse() {
+        UniquePersonList differentUniquePersonList = new UniquePersonList();
+        differentUniquePersonList.add(ALICE);
+
+        assertFalse(uniquePersonList.equals(differentUniquePersonList));
+        assertFalse(uniquePersonList.equals(null));
+        assertFalse(uniquePersonList.equals(new Object()));
     }
 
     @Test

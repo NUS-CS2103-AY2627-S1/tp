@@ -80,6 +80,42 @@ public class ArgumentTokenizerTest {
     }
 
     @Test
+    public void tokenize_nameRelationMarkers_notTreatedAsPrefixes() {
+        Prefix nameSlash = new Prefix("n/");
+        Prefix stageSlash = new Prefix("s/");
+        Prefix dateSlash = new Prefix("d/");
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(" n/Raj s/o Kumar s/Booked",
+                nameSlash, stageSlash);
+        assertArgumentPresent(argMultimap, nameSlash, "Raj s/o Kumar");
+        assertArgumentPresent(argMultimap, stageSlash, "Booked");
+
+        argMultimap = ArgumentTokenizer.tokenize(" n/Priya D/O Raman d/2026-12-20", nameSlash, dateSlash);
+        assertArgumentPresent(argMultimap, nameSlash, "Priya D/O Raman");
+        assertArgumentPresent(argMultimap, dateSlash, "2026-12-20");
+
+        // a marker ending the arguments right after a name stays in the name
+        argMultimap = ArgumentTokenizer.tokenize(" n/Raj s/o", nameSlash, stageSlash);
+        assertArgumentPresent(argMultimap, nameSlash, "Raj s/o");
+        assertArgumentAbsent(argMultimap, stageSlash);
+        argMultimap = ArgumentTokenizer.tokenize(" s/Booked n/Priya D/O", nameSlash, stageSlash, dateSlash);
+        assertArgumentPresent(argMultimap, nameSlash, "Priya D/O");
+        assertArgumentPresent(argMultimap, stageSlash, "Booked");
+        assertArgumentAbsent(argMultimap, dateSlash);
+
+        // a trailing marker after any other prefix, or with no name before it, is still read as a prefix
+        argMultimap = ArgumentTokenizer.tokenize(" n/Raj d/2026-12-20 s/o", nameSlash, stageSlash, dateSlash);
+        assertArgumentPresent(argMultimap, nameSlash, "Raj");
+        assertArgumentPresent(argMultimap, dateSlash, "2026-12-20");
+        assertArgumentPresent(argMultimap, stageSlash, "o");
+        argMultimap = ArgumentTokenizer.tokenize("1 s/o", nameSlash, stageSlash);
+        assertPreamblePresent(argMultimap, "1");
+        assertArgumentPresent(argMultimap, stageSlash, "o");
+        argMultimap = ArgumentTokenizer.tokenize("1 d/o", nameSlash, dateSlash);
+        assertArgumentPresent(argMultimap, dateSlash, "o");
+    }
+
+    @Test
     public void tokenize_multipleArguments() {
         // Only two arguments are present
         String argsString = "SomePreambleString -t dashT-Value p/pSlash value";

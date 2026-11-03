@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -51,15 +52,23 @@ public class EmailTest {
         assertFalse(Email.isValidEmail("peterjack@-example.com")); // domain name starts with a hyphen
         assertFalse(Email.isValidEmail("peterjack@example.com-")); // domain name ends with a hyphen
         assertFalse(Email.isValidEmail("peterjack@example.c")); // top level domain has less than two chars
+        assertFalse(Email.isValidEmail("peterjack@example.a--b")); // consecutive hyphens in final domain label
+        assertFalse(Email.isValidEmail("peterjack@gmail")); // domain without a period
+        assertFalse(Email.isValidEmail("a@bc")); // single-label domain
+        assertFalse(Email.isValidEmail("test@localhost")); // single-label domain
+        assertFalse(Email.isValidEmail("a".repeat(Email.MAX_LENGTH - "@example.com".length() + 1)
+                + "@example.com")); // too long
 
         // valid email
         assertTrue(Email.isValidEmail("PeterJack_1190@example.com")); // underscore in local part
         assertTrue(Email.isValidEmail("PeterJack.1190@example.com")); // period in local part
         assertTrue(Email.isValidEmail("PeterJack+1190@example.com")); // '+' symbol in local part
         assertTrue(Email.isValidEmail("PeterJack-1190@example.com")); // hyphen in local part
-        assertTrue(Email.isValidEmail("a@bc")); // minimal
-        assertTrue(Email.isValidEmail("test@localhost")); // alphabets only
-        assertTrue(Email.isValidEmail("123@145")); // numeric local part and domain name
+        assertTrue(Email.isValidEmail("a@bc.de")); // minimal
+        assertTrue(Email.isValidEmail("peterjack@example.a-b")); // hyphen in final domain label
+        assertTrue(Email.isValidEmail("123@145.com")); // numeric local part and domain label
+        assertTrue(Email.isValidEmail("a".repeat(Email.MAX_LENGTH - "@example.com".length())
+                + "@example.com")); // maximum length
         assertTrue(Email.isValidEmail("a1+be.d@example1.com")); // mixture of alphanumeric and special characters
         assertTrue(Email.isValidEmail("peter_jack@very-very-very-long-example.com")); // long domain name
         assertTrue(Email.isValidEmail("if.you.dream.it_you.can.do.it@example.com")); // long local part
@@ -67,11 +76,37 @@ public class EmailTest {
     }
 
     @Test
+    public void isValidEmail_domainLabelEdgeCases() {
+        assertFalse(Email.isValidEmail("a@example.-ab")); // leading hyphen in final label
+        assertFalse(Email.isValidEmail("a@example.ab-")); // trailing hyphen in final label
+        assertFalse(Email.isValidEmail("a@example.a_b")); // underscore in final label
+        assertFalse(Email.isValidEmail("a@example..ab")); // empty domain label
+        assertFalse(Email.isValidEmail("a@foo-.example.ab")); // trailing hyphen in an earlier label
+
+        assertTrue(Email.isValidEmail("a@example.ab")); // two-character final label
+        assertTrue(Email.isValidEmail("a@example.a-1")); // digit after a hyphen
+        assertTrue(Email.isValidEmail("a@example.a-b-c")); // multiple separated hyphens
+        assertTrue(Email.isValidEmail("a@foo-bar.example.a-b")); // hyphens in different labels
+    }
+
+    @Test
+    public void isValidEmail_localPartSeparatorsCannotBeAdjacent() {
+        assertFalse(Email.isValidEmail("a+_b@example.com"));
+        assertFalse(Email.isValidEmail("a.-b@example.com"));
+        assertTrue(Email.isValidEmail("a+b_c.d-e@example.com"));
+    }
+
+    @Test
+    public void constructor_mixedCaseEmail_storedInLowerCase() {
+        assertEquals("peterjack@example.com", new Email("PeterJack@Example.COM").value);
+    }
+
+    @Test
     public void equals() {
-        Email email = new Email("valid@email");
+        Email email = new Email("valid@email.com");
 
         // same values -> returns true
-        assertTrue(email.equals(new Email("valid@email")));
+        assertTrue(email.equals(new Email("valid@email.com")));
 
         // same object -> returns true
         assertTrue(email.equals(email));
@@ -83,6 +118,6 @@ public class EmailTest {
         assertFalse(email.equals(5.0f));
 
         // different values -> returns false
-        assertFalse(email.equals(new Email("other.valid@email")));
+        assertFalse(email.equals(new Email("other.valid@email.com")));
     }
 }

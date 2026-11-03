@@ -3,8 +3,9 @@ package seedu.address.logic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.EVENT_DATE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.EVENT_TYPE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -19,10 +20,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AdvanceStageCommand;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
@@ -67,7 +70,32 @@ public class LogicManagerTest {
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_EMPTY, model);
+    }
+
+    @Test
+    public void execute_findUnsupportedPrefix_preservesSortedView() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("list sort/date");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.showAllPersons(true);
+
+        assertCommandFailure("find n/Amy d/2026-12-20", ParseException.class,
+                String.format(Messages.MESSAGE_UNSUPPORTED_PARAMETER, "d/") + " "
+                + String.format(Messages.MESSAGE_SUPPORTED_PARAMETERS, "n/ p/ e/ t/ s/"), expectedModel);
+        assertEquals(expectedModel.getPersonListHeading(), model.getPersonListHeading());
+    }
+
+    @Test
+    public void execute_advanceStage_success() throws Exception {
+        Person original = new PersonBuilder().build();
+        model.addPerson(original);
+        Person advanced = new PersonBuilder(original).withStage("Booked").build();
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(original, advanced);
+
+        String expectedMessage = String.format(AdvanceStageCommand.MESSAGE_SUCCESS, Messages.format(advanced));
+        assertCommandSuccess("advance 1", expectedMessage, expectedModel);
     }
 
     @Test
@@ -165,8 +193,8 @@ public class LogicManagerTest {
 
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+                + EMAIL_DESC_AMY + EVENT_TYPE_DESC_AMY + EVENT_DATE_DESC_AMY;
+        Person expectedPerson = new PersonBuilder(AMY).build();
         ModelManager expectedModel = new ModelManager();
         expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);

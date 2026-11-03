@@ -40,7 +40,14 @@ public class JsonUserPrefsStorage {
      * @throws DataLoadingException if the file format is not as expected.
      */
     public Optional<UserPrefs> readUserPrefs(Path prefsFilePath) throws DataLoadingException {
-        return JsonUtil.readJsonFile(prefsFilePath, UserPrefs.class);
+        Optional<UserPrefs> userPrefs = JsonUtil.readJsonFile(prefsFilePath, UserPrefs.class);
+        if (userPrefs.isPresent() && userPrefs.get().getGuiSettings() == null) {
+            throw new DataLoadingException(new IOException("GUI settings must not be null."));
+        }
+        if (userPrefs.isPresent() && !userPrefs.get().getGuiSettings().hasValidWindowSize()) {
+            throw new DataLoadingException(new IOException("Window dimensions must be finite and positive."));
+        }
+        return userPrefs;
     }
 
     /**

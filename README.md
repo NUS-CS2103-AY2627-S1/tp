@@ -1,14 +1,56 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T08-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-T08-3/tp/actions/workflows/gradle.yml)
 
-![Ui](docs/images/Ui.png)
+![ShutterLink showing client engagements, event stages, and the data file location.](docs/images/ug-overview.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# ShutterLink
+
+ShutterLink is a desktop engagement manager for independent event photographers. Each engagement combines a client's
+contact details with an event and its workflow stage, helping photographers manage work from the initial enquiry
+through post-event delivery.
+
+## Features
+
+- Add client engagements at any stage, defaulting to `Enquiry` when no stage is supplied.
+- Edit client, event, and engagement-stage details.
+- Advance an engagement to its next workflow stage with one command.
+- Delete engagements immediately when they are no longer needed.
+- Find engagements using a partial, case-insensitive name, phone number, email address, or event type.
+- List all engagements or sort them by event date.
+- View events taking place within the next seven calendar days.
+- Automatically save engagements and restore them when the application starts.
+- View supported commands through the in-app help panel.
+
+## Getting started
+
+1. Install Java 25 and download `shutterlink.jar` from the [latest release](https://github.com/AY2627S1-CS2103T-T08-3/tp/releases/latest).
+2. Run it with:
+
+   ```bash
+   java -jar shutterlink.jar
+   ```
+
+## Example commands
+
+```text
+add n/John Tan p/+65 9123 4567 e/john.tan@example.com t/Wedding d/2026-12-20 s/Booked
+edit 1 d/2026-12-25 s/Enquiry
+advance 1
+find t/Wedding
+list sort/date
+upcoming
+help
+```
+
+## Documentation
+
+- [User Guide](docs/UserGuide.md)
+- [Developer Guide](docs/DeveloperGuide.md)
+- [About Us](docs/AboutUs.md)
+- [ShutterLink Product Website](https://ay2627s1-cs2103t-t08-3.github.io/tp/)
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
+
+OpenAI Codex and Claude were used to assist with drafting and reviewing project code and documentation. The project
+team is responsible for reviewing and validating the final work.

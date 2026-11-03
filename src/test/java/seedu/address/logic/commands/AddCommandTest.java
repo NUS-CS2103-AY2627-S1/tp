@@ -7,12 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
@@ -38,7 +40,7 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.formatSummary(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
@@ -48,8 +50,10 @@ public class AddCommandTest {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
+        String expectedMessage = AddCommand.MESSAGE_DUPLICATE_PERSON
+                + String.format(Messages.MESSAGE_EXISTING_ENGAGEMENT, Messages.formatSummary(validPerson));
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -138,6 +142,21 @@ public class AddCommandTest {
         }
 
         @Override
+        public void showAllPersons(boolean isSortedByDate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void showUpcomingPersons(LocalDate startDate, LocalDate endDate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String getPersonListHeading() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
@@ -157,7 +176,14 @@ public class AddCommandTest {
         @Override
         public boolean hasPerson(Person person) {
             requireNonNull(person);
-            return this.person.isSamePerson(person);
+            return this.person.isSameEngagement(person);
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
         }
     }
 
@@ -170,13 +196,23 @@ public class AddCommandTest {
         @Override
         public boolean hasPerson(Person person) {
             requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+            return personsAdded.stream().anyMatch(person::isSameEngagement);
         }
 
         @Override
         public void addPerson(Person person) {
             requireNonNull(person);
             personsAdded.add(person);
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate) {
+            requireNonNull(predicate);
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded);
         }
 
         @Override
