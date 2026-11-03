@@ -1,0 +1,105 @@
+package coordimate.logic;
+
+import static coordimate.testutil.PersistenceTestUtil.captureState;
+import static coordimate.testutil.PersistenceTestUtil.failingStorage;
+import static coordimate.testutil.TypicalPersons.AMY;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import coordimate.logic.commands.CommandResult;
+import coordimate.logic.commands.DeleteEventCommand;
+import coordimate.logic.commands.exceptions.CommandException;
+import coordimate.model.CoordiMate;
+import coordimate.model.ModelManager;
+import coordimate.model.event.Event;
+import coordimate.model.event.EventTime;
+import coordimate.model.person.MemberId;
+import coordimate.storage.JsonCoordiMateStorage;
+import coordimate.storage.JsonUserPrefsStorage;
+import coordimate.storage.StorageManager;
+import coordimate.testutil.PersistenceTestUtil.SavedState;
+
+public class DeleteEventIntegrationTest {
+    @TempDir
+    public Path temporaryFolder;
+
+    private final Event concert = new Event("Final Concert",
+            new EventTime("08-08-2026 15:00"), new EventTime("08-08-2026 18:00"));
+    private final Event fair = new Event("Student Life Fair",
+            new EventTime("09-10-2026"), new EventTime("09-10-2026"));
+
+    @Test
+    public void execute_delete_savedAndReloadedWithOtherEventsAndContacts() throws Exception {
+        ModelManager model = newModel();
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(temporaryFolder.resolve("data.json"));
+        Logic logic = newLogic(model, storage);
+        CommandResult result = logic.execute("deleteevent evn/final concert");
+        assertEquals("Deleted Event Final Concert.", result.getFeedbackToUser());
+        assertEquals(CommandResult.View.EVENTS, result.getViewToShow());
+        assertEquals(List.of(fair), model.getCoordiMate().getEventList());
+        assertEquals(List.of(AMY.withMemberId(new MemberId(1))), model.getCoordiMate().getPersonList());
+        assertEquals(model.getCoordiMate(), storage.readCoordiMate().orElseThrow());
+        ModelManager reloaded = new ModelManager(storage.readCoordiMate().orElseThrow(), model.getUserPrefs());
+        assertEquals("Deleted Event Student Life Fair.", newLogic(reloaded, storage)
+                .execute("deleteevent evn/sTuDeNt LiFe FaIr").getFeedbackToUser());
+        assertEquals(List.of(), reloaded.getCoordiMate().getEventList());
+        assertEquals(reloaded.getCoordiMate(), storage.readCoordiMate().orElseThrow());
+    }
+
+    @Test
+    public void execute_missingOrInexactName_modelAndFileUnchanged() throws Exception {
+        ModelManager model = newModel();
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(temporaryFolder.resolve("data.json"));
+        storage.saveCoordiMate(model.getCoordiMate());
+        String beforeFile = Files.readString(storage.getCoordiMateFilePath());
+        CoordiMate before = new CoordiMate(model.getCoordiMate());
+        Logic logic = newLogic(model, storage);
+        for (String name : new String[] {"Missing", "Final", "Final Concerts"}) {
+            assertEquals(Messages.withUsage("Event " + name + " does not exist. Use a saved event name.",
+                    DeleteEventCommand.MESSAGE_USAGE), assertThrows(
+                    CommandException.class, () -> logic.execute("deleteevent evn/" + name)).getMessage());
+            assertEquals(before, model.getCoordiMate());
+            assertEquals(beforeFile, Files.readString(storage.getCoordiMateFilePath()));
+        }
+    }
+
+    @Test
+    public void execute_saveFailure_modelAndFileUnchanged() throws Exception {
+        ModelManager model = newModel();
+        Path path = temporaryFolder.resolve("data.json");
+        new JsonCoordiMateStorage(path).saveCoordiMate(model.getCoordiMate());
+        SavedState before = captureState(model, path);
+        IOException failure = new IOException("Disk full");
+        JsonCoordiMateStorage storage = failingStorage(path, failure);
+        Logic failingLogic = newLogic(model, storage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                failingLogic.execute("deleteevent evn/Final Concert"));
+        assertEquals(Messages.withUsage(DeleteEventCommand.MESSAGE_SAVE_ERROR,
+                DeleteEventCommand.MESSAGE_USAGE), error.getMessage());
+        assertSame(failure, error.getCause());
+        before.assertUnchanged(model);
+    }
+
+    private ModelManager newModel() {
+        ModelManager model = new ModelManager();
+        model.addEvent(concert);
+        model.addEvent(fair);
+        model.addPerson(AMY);
+        return model;
+    }
+
+    private Logic newLogic(ModelManager model, JsonCoordiMateStorage storage) {
+        return new LogicManager(model, new StorageManager(storage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+    }
+}

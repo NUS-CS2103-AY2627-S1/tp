@@ -4,67 +4,53 @@ skinparam ArrowFontStyle plain
 
 box Logic LOGIC_COLOR_T1
 participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
-participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
+participant ":CoordiMateParser" as CoordiMateParser LOGIC_COLOR
 participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
-participant "r:CommandResult" as CommandResult LOGIC_COLOR
 end box
 
-box Model MODEL_COLOR_T1
-participant "m:Model" as Model MODEL_COLOR
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
 end box
 
 [-> LogicManager : execute("delete 1")
 activate LogicManager
 
-LogicManager -> AddressBookParser : parseCommand("delete 1")
-activate AddressBookParser
+LogicManager -> CoordiMateParser : parseCommand("delete 1")
+activate CoordiMateParser
+CoordiMateParser --> LogicManager : d
+deactivate CoordiMateParser
 
-create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
-activate DeleteCommandParser
+LogicManager -> Storage : readCoordiMate()
+activate Storage
+Storage --> LogicManager : loaded
+deactivate Storage
 
-DeleteCommandParser --> AddressBookParser
-deactivate DeleteCommandParser
-
-AddressBookParser -> DeleteCommandParser : parse("1")
-activate DeleteCommandParser
-
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
+LogicManager -> DeleteCommand : resolvePerson(model)
 activate DeleteCommand
-
-DeleteCommand --> DeleteCommandParser :
+DeleteCommand --> LogicManager : p
 deactivate DeleteCommand
+note right of LogicManager : Resolve ID 1 to p; pendingDelete = p
+[<-- LogicManager : confirmation prompt for p
+deactivate LogicManager
 
-DeleteCommandParser --> AddressBookParser : d
-deactivate DeleteCommandParser
-'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
-destroy DeleteCommandParser
+[-> LogicManager : execute(response)
+activate LogicManager
+note right of LogicManager : Clear pendingDelete; do not parse response
+alt response is y or Y
+note over LogicManager, Storage
+  c = DeleteCommand.forResolvedPerson(p).
+  c deletes p on the candidate model.
+end note
+ref over LogicManager, Storage
+  executeAtomicCommand
+end ref
 
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
-
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
-
-DeleteCommand -> Model : deletePerson(1)
-activate Model
-
-Model --> DeleteCommand
-deactivate Model
-
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
-
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
-
-[<--LogicManager
+[<-- LogicManager : deletion result
+else any other response
+note right of LogicManager
+  Leave data unchanged; return MESSAGE_DELETE_CANCELLED.
+end note
+[<-- LogicManager : cancellation result
+end
 deactivate LogicManager
 @enduml

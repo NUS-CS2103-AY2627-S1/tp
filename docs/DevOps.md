@@ -1,12 +1,15 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
@@ -19,7 +22,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/coordimate.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -32,6 +35,12 @@ The following commands perform common Gradle tasks.
   * `./gradlew test`: Runs all tests.
   * `./gradlew clean test`: Cleans the project before running all tests
 
+* **`coverage`**: Runs all tests, then writes the JaCoCo coverage report to `build/reports/jacoco/coverage/html/index.html`.<br>
+  **`coverageVerification`**: Runs all tests, then fails if line or branch coverage is below the minimum (see [Code coverage](#code-coverage)).
+
+* **`check`**: Runs all tests, both code style checks, and the coverage check. CI runs this command.<br>
+  For example: `./gradlew check`
+
 --------------------------------------------------------------------------------------------------------------------
 
 ## Continuous integration (CI)
@@ -40,9 +49,15 @@ This project uses GitHub Actions for CI. The necessary workflow configuration fi
 
 ### Code coverage
 
-As part of CI, Gradle generates JaCoCo coverage reports from the tests, and CI uploads the coverage data to Codecov. Codecov then provides information about test coverage.
+As part of CI, Gradle generates JaCoCo coverage reports from the tests, and CI uploads the coverage data to Codecov. Codecov then provides information about test coverage, such as the coverage of the lines a PR changes.
 
-However, because Codecov is known to run into intermittent problems (e.g., report upload fails) due to issues on the Codecov service side, the CI is configured to pass even if the Codecov task failed. Therefore, developers are advised to check the code coverage levels periodically and take corrective actions if the coverage level falls below desired levels.
+**Minimum coverage:** `./gradlew check` fails if overall **line or branch coverage is below 90%**. CI runs `check` on every push and PR, so a change that drops coverage below this minimum fails CI and must add tests before it can be merged. The minimum is set by `minimumCoverage` in `build.gradle`.
+
+* To check coverage before pushing, run `./gradlew check`. A failure names the counter that is too low, e.g. `Rule violated for bundle tp: branches covered ratio is 0.88, but expected minimum is 0.90`.
+* To find the untested code, run `./gradlew coverage` and open `build/reports/jacoco/coverage/html/index.html`.
+* Raise the minimum as coverage improves. Do not lower it to make a PR pass; add tests instead.
+
+Because Codecov is known to run into intermittent problems (e.g., report upload fails) due to issues on the Codecov service side, the CI is configured to pass even if the Codecov upload fails. The minimum coverage check runs in Gradle and does not depend on Codecov.
 
 To enable Codecov for forks of this project, follow the steps given in [this se-edu guide](https://se-education.org/guides/tutorials/codecov.html).
 
@@ -73,7 +88,7 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-W12-3/tp/tree/master/src/main/java/coordimate/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

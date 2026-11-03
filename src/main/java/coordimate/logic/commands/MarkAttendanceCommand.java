@@ -1,0 +1,100 @@
+package coordimate.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+
+import coordimate.logic.Messages;
+import coordimate.logic.commands.exceptions.CommandException;
+import coordimate.model.Model;
+import coordimate.model.event.AttendanceStatus;
+import coordimate.model.event.Event;
+import coordimate.model.person.Name;
+
+/**
+ * Records whether a member assigned to an event was present or absent.
+ */
+public class MarkAttendanceCommand extends Command {
+
+    public static final String COMMAND_WORD = "markattendance";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Marks a member as present or absent.\n"
+            + "Parameters: evn/EVENT_NAME mem/MEMBER_NAME att/STATUS\n"
+            + "STATUS must be present or absent (case-insensitive).\n"
+            + "Example: " + COMMAND_WORD + " evn/Final Concert mem/Alice Tan att/present\n"
+            + "Example: " + COMMAND_WORD + " evn/Final Concert mem/Alice Tan att/absent";
+    public static final String MESSAGE_SUCCESS = "Marked %s as %s for Event %s.";
+    public static final String MESSAGE_ALREADY_MARKED =
+            "%s is already marked as %s for event %s. No changes were made.";
+    public static final String MESSAGE_EVENT_NOT_FOUND = Messages.MESSAGE_EVENT_NOT_FOUND;
+    public static final String MESSAGE_MEMBER_NOT_ASSIGNED = "%s is not assigned to event %s. "
+            + "Assign the contact to the event before marking attendance.";
+    public static final String MESSAGE_SAVE_ERROR = "Attendance could not be saved. No changes were made.";
+
+    private final String eventName;
+    private final Name memberName;
+    private final AttendanceStatus status;
+
+    /**
+     * Creates a command that marks {@code memberName}'s attendance for the named event.
+     */
+    public MarkAttendanceCommand(String eventName, Name memberName, AttendanceStatus status) {
+        this.eventName = requireNonNull(eventName).strip();
+        this.memberName = requireNonNull(memberName);
+        this.status = requireNonNull(status);
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        Event matchingEvent = findMatchingEvent(model);
+        Name matchingMember = findMatchingMember(matchingEvent);
+
+        if (hasMatchingAttendanceStatus(matchingEvent, matchingMember)) {
+            return new CommandResult(
+                    String.format(MESSAGE_ALREADY_MARKED, matchingMember, status, matchingEvent.getName()),
+                    CommandResult.View.EVENTS);
+        }
+
+        Event updatedEvent = matchingEvent.withAttendance(matchingMember, status);
+        model.setEvent(matchingEvent, updatedEvent);
+
+        return new CommandResult(String.format(MESSAGE_SUCCESS, matchingMember, status, matchingEvent.getName()),
+                CommandResult.View.EVENTS);
+    }
+
+    /**
+     * Returns the named event, or throws if it is not saved in the model.
+     */
+    private Event findMatchingEvent(Model model) throws CommandException {
+        return model.getCoordiMate().getEventList().stream()
+                .filter(event -> event.getName().equalsIgnoreCase(eventName))
+                .findFirst()
+                .orElseThrow(() -> new CommandException(String.format(MESSAGE_EVENT_NOT_FOUND, eventName)));
+    }
+
+    /**
+     * Returns the assigned member matching the requested name, or throws if none exists.
+     */
+    private Name findMatchingMember(Event event) throws CommandException {
+        return event.getMembers().stream()
+                .filter(member -> member.getFullName().equalsIgnoreCase(memberName.getFullName()))
+                .findFirst()
+                .orElseThrow(() -> new CommandException(
+                        String.format(MESSAGE_MEMBER_NOT_ASSIGNED, memberName, event.getName())));
+    }
+
+    private boolean hasMatchingAttendanceStatus(Event event, Name member) {
+        return event.getAttendance(member).map(status::equals).orElse(false);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+        if (!(other instanceof MarkAttendanceCommand otherCommand)) {
+            return false;
+        }
+        return eventName.equalsIgnoreCase(otherCommand.eventName)
+                && memberName.getFullName().equalsIgnoreCase(otherCommand.memberName.getFullName())
+                && status == otherCommand.status;
+    }
+}

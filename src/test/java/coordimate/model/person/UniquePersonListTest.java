@@ -1,0 +1,305 @@
+package coordimate.model.person;
+
+import static coordimate.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static coordimate.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static coordimate.testutil.Assert.assertThrows;
+import static coordimate.testutil.TypicalPersons.ALICE;
+import static coordimate.testutil.TypicalPersons.BOB;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import org.junit.jupiter.api.Test;
+
+import coordimate.model.person.exceptions.DuplicateMemberIdException;
+import coordimate.model.person.exceptions.DuplicatePersonException;
+import coordimate.model.person.exceptions.PersonNotFoundException;
+import coordimate.testutil.PersonBuilder;
+
+public class UniquePersonListTest {
+
+    private final UniquePersonList uniquePersonList = new UniquePersonList();
+
+    @Test
+    public void contains_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.contains(null));
+    }
+
+    @Test
+    public void contains_personNotInList_returnsFalse() {
+        assertFalse(uniquePersonList.contains(ALICE));
+    }
+
+    @Test
+    public void contains_personInList_returnsTrue() {
+        uniquePersonList.add(ALICE);
+        assertTrue(uniquePersonList.contains(ALICE));
+    }
+
+    @Test
+    public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
+        uniquePersonList.add(ALICE);
+        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+                .build();
+        assertTrue(uniquePersonList.contains(editedAlice));
+    }
+
+    @Test
+    public void add_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.add(null));
+    }
+
+    @Test
+    public void add_duplicatePerson_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(ALICE));
+    }
+
+    @Test
+    public void add_distinctContactsWithSameId_throwsDuplicateMemberIdException() {
+        uniquePersonList.add(ALICE);
+        Person other = new PersonBuilder(BOB).withMemberId(1).build();
+        assertThrows(DuplicateMemberIdException.class, () -> uniquePersonList.add(other));
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_distinctContactsWithoutIds_doesNotTreatMissingIdsAsDuplicates() {
+        Person alice = new PersonBuilder(ALICE).withoutMemberId().build();
+        uniquePersonList.add(alice);
+        uniquePersonList.add(BOB);
+        assertEquals(List.of(alice, BOB), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPerson_changingIdOrTakingAnotherId_rejectedWithoutChanges() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(new PersonBuilder(BOB).withMemberId(2).build());
+        assertThrows(IllegalArgumentException.class, () ->
+                uniquePersonList.setPerson(ALICE, new PersonBuilder(ALICE).withMemberId(12).build()));
+        Person conflictingId = new PersonBuilder(ALICE).withMemberId(2).build();
+        assertThrows(DuplicateMemberIdException.class, () -> uniquePersonList.setPerson(ALICE, conflictingId));
+        assertEquals(ALICE, uniquePersonList.asUnmodifiableObservableList().getFirst());
+    }
+
+    @Test
+    public void setPersons_duplicateIds_rejectedWithoutChanges() {
+        uniquePersonList.add(BOB);
+        Person other = new PersonBuilder(BOB).withMemberId(1).build();
+        assertThrows(DuplicateMemberIdException.class, () -> uniquePersonList.setPersons(List.of(ALICE, other)));
+        assertEquals(List.of(BOB), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_sameNameWithDistinctPhoneAndEmail_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        Person differentAlice = new PersonBuilder(BOB).withName("  aLiCe pAuLiNe  ").build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(differentAlice));
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_normalizedPhoneOrEmailDuplicate_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        Person samePhone = new PersonBuilder(BOB).withPhone("(9435) 1253").build();
+        Person sameEmail = new PersonBuilder(BOB).withEmail("ALICE@EXAMPLE.COM").build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(samePhone));
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(sameEmail));
+        assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPerson_nullTargetPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPerson(null, ALICE));
+    }
+
+    @Test
+    public void setPerson_nullEditedPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPerson(ALICE, null));
+    }
+
+    @Test
+    public void setPerson_targetPersonNotInList_throwsPersonNotFoundException() {
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.setPerson(ALICE, ALICE));
+    }
+
+    @Test
+    public void setPerson_editedPersonIsSamePerson_success() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.setPerson(ALICE, ALICE);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        expectedUniquePersonList.add(ALICE);
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPerson_editedPersonHasSameIdentity_success() {
+        uniquePersonList.add(ALICE);
+        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+                .build();
+        uniquePersonList.setPerson(ALICE, editedAlice);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        expectedUniquePersonList.add(editedAlice);
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPerson_editedPersonHasDifferentIdentity_success() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.setPerson(ALICE, BOB);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        expectedUniquePersonList.add(BOB.withMemberId(ALICE.getMemberId().orElseThrow()));
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPerson_editedPersonHasNonUniqueIdentity_throwsDuplicatePersonException() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(ALICE, BOB));
+    }
+
+    @Test
+    public void setPerson_targetWithoutId_updatesDetailsWithoutAllocatingId() {
+        Person draft = new PersonBuilder(ALICE).withoutMemberId().build();
+        Person editedDraft = new PersonBuilder(draft).withRole("President").build();
+        uniquePersonList.add(draft);
+        uniquePersonList.add(BOB);
+
+        uniquePersonList.setPerson(draft, editedDraft);
+
+        assertEquals(List.of(editedDraft, BOB), uniquePersonList.asUnmodifiableObservableList());
+        assertTrue(uniquePersonList.asUnmodifiableObservableList().getFirst().getMemberId().isEmpty());
+    }
+
+    @Test
+    public void setPerson_editedPersonWithoutId_preservesTargetId() {
+        uniquePersonList.add(ALICE);
+        Person editedDraft = new PersonBuilder(ALICE).withoutMemberId().withRole("President").build();
+
+        uniquePersonList.setPerson(ALICE, editedDraft);
+
+        Person expected = new PersonBuilder(ALICE).withRole("President").build();
+        assertEquals(List.of(expected), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void remove_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.remove(null));
+    }
+
+    @Test
+    public void remove_personDoesNotExist_throwsPersonNotFoundException() {
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.remove(ALICE));
+    }
+
+    @Test
+    public void remove_existingPerson_removesPerson() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.remove(ALICE);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPersons_nullUniquePersonList_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((UniquePersonList) null));
+    }
+
+    @Test
+    public void setPersons_uniquePersonList_replacesOwnListWithProvidedUniquePersonList() {
+        uniquePersonList.add(ALICE);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        expectedUniquePersonList.add(BOB);
+        uniquePersonList.setPersons(expectedUniquePersonList);
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPersons_nullList_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((List<Person>) null));
+    }
+
+    @Test
+    public void setPersons_list_replacesOwnListWithProvidedList() {
+        uniquePersonList.add(ALICE);
+        List<Person> personList = List.of(BOB);
+        uniquePersonList.setPersons(personList);
+        UniquePersonList expectedUniquePersonList = new UniquePersonList();
+        expectedUniquePersonList.add(BOB);
+        assertEquals(expectedUniquePersonList, uniquePersonList);
+    }
+
+    @Test
+    public void setPersons_listWithDuplicatePersons_throwsDuplicatePersonException() {
+        List<Person> listWithDuplicatePersons = List.of(ALICE, ALICE);
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(listWithDuplicatePersons));
+    }
+
+    @Test
+    public void setPersons_listWithDuplicateNames_throwsDuplicatePersonException() {
+        Person differentAlice = new PersonBuilder(BOB).withName("alice pauline").build();
+        assertThrows(DuplicatePersonException.class, () ->
+                uniquePersonList.setPersons(List.of(ALICE, differentAlice)));
+    }
+
+    @Test
+    public void asUnmodifiableObservableList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, ()
+                -> uniquePersonList.asUnmodifiableObservableList().remove(0));
+    }
+
+    @Test
+    public void iterator_contactsInInsertionOrder_returnsEachContactOnce() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+        Iterator<Person> iterator = uniquePersonList.iterator();
+
+        assertTrue(iterator.hasNext());
+        assertEquals(ALICE, iterator.next());
+        assertTrue(iterator.hasNext());
+        assertEquals(BOB, iterator.next());
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+    }
+
+    @Test
+    public void iterator_emptyList_hasNoContacts() {
+        Iterator<Person> iterator = uniquePersonList.iterator();
+
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+    }
+
+    @Test
+    public void equals_comparesOrderedContactDetails() {
+        uniquePersonList.setPersons(List.of(ALICE, BOB));
+        UniquePersonList copy = new UniquePersonList();
+        copy.setPersons(List.of(new PersonBuilder(ALICE).build(), new PersonBuilder(BOB).build()));
+        UniquePersonList reordered = new UniquePersonList();
+        reordered.setPersons(List.of(BOB, ALICE));
+        UniquePersonList edited = new UniquePersonList();
+        edited.setPersons(List.of(new PersonBuilder(ALICE).withRole("President").build(), BOB));
+
+        assertEquals(uniquePersonList, uniquePersonList);
+        assertEquals(uniquePersonList, copy);
+        assertEquals(copy, uniquePersonList);
+        assertEquals(uniquePersonList.hashCode(), copy.hashCode());
+        assertFalse(uniquePersonList.equals(null));
+        assertFalse(uniquePersonList.equals(List.of(ALICE, BOB)));
+        assertFalse(uniquePersonList.equals(new UniquePersonList()));
+        assertFalse(uniquePersonList.equals(reordered));
+        assertFalse(uniquePersonList.equals(edited));
+    }
+
+    @Test
+    public void toStringMethod() {
+        assertEquals(uniquePersonList.asUnmodifiableObservableList().toString(), uniquePersonList.toString());
+    }
+}

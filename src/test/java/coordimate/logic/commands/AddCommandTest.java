@@ -1,0 +1,326 @@
+package coordimate.logic.commands;
+
+import static coordimate.testutil.Assert.assertThrows;
+import static coordimate.testutil.TypicalPersons.ALICE;
+import static java.util.Objects.requireNonNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+
+import org.junit.jupiter.api.Test;
+
+import coordimate.commons.core.GuiSettings;
+import coordimate.logic.commands.exceptions.CommandException;
+import coordimate.model.CoordiMate;
+import coordimate.model.Model;
+import coordimate.model.ReadOnlyCoordiMate;
+import coordimate.model.ReadOnlyUserPrefs;
+import coordimate.model.person.MemberId;
+import coordimate.model.person.Person;
+import coordimate.model.tag.Tag;
+import coordimate.testutil.PersonBuilder;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+public class AddCommandTest {
+
+    @Test
+    public void constructor_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AddCommand(null));
+    }
+
+    @Test
+    public void execute_personAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person validPerson = new PersonBuilder().build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validPerson.getName()),
+                commandResult.getFeedbackToUser());
+        assertEquals(modelStub.personsAdded.getFirst(), commandResult.getContactToFocus().orElseThrow());
+        assertEquals(new MemberId(1), commandResult.getContactToFocus().orElseThrow().getMemberId().orElseThrow());
+        assertTrue(commandResult.getContactIndexToFocus().isEmpty());
+        assertEquals(List.of(validPerson.withMemberId(new MemberId(1))), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_existingTagInDifferentCase_usesSavedTag() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded(new Tag("EXCO"));
+        Person person = new PersonBuilder().withTags("exco").build();
+
+        CommandResult commandResult = new AddCommand(person).execute(modelStub);
+
+        Person addedPerson = modelStub.personsAdded.getFirst();
+        assertEquals(Set.of(new Tag("EXCO")), addedPerson.getTags());
+        assertEquals(addedPerson, commandResult.getContactToFocus().orElseThrow());
+    }
+
+    @Test
+    public void execute_newTag_keepsTypedCapitalisation() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded(new Tag("EXCO"));
+        Person person = new PersonBuilder().withTags("pUblicity").build();
+
+        new AddCommand(person).execute(modelStub);
+
+        assertEquals(List.of(person.withMemberId(new MemberId(1))), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_existingAndNewTags_usesSavedTagsOnly() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub =
+                new ModelStubAcceptingPersonAdded(new Tag("EXCO"), new Tag("Sponsor"));
+        Person person = new PersonBuilder().withTags("exco", "SPONSOR", "Publicity").build();
+
+        new AddCommand(person).execute(modelStub);
+
+        assertEquals(Set.of(new Tag("EXCO"), new Tag("Sponsor"), new Tag("Publicity")),
+                modelStub.personsAdded.getFirst().getTags());
+    }
+
+    @Test
+    public void execute_duplicatePerson_throwsCommandException() {
+        Person validPerson = new PersonBuilder().build();
+        AddCommand addCommand = new AddCommand(validPerson);
+        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void equals() {
+        Person alice = new PersonBuilder().withName("Alice").build();
+        Person bob = new PersonBuilder().withName("Bob").build();
+        AddCommand addAliceCommand = new AddCommand(alice);
+        AddCommand addBobCommand = new AddCommand(bob);
+
+        // same object -> returns true
+        assertTrue(addAliceCommand.equals(addAliceCommand));
+
+        // same values -> returns true
+        AddCommand addAliceCommandCopy = new AddCommand(alice);
+        assertTrue(addAliceCommand.equals(addAliceCommandCopy));
+
+        // different types -> returns false
+        assertFalse(addAliceCommand.equals(1));
+
+        // null -> returns false
+        assertFalse(addAliceCommand.equals(null));
+
+        // different person -> returns false
+        assertFalse(addAliceCommand.equals(addBobCommand));
+    }
+
+    @Test
+    public void toStringMethod() {
+        AddCommand addCommand = new AddCommand(ALICE);
+        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
+        assertEquals(expected, addCommand.toString());
+    }
+
+    /**
+     * A default model stub that has all of the methods failing.
+     */
+    private class ModelStub implements Model {
+        @Override
+        public boolean hasEvent(coordimate.model.event.Event event) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addEvent(coordimate.model.event.Event event) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Tag> getTagList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteTag(Tag target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        public void registerTag(Tag tag) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        public boolean hasTag(Tag tag) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addTag(Tag tag) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setTag(Tag target, Tag editedTag) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setEvent(coordimate.model.event.Event target, coordimate.model.event.Event editedEvent) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteEvent(coordimate.model.event.Event target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyUserPrefs getUserPrefs() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public GuiSettings getGuiSettings() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setGuiSettings(GuiSettings guiSettings) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasSeenTutorial() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setHasSeenTutorial(boolean hasSeenTutorial) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setCoordiMate(ReadOnlyCoordiMate newData) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyCoordiMate getCoordiMate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deletePerson(Person target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setPerson(Person target, Person editedPerson) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Predicate<? super Person> getFilteredPersonPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setShowingArchived(boolean isShowingArchived) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean isShowingArchived() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public javafx.beans.property.ReadOnlyBooleanProperty showingArchivedProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<coordimate.model.event.Event> getFilteredEventList() {
+            throw new AssertionError("This method should not be called.");
+        }
+    }
+
+    /**
+     * A Model stub that contains a single person.
+     */
+    private class ModelStubWithPerson extends ModelStub {
+        private final Person person;
+
+        ModelStubWithPerson(Person person) {
+            requireNonNull(person);
+            this.person = person;
+        }
+
+        @Override
+        public boolean hasPerson(Person person) {
+            requireNonNull(person);
+            return this.person.isSamePerson(person);
+        }
+    }
+
+    /**
+     * A Model stub that always accepts the person being added.
+     */
+    private class ModelStubAcceptingPersonAdded extends ModelStub {
+        private final ArrayList<Person> personsAdded = new ArrayList<>();
+        private final ObservableList<Tag> savedTags;
+
+        ModelStubAcceptingPersonAdded(Tag... savedTags) {
+            this.savedTags = FXCollections.observableArrayList(savedTags);
+        }
+
+        @Override
+        public ObservableList<Tag> getTagList() {
+            return FXCollections.unmodifiableObservableList(savedTags);
+        }
+
+        @Override
+        public boolean hasPerson(Person person) {
+            requireNonNull(person);
+            return personsAdded.stream().anyMatch(person::isSamePerson);
+        }
+
+        @Override
+        public void addPerson(Person person) {
+            requireNonNull(person);
+            personsAdded.add(person.withMemberId(new MemberId(personsAdded.size() + 1)));
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded);
+        }
+
+        @Override
+        public ReadOnlyCoordiMate getCoordiMate() {
+            return new CoordiMate();
+        }
+    }
+
+}

@@ -1,0 +1,197 @@
+package coordimate.logic;
+
+import static coordimate.testutil.PersistenceTestUtil.captureState;
+import static coordimate.testutil.PersistenceTestUtil.failingStorage;
+import static coordimate.testutil.TypicalPersons.AMY;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import coordimate.logic.commands.AddEventCommand;
+import coordimate.logic.commands.exceptions.CommandException;
+import coordimate.logic.parser.exceptions.ParseException;
+import coordimate.model.CoordiMate;
+import coordimate.model.ModelManager;
+import coordimate.model.event.Event;
+import coordimate.storage.JsonCoordiMateStorage;
+import coordimate.storage.JsonUserPrefsStorage;
+import coordimate.storage.StorageManager;
+import coordimate.testutil.PersistenceTestUtil.SavedState;
+
+public class AddEventIntegrationTest {
+    private static final String COMMAND = "addevent evn/Fair st/09-10-2026 et/10-10-2026";
+
+    @TempDir
+    public Path temporaryFolder;
+
+    @Test
+    public void execute_slashLeadingWordsInNames_surviveEditingAndStartupCleanup() throws Exception {
+        ModelManager model = new ModelManager();
+        model.addPerson(AMY);
+        JsonCoordiMateStorage data = new JsonCoordiMateStorage(temporaryFolder.resolve("slashes.json"));
+        StorageManager storage = new StorageManager(data,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json")));
+        Logic logic = new LogicManager(model, storage);
+
+        logic.execute("addevent evn/Concert /Workshop st/09-10-2026 et/10-10-2026");
+        String memberId = model.getCoordiMate().getPersonList().getFirst().getMemberId().orElseThrow().toString();
+        logic.execute("assign evn/Concert /Workshop c/" + memberId);
+        logic.execute("members evn/Concert /Workshop");
+        logic.execute("editevent evn/Concert /Workshop nevn/Concert /Music");
+        logic.execute("archiveevent evn/Concert /Music");
+        assertEquals(model.getCoordiMate(), storage.readCoordiMate().orElseThrow());
+        assertTrue(storage.cleanUpEventNames().isEmpty());
+
+        StorageManager reopened = new StorageManager(new JsonCoordiMateStorage(data.getCoordiMateFilePath()),
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json")));
+        assertTrue(reopened.cleanUpEventNames().isEmpty());
+        ModelManager reloaded = new ModelManager(reopened.readCoordiMate().orElseThrow(), model.getUserPrefs());
+        assertEquals("Concert /Music", reloaded.getCoordiMate().getEventList().getFirst().getName());
+        Logic restarted = new LogicManager(reloaded, reopened);
+        restarted.execute("unarchiveevent evn/Concert /Music");
+        restarted.execute("members evn/Concert /Music");
+        restarted.execute("unassign evn/Concert /Music c/" + memberId);
+        restarted.execute("deleteevent evn/Concert /Music");
+        assertTrue(reloaded.getCoordiMate().getEventList().isEmpty());
+        assertEquals(reloaded.getCoordiMate(), reopened.readCoordiMate().orElseThrow());
+    }
+
+    @Test
+    public void execute_validEvent_savedAndReloaded() throws Exception {
+        ModelManager model = new ModelManager();
+        model.addPerson(AMY);
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(temporaryFolder.resolve("data.json"));
+        Logic logic = newLogic(model, storage);
+        assertEquals("Created Event Fair. Start Time: 09-10-2026. End Time: 10-10-2026.",
+                logic.execute(COMMAND).getFeedbackToUser());
+        assertEquals(model.getCoordiMate(), storage.readCoordiMate().orElseThrow());
+        ModelManager reloaded = new ModelManager(storage.readCoordiMate().orElseThrow(), model.getUserPrefs());
+        assertEquals("Fair", reloaded.getCoordiMate().getEventList().getFirst().getName());
+        assertEquals(Messages.withUsage(AddEventCommand.MESSAGE_DUPLICATE_EVENT, AddEventCommand.MESSAGE_USAGE),
+                assertThrows(CommandException.class, () -> newLogic(reloaded, storage).execute(COMMAND)).getMessage());
+        String differentCase = "addevent evn/fair st/11-10-2026 et/12-10-2026";
+        assertEquals(Messages.withUsage(AddEventCommand.MESSAGE_DUPLICATE_EVENT, AddEventCommand.MESSAGE_USAGE),
+                assertThrows(CommandException.class, () ->
+                newLogic(reloaded, storage).execute(differentCase)).getMessage());
+    }
+
+    @Test
+    public void execute_saveFailure_modelAndFileUnchanged() throws Exception {
+        IOException[] failures = {new IOException("Disk full"), new AccessDeniedException("data")};
+        for (IOException failure : failures) {
+            Path path = temporaryFolder.resolve("failed.json");
+            ModelManager model = new ModelManager();
+            model.addPerson(AMY);
+            new JsonCoordiMateStorage(path).saveCoordiMate(model.getCoordiMate());
+            SavedState before = captureState(model, path);
+            JsonCoordiMateStorage storage = failingStorage(path, failure);
+
+            CommandException error = assertThrows(CommandException.class, () ->
+                    newLogic(model, storage).execute(COMMAND));
+            assertEquals(Messages.withUsage(AddEventCommand.MESSAGE_SAVE_ERROR, AddEventCommand.MESSAGE_USAGE),
+                    error.getMessage());
+            assertSame(failure, error.getCause());
+            before.assertUnchanged(model);
+        }
+    }
+
+    @Test
+    public void execute_startAfterEnd_modelAndFileUnchanged() throws Exception {
+        ModelManager model = new ModelManager();
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(temporaryFolder.resolve("data.json"));
+        Logic logic = newLogic(model, storage);
+        logic.execute(COMMAND);
+        CoordiMate beforeModel = new CoordiMate(model.getCoordiMate());
+        String beforeFile = Files.readString(storage.getCoordiMateFilePath());
+        String reversed = "addevent evn/Concert st/08-08-2026 18:00 et/08-08-2026 15:00";
+        assertEquals(Messages.withUsage(Event.MESSAGE_INVALID_TIME_ORDER, AddEventCommand.MESSAGE_USAGE),
+                assertThrows(ParseException.class, () -> logic.execute(reversed)).getMessage());
+        assertEquals(beforeModel, model.getCoordiMate());
+        assertEquals(beforeFile, Files.readString(storage.getCoordiMateFilePath()));
+    }
+
+    @Test
+    public void execute_yearZero_modelAndFileUnchanged() throws Exception {
+        ModelManager model = new ModelManager();
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(temporaryFolder.resolve("data.json"));
+        Logic logic = newLogic(model, storage);
+        logic.execute(COMMAND);
+        CoordiMate beforeModel = new CoordiMate(model.getCoordiMate());
+        String beforeFile = Files.readString(storage.getCoordiMateFilePath());
+        for (String value : new String[] {"01-01-0000", "01-01-0000 00:00"}) {
+            for (String command : new String[] {
+                "addevent evn/Year Zero st/" + value + " et/02-01-0001",
+                "addevent evn/Year Zero st/01-01-0001 et/" + value}) {
+                assertThrows(ParseException.class, () -> logic.execute(command));
+                assertEquals(beforeModel, model.getCoordiMate());
+                assertEquals(beforeFile, Files.readString(storage.getCoordiMateFilePath()));
+            }
+        }
+    }
+
+    @Test
+    public void execute_corruptedFile_notOverwritten() throws Exception {
+        String event = "{\"name\":\"Fair\",\"startTime\":\"09-10-2026\",\"endTime\":\"10-10-2026\"}";
+        String[] corruptedContents = {
+            "{\"persons\":[],\"events\":[" + event.replace("2026", "0000") + "]}",
+            "invalid json", "null", "{}", "{\"persons\":[],\"events\":[null]}",
+            "{\"persons\":[],\"events\":[" + event + "," + event + "]}",
+            "{\"persons\":[],\"events\":[" + event + "," + event.replace("Fair", "fair") + "]}",
+            "{\"persons\":[],\"events\":[{\"name\":\"Fair\",\"startTime\":\"31-02-2026\"}]}",
+            "{\"persons\":[],\"events\":[{\"name\":\"Fair\",\"startTime\":\"10-10-2026\","
+                    + "\"endTime\":\"09-10-2026\"}]}",
+            "{\"persons\":[],\"events\":[{\"name\":\"Fair\",\"startTime\":\"09-10-2026 18:00\","
+                    + "\"endTime\":\"09-10-2026 15:00\"}]}",
+            "{\"persons\":[],\"events\":[{\"name\":\" \",\"startTime\":\"09-10-2026\","
+                    + "\"endTime\":\"10-10-2026\"}]}"
+        };
+        for (String contents : corruptedContents) {
+            Path path = temporaryFolder.resolve("corrupt.json");
+            Files.writeString(path, contents);
+            ModelManager model = new ModelManager();
+            Logic logic = newLogic(model, new JsonCoordiMateStorage(path));
+            assertEquals(Messages.withUsage(AddEventCommand.MESSAGE_LOAD_ERROR, AddEventCommand.MESSAGE_USAGE),
+                    assertThrows(CommandException.class, () -> logic.execute(COMMAND)).getMessage());
+            assertTrue(model.getCoordiMate().getEventList().isEmpty());
+            assertEquals(contents, Files.readString(path));
+        }
+    }
+
+    @Test
+    public void execute_legacyFileWithoutEvents_success() throws Exception {
+        Path path = temporaryFolder.resolve("legacy.json");
+        Files.writeString(path, "{\"persons\":[]}");
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(path);
+        assertTrue(storage.readCoordiMate().orElseThrow().getEventList().isEmpty());
+        ModelManager model = new ModelManager();
+        newLogic(model, storage).execute(COMMAND);
+        assertEquals(model.getCoordiMate(), storage.readCoordiMate().orElseThrow());
+    }
+
+    @Test
+    public void save_failedReplacement_existingTargetPreserved() throws Exception {
+        Path path = temporaryFolder.resolve("directory.json");
+        Files.createDirectory(path);
+        Files.writeString(path.resolve("keep.txt"), "keep");
+        JsonCoordiMateStorage storage = new JsonCoordiMateStorage(path);
+        assertThrows(IOException.class, () -> storage.saveCoordiMate(new CoordiMate()));
+        assertEquals("keep", Files.readString(path.resolve("keep.txt")));
+        try (var files = Files.list(temporaryFolder)) {
+            assertEquals(1, files.count());
+        }
+    }
+
+    private Logic newLogic(ModelManager model, JsonCoordiMateStorage storage) {
+        return new LogicManager(model, new StorageManager(storage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+    }
+}

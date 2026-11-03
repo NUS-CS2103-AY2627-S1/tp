@@ -1,0 +1,299 @@
+package coordimate.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import coordimate.logic.commands.CommandResult;
+import coordimate.logic.commands.exceptions.CommandException;
+import coordimate.logic.parser.exceptions.ParseException;
+import coordimate.testutil.JavaFxTestSupport;
+import javafx.event.ActionEvent;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
+
+public class CommandBoxTest {
+    @BeforeAll
+    public static void startJavaFx() throws InterruptedException {
+        JavaFxTestSupport.startToolkit();
+    }
+
+    @Test
+    public void blankEnter_onlySentWhenDeletionConfirmationIsPending() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            AtomicBoolean pending = new AtomicBoolean(false);
+            Region root = new CommandBox(text -> {
+                submitted.add(text);
+                return new CommandResult("Result");
+            }, pending::get).getRoot();
+            new Scene(root);
+            root.applyCss();
+            Button button = (Button) root.lookup("#submitButton");
+            TextField input = (TextField) root.lookup("#commandTextField");
+
+            button.fire();
+            assertTrue(submitted.isEmpty());
+
+            pending.set(true);
+            button.fire();
+            assertEquals(List.of(""), submitted);
+
+            pending.set(false);
+            input.setText("list");
+            button.fire();
+            assertEquals(List.of("", "list"), submitted);
+            assertEquals("", input.getText());
+        });
+    }
+
+    @Test
+    public void arrowKeys_recallCommandsAndRestoreDraft() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            Region root = new CommandBox(text -> {
+                submitted.add(text);
+                return new CommandResult("Result");
+            }, () -> false).getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            pressArrow(input, KeyCode.UP);
+            assertEquals("", input.getText());
+
+            for (String command : List.of("list", "search Aisha", "list", "  filter tag/EXCO  ")) {
+                input.setText(command);
+                button.fire();
+            }
+            input.setText("unfinished draft");
+
+            pressArrow(input, KeyCode.UP);
+            assertEquals("  filter tag/EXCO  ", input.getText());
+            input.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.LEFT,
+                    false, false, false, false));
+            assertEquals("  filter tag/EXCO  ", input.getText());
+            input.setText("edited filter");
+            pressArrow(input, KeyCode.UP);
+            assertEquals("list", input.getText());
+            pressArrow(input, KeyCode.UP);
+            assertEquals("search Aisha", input.getText());
+            pressArrow(input, KeyCode.UP);
+            assertEquals("list", input.getText());
+            pressArrow(input, KeyCode.UP);
+            assertEquals("list", input.getText());
+
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("search Aisha", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("list", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("  filter tag/EXCO  ", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("unfinished draft", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("unfinished draft", input.getText());
+            assertEquals(List.of("list", "search Aisha", "list", "  filter tag/EXCO  "), submitted);
+        });
+    }
+
+    @Test
+    public void failedCommand_isRecalledAndCanBeEditedBeforeResubmission() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            Region root = new CommandBox(text -> {
+                submitted.add(text);
+                if (text.equals("bad")) {
+                    throw new ParseException("Invalid command");
+                }
+                return new CommandResult("Result");
+            }, () -> false).getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            input.setText("bad");
+            button.fire();
+            assertEquals("bad", input.getText());
+            input.setText("unfinished correction");
+            pressArrow(input, KeyCode.UP);
+            assertEquals("bad", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("unfinished correction", input.getText());
+
+            pressArrow(input, KeyCode.UP);
+            input.setText("list");
+            button.fire();
+            assertEquals("", input.getText());
+            pressArrow(input, KeyCode.UP);
+            assertEquals("list", input.getText());
+            pressArrow(input, KeyCode.UP);
+            assertEquals("bad", input.getText());
+            assertEquals(List.of("bad", "list"), submitted);
+        });
+    }
+
+    @Test
+    public void repeatedCommandFailure_keepsSingleErrorStyleUntilInputChanges() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            Region root = new CommandBox(text -> {
+                submitted.add(text);
+                throw new CommandException("No matching contact");
+            }, () -> false).getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            input.setText("delete 99");
+            button.fire();
+            button.fire();
+            assertEquals(List.of("delete 99", "delete 99"), submitted);
+            assertEquals("delete 99", input.getText());
+            assertEquals(1, input.getStyleClass().stream()
+                    .filter(CommandBox.ERROR_STYLE_CLASS::equals).count());
+            assertEquals("Retry", button.getText());
+
+            input.setText("delete 1");
+            assertFalse(input.getStyleClass().contains(CommandBox.ERROR_STYLE_CLASS));
+            assertEquals("Enter", button.getText());
+        });
+    }
+
+    @Test
+    public void deleteConfirmation_pausesHistoryAndDoesNotStoreResponses() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            AtomicBoolean pending = new AtomicBoolean(false);
+            Region root = new CommandBox(text -> {
+                submitted.add(text);
+                return new CommandResult("Result");
+            }, pending::get).getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            input.setText("delete 1");
+            button.fire();
+            pending.set(true);
+            input.setText("y");
+            pressArrow(input, KeyCode.UP);
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("y", input.getText());
+            button.fire();
+
+            pending.set(true);
+            button.fire();
+            pending.set(false);
+            input.setText("   ");
+            button.fire();
+            pressArrow(input, KeyCode.UP);
+            assertEquals("delete 1", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("   ", input.getText());
+            assertEquals(List.of("delete 1", "y", ""), submitted);
+        });
+    }
+
+    @Test
+    public void sidebarCommand_resetsHistoryNavigation() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            CommandBox commandBox = new CommandBox(text -> new CommandResult("Result"), () -> false);
+            Region root = commandBox.getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            input.setText("list");
+            button.fire();
+            input.setText("search Aisha");
+            button.fire();
+            pressArrow(input, KeyCode.UP);
+            assertEquals("search Aisha", input.getText());
+
+            commandBox.setCommand("add");
+            pressArrow(input, KeyCode.UP);
+            assertEquals("search Aisha", input.getText());
+            pressArrow(input, KeyCode.DOWN);
+            assertEquals("add", input.getText());
+        });
+    }
+
+    @Test
+    public void disabledInput_blocksEditingHistoryAndSubmission() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(text -> {
+                submitted.add(text);
+                return new CommandResult("Result");
+            }, () -> false);
+            Region root = commandBox.getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            input.setText("list");
+            button.fire();
+            input.setText("unfinished draft");
+            commandBox.setInputDisabled(true);
+
+            for (KeyCode key : List.of(KeyCode.BACK_SPACE, KeyCode.DELETE, KeyCode.UP,
+                    KeyCode.DOWN, KeyCode.ENTER)) {
+                input.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", key,
+                        false, false, false, false));
+            }
+            input.fireEvent(new KeyEvent(KeyEvent.KEY_TYPED, "a", "a", KeyCode.UNDEFINED,
+                    false, false, false, false));
+            button.fire();
+
+            assertTrue(input.isDisabled());
+            assertTrue(button.isDisabled());
+            assertEquals("unfinished draft", input.getText());
+            assertEquals(List.of("list"), submitted);
+        });
+    }
+
+    @Test
+    public void executionDisabled_allowsEditingButBlocksSubmission() throws Exception {
+        JavaFxTestSupport.runOnFxThreadAndWait(() -> {
+            List<String> submitted = new ArrayList<>();
+            CommandBox commandBox = new CommandBox(text -> {
+                submitted.add(text);
+                return new CommandResult("Result");
+            }, () -> false);
+            Region root = commandBox.getRoot();
+            new Scene(root);
+            TextField input = (TextField) root.lookup("#commandTextField");
+            Button button = (Button) root.lookup("#submitButton");
+
+            commandBox.setExecutionDisabled(true);
+            input.setText("list");
+            input.fireEvent(new ActionEvent());
+            button.fire();
+            assertFalse(input.isDisabled());
+            assertTrue(button.isDisabled());
+            assertEquals("list", input.getText());
+            assertTrue(submitted.isEmpty());
+
+            commandBox.setExecutionDisabled(false);
+            button.fire();
+            assertEquals(List.of("list"), submitted);
+        });
+    }
+
+    private static void pressArrow(TextField input, KeyCode keyCode) {
+        input.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", keyCode,
+                false, false, false, false));
+    }
+}

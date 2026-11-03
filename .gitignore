@@ -22,10 +22,19 @@ src/test/data/sandbox/
 docs/_site/
 
 # AI Agents
+.agents/skills/coordimate-code-review/SKILL.md
+/.agents/skills/coordimate-code-review/
+/.agents/skills/coordimate-project/
+/docs/source-material/
+/docs/ui-mockups/
 AGENTS.md
-CLAUDE.md
 /.claude/
 /.codex/
+/anti-slop/
 
 # Temp files
 _temp/
+docs/_markbind/logs/
+
+.agents/
+skills-lock.json

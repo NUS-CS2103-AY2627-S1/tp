@@ -1,0 +1,176 @@
+package coordimate.model.person;
+
+import static coordimate.testutil.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Locale;
+
+import org.junit.jupiter.api.Test;
+
+import coordimate.testutil.PersonBuilder;
+
+public class ContactMatchesKeywordPredicateTest {
+
+    @Test
+    public void constructor_nullKeyword_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new ContactMatchesKeywordPredicate(null));
+    }
+
+    @Test
+    public void test_nameContainsKeyword_returnsTrue() {
+        Person person = new PersonBuilder().withName("Alice Pauline").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("Alice").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("aLIce").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("Ali").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("Pauline").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("ice Pau").test(person));
+    }
+
+    @Test
+    public void test_nameWithDottedCapitalI_matchesIgnoringCase() {
+        Person person = new PersonBuilder().withName("İpek").withEmail("contactx@example.com").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("ipek").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("PEK").test(person));
+    }
+
+    @Test
+    public void test_phoneContainsKeyword_returnsTrue() {
+        Person person = new PersonBuilder().withPhone("94351253").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("94351253").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("4351").test(person));
+    }
+
+    @Test
+    public void test_phoneFormattingDiffers_matchesIgnoringFormatting() {
+        Person spaced = new PersonBuilder().withPhone("9123 4567").build();
+        Person plain = new PersonBuilder().withPhone("87438807").build();
+        Person bracketed = new PersonBuilder().withPhone("+65 (9435) 1253").build();
+        Person hyphenated = new PersonBuilder().withPhone("8743-8807")
+                .withAddress("Blk 5 Jurong West").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("91234567").test(spaced));
+        assertTrue(new ContactMatchesKeywordPredicate("2345").test(spaced)); // across the space
+        assertTrue(new ContactMatchesKeywordPredicate("8743 8807").test(plain));
+        assertTrue(new ContactMatchesKeywordPredicate("8743-8807").test(plain));
+        assertTrue(new ContactMatchesKeywordPredicate("+6594351253").test(bracketed));
+        assertTrue(new ContactMatchesKeywordPredicate("6594351253").test(bracketed));
+        assertTrue(new ContactMatchesKeywordPredicate("+87438807").test(plain));
+
+        assertFalse(new ContactMatchesKeywordPredicate("91234568").test(spaced));
+        assertFalse(new ContactMatchesKeywordPredicate("( )").test(plain)); // formatting only
+        assertFalse(new ContactMatchesKeywordPredicate("+").test(plain)); // formatting only
+        assertFalse(new ContactMatchesKeywordPredicate("-").test(hyphenated)); // formatting only
+    }
+
+    @Test
+    public void test_emailContainsKeyword_returnsTrue() {
+        Person person = new PersonBuilder().withEmail("alice@example.com").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("alice@example.com").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("EXAMPLE").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("example.com").test(person));
+    }
+
+    @Test
+    public void test_addressContainsKeyword_returnsTrue() {
+        Person person = new PersonBuilder().withAddress("123, Jurong West Ave 6, #08-111").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("jUrOnG").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("ong WEST").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("#08-111").test(person));
+    }
+
+    @Test
+    public void test_addressWithRepeatedSpaces_matchesSingleSpacedKeyword() {
+        Person person = new PersonBuilder().withAddress("21 Kent  Ridge Road").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("kent ridge").test(person));
+        assertEquals("21 Kent  Ridge Road", person.getAddress().orElseThrow().getValue()); // stored as entered
+    }
+
+    @Test
+    public void test_noAddress_doesNotMatchAddressKeyword() {
+        Person person = new PersonBuilder().withoutAddress().build();
+
+        assertFalse(new ContactMatchesKeywordPredicate("Jurong").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("Amy").test(person));
+    }
+
+    @Test
+    public void test_organisationContainsKeyword_returnsTrue() {
+        Person person = new PersonBuilder().withOrganisation("NUS Student Affairs").build();
+
+        assertTrue(new ContactMatchesKeywordPredicate("NUS Student Affairs").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("sTuDeNt").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("dent Aff").test(person));
+    }
+
+    @Test
+    public void test_noOrganisation_doesNotMatchOrganisationKeyword() {
+        Person person = new PersonBuilder().withoutOrganisation().build();
+
+        assertFalse(new ContactMatchesKeywordPredicate("Student Affairs").test(person));
+        assertTrue(new ContactMatchesKeywordPredicate("Amy").test(person));
+    }
+
+    @Test
+    public void test_noFieldContainsKeyword_returnsFalse() {
+        Person person = new PersonBuilder().withName("Alice Pauline").withPhone("94351253")
+                .withEmail("alice@example.com").withAddress("123, Jurong West Ave 6, #08-111")
+                .withOrganisation("NUS Student Affairs").build();
+
+        assertFalse(new ContactMatchesKeywordPredicate("Benson").test(person));
+        assertFalse(new ContactMatchesKeywordPredicate("Pauline Alice").test(person));
+        assertFalse(new ContactMatchesKeywordPredicate("Alice Benson").test(person));
+    }
+
+    @Test
+    public void test_turkishDefaultLocale_matchesIgnoringCase() {
+        Locale originalLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            Person person = new PersonBuilder().withName("ALICE PAULINE").withEmail("ALICE@EXAMPLE.COM")
+                    .withAddress("INDIA STREET").withOrganisation("INDIA SOCIETY").build();
+            assertTrue(new ContactMatchesKeywordPredicate("alice pauline").test(person));
+            assertTrue(new ContactMatchesKeywordPredicate("alice@example").test(person));
+            assertTrue(new ContactMatchesKeywordPredicate("india street").test(person));
+            assertTrue(new ContactMatchesKeywordPredicate("india society").test(person));
+        } finally {
+            Locale.setDefault(originalLocale);
+        }
+    }
+
+    @Test
+    public void equals() {
+        ContactMatchesKeywordPredicate firstPredicate = new ContactMatchesKeywordPredicate("Alice");
+        ContactMatchesKeywordPredicate secondPredicate = new ContactMatchesKeywordPredicate("Benson");
+
+        // same object -> returns true
+        assertEquals(firstPredicate, firstPredicate);
+
+        // same value -> returns true
+        assertEquals(firstPredicate, new ContactMatchesKeywordPredicate("Alice"));
+
+        // different types -> returns false
+        assertNotEquals(firstPredicate, 1);
+
+        // null -> returns false
+        assertNotEquals(firstPredicate, null);
+
+        // different keyword -> returns false
+        assertNotEquals(firstPredicate, secondPredicate);
+    }
+
+    @Test
+    public void toStringMethod() {
+        ContactMatchesKeywordPredicate predicate = new ContactMatchesKeywordPredicate("Alice");
+        String expected = ContactMatchesKeywordPredicate.class.getCanonicalName() + "{keyword=Alice}";
+        assertEquals(expected, predicate.toString());
+    }
+}

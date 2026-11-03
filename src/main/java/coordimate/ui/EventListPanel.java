@@ -1,0 +1,535 @@
+package coordimate.ui;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.StringJoiner;
+
+import coordimate.model.event.AttendanceStatus;
+import coordimate.model.event.Event;
+import coordimate.model.event.EventTime;
+import coordimate.model.person.Name;
+import coordimate.model.person.Person;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MultipleSelectionModel;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+
+/**
+ * Keeps event selection and details connected to the live model list.
+ */
+public class EventListPanel extends UiPart<Region> {
+    static final String MESSAGE_NO_EVENTS = "No events yet. Create one with addevent.";
+    static final String MESSAGE_NO_ARCHIVED_EVENTS = "No archived events.";
+    private static final String FXML = "EventListPanel.fxml";
+
+    @FXML
+    private SplitPane eventSplitPane;
+
+    @FXML
+    private ScrollPane detailsScroll;
+
+    @FXML
+    private ListView<Event> eventListView;
+
+    @FXML
+    private Label eventCount;
+
+    @FXML
+    private Label selectedName;
+
+    @FXML
+    private VBox eventDetails;
+
+    @FXML
+    private Label startTime;
+
+    @FXML
+    private Label endTime;
+
+    @FXML
+    private Label duration;
+
+    @FXML
+    private Label memberCount;
+
+    @FXML
+    private Label presentCount;
+
+    @FXML
+    private Label absentCount;
+
+    @FXML
+    private Label notMarkedCount;
+
+    @FXML
+    private VBox members;
+
+    @FXML
+    private Label selectionHint;
+
+    private int lastSelectedIndex = -1;
+    /** The event the user last selected, or null if none, kept while the event list is being replaced. */
+    private Event chosenEvent;
+    /** True while the event list is changing, when the list view may move the selection by itself. */
+    private boolean isListChanging;
+    private final ObservableList<Person> persons;
+    private final Clock clock;
+    private LocalDate shownDate;
+    private final Label emptyListMessage = new Label(MESSAGE_NO_EVENTS);
+    private final BooleanProperty showingArchived = new SimpleBooleanProperty(false);
+
+    /**
+     * Observes saved events and stacks the panes when the window is narrow.
+     */
+    public EventListPanel(ObservableList<Event> events) {
+        this(events, javafx.collections.FXCollections.observableArrayList());
+    }
+
+    /**
+     * Observes events and contacts so assigned members show their saved contact details.
+     */
+    public EventListPanel(ObservableList<Event> events, ObservableList<Person> persons) {
+        this(events, persons, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Shows assigned members' leave status as of the date supplied by {@code clock}.
+     */
+    EventListPanel(ObservableList<Event> events, ObservableList<Person> persons, Clock clock) {
+        super(FXML);
+        this.persons = getPersonSource(persons);
+        this.clock = Objects.requireNonNull(clock);
+        shownDate = LocalDate.now(clock);
+        // Registered before the list view's own listener, so that its selection changes during a list change
+        // are not taken as the user's choice.
+        events.addListener((ListChangeListener<Event>) change -> isListChanging = true);
+        eventListView.setItems(events);
+        eventListView.setCellFactory(list -> new EventListCell());
+        eventListView.setPlaceholder(emptyListMessage);
+        eventCount.textProperty().bind(Bindings.createStringBinding(() -> countText(events.size()),
+                events, showingArchived));
+        eventListView.getSelectionModel().selectedItemProperty().addListener((observable, oldEvent, event) -> {
+            if (event != null && !isListChanging) {
+                chosenEvent = event;
+            }
+            showDetails(event);
+        });
+        eventListView.getSelectionModel().selectedIndexProperty().addListener((observable, oldIndex, index) -> {
+            if (index.intValue() >= 0) {
+                lastSelectedIndex = index.intValue();
+            }
+        });
+        events.addListener((ListChangeListener<Event>) change -> keepSelectionAfterChange());
+        this.persons.addListener((ListChangeListener<Person>) change ->
+                showDetails(eventListView.getSelectionModel().getSelectedItem()));
+        eventSplitPane.widthProperty().addListener((observable, oldWidth, width) ->
+                eventSplitPane.setOrientation(width.doubleValue() < 900
+                ? Orientation.VERTICAL : Orientation.HORIZONTAL));
+        showDetails(null);
+    }
+
+    /**
+     * Keeps the chosen event selected after the list changes, since the list view keeps only the selected
+     * position when events are replaced, and refreshes the details so they show the updated event.
+     * The chosen event is reselected by name, wherever it now is. If it is no longer listed, the event at its
+     * previous position is selected. If that event is archived or active like the chosen one, the chosen event was
+     * renamed, deleted or archived in the same view, so the selected event becomes the chosen one. Otherwise the
+     * archive view was switched, so the chosen event is remembered and reselected when its view is shown again.
+     */
+    private void keepSelectionAfterChange() {
+        MultipleSelectionModel<Event> selection = eventListView.getSelectionModel();
+        ObservableList<Event> items = eventListView.getItems();
+        int chosenIndex = indexOfChosenEvent(items);
+        if (chosenIndex >= 0) {
+            if (selection.getSelectedIndex() != chosenIndex) {
+                selection.select(chosenIndex);
+            }
+        } else if (chosenEvent != null && !items.isEmpty()) {
+            // Choosing an event also records its position, so lastSelectedIndex is valid here.
+            int previousPosition = Math.min(lastSelectedIndex, items.size() - 1);
+            if (selection.getSelectedIndex() != previousPosition) {
+                selection.select(previousPosition);
+            }
+            Event selected = items.get(previousPosition);
+            if (selected.isArchived() == chosenEvent.isArchived()) {
+                chosenEvent = selected;
+            }
+        }
+        isListChanging = false;
+        showDetails(selection.getSelectedItem());
+    }
+
+    private int indexOfChosenEvent(ObservableList<Event> items) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).isSameEvent(chosenEvent)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Selects and reveals the next displayed event. If no event is selected, selects the first event.
+     * At the end of the list, keeps the last event selected.
+     */
+    void selectNextCard() {
+        CardNavigation.selectNext(eventListView);
+    }
+
+    /**
+     * Selects and reveals the previous displayed event. If no event is selected, selects the last event.
+     * At the start of the list, keeps the first event selected.
+     */
+    void selectPreviousCard() {
+        CardNavigation.selectPrevious(eventListView);
+    }
+
+    /**
+     * Refreshes leave indicators when the calendar date changes.
+     */
+    void refreshIfDateChanged() {
+        LocalDate today = LocalDate.now(clock);
+        if (today.equals(shownDate)) {
+            return;
+        }
+        shownDate = today;
+        showDetails(eventListView.getSelectionModel().getSelectedItem());
+    }
+
+    /** Runs the given action whenever the displayed event list is clicked. */
+    void setCardListClickHandler(Runnable handler) {
+        Objects.requireNonNull(handler);
+        eventListView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> handler.run());
+    }
+
+    /**
+     * Reveals the newly saved event after a successful addevent command.
+     */
+    public void selectNewestEvent() {
+        eventListView.getSelectionModel().selectLast();
+        eventListView.scrollTo(eventListView.getItems().size() - 1);
+    }
+
+    /** Returns the selected event card, or the empty event list when no events exist. */
+    Node getTutorialEventCardTarget() {
+        if (eventListView.getItems().isEmpty()) {
+            return eventListView;
+        }
+        selectTutorialEventIfNeeded();
+        int selectedIndex = eventListView.getSelectionModel().getSelectedIndex();
+        eventListView.applyCss();
+        eventListView.layout();
+        return eventListView.lookupAll(".list-cell").stream()
+                .filter(node -> node instanceof ListCell<?> cell && !cell.isEmpty() && cell.isVisible()
+                        && cell.getIndex() == selectedIndex)
+                .findFirst()
+                .orElse(eventListView);
+    }
+
+    /** Returns the visible event details pane or its empty-state hint. */
+    Region getTutorialDetailsTarget() {
+        selectTutorialEventIfNeeded();
+        return eventDetails.isVisible() ? detailsScroll : selectionHint;
+    }
+
+    /** Returns only the member list, or the event details hint when no event exists. */
+    Region getTutorialMemberListTarget() {
+        selectTutorialEventIfNeeded();
+        return eventDetails.isVisible() ? members : selectionHint;
+    }
+
+    /** Scrolls the details pane until its member list starts near the top of the viewport. */
+    void revealTutorialMemberList() {
+        if (!eventDetails.isVisible()) {
+            return;
+        }
+        detailsScroll.applyCss();
+        detailsScroll.layout();
+        Bounds memberBounds = detailsScroll.getContent()
+                .sceneToLocal(members.localToScene(members.getLayoutBounds()));
+        double scrollableHeight = detailsScroll.getContent().getLayoutBounds().getHeight()
+                - detailsScroll.getViewportBounds().getHeight();
+        if (scrollableHeight > 0) {
+            double scrollOffset = Math.max(0, memberBounds.getMinY() - 12);
+            detailsScroll.setVvalue(Math.min(1, scrollOffset / scrollableHeight));
+        }
+    }
+
+    private void selectTutorialEventIfNeeded() {
+        if (!eventListView.getItems().isEmpty() && eventListView.getSelectionModel().isEmpty()) {
+            CardNavigation.selectAndReveal(eventListView, 0);
+        }
+    }
+
+    /**
+     * Shows the selected event's details, or a selection hint when no event is selected.
+     */
+    private void showDetails(Event event) {
+        boolean isSelected = event != null;
+        eventDetails.setVisible(isSelected);
+        eventDetails.setManaged(isSelected);
+        selectionHint.setVisible(!isSelected);
+        selectionHint.setManaged(!isSelected);
+        selectedName.setText(isSelected ? event.getName() : "No event selected");
+        if (isSelected) {
+            startTime.setText(event.getStartTime().toString());
+            endTime.setText(event.getEndTime().toString());
+            duration.setText(formatDuration(event));
+            memberCount.setText("Members (" + event.getMembers().size() + ")");
+            showMembers(event);
+        }
+    }
+
+    /**
+     * Shows each assigned member's attendance for the selected event.
+     */
+    private void showMembers(Event event) {
+        updateAttendanceCounts(event);
+
+        members.getChildren().clear();
+        if (event.getMembers().isEmpty()) {
+            members.getChildren().add(createEmptyMembersHint());
+            return;
+        }
+        for (Name member : event.getMembers()) {
+            members.getChildren().add(createMemberRow(member,
+                    event.getAttendance(member).orElse(null), findPerson(member)));
+        }
+    }
+
+    private Person findPerson(Name memberName) {
+        return persons.stream()
+                .filter(person -> person.getName().equals(memberName))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Labels the list header and empty-list message for the archived view if {@code isShowingArchived} is true.
+     * The normal empty-list message suggests {@code addevent}, which would be misleading there.
+     */
+    public void setShowingArchived(boolean isShowingArchived) {
+        showingArchived.set(isShowingArchived);
+        emptyListMessage.setText(isShowingArchived ? MESSAGE_NO_ARCHIVED_EVENTS : MESSAGE_NO_EVENTS);
+    }
+
+    private String countText(int count) {
+        return (showingArchived.get() ? "Archived events (" : "Events (") + count + ")";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObservableList<Person> getPersonSource(ObservableList<Person> persons) {
+        if (persons instanceof FilteredList<?> filteredPersons) {
+            return (ObservableList<Person>) filteredPersons.getSource();
+        }
+        return persons;
+    }
+
+    private void updateAttendanceCounts(Event event) {
+        long present = event.getAttendanceRecord().values().stream()
+                .filter(status -> status == AttendanceStatus.PRESENT).count();
+        long absent = event.getAttendanceRecord().values().stream()
+                .filter(status -> status == AttendanceStatus.ABSENT).count();
+        presentCount.setText(present + " Present");
+        absentCount.setText(absent + " Absent");
+        notMarkedCount.setText((event.getMembers().size() - present - absent) + " Not marked");
+    }
+
+    private Label createEmptyMembersHint() {
+        Label hint = new Label("No members assigned yet. Assign contacts with assign.");
+        hint.setWrapText(true);
+        hint.getStyleClass().add("detail-value");
+        return hint;
+    }
+
+    /**
+     * Builds a member row with its permanent ID, contact details, and attendance status.
+     */
+    private HBox createMemberRow(Name member, AttendanceStatus status, Person person) {
+        Label memberId = new Label(person == null ? "ID: unavailable" : "ID: " + person.getMemberId().orElseThrow());
+        memberId.setMinWidth(Region.USE_PREF_SIZE);
+        memberId.getStyleClass().add("event-member-id");
+
+        String fullName = member.getFullName();
+        Label avatar = MemberIdentity.createAvatar(fullName, person);
+        Label name = MemberIdentity.createNameLabel(fullName, person != null && person.isArchived());
+
+        FlowPane identityLine = MemberIdentity.createIdentityLine(name);
+        MemberIdentity.appendTagChips(identityLine, person);
+
+        Label subtitle = MemberIdentity.createSubtitleLabel(person);
+
+        VBox memberDetails = new VBox(4, identityLine, subtitle);
+        if (person != null) {
+            if (person.isOnLeave(LocalDate.now(clock))) {
+                Label leave = new Label("On leave until " + person.getLeaveDate().orElseThrow());
+                leave.setWrapText(true);
+                leave.setMinWidth(0);
+                leave.getStyleClass().add("leave-badge");
+                memberDetails.getChildren().add(leave);
+            }
+            person.getNote().ifPresent(note -> {
+                Label noteLabel = new Label("Note: " + note.getValue());
+                noteLabel.setWrapText(true);
+                noteLabel.setMinWidth(0);
+                noteLabel.getStyleClass().addAll("event-member-metadata", "event-member-note");
+                memberDetails.getChildren().add(noteLabel);
+            });
+        }
+        memberDetails.getStyleClass().add("event-member-details");
+        memberDetails.setMinWidth(0);
+        HBox.setHgrow(memberDetails, Priority.ALWAYS);
+
+        HBox row = new HBox(12, memberId, avatar, memberDetails, createStatusBadge(status));
+        row.getStyleClass().add("attendance-member-row");
+        return row;
+    }
+
+    private Label createStatusBadge(AttendanceStatus status) {
+        String text;
+        String styleClass;
+        if (status == null) {
+            text = "● unmarked";
+            styleClass = "attendance-unmarked";
+        } else if (status == AttendanceStatus.PRESENT) {
+            text = "● present";
+            styleClass = "attendance-present";
+        } else {
+            text = "● absent";
+            styleClass = "attendance-absent";
+        }
+        Label badge = new Label(text);
+        badge.getStyleClass().addAll("attendance-badge", styleClass);
+        badge.setMinWidth(Region.USE_PREF_SIZE);
+        return badge;
+    }
+
+    /**
+     * Counts date-only events inclusively, measures timed events in 24-hour days, hours and minutes,
+     * and identifies the missing time for mixed inputs.
+     */
+    private String formatDuration(Event event) {
+        EventTime start = event.getStartTime();
+        EventTime end = event.getEndTime();
+        var startDateTime = start.getDateTime();
+        var endDateTime = end.getDateTime();
+        if (startDateTime.isEmpty() && endDateTime.isEmpty()) {
+            long days = ChronoUnit.DAYS.between(start.getDate(), end.getDate()) + 1;
+            return days + (days == 1 ? " day" : " days");
+        }
+        if (startDateTime.isEmpty()) {
+            return "Unknown (start time not specified)";
+        }
+        if (endDateTime.isEmpty()) {
+            return "Unknown (end time not specified)";
+        }
+        long minutes = Duration.between(startDateTime.orElseThrow(), endDateTime.orElseThrow()).toMinutes();
+        return formatTimedDuration(minutes);
+    }
+
+    /**
+     * Formats elapsed minutes as nonzero day, hour, and minute units, using 24-hour days.
+     */
+    private String formatTimedDuration(long minutes) {
+        if (minutes == 0) {
+            return "0 minutes";
+        }
+        long days = minutes / (24 * 60);
+        long hours = minutes / 60 % 24;
+        long remainder = minutes % 60;
+        StringJoiner units = new StringJoiner(" ");
+        if (days > 0) {
+            units.add(days + (days == 1 ? " day" : " days"));
+        }
+        if (hours > 0) {
+            units.add(hours + (hours == 1 ? " hour" : " hours"));
+        }
+        if (remainder > 0) {
+            units.add(remainder + (remainder == 1 ? " minute" : " minutes"));
+        }
+        return units.toString();
+    }
+
+    /**
+     * Displays an event's timing and attendance overview in a list card.
+     */
+    private static class EventListCell extends ListCell<Event> {
+        private final Label name = new Label();
+        private final Label times = new Label();
+        private final Label memberTotal = new Label();
+        private final Label presentTotal = new Label();
+        private final Label absentTotal = new Label();
+        private final Label unmarkedTotal = new Label();
+        private final HBox overview = new HBox(10, memberTotal, presentTotal, absentTotal, unmarkedTotal);
+        private final VBox card = new VBox(8, name, times, overview);
+
+        EventListCell() {
+            card.getStyleClass().add("event-card");
+            name.getStyleClass().add("event-card-name");
+            times.getStyleClass().add("detail-caption");
+            memberTotal.getStyleClass().add("event-member-total");
+            presentTotal.getStyleClass().add("attendance-present-text");
+            absentTotal.getStyleClass().add("attendance-absent-text");
+            unmarkedTotal.getStyleClass().add("attendance-unmarked-text");
+            overview.getStyleClass().add("event-overview");
+            name.setWrapText(true);
+            times.setWrapText(true);
+            card.maxWidthProperty().bind(widthProperty().subtract(24));
+        }
+
+        @Override
+        protected void updateItem(Event event, boolean isEmpty) {
+            super.updateItem(event, isEmpty);
+            setText(null);
+            if (isEmpty || event == null) {
+                setGraphic(null);
+            } else {
+                name.setText((getIndex() + 1) + ". " + event.getName());
+                times.setText(event.getStartTime() + " to " + event.getEndTime());
+                updateOverview(event);
+                setGraphic(card);
+            }
+        }
+
+        private void updateOverview(Event event) {
+            int members = event.getMembers().size();
+            if (members == 0) {
+                memberTotal.setText("No members assigned");
+            } else {
+                memberTotal.setText(members + (members == 1 ? " member" : " members"));
+            }
+            long present = event.getAttendanceRecord().values().stream()
+                    .filter(status -> status == AttendanceStatus.PRESENT).count();
+            long absent = event.getAttendanceRecord().values().stream()
+                    .filter(status -> status == AttendanceStatus.ABSENT).count();
+            presentTotal.setText(present + " present");
+            absentTotal.setText(absent + " absent");
+            unmarkedTotal.setText((members - present - absent) + " unmarked");
+            for (Label count : new Label[]{presentTotal, absentTotal, unmarkedTotal}) {
+                count.setVisible(members > 0);
+                count.setManaged(members > 0);
+            }
+        }
+    }
+}

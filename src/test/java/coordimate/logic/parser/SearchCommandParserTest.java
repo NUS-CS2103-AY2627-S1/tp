@@ -1,0 +1,58 @@
+package coordimate.logic.parser;
+
+import static coordimate.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static coordimate.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static coordimate.logic.parser.CommandParserTestUtil.assertParseSuccess;
+
+import org.junit.jupiter.api.Test;
+
+import coordimate.logic.commands.SearchCommand;
+import coordimate.model.person.ContactMatchesKeywordPredicate;
+
+public class SearchCommandParserTest {
+
+    private final SearchCommandParser parser = new SearchCommandParser();
+    private final String invalidFormat = String.format(MESSAGE_INVALID_COMMAND_FORMAT, SearchCommand.MESSAGE_USAGE);
+
+    @Test
+    public void parse_emptyArg_throwsParseException() {
+        assertParseFailure(parser, "", invalidFormat);
+        assertParseFailure(parser, "   ", invalidFormat);
+        assertParseFailure(parser, " \n \t ", invalidFormat);
+    }
+
+    @Test
+    public void parse_quotedOnlyArg_throwsParseException() {
+        assertParseFailure(parser, "\"\"", invalidFormat);
+        assertParseFailure(parser, "\"   \"", invalidFormat);
+    }
+
+    @Test
+    public void parse_validArgs_returnsSearchCommand() {
+        SearchCommand expected = new SearchCommand(new ContactMatchesKeywordPredicate("Alice"), "Alice");
+        assertParseSuccess(parser, "Alice", expected);
+        assertParseSuccess(parser, "  Alice  ", expected);
+        assertParseSuccess(parser, " \n \t Alice \t \n ", expected);
+    }
+
+    @Test
+    public void parse_quotedPhrase_stripsQuotes() {
+        SearchCommand expected = new SearchCommand(new ContactMatchesKeywordPredicate("Alice Pauline"),
+                "Alice Pauline");
+        assertParseSuccess(parser, "\"Alice Pauline\"", expected);
+        assertParseSuccess(parser, "  Alice Pauline  ", expected);
+    }
+
+    @Test
+    public void parse_repeatedSpaces_collapsed() {
+        SearchCommand expected = new SearchCommand(new ContactMatchesKeywordPredicate("NUS Student Affairs"),
+                "NUS Student Affairs");
+        assertParseSuccess(parser, "NUS  Student   Affairs", expected);
+        assertParseSuccess(parser, "\"NUS  Student \t Affairs\"", expected);
+    }
+
+    @Test
+    public void parse_null_throwsNullPointerException() {
+        org.junit.jupiter.api.Assertions.assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+}
