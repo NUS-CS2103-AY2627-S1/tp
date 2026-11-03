@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 
 public class ArgumentTokenizerTest {
@@ -147,4 +149,32 @@ public class ArgumentTokenizerTest {
         assertNotEquals(aaa, new Prefix("aab"));
     }
 
+    @Test
+    public void tokenize_upperCasePrefix_found() {
+        Prefix s = new Prefix("s/");
+        Prefix l = new Prefix("l/");
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(" S/1 L/2", s, l);
+        assertEquals(Optional.of("1"), argMultimap.getValue(s));
+        assertEquals(Optional.of("2"), argMultimap.getValue(l));
+    }
+
+    @Test
+    public void tokenize_sonOfAndDaughterOf_stayInValue() {
+        Prefix s = new Prefix("s/");
+        Prefix d = new Prefix("d/");
+        assertEquals(Optional.of("Ravi s/o Kumar"), ArgumentTokenizer.tokenize(" s/Ravi s/o Kumar", s, d).getValue(s));
+        assertEquals(Optional.of("Priya D/O Raj"), ArgumentTokenizer.tokenize(" s/Priya D/O Raj", s, d).getValue(s));
+        assertEquals(Optional.of("Olivia"), ArgumentTokenizer.tokenize(" s/Olivia", s, d).getValue(s));
+        assertEquals(Optional.of("Monday"), ArgumentTokenizer.tokenize(" s/Ravi d/Monday", s, d).getValue(d));
+    }
+
+    @Test
+    public void tokenize_studentNameStartingWithO_prefixRecognized() {
+        Prefix s = new Prefix("s/");
+        Prefix c = new Prefix("c/");
+
+        assertEquals(Optional.of("o"), ArgumentTokenizer.tokenize(" s/o", s).getValue(s));
+        assertEquals(Optional.of("o Tan"), ArgumentTokenizer.tokenize(" s/o Tan", s).getValue(s));
+        assertEquals(Optional.of("o Tan"), ArgumentTokenizer.tokenize(" c/91234567 s/o Tan", s, c).getValue(s));
+    }
 }

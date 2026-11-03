@@ -1,15 +1,19 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +21,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ListView;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,6 +30,8 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double MIN_VISIBLE_TITLE_WIDTH = 100;
+    private static final double MIN_VISIBLE_TITLE_HEIGHT = 40;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -33,9 +40,13 @@ public class MainWindow extends UiPart<Stage> {
     private Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private StudentListPanel studentListPanel;
+    private LessonListPanel lessonListPanel;
+    private SchedulePanel schedulePanel;
+    private CommandBox commandBox;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private PaymentMonthRefresher paymentMonthRefresher;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +55,7 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane listPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -114,8 +125,14 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        commandBox = new CommandBox(this::executeCommand);
+        studentListPanel = new StudentListPanel(logic.getStudentList(), logic);
+        lessonListPanel = new LessonListPanel(logic.getLessonList(), logic);
+        schedulePanel = new SchedulePanel(logic, commandBox::focus);
+        listPanelPlaceholder.getChildren().addAll(studentListPanel.getRoot(), lessonListPanel.getRoot(),
+                schedulePanel.getRoot());
+        showList(logic.listViewProperty().get());
+        logic.listViewProperty().addListener((observable, oldView, newView) -> showList(newView));
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -123,20 +140,57 @@ public class MainWindow extends UiPart<Stage> {
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+
+        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.F6 && logic.listViewProperty().get() == ListView.SCHEDULE) {
+                schedulePanel.focusFirstDay();
+                event.consume();
+            }
+        });
+
+        paymentMonthRefresher = new PaymentMonthRefresher(() -> {
+            logic.refreshPaymentStatus();
+            studentListPanel.refresh();
+        });
+        paymentMonthRefresher.start();
     }
 
-    /**
-     * Sets the default size based on {@code guiSettings}.
-     */
+    /** Sets the saved size and restores the position only when the window remains visible on a connected screen. */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        GuiSettings defaults = new GuiSettings();
+        double width = guiSettings.getWindowWidth();
+        double height = guiSettings.getWindowHeight();
+        width = Double.isFinite(width) && width > 0 ? width : defaults.getWindowWidth();
+        height = Double.isFinite(height) && height > 0 ? height : defaults.getWindowHeight();
+        primaryStage.setWidth(width);
+        primaryStage.setHeight(height);
+
+        Point savedPosition = guiSettings.getWindowCoordinates();
+        if (savedPosition != null && isPositionVisible(savedPosition, width, height)) {
+            primaryStage.setX(savedPosition.getX());
+            primaryStage.setY(savedPosition.getY());
+            return;
         }
+
+        Rectangle2D primaryBounds = Screen.getPrimary().getVisualBounds();
+        double centeredWidth = Math.max(primaryStage.getMinWidth(), Math.min(width, primaryBounds.getWidth()));
+        double centeredHeight = Math.max(primaryStage.getMinHeight(), Math.min(height, primaryBounds.getHeight()));
+        primaryStage.setWidth(centeredWidth);
+        primaryStage.setHeight(centeredHeight);
+        primaryStage.setX(primaryBounds.getMinX()
+                + Math.max(0, (primaryBounds.getWidth() - centeredWidth) / 2));
+        primaryStage.setY(primaryBounds.getMinY()
+                + Math.max(0, (primaryBounds.getHeight() - centeredHeight) / 2));
+    }
+
+    private static boolean isPositionVisible(Point position, double width, double height) {
+        double visibleTitleWidth = Math.min(width, MIN_VISIBLE_TITLE_WIDTH);
+        double visibleTitleHeight = Math.min(height, MIN_VISIBLE_TITLE_HEIGHT);
+        return Screen.getScreens().stream().map(Screen::getVisualBounds).anyMatch(bounds ->
+                position.getX() >= bounds.getMinX() && position.getY() >= bounds.getMinY()
+                && position.getX() + visibleTitleWidth <= bounds.getMaxX()
+                && position.getY() + visibleTitleHeight <= bounds.getMaxY());
     }
 
     /**
@@ -164,11 +218,33 @@ public class MainWindow extends UiPart<Stage> {
                 (int) primaryStage.getX(), (int) primaryStage.getY());
         logic.setGuiSettings(guiSettings);
         helpWindow.hide();
+        if (paymentMonthRefresher != null) {
+            paymentMonthRefresher.stop();
+        }
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    /**
+     * Shows the selected student, lesson, or schedule panel.
+     */
+    private void showList(ListView listView) {
+        boolean showStudents = listView == ListView.STUDENTS;
+        boolean showLessons = listView == ListView.LESSONS;
+        boolean showSchedule = listView == ListView.SCHEDULE;
+        studentListPanel.getRoot().setVisible(showStudents);
+        studentListPanel.getRoot().setManaged(showStudents);
+        lessonListPanel.getRoot().setVisible(showLessons);
+        lessonListPanel.getRoot().setManaged(showLessons);
+        schedulePanel.getRoot().setVisible(showSchedule);
+        schedulePanel.getRoot().setManaged(showSchedule);
+    }
+
+    public StudentListPanel getStudentListPanel() {
+        return studentListPanel;
+    }
+
+    public LessonListPanel getLessonListPanel() {
+        return lessonListPanel;
     }
 
     /**
@@ -179,7 +255,12 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+            logger.info("Command executed successfully");
+            studentListPanel.refresh();
+            lessonListPanel.refresh();
+            if (logic.listViewProperty().get() == ListView.SCHEDULE) {
+                schedulePanel.refresh();
+            }
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
@@ -192,7 +273,8 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            // Only the kind of error is logged: an error message can repeat a name or contact number that was typed.
+            logger.info("A command could not be executed: " + e.getClass().getSimpleName());
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }

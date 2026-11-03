@@ -7,20 +7,22 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
-import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ReadOnlyTuiTracker;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.TuiTracker;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.util.SampleDataUtil;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonTuiTrackerStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
@@ -32,55 +34,64 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path TUI_TRACKER_FILE_PATH = Paths.get("data", "tuitracker.json");
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private boolean dataFileLoadFailed;
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing TuiTracker ]===========================");
         super.init();
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
-        storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        JsonTuiTrackerStorage tuiTrackerStorage = new JsonTuiTrackerStorage(TUI_TRACKER_FILE_PATH);
+        storage = new StorageManager(tuiTrackerStorage, userPrefsStorage);
 
         model = initModelManager(storage, userPrefs);
 
-        logic = new LogicManager(model, storage);
+        logic = new LogicManager(model, storage, dataFileLoadFailed);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getTuiTrackerFilePath());
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns a {@code ModelManager} with the data from {@code storage}'s TuiTracker and {@code userPrefs}. <br>
+     * The sample data will be used instead if {@code storage}'s data file is not found,
+     * or an empty read-only TuiTracker will be used instead if errors occur when reading {@code storage}'s data file.
      */
     private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
+        logger.info("Using data file : " + storage.getTuiTrackerFilePath());
 
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+        Optional<ReadOnlyTuiTracker> tuiTrackerOptional;
+        ReadOnlyTuiTracker initialData;
         try {
-            addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+            tuiTrackerOptional = storage.readTuiTracker();
+            if (tuiTrackerOptional.isEmpty()) {
+                logger.info("Creating a new data file " + storage.getTuiTrackerFilePath()
+                        + " populated with sample data.");
             }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
+            initialData = tuiTrackerOptional.orElseGet(SampleDataUtil::getSampleTuiTracker);
         } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            logger.warning("Data file at " + storage.getTuiTrackerFilePath() + " could not be loaded."
+                    + " Starting in read-only recovery mode without changing the file.");
+            dataFileLoadFailed = true;
+            try {
+                Optional<Path> backupPath = storage.backupCorruptedTuiTracker();
+                backupPath.ifPresent(path ->
+                        logger.warning("Corrupted data file backed up to: " + path));
+            } catch (IOException ioe) {
+                logger.warning("Failed to back up corrupted data file: " + ioe.getMessage());
+            }
+            initialData = new TuiTracker();
         }
 
         return new ModelManager(initialData, userPrefs);
@@ -120,13 +131,25 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting TuiTracker " + MainApp.VERSION);
         ui.start(primaryStage);
+        if (dataFileLoadFailed) {
+            primaryStage.setTitle(primaryStage.getTitle() + " (read-only)");
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.initOwner(primaryStage);
+            alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
+            alert.setTitle("Data file could not be loaded");
+            alert.setHeaderText("TuiTracker is in read-only recovery mode.");
+            alert.setContentText("The file " + storage.getTuiTrackerFilePath().toAbsolutePath()
+                    + " could not be loaded and has not been overwritten. Data-changing commands are disabled. "
+                    + "Back up the file, repair or replace it, then restart TuiTracker to resume editing.");
+            alert.showAndWait();
+        }
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping TuiTracker ] =============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

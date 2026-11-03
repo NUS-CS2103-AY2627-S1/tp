@@ -1,0 +1,15 @@
+@startuml
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+
+start
+:Receive `mark ...` or `unmark ...`;
+:Trim surrounding spaces;
+if () then ([lesson target])
+    :Follow the lesson-target workflow;
+else ([student target])
+    :Follow the student-target workflow;
+endif
+:Return a confirmation or error;
+stop
+@enduml

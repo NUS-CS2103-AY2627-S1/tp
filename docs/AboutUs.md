@@ -1,59 +1,42 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can contact the team through our [GitHub issue tracker](https://github.com/AY2627S1-CS2103T-T13-2/tp/issues).
 
 ## Project team
 
-### John Doe
+### Chan Weibin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/aintnoweii.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/aintnoweii)]
 
-* Role: Project Advisor
+### Shawn Kok
 
-### Jane Doe
+<img src="images/shawnkokxk.png" width="200px">
 
-<img src="images/johndoe.png" width="200px">
+[[github](http://github.com/ShawnKokXK)]
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+### Chaw Qi Xuan
 
-* Role: Team Lead
-* Responsibilities: UI
+<img src="images/yourhand29.png" width="200px">
 
-### Johnny Doe
+[[github](http://github.com/YourHand29)]
 
-<img src="images/johndoe.png" width="200px">
+### Ang Ee Yang
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+<img src="images/eeyang2026.png" width="200px">
 
-* Role: Developer
-* Responsibilities: Data
+[[github](https://github.com/eeyang2026)]
 
-### Jean Doe
+### Darren Song
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/nerrad2004.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+[[github](http://github.com/nerrad2004)]
