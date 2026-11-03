@@ -13,6 +13,23 @@ import java.util.Arrays;
 public class StringUtil {
 
     /**
+     * Trims surrounding whitespace and collapses Unicode whitespace runs to a single ordinary space.
+     * Other characters, including the representation of accented letters, are preserved.
+     */
+    public static String normalizeWhitespace(String value) {
+        requireNonNull(value);
+        return value.replaceAll("(?U)\\s+", " ").strip();
+    }
+
+    /**
+     * Removes surrounding Unicode whitespace without changing whitespace inside the value.
+     */
+    public static String stripWhitespace(String value) {
+        requireNonNull(value);
+        return value.replaceAll("(?U)^\\s+|\\s+$", "");
+    }
+
+    /**
      * Returns true if the {@code sentence} contains the {@code word}.
      *   Ignores case, but a full word match is required.
      *   <br>examples:<pre>

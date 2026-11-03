@@ -6,29 +6,33 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
+import seedu.address.model.attendance.Status;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Matric;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.session.Week;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
+    private static final String INVALID_MATRIC = "B0123456X";
+    private static final String INVALID_GROUP = "T9";
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
-    private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_MATRIC = "A0123456X";
+    private static final String VALID_GROUP = "T09";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
@@ -78,49 +82,41 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parsePhone_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
+    public void parseName_repeatedWhitespace_returnsNormalizedName() throws Exception {
+        assertEquals(new Name("Alex Tan"), ParserUtil.parseName("\u00a0Alex \t\n Tan\u2003"));
+        assertEquals(new Name("O'Neil"), ParserUtil.parseName(" O'Neil "));
+        assertEquals(new Name("Anne-Marie"), ParserUtil.parseName("Anne-Marie"));
     }
 
     @Test
-    public void parsePhone_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parsePhone(INVALID_PHONE));
+    public void parseMatric_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseMatric((String) null));
     }
 
     @Test
-    public void parsePhone_validValueWithoutWhitespace_returnsPhone() throws Exception {
-        Phone expectedPhone = new Phone(VALID_PHONE);
-        assertEquals(expectedPhone, ParserUtil.parsePhone(VALID_PHONE));
+    public void parseMatric_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseMatric(INVALID_MATRIC));
+        assertThrows(ParseException.class, () -> ParserUtil.parseMatric("A012345X"));
     }
 
     @Test
-    public void parsePhone_validValueWithWhitespace_returnsTrimmedPhone() throws Exception {
-        String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
-        Phone expectedPhone = new Phone(VALID_PHONE);
-        assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
+    public void parseMatric_validValueWithoutWhitespace_returnsMatric() throws Exception {
+        Matric expectedMatric = new Matric(VALID_MATRIC);
+        assertEquals(expectedMatric, ParserUtil.parseMatric(VALID_MATRIC));
     }
 
     @Test
-    public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
+    public void parseMatric_validValueWithWhitespace_returnsTrimmedMatric() throws Exception {
+        String matricWithWhitespace = WHITESPACE + VALID_MATRIC + WHITESPACE;
+        Matric expectedMatric = new Matric(VALID_MATRIC);
+        assertEquals(expectedMatric, ParserUtil.parseMatric(matricWithWhitespace));
     }
 
     @Test
-    public void parseAddress_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
+    public void parseMatric_lowercaseValue_returnsUppercasedMatric() throws Exception {
+        Matric expectedMatric = new Matric(VALID_MATRIC);
+        assertEquals(expectedMatric, ParserUtil.parseMatric("a0123456x"));
+        assertEquals(expectedMatric, ParserUtil.parseMatric("A0123456x"));
     }
 
     @Test
@@ -147,6 +143,72 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseEmail_length_acceptsUpToMaxLength() throws Exception {
+        String domain = "@example.com";
+        String longestEmail = "a".repeat(Email.MAX_LENGTH - domain.length()) + domain;
+
+        assertEquals(new Email(longestEmail), ParserUtil.parseEmail(longestEmail)); // exactly the maximum length
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("a" + longestEmail)); // one character over
+    }
+
+    @Test
+    public void parseMatric_lowerCaseValueWithWhitespace_returnsUpperCaseTrimmedMatric() throws Exception {
+        String matricWithWhitespace = WHITESPACE + VALID_MATRIC.toLowerCase() + WHITESPACE;
+        assertEquals(new Matric(VALID_MATRIC), ParserUtil.parseMatric(matricWithWhitespace));
+    }
+
+    @Test
+    public void parseWeek_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseWeek((String) null));
+    }
+
+    @Test
+    public void parseWeek_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Week.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseWeek("14"));
+    }
+
+    @Test
+    public void parseWeek_validValueWithWhitespace_returnsWeek() throws Exception {
+        assertEquals(new Week(5), ParserUtil.parseWeek(WHITESPACE + "5" + WHITESPACE));
+    }
+
+    @Test
+    public void parseStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseStatus((String) null));
+    }
+
+    @Test
+    public void parseStatus_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Status.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseStatus("late"));
+    }
+
+    @Test
+    public void parseStatus_validValueWithWhitespace_returnsStatus() throws Exception {
+        assertEquals(Status.ABSENT, ParserUtil.parseStatus(WHITESPACE + "Absent" + WHITESPACE));
+    }
+
+    @Test
+    public void parseGroup_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseGroup((String) null));
+    }
+
+    @Test
+    public void parseGroup_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseGroup(INVALID_GROUP));
+    }
+
+    @Test
+    public void parseGroup_validValueWithoutWhitespace_returnsGroup() throws Exception {
+        assertEquals(new Group(VALID_GROUP), ParserUtil.parseGroup(VALID_GROUP));
+    }
+
+    @Test
+    public void parseGroup_lowerCaseValueWithWhitespace_returnsUpperCaseTrimmedGroup() throws Exception {
+        String groupWithWhitespace = WHITESPACE + VALID_GROUP.toLowerCase() + WHITESPACE;
+        assertEquals(new Group(VALID_GROUP), ParserUtil.parseGroup(groupWithWhitespace));
+    }
+
+    @Test
     public void parseTag_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseTag(null));
     }
@@ -170,6 +232,14 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseTag_length_acceptsUpToMaxLength() throws Exception {
+        String longestTag = "a".repeat(Tag.MAX_LENGTH);
+
+        assertEquals(new Tag(longestTag), ParserUtil.parseTag(longestTag)); // exactly the maximum length
+        assertThrows(ParseException.class, () -> ParserUtil.parseTag(longestTag + "a")); // one character over
+    }
+
+    @Test
     public void parseTags_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseTags(null));
     }
@@ -190,5 +260,36 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTags_sameTagInDifferentCase_keepsFirstSpelling() throws Exception {
+        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of("exchange", "Exchange", "EXCHANGE"));
+
+        assertEquals(1, actualTagSet.size());
+        assertEquals("exchange", actualTagSet.iterator().next().tagName);
+    }
+
+    @Test
+    public void parseTags_maximumNumberOfTags_returnsTagSet() throws Exception {
+        assertEquals(Tag.MAX_TAGS_PER_STUDENT, ParserUtil.parseTags(numberedTags(Tag.MAX_TAGS_PER_STUDENT)).size());
+    }
+
+    @Test
+    public void parseTags_tooManyTags_throwsParseException() {
+        assertThrows(ParseException.class, Tag.MESSAGE_TOO_MANY_TAGS, () ->
+                ParserUtil.parseTags(numberedTags(Tag.MAX_TAGS_PER_STUDENT + 1)));
+    }
+
+    @Test
+    public void parseTags_extraTagsDifferingOnlyInCase_countedOnce() throws Exception {
+        List<String> tags = new ArrayList<>(numberedTags(Tag.MAX_TAGS_PER_STUDENT));
+        tags.add("TAG1");
+
+        assertEquals(Tag.MAX_TAGS_PER_STUDENT, ParserUtil.parseTags(tags).size());
+    }
+
+    private static List<String> numberedTags(int count) {
+        return IntStream.rangeClosed(1, count).mapToObj(i -> "tag" + i).toList();
     }
 }

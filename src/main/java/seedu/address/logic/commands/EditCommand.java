@@ -1,10 +1,10 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GROUP;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MATRIC;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
@@ -14,18 +14,21 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
+import seedu.address.model.attendance.Attendance;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Matric;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -35,22 +38,26 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the student identified "
+            + "by the index number used in the displayed student list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
-            + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_MATRIC + "MATRIC] "
+            + "[" + PREFIX_GROUP + "GROUP] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited student: %1$s";
+    public static final String MESSAGE_ATTENDANCE_CLEARED =
+            "Moved from %1$s to %2$s; cleared %3$d attendance %4$s. Use undo to restore.";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_UNKNOWN_PARAMETER =
+            "Unexpected input. Use only: n/, e/, m/, grp/ and t/.";
+
+    private static final Logger logger = LogsCenter.getLogger(EditCommand.class);
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -78,14 +85,43 @@ public class EditCommand extends Command {
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+        assert editedPerson.getGroup().equals(personToEdit.getGroup()) || editedPerson.getAttendances().isEmpty()
+                : "A student moved to another group should have no attendance records left";
+
+        if (!model.hasGroup(editedPerson.getGroup())) {
+            throw new CommandException(String.format(AddCommand.MESSAGE_UNKNOWN_GROUP, editedPerson.getGroup()));
+        }
 
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+            // Name the clashing matriculation number, as add does, so the user knows what to change
+            throw new CommandException(String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, editedPerson.getMatric()));
+        }
+
+        boolean isEmailTaken = model.getAddressBook().getPersonList().stream()
+                .filter(person -> !person.equals(personToEdit))
+                .anyMatch(editedPerson::hasSameEmail);
+        if (isEmailTaken) {
+            throw new CommandException(String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL, editedPerson.getEmail()));
         }
 
         model.setPerson(personToEdit, editedPerson);
+        String feedback = String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        int clearedRecordCount = personToEdit.getAttendances().size() - editedPerson.getAttendances().size();
+        if (clearedRecordCount > 0) {
+            logger.info("Cleared " + clearedRecordCount + " attendance record(s) after moving a student from "
+                    + personToEdit.getGroup() + " to " + editedPerson.getGroup());
+            feedback += "\n" + String.format(MESSAGE_ATTENDANCE_CLEARED, personToEdit.getGroup(),
+                    editedPerson.getGroup(), clearedRecordCount, clearedRecordCount == 1 ? "record" : "records");
+        }
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        // The displayed list is ordered by matriculation number, so an edit can move the student.
+        // Reporting them lets the roster point at them again instead of losing the highlight.
+        return new CommandResult(feedback, editedPerson);
+    }
+
+    @Override
+    public HistoryAction getHistoryAction() {
+        return HistoryAction.COMMIT;
     }
 
     /**
@@ -96,12 +132,18 @@ public class EditCommand extends Command {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
-        Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Matric updatedMatric = editPersonDescriptor.getMatric().orElse(personToEdit.getMatric());
+        Group updatedGroup = editPersonDescriptor.getGroup().orElse(personToEdit.getGroup());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        // Attendance cannot be edited with this command. Each record belongs to a session of the student's group,
+        // so the records are carried over only if the student stays in the same group.
+        Set<Attendance> updatedAttendances = updatedGroup.equals(personToEdit.getGroup())
+                ? personToEdit.getAttendances()
+                : Set.of();
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedEmail, updatedMatric, updatedGroup, updatedTags,
+                updatedAttendances, personToEdit.getComment());
     }
 
     @Override
@@ -133,9 +175,9 @@ public class EditCommand extends Command {
      */
     public static class EditPersonDescriptor {
         private Name name;
-        private Phone phone;
         private Email email;
-        private Address address;
+        private Matric matric;
+        private Group group;
         private Set<Tag> tags;
 
         public EditPersonDescriptor() {}
@@ -146,9 +188,9 @@ public class EditCommand extends Command {
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
-            setPhone(toCopy.phone);
             setEmail(toCopy.email);
-            setAddress(toCopy.address);
+            setMatric(toCopy.matric);
+            setGroup(toCopy.group);
             setTags(toCopy.tags);
         }
 
@@ -156,7 +198,7 @@ public class EditCommand extends Command {
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, email, matric, group, tags);
         }
 
         public void setName(Name name) {
@@ -167,14 +209,6 @@ public class EditCommand extends Command {
             return Optional.ofNullable(name);
         }
 
-        public void setPhone(Phone phone) {
-            this.phone = phone;
-        }
-
-        public Optional<Phone> getPhone() {
-            return Optional.ofNullable(phone);
-        }
-
         public void setEmail(Email email) {
             this.email = email;
         }
@@ -183,12 +217,20 @@ public class EditCommand extends Command {
             return Optional.ofNullable(email);
         }
 
-        public void setAddress(Address address) {
-            this.address = address;
+        public void setMatric(Matric matric) {
+            this.matric = matric;
         }
 
-        public Optional<Address> getAddress() {
-            return Optional.ofNullable(address);
+        public Optional<Matric> getMatric() {
+            return Optional.ofNullable(matric);
+        }
+
+        public void setGroup(Group group) {
+            this.group = group;
+        }
+
+        public Optional<Group> getGroup() {
+            return Optional.ofNullable(group);
         }
 
         /**
@@ -220,9 +262,9 @@ public class EditCommand extends Command {
             }
 
             return Objects.equals(name, otherEditPersonDescriptor.name)
-                    && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
+                    && Objects.equals(matric, otherEditPersonDescriptor.matric)
+                    && Objects.equals(group, otherEditPersonDescriptor.group)
                     && Objects.equals(tags, otherEditPersonDescriptor.tags);
         }
 
@@ -230,9 +272,9 @@ public class EditCommand extends Command {
         public String toString() {
             return new ToStringBuilder(this)
                     .add("name", name)
-                    .add("phone", phone)
                     .add("email", email)
-                    .add("address", address)
+                    .add("matric", matric)
+                    .add("group", group)
                     .add("tags", tags)
                     .toString();
         }

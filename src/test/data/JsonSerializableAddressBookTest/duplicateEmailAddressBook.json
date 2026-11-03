@@ -1,0 +1,15 @@
+{
+  "groups": [ "T09", "T10" ],
+  "persons": [ {
+    "name": "Alice Pauline",
+    "email": "alice@example.com",
+    "matric": "A0000001A",
+    "group": "T09",
+    "tags": [ "friends" ]
+  }, {
+    "name": "Alicia Pauline",
+    "email": "ALICE@example.com",
+    "matric": "A0000002B",
+    "group": "T10"
+  } ]
+}

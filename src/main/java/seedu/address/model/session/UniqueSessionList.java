@@ -1,0 +1,126 @@
+package seedu.address.model.session;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import seedu.address.model.person.Group;
+import seedu.address.model.session.exceptions.DuplicateSessionException;
+import seedu.address.model.session.exceptions.SessionNotFoundException;
+
+/**
+ * A list of sessions that allows at most one session for each group and teaching week.
+ */
+public class UniqueSessionList implements Iterable<Session> {
+
+    private static final Comparator<Session> DISPLAY_ORDER = Comparator
+            .comparing((Session session) -> session.getGroup().toString())
+            .thenComparing(Session::getWeek);
+
+    private final ObservableList<Session> internalList = FXCollections.observableArrayList();
+    private final ObservableList<Session> internalUnmodifiableList =
+            FXCollections.unmodifiableObservableList(internalList);
+
+    /** Returns true if a session with the same group and teaching week exists. */
+    public boolean contains(Session toCheck) {
+        requireNonNull(toCheck);
+        return internalList.stream().anyMatch(toCheck::isSameSession);
+    }
+
+    /** Adds {@code toAdd} and keeps sessions ordered by group and teaching week. */
+    public void add(Session toAdd) {
+        requireNonNull(toAdd);
+        if (contains(toAdd)) {
+            throw new DuplicateSessionException();
+        }
+        internalList.add(toAdd);
+        internalList.sort(DISPLAY_ORDER);
+    }
+
+    /** Replaces the session with the target's group/week identity, preserving display order. */
+    public void setSession(Session target, Session editedSession) {
+        requireAllNonNull(target, editedSession);
+        checkArgument(target.isSameSession(editedSession), "Editing cannot change a session's group or week");
+        internalList.set(indexOfSameSession(target), editedSession);
+    }
+
+    /** Removes the session with the target's group/week identity, regardless of its date. */
+    public void remove(Session target) {
+        requireNonNull(target);
+        internalList.remove(indexOfSameSession(target));
+    }
+
+    private int indexOfSameSession(Session target) {
+        for (int index = 0; index < internalList.size(); index++) {
+            if (internalList.get(index).isSameSession(target)) {
+                return index;
+            }
+        }
+        throw new SessionNotFoundException();
+    }
+
+    /** Returns the session for {@code group} and {@code week}, if one exists. */
+    public Optional<Session> find(Group group, Week week) {
+        requireAllNonNull(group, week);
+        return internalList.stream().filter(session -> session.isFor(group, week)).findFirst();
+    }
+
+    /** Replaces the list with {@code sessions}. */
+    public void setSessions(List<Session> sessions) {
+        requireAllNonNull(sessions);
+        if (!sessionsAreUnique(sessions)) {
+            throw new DuplicateSessionException();
+        }
+        internalList.setAll(sessions);
+        internalList.sort(DISPLAY_ORDER);
+    }
+
+    /** Returns an unmodifiable view backed by this list. */
+    public ObservableList<Session> asUnmodifiableObservableList() {
+        return internalUnmodifiableList;
+    }
+
+    @Override
+    public Iterator<Session> iterator() {
+        return internalList.iterator();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other == this
+                || (other instanceof UniqueSessionList otherList && internalList.equals(otherList.internalList));
+    }
+
+    @Override
+    public int hashCode() {
+        return internalList.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return internalList.toString();
+    }
+
+    /** Checks group/week identities without comparing every pair or including session dates. */
+    private boolean sessionsAreUnique(List<Session> sessions) {
+        Map<Group, Set<Week>> weeksByGroup = new HashMap<>();
+        for (Session session : sessions) {
+            Set<Week> groupWeeks = weeksByGroup.computeIfAbsent(session.getGroup(), group -> new HashSet<>());
+            if (!groupWeeks.add(session.getWeek())) {
+                return false;
+            }
+        }
+        return true;
+    }
+}

@@ -1,0 +1,130 @@
+package seedu.address.model.session;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.Group;
+import seedu.address.model.session.exceptions.DuplicateSessionException;
+import seedu.address.model.session.exceptions.SessionNotFoundException;
+
+public class UniqueSessionListTest {
+
+    private static final Group T09 = new Group("T09");
+    private static final Session WEEK_FIVE = new Session(T09, new Week(5), new SessionDate("2026-09-15"));
+    private static final Session WEEK_SIX = new Session(T09, new Week(6), new SessionDate("2026-09-22"));
+
+    private final UniqueSessionList sessions = new UniqueSessionList();
+
+    @Test
+    public void add_duplicateGroupAndWeek_throwsDuplicateSessionException() {
+        sessions.add(WEEK_FIVE);
+
+        assertThrows(DuplicateSessionException.class, () ->
+                sessions.add(new Session(T09, new Week(5), new SessionDate("2026-09-16"))));
+    }
+
+    @Test
+    public void add_outOfOrder_ordersByTeachingWeek() {
+        sessions.add(WEEK_SIX);
+        sessions.add(WEEK_FIVE);
+
+        assertEquals(List.of(WEEK_FIVE, WEEK_SIX), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void find_existingSession_returnsSession() {
+        sessions.add(WEEK_FIVE);
+
+        assertTrue(sessions.find(T09, new Week(5)).isPresent());
+    }
+
+    @Test
+    public void setSessions_duplicateGroupAndWeekWithDifferentDates_preservesList() {
+        sessions.add(WEEK_SIX);
+        Session otherGroup = new Session(new Group("T10"), new Week(5), WEEK_FIVE.getDate());
+        Session duplicate = new Session(T09, new Week(5), new SessionDate("2026-09-16"));
+
+        assertThrows(DuplicateSessionException.class, () ->
+                sessions.setSessions(List.of(WEEK_FIVE, otherGroup, duplicate)));
+        assertEquals(List.of(WEEK_SIX), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setSessions_uniqueGroupWeekPairs_sortsByGroupThenWeek() {
+        Session otherGroup = new Session(new Group("T10"), new Week(5), WEEK_FIVE.getDate());
+        Session sameDateDifferentWeek = new Session(T09, new Week(6), WEEK_FIVE.getDate());
+
+        sessions.setSessions(List.of(otherGroup, sameDateDifferentWeek, WEEK_FIVE));
+
+        assertEquals(List.of(WEEK_FIVE, sameDateDifferentWeek, otherGroup),
+                sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setSessions_emptyList_clearsExistingSessions() {
+        sessions.add(WEEK_FIVE);
+
+        sessions.setSessions(List.of());
+
+        assertTrue(sessions.asUnmodifiableObservableList().isEmpty());
+    }
+
+    @Test
+    public void setSession_changesDateAndKeepsWeekOrder() {
+        sessions.add(WEEK_FIVE);
+        sessions.add(WEEK_SIX);
+        Session edited = new Session(T09, new Week(5), new SessionDate("2026-10-01"));
+        sessions.setSession(WEEK_FIVE, edited);
+        assertEquals(List.of(edited, WEEK_SIX), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setSession_sameIdentityWithDifferentTargetDate_updatesStoredSession() {
+        sessions.add(WEEK_FIVE);
+        sessions.add(WEEK_SIX);
+        Session target = new Session(T09, new Week(5), new SessionDate("2026-09-16"));
+        Session edited = new Session(T09, new Week(5), new SessionDate("2026-10-01"));
+
+        assertTrue(sessions.contains(target));
+        sessions.setSession(target, edited);
+
+        assertEquals(List.of(edited, WEEK_SIX), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void remove_originalTargetAfterDateEdit_removesOnlySameIdentity() {
+        sessions.add(WEEK_FIVE);
+        sessions.add(WEEK_SIX);
+        Session edited = new Session(T09, new Week(5), new SessionDate("2026-10-01"));
+        sessions.setSession(WEEK_FIVE, edited);
+
+        assertTrue(sessions.contains(WEEK_FIVE));
+        sessions.remove(WEEK_FIVE);
+
+        assertEquals(List.of(WEEK_SIX), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setSession_changedIdentityOrMissingTarget_preservesList() {
+        sessions.add(WEEK_FIVE);
+        assertThrows(IllegalArgumentException.class, () -> sessions.setSession(WEEK_FIVE, WEEK_SIX));
+        Session otherGroup = new Session(new Group("T10"), new Week(5), WEEK_FIVE.getDate());
+        assertThrows(IllegalArgumentException.class, () -> sessions.setSession(WEEK_FIVE, otherGroup));
+        assertThrows(SessionNotFoundException.class, () -> sessions.setSession(WEEK_SIX, WEEK_SIX));
+        assertEquals(List.of(WEEK_FIVE), sessions.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void remove_missingTarget_preservesList() {
+        sessions.add(WEEK_FIVE);
+        assertThrows(SessionNotFoundException.class, () -> sessions.remove(WEEK_SIX));
+        assertEquals(List.of(WEEK_FIVE), sessions.asUnmodifiableObservableList());
+        sessions.remove(WEEK_FIVE);
+        assertTrue(sessions.asUnmodifiableObservableList().isEmpty());
+    }
+}

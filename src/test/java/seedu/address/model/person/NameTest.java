@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -20,6 +21,12 @@ public class NameTest {
     }
 
     @Test
+    public void constructor_whitespace_returnsNormalizedName() {
+        assertEquals("Alex Tan", new Name(" \tAlex\u2003  Tan\n ").fullName);
+        assertEquals("Alex Tan", new Name("Alex" + " ".repeat(80) + "Tan").fullName);
+    }
+
+    @Test
     public void isValidName() {
         // null name
         assertThrows(NullPointerException.class, () -> Name.isValidName(null));
@@ -27,15 +34,66 @@ public class NameTest {
         // invalid name
         assertFalse(Name.isValidName("")); // empty string
         assertFalse(Name.isValidName(" ")); // spaces only
-        assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
-        assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("^")); // unsupported punctuation
+        assertFalse(Name.isValidName("peter*"));
+        assertFalse(Name.isValidName("12345"));
+        assertFalse(Name.isValidName("peter the 2nd"));
+        assertFalse(Name.isValidName("'Peter"));
+        assertFalse(Name.isValidName("Peter-"));
+        assertFalse(Name.isValidName(".Peter"));
+        assertFalse(Name.isValidName("Ravi s/other Kumar"));
+        assertFalse(Name.isValidName("Ravi s/oKumar"));
+        assertFalse(Name.isValidName("John/Tan"));
+        assertFalse(Name.isValidName("Ravi s/o Kumar/"));
+        assertFalse(Name.isValidName("\u0301Elodie"));
+        assertFalse(Name.isValidName("A".repeat(71)));
+        assertFalse(Name.isValidName("\ud801\udc00".repeat(71)));
+
+        // brackets that do not enclose a later part of the name
+        assertFalse(Name.isValidName("(Mike) Tan")); // brackets at the start
+        assertFalse(Name.isValidName("Tan (Mike")); // unclosed
+        assertFalse(Name.isValidName("Tan Mike)")); // unopened
+        assertFalse(Name.isValidName("Tan ()")); // empty
+        assertFalse(Name.isValidName("Tan ( Mike)")); // space inside the bracket
+        assertFalse(Name.isValidName("Tan (Mike )"));
+        assertFalse(Name.isValidName("Tan(Mike)")); // no space before the bracket
+        assertFalse(Name.isValidName("Tan (Mike)Lee")); // no space after the bracket
+        assertFalse(Name.isValidName("Tan ((Mike))")); // nested
+        assertFalse(Name.isValidName("Tan (Mike 2)")); // contents break the usual rules
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
-        assertTrue(Name.isValidName("12345")); // numbers only
-        assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
+        assertTrue(Name.isValidName("A")); // single-letter name
+        assertTrue(Name.isValidName("O'Neil"));
+        assertTrue(Name.isValidName("O\u2019Neil"));
+        assertTrue(Name.isValidName("Anne-Marie"));
+        assertTrue(Name.isValidName("J. Tan"));
+        assertTrue(Name.isValidName("Tan J."));
+        assertTrue(Name.isValidName("J."));
+        assertTrue(Name.isValidName("Ravi s/o Kumar"));
+        assertTrue(Name.isValidName("Rani D/O Kumar"));
+        assertTrue(Name.isValidName("Arun a/l Ravi"));
+        assertTrue(Name.isValidName("Meena a/p Kumar"));
+        assertTrue(Name.isValidName("E\u0301lodie Tan"));
+        assertTrue(Name.isValidName("\u00c9lodie Tan"));
+        assertTrue(Name.isValidName("A".repeat(70)));
+        assertTrue(Name.isValidName("\ud801\udc00".repeat(70)));
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
-        assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("David Roger Jackson Ray Junior")); // long names
+        assertTrue(Name.isValidName("Tan Ah Kow (Mike)")); // preferred name in brackets
+        assertTrue(Name.isValidName("Tan (Mike) Ah Kow")); // brackets in the middle
+        assertTrue(Name.isValidName("Tan Ah Kow (Mike Tan)")); // several words in brackets
+        assertTrue(Name.isValidName("Tan (A)")); // single letter in brackets
+        assertTrue(Name.isValidName("Tan (J.)")); // full stop in brackets
+        assertTrue(Name.isValidName("Wong (Mike) (Mikey)")); // more than one bracketed part
+    }
+
+    @Test
+    public void constructor_nameAbbreviation_countsOriginalCharactersAndPreservesSpelling() {
+        String atLimit = "A".repeat(64) + " s/o B";
+        assertEquals(atLimit, new Name(atLimit).fullName);
+        assertFalse(Name.isValidName("A" + atLimit));
+        assertEquals("Ravi S/O Kumar", new Name("  Ravi   S/O Kumar  ").fullName);
     }
 
     @Test

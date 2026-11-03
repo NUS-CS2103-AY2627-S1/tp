@@ -8,6 +8,11 @@ plugins {
 
 application {
     mainClass = 'seedu.address.Main'
+    applicationDefaultJvmArgs = ['-ea']
+}
+
+run {
+    enableAssertions = true
 }
 
 java {
@@ -26,6 +31,7 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    enableAssertions = true
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +78,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'roster.jar'
 }
 
 defaultTasks 'clean', 'test'

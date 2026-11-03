@@ -3,11 +3,15 @@ package seedu.address.testutil;
 import java.util.HashSet;
 import java.util.Set;
 
-import seedu.address.model.person.Address;
+import seedu.address.model.attendance.Attendance;
+import seedu.address.model.attendance.Status;
+import seedu.address.model.person.Comment;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Matric;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
+import seedu.address.model.session.Session;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -17,25 +21,29 @@ import seedu.address.model.util.SampleDataUtil;
 public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
-    public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_MATRIC = "A0123456X";
+    public static final String DEFAULT_GROUP = "T09";
 
     private Name name;
-    private Phone phone;
     private Email email;
-    private Address address;
+    private Matric matric;
+    private Group group;
+    private Comment comment;
     private Set<Tag> tags;
+    private Set<Attendance> attendances;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
-        phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
+        matric = new Matric(DEFAULT_MATRIC);
+        group = new Group(DEFAULT_GROUP);
+        comment = Comment.EMPTY;
         tags = new HashSet<>();
+        attendances = new HashSet<>();
     }
 
     /**
@@ -43,10 +51,12 @@ public class PersonBuilder {
      */
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
-        phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
+        matric = personToCopy.getMatric();
+        group = personToCopy.getGroup();
+        comment = personToCopy.getComment();
         tags = new HashSet<>(personToCopy.getTags());
+        attendances = new HashSet<>(personToCopy.getAttendances());
     }
 
     /**
@@ -66,22 +76,6 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
-        return this;
-    }
-
-    /**
-     * Sets the {@code Phone} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withPhone(String phone) {
-        this.phone = new Phone(phone);
-        return this;
-    }
-
-    /**
      * Sets the {@code Email} of the {@code Person} that we are building.
      */
     public PersonBuilder withEmail(String email) {
@@ -89,8 +83,43 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Matric} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withMatric(String matric) {
+        this.matric = new Matric(matric);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Group} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withGroup(String group) {
+        this.group = new Group(group);
+        return this;
+    }
+
+    /**
+     * Records {@code status} for {@code session} on the {@code Person} that we are building,
+     * replacing any earlier attendance for the same session.
+     */
+    public PersonBuilder withAttendance(Session session, Status status) {
+        attendances.removeIf(attendance -> attendance.isForSession(session));
+        attendances.add(new Attendance(session, status));
+        return this;
+    }
+
+    /**
+     * Sets the {@code Comment} of the {@code Person} that we are building.
+     * An empty string gives the person no comment.
+     */
+    public PersonBuilder withComment(String comment) {
+        this.comment = comment.isEmpty() ? Comment.EMPTY : new Comment(comment);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, email, matric, group, tags, attendances, comment);
     }
 
 }

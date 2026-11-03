@@ -1,10 +1,17 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Person;
+import seedu.address.model.session.Session;
+import seedu.address.model.session.Week;
 
 /**
  * The API of the Model component.
@@ -12,6 +19,8 @@ import seedu.address.model.person.Person;
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
     Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    /** {@code Predicate} that always evaluates to false. */
+    Predicate<Person> PREDICATE_SHOW_NO_PERSONS = unused -> false;
 
     /**
      * Returns the user prefs.
@@ -32,6 +41,30 @@ public interface Model {
      * Replaces address book data with the data in {@code addressBook}.
      */
     void setAddressBook(ReadOnlyAddressBook addressBook);
+
+    /** Saves the current address book state as the result of an undoable command. */
+    void commitAddressBook(String commandDescription);
+
+    /** Returns whether an earlier committed address book state can be restored. */
+    boolean canUndoAddressBook();
+
+    /** Restores the previous address book state and returns the command that was undone. */
+    String undoAddressBook();
+
+    /** Reapplies the next address book state after an undo. */
+    void redoAddressBook();
+
+    /** Returns whether the most recently undone change can be reapplied. */
+    boolean canRedoAddressBook();
+
+    /** Returns the command name for the next redo. */
+    String getRedoDescription();
+
+    /** Restores a complete snapshot after an unsuccessful save. */
+    void restoreAddressBookHistory(VersionedAddressBook snapshot);
+
+    /** Discards all undo history and keeps the current address book as the new starting state. */
+    void resetAddressBookHistory();
 
     /** Returns the AddressBook */
     ReadOnlyAddressBook getAddressBook();
@@ -60,12 +93,67 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
+    /** Returns true if the tutorial group is registered. */
+    boolean hasGroup(Group group);
+
+    /** Registers a tutorial group. */
+    void addGroup(Group group);
+
+    /** Returns an unmodifiable view of the registered tutorial groups. */
+    ObservableList<Group> getGroupList();
+
+    /** Sets the active tutorial group. */
+    void setActiveGroup(Group group);
+
+    /** Returns the active tutorial group, if any. */
+    Optional<Group> getActiveGroup();
+
+    /** Returns the session for a tutorial group and week, if it exists. */
+    Optional<Session> findSession(Group group, Week week);
+
+    /** Adds a tutorial session. */
+    void addSession(Session session);
+
+    /** Changes a session's date and keeps the existing attendance statuses. */
+    void setSession(Session target, Session editedSession);
+
+    /** Deletes a session and all attendance for it, including students outside the current view. */
+    void deleteSession(Session session);
+
+    /** Returns an unmodifiable view of the tutorial sessions. */
+    ObservableList<Session> getSessionList();
+
+    /** Selects a registered group and displays its students in matric order. */
+    void showGroup(Group group);
+
+    /** Returns whether the displayed view is the full roster, rather than a group or search. */
+    ReadOnlyBooleanProperty showingAllStudentsProperty();
+
+    /** Returns the observable active group, or null for all groups. */
+    ReadOnlyObjectProperty<Group> activeGroupProperty();
+
+    /** Returns whether a group/week session already exists. */
+    boolean hasSession(Session session);
+
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Captures the current live filter, ordering and group indicators without copying roster data. */
+    StudentListViewState getStudentListViewState();
+
+    /** Restores a captured view after the corresponding roster data has been restored. */
+    void restoreStudentListViewState(StudentListViewState state);
+
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the displayed filter, restores matric order, and clears the active group.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the displayed list's filter and order, clearing the active group without changing the stored roster.
+     * A null comparator restores the roster's original order.
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator);
 }

@@ -67,6 +67,39 @@ public class EmailTest {
     }
 
     @Test
+    public void isValidEmail_longerThanMaxLength_returnsTrue() {
+        // Only new input is limited, so saved emails of any length still load
+        assertTrue(Email.isValidEmail("a".repeat(Email.MAX_LENGTH) + "@example.com"));
+    }
+
+    @Test
+    public void isValidEmail_veryLongInput_returnsWithoutError() {
+        // Thousands of short labels used to overflow the stack inside the regex
+        assertTrue(Email.isValidEmail("b@" + "a.".repeat(5000) + "com"));
+        assertTrue(Email.isValidEmail("a-".repeat(5000) + "a@" + "b-".repeat(5000) + "bc"));
+        assertFalse(Email.isValidEmail("b@" + "a.".repeat(5000))); // ends with a period
+        assertFalse(Email.isValidEmail("b@" + "a-".repeat(5000) + "a")); // last label lacks two characters in a row
+    }
+
+    @Test
+    public void isValidEmail_adjacentSpecialCharacters_acceptsExceptConsecutivePeriods() {
+        for (char first : "+_.-".toCharArray()) {
+            for (char second : "+_.-".toCharArray()) {
+                String email = "alice" + first + second + "tan@example.com";
+                if (first == '.' && second == '.') {
+                    assertFalse(Email.isValidEmail(email), email);
+                } else {
+                    assertTrue(Email.isValidEmail(email), email);
+                }
+            }
+        }
+        for (char special : "+_.-".toCharArray()) {
+            assertFalse(Email.isValidEmail(special + "alice@example.com"));
+            assertFalse(Email.isValidEmail("alice" + special + "@example.com"));
+        }
+    }
+
+    @Test
     public void equals() {
         Email email = new Email("valid@email");
 

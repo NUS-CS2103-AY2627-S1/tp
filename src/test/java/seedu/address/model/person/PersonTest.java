@@ -3,17 +3,26 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GROUP_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GROUP_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_MATRIC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
+import static seedu.address.testutil.TypicalSessions.T09_WEEK_1;
+import static seedu.address.testutil.TypicalSessions.T09_WEEK_2;
+import static seedu.address.testutil.TypicalSessions.T10_WEEK_1;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.attendance.Attendance;
+import seedu.address.model.attendance.Status;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
@@ -32,23 +41,41 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        // same matriculation number, all other attributes different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB)
+                .withEmail(VALID_EMAIL_BOB).withGroup(VALID_GROUP_BOB)
+                .withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
-        // different name, all other attributes same -> returns false
-        editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
+        // different matriculation number, all other attributes same -> returns false
+        editedAlice = new PersonBuilder(ALICE).withMatric(VALID_MATRIC_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
-        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        // same name and email, different matriculation number -> returns false
+        editedAlice = new PersonBuilder(ALICE).withMatric(VALID_MATRIC_BOB).withEmail(VALID_EMAIL_AMY).build();
+        Person otherAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_AMY).build();
+        assertFalse(otherAlice.isSamePerson(editedAlice));
 
-        // name has trailing spaces, all other attributes same -> returns false
-        String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
-        editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        // same matriculation number, different tutorial group -> returns true
+        Person editedBob = new PersonBuilder(BOB).withGroup(VALID_GROUP_AMY).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void hasSameEmail() {
+        // same email, different matriculation number -> returns true
+        Person sameEmail = new PersonBuilder(BOB).withEmail(ALICE.getEmail().value).build();
+        assertTrue(ALICE.hasSameEmail(sameEmail));
+
+        // email differs only in case -> returns true
+        Person upperCaseEmail = new PersonBuilder(BOB).withEmail(ALICE.getEmail().value.toUpperCase()).build();
+        assertTrue(ALICE.hasSameEmail(upperCaseEmail));
+
+        // different email -> returns false
+        assertFalse(ALICE.hasSameEmail(BOB));
+
+        // null -> returns false
+        assertFalse(ALICE.hasSameEmail(null));
     }
 
     @Test
@@ -73,17 +100,11 @@ public class PersonTest {
         Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different phone -> returns false
-        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
-        assertFalse(ALICE.equals(editedAlice));
 
         // different email -> returns false
         editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different address -> returns false
-        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
-        assertFalse(ALICE.equals(editedAlice));
 
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
@@ -91,9 +112,53 @@ public class PersonTest {
     }
 
     @Test
+    public void constructor_attendanceForOtherGroup_throwsIllegalArgumentException() {
+        // ALICE is in T09
+        assertThrows(IllegalArgumentException.class, Person.MESSAGE_INVALID_ATTENDANCES, () ->
+                new PersonBuilder(ALICE).withAttendance(T10_WEEK_1, Status.PRESENT).build());
+    }
+
+    @Test
+    public void getAttendance() {
+        Person alicePresent = new PersonBuilder(ALICE).withAttendance(T09_WEEK_1, Status.PRESENT).build();
+
+        // marked session -> returns the attendance
+        assertEquals(Optional.of(new Attendance(T09_WEEK_1, Status.PRESENT)),
+                alicePresent.getAttendance(T09_WEEK_1));
+
+        // unmarked session -> returns empty
+        assertEquals(Optional.empty(), alicePresent.getAttendance(T09_WEEK_2));
+    }
+
+    @Test
+    public void withAttendance() {
+        // first mark -> attendance added, original unchanged
+        Person alicePresent = ALICE.withAttendance(new Attendance(T09_WEEK_1, Status.PRESENT));
+        assertEquals(new PersonBuilder(ALICE).withAttendance(T09_WEEK_1, Status.PRESENT).build(), alicePresent);
+        assertTrue(ALICE.getAttendances().isEmpty());
+
+        // second mark for the same session -> attendance replaced, not added
+        Person aliceAbsent = alicePresent.withAttendance(new Attendance(T09_WEEK_1, Status.ABSENT));
+        assertEquals(new PersonBuilder(ALICE).withAttendance(T09_WEEK_1, Status.ABSENT).build(), aliceAbsent);
+
+        // mark for another session -> both kept
+        Person aliceTwoWeeks = aliceAbsent.withAttendance(new Attendance(T09_WEEK_2, Status.PRESENT));
+        assertEquals(2, aliceTwoWeeks.getAttendances().size());
+    }
+
+    @Test
+    public void equals_differentAttendance_returnsFalse() {
+        Person alicePresent = new PersonBuilder(ALICE).withAttendance(T09_WEEK_1, Status.PRESENT).build();
+        assertFalse(ALICE.equals(alicePresent));
+    }
+
+    @Test
     public void toStringMethod() {
-        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName()
+                + ", email=" + ALICE.getEmail()
+                + ", matric=" + ALICE.getMatric() + ", group=" + ALICE.getGroup()
+                + ", comment=" + ALICE.getComment()
+                + ", tags=" + ALICE.getTags() + ", attendances=" + ALICE.getAttendances() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

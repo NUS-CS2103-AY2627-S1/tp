@@ -15,12 +15,33 @@ public class ArgumentTokenizerTest {
     private final Prefix hatQ = new Prefix("^Q");
 
     @Test
+    public void tokenize_horizontalSeparators_preservesWhitespaceInsideValues() {
+        String value = "Bring\u00a0notes\tplease";
+        ArgumentMultimap arguments = ArgumentTokenizer.tokenize("\u00a01\u2003p/\t" + value + "\u202f", pSlash);
+        assertPreamblePresent(arguments, "1");
+        assertArgumentPresent(arguments, pSlash, value);
+    }
+
+    @Test
     public void tokenize_emptyArgsString_noValues() {
         String argsString = "  ";
         ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(argsString, pSlash);
 
         assertPreambleEmpty(argMultimap);
         assertArgumentAbsent(argMultimap, pSlash);
+    }
+
+    @Test
+    public void tokenize_relationshipAbbreviations_remainInTheNameValue() {
+        for (String name : new String[]{"Arun a/l Ravi", "Meena a/p Kumar", "Ravi s/o Kumar", "Rani D/O Kumar"}) {
+            ArgumentMultimap arguments = ArgumentTokenizer.tokenize(" n/" + name + " a/Block 1",
+                    CliSyntax.PREFIX_NAME, new Prefix("a/"));
+            assertArgumentPresent(arguments, CliSyntax.PREFIX_NAME, name);
+            assertArgumentPresent(arguments, new Prefix("a/"), "Block 1");
+        }
+        ArgumentMultimap addressOnly = ArgumentTokenizer.tokenize(" p/91234567 a/l",
+                new Prefix("p/"), new Prefix("a/"));
+        assertArgumentPresent(addressOnly, new Prefix("a/"), "l");
     }
 
     private void assertPreamblePresent(ArgumentMultimap argMultimap, String expectedPreamble) {

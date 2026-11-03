@@ -1,9 +1,12 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.KEYWORD_ALL;
 
 import java.util.List;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
@@ -12,18 +15,25 @@ import seedu.address.model.Model;
 import seedu.address.model.person.Person;
 
 /**
- * Deletes a person identified using its displayed index from the address book.
+ * Deletes a student identified using their displayed index, together with all their attendance records.
+ * The student's tutorial group is kept, even if it becomes empty.
  */
 public class DeleteCommand extends Command {
 
     public static final String COMMAND_WORD = "delete";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
+            + ": Deletes the student identified by the index number used in the displayed student list, "
+            + "including all their attendance records.\n"
             + "Parameters: INDEX (must be a positive integer)\n"
-            + "Example: " + COMMAND_WORD + " 1";
+            + "Example: " + COMMAND_WORD + " 3\n"
+            + "To delete every displayed student, use " + KEYWORD_ALL + " in place of INDEX: "
+            + COMMAND_WORD + " " + KEYWORD_ALL;
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_PERSON_SUCCESS =
+            "Deleted %1$s (%2$s) from tutorial group %3$s, including all attendance records.";
+
+    private static final Logger logger = LogsCenter.getLogger(DeleteCommand.class);
 
     private final Index targetIndex;
 
@@ -41,8 +51,20 @@ public class DeleteCommand extends Command {
         }
 
         Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
+        // Attendance records are stored inside the person, so deleting the person deletes them too
         model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        assert !model.hasPerson(personToDelete) : "The deleted student should no longer be in Roster";
+        logger.fine("Deleted one student and " + personToDelete.getAttendances().size()
+                + " attendance record(s)");
+        return new CommandResult(generateSuccessMessage(personToDelete));
+    }
+
+    /**
+     * Returns the message shown after {@code deletedPerson} is deleted.
+     */
+    public static String generateSuccessMessage(Person deletedPerson) {
+        return String.format(MESSAGE_DELETE_PERSON_SUCCESS, deletedPerson.getName(), deletedPerson.getMatric(),
+                deletedPerson.getGroup());
     }
 
     @Override

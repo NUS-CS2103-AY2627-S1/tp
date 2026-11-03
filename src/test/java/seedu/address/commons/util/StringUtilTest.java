@@ -1,5 +1,6 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -123,6 +124,20 @@ public class StringUtilTest {
         assertTrue(StringUtil.containsWordIgnoreCase("AAA bBb ccc  bbb", "bbB"));
     }
 
+    @Test
+    public void normalizeWhitespace_unicodeSeparators_collapsesAndTrims() {
+        assertEquals("John Tan", StringUtil.normalizeWhitespace("\u00a0John\t\n\u2003Tan\u00a0"));
+        assertEquals("", StringUtil.normalizeWhitespace(" \t\n\u00a0"));
+        assertEquals("", StringUtil.normalizeWhitespace(""));
+        assertThrows(NullPointerException.class, () -> StringUtil.normalizeWhitespace(null));
+    }
+
+    @Test
+    public void normalizeWhitespace_otherCharacters_preservesTheirRepresentation() {
+        assertEquals("Élodie O'Neil", StringUtil.normalizeWhitespace("Élodie O'Neil"));
+        assertEquals("E\u0301lodie", StringUtil.normalizeWhitespace("E\u0301lodie"));
+    }
+
     //---------------- Tests for getDetails --------------------------------------
 
     /*
@@ -140,4 +155,18 @@ public class StringUtilTest {
         assertThrows(NullPointerException.class, () -> StringUtil.getDetails(null));
     }
 
+
+    @Test
+    public void stripWhitespace_unicodeBoundaries_preservesInternalSpaces() {
+        assertEquals("reports/A  B\u00a0C.csv",
+                StringUtil.stripWhitespace("\u00a0\u2007 reports/A  B\u00a0C.csv \u202f"));
+        assertEquals("", StringUtil.stripWhitespace(" \t\u00a0\u2007\u202f\u2003"));
+        assertEquals("", StringUtil.stripWhitespace(""));
+        assertEquals("1\u00a02", StringUtil.stripWhitespace("\u00a01\u00a02\u00a0"));
+    }
+
+    @Test
+    public void stripWhitespace_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.stripWhitespace(null));
+    }
 }

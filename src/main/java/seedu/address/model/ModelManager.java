@@ -3,14 +3,25 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Person;
+import seedu.address.model.session.Session;
+import seedu.address.model.session.Week;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -18,9 +29,14 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private static final Comparator<Person> MATRIC_ORDER = Comparator.comparing(person -> person.getMatric().value);
+
+    private final VersionedAddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> displayedPersons;
+    private final ReadOnlyObjectWrapper<Group> activeGroup = new ReadOnlyObjectWrapper<>();
+    private final ReadOnlyBooleanWrapper showingAllStudents = new ReadOnlyBooleanWrapper(true);
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,11 +44,12 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing roster with " + addressBook.getPersonList().size() + " student(s).");
 
-        this.addressBook = new AddressBook(addressBook);
+        this.addressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        displayedPersons = new SortedList<>(filteredPersons, MATRIC_ORDER);
     }
 
     public ModelManager() {
@@ -62,6 +79,54 @@ public class ModelManager implements Model {
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
         this.addressBook.resetData(addressBook);
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
+
+    @Override
+    public void commitAddressBook(String commandDescription) {
+        requireNonNull(commandDescription);
+        addressBook.commit(commandDescription);
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return addressBook.canUndo();
+    }
+
+    @Override
+    public String undoAddressBook() {
+        String undoneCommand = addressBook.undo();
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        return undoneCommand;
+    }
+
+    @Override
+    public void redoAddressBook() {
+        addressBook.redo();
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
+
+    @Override
+    public void resetAddressBookHistory() {
+        addressBook.resetHistory();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return addressBook.canRedo();
+    }
+
+    @Override
+    public String getRedoDescription() {
+        return addressBook.getRedoDescription();
+    }
+
+    @Override
+    public void restoreAddressBookHistory(VersionedAddressBook snapshot) {
+        addressBook.restoreHistory(snapshot.getHistoryStates(), snapshot.getHistoryCommands(),
+                snapshot.getHistoryPointer());
+        addressBook.resetData(snapshot);
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
     @Override
@@ -83,7 +148,6 @@ public class ModelManager implements Model {
     @Override
     public void addPerson(Person person) {
         addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
     }
 
     @Override
@@ -91,6 +155,89 @@ public class ModelManager implements Model {
         requireAllNonNull(target, editedPerson);
 
         addressBook.setPerson(target, editedPerson);
+    }
+
+    //=========== Tutorial Groups and Sessions ===============================================================
+
+    @Override
+    public boolean hasGroup(Group group) {
+        requireNonNull(group);
+        return addressBook.hasGroup(group);
+    }
+
+    @Override
+    public void addGroup(Group group) {
+        addressBook.addGroup(group);
+    }
+
+    @Override
+    public ObservableList<Group> getGroupList() {
+        return addressBook.getGroupList();
+    }
+
+    @Override
+    public void setActiveGroup(Group group) {
+        requireNonNull(group);
+        if (!hasGroup(group)) {
+            throw new IllegalArgumentException("Active tutorial group must be registered");
+        }
+        showingAllStudents.set(false);
+        activeGroup.set(group);
+    }
+
+    @Override
+    public Optional<Group> getActiveGroup() {
+        return Optional.ofNullable(activeGroup.get());
+    }
+
+    @Override
+    public Optional<Session> findSession(Group group, Week week) {
+        return addressBook.findSession(group, week);
+    }
+
+    @Override
+    public void addSession(Session session) {
+        requireNonNull(session);
+        addressBook.addSession(session);
+    }
+
+    @Override
+    public void setSession(Session target, Session editedSession) {
+        addressBook.setSession(target, editedSession);
+    }
+
+    @Override
+    public void deleteSession(Session session) {
+        addressBook.removeSession(session);
+    }
+
+    @Override
+    public ObservableList<Session> getSessionList() {
+        return addressBook.getSessionList();
+    }
+
+    @Override
+    public boolean hasSession(Session session) {
+        return addressBook.hasSession(session);
+    }
+
+    @Override
+    public void showGroup(Group group) {
+        setActiveGroup(group);
+        filteredPersons.setPredicate(person -> person.getGroup().equals(group));
+        displayedPersons.setComparator(MATRIC_ORDER);
+        assert displayedPersons.stream().allMatch(person -> person.getGroup().equals(group))
+                : "Only students of the shown group should be displayed";
+    }
+
+    @Override
+    public ReadOnlyBooleanProperty showingAllStudentsProperty() {
+        return showingAllStudents.getReadOnlyProperty();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<Group> activeGroupProperty() {
+        return activeGroup.getReadOnlyProperty();
     }
 
     //=========== Filtered Person List Accessors =============================================================
@@ -101,13 +248,36 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return displayedPersons;
+    }
+
+    @Override
+    public StudentListViewState getStudentListViewState() {
+        return new StudentListViewState(filteredPersons.getPredicate(), displayedPersons.getComparator(),
+                getActiveGroup(), showingAllStudents.get());
+    }
+
+    @Override
+    public void restoreStudentListViewState(StudentListViewState state) {
+        requireNonNull(state);
+        filteredPersons.setPredicate(state.predicate());
+        displayedPersons.setComparator(state.comparator());
+        showingAllStudents.set(state.isShowingAllStudents());
+        activeGroup.set(state.activeGroup().orElse(null));
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
+        updateFilteredPersonList(predicate, MATRIC_ORDER);
+    }
+
+    @Override
+    public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+        displayedPersons.setComparator(comparator);
+        showingAllStudents.set(predicate == PREDICATE_SHOW_ALL_PERSONS);
+        activeGroup.set(null);
     }
 
     @Override
@@ -123,7 +293,9 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && Objects.equals(activeGroup.get(), otherModelManager.activeGroup.get())
+                && showingAllStudents.get() == otherModelManager.showingAllStudents.get()
+                && displayedPersons.equals(otherModelManager.displayedPersons);
     }
 
 }

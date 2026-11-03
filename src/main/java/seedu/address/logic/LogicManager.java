@@ -2,18 +2,26 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.Command.HistoryAction;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.StudentListViewState;
+import seedu.address.model.VersionedAddressBook;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Person;
+import seedu.address.model.session.Session;
 import seedu.address.storage.Storage;
 
 /**
@@ -42,26 +50,75 @@ public class LogicManager implements Logic {
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
-
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        logger.info("Executing command: " + command.getUndoDescription());
+        VersionedAddressBook stateBeforeCommand = command.requiresSave()
+                ? new VersionedAddressBook(model.getAddressBook()) : null;
+        StudentListViewState viewBeforeCommand = command.requiresSave() ? model.getStudentListViewState() : null;
+        CommandResult commandResult = command.execute(model);
+
+        if (!command.requiresSave()) {
+            logger.fine("Command does not require a roster save: " + command.getUndoDescription());
+            return commandResult;
+        }
+
+        if (command.getHistoryAction() == HistoryAction.COMMIT) {
+            // A successful no-op must not add an undo step or discard the available redo states.
+            // Undo and redo still save their history position, including legacy duplicate snapshots.
+            if (stateBeforeCommand.equals(model.getAddressBook())) {
+                logger.fine("Command made no roster changes; preserving undo/redo history: "
+                        + command.getUndoDescription());
+                return commandResult;
+            }
+            model.commitAddressBook(command.getUndoDescription());
+            logger.fine("Committed undo history in memory for command: " + command.getUndoDescription());
+        }
 
         try {
             storage.saveAddressBook(model.getAddressBook());
+            logger.fine("Saved roster and history for command: " + command.getUndoDescription());
         } catch (AccessDeniedException e) {
+            rollBackCommand(command, stateBeforeCommand, viewBeforeCommand, e);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            rollBackCommand(command, stateBeforeCommand, viewBeforeCommand, ioe);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
         return commandResult;
     }
 
+    private void rollBackCommand(Command command, VersionedAddressBook stateBeforeCommand,
+            StudentListViewState viewBeforeCommand, IOException cause) {
+        logger.log(Level.WARNING, "Saving failed, so the changes made by " + command.getUndoDescription()
+                + " are being rolled back, including undo/redo history and the student-list view", cause);
+        model.restoreAddressBookHistory(stateBeforeCommand);
+        model.restoreStudentListViewState(viewBeforeCommand);
+    }
+
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ReadOnlyBooleanProperty showingAllStudentsProperty() {
+        return model.showingAllStudentsProperty();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<Group> activeGroupProperty() {
+        return model.activeGroupProperty();
+    }
+
+    @Override
+    public ObservableList<Session> getSessionList() {
+        return model.getAddressBook().getSessionList();
+    }
+
+    @Override
+    public ObservableList<Group> getGroupList() {
+        return model.getGroupList();
     }
 
     @Override

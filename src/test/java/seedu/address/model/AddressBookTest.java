@@ -3,21 +3,30 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalSessions.T09_WEEK_1;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.exceptions.DuplicateGroupException;
 import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.session.Session;
+import seedu.address.model.session.SessionDate;
+import seedu.address.model.session.Week;
+import seedu.address.model.session.exceptions.SessionNotFoundException;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddressBookTest {
@@ -44,7 +53,7 @@ public class AddressBookTest {
     @Test
     public void resetData_withDuplicatePersons_throwsDuplicatePersonException() {
         // Two persons with the same identity fields
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND)
                 .build();
         List<Person> newPersons = List.of(ALICE, editedAlice);
         AddressBookStub newData = new AddressBookStub(newPersons);
@@ -64,16 +73,133 @@ public class AddressBookTest {
 
     @Test
     public void hasPerson_personInAddressBook_returnsTrue() {
+        addressBook.addGroup(ALICE.getGroup());
         addressBook.addPerson(ALICE);
         assertTrue(addressBook.hasPerson(ALICE));
     }
 
     @Test
     public void hasPerson_personWithSameIdentityFieldsInAddressBook_returnsTrue() {
+        addressBook.addGroup(ALICE.getGroup());
         addressBook.addPerson(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Person editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND)
                 .build();
         assertTrue(addressBook.hasPerson(editedAlice));
+    }
+
+    @Test
+    public void addPerson_unregisteredGroup_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, AddressBook.MESSAGE_UNREGISTERED_PERSON_GROUP, () ->
+                addressBook.addPerson(ALICE));
+        assertFalse(addressBook.hasPerson(ALICE));
+    }
+
+    @Test
+    public void setPerson_unregisteredGroup_throwsIllegalArgumentException() {
+        addressBook.addGroup(ALICE.getGroup());
+        addressBook.addPerson(ALICE);
+        Person aliceInUnregisteredGroup = new PersonBuilder(ALICE).withGroup("T99").build();
+
+        assertThrows(IllegalArgumentException.class, AddressBook.MESSAGE_UNREGISTERED_PERSON_GROUP, () ->
+                addressBook.setPerson(ALICE, aliceInUnregisteredGroup));
+        assertEquals(List.of(ALICE), addressBook.getPersonList());
+    }
+
+    @Test
+    public void addGroup_duplicateGroup_throwsDuplicateGroupException() {
+        Group group = new Group("T09");
+        addressBook.addGroup(group);
+
+        assertThrows(DuplicateGroupException.class, () ->
+                addressBook.addGroup(new Group("T09")));
+    }
+
+    @Test
+    public void setGroups_nullList_preservesGroups() {
+        addressBook.addGroup(new Group("T09"));
+
+        assertThrows(NullPointerException.class, () -> addressBook.setGroups(null));
+        assertEquals(List.of(new Group("T09")), addressBook.getGroupList());
+    }
+
+    @Test
+    public void setGroups_nullElement_preservesGroups() {
+        addressBook.addGroup(new Group("T09"));
+
+        assertThrows(NullPointerException.class, () ->
+                addressBook.setGroups(Arrays.asList(new Group("T10"), null)));
+        assertEquals(List.of(new Group("T09")), addressBook.getGroupList());
+    }
+
+    @Test
+    public void setGroups_duplicateGroups_preservesGroups() {
+        addressBook.addGroup(new Group("T09"));
+
+        assertThrows(DuplicateGroupException.class, () ->
+                addressBook.setGroups(List.of(new Group("T10"), new Group("T10"))));
+        assertEquals(List.of(new Group("T09")), addressBook.getGroupList());
+    }
+
+    @Test
+    public void setGroups_ownView_preservesGroups() {
+        addressBook.addGroup(new Group("T09"));
+        addressBook.addGroup(new Group("T10"));
+
+        addressBook.setGroups(addressBook.getGroupList());
+
+        assertEquals(List.of(new Group("T09"), new Group("T10")), addressBook.getGroupList());
+    }
+
+    @Test
+    public void setGroups_validReplacement_updatesExistingViewAndCopiesInput() {
+        addressBook.addGroup(new Group("T09"));
+        ObservableList<Group> view = addressBook.getGroupList();
+        List<Group> replacement = new ArrayList<>(List.of(new Group("T11"), new Group("T10")));
+
+        addressBook.setGroups(replacement);
+        replacement.clear();
+
+        assertEquals(List.of(new Group("T11"), new Group("T10")), view);
+        addressBook.setGroups(List.of());
+        assertTrue(view.isEmpty());
+    }
+
+    @Test
+    public void addSession_sameGroupAndWeek_throwsDuplicateSessionException() {
+        Group group = new Group("T09");
+        addressBook.addGroup(group);
+        addressBook.addSession(new Session(group, new Week(5), new SessionDate("2026-09-15")));
+
+        assertThrows(seedu.address.model.session.exceptions.DuplicateSessionException.class, () ->
+                addressBook.addSession(new Session(group, new Week(5), new SessionDate("2026-09-16"))));
+    }
+
+    @Test
+    public void addSession_outOfOrder_sortsByWeek() {
+        Group group = new Group("T09");
+        Session weekFive = new Session(group, new Week(5), new SessionDate("2026-09-15"));
+        Session weekSix = new Session(group, new Week(6), new SessionDate("2026-09-22"));
+
+        addressBook.addGroup(group);
+        addressBook.addSession(weekSix);
+        addressBook.addSession(weekFive);
+
+        assertEquals(List.of(weekFive, weekSix), addressBook.getSessionList());
+    }
+
+    @Test
+    public void sessionChanges_invalidTargetOrIdentity_preserveRoster() {
+        addressBook.addGroup(T09_WEEK_1.getGroup());
+        addressBook.addSession(T09_WEEK_1);
+        addressBook.addPerson(new PersonBuilder(ALICE).withAttendance(T09_WEEK_1,
+                seedu.address.model.attendance.Status.PRESENT).build());
+        AddressBook before = new AddressBook(addressBook);
+        Session missing = new Session(T09_WEEK_1.getGroup(), new Week(2), new SessionDate("2026-08-18"));
+
+        assertThrows(SessionNotFoundException.class, () -> addressBook.removeSession(missing));
+        assertThrows(SessionNotFoundException.class, () -> addressBook.setSession(missing, missing));
+        assertThrows(IllegalArgumentException.class, () -> addressBook.setSession(T09_WEEK_1, missing));
+        assertEquals(before, addressBook);
     }
 
     @Test
@@ -82,8 +208,30 @@ public class AddressBookTest {
     }
 
     @Test
+    public void hasSession_sessionNotInAddressBook_returnsFalse() {
+        assertFalse(addressBook.hasSession(T09_WEEK_1));
+    }
+
+    @Test
+    public void addSession_sessionAdded_hasAndFindsSession() {
+        addressBook.addGroup(T09_WEEK_1.getGroup());
+        addressBook.addSession(T09_WEEK_1);
+        assertTrue(addressBook.hasSession(T09_WEEK_1));
+        assertEquals(Optional.of(T09_WEEK_1), addressBook.findSession(new Group("T09"), new Week(1)));
+        assertEquals(Optional.empty(), addressBook.findSession(new Group("T09"), new Week(2)));
+    }
+
+    @Test
+    public void resetData_withSessions_copiesSessions() {
+        AddressBook newData = getTypicalAddressBook();
+        addressBook.resetData(newData);
+        assertEquals(newData.getSessionList(), addressBook.getSessionList());
+    }
+
+    @Test
     public void toStringMethod() {
-        String expected = AddressBook.class.getCanonicalName() + "{persons=" + addressBook.getPersonList() + "}";
+        String expected = AddressBook.class.getCanonicalName() + "{persons=" + addressBook.getPersonList()
+                + ", groups=" + addressBook.getGroupList() + ", sessions=" + addressBook.getSessionList() + "}";
         assertEquals(expected, addressBook.toString());
     }
 
@@ -100,6 +248,16 @@ public class AddressBookTest {
         @Override
         public ObservableList<Person> getPersonList() {
             return persons;
+        }
+
+        @Override
+        public ObservableList<Group> getGroupList() {
+            return FXCollections.emptyObservableList();
+        }
+
+        @Override
+        public ObservableList<Session> getSessionList() {
+            return FXCollections.emptyObservableList();
         }
     }
 

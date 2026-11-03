@@ -8,20 +8,30 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Group;
 import seedu.address.model.person.Person;
+import seedu.address.model.session.Session;
+import seedu.address.model.session.Week;
+import seedu.address.testutil.AddressBookBuilder;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -38,9 +48,86 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
-                commandResult.getFeedbackToUser());
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validPerson.getName(),
+                validPerson.getMatric(), validPerson.getGroup()), commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_emailOfAnotherStudent_throwsCommandException() {
+        Person existingStudent = new PersonBuilder().withMatric("A0000001A").withEmail("amy@gmail.com").build();
+        Model model = new ModelManager(new AddressBookBuilder().withPerson(existingStudent).build(), new UserPrefs());
+        // emails are compared ignoring case
+        Person newStudent = new PersonBuilder().withMatric("A0000002B").withEmail("AMY@gmail.com").build();
+        AddCommand addCommand = new AddCommand(newStudent);
+
+        assertThrows(CommandException.class,
+                String.format(AddCommand.MESSAGE_DUPLICATE_EMAIL, newStudent.getEmail()), ()
+                        -> addCommand.execute(model));
+        assertEquals(List.of(existingStudent), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_studentOutsideDisplayedGroup_showsTheirGroup() throws Exception {
+        Person existingStudent = new PersonBuilder().withMatric("A0000001A").withEmail("amy@gmail.com")
+                .withGroup("T10").build();
+        Model model = new ModelManager(new AddressBookBuilder().withPerson(existingStudent).build(), new UserPrefs());
+        model.addGroup(new Group("T09"));
+        model.showGroup(new Group("T10"));
+        Person newStudent = new PersonBuilder().withMatric("A0000002B").withEmail("bob@gmail.com")
+                .withGroup("T09").build();
+
+        CommandResult result = new AddCommand(newStudent).execute(model);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS_SHOWING_GROUP, newStudent.getName(),
+                newStudent.getMatric(), newStudent.getGroup()), result.getFeedbackToUser());
+        assertEquals(Optional.of(new Group("T09")), model.getActiveGroup());
+        assertEquals(List.of(newStudent), model.getFilteredPersonList());
+        assertEquals(Optional.of(newStudent), result.getPersonToShow());
+    }
+
+    @Test
+    public void execute_studentInDisplayedGroup_keepsView() throws Exception {
+        Person existingStudent = new PersonBuilder().withMatric("A0000001A").withEmail("amy@gmail.com").build();
+        Model model = new ModelManager(new AddressBookBuilder().withPerson(existingStudent).build(), new UserPrefs());
+        model.showGroup(existingStudent.getGroup());
+        Person newStudent = new PersonBuilder().withMatric("A0000002B").withEmail("bob@gmail.com").build();
+
+        CommandResult result = new AddCommand(newStudent).execute(model);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, newStudent.getName(), newStudent.getMatric(),
+                newStudent.getGroup()), result.getFeedbackToUser());
+        assertEquals(Optional.of(existingStudent.getGroup()), model.getActiveGroup());
+        assertEquals(List.of(existingStudent, newStudent), model.getFilteredPersonList());
+        assertEquals(Optional.of(newStudent), result.getPersonToShow());
+    }
+
+    @Test
+    public void execute_allStudentsDisplayed_keepsAllStudentsView() throws Exception {
+        Person existingStudent = new PersonBuilder().withMatric("A0000001A").withEmail("amy@gmail.com")
+                .withGroup("T10").build();
+        Model model = new ModelManager(new AddressBookBuilder().withPerson(existingStudent).build(), new UserPrefs());
+        model.addGroup(new Group("T09"));
+        Person newStudent = new PersonBuilder().withMatric("A0000002B").withEmail("bob@gmail.com")
+                .withGroup("T09").build();
+
+        CommandResult result = new AddCommand(newStudent).execute(model);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, newStudent.getName(), newStudent.getMatric(),
+                newStudent.getGroup()), result.getFeedbackToUser());
+        assertEquals(Optional.empty(), model.getActiveGroup());
+        assertEquals(List.of(existingStudent, newStudent), model.getFilteredPersonList());
+        assertEquals(Optional.of(newStudent), result.getPersonToShow());
+    }
+
+    @Test
+    public void execute_unregisteredGroup_throwsCommandException() {
+        Model model = new ModelManager();
+        Person student = new PersonBuilder().withGroup("T77").build();
+
+        assertThrows(CommandException.class, String.format(AddCommand.MESSAGE_UNKNOWN_GROUP, "T77"), ()
+                -> new AddCommand(student).execute(model));
+        assertEquals(List.of(), model.getAddressBook().getPersonList());
     }
 
     @Test
@@ -49,7 +136,9 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class,
+                String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, validPerson.getMatric()), ()
+                        -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -88,6 +177,21 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void showGroup(Group group) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyBooleanProperty showingAllStudentsProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyObjectProperty<Group> activeGroupProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -113,6 +217,56 @@ public class AddCommandTest {
         }
 
         @Override
+        public void commitAddressBook(String commandDescription) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String getRedoDescription() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreAddressBookHistory(seedu.address.model.VersionedAddressBook snapshot) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public seedu.address.model.StudentListViewState getStudentListViewState() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreStudentListViewState(seedu.address.model.StudentListViewState state) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void redoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void resetAddressBookHistory() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyAddressBook getAddressBook() {
             throw new AssertionError("This method should not be called.");
         }
@@ -133,12 +287,72 @@ public class AddCommandTest {
         }
 
         @Override
+        public boolean hasGroup(Group group) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addGroup(Group group) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Group> getGroupList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setActiveGroup(Group group) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Group> getActiveGroup() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Session> findSession(Group group, Week week) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addSession(Session session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setSession(Session target, Session editedSession) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteSession(Session session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Session> getSessionList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
+        public boolean hasSession(Session session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -155,6 +369,11 @@ public class AddCommandTest {
         }
 
         @Override
+        public boolean hasGroup(Group group) {
+            return true;
+        }
+
+        @Override
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return this.person.isSamePerson(person);
@@ -166,6 +385,11 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
+
+        @Override
+        public boolean hasGroup(Group group) {
+            return true;
+        }
 
         @Override
         public boolean hasPerson(Person person) {
@@ -182,6 +406,11 @@ public class AddCommandTest {
         @Override
         public ReadOnlyAddressBook getAddressBook() {
             return new AddressBook();
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded);
         }
     }
 

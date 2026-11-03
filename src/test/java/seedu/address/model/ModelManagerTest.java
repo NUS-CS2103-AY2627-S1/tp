@@ -2,23 +2,67 @@ package seedu.address.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalSessions.T09_WEEK_1;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.NameContainsQueryPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.session.Week;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
     private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void showingAllStudentsProperty_distinguishesFullRosterFromMatchingSearchResults() {
+        assertTrue(modelManager.showingAllStudentsProperty().get());
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.addPerson(ALICE);
+        modelManager.showGroup(ALICE.getGroup());
+        assertFalse(modelManager.showingAllStudentsProperty().get());
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertTrue(modelManager.showingAllStudentsProperty().get());
+        modelManager.updateFilteredPersonList(person -> true);
+        assertFalse(modelManager.showingAllStudentsProperty().get());
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+        modelManager.setAddressBook(new AddressBook());
+        assertTrue(modelManager.showingAllStudentsProperty().get());
+    }
+
+    @Test
+    public void registeredGroup_survivesLastStudentDeletion() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.addPerson(ALICE);
+        modelManager.deletePerson(ALICE);
+        assertTrue(modelManager.hasGroup(ALICE.getGroup()));
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getAddressBook().getGroupList().clear());
+    }
+
+    @Test
+    public void setAddressBook_clearsActiveGroupAndReplacesRegistry() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.addPerson(ALICE);
+        modelManager.showGroup(ALICE.getGroup());
+        modelManager.setAddressBook(new AddressBook());
+        assertEquals(null, modelManager.activeGroupProperty().get());
+        assertFalse(modelManager.hasGroup(ALICE.getGroup()));
+    }
 
     @Test
     public void constructor() {
@@ -63,7 +107,27 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void hasSession_nullSession_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasSession(null));
+    }
+
+    @Test
+    public void addSession_sessionAdded_hasAndFindsSession() {
+        assertFalse(modelManager.hasSession(T09_WEEK_1));
+        modelManager.addGroup(T09_WEEK_1.getGroup());
+        modelManager.addSession(T09_WEEK_1);
+        assertTrue(modelManager.hasSession(T09_WEEK_1));
+        assertEquals(Optional.of(T09_WEEK_1), modelManager.findSession(new Group("T09"), new Week(1)));
+    }
+
+    @Test
+    public void findSession_noSuchSession_returnsEmpty() {
+        assertEquals(Optional.empty(), modelManager.findSession(new Group("T09"), new Week(1)));
+    }
+
+    @Test
     public void hasPerson_personInAddressBook_returnsTrue() {
+        modelManager.addGroup(ALICE.getGroup());
         modelManager.addPerson(ALICE);
         assertTrue(modelManager.hasPerson(ALICE));
     }
@@ -71,6 +135,144 @@ public class ModelManagerTest {
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void updateFilteredPersonList_comparator_changesDisplayWithoutChangingRoster() {
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build(),
+                new UserPrefs());
+        ObservableList<Person> displayed = modelManager.getFilteredPersonList();
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS,
+                Comparator.comparing((Person person) -> person.getName().fullName).reversed());
+
+        assertSame(displayed, modelManager.getFilteredPersonList());
+        assertEquals(List.of(BENSON, ALICE), displayed);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getAddressBook().getPersonList());
+        assertThrows(UnsupportedOperationException.class, () -> displayed.add(ALICE));
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, BENSON), displayed);
+    }
+
+    @Test
+    public void updateFilteredPersonList_nullPredicate_preservesCurrentView() {
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build(),
+                new UserPrefs());
+        modelManager.updateFilteredPersonList(person -> person.equals(BENSON),
+                Comparator.comparing(person -> person.getName().fullName));
+
+        assertThrows(NullPointerException.class, () -> modelManager.updateFilteredPersonList(null));
+        assertThrows(NullPointerException.class, () -> modelManager.updateFilteredPersonList(null, null));
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_sortedView_updatesLiveOrder() {
+        modelManager = new ModelManager(new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build(),
+                new UserPrefs());
+        ObservableList<Person> displayed = modelManager.getFilteredPersonList();
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS,
+                Comparator.comparing(person -> person.getName().fullName));
+        Person renamedAlice = new PersonBuilder(ALICE).withName("Zoe").build();
+        modelManager.setPerson(ALICE, renamedAlice);
+
+        assertEquals(List.of(BENSON, renamedAlice), displayed);
+        assertEquals(List.of(renamedAlice, BENSON), modelManager.getAddressBook().getPersonList());
+        modelManager.deletePerson(BENSON);
+        assertEquals(List.of(renamedAlice), displayed);
+    }
+
+    @Test
+    public void undoAddressBook_multipleCommittedStates_restoresThemInOrder() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.commitAddressBook("init");
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook("add");
+
+        assertEquals("add", modelManager.undoAddressBook());
+        assertFalse(modelManager.hasPerson(ALICE));
+        assertTrue(modelManager.hasGroup(ALICE.getGroup()));
+        assertEquals("init", modelManager.undoAddressBook());
+        assertFalse(modelManager.hasGroup(ALICE.getGroup()));
+        assertFalse(modelManager.canUndoAddressBook());
+    }
+
+    @Test
+    public void redoAddressBook_afterUndo_restoresLaterState() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.commitAddressBook("init");
+        modelManager.undoAddressBook();
+
+        modelManager.redoAddressBook();
+        assertTrue(modelManager.hasGroup(ALICE.getGroup()));
+        assertTrue(modelManager.canUndoAddressBook());
+    }
+
+    @Test
+    public void commitAddressBook_afterUndo_discardsLaterState() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.commitAddressBook("init");
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook("add");
+        modelManager.undoAddressBook();
+        modelManager.addPerson(BENSON);
+        modelManager.commitAddressBook("add");
+
+        assertEquals("add", modelManager.undoAddressBook());
+        assertFalse(modelManager.hasPerson(ALICE));
+        assertFalse(modelManager.hasPerson(BENSON));
+    }
+
+    @Test
+    public void resetAddressBookHistory_currentStateCannotBeUndone() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.commitAddressBook("init");
+        modelManager.resetAddressBookHistory();
+
+        assertFalse(modelManager.canUndoAddressBook());
+        assertTrue(modelManager.hasGroup(ALICE.getGroup()));
+    }
+
+    @Test
+    public void equals_differentDisplayOrder_returnsFalse() {
+        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+        ModelManager sortedModel = new ModelManager(addressBook, new UserPrefs());
+        sortedModel.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS,
+                Comparator.comparing((Person person) -> person.getName().fullName).reversed());
+
+        assertFalse(modelManager.equals(sortedModel));
+        sortedModel.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertTrue(modelManager.equals(sortedModel));
+    }
+
+    @Test
+    public void setActiveGroup_unknownGroup_preservesSelectionAndRows() {
+        modelManager.addGroup(ALICE.getGroup());
+        modelManager.addPerson(ALICE);
+        modelManager.showGroup(ALICE.getGroup());
+        ObservableList<Person> displayed = modelManager.getFilteredPersonList();
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.setActiveGroup(new Group("T99")));
+        assertEquals(Optional.of(ALICE.getGroup()), modelManager.getActiveGroup());
+        assertSame(displayed, modelManager.getFilteredPersonList());
+        assertEquals(List.of(ALICE), displayed);
+    }
+
+    @Test
+    public void equals_sameRosterAndRowsButDifferentActiveGroup_returnsFalse() {
+        AddressBook roster = new AddressBookBuilder().withPerson(ALICE).build();
+        roster.addGroup(new Group("T10"));
+        ModelManager first = new ModelManager(roster, new UserPrefs());
+        ModelManager second = new ModelManager(roster, new UserPrefs());
+        first.setActiveGroup(ALICE.getGroup());
+        second.setActiveGroup(new Group("T10"));
+
+        assertEquals(first.getFilteredPersonList(), second.getFilteredPersonList());
+        assertFalse(first.equals(second));
+        assertFalse(second.equals(first));
+        second.setActiveGroup(ALICE.getGroup());
+        assertEquals(first, second);
     }
 
     @Test
@@ -97,8 +299,7 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new NameContainsQueryPredicate(ALICE.getName().fullName));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests

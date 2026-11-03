@@ -1,0 +1,348 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.FxTestUtil.onFxThread;
+import static seedu.address.testutil.FxTestUtil.waitForRenderingCycles;
+import static seedu.address.ui.MainWindowTestFixture.enterCommand;
+import static seedu.address.ui.MainWindowTestFixture.getCommandInput;
+
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
+import javax.imageio.ImageIO;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javafx.geometry.Bounds;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextArea;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+import seedu.address.model.AddressBook;
+import seedu.address.model.attendance.Status;
+import seedu.address.model.person.Comment;
+import seedu.address.model.person.Group;
+import seedu.address.model.session.Session;
+import seedu.address.model.session.SessionDate;
+import seedu.address.model.session.Week;
+import seedu.address.model.tag.Tag;
+import seedu.address.testutil.PersonBuilder;
+
+public class UiComponentsIntegrationTest {
+    @TempDir
+    public Path temporaryFolder;
+
+    @Test
+    public void feedback_commandsAndUndoShortcuts_updateBothBannerAndInputStatus() throws Exception {
+        try (MainWindowTestFixture fixture = createWindow(false)) {
+            onFxThread(() -> {
+                Stage stage = fixture.stage();
+                enterCommand(stage, "edit 1 n/Alex Lim");
+                assertFeedback(stage, false);
+                enterCommand(stage, "unknown");
+                enterCommand(stage, "unknown");
+                assertFeedback(stage, true);
+                TextArea result = (TextArea) stage.getScene().lookup("#resultDisplay");
+                result.requestFocus();
+                result.fireEvent(shortcutZ());
+                assertFeedback(stage, false);
+                assertEquals("Alex Tan", fixture.model().getAddressBook().getPersonList().getFirst()
+                        .getName().fullName);
+                result.fireEvent(shortcutZ());
+                assertFeedback(stage, true);
+                getCommandInput(stage).setText("list");
+                assertFalse(stage.getScene().lookup("#commandBox").getStyleClass().contains("error"));
+                enterCommand(stage, "list");
+                assertFeedback(stage, false);
+                return null;
+            });
+            saveScreenshotAfterRendering(fixture.stage(), "feedback-success.png");
+            onFxThread(() -> {
+                enterCommand(fixture.stage(), "unknown");
+                return null;
+            });
+            saveScreenshotAfterRendering(fixture.stage(), "feedback-error.png");
+        }
+    }
+
+    @Test
+    public void filteringCommentsAndUndo_refreshStudentCountAndPreserveMetadata() throws Exception {
+        try (MainWindowTestFixture fixture = createWindow(false)) {
+            onFxThread(() -> {
+                Stage stage = fixture.stage();
+                assertEquals("3 students", label(stage, "studentCount").getText());
+                enterCommand(stage, "find n/Alex");
+                assertEquals("1 student", label(stage, "studentCount").getText());
+                enterCommand(stage, "comment 1 c-/Updated note");
+                enterCommand(stage, "comment 1 c-/");
+                enterCommand(stage, "undo");
+                enterCommand(stage, "find n/Nobody");
+                assertEquals("0 students", label(stage, "studentCount").getText());
+                enterCommand(stage, "list");
+                enterCommand(stage, "clear");
+                assertEquals("0 students", label(stage, "studentCount").getText());
+                enterCommand(stage, "undo");
+                assertEquals("3 students", label(stage, "studentCount").getText());
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void layout_minimumAndLargerWindows_keepLongTextAndAllWeeksInsideCards() throws Exception {
+        try (MainWindowTestFixture fixture = createWindow(true)) {
+            for (int[] size : List.of(new int[]{740, 600}, new int[]{1000, 700}, new int[]{1400, 900})) {
+                onFxThread(() -> {
+                    fixture.stage().setWidth(size[0]);
+                    fixture.stage().setHeight(size[1]);
+                    return null;
+                });
+                waitForRenderingCycles(3);
+                onFxThread(() -> {
+                    Stage stage = fixture.stage();
+                    Node card = firstCard(stage);
+                    Bounds cardBounds = card.localToScene(card.getBoundsInLocal());
+                    FlowPane attendance = (FlowPane) card.lookup("#attendance");
+                    assertEquals(13, attendance.getChildren().size());
+                    for (Node cell : attendance.getChildren()) {
+                        assertWithin(cardBounds, cell.localToScene(cell.getBoundsInLocal()));
+                    }
+                    for (String field : List.of("name", "matric")) {
+                        Label value = (Label) card.lookup("#" + field);
+                        assertWithin(cardBounds, value.localToScene(value.getBoundsInLocal()));
+                        assertEquals(value.getText(), ((Text) value.lookup(".text")).getText());
+                    }
+                    ListView<?> students = (ListView<?>) stage.getScene().lookup("#personListView");
+                    Bounds viewport = students.lookup(".clipped-container")
+                            .localToScene(students.lookup(".clipped-container").getBoundsInLocal());
+                    assertTrue(cardBounds.getWidth() <= viewport.getWidth() + 1,
+                            "Student cards must fit the viewport without hiding weeks off screen at " + size[0]
+                                    + ": card=" + cardBounds + ", viewport=" + viewport);
+                    assertTrue(students.getHeight() > 80, "The roster must remain usable at the minimum size");
+                    saveScreenshot(stage, "layout-" + size[0] + "x" + size[1] + ".png");
+                    return null;
+                });
+            }
+        }
+    }
+
+    @Test
+    public void horizontalGroupNavigation_arrows_onlySelectWithoutChangingScopeOrDraft() throws Exception {
+        try (MainWindowTestFixture fixture = createWindowWithManyGroups()) {
+            onFxThread(() -> {
+                Stage stage = fixture.stage();
+                getCommandInput(stage).setText("unfinished command");
+                ListView<?> groups = groupList(stage);
+                groups.getSelectionModel().selectFirst();
+                groups.fireEvent(key(KeyCode.DOWN));
+                assertEquals("T01", groups.getSelectionModel().getSelectedItem());
+                groups.fireEvent(key(KeyCode.UP));
+                assertEquals("All students", groups.getSelectionModel().getSelectedItem());
+                groups.fireEvent(key(KeyCode.RIGHT));
+                assertEquals("T01", groups.getSelectionModel().getSelectedItem());
+                groups.fireEvent(key(KeyCode.LEFT));
+                assertEquals("All students", groups.getSelectionModel().getSelectedItem());
+                assertTrue(fixture.model().getActiveGroup().isEmpty(), "Arrows only select until Enter is pressed");
+                assertEquals("unfinished command", getCommandInput(stage).getText());
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void horizontalGroupNavigation_enter_activatesSelectionAndPreservesDraft() throws Exception {
+        try (MainWindowTestFixture fixture = createWindowWithManyGroups()) {
+            onFxThread(() -> {
+                Stage stage = fixture.stage();
+                getCommandInput(stage).setText("unfinished command");
+                ListView<?> groups = groupList(stage);
+                groups.getSelectionModel().selectLast();
+                groups.scrollTo(groups.getItems().size() - 1);
+                groups.fireEvent(key(KeyCode.ENTER));
+                assertEquals(new Group("T20"), fixture.model().getActiveGroup().orElseThrow());
+                assertEquals("unfinished command", getCommandInput(stage).getText());
+                assertEquals("0 students", label(stage, "studentCount").getText());
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void horizontalGroupLayout_manyGroups_keepsLabelsAboveScrollbar() throws Exception {
+        try (MainWindowTestFixture fixture = createWindowWithManyGroups()) {
+            onFxThread(() -> {
+                ListView<?> groups = groupList(fixture.stage());
+                groups.getSelectionModel().selectLast();
+                groups.scrollTo(groups.getItems().size() - 1);
+                return null;
+            });
+            waitForRenderingCycles(3);
+            onFxThread(() -> {
+                ListView<?> groups = groupList(fixture.stage());
+                assertTrue(groups.lookupAll(".list-cell").stream()
+                        .anyMatch(node -> node instanceof ListCell<?> cell && "T20".equals(cell.getItem())));
+                for (Node node : groups.lookupAll(".list-cell")) {
+                    if (node instanceof ListCell<?> cell && !cell.isEmpty()) {
+                        assertTrue(cell.getHeight() >= 20, "Group names must fit above the scrollbar");
+                    }
+                }
+                saveScreenshot(fixture.stage(), "many-groups.png");
+                return null;
+            });
+        }
+    }
+
+    private MainWindowTestFixture createWindowWithManyGroups() throws Exception {
+        MainWindowTestFixture fixture = createWindow(false);
+        onFxThread(() -> {
+            for (int i = 1; i <= 20; i++) {
+                Group group = new Group(String.format("T%02d", i));
+                if (!fixture.model().hasGroup(group)) {
+                    fixture.model().addGroup(group);
+                }
+            }
+            fixture.stage().setWidth(740);
+            fixture.stage().setHeight(600);
+            return null;
+        });
+        waitForRenderingCycles(3);
+        return fixture;
+    }
+
+    private static ListView<?> groupList(Stage stage) {
+        return (ListView<?>) stage.getScene().lookup("#groupListView");
+    }
+
+    /** Returns the longest comment the model allows, for stressing the layout. */
+    private static String longestComment() {
+        String note = "Needs worksheet and attendance follow up. ";
+        return note.repeat(Comment.MAX_LENGTH / note.length() + 1).substring(0, Comment.MAX_LENGTH);
+    }
+
+    private MainWindowTestFixture createWindow(boolean hasLongText) throws Exception {
+        MainWindowTestFixture fixture = MainWindowTestFixture.create(createRoster(hasLongText), temporaryFolder);
+        onFxThread(() -> {
+            fixture.stage().setWidth(1000);
+            fixture.stage().setHeight(700);
+            return null;
+        });
+        waitForRenderingCycles(3);
+        return fixture;
+    }
+
+    private AddressBook createRoster(boolean hasLongText) {
+        AddressBook book = new AddressBook();
+        Group firstGroup = new Group("T09");
+        Group secondGroup = new Group("T10");
+        book.addGroup(firstGroup);
+        book.addGroup(secondGroup);
+        for (int week = 1; week <= 13; week++) {
+            book.addSession(new Session(firstGroup, new Week(week),
+                    new SessionDate(LocalDate.of(2026, 8, 11).plusWeeks(week - 1).toString())));
+        }
+        PersonBuilder first = new PersonBuilder().withName(hasLongText ? "Alexandra ".repeat(7).strip() : "Alex Tan")
+                .withMatric("A0000001X").withEmail(hasLongText ? "verylongemail".repeat(5) + "@example.com"
+                        : "alex@example.com").withGroup("T09")
+                .withComment(hasLongText ? longestComment() : "Needs worksheet")
+                .withTags("classrep", hasLongText ? "x".repeat(Tag.MAX_LENGTH) : "exchange");
+        first.withAttendance(book.getSessionList().getFirst(), Status.PRESENT);
+        book.addPerson(first.build());
+        book.addPerson(new PersonBuilder().withName("Bernice Tan").withMatric("A0000002X")
+                .withEmail("bernice@example.com").withGroup("T09").build());
+        book.addPerson(new PersonBuilder().withName("Chris Tan").withMatric("A0000003X")
+                .withEmail("chris@example.com").withGroup("T10").build());
+        return book;
+    }
+
+    private static void assertFeedback(Stage stage, boolean isError) {
+        assertEquals(isError ? "Command not run" : "Command completed", label(stage, "resultTitle").getText());
+        assertEquals(isError ? "!" : "\u2713", label(stage, "resultIcon").getText());
+        assertEquals(isError, stage.getScene().lookup("#commandBox").getStyleClass().contains("error"));
+        assertEquals(!isError, stage.getScene().lookup("#commandBox").getStyleClass().contains("success"));
+        assertEquals(isError, getCommandInput(stage).getStyleClass().contains("error"));
+        assertEquals(1, stage.getScene().lookup("#placeHolder").getStyleClass().stream()
+                .filter(value -> value.equals(isError ? "result-error" : "result-success")).count());
+    }
+
+    private static Label label(Stage stage, String id) {
+        return (Label) stage.getScene().lookup("#" + id);
+    }
+
+    private static Node firstCard(Stage stage) {
+        stage.getScene().getRoot().applyCss();
+        stage.getScene().getRoot().layout();
+        ListView<?> list = (ListView<?>) stage.getScene().lookup("#personListView");
+        return list.lookupAll(".list-cell").stream().map(node -> (ListCell<?>) node)
+                .filter(cell -> !cell.isEmpty() && cell.getIndex() == 0 && cell.getGraphic() != null)
+                .map(ListCell::getGraphic).findFirst().orElseThrow();
+    }
+
+    private static void assertWithin(Bounds parent, Bounds child) {
+        assertTrue(child.getMinX() >= parent.getMinX() - 1 && child.getMaxX() <= parent.getMaxX() + 1,
+                "Content must fit within the card width: " + child + " vs " + parent);
+        assertTrue(child.getMinY() >= parent.getMinY() - 1 && child.getMaxY() <= parent.getMaxY() + 1,
+                "Content must fit within the card height: " + child + " vs " + parent);
+    }
+
+    private static KeyEvent shortcutZ() {
+        boolean isMac = System.getProperty("os.name").toLowerCase(Locale.ROOT).startsWith("mac");
+        return new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.Z, false, !isMac, false, isMac);
+    }
+
+    private static KeyEvent key(KeyCode code) {
+        return new KeyEvent(KeyEvent.KEY_PRESSED, "", "", code, false, false, false, false);
+    }
+
+    private static void saveScreenshotAfterRendering(Stage stage, String name) throws Exception {
+        waitForRenderingCycles(3);
+        onFxThread(() -> {
+            ListView<?> students = (ListView<?>) stage.getScene().lookup("#personListView");
+            List<? extends ListCell<?>> rows = students.lookupAll(".list-cell").stream()
+                    .map(node -> (ListCell<?>) node).filter(cell -> !cell.isEmpty() && cell.getGraphic() != null)
+                    .sorted((first, second) -> Integer.compare(first.getIndex(), second.getIndex())).toList();
+            for (ListCell<?> row : rows) {
+                Node card = row.getGraphic();
+                assertWithin(row.localToScene(row.getLayoutBounds()), card.localToScene(card.getBoundsInLocal()));
+                for (String field : List.of("name", "matric", "attendance")) {
+                    Node details = card.lookup("#" + field);
+                    assertWithin(card.localToScene(card.getBoundsInLocal()),
+                            details.localToScene(details.getBoundsInLocal()));
+                }
+            }
+            saveScreenshot(stage, name);
+            return null;
+        });
+    }
+
+    private static void saveScreenshot(Stage stage, String name) throws Exception {
+        String directory = System.getenv("ROSTER_UI_SCREENSHOTS");
+        if (directory == null) {
+            return;
+        }
+        Path folder = Path.of(directory);
+        Files.createDirectories(folder);
+        WritableImage snapshot = stage.getScene().snapshot(null);
+        BufferedImage image = new BufferedImage((int) snapshot.getWidth(), (int) snapshot.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                image.setRGB(x, y, snapshot.getPixelReader().getArgb(x, y));
+            }
+        }
+        ImageIO.write(image, "png", folder.resolve(name).toFile());
+    }
+
+}

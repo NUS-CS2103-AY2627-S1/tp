@@ -10,11 +10,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
+import seedu.address.model.attendance.Attendance;
+import seedu.address.model.person.Comment;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Matric;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -25,24 +27,32 @@ class JsonAdaptedPerson {
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
 
     private final String name;
-    private final String phone;
     private final String email;
-    private final String address;
+    private final String matric;
+    private final String group;
+    private final String comment;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<JsonAdaptedAttendance> attendances = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("email") String email,
+            @JsonProperty("matric") String matric, @JsonProperty("group") String group,
+            @JsonProperty("comment") String comment,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("attendances") List<JsonAdaptedAttendance> attendances) {
         this.name = name;
-        this.phone = phone;
         this.email = email;
-        this.address = address;
+        this.matric = matric;
+        this.group = group;
+        this.comment = comment;
         if (tags != null) {
             this.tags.addAll(tags);
+        }
+        if (attendances != null) {
+            this.attendances.addAll(attendances);
         }
     }
 
@@ -51,11 +61,15 @@ class JsonAdaptedPerson {
      */
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
-        phone = source.getPhone().value;
         email = source.getEmail().value;
-        address = source.getAddress().value;
+        matric = source.getMatric().value;
+        group = source.getGroup().value;
+        comment = source.getComment().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+        attendances.addAll(source.getAttendances().stream()
+                .map(JsonAdaptedAttendance::new)
                 .collect(Collectors.toList()));
     }
 
@@ -65,6 +79,9 @@ class JsonAdaptedPerson {
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
+        if (tags.contains(null) || attendances.contains(null)) {
+            throw new IllegalValueException("Person tag and attendance records must not be null.");
+        }
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
             personTags.add(tag.toModelType());
@@ -78,14 +95,6 @@ class JsonAdaptedPerson {
         }
         final Name modelName = new Name(name);
 
-        if (phone == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
-        }
-        if (!Phone.isValidPhone(phone)) {
-            throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
-        }
-        final Phone modelPhone = new Phone(phone);
-
         if (email == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
         }
@@ -94,16 +103,44 @@ class JsonAdaptedPerson {
         }
         final Email modelEmail = new Email(email);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
+        if (matric == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Matric.class.getSimpleName()));
         }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
+        if (!Matric.isValidMatric(matric)) {
+            throw new IllegalValueException(Matric.MESSAGE_CONSTRAINTS);
         }
-        final Address modelAddress = new Address(address);
+        final Matric modelMatric = new Matric(matric);
+
+        if (group == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Group.class.getSimpleName()));
+        }
+        if (!Group.isValidGroup(group)) {
+            throw new IllegalValueException(Group.MESSAGE_CONSTRAINTS);
+        }
+        final Group modelGroup = new Group(group);
+
+        // An absent comment is written as null or omitted entirely, and reads back as the empty comment.
+        final Comment modelComment;
+        if (comment == null || Comment.normalize(comment).isEmpty()) {
+            modelComment = Comment.EMPTY;
+        } else if (!Comment.isValidComment(comment)) {
+            throw new IllegalValueException(Comment.MESSAGE_CONSTRAINTS);
+        } else {
+            modelComment = new Comment(comment);
+        }
 
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+
+        final Set<Attendance> modelAttendances = new HashSet<>();
+        for (JsonAdaptedAttendance attendance : attendances) {
+            modelAttendances.add(attendance.toModelType());
+        }
+        if (!Person.areValidAttendances(modelGroup, modelAttendances)) {
+            throw new IllegalValueException(Person.MESSAGE_INVALID_ATTENDANCES);
+        }
+
+        return new Person(modelName, modelEmail, modelMatric, modelGroup, modelTags,
+                modelAttendances, modelComment);
     }
 
 }

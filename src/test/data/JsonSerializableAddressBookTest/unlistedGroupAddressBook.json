@@ -1,0 +1,10 @@
+{
+  "_comment": "Saved before groups were stored: the student's group T09 is not in a groups list",
+  "persons": [ {
+    "name": "Alice Pauline",
+    "email": "alice@example.com",
+    "matric": "A0000001A",
+    "group": "T09",
+    "tags": [ "friends" ]
+  } ]
+}
