@@ -19,6 +19,18 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
+Before submitting a Java change, use Java 25 and run `./gradlew check coverage` to include tests and Checkstyle.
+On Linux, the JavaFX tests require a display: use `xvfb-run --auto-servernum ./gradlew check coverage`, as CI does.
+On macOS, use the prescribed Zulu JDK+FX runtime and a desktop session.
+CI uses `macos-15-intel` after `macos-latest` jobs failed to obtain a runner during ARM64 capacity constraints.
+It retains the required check name `build (macos-latest)` for compatibility with existing branch protection.
+That macOS runner omits the JavaFX display tests (`*UiTest`, `MainWindowLayoutTest`, and the alert methods in
+`UiManagerDataLoadingTest`) because its test JVM has aborted with `SIGABRT` while running the GUI suite.
+The remaining tests and both Checkstyle tasks still run there; Linux, Windows and local runs retain the full suite.
+The [course FAQ](https://nus-cs2103-ay2627-s1.github.io/website/admin/appendixC-faq.html)
+allows automated GUI tests to run only in supported environments. Check macOS UI behavior in a local desktop session.
+Run `./.github/run-checks.sh` for repository text checks and `git diff --check` for whitespace errors.
+
 <div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
 </div>
 
@@ -26,11 +38,13 @@ You can run tests in two ways.
 
 ## Types of tests
 
-This project has three types of tests:
+This project has four types of tests:
 
 1. *Unit tests* target the lowest-level methods and classes.<br>
-   For example: `seedu.address.commons.StringUtilTest`
+   For example: `seedu.address.commons.util.StringUtilTest`
 1. *Integration tests* check how multiple code units work together; the individual units are assumed to work.<br>
    For example: `seedu.address.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
    For example: `seedu.address.logic.LogicManagerTest`
+1. *JavaFX UI tests* enter commands through the application's real command box and inspect feedback and selection.<br>
+   For example: `seedu.address.ui.AddProjectUiTest`

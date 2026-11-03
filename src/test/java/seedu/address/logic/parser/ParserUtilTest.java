@@ -37,6 +37,8 @@ public class ParserUtilTest {
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("١"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("１"));
     }
 
     @Test
@@ -111,6 +113,17 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAddress_unicodeBlank_rejectsNewInputAndPreservesNonblankText() throws Exception {
+        for (String blank : List.of("\u0085", "\u2003", "\u3000", "\u00a0", "\u202f",
+                " \u2003\t\u00a0 ", "\u2003\u001c\u2003")) {
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAddress(blank));
+        }
+        for (String address : List.of("1\u2003Main Street", "1\u00a0Main Street")) {
+            assertEquals(address, ParserUtil.parseAddress(address).value);
+        }
+    }
+
+    @Test
     public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
         Address expectedAddress = new Address(VALID_ADDRESS);
         assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
@@ -124,6 +137,23 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseEmail_invalidUnquotedDots_rejectsNewInputButRetainsStorageCompatibility() throws Exception {
+        for (String email : List.of(".alice@example.com", "alice.@example.com", "a..b@example.com")) {
+            assertThrows(ParseException.class, () -> ParserUtil.parseEmail(email));
+            assertEquals(email, new Email(email).value);
+        }
+        assertEquals(new Email("alice.smith@example.com"), ParserUtil.parseEmail("alice.smith@example.com"));
+    }
+
+    @Test
+    public void parseEmail_quotedLocalPart_preservesDotsButRequiresClosingQuoteForExemption() throws Exception {
+        for (String email : List.of("\".alice\"@example.com", "\"alice.\"@example.com", "\"a..b\"@example.com")) {
+            assertEquals(new Email(email), ParserUtil.parseEmail(email));
+        }
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("\"a..b@example.com"));
+    }
+
+    @Test
     public void parseEmail_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
     }
@@ -131,6 +161,14 @@ public class ParserUtilTest {
     @Test
     public void parseEmail_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+    }
+
+    @Test
+    public void parseEmail_unicodeSeparators_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("alice\u2028smith@example.com"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("alice\u2029smith@example.com"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("\u00a0alice@example.com"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("alice@example.com\u00a0"));
     }
 
     @Test

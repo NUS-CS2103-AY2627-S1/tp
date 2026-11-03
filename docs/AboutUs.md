@@ -5,55 +5,43 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+For ClientDesk questions and bug reports, use our [issue tracker](https://github.com/AY2627S1-CS2103T-T10-1/tp/issues).
 
 ## Project team
 
-### John Doe
+### Ng Ting Hui
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ting436.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ting436)]
 
 * Role: Team Lead
 * Responsibilities: UI
 
-### Johnny Doe
+### Clarence Choo Jia Yi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/clarencechoo.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ClarenceChoo)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Client-management features and related testing
 
-### James Doe
+### Anson
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/iians0n.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/iians0n)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Find Clients and Add Project; project website and CI; contributions to data protection,
+  workspace UI, testing and documentation
+
+### Pang Yi Jie
+
+<img src="images/pang16334.png" width="200px">
+
+[[github](https://github.com/pang16334)]
+
+* Role: Developer
+* Responsibilities: Develop features and user-facing product functionality that meet user requirements.

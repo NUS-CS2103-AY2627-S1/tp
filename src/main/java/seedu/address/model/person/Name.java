@@ -10,13 +10,15 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Name must be 1–80 Unicode code points, contain at least one letter or number, and use letters, "
+                    + "combining marks, numbers, spaces, straight or curly apostrophes, hyphens, periods, "
+                    + "ampersands, slashes, or parentheses.";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Personal and business names may use punctuation from the MVP specification.
+     * At least one letter or number is required.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{L}\\p{M}\\p{N} '\u2018\u2019\\-.&()/]{1,80}";
 
     public final String fullName;
 
@@ -35,7 +37,7 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.matches(VALIDATION_REGEX) && test.matches(".*[\\p{L}\\p{N}].*");
     }
 
 

@@ -66,30 +66,37 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Parses a newly entered address, rejecting Unicode-only blanks while retaining storage compatibility.
+     * Removes only the leading/trailing characters covered by {@link String#trim()}.
      *
      * @throws ParseException if the given {@code address} is invalid.
      */
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
         String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
+        boolean isBlank = trimmedAddress.matches("[\\p{IsWhite_Space}\\p{javaWhitespace}]*");
+        if (!Address.isValidAddress(trimmedAddress) || isBlank) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);
     }
 
     /**
-     * Parses a {@code String email} into an {@code Email}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Parses a newly entered email, rejecting invalid dots and Unicode spaces while retaining storage compatibility.
+     * Removes only the leading/trailing characters covered by {@link String#trim()}.
      *
      * @throws ParseException if the given {@code email} is invalid.
      */
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
         String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
+        // Tighten new input without changing validation used to load existing saved records.
+        String localPart = trimmedEmail.split("@", -1)[0];
+        boolean quotedLocalPart = localPart.startsWith("\"") && localPart.endsWith("\"");
+        boolean invalidDots = !quotedLocalPart && (localPart.startsWith(".")
+                || localPart.endsWith(".") || localPart.contains(".."));
+        if (!Email.isValidEmail(trimmedEmail) || invalidDots || trimmedEmail.codePoints()
+                .anyMatch(codePoint -> Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint))) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);

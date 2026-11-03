@@ -3,6 +3,8 @@ package seedu.address.commons.core;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
@@ -10,10 +12,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import seedu.address.commons.util.AppPaths;
+
 /**
  * Configures and manages loggers and handlers, including their logging level.
  * Named {@link Logger}s can be obtained from this class.<br>
- * These loggers have been configured to output messages to the console and a {@code .log} file by default,
+ * These loggers output to the console and, when available, a {@code .log} file,
  *   at the {@code INFO} level. A new {@code .log} file with a new numbering will be created after the log
  *   file reaches 5MB in size, up to a maximum of 5 files.<br>
  */
@@ -24,13 +28,11 @@ public class LogsCenter {
     private static final int MAX_FILE_COUNT = 5;
     private static final int MAX_FILE_SIZE_IN_BYTES = (int) (Math.pow(2, 20) * 5); // 5MB
     private static final String LOG_FILE = "addressbook.log";
-    private static final Logger logger; // logger for this class
     private static Logger baseLogger; // to be used as the parent of all other loggers created by this class.
 
     // This static block ensures essential loggers are created early
     static {
         setBaseLogger();
-        logger = LogsCenter.getLogger(LogsCenter.class);
     }
 
     /**
@@ -66,7 +68,7 @@ public class LogsCenter {
     }
 
     /**
-     * Creates a logger named 'ab3', containing a {@code ConsoleHandler} and a {@code FileHandler}.
+     * Creates the 'ab3' logger with console logging and file logging when available.
      * Sets it as the {@code baseLogger}, to be used as the parent logger of all other loggers.
      */
     private static void setBaseLogger() {
@@ -84,16 +86,37 @@ public class LogsCenter {
         consoleHandler.setLevel(Level.ALL);
         baseLogger.addHandler(consoleHandler);
 
-        // add a FileHandler to log to a file
-        try {
-            FileHandler fileHandler = new FileHandler(LOG_FILE, MAX_FILE_SIZE_IN_BYTES, MAX_FILE_COUNT, true);
-            fileHandler.setFormatter(new SimpleFormatter());
-            fileHandler.setLevel(Level.ALL);
-            baseLogger.addHandler(fileHandler);
-        } catch (IOException e) {
-            logger.warning("Error adding file handler for logger.");
-        }
+        addFileHandler(baseLogger, AppPaths.getHome().resolve(LOG_FILE));
     }
 
-
+    /**
+     * Adds a file handler when the log file can be opened; the console handler remains available on failure.
+     */
+    static void addFileHandler(Logger targetLogger, Path logFile) {
+        try {
+            Path normalizedLogFile = logFile.toAbsolutePath().normalize();
+            Path home = normalizedLogFile.getParent().toRealPath();
+            AppPaths.resolveWithinHome(normalizedLogFile, home);
+            // Rebuild each possible generated filename using the canonical base spelling so the filesystem itself
+            // resolves case and Unicode aliases before FileHandler opens rotations, instance files or locks.
+            String fileName = normalizedLogFile.getFileName().toString();
+            int basePartCount = fileName.split("\\.", -1).length;
+            try (var files = Files.newDirectoryStream(home)) {
+                for (Path path : files) {
+                    String[] parts = path.getFileName().toString().split("\\.", basePartCount + 1);
+                    if (parts.length > basePartCount) {
+                        Path candidate = normalizedLogFile.resolveSibling(fileName + "." + parts[basePartCount]);
+                        AppPaths.resolveWithinHome(candidate, home);
+                    }
+                }
+            }
+            String filePattern = normalizedLogFile.toString().replace("%", "%%");
+            FileHandler fileHandler = new FileHandler(filePattern, MAX_FILE_SIZE_IN_BYTES, MAX_FILE_COUNT, true);
+            fileHandler.setFormatter(new SimpleFormatter());
+            fileHandler.setLevel(Level.ALL);
+            targetLogger.addHandler(fileHandler);
+        } catch (IOException | SecurityException exception) {
+            targetLogger.log(Level.WARNING, "Error adding file handler for logger.", exception);
+        }
+    }
 }

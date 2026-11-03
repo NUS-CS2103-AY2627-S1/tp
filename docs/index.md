@@ -1,19 +1,25 @@
 ---
 layout: page
-title: AddressBook Level 3
+title: ClientDesk
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T10-1/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-T10-1/tp/actions)
 
-![Ui](images/Ui.png)
+ClientDesk is a keyboard-first desktop CRM for freelancers and independent professionals who type fast and prefer typing to mouse interactions. It is designed to keep client details, projects, deadlines and follow-ups in one place.
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+ClientDesk v1.6 supports client management and recording, viewing, editing and deleting
+projects with deadlines, status and priority. Notes, follow-ups, agenda and undo are planned.
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+Use `add-project 1 title/Website redesign deadline/2026-10-15 priority/high` to record work for the first displayed
+client. Use `view 1` to find its project ID, then `delete-project 1 1` to remove a project.
 
+![Interface preview](images/Ui.png)
+
+* Read the [**User Guide**](UserGuide.html) for the current application's commands.
+* Read the [**Developer Guide**](DeveloperGuide.html) and [**setup instructions**](SettingUp.html) to get started with development.
+* Track our work in the [**issue tracker**](https://github.com/AY2627S1-CS2103T-T10-1/tp/issues).
 
 **Acknowledgements**
 
-* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+* Based on [AddressBook Level 3](https://se-education.org/addressbook-level3/) by [SE-EDU](https://se-education.org/).
+* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5).

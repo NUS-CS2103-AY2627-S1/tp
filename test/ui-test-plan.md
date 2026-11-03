@@ -1,0 +1,144 @@
+# ClientDesk UI test plan
+
+Use Java 25 and disposable client data. The current workspace opens on **Projects**; select **Details** when a check
+asks for the full labeled contact/remark/project text. The [Developer Guide manual-testing appendix](../docs/DeveloperGuide.md#appendix-instructions-for-manual-testing)
+contains complete setup fixtures and the search/selection, compact-layout and persistence sequences. This file keeps
+the focused regression checks for the issues below.
+
+## Find help explains no-match reset (#121)
+
+Run `help find` and expect an explicit explanation that no matches restore the full list,
+and a reminder to check displayed indexes before indexed commands.
+In disposable data, find one existing client, then search for a nonexistent keyword.
+Expect the full list, matching the help text. Help itself must preserve the list and saved data.
+Automated coverage: HelpCommandTest.
+
+## View client details
+
+Run ClientDesk with Java 25 and its sample data.
+
+1. Enter `list`, then `view 1`, and select **Details**. Expect labeled name, phone, email, address,
+   remark and tags matching the first client. The list stays unchanged.
+2. Enter `find Bernice`, then `view 1`. Expect Bernice's details; the filtered
+   list stays unchanged.
+3. Enter `view 999`. Expect `The client index provided is invalid.`
+4. Enter `view`, `view 0`, `view -1`, `view abc` and `view 1 extra`.
+   Each should show invalid command format and the view usage message.
+5. Enter `list`, then `edit 1 p/91234567`, then `view 1`.
+   Expect the new phone number and all other fields preserved.
+6. Restart the app, then `view 1`. Expect the edited phone number to persist.
+
+These are manual checks of the JavaFX application. Automated command/parser tests cover view output and validation;
+`ClientDetailsUiTest` and `ClientWorkspaceUiTest` additionally exercise the real command box and workspace behavior.
+
+## Unicode search separators (#117)
+
+In disposable data, add Acme Studio and Benson with different emails.
+Run `find Acme Studio`, then paste `find Acme Studio` (U+00A0).
+Both must report `Found 1 matching clients.` and show only Acme Studio.
+Repeat with U+2003 and U+202F. A whitespace-only search reports usage and preserves the list.
+Automated coverage: FindCommandParserTest.
+
+## Project title normalization (#168)
+
+In disposable data, add `Café launch` and then try `Café launch` for the same client and deadline.
+The second add should report a duplicate. A pre-existing NFC/NFD pair should load with its saved spelling; a
+status-only update should work, while changing a title/deadline into a duplicate should be rejected.
+Automated coverage: `ProjectTitleTest` and project command tests.
+
+## Edit client email (first increment)
+
+Run the JavaFX app with Java 25. These manual checks complement the automated Edit Client integration and UI tests.
+
+1. Enter `list`, note the first client's fields, then
+   `edit-client 1 e/updated@example.com`. Expect `Updated client: <name>.`
+   Only the email changes. Restart and confirm the new email persists.
+2. Repeat that command. Expect `No changes needed for <name>.`
+3. Find one client, then edit its email using displayed index 1.
+   The filtered list remains and other fields stay unchanged.
+4. Try another client's email in different letter case. Expect
+   `Update would duplicate client: <other name>.` and no changes.
+5. Try `edit-client 999 e/valid@example.com`. Expect `No client at index 999.`
+6. Try `edit-client 0 e/valid@example.com` and `edit-client -1 e/valid@example.com`.
+   Expect `Index must be a positive integer.`
+7. Try `edit-client 1`. Expect `Specify at least one field to update.`
+8. Try `edit-client`, invalid emails, and repeated e/ prefixes.
+   Expect an error and unchanged data.
+9. Save failure is covered by an automated storage-failure test; expect the
+   prior record and filter to remain, with `Client could not be saved. No changes were made.`
+
+## Typographic apostrophes (#118)
+
+In disposable data, enter `add-client n/O’Connor p/91234567 e/oconnor@example.com`.
+Expect success; `view` and restart must preserve the curly apostrophe.
+A name containing only apostrophes or more than 80 Unicode code points must still fail.
+Automated coverage: NameTest.
+
+## Client details panel
+
+1. Start the app: expect ClientDesk title, client list, and a right-hand details
+   panel with instructions to enter view INDEX or select a client.
+2. Enter `view 1`: expect the first displayed client selected and its contact header in the right panel. A client
+   without projects shows the empty state in **Projects**. Select **Details** for the complete labeled contact record;
+   its text includes `Projects: No projects yet.` when the client has no projects.
+3. View a client with projects: expect stable IDs, titles, deadlines, statuses
+   and priorities; projects are ordered by ID. Scroll to inspect long content.
+4. Enter `find NAME`, then `view 1`: expect the first filtered client, not the
+   first client in the full list.
+5. Enter `view 999` or `view abc`: expect an error and unchanged panel content.
+6. Select a different client using the list: expect that client's details.
+7. Clear the selection: expect the initial instructions, with no stale record.
+8. Resize the window and drag the divider: both panes remain accessible.
+
+## Legacy add/edit selection
+
+Use disposable data with at least three clients. Select a client, then add a new client
+whose name sorts before the existing rows: expect the added client selected with its
+details shown. Filter the list to one client, edit its name so it moves to the end of the
+full list: expect the edited client selected after the filter resets. Simulate a failed
+save for legacy add and edit: expect the prior selection, details and saved records to
+remain unchanged.
+
+These manual GUI cases require JavaFX; automated JavaFX tests exercise the same panel and selection behavior.
+
+## New email dot validation (#119)
+
+In disposable data, try `.alice@example.com`, `alice.@example.com` and `a..b@example.com`
+through add-client, add, edit and edit-client. Expect an email error and unchanged data.
+`alice.smith@example.com` must succeed. Existing stored dotted-local-part records still load.
+Automated coverage: EmailDotValidationTest and ParserUtilTest.
+
+## Project changes retain client selection (Week 10 Y1)
+
+Use disposable client data with two clients. Repeat with `find` restricting the list
+before viewing the target client. Use displayed indexes, not the full-list index.
+
+1. View the client and add a project: the client stays selected and the project
+   immediately appears in the details panel without another view command.
+2. Add a second project, delete the first: only the remaining project appears.
+3. Delete the final project: keep the client selected and show No projects yet.
+4. Invalid indexes, invalid dates and missing project IDs leave selection/details unchanged.
+5. In a non-English locale such as Arabic (Egypt), add a project and confirm feedback uses ASCII `#1`.
+6. Simulate failed add/delete saves: retain the selected client and previous projects.
+7. Delete the selected client itself: clear selection and show the panel instructions.
+
+Automated coverage: ClientDetailsUiTest runs real command-box actions for both
+full and filtered client lists, using temporary JSON storage and simulated IO failures.
+`ProjectIdentifierWorkflowTest` checks locale-stable project ID feedback.
+
+## Formatted phone search (#120)
+
+In disposable data, add Benson with `p/8123-4567` and another client with a different phone.
+`find 8123-4567`, `find 81234567` and `find +8123-4567` must each find Benson.
+`find Benson 8123-4567` must retain AND semantics; `find missing 8123-4567` must not match.
+`find +` and `find -` must not match every phone. Search must not save data.
+Automated coverage: PersonContainsKeywordsPredicateTest.
+
+## Canonically equivalent Unicode search (#166)
+
+In disposable data, add `José` and `José` (e + U+0301) with different phones and emails,
+plus an unrelated client. `find José`, `find José` and `find JOSÉ` must each report two matches.
+`find Jose` must report no matches and restore the full list; accents are not removed.
+Combine the accented name with one unique email keyword to verify AND matching.
+Use `view` on both results and restart: their original spellings and data must be unchanged.
+Automated coverage: PersonContainsKeywordsPredicateTest and CanonicalFindIntegrationTest.

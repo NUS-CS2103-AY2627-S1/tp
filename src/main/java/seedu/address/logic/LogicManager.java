@@ -2,17 +2,31 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddClientCommand;
+import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddProjectCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteClientCommand;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteProjectCommand;
+import seedu.address.logic.commands.EditClientCommand;
+import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.EditProjectCommand;
+import seedu.address.logic.commands.RemarkCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -42,21 +56,80 @@ public class LogicManager implements Logic {
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
-
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
-
-        try {
-            storage.saveAddressBook(model.getAddressBook());
-        } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
-        } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+        logger.info("Executing command: " + command.getClass().getSimpleName());
+        if (isMutation(command)) {
+            return executeStagedMutation(command);
         }
+        return command.execute(model);
+    }
 
-        return commandResult;
+    private boolean isMutation(Command command) {
+        return command instanceof AddClientCommand
+                || command instanceof AddProjectCommand
+                || command instanceof DeleteClientCommand
+                || command instanceof DeleteProjectCommand
+                || command instanceof EditClientCommand
+                || command instanceof EditProjectCommand
+                || command instanceof AddCommand
+                || command instanceof ClearCommand
+                || command instanceof DeleteCommand
+                || command instanceof EditCommand
+                || command instanceof RemarkCommand;
+    }
+
+    /**
+     * Executes against a snapshot and publishes it only after storage succeeds.
+     * The snapshot resolves indexes against the same displayed clients as the live model.
+     */
+    private CommandResult executeStagedMutation(Command command) throws CommandException {
+        Model proposedModel = createProposedModel();
+        CommandResult result = command.execute(proposedModel);
+        if (canSkipUnchangedSave(command) && model.getAddressBook().equals(proposedModel.getAddressBook())) {
+            return result;
+        }
+        try {
+            storage.saveAddressBook(proposedModel.getAddressBook());
+        } catch (IOException exception) {
+            throw new CommandException(getSaveFailureMessage(command, exception), exception);
+        }
+        model.setAddressBook(proposedModel.getAddressBook());
+        if (shouldShowAllClients(command)) {
+            model.updateFilteredPersonList(Model.PREDICATE_SHOW_ALL_PERSONS);
+        }
+        return result;
+    }
+
+    private Model createProposedModel() {
+        Model proposedModel = new ModelManager(model.getAddressBook(), model.getUserPrefs());
+        Set<Person> displayedClients = new HashSet<>(model.getFilteredPersonList());
+        proposedModel.updateFilteredPersonList(displayedClients::contains);
+        return proposedModel;
+    }
+
+    private boolean canSkipUnchangedSave(Command command) {
+        return command instanceof EditClientCommand || command instanceof EditProjectCommand;
+    }
+
+    private boolean shouldShowAllClients(Command command) {
+        return command instanceof AddClientCommand || command instanceof AddCommand
+                || command instanceof EditCommand || command instanceof RemarkCommand;
+    }
+
+    /**
+     * Preserves each command's failure message, including the legacy permission-specific error.
+     */
+    private String getSaveFailureMessage(Command command, IOException exception) {
+        return switch (command) {
+            case AddClientCommand ignored -> AddClientCommand.MESSAGE_SAVE_FAILURE;
+            case AddProjectCommand ignored -> AddProjectCommand.MESSAGE_SAVE_FAILURE;
+            case DeleteClientCommand ignored -> DeleteClientCommand.MESSAGE_SAVE_FAILURE;
+            case DeleteProjectCommand ignored -> DeleteProjectCommand.MESSAGE_SAVE_FAILURE;
+            case EditClientCommand ignored -> EditClientCommand.MESSAGE_SAVE_FAILURE;
+            case EditProjectCommand ignored -> EditProjectCommand.MESSAGE_SAVE_FAILURE;
+            default -> String.format(exception instanceof AccessDeniedException
+                    ? FILE_OPS_PERMISSION_ERROR_FORMAT : FILE_OPS_ERROR_FORMAT, exception.getMessage());
+        };
     }
 
     @Override

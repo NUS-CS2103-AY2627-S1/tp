@@ -2,6 +2,8 @@ package seedu.address.ui;
 
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListCell;
@@ -30,6 +32,32 @@ public class PersonListPanel extends UiPart<Region> {
     }
 
     /**
+     * Selects and scrolls to the newly saved client.
+     */
+    public void selectClient(Person client) {
+        personListView.getSelectionModel().select(client);
+        personListView.scrollTo(client);
+    }
+
+    /**
+     * Restores the previous client's current record if still displayed, or clears selection when it is absent.
+     */
+    public void restoreSelection(Person client) {
+        personListView.getItems().stream()
+                .filter(current -> client != null && current.isSamePerson(client))
+                .findFirst()
+                .ifPresentOrElse(personListView.getSelectionModel()::select,
+                        personListView.getSelectionModel()::clearSelection);
+    }
+
+    /**
+     * Exposes selection changes so the details panel follows the displayed client.
+     */
+    public ReadOnlyObjectProperty<Person> selectedClientProperty() {
+        return personListView.getSelectionModel().selectedItemProperty();
+    }
+
+    /**
      * Custom {@code ListCell} that displays the graphics of a {@code Person} using a {@code PersonCard}.
      */
     class PersonListViewCell extends ListCell<Person> {
@@ -41,7 +69,10 @@ public class PersonListPanel extends UiPart<Region> {
                 setGraphic(null);
                 setText(null);
             } else {
-                setGraphic(new PersonCard(person, getIndex() + 1).getRoot());
+                Region card = new PersonCard(person, getIndex() + 1).getRoot();
+                card.setMaxWidth(Double.MAX_VALUE);
+                card.prefWidthProperty().bind(Bindings.max(0, widthProperty().subtract(8)));
+                setGraphic(card);
             }
         }
     }

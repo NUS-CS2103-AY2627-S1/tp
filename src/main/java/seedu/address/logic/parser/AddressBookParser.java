@@ -3,20 +3,30 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.AddClientCommand;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddProjectCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.DeleteClientCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteProjectCommand;
+import seedu.address.logic.commands.EditClientCommand;
 import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.EditProjectCommand;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ListClientsCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -43,25 +53,39 @@ public class AddressBookParser {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
-        final String commandWord = matcher.group("commandWord");
-        final String arguments = matcher.group("arguments");
+        final String commandWord = matcher.group("commandWord").toLowerCase(Locale.ROOT);
+        // Preserve raw project values: trim() would otherwise hide invalid trailing title controls.
+        final String arguments = (commandWord.equals(AddProjectCommand.COMMAND_WORD)
+                || commandWord.equals(EditProjectCommand.COMMAND_WORD))
+                ? userInput.substring(userInput.indexOf(matcher.group("commandWord"))
+                        + matcher.group("commandWord").length())
+                : matcher.group("arguments");
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
         // log messages such as the one below.
         // Lower level log messages are used sparingly to minimize noise in the code.
-        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
+        logger.fine("Parsing a command.");
 
         return switch (commandWord) {
+            case AddClientCommand.COMMAND_WORD -> new AddClientCommandParser().parse(arguments);
+            case AddProjectCommand.COMMAND_WORD -> new AddProjectCommandParser().parse(arguments);
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
+            case EditClientCommand.COMMAND_WORD -> new EditClientCommandParser().parse(arguments);
+            case EditProjectCommand.COMMAND_WORD -> new EditProjectCommandParser().parse(arguments);
+            case DeleteClientCommand.COMMAND_WORD -> new DeleteClientCommandParser().parse(arguments);
+            case DeleteProjectCommand.COMMAND_WORD -> new DeleteProjectCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
             case ClearCommand.COMMAND_WORD -> new ClearCommand();
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case ListClientsCommand.COMMAND_WORD -> new ListClientsCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case RemarkCommand.COMMAND_WORD -> new RemarkCommandParser().parse(arguments);
+            case HelpCommand.COMMAND_WORD -> new HelpCommandParser().parse(arguments);
             default -> {
-                logger.finer("This user input caused a ParseException: " + userInput);
+                logger.finer("Command name was not recognized.");
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };

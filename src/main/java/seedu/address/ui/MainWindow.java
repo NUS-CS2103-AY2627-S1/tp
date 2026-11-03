@@ -1,22 +1,28 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -35,7 +41,11 @@ public class MainWindow extends UiPart<Stage> {
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
+    private ClientDetailsPanel clientDetailsPanel;
     private HelpWindow helpWindow;
+
+    @FXML
+    private HBox workspaceHeader;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +55,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane clientDetailsPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -65,6 +78,9 @@ public class MainWindow extends UiPart<Stage> {
         this.dataFilePath = dataFilePath;
 
         // Configure the UI
+        // Keep client tabs available when the window is fitted to a short screen.
+        workspaceHeader.managedProperty().bind(primaryStage.heightProperty().greaterThanOrEqualTo(550));
+        workspaceHeader.visibleProperty().bind(workspaceHeader.managedProperty());
         setWindowDefaultSize(logic.getGuiSettings());
 
         setAccelerators();
@@ -117,6 +133,11 @@ public class MainWindow extends UiPart<Stage> {
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
+        clientDetailsPanel = new ClientDetailsPanel();
+        clientDetailsPlaceholder.getChildren().add(clientDetailsPanel.getRoot());
+        personListPanel.selectedClientProperty().addListener((observable, previous, selected) ->
+                clientDetailsPanel.showClient(selected));
+
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
@@ -125,17 +146,38 @@ public class MainWindow extends UiPart<Stage> {
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        commandBox.requestFocus();
     }
 
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Restores the saved geometry on its screen, or on the primary screen if that screen is unavailable.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        Point coordinates = guiSettings.getWindowCoordinates();
+        Screen screen = Screen.getPrimary();
+        if (coordinates != null) {
+            screen = Screen.getScreensForRectangle(coordinates.getX(), coordinates.getY(), 1, 1)
+                    .stream().findFirst().orElse(screen);
+        }
+        setWindowDefaultSize(guiSettings, screen.getVisualBounds());
+    }
+
+    /**
+     * Fits the saved window geometry inside the available screen area.
+     */
+    void setWindowDefaultSize(GuiSettings guiSettings, Rectangle2D visualBounds) {
+        double width = Math.min(visualBounds.getWidth(),
+                Math.max(primaryStage.getMinWidth(), guiSettings.getWindowWidth()));
+        double height = Math.min(visualBounds.getHeight(),
+                Math.max(primaryStage.getMinHeight(), guiSettings.getWindowHeight()));
+        primaryStage.setWidth(width);
+        primaryStage.setHeight(height);
+        Point coordinates = guiSettings.getWindowCoordinates();
+        if (coordinates != null) {
+            primaryStage.setX(Math.max(visualBounds.getMinX(),
+                    Math.min(coordinates.getX(), visualBounds.getMaxX() - width)));
+            primaryStage.setY(Math.max(visualBounds.getMinY(),
+                    Math.min(coordinates.getY(), visualBounds.getMaxY() - height)));
         }
     }
 
@@ -144,6 +186,14 @@ public class MainWindow extends UiPart<Stage> {
      */
     @FXML
     public void handleHelp() {
+        showHelp(HelpCommand.SHOWING_HELP_MESSAGE);
+    }
+
+    /**
+     * Shows the requested command instructions in the help window.
+     */
+    private void showHelp(String content) {
+        helpWindow.setHelpContent(content);
         if (!helpWindow.isShowing()) {
             helpWindow.show();
         } else {
@@ -178,12 +228,16 @@ public class MainWindow extends UiPart<Stage> {
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
+            Person previouslySelected = personListPanel.selectedClientProperty().get();
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+            logger.info("Command completed.");
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
+            commandResult.getClientToSelect().ifPresentOrElse(
+                    personListPanel::selectClient, () -> personListPanel.restoreSelection(previouslySelected));
+
             if (commandResult.isShowHelp()) {
-                handleHelp();
+                showHelp(commandResult.getFeedbackToUser());
             }
 
             if (commandResult.isExit()) {
@@ -192,7 +246,7 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            logger.info("Command rejected: " + e.getClass().getSimpleName());
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }
