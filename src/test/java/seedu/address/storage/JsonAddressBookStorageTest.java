@@ -9,6 +9,7 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,6 +19,12 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.ApplicationDate;
+import seedu.address.model.application.ApplicationName;
+import seedu.address.model.application.Description;
+import seedu.address.model.person.Company;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -51,6 +58,16 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_nullJsonRoot_throwsDataLoadingExceptionAndPreservesFile() throws IOException {
+        Path filePath = testFolder.resolve("NullAddressBook.json");
+        Files.writeString(filePath, "null");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertEquals("null", Files.readString(filePath));
+    }
+
+    @Test
     public void readAddressBook_invalidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidPersonAddressBook.json"));
     }
@@ -58,6 +75,48 @@ public class JsonAddressBookStorageTest {
     @Test
     public void readAddressBook_invalidAndValidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_nullTagEntry_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("NullTagAddressBook.json");
+        Files.writeString(filePath, """
+                {
+                  "persons": [{
+                    "name": "Alex Yeoh",
+                    "phone": "87438807",
+                    "email": "alexyeoh@example.com",
+                    "address": "Blk 30 Geylang Street 29, #06-40",
+                    "tags": [null]
+                  }],
+                  "applications": []
+                }
+                """);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+    }
+
+    @Test
+    public void readAddressBook_nullPersonEntry_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("NullPersonAddressBook.json");
+        Files.writeString(filePath, """
+                {"persons":[null],"applications":[]}
+                """);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+    }
+
+    @Test
+    public void readAddressBook_nullApplicationEntry_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("NullApplicationAddressBook.json");
+        Files.writeString(filePath, """
+                {"persons":[],"applications":[null]}
+                """);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
     }
 
     @Test
@@ -84,6 +143,100 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withRemark_preservesRemark() throws Exception {
+        Path filePath = testFolder.resolve("RemarkAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withRemark("Likes baseball").build());
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+
+        assertEquals(original, new AddressBook(readBack));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_preservesAddressPresence() throws Exception {
+        Path filePath = testFolder.resolve("AddressPresenceAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withoutAddress().build());
+        original.addPerson(new PersonBuilder(ALICE).withName("Alicia Yeoh").withEmail("alicia@example.com")
+                .withAddress("Not provided").build());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        storage.saveAddressBook(original, filePath);
+        AddressBook readBack = new AddressBook(storage.readAddressBook(filePath).get());
+
+        assertEquals(original, readBack);
+        assertFalse(readBack.getPersonList().get(0).getAddressOptional().isPresent());
+        assertEquals("Not provided", readBack.getPersonList().get(1).getAddressOptional().get().value);
+    }
+
+    @Test
+    public void read_legacyPlaceholderAddress_treatsAddressAsAbsent() throws Exception {
+        Path filePath = testFolder.resolve("LegacyPlaceholderAddressBook.json");
+        Files.writeString(filePath, """
+                {
+                  "persons": [{
+                    "name": "Alex Yeoh",
+                    "phone": "87438807",
+                    "email": "alexyeoh@example.com",
+                    "address": "Not provided",
+                    "tags": []
+                  }],
+                  "applications": []
+                }
+                """);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        ReadOnlyAddressBook readBack = storage.readAddressBook(filePath).get();
+
+        assertFalse(readBack.getPersonList().get(0).getAddressOptional().isPresent());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withWhereMet_preservesWhereMet() throws Exception {
+        Path filePath = testFolder.resolve("WhereMetAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withWhereMet("Career fair 2026").build());
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+
+        assertEquals(original, new AddressBook(readBack));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withRole_preservesRole() throws Exception {
+        Path filePath = testFolder.resolve("RoleAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withRole("Software Engineer").build());
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+
+        assertEquals(original, new AddressBook(readBack));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withApplication_preservesApplication() throws Exception {
+        Path filePath = testFolder.resolve("ApplicationAddressBook.json");
+        AddressBook original = new AddressBook();
+        Application application = new Application(new ApplicationName("Software Engineer Intern"),
+                new Company("Tech Corp"), new Description("Applied through the company careers page."),
+                new ApplicationDate("2026-10-07"));
+        original.addApplication(application);
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = jsonAddressBookStorage.readAddressBook(filePath).get();
+
+        assertEquals(original, new AddressBook(readBack));
     }
 
     @Test

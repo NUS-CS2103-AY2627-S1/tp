@@ -1,16 +1,21 @@
 package seedu.address.model.util;
 
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.WhereMet;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -20,23 +25,41 @@ public class SampleDataUtil {
     public static Person[] getSamplePersons() {
         return new Person[] {
             new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
+                Optional.of(new Company("Google")), Optional.of(new Role("SWE Recruiter")),
+                Optional.of(new WhereMet("NUS Career Fair 2026")),
                 new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
+                new Remark(""),
+                getTagSet("recruiter")),
             new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
+                Optional.of(new Company("Shopee")), Optional.of(new Role("Engineering Manager")),
+                Optional.of(new WhereMet("LinkedIn")),
                 new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
+                new Remark(""),
+                getTagSet("referral", "hiringManager")),
             new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
+                Optional.of(new Company("GovTech")), Optional.of(new Role("Software Engineer")),
+                Optional.of(new WhereMet("GovTech Open House")),
                 new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
+                new Remark(""),
+                getTagSet("alumni")),
             new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
+                Optional.of(new Company("DBS Bank")), Optional.of(new Role("Campus Recruiter")),
+                Optional.of(new WhereMet("Campus recruitment talk")),
                 new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
+                new Remark(""),
+                getTagSet("recruiter")),
             new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
+                Optional.of(new Company("ByteDance")), Optional.of(new Role("Product Manager")),
+                Optional.of(new WhereMet("Alumni referral")),
                 new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
+                new Remark(""),
+                getTagSet("alumni", "referral")),
             new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
+                Optional.of(new Company("Grab")), Optional.of(new Role("Data Scientist")),
+                Optional.of(new WhereMet("Hackathon")),
                 new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
+                new Remark(""),
+                getTagSet("mentor"))
         };
     }
 

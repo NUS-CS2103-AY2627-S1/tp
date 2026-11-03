@@ -5,55 +5,51 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Henry Lee
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/henrlly.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/henrlly)]
 
-* Role: Project Advisor
+- Role: Developer
+- Responsibilities: Develop features, perform quality assurance and testing,
+  and fix bugs
 
-### Jane Doe
+### Alexander Seah
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/bedminer1.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://robotsbybed.properrobotics.org)]
+[[github](https://github.com/bedminer1)]
 
-* Role: Team Lead
-* Responsibilities: UI
+- Role: Developer
+- Responsibilities: Backend Engineer
 
-### Johnny Doe
+### Li Zhaohan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/amyliiiii.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/AmyLiiiii)]
 
-* Role: Developer
-* Responsibilities: Data
+- Role: Developer
+- Responsibilities: Develop features, perform quality assurance and testing, and fix bugs
 
-### Jean Doe
+### Mao Yinbo
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/mao455.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/mao455)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+- Role: Developer
+- Responsibilities: Develop features, perform quality assurance and testing, and fix bugs
 
-### James Doe
+### Vincent Lim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/viincentlim.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ViincentLim)]
 
-* Role: Developer
-* Responsibilities: UI
+- Role: Developer
+- Responsibilities: Develop features, perform quality assurance and testing, and fix bugs

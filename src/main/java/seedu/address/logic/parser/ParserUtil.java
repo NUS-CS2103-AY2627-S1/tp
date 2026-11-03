@@ -9,10 +9,17 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.application.ApplicationDate;
+import seedu.address.model.application.ApplicationName;
+import seedu.address.model.application.ApplicationStatus;
+import seedu.address.model.application.Description;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.WhereMet;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -51,6 +58,66 @@ public class ParserUtil {
     }
 
     /**
+     * Parses a {@code String name} into an {@code ApplicationName}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code name} is invalid.
+     */
+    public static ApplicationName parseApplicationName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!ApplicationName.isValidName(trimmedName)) {
+            throw new ParseException(ApplicationName.MESSAGE_CONSTRAINTS);
+        }
+        return new ApplicationName(trimmedName);
+    }
+
+    /**
+     * Parses a {@code String description} into a {@code Description}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code description} is invalid.
+     */
+    public static Description parseDescription(String description) throws ParseException {
+        requireNonNull(description);
+        String trimmedDescription = description.trim();
+        if (!Description.isValidDescription(trimmedDescription)) {
+            throw new ParseException(Description.MESSAGE_CONSTRAINTS);
+        }
+        return new Description(trimmedDescription);
+    }
+
+    /**
+     * Parses a {@code String date} into an {@code ApplicationDate}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code date} is invalid.
+     */
+    public static ApplicationDate parseApplicationDate(String date) throws ParseException {
+        requireNonNull(date);
+        String trimmedDate = date.trim();
+        if (!ApplicationDate.isValidDate(trimmedDate)) {
+            throw new ParseException(ApplicationDate.MESSAGE_CONSTRAINTS);
+        }
+        return new ApplicationDate(trimmedDate);
+    }
+
+    /**
+     * Parses a {@code String status} into an {@code ApplicationStatus}.
+     * Leading and trailing whitespaces will be trimmed and values are case-insensitive.
+     *
+     * @throws ParseException if the given status is invalid.
+     */
+    public static ApplicationStatus parseApplicationStatus(String status) throws ParseException {
+        requireNonNull(status);
+        try {
+            return ApplicationStatus.fromString(status);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(ApplicationStatus.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    /**
      * Parses a {@code String phone} into a {@code Phone}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -78,6 +145,51 @@ public class ParserUtil {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
         return new Address(trimmedAddress);
+    }
+
+    /**
+     * Parses a {@code String company} into a {@code Company}.
+     * Leading and trailing whitespaces will be trimmed and repeated internal whitespace reduced to one space.
+     *
+     * @throws ParseException if the given {@code company} is invalid.
+     */
+    public static Company parseCompany(String company) throws ParseException {
+        requireNonNull(company);
+        String normalizedCompany = Company.normalize(company);
+        if (!Company.isValidCompany(normalizedCompany)) {
+            throw new ParseException(Company.MESSAGE_CONSTRAINTS);
+        }
+        return new Company(normalizedCompany);
+    }
+
+    /**
+     * Parses a {@code String role} into a {@code Role}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code role} is invalid.
+     */
+    public static Role parseRole(String role) throws ParseException {
+        requireNonNull(role);
+        String trimmedRole = role.trim();
+        if (!Role.isValidRole(trimmedRole)) {
+            throw new ParseException(Role.MESSAGE_CONSTRAINTS);
+        }
+        return new Role(trimmedRole);
+    }
+
+    /**
+     * Parses a {@code String whereMet} into a {@code WhereMet}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given value is invalid.
+     */
+    public static WhereMet parseWhereMet(String whereMet) throws ParseException {
+        requireNonNull(whereMet);
+        String trimmedWhereMet = whereMet.trim();
+        if (!WhereMet.isValidWhereMet(trimmedWhereMet)) {
+            throw new ParseException(WhereMet.MESSAGE_CONSTRAINTS);
+        }
+        return new WhereMet(trimmedWhereMet);
     }
 
     /**

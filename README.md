@@ -1,14 +1,44 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+[![CI Status](https://github.com/AY2627S1-CS2103T-T12-3/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-T12-3/tp/actions/workflows/gradle.yml)
 
-![Ui](docs/images/Ui.png)
+![InternTrack contact list](docs/images/listContactsResult.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+# InternTrack
+
+InternTrack is a desktop application for university Computing students managing
+internship and graduate role applications alongside the professional contacts
+who support their job search.
+
+The app combines a graphical interface with a command line interface (CLI) for
+users who prefer to enter and find records quickly by typing commands.
+
+## Features
+
+- Add, view, edit, delete, and search professional contacts such as recruiters,
+  interviewers, alumni, and referrers.
+- Keep contact details together, including phone number, email, company,
+  address, tags, and where you met.
+- Add, view, edit, and delete internship or graduate role applications with
+  their role, company, description, and application date.
+- View application dates in a navigable weekly calendar.
+- Store contacts and application records locally in a JSON data file.
+
+See the [User Guide](docs/UserGuide.md) for the available commands and their
+formats.
+
+## Scope
+
+InternTrack is a personal tracker for contacts and application records on one
+computer. It does not find vacancies, submit applications, send messages, or
+manage resumes. Users remain responsible for contacting employers and
+maintaining their application progress.
+
+## Project website
+
+The [InternTrack project website](https://ay2627s1-cs2103t-t12-3.github.io/tp/)
+contains the [User Guide](https://ay2627s1-cs2103t-t12-3.github.io/tp/UserGuide.html)
+and [Developer Guide](https://ay2627s1-cs2103t-t12-3.github.io/tp/DeveloperGuide.html).
+
+## Acknowledgements
+
+This project is based on the AddressBook-Level3 project created by the
+[SE-EDU initiative](https://se-education.org).
