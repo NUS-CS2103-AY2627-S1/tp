@@ -34,3 +34,28 @@ This project has three types of tests:
    For example: `seedu.address.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
    For example: `seedu.address.logic.LogicManagerTest`
+
+### CSV export tests
+
+`ExportCommandParserTest`, `ExportCommandTest` and `CsvContactExporterTest` cover argument validation,
+all stored contacts, UTF-8 CSV escaping, duplicate rows, existing destinations and failed-write cleanup.
+`ExportCommandUiTest` runs the real JavaFX command box with temporary JSON storage and uniquely named
+CSV files, which it deletes afterward. GUI tests use software rendering. On headless Linux run
+`xvfb-run -a ./gradlew check coverage`; the Linux CI job provides the virtual display.
+`LogicManagerTest` also verifies that successful CSV creation remains successful when JSON storage rejects writes.
+It checks that partial contacts export omitted fields as empty CSV cells, including contacts hidden by a tag filter,
+while preserving the filter and JSON data.
+
+### GUI checks for partial contacts
+
+`PartialAddUiTest` exercises real FXML and the MainWindow add/edit/depart flow, missing-field display,
+identity errors and persistence. On headless Linux run `xvfb-run -a ./gradlew check coverage`; GUI tests use
+software rendering. Other platforms can use `./gradlew check coverage`.
+
+### Contact details interface tests
+
+The `view` interface tests use JavaFX's existing runtime without additional test libraries.
+On headless Linux, run `xvfb-run -a ./gradlew check coverage` to provide a virtual display.
+The CI workflow does this automatically; without `DISPLAY`, local Linux interface tests are skipped.
+Other operating systems can use `./gradlew check coverage` normally. Tests use software rendering
+so they do not depend on a GPU.

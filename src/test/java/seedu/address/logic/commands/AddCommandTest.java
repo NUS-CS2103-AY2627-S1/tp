@@ -15,13 +15,16 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.SortField;
+import seedu.address.model.person.Department;
+import seedu.address.model.person.Email;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -38,7 +41,8 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals("Contact added successfully: Amy Bee | Phone: 85355255 | Email: amy@gmail.com"
+                + " | Department: Not provided | Address: 123, Jurong West Ave 6, #08-111 | Tags: None",
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
@@ -50,6 +54,14 @@ public class AddCommandTest {
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
         assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_noPhoneOrEmail_rejectsBeforeAccessingModel() {
+        Person nameOnly = new Person(ALICE.getName(), Phone.notProvided(), Email.notProvided(),
+                ALICE.getAddress(), ALICE.getTags());
+        assertThrows(CommandException.class, Person.MESSAGE_CONTACT_INFORMATION_REQUIRED, ()
+                -> new AddCommand(nameOnly).execute(new ModelStub()));
     }
 
     @Test
@@ -88,6 +100,41 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void addDepartment(Department department) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Department getLastDeletedDepartment() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreLastDeletedDepartment() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void discardLastDeletion() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteDepartment(Department department) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void renameDepartment(Department oldDepartment, Department newDepartment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void sortFilteredPersonList(SortField field) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -124,6 +171,21 @@ public class AddCommandTest {
 
         @Override
         public void deletePerson(Person target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasDeletedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Person getLastDeletedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreLastDeletedPerson() {
             throw new AssertionError("This method should not be called.");
         }
 

@@ -1,6 +1,9 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
@@ -12,16 +15,21 @@ import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.help.HelpCatalog;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
@@ -31,6 +39,7 @@ import seedu.address.model.person.Person;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
+import seedu.address.testutil.LogCapture;
 import seedu.address.testutil.PersonBuilder;
 
 public class LogicManagerTest {
@@ -71,15 +80,288 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_listCommandsAfterFiltering_restoreAllContacts() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(new PersonBuilder().withName("Bob").build());
+        List<Person> storedBefore = List.copyOf(model.getAddressBook().getPersonList());
+
+        for (String command : List.of("list", "ls")) {
+            logic.execute("find Amy");
+            assertEquals(List.of(AMY), model.getFilteredPersonList());
+
+            CommandResult result = logic.execute(command);
+
+            assertEquals(ListCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+            assertEquals(storedBefore, model.getFilteredPersonList());
+            assertEquals(storedBefore, model.getAddressBook().getPersonList());
+        }
+    }
+
+    @Test
+    public void execute_listCommandsWithParameters_preserveFilterAndContacts() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(new PersonBuilder().withName("Bob").build());
+        logic.execute("find Amy");
+        List<Person> storedBefore = List.copyOf(model.getAddressBook().getPersonList());
+        String expectedMessage = "The list command does not accept any parameters. Usage: list | ls";
+
+        for (String command : List.of("list 3", "ls --sort")) {
+            assertThrows(ParseException.class, expectedMessage, () -> logic.execute(command));
+            assertEquals(List.of(AMY), model.getFilteredPersonList());
+            assertEquals(storedBefore, model.getAddressBook().getPersonList());
+        }
+    }
+
+    @Test
+    public void execute_help_doesNotSaveEvenWhenStorageCannotWrite() throws Exception {
+        model.addPerson(AMY);
+        JsonAddressBookStorage blockedStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blocked.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                        throw new AssertionError("Help must not save the address book");
+                    }
+                };
+        logic = new LogicManager(model, new StorageManager(blockedStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+        for (String input : List.of("help", "?", "help depart", "? ls")) {
+            assertTrue(logic.execute(input).getHelpPage().isPresent());
+            assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+        }
+        assertEquals(HelpCatalog.getOverview(), logic.execute("help").getHelpPage().orElseThrow());
+    }
+
+    @Test
+    public void execute_findDoesNotSaveEvenWhenStorageCannotWrite() throws Exception {
+        Person bob = new PersonBuilder().withName("Bob").withTags("client").build();
+        model.addPerson(AMY);
+        model.addPerson(bob);
+        JsonAddressBookStorage blockedStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blocked.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                        throw new AssertionError("Find must not save the address book");
+                    }
+                };
+        logic = new LogicManager(model, new StorageManager(blockedStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1),
+                logic.execute("find Amy").getFeedbackToUser());
+        assertEquals(List.of(AMY), model.getFilteredPersonList());
+        assertEquals(String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, 1),
+                logic.execute("find --tag client").getFeedbackToUser());
+        assertEquals(List.of(bob), model.getFilteredPersonList());
+        assertEquals(List.of(AMY, bob), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_undoDiscardLatest_doesNotSaveEvenWhenStorageCannotWrite() throws Exception {
+        model.addPerson(AMY);
+        model.deletePerson(AMY);
+        JsonAddressBookStorage blockedStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blocked.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                        throw new AssertionError("Discarding undo history must not save the address book");
+                    }
+                };
+        logic = new LogicManager(model, new StorageManager(blockedStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+        logic.execute("undo --discard-latest");
+        assertFalse(model.hasDeletedPerson());
+        assertEquals(List.of(), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_unconfirmedOrInvalidClear_doesNotSaveOrChangeContacts() throws Exception {
+        model.addPerson(AMY);
+        JsonAddressBookStorage blockedStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blocked.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                        throw new AssertionError("Unconfirmed or invalid clear must not save");
+                    }
+                };
+        logic = new LogicManager(model, new StorageManager(blockedStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+
+        assertEquals(String.format(ClearCommand.MESSAGE_CONFIRMATION, 1),
+                logic.execute("clear").getFeedbackToUser());
+        for (String input : List.of("clear 1", "clear --confirm extra", "clear --CONFIRM")) {
+            assertThrows(ParseException.class,
+                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE), () ->
+                            logic.execute(input));
+        }
+        assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_clearConfirmation_persistsOnlyConfirmedDeletion() throws Exception {
+        model.addPerson(AMY);
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("clear.json"));
+        addressBookStorage.saveAddressBook(model.getAddressBook());
+        logic = new LogicManager(model, new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+
+        logic.execute("clear");
+        assertEquals(List.of(AMY), addressBookStorage.readAddressBook().orElseThrow().getPersonList());
+
+        assertThrows(ParseException.class, () -> logic.execute("clear 1"));
+        assertEquals(List.of(AMY), addressBookStorage.readAddressBook().orElseThrow().getPersonList());
+
+        assertEquals(ClearCommand.MESSAGE_SUCCESS, logic.execute("clear --confirm").getFeedbackToUser());
+        assertTrue(model.getAddressBook().getPersonList().isEmpty());
+        assertTrue(addressBookStorage.readAddressBook().orElseThrow().getPersonList().isEmpty());
+        assertFalse(model.hasDeletedPerson());
+    }
+
+    @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage())
+                + "\n" + LogicManager.FILE_OPS_CHANGES_KEPT_NOTE);
     }
 
     @Test
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage())
+                + "\n" + LogicManager.FILE_OPS_CHANGES_KEPT_NOTE);
+    }
+
+    @Test
+    public void execute_exportSucceedsWhenAddressBookCannotBeSaved() throws Exception {
+        model.addPerson(AMY);
+        String fileName = "tp-export-test-" + UUID.randomUUID() + ".csv";
+        Path csvPath = Path.of(fileName).toAbsolutePath();
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blockedAddressBook.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                        throw DUMMY_AD_EXCEPTION;
+                    }
+                };
+        StorageManager storage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        try {
+            CommandResult result = logic.execute("export --csv " + fileName);
+            assertEquals(String.format("Exported 1 contacts to %s.", fileName), result.getFeedbackToUser());
+            assertEquals(2, Files.readAllLines(csvPath).size());
+            assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+        } finally {
+            Files.deleteIfExists(csvPath);
+        }
+    }
+
+    @Test
+    public void execute_export_doesNotLogFilenameOrContactFieldsAtAnyLevel() throws Exception {
+        model.addPerson(AMY);
+        String fileName = "confidential-" + UUID.randomUUID() + ".csv";
+        Path csvPath = Path.of(fileName).toAbsolutePath();
+        try (LogCapture logs = new LogCapture()) {
+            assertEquals("Exported 1 contacts to " + fileName + ".",
+                    logic.execute("export --csv " + fileName).getFeedbackToUser());
+            assertTrue(Files.readString(csvPath).contains(AMY.getEmail().value));
+            assertThrows(CommandException.class, () -> logic.execute("export -c " + fileName));
+            assertThrows(ParseException.class, () -> logic.execute(fileName));
+            String output = logs.getOutput();
+            assertFalse(output.contains(fileName), output);
+            assertFalse(output.contains(AMY.getName().fullName), output);
+            assertFalse(output.contains(AMY.getEmail().value), output);
+            assertTrue(output.contains("CSV export completed: 1 contacts written."), output);
+            assertTrue(output.contains("destination file already exists"), output);
+        } finally {
+            Files.deleteIfExists(csvPath);
+        }
+    }
+
+    @Test
+    public void execute_exportPartialContacts_preservesMissingFieldsAndFilter() throws Exception {
+        logic.execute("add --name Alice --email alice@example.com");
+        logic.execute("add --name Bob --phone 91234567 --tag /client");
+        logic.execute("find --tag client");
+        List<Person> storedBefore = List.copyOf(model.getAddressBook().getPersonList());
+        List<Person> displayedBefore = List.copyOf(model.getFilteredPersonList());
+        assertEquals(List.of(storedBefore.get(1)), displayedBefore);
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        String jsonBefore = Files.readString(dataPath);
+        String fileName = "tp-export-test-" + UUID.randomUUID() + ".csv";
+        Path csvPath = Path.of(fileName).toAbsolutePath();
+
+        try {
+            CommandResult result = logic.execute("EXPORT -c " + fileName);
+            assertEquals("Exported 2 contacts to " + fileName + ".", result.getFeedbackToUser());
+            assertEquals("Name,Phone,Email,Department,Address,Tags\r\n"
+                    + "Alice,,alice@example.com,,,\r\nBob,91234567,,,,client\r\n",
+                    Files.readString(csvPath));
+            assertEquals(storedBefore, model.getAddressBook().getPersonList());
+            assertEquals(displayedBefore, model.getFilteredPersonList());
+            assertEquals(jsonBefore, Files.readString(dataPath));
+        } finally {
+            Files.deleteIfExists(csvPath);
+        }
+    }
+
+    @Test
+    public void execute_viewCommand_doesNotCreateStorageAndPreservesFilter() throws Exception {
+        model.addPerson(AMY);
+        model.addPerson(new PersonBuilder().withName("Bob").build());
+        model.updateFilteredPersonList(AMY::equals);
+        List<Person> storedBefore = List.copyOf(model.getAddressBook().getPersonList());
+        List<Person> displayedBefore = List.copyOf(model.getFilteredPersonList());
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        assertFalse(Files.exists(dataPath));
+
+        CommandResult result = logic.execute("view 1");
+
+        assertEquals("Showing details of contact 1: Amy Bee", result.getFeedbackToUser());
+        assertEquals("Amy Bee", result.getViewedPerson().orElseThrow().getName().fullName);
+        assertEquals(storedBefore, model.getAddressBook().getPersonList());
+        assertEquals(displayedBefore, model.getFilteredPersonList());
+        assertFalse(Files.exists(dataPath));
+    }
+
+    @Test
+    public void execute_viewCommand_succeedsWhenStorageCannotWrite() throws Exception {
+        model.addPerson(AMY);
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("blockedAddressBook.json")) {
+                    @Override
+                    public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                        throw DUMMY_AD_EXCEPTION;
+                    }
+                };
+        StorageManager storage = new StorageManager(addressBookStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("blockedUserPrefs.json")));
+        logic = new LogicManager(model, storage);
+
+        CommandResult result = logic.execute("view 1");
+        assertEquals("Showing details of contact 1: Amy Bee", result.getFeedbackToUser());
+        assertEquals("Amy Bee", result.getViewedPerson().orElseThrow().getName().fullName);
+        assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_viewCommand_preservesExistingFileAndSortedDisplay() throws Exception {
+        model.addPerson(new PersonBuilder(AMY).withTags("zeta").build());
+        model.addPerson(new PersonBuilder().withName("Bob").withTags("alpha").build());
+        logic.execute("sort --by tags");
+        List<Person> storedBefore = List.copyOf(model.getAddressBook().getPersonList());
+        List<Person> displayedBefore = List.copyOf(model.getFilteredPersonList());
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        String existing = "existing data that must not be replaced by a read-only command";
+        Files.writeString(dataPath, existing);
+
+        CommandResult result = logic.execute("view 1");
+
+        assertEquals("Bob", result.getViewedPerson().orElseThrow().getName().fullName);
+        assertEquals(existing, Files.readString(dataPath));
+        assertEquals(storedBefore, model.getAddressBook().getPersonList());
+        assertEquals(displayedBefore, model.getFilteredPersonList());
     }
 
     @Test

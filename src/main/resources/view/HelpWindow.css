@@ -1,19 +1,84 @@
-#copyButton, #helpMessage {
-    -fx-text-fill: white;
+/*
+ * Help window layout. Colours come from the -tui-* tokens in DarkTheme.css, which the window loads first,
+ * so help matches the main window: flat dark panes, grey headings, and accent-coloured commands.
+ */
+#helpContainer {
+    -fx-background-color: -tui-background;
 }
 
-#copyButton {
-    -fx-background-color: dimgray;
+#helpHeading {
+    -fx-text-fill: -tui-text;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
 }
 
-#copyButton:hover {
-    -fx-background-color: gray;
+#helpScroll, #helpScroll > .viewport {
+    -fx-background-color: -tui-pane;
 }
 
-#copyButton:armed {
-    -fx-background-color: darkgray;
+#helpScroll {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: -tui-border;
+    -fx-border-width: 1;
 }
 
-#helpMessageContainer {
-    -fx-background-color: derive(#1d1d1d, 20%);
+#helpScroll:focused {
+    -fx-border-color: -tui-accent;
+}
+
+.help-content {
+    -fx-padding: 14px;
+}
+
+.help-content Text {
+    -fx-fill: -tui-text;
+    -fx-font-family: "System";
+    -fx-font-size: 13px;
+}
+
+.help-command {
+    -fx-text-fill: -tui-accent;
+    -fx-font-family: Monospaced;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.help-section-heading {
+    -fx-text-fill: -tui-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 4px 0 0 0;
+}
+
+.help-code-block {
+    -fx-background-color: -tui-background;
+    -fx-border-color: -tui-border;
+    -fx-border-width: 1;
+    -fx-background-radius: 2;
+    -fx-border-radius: 2;
+    -fx-padding: 8px 10px 8px 10px;
+    -fx-alignment: top-left;
+}
+
+/* Option rows pad flags with spaces to line up their descriptions, so they need a monospaced font too. */
+.help-code-text Text, .help-options Text {
+    -fx-font-family: Monospaced;
+}
+
+.help-content .help-token {
+    -fx-fill: -tui-accent;
+    -fx-font-family: Monospaced;
+    -fx-font-weight: bold;
+}
+
+.help-guidance Text {
+    -fx-fill: -tui-muted;
+    -fx-font-size: 12px;
+}
+
+.help-copy {
+    -fx-text-fill: -tui-accent;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
 }

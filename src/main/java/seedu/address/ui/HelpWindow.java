@@ -1,31 +1,35 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.logging.Logger;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.help.HelpCatalog;
+import seedu.address.logic.help.HelpPage;
 
 /**
- * Controller for a help page
+ * Controller for the command help window.
  */
 public class HelpWindow extends UiPart<Stage> {
-
-    public static final String USERGUIDE_URL = "https://se-education.org/addressbook-level3/UserGuide.html";
-    public static final String HELP_MESSAGE = "Refer to the user guide: " + USERGUIDE_URL;
 
     private static final Logger logger = LogsCenter.getLogger(HelpWindow.class);
     private static final String FXML = "HelpWindow.fxml";
 
     @FXML
-    private Button copyButton;
+    private Label helpHeading;
 
     @FXML
-    private Label helpMessage;
+    private ScrollPane helpScroll;
+
+    @FXML
+    private HelpContentView helpContent;
 
     /**
      * Creates a new HelpWindow.
@@ -34,7 +38,17 @@ public class HelpWindow extends UiPart<Stage> {
      */
     public HelpWindow(Stage root) {
         super(FXML, root);
-        helpMessage.setText(HELP_MESSAGE);
+        setPage(HelpCatalog.getOverview());
+        // Wide enough for most usage lines and option descriptions to fit on one line.
+        getRoot().setWidth(720);
+        getRoot().setHeight(460);
+        getRoot().getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.Q && !event.isAltDown() && !event.isControlDown()
+                    && !event.isMetaDown() && !event.isShiftDown()) {
+                hide();
+                event.consume();
+            }
+        });
     }
 
     /**
@@ -45,27 +59,36 @@ public class HelpWindow extends UiPart<Stage> {
     }
 
     /**
-     * Shows the help window.
-     * @throws IllegalStateException
-     *     <ul>
-     *         <li>
-     *             if this method is called on a thread other than the JavaFX Application Thread.
-     *         </li>
-     *         <li>
-     *             if this method is called during animation or layout processing.
-     *         </li>
-     *         <li>
-     *             if this method is called on the primary stage.
-     *         </li>
-     *         <li>
-     *             if {@code dialogStage} is already showing.
-     *         </li>
-     *     </ul>
+     * Shows the current help content, restoring and focusing the existing window if necessary.
+     * Must be called on the JavaFX Application Thread.
      */
     public void show() {
-        logger.fine("Showing help page about the application.");
-        getRoot().show();
-        getRoot().centerOnScreen();
+        logger.fine("Showing command help.");
+        if (!isShowing()) {
+            getRoot().show();
+            getRoot().centerOnScreen();
+        }
+        getRoot().setIconified(false);
+        focus();
+    }
+
+    /**
+     * Displays the selected page in this window and resets scrolling.
+     * Must be called on the JavaFX Application Thread.
+     *
+     * @param page Command manual or overview to show.
+     * @throws NullPointerException If {@code page} is null.
+     */
+    public void showPage(HelpPage page) {
+        setPage(requireNonNull(page));
+        show();
+    }
+
+    private void setPage(HelpPage page) {
+        helpHeading.setText(page.title());
+        helpContent.showPage(page);
+        helpScroll.setVvalue(0);
+        helpScroll.setHvalue(0);
     }
 
     /**
@@ -83,20 +106,11 @@ public class HelpWindow extends UiPart<Stage> {
     }
 
     /**
-     * Focuses on the help window.
+     * Brings the help window to the front and focuses its scroll pane for keyboard navigation and dismissal.
      */
     public void focus() {
+        getRoot().toFront();
         getRoot().requestFocus();
-    }
-
-    /**
-     * Copies the URL to the user guide to the clipboard.
-     */
-    @FXML
-    private void copyUrl() {
-        final Clipboard clipboard = Clipboard.getSystemClipboard();
-        final ClipboardContent url = new ClipboardContent();
-        url.putString(USERGUIDE_URL);
-        clipboard.setContent(url);
+        helpScroll.requestFocus();
     }
 }

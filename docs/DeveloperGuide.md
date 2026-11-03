@@ -8,8 +8,13 @@ title: Developer Guide
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org).
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* [SE-EDU initiative](https://se-education.org)
+* Claude Opus 5.5 (through Claude Code) and GPT models (through OpenAI Codex) were used in this project to
+  generate code and documentation, and to hunt for bugs during alpha and beta testing.
+  OpenAI Codex also assisted with writing and running automated tests, preliminary PR reviews,
+  and preparing and checking UML diagrams and product screenshots.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +41,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -68,13 +73,42 @@ The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/ui/Ui.java)
 
 ![Structure of the UI Component](images/UiClassDiagram.png)
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `DepartmentPanel`, `PersonListPanel`, `DetailsPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+`MainWindow` lays its parts out as numbered panes, in the style of a terminal dashboard: \[1\] `DepartmentPanel`
+(each registered department with its number of contacts), \[2\] `PersonListPanel` (one table row per contact, which
+grows taller when its tags wrap), \[3\] a docked `DetailsPanel`, and \[4\] the `ResultDisplay` above the `CommandBox`
+prompt. Alt+1 to Alt+4 (or Esc for the prompt) move the keyboard focus between them, and the pane with the focus
+is outlined. `DepartmentPanel` and `StatusBarFooter` read the unfiltered `Logic.getPersonList()` and
+`Logic.getDepartmentList()`, so they stay up to date with every change.
+
+Contact details appear in two places. The docked \[3\] pane follows the selection in \[2\]: selecting a row with a
+click or j/k passes that contact directly to `DetailsPanel.showDetails(Person)` and shows it at once, without running a
+command, so glancing through contacts stays instant. When selection becomes null, the listener calls
+`DetailsPanel.clearDetails()` to restore the placeholder, remove accessible contact text, and reset value
+navigation and scrolling. The constructor uses the same reset operation. A successful `clear --confirm`
+therefore empties the docked pane; a failed save preserves the selection and its details.
+To compare contacts side by side, details can also pop out
+into windows managed by `ContactDetailsWindows`. A successful `view` command returns the
+viewed immutable `Person` through `CommandResult`. `ContactDetailsWindows.show(Person)` refreshes
+the open `ContactDetailsWindow` (a `UiPart<Stage>`) whose contact `isSamePerson` as the viewed one, or opens a new
+popup cascaded from the main window. An edit can change every field `isSamePerson` compares, so
+`ContactDetailsWindows` also listens to `Logic.getPersonList()`: when a contact is replaced in place, its popup
+switches to the edited `Person`, and viewing a renamed contact still refreshes its popup. Like the docked pane, each
+popup hosts a `DetailsPanel`, which reads fields directly from the person and displays each grey field name beside a
+read-only value that can be selected with j/k or Tab and copied. Missing-value styling uses field presence rather than
+displayed text, so supplied values such as `None` and `Not provided` retain normal styling. The panel also generates
+a text description for assistive technology. Several contacts can therefore be compared side by
+side, while viewing the same contact again never duplicates its popup. Popups are owned by the main stage, so they
+stay in front of it, and the keyboard focus stays at the prompt after `view`. Pressing Enter on a row in \[2\], or
+double-clicking it, runs `view` with that row's contact ID. Repeated Alt+3 presses step through the docked pane and
+then each popup, `q` closes the focused popup, and every popup is hidden when the application exits.
+
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
@@ -85,7 +119,7 @@ The `UI` component,
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
@@ -104,6 +138,13 @@ How the `Logic` component works:
 1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
 1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
    Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
+1. `LogicManager` checks `Command.getAddressBookReplacement()` before execution. If present, it saves the
+   proposed replacement before executing the command, and skips the normal save afterward. Confirmed
+   `ClearCommand` uses this path; a save failure prevents execution and preserves the live model.
+   Otherwise, `LogicManager` saves the canonical address book after execution if `Command.requiresStorageSave()`
+   returns true.
+   Read-only `ViewCommand` and `FindCommand` and display-only `SortCommand` return false, as do `ExportCommand`,
+   `HelpCommand`, department listing, unconfirmed `ClearCommand` and `undo --discard-latest`.
 1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
@@ -115,7 +156,7 @@ How the parsing works:
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/model/Model.java)
 
 <img src="images/ModelClassDiagram.png" width="450" />
 
@@ -123,7 +164,8 @@ How the parsing works:
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
+* maintains an observable display-order projection separate from the canonical person list. A `FilteredList` over this projection applies the current filter and preserves display-only sorting. It exposes an unmodifiable `ObservableList<Person>` shared by the UI and index-based commands.
+* records session-local deletion history alongside the contact data.
 * stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
@@ -136,7 +178,7 @@ The `Model` component,
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-W10-1/tp/blob/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
@@ -144,6 +186,23 @@ The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+
+Both JSON storage classes save through `JsonUtil.saveJsonFile`, which serializes the complete object before
+passing the JSON text to `AtomicFileWriter`. The writer creates a sibling temporary file on the destination's
+filesystem, writes and closes the complete UTF-8 content, then publishes it using
+`Files.move` with `ATOMIC_MOVE` and `REPLACE_EXISTING`. This shared path protects both address book data and
+user preferences. CSV export uses the separate `CsvContactExporter` flow described below.
+
+If serialization, temporary-file creation, writing, or replacement fails, the previous destination remains
+unchanged. A failed save does not create an empty destination if none existed. After a temporary-file write or
+replacement failure, the writer attempts to remove the temporary file; any cleanup failure is attached to the
+original exception as a suppressed exception. Unsupported atomic replacement is reported as a save error,
+without falling back to a non-atomic write.
+
+Atomic replacement protects the saved file independently of command execution. Ordinary commands that modify
+the model do so before saving, so a failed save leaves their changes in memory. After resolving the storage problem,
+`list` retries saving the current address book. Confirmed `clear` uses the replacement-before-execution path
+described in [Clearing contacts with confirmation](#clearing-contacts-with-confirmation).
 
 ### Common classes
 
@@ -155,94 +214,533 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### CSV export (Feature 11 / UC9)
 
-#### Proposed Implementation
+The sequence below shows a successful CSV export. Parsing is summarized in a reference frame; the command
+reads all stored contacts, writes the CSV through `CsvContactExporter`, and skips the normal JSON save.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+![Successful CSV export sequence](images/ExportCsvSequenceDiagram.png)
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+`AddressBookParser` dispatches `export` to `ExportCommandParser`. The parser requires `-c` or `--csv`, accepts
+one optional basename (with matching quotes for spaces), and defaults to `contacts.csv`.
+`CsvContactExporter.getFileNameError` returns a correction for the first violated rule: a missing stem,
+surrounding whitespace, a folder path, reserved/control characters, a non-lowercase `.csv` extension or a
+reserved Windows device name. `isValidFileName` delegates to the same validation, so parsing, command
+construction and file writing keep one filename policy on all supported platforms. The filename policy follows
+[Windows filename restrictions](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file).
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+`ExportCommand` snapshots `model.getAddressBook().getPersonList()` rather than the filtered list.
+It rejects an empty snapshot, then delegates file writing to the storage helper `CsvContactExporter`.
+The command leaves the model and filter unchanged. A successful command returns the row count and filename
+through the existing feedback display. Its `requiresStorageSave()` override skips the unrelated JSON save:
+once the CSV exists, a JSON save failure must not turn a successful export into an error.
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+The exporter writes UTF-8 with a fixed six-column header and CRLF record separators. Values containing
+commas, double quotes, CR or LF are quoted, and inner double quotes are doubled, following
+[RFC 4180](https://www.rfc-editor.org/rfc/rfc4180). It writes raw field values, maps an absent department
+to an empty cell, sorts tags and joins them with `; `. It preserves input order and repeated records.
+Raw empty values also allow partial contacts to be exported when the partial-add feature is integrated.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+The exporter writes and closes a temporary file in the destination directory, then publishes it with
+`Files.createLink(destination, temporary)`. Creating the hard link refuses an existing destination in
+the filesystem operation itself, so simultaneous exports cannot overwrite each other. The losing export
+reports the existing-file error; the winner's complete CSV remains intact. The temporary name is removed
+on completion or failure. Filesystems without hard-link support report a write error instead of falling
+back to a move that could overwrite another export.
+`FileAlreadyExistsException` produces a choose-another-filename message; other `IOException`s produce
+a file creation error instead of a success result. The default output directory is the process working
+directory; an injectable exporter isolates tests and simulates permission or interrupted-write failures.
 
-![UndoRedoState0](images/UndoRedoState0.png)
+Export uses validated in-memory contacts. Invalid JSON/contact data is handled by the existing startup
+loader; export does not re-read a JSON file edited externally during the session. It adds no recovery path
+for corrupted persistent data. Parser, model integration, real file, cleanup and JavaFX command-box tests
+cover the export flow, including a filtered list and an existing destination.
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+### Adding contacts with partial information
 
-![UndoRedoState1](images/UndoRedoState1.png)
+The sequence below shows the successful addition of a partial contact with a name and phone number.
+Parsing creates missing-value objects for omitted email and address fields; the command checks for duplicates,
+adds the contact, and follows the normal JSON save.
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+![Successful partial-contact addition sequence](images/AddPartialContactSequenceDiagram.png)
 
-![UndoRedoState2](images/UndoRedoState2.png)
+`AddCommandParser` and `EditCommandParser` share `ArgumentTokenizer`. Each `Prefix` in `CliSyntax` has a
+short and a long form (e.g. `-n`/`--name`), and both forms map to the same `ArgumentMultimap` key, so they can
+be mixed and repeats in either form are detected as duplicates. The tokenizer splits input into words, treats a
+quoted word as literal text (never a flag), rejects unknown `--` options, and stores each word after `-t`/`--tag`
+as a separate tag. Name and at least one phone number or email address are required. Both the parser and
+`AddCommand` reject contacts without either means of contact. Omitted phone, email and address use immutable
+`notProvided()` value objects whose
+stored values are empty strings and whose display strings are `Not provided`. Their public constructors and
+parser validators still reject empty supplied values. Department remains optional. The department
+catalogue and assignment rules are specified below under Department management.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+Unrecognised single-hyphen words within a value are literal text rather than unsupported options:
+`add --name Alice --phone 91234567 --address Road -x typo` stores `Road -x typo` as the address.
+Recognised short flags still delimit fields unless quoted. This distinction also applies to `edit`.
+`Name` currently accepts only ASCII letters, digits and ordinary spaces, starting with a letter or digit;
+accented or Chinese characters, apostrophes and hyphens are outside this version's supported name format.
 
+`Email.isValidEmail` scans characters and separator boundaries iteratively, preserving the existing format
+rules without recursive regex matching. Validation takes linear time and constant auxiliary space, including
+long local parts and domains. This avoids a `StackOverflowError` on repeated email segments and retains
+previously accepted stored emails. Invalid email input still produces the normal `ParseException` through
+`ParserUtil`; there is no new email-length restriction.
+
+`JsonAdaptedPerson` maps null, omitted or empty phone/email/address fields to the missing value objects;
+nonempty invalid data still causes a loading error. Existing fully populated data retains its fields.
+`add` and `edit` both parse user input through `ParserUtil`, which validates phone numbers as 7–15 digits and
+tags as 1–30 characters with the team-specified hyphen/underscore support and leading `#`/`/` normalization.
+Keeping these rules in `ParserUtil`, rather than in one command's parser, keeps the two commands consistent.
+Storage retains compatibility with previously valid short phone numbers (`Phone.isValidPhone` still accepts
+3 or more digits) and longer tags through `Tag.fromStoredValue`; normal `add` and `edit` validation uses the
+shared 1–30 character limit. Tag search accepts those longer stored values so legacy tags remain discoverable.
+This avoids a migration of old contact data.
+Tag search and matching reuse the teammate's implementation.
+
+`Person.isSamePerson` requires the same name and at least one matching provided phone number or email
+address. Missing fields are not matches. Address, Department and tags do not contribute to identity.
+Names and emails are compared case-sensitively; phone numbers use exact string equality.
+This duplicate relation is not transitive: a proposed edit can match its original contact by phone and another
+contact by email. Therefore both `EditCommand` and `UniquePersonList.setPerson` check every other contact,
+excluding the edited target, even when the original and edited versions match. `edit` can complete partial
+contacts while preserving their other fields. Assigned departments must already exist in the department catalogue.
+Editing a legacy contact without phone and email requires supplying at least one of them; storage loading
+retains compatibility with old missing fields.
+
+Loading is restoration rather than a new addition. `JsonSerializableAddressBook` validates all supplied
+fields and department references, then restores the complete ordered list through `AddressBook.setPersons`.
+Bulk restoration rejects only repeated name/phone/email combinations, as the previous storage rule did.
+It therefore preserves every previously valid contact, including same-name contacts sharing either phone or
+email, instead of rejecting the file and starting with empty data. The same path preserves these records when
+`ModelManager` copies the address book and department operations replace contact objects without changing
+their identities. Department undo also restores assignments in bulk and updates history references.
+`addPerson`, interactive `setPerson` and contact undo continue to enforce `Person.isSamePerson` strictly;
+there is no global switch that disables duplicate checks. Existing unresolved conflicts are retained on disk,
+and a contact edit must produce an identity that does not conflict with another record. Contact undo also
+requires a phone number or email address; attempting to restore a legacy name-only contact leaves both the
+file and deletion history unchanged and reports the missing-information error.
+
+`LegacyContactCompatibilityTest` loads previously valid JSON through the real `MainApp` startup path, with
+and without a department catalogue. It verifies every contact field and ordering after a saving command,
+an unrelated addition and repeated restarts, plus strict add/edit/contact-undo rejection and department
+rename/delete/undo on the restored data. Rejected operations retain stored bytes and contact undo history.
+
+`AddCommand` returns full labelled feedback, sorted tags and missing-field placeholders. In the contact
+table, `PersonCard` shows a dimmed `—` for missing fields and for no tags, while the \[3\] Details pane and
+popups show the same `Not provided` and `None` placeholders as `AddCommand`. `LogicManager` retains the
+existing save failure behaviour: it reports the error instead of returning an addition-success result.
+The model change and filter/sort reset occur before saving. If saving fails, the contact addition or edit
+remains in memory and is not rolled back, so repeating an `add` may fail the duplicate check. After resolving
+the storage error, `list` retries the normal save. The UG describes this recovery before closing the app.
+
+### Department management: design specification
+
+The department catalogue is stored alongside contacts in the address book. `depart` manages a shared
+catalogue of department names, while `edit` assigns a catalogue entry to an individual contact.
+The catalogue includes departments with no assigned contacts and is independent of the current contact filter.
+
+| Command | Behaviour |
+| --- | --- |
+| `depart --delete DEPARTMENT` | Remove a catalogue entry and clear matching assignments in contacts and deletion history. |
+| `depart --list` | List all departments in the catalogue, including unused departments. Report an empty catalogue when none exist. |
+| `depart --add DEPARTMENT` | Add a new department to the catalogue without assigning it to any contact. |
+| `depart --edit OLD_DEPARTMENT NEW_DEPARTMENT` | Rename an existing catalogue entry and update every contact assigned to it, including contacts hidden by a filter. |
+| `edit CONTACT_ID --department DEPARTMENT` | Assign an existing catalogue department to the contact at the specified displayed-list position. The short option `-d` is also supported. |
+
+`DepartCommandParser` accepts exactly one lowercase operation and its required number of name arguments.
+Department names are case-sensitive, trimmed, and contain 2-50 ASCII letters, digits, spaces, `-`, or `&`;
+multi-word names must be quoted. The parser rejects malformed commands and invalid names before constructing a
+command; `DepartCommand.execute` then rejects duplicate additions, unknown sources, and conflicting rename targets
+before mutation. The previous `depart CONTACT_ID --set DEPARTMENT` form is replaced by
+`edit CONTACT_ID --department DEPARTMENT`; the full user-facing syntax and feedback are in the UG.
+
+Renaming changes the catalogue entry and all its contact assignments as one logical operation; other contact
+fields remain unchanged. Persist the catalogue (including unused entries) and updated assignments across restarts.
+Listing departments does not modify contacts, the catalogue, filtering, or sorting.
+
+`edit` validates both the displayed contact ID and membership of the requested name in the catalogue.
+An unknown department is rejected without changing any supplied contact fields; the user must first register it
+with `depart --add`. Omitting `--department` preserves the contact's existing department. A successful assignment
+replaces only that contact's department, along with any other explicitly supplied edit fields; it does not rename
+a catalogue entry or affect other contacts. Contacts may still have no department.
+`add --department` applies the same catalogue membership check before adding a contact.
+
+`AddressBook` owns the observable department catalogue and exposes an unmodifiable view through
+`ReadOnlyAddressBook.getDepartmentList()`. In the Model class diagram, `AddressBook` is associated with
+zero or more registered `Department` values, while each `Person` has zero or one assigned department.
+Department equality is based on the case-sensitive name; assignments do not require the same object instance
+as the catalogue entry.
+
+The following sequence diagram shows a successful department deletion. Parser construction, ordinary list reads,
+result construction, and the internal storage write are omitted so that the main state changes remain visible.
+
+![Sequence diagram for deleting a department](images/DeleteDepartmentSequenceDiagram.png)
+
+`depart --list` skips the storage save and preserves display state. Adding an unused catalogue entry also
+preserves contact filtering and sorting. `EditCommandParser` stores `-d`/`--department` in
+`EditPersonDescriptor`; `EditCommand` checks the displayed index and catalogue membership before updating
+any fields. A successful contact edit displays all contacts in stored order.
+
+Renaming replaces matching contact values, including those in deletion history, and retains the active filter.
+Deleting removes the catalogue entry, clears matching assignments from all contacts, and records the affected
+contacts in the shared deletion history. Undo restores assignments only to tracked contacts that still have no
+department, preserving later edits and explicit reassignment. A conflicting catalogue name rejects restoration
+without changing data or history. Department deletion history is session-only; successful mutations use the
+normal storage-save flow.
+
+Renaming an entry to its own name is allowed. `clear` resets the catalogue together with contacts.
+
+`JsonSerializableAddressBook` persists names in a `departments` array, including unused entries.
+Legacy files with an absent or null `departments` array derive the catalogue from their contact assignments. Files containing an explicit
+catalogue reject exact duplicate or invalid names and contact assignments absent from the catalogue.
+Legacy catalogue entries differing only in surrounding whitespace are merged in first-occurrence order;
+contact assignments are normalized to the same names. Normalized data is persisted on the next successful save.
+`LogicManager` saves successful catalogue additions, renames, deletions, and contact assignments through the normal
+storage flow. A save failure is reported instead of success; the in-memory change is not rolled back.
+`DepartmentIntegrationTest` covers persistence, rejected edits, listing without writes, and rename followed by undo.
+`DepartCommandParserTest`, `DepartCommandTest`, `AddressBookTest`, and `JsonSerializableAddressBookTest`
+cover invalid input, catalogue constraints, unaffected contacts, and legacy-data loading.
+
+### Searching names with quotes
+
+Name search uses `ArgumentTokenizer.splitWords` to remove matching outer quotes before splitting
+the resulting text into whole-word OR keywords. Single and double quotes behave identically;
+quotes inside unquoted words remain literal. Empty input, unmatched quotes and text immediately
+after a closing quote are rejected.
+
+### Searching contacts by tags
+
+The tag-search command is `find --tag TAG [TAG ...] [--tag TAG ...]`. The option is lowercase and may be
+repeated; as with `add` and `edit`, several tags may follow one option. The command word is case-insensitive.
+Tag matching is case-insensitive; tags contain ASCII letters, digits, hyphens, or underscores. New tags are
+limited to 30 characters, while search accepts longer legacy tags retained during storage loading.
+`ParserUtil.parseTagForSearch` trims surrounding whitespace and removes leading `#` or `/` characters. Matching quotes
+are removed by the shared tokenizer. A tag that looks like an option must be quoted, so
+`find --tag "--tag"` searches for the literal tag `--tag` rather than introducing another option.
+
+#### Parsing and validation
+
+`FindCommandParser` uses the shared quote-aware tokenizer, rejects text before the first `--tag`, validates
+values through `ParserUtil.parseTagForSearch`, and removes duplicate query tags. This keeps normalization aligned
+with `add` and `edit` while still accepting longer legacy tags loaded from storage.
+
+| Condition | Feedback |
+| --- | --- |
+| Missing or whitespace-only value after `--tag` | `Tag cannot be empty: Please provide a valid tag after '--tag'.` |
+| Tag violates the shared character constraints | `Tags must use only letters, numbers, hyphens (-), and underscores (_), with no spaces.` |
+| No standalone `--tag`, but an option-like token is supplied | `Invalid find option: '[INPUT]'. Use find --tag TAG [TAG ...] [--tag TAG ...] or find KEYWORD [MORE_KEYWORDS].` |
+| No arguments, or text before the first standalone `--tag` | `Invalid command format!` followed by a newline and `FindCommand.MESSAGE_USAGE`. |
+
+An unquoted value beginning with `--` is treated as an option and rejected if unrecognized; quoting makes it a
+tag value. Parsing failures leave the current filter, display order, and contacts unchanged. Search matching is
+case-insensitive without changing stored tag spelling or equality.
+
+#### Matching and execution
+
+`TagsMatchPredicate` keeps an immutable query and performs case-insensitive whole-tag OR matching.
+`FindCommand` applies it to all stored contacts, replacing the previous filter and restoring stored order;
+multiple matching tags never duplicate a contact.
+
+A successful search reports `[COUNT] person(s) listed!`. If no contacts match, it displays an empty list and
+`No contacts found with the specified tag(s).`; this is a valid search result, not a validation error.
+Contact fields remain unchanged. `FindCommand.requiresStorageSave()` returns false because searching changes
+only the displayed filter, so `LogicManager` returns the result without rewriting the address book data file.
+
+`FindCommandParserTest` covers repeated options, whitespace, tag length boundaries, invalid tags,
+unsupported options, and mixed name/tag input. `TagsMatchPredicateTest` verifies OR matching, case-insensitive comparisons,
+whole-tag matching, and defensive copying. `FindCommandTest` verifies filtered results and feedback.
+
+### Listing all contacts: design specification
+
+The list feature lets users review every stored contact after applying a search or filter.
+It accepts `list` or `ls`, with no parameters. Command words are case-insensitive;
+`LIST`, `List`, and `LS` are accepted. Leading and trailing spaces are ignored.
+Both spellings clear the current filter and display sorting, showing contacts in stored order.
+
+Any extra input produces exactly:
+`The list command does not accept any parameters. Usage: list | ls`
+Rejecting extra input prevents users from assuming unsupported filtering or sorting options were applied.
+
+`AddressBookParser` routes both spellings to `ListCommandParser`, which rejects nonblank arguments
+before creating the shared `ListCommand`. Its execution uses `PREDICATE_SHOW_ALL_PERSONS` through
+`Model.updateFilteredPersonList` to restore the full contact list and stored order.
+
+### Contact display sorting
+
+The sequence diagram below shows a successful `sort --by tags` command with a nonempty displayed list.
+It focuses on parsing and execution within Logic, treating Model as a black box.
+
+![Sequence diagram for the sort --by tags command](images/SortSequenceDiagram.png)
+
+`LogicManager` passes the command text to `AddressBookParser`, which delegates the arguments to
+`SortCommandParser`. The parser validates the option and field, normalizes `tags` to `SortField.TAGS`, and
+creates a `SortCommand`. `LogicManager` then executes the command, which calls `Model.sortFilteredPersonList`
+to reorder the displayed contacts while preserving the active filter and canonical contact order.
+The command returns a `CommandResult` with the displayed contact count and selected field.
+
+The diagram's final note summarizes the storage behavior: `SortCommand.requiresStorageSave()` returns false,
+so `LogicManager` returns the result without saving. Routine list reads, result construction, and this storage
+check are omitted from the diagram for clarity. Existing commands retain their previous save behavior.
+Parse-error precedence is descending option, unsupported argument structure, missing option/value, then invalid
+field; the user guide lists the exact messages.
+
+`ModelManager` maintains an observable display projection separate from `AddressBook`. `FilteredList` is backed by
+this projection, so the UI and index-based commands share the same displayed order. Sorting only rearranges visible
+positions and preserves the filter. Successful canonical contact changes refresh the projection and reset sorting;
+`list` and `find` also reset sorting through `updateFilteredPersonList`. `view` and `help` preserve the order.
+Undo appends the restored contact in canonical order and shows the full list, preserving its department and tags.
+The address book listener keeps direct changes through the existing read-only list's observable backing synchronized.
+
+`ContactSorter` precomputes keys, then stably sorts a copy using case-insensitive comparison and missing values last.
+It keeps duplicate occurrences and never mutates input. Stability uses the current display order, including when
+switching fields. No contact-name tie-breaker is applied. Sorting a canonical-source `SortedList` without preserving current tie order would violate this rule.
+
+`SortField.DEPARTMENT` reads the optional stored value from `Person.getDepartment()`. Department and tag
+constructors validate their immutable values; sorting rejects null tag elements before changing the display.
+Missing departments sort last.
+Tag keys use the case-insensitive minimum of the unordered tag set; empty tag sets are absent keys.
+Tag sorting does not group a contact by all of its tags, and does not change the stored tag set.
+`ContactSorterTest` verifies real department values, case-insensitive ordering, missing values, and stable ties.
+`view`, `edit`, and `delete` resolve indices against the same sorted display; undo preserves department data.
+
+`MainApp` logs startup loading failures and initializes an empty address book when loading fails.
+Sorting uses the current in-memory contacts, so valid contacts added afterward can be sorted without restarting.
+An empty displayed list produces `No contacts found to sort.` Sorting still rejects null tag elements before
+publishing a new order. A missing data file retains the existing sample-data behavior.
+
+Regression coverage includes parser boundaries, aliases and errors; stable department and tag ordering; observable
+display/filter behavior; editing and deleting sorted indices; unchanged storage; and recovery after startup loading
+failures, including sorting contacts after successful additions and saves in the same session.
+
+### Clearing contacts with confirmation
+
+`AddressBookParser` delegates `clear` to `ClearCommandParser`. After trimming surrounding whitespace,
+the parser accepts only blank arguments or the exact `--confirm` flag. All other arguments produce
+`MESSAGE_INVALID_COMMAND_FORMAT` with `ClearCommand.MESSAGE_USAGE` before any command executes.
+
+`ClearCommand` stores an immutable confirmation flag. Without confirmation, it counts the canonical
+address book's contacts and returns a warning; contacts, display filtering and sorting, and deletion
+history remain unchanged. Its `requiresStorageSave()` override returns false in this case.
+With confirmation, `getAddressBookReplacement()` supplies the empty address book to `LogicManager`, which
+saves it before executing the command. Only after saving succeeds does `ClearCommand.execute` reset the
+live address book, including the department catalogue; `LogicManager` skips the normal save afterward.
+If saving fails, the command is not executed: contacts, departments, the current filter and sorting, and
+deletion history remain unchanged. The error explains that clearing was not applied. After resolving the
+storage problem, the user can retry `clear --confirm`, or run `list` to save the retained data.
+Clearing does not add contacts to individual-deletion history, so it cannot be undone.
+Earlier individual deletions remain available to `undo`.
+
+Regression tests cover strict parsing, warning counts with hidden contacts, unchanged display and undo
+history, skipped saves for unconfirmed or invalid input, preservation of saved and live data after save
+failures, recovery and retry, and reloading the empty saved address book after confirmed deletion.
+
+### Viewing contact details
+
+The sequence below shows a successful `view 1` request for a nonempty displayed list. It resolves the
+displayed index and returns the snapshot to the contact's details popup without saving JSON contact data.
+
+![Successful contact-details sequence](images/ViewContactSequenceDiagram.png)
+
+`AddressBookParser` routes `view CONTACT_ID` to `ViewCommandParser`, which validates the contact ID using
+`ParserUtil.parseIndex`. `ViewCommand` resolves that contact ID against `Model.getFilteredPersonList()` so that
+filtering and sorting determine the selected row. `CONTACT_ID` is the same one-based displayed-list
+position used by `edit`, represented internally by `Index`. It reports an empty list or the valid contact ID range
+before accessing the contact.
+
+The command returns a `CommandResult` with short feedback and the viewed immutable `Person`.
+`MainWindow` displays the feedback in the main result box and forwards the person to
+`ContactDetailsWindows`, which shows it in that contact's owner-linked `ContactDetailsWindow` popup.
+Its `DetailsPanel` renders all supported fields directly from the person, sorts tags for stable output, and uses
+field presence to style missing values. The read-only, wrapping field grid contains selectable values inside a
+scroll pane. Each successful `view` updates
+the contact's popup with a snapshot, or
+opens a popup if the contact has none; later model changes do not silently change a displayed snapshot.
+
+`ViewCommand.requiresStorageSave()` returns false. `LogicManager` returns the details result without calling
+`Storage.saveAddressBook`, preserving contact data, the current filter and display order. Viewing therefore
+succeeds even when the JSON destination cannot be written, and cannot overwrite an externally changed file.
+Contacts are validated and loaded into the model at startup, so `view` does not re-read contact data from disk.
+
+Keyboard handling in the popup:
+
+* Only a plain `q` closes the popup. `q` with Shift, Ctrl, Alt or Meta goes to the focused value instead.
+* Closing a popup with `q` returns focus to the command box, even if another pane had focus before.
+  `MainWindow` passes this action to each popup through `ContactDetailsWindows`. Other popups stay open.
+* Moving to a value with j/k, Up/Down, Tab or Alt+3 selects its whole text, so Ctrl+C copies it. `DetailsPanel`
+  selects the text itself instead of waiting for a focus change, because no focus change happens when the value
+  already had focus or the popup is not yet the active window.
+* Each value handles j/k itself. A popup opened by `view` has no value focused until the user moves into it, so
+  `DetailsPanel` also handles a plain j or k on its scroll pane by moving to the first value.
+
+Department display reads `Person.getDepartment()` from the Department implementation tracked by issue #65.
+The optional value is shown in full, or as `Department: Not provided` when absent. The `view` command uses
+the same displayed-list position as `edit`, so setting a department and then viewing that contact remains
+consistent after filtering.
+
+### Showing command help
+
+The sequence below shows a successful `help list` request, from command parsing to displaying the
+`list` manual in the reusable help window.
+
+![Successful help-command sequence](images/HelpCommandSequenceDiagram.png)
+
+`AddressBookParser` creates a `HelpCommandParser`, which validates the optional topic and resolves its
+`HelpPage` through `HelpCatalog.findPage`. For this request, the topic is `list`. The parser creates a
+`HelpCommand` carrying that page. The diagram omits the static catalogue lookup and result-factory calls,
+and summarizes their effects in notes.
+
+`HelpCommand.execute(model)` returns a `CommandResult` containing the selected page, feedback and
+`showHelp = true`. It does not change the model. Its `requiresStorageSave()` method returns false, so
+`LogicManager` returns the result without saving the address book. `MainWindow` displays the feedback
+and forwards the page to the existing `HelpWindow`. The window updates its heading and text, resets
+scrolling, and shows or restores itself with focus on the help text.
+
+With no topic, `help` or `?` selects the overview instead. Topic lookup is case-insensitive and accepts
+aliases such as `ls`; unknown topics or multiple arguments produce a `ParseException` before command
+execution. The Help menu and F1 call `MainWindow.handleHelp()` directly to display the overview,
+bypassing command parsing. These alternative paths are omitted from the successful sequence above.
+
+### Undoing a deletion
+
+`undo` restores the most recent deletion in the current session: a contact removed with `delete`, or a department
+removed with `depart --delete`. Only these two commands are recorded, so `undo` does not revert `add`, `edit`,
+`depart --add`, `depart --edit`, `clear` or any other command, and there is no `redo`.
+
+`ModelManager` keeps the deletion history in memory only. It is not written to the data file, so it is empty every
+time the app starts. The history uses two lists, each used as a stack:
+
+* `deletedPersons` holds every contact removed with `delete`.
+* `deletionOrder` records every deletion in order, so contact and department deletions share one history. A contact
+  deletion is recorded as `null`. A department deletion is recorded as a `DepartmentDeletion`, which holds the
+  department and the contacts whose assignment it cleared.
+
+`Model` exposes the history through these operations:
+
+* `Model#deletePerson(Person)` — Removes the person and pushes it onto both lists.
+* `Model#hasDeletedPerson()` — Returns true if `deletedPersons` is not empty.
+* `Model#getLastDeletedPerson()` — Returns the most recent contact deletion without removing it from the history.
+* `Model#restoreLastDeletedPerson()` — Adds the most recent contact deletion back and pops it from both lists.
+* `Model#deleteDepartment(Department)` — Removes the department, clears its assignments and pushes a
+  `DepartmentDeletion` onto `deletionOrder`.
+* `Model#getLastDeletedDepartment()` — Returns the department if the most recent deletion was a department deletion,
+  or `null` otherwise.
+* `Model#restoreLastDeletedDepartment()` — Restores the most recent department deletion and pops it.
+* `Model#discardLastDeletion()` — Pops the most recent deletion from `deletionOrder`, and from `deletedPersons` if it
+  is a contact deletion, without restoring anything.
+
+`DeleteCommand` is the only caller of `deletePerson`, and `DepartCommand` is the only caller of `deleteDepartment`,
+so both record deletions without any extra code. The success message of `delete` ends with `Use 'undo' to restore.`
+
+Given below is an example usage scenario.
+
+Step 1. The user executes `delete 2`, which removes a contact in the Engineering department. `ModelManager` pushes
+that contact onto `deletedPersons` and records the deletion in `deletionOrder`.
+
+Step 2. The user executes `depart --delete Engineering`. `ModelManager` clears Engineering from every contact that has
+it, including the contact deleted in step 1, and pushes a `DepartmentDeletion` onto `deletionOrder`.
+
+Step 3. The user executes `undo`. The most recent deletion is the department, so `undo` restores Engineering and its
+assignments, including the one on the contact deleted in step 1. A second `undo` restores that contact with its
+Engineering assignment. A third `undo` fails with `There are no deletions to undo in this session.`
+
+The following sequence diagram shows how `undo` restores a deleted contact through the `Logic` and `Model`
+components. It leaves out the `Model#getLastDeletedDepartment()` call that runs first, which returns `null` when the
+most recent deletion is a contact:
+
+![Interactions Inside the Logic and Model Components for the `undo` Command](images/UndoDeleteSequenceDiagram.png)
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+How `undo` works:
 
-![UndoRedoState3](images/UndoRedoState3.png)
+1. `AddressBookParser` passes the rest of the input to `UndoCommandParser`. The only accepted argument is
+   `--discard-latest`, described below. Any other argument (e.g. `undo 2`) makes the parser throw a `ParseException`
+   with the usage message.
+1. `UndoCommand#execute` calls `Model#getLastDeletedDepartment()`. If the most recent deletion was a department
+   deletion, it checks `Model#hasDepartment(...)`. If that name has been registered again, it throws a
+   `CommandException` and leaves the history unchanged. Otherwise, `Model#restoreLastDeletedDepartment()` adds the
+   department back to the catalogue and reassigns it to the contacts it was cleared from that still have no
+   department, including those in `deletedPersons`. It then pops the deletion and shows the full list.
+   [Department management](#department-management-design-specification) explains how later edits to those contacts
+   are tracked.
+1. Otherwise, the most recent deletion is a contact deletion, or there is none. `UndoCommand#execute` checks
+   `Model#hasDeletedPerson()`. If the history is empty, it throws a `CommandException` saying there is nothing to
+   undo.
+1. It reads the most recent contact deletion with `Model#getLastDeletedPerson()`. If that contact has neither a phone
+   number nor an email address, which only happens with legacy data, it throws a `CommandException` and leaves the
+   history unchanged. The error points to `undo --discard-latest` to get past the blocked deletion.
+1. It checks `Model#hasPerson(...)` for a [duplicate contact](#glossary) already in the list: one with the same name
+   and a matching provided phone number or email address (`Person#isSamePerson`). If one exists, it throws a
+   `CommandException` that names it. One matching field is enough, so a contact with a different email, or no email,
+   still blocks `undo` if its phone matches. The deletion stays in the history, so the user can edit every
+   conflicting identity field, or change the existing contact's name, and retry. Deleting a conflicting contact
+   creates a newer history entry, so the next `undo` would target that newer deletion instead.
+1. Otherwise, `Model#restoreLastDeletedPerson()` calls `Model#addPerson`. This appends the `Person` held in
+   `deletedPersons` to the end of the stored list, so its tags and other fields are unchanged. Its department reflects
+   any `depart --edit` or `depart --delete` run since the deletion. `addPerson` also shows the full
+   list, which clears any `find` filter and `sort` order. The deletion is popped only after the add succeeds, so a
+   failed add does not lose it.
+1. `LogicManager` saves the address book, as it does after other commands that change it.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+`undo --discard-latest` drops the most recent deletion without restoring it, so the user can get past a deletion
+they do not want back or one that `undo` cannot restore. `UndoCommandParser` creates an `UndoCommand` in discard
+mode. The command throws a `CommandException` if the history is empty; otherwise, it names the deletion in the
+result and calls `Model#discardLastDeletion()`. A discarded deletion cannot be restored. Discarding a department
+deletion leaves its cleared assignments unchanged. `UndoCommand#requiresStorageSave()` returns false in this
+mode because only the in-memory history changes.
 
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
+`clear` replaces the address book through `Model#setAddressBook`, which does not touch the deletion history. After
+`clear`, `undo` can still restore contacts and departments that were deleted individually before it, but not the
+contacts that `clear` removed. If a contact restored this way had a department, that department is added back to the
+department list. `clear` emptied the list, and `AddressBook#addPerson`, which `undo` uses to restore the contact,
+adds any department the contact has that is not already listed.
 
 #### Design considerations:
 
-**Aspect: How undo & redo execute:**
+**Aspect: What `undo` records:**
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+* **Alternative 1 (current choice):** Only what each `delete` or `depart --delete` removed: the contact, or the
+  department and the contacts it was cleared from.
+  * Pros: Uses little memory. `undo` always brings back a deleted contact or department, even if other commands ran
+    after the deletion.
+  * Cons: Only these two commands can be undone. Each command that should become undoable needs its own reverse
+    logic, as `depart --delete` did.
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+* **Alternative 2:** A copy of the entire address book after every command that changes it, as in AB3's proposed
+  `VersionedAddressBook`.
+  * Pros: Any command can be undone, and `redo` is straightforward to add.
+  * Cons: Uses more memory. `undo` reverts the most recent change, which may be an `add` or `edit` rather than the
+    deletion the user wants back.
 
-_{more aspects and alternatives to be added}_
+**Aspect: Where the deletion history is kept:**
 
-### \[Proposed\] Data archiving
+* **Alternative 1 (current choice):** In `ModelManager`.
+  * Pros: Each `Model` has its own history, so tests do not share state. `ModelManager#equals` compares the history,
+    so `CommandTestUtil.assertCommandSuccess` checks it too.
+  * Cons: `Model` gains six methods, which every `Model` stub in the tests must implement.
 
-_{Explain here how the data archiving feature will be implemented}_
+* **Alternative 2:** In a static field of `DeleteCommand` or `UndoCommand`.
+  * Pros: `Model` does not change.
+  * Cons: A new command object is created for every input, so the history would have to be static. It would then be
+    shared by every `Model`, including those in different tests.
 
+### Command history and error feedback
+
+`CommandBox` owns a session-local `CommandHistory`, separate from the model and JSON storage.
+On submission it records the exact nonblank input before execution, including failed commands and duplicates.
+It clears the command field after success and retains it after a parse or execution error.
+
+Unmodified Up/Down keys are handled before the text field's default behavior. `previous(currentInput)` saves
+the draft when leaving the newest position; `next()` restores that draft after the newest stored command.
+Navigation stops at the ends. Editing a recalled command does not change the stored entry, and browsing
+never executes commands. History is discarded when the app closes.
+
+`MainWindow.executeCommand` passes errors to `CommandErrorFormatter.format`, which retains the original
+error and appends up to two examples from the matching `HelpPage` when examples are not already present.
+Unknown commands direct the user to `help`.
+The command box receives its error style while preserving the submitted input for correction.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -261,77 +759,646 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
+* is a secretary of a department head at a tech firm
+* needs to be able to store contact information offline
 * has a need to manage a significant number of contacts
 * prefers desktop apps over other types of applications
 * can type fast
 * prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: sudoContact helps secretaries maintain professional contacts using short commands,
+a shared department catalogue, tag searches and full contact details. It stores contacts locally and exports
+all stored contacts to CSV for sharing; filtering the displayed list does not limit an export.
 
 
 ### User stories
 
+The stories for hiding private details and sorting by name are future requirements; they are not available
+in the current product. CSV export always includes all stored contacts.
+
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …​                                    | I want to …​                                  | So that I can…​                                                               |
+| -------- |-------------------------------------------|----------------------------------------------|------------------------------------------------------------------------------|
+| `* * *`  | new user / forgetful user                 | see usage instructions                       | refer to instructions when I do not know/forget how to use the App           |
+| `* * *`  | user                                      | add a new person                             | keep their contact information for later use                                 |
+| `* * *`  | user                                      | delete a person                              | remove entries that I no longer need                                         |
+| `* * *`  | user                                      | find a person by name                        | locate details of persons without having to go through the entire list       |
+| `* * *`  | user                                      | record which department a contact belongs to | categorise employees for easier filtering                                    |
+| `* * *`  | user                                      | manage a shared department catalogue         | keep assignments consistent when the organisation changes                   |
+| `* * *`  | user                                      | find contacts by one or more tags            | locate related contacts without checking the entire list                     |
+| `* * *`  | user                                      | view one contact's full details              | see all the fields of a person that may be cut off in the list view          |
+| `* * *`  | user                                      | add a contact with only partial information  | record the contact details I know and fill in the rest later                  |
+| `* * *`  | user                                      | undo a delete                                | recover from a mistaken delete                                               |
+| `* * *`  | user with many contacts                   | List all contacts                            | quickly review the contacts I have stored                                    |
+| `* * *`  | user with many contacts                   | sort contacts by department/tags             | quickly review contact list of people with the same tag                      |
+| `* * *`  | user                                      | use unix syntax                              | type faster coming from a unix background                                    |
+| `* *`  | user                                      | generate a .csv of the contact list          | Easily copy and paste their email address to quickly send out an email blast |
+| `* *`    | user                                      | hide private contact details                 | minimize chance of someone else seeing them by accident                      |
+| `*`      | user with many persons in the address book | sort persons by name                         | locate a person easily                                                       |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `sudoContact` and the **Actor** is the `user`, unless specified otherwise)
 
-**Use case: Delete a person**
+**Use Case: UC1 - List all contacts**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. User requests to list all contacts
+2. sudoContact shows a list of contacts
 
-    Use case ends.
+   use case ends
 
 **Extensions**
 
 * 2a. The list is empty.
 
+  * 2a1. sudoContact shows an empty contact list and the normal `Listed all persons.` feedback.
+
   Use case ends.
 
-* 3a. The given index is invalid.
+**Use Case: UC2 - User sorts contacts by department/tag**
 
-    * 3a1. AddressBook shows an error message.
+**MSS**
 
-      Use case resumes at step 2.
+1. User displays contacts, either by <u>listing all contacts (UC1)</u> or filtering the list.
+2. User requests ascending sorting using `sort -b FIELD` or `sort --by FIELD`.
+3. sudoContact validates the option and field, then sorts only the currently displayed contacts.
+4. sudoContact shows the sorted list and numbered feedback. The active filter, contact data, and saved order are unchanged.
 
-*{More to be added}*
+   Use case ends.
+
+**Extensions**
+
+* 2a. The option or field is missing, invalid, repeated, or accompanied by unsupported arguments.
+  * 2a1. sudoContact reports the corresponding parsing error; the current display order is unchanged.
+  * Use case ends.
+* 2b. The request contains an explicit `--descending` token.
+  * 2b1. sudoContact reports that only ascending sorting is supported.
+  * Use case ends.
+* 3a. The displayed list is empty, including after contact loading failed at startup.
+  * 3a1. sudoContact displays `No contacts found to sort.`
+  * Use case ends.
+* 3b. A displayed contact contains invalid department or tag data.
+  * 3b1. sudoContact reports the invalid-data error without changing display order or writing the file.
+  * Use case ends.
+* 3c. Contact loading failed at startup and valid contacts were subsequently added in the same session.
+  * 3c1. sudoContact sorts the current in-memory contacts normally; restarting is not required.
+  * Use case ends.
+
+**Use case: UC3 - Delete a contact**
+
+**MSS**
+
+1. User <u>lists all contacts (UC1)</u>.
+2. User requests to delete a contact using its index in the currently
+   displayed list.
+3. sudoContact deletes the selected contact.
+4. sudoContact displays the deleted contact's details and informs the
+   user that the deletion can be undone.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. User filters the contacts or <u>sorts contacts by
+  department/tag (UC2)</u>.
+
+  Use case resumes at step 2 using the resulting displayed list.
+
+* 1b. The displayed list is empty.
+
+  Use case ends.
+
+* 2a. The deletion request has an invalid format or the index is
+  missing, invalid, or outside the displayed list's range.
+
+  * 2a1. sudoContact shows the required format if the index is
+    missing or not a positive integer, or reports that the index
+    is invalid if it is outside the displayed list's range.
+
+  Use case resumes at step 2.
+
+**Use case: UC4 - Undo a delete**
+
+**MSS**
+
+1. User requests to undo a deletion.
+2. sudoContact restores the most recently deleted contact or department
+   that has not yet been restored in the current session. A restored
+   contact keeps its details; a restored department is reassigned to
+   the contacts it was removed from that still have no department.
+3. sudoContact displays the restored contact's details or the restored
+   department's name.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. The undo request includes an argument other than
+  `--discard-latest`.
+
+  * 1a1. sudoContact shows the invalid command format error and
+    the undo usage.
+
+  Use case resumes at step 1.
+
+* 1b. There are no deletions available to undo in the current session.
+
+  * 1b1. sudoContact informs the user that there are no deletions
+    left to undo.
+
+  Use case ends.
+
+* 1c. User requests `undo --discard-latest`.
+
+  * 1c1. sudoContact removes the most recent deletion from the
+    history without restoring it, and names the discarded
+    contact or department.
+
+  Use case ends.
+
+* 2a. A duplicate contact already exists.
+
+  * 2a1. sudoContact rejects the restoration and identifies the
+    existing contact that prevents it.
+  * 2a2. sudoContact retains the deleted contact for a later
+    undo attempt.
+
+  Use case ends.
+
+* 2b. A department with the same name has been registered again.
+
+  * 2b1. sudoContact rejects the restoration and names the department.
+  * 2b2. sudoContact retains the deleted department for a later
+    undo attempt.
+
+  Use case ends.
+
+* 2c. The contact to restore has neither a phone number nor an
+  email address, which is only possible with older saved data.
+
+  * 2c1. sudoContact rejects the restoration and suggests
+    `undo --discard-latest`.
+  * 2c2. sudoContact retains the deleted contact for a later
+    undo attempt.
+
+  Use case ends.
+
+
+**Use case: UC5a - List departments**
+
+**MSS**
+
+1. User enters `depart --list`.
+2. sudoContact validates the command format.
+3. sudoContact displays every registered department, including unused departments.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The command format is invalid.
+
+  * 2a1. sudoContact displays the command format error.
+
+  Use case ends.
+
+* 3a. The catalogue is empty.
+
+  * 3a1. sudoContact informs the user that no departments have been registered.
+
+  Use case ends.
+
+
+**Use case: UC5b - Add a department**
+
+**MSS**
+
+1. User enters `depart --add DEPARTMENT`.
+2. sudoContact validates the name and checks that it is not already registered.
+3. sudoContact adds the department, saves the data and confirms the addition.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The command format or department name is invalid.
+
+  * 2a1. sudoContact displays an error and does not modify the catalogue.
+
+  Use case ends.
+
+* 2b. The department already exists.
+
+  * 2b1. sudoContact informs the user that it is already registered.
+
+  Use case ends.
+
+* 3a. sudoContact cannot save the updated address book.
+
+  * 3a1. sudoContact reports the save error instead of confirming the addition.
+  * 3a2. The new department remains in memory because the change is not rolled back.
+
+  Use case ends.
+
+
+**Use case: UC5c - Rename a department**
+
+**MSS**
+
+1. User enters `depart --edit OLD_NAME NEW_NAME`.
+2. sudoContact validates both names and checks the source and target catalogue entries.
+3. sudoContact renames the department and updates all associated contacts, including hidden contacts.
+4. sudoContact saves the data and confirms the rename.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The command format or either name is invalid.
+
+  * 2a1. sudoContact displays an error and does not modify the catalogue or contacts.
+
+  Use case ends.
+
+* 2b. The source does not exist or the target name belongs to another registered department.
+
+  * 2b1. sudoContact displays the corresponding error and leaves the data unchanged.
+
+  Use case ends.
+
+* 4a. sudoContact cannot save the updated address book.
+
+  * 4a1. sudoContact reports the save error instead of confirming the rename.
+  * 4a2. The renamed department and updated contact assignments remain in memory because the change is not
+    rolled back.
+
+  Use case ends.
+
+
+**Use case: UC5d - Delete a department**
+
+**MSS**
+
+1. User enters `depart --delete DEPARTMENT`.
+2. sudoContact validates the name and checks that the department exists.
+3. sudoContact removes the department and clears its assignments from current contacts and deletion history.
+4. sudoContact records the deletion for `undo`, saves the data and confirms the deletion.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The command format, name or existence check fails.
+
+  * 2a1. sudoContact displays an error and leaves the catalogue, contacts and deletion history unchanged.
+
+  Use case ends.
+
+* 4a. sudoContact cannot save the updated address book.
+
+  * 4a1. sudoContact reports the save error instead of confirming the deletion.
+  * 4a2. The deleted catalogue entry, cleared assignments and undo record remain changed in memory because the
+    operation is not rolled back.
+
+  Use case ends.
+
+
+**Use case: UC5e - Assign a department to a contact**
+
+**MSS**
+
+1. User enters `edit CONTACT_ID --department DEPARTMENT`.
+2. sudoContact validates the displayed contact ID and checks that the department is registered.
+3. sudoContact updates the selected contact, saves the data and confirms the edit.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The contact ID, department name or membership is invalid.
+
+  * 2a1. sudoContact displays an error and leaves the contact unchanged.
+
+  Use case ends.
+
+* 3a. sudoContact cannot save the updated address book.
+
+  * 3a1. sudoContact reports the save error instead of confirming the edit.
+  * 3a2. The contact's updated department remains in memory because the change is not rolled back.
+
+  Use case ends.
+
+
+**Use case:** UC6 - Search contacts by tags
+
+**MSS:**
+
+1.  User requests to find contacts using one or more tags.
+2.  sudoContact displays each contact having any of the specified tags once, using case-insensitive,
+    whole-tag matching, and shows the number of matching contacts.
+
+    Use case ends.
+
+**Extensions:**
+
+* 1a. A specified tag contains invalid characters.
+
+  * 1a1. sudoContact displays `Tags must use only letters, numbers, hyphens (-), and underscores (_), with no spaces.`
+
+  Use case ends.
+
+* 1b. A tag value is missing.
+
+  * 1b1. sudoContact displays `Tag cannot be empty: Please provide a valid tag after '--tag'.`
+
+  Use case ends.
+
+* 1c. An unsupported option is supplied, either instead of or after a valid `--tag`
+  (e.g. `find --tags friends`, `find --TAG friends`, or `find --tag friends --tags family`).
+
+  * 1c1. sudoContact displays `Invalid find option: '[INPUT]'. Use find --tag TAG [TAG ...] [--tag TAG ...] or find KEYWORD [MORE_KEYWORDS].`
+
+  Use case ends.
+
+* 1d. The command has no arguments or arguments precede the first valid `--tag` option
+  (e.g. `find Alice --tag friends`).
+
+  * 1d1. sudoContact displays an invalid command format error and the `find` usage instructions.
+
+  Use case ends.
+
+* 1e. The command contains an unmatched quote or text immediately after a closing quote.
+
+  * 1e1. sudoContact displays the corresponding quotation error.
+
+  Use case ends.
+
+* 2a. No contacts match the specified tag(s).
+
+  * 2a1. sudoContact displays `No contacts found with the specified tag(s).`
+
+  Use case ends.
+
+**Use case: UC7 - View one contact's full details**
+
+**MSS**
+
+1. User displays a list of contacts (UC1), which may be filtered or sorted.
+2. User enters `view CONTACT_ID`, using the one-based row number in that displayed list.
+3. sudoContact identifies the contact from the current in-memory list.
+4. sudoContact opens or refreshes that contact's popup with its full details and shows a short confirmation.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The command format or contact ID is invalid.
+
+  * 2a1. sudoContact reports the required format and positive-integer constraint without changing data.
+
+  Use case resumes at step 2.
+
+* 3a. The displayed list is empty.
+
+  * 3a1. sudoContact reports that there is no contact to view.
+
+  Use case ends.
+
+* 3b. The contact ID exceeds the displayed list's size.
+
+  * 3b1. sudoContact reports the valid contact ID range without opening or updating a popup.
+
+  Use case resumes at step 2.
+
+Viewing preserves contacts, filtering and sorting and skips the JSON save. A disk read/write failure is
+not an extension of this use case; startup loading and mutating-command saves handle those failures.
+
+**Use case: UC8 - Add a contact with partial information**
+
+**MSS**
+
+1. User enters `add --name NAME` with at least a phone number or email address,
+   including any other information they know, such as department or tags.
+2. sudoContact validates the supplied information and checks for a contact
+   with the same name and a matching provided phone number or email address. A matching name
+   alone does not prevent the contact from being added; omitted fields do not match.
+3. sudoContact saves the new contact with the supplied information, leaving
+   omitted optional fields unprovided.
+4. sudoContact confirms that the contact was added and displays the full contact list in stored order.
+   Missing values appear as `—` in the table; feedback and full details use `Not provided` or, for tags, `None`.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The name is missing or empty, or both phone and email are omitted.
+
+  * 2a1. sudoContact displays an error and does not add the contact.
+
+  Use case resumes at step 1.
+
+* 2b. A supplied field is invalid, an option is unknown, or the command
+  format is invalid.
+
+  * 2b1. sudoContact displays an error and does not add the contact.
+
+  Use case resumes at step 1.
+
+* 2c. A duplicate contact already exists.
+
+  * 2c1. sudoContact informs the user that the contact is a duplicate
+    and does not add it.
+
+  Use case ends.
+
+* 3a. sudoContact cannot save the new contact.
+
+  * 3a1. sudoContact reports the save failure without confirming persistence. The contact remains in
+    memory; the change is not rolled back. After resolving the storage problem, the user runs `list` to
+    retry saving before exiting.
+
+  Use case ends.
+
+**Use case: UC9 - Export contacts to a CSV file**
+
+**MSS**
+
+1. User enters `export -c|--csv [FILENAME]`.
+2. sudoContact validates the supplied filename, or selects `contacts.csv`
+   if no filename was supplied.
+3. sudoContact snapshots all contacts from the current in-memory address book, including hidden contacts.
+4. sudoContact creates a UTF-8 CSV file with a header row and a separate
+   row for each contact. It escapes values containing commas or quotation
+   marks.
+5. sudoContact confirms the number of contacts exported and the filename.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. The supplied filename is invalid.
+
+  * 2a1. sudoContact displays an error and does not export the contacts.
+
+  Use case resumes at step 1.
+
+* 3a. There are no contacts to export.
+
+  * 3a1. sudoContact informs the user that the contact list is empty.
+
+  Use case ends.
+
+* 4a. A file or directory already exists at the chosen destination.
+
+  * 4a1. sudoContact asks for a different filename and preserves the existing destination.
+
+  Use case resumes at step 1.
+
+* 4b. The CSV file cannot be created or written.
+
+  * 4b1. sudoContact reports the file error without confirming a successful export and removes its
+    temporary file. Contacts, display state and the JSON data file remain unchanged.
+
+  Use case ends.
+
+**Use Case: UC10 - View available commands and their usage**
+
+**MSS**
+
+1. User requests the command overview with `help` or `?`.
+2. sudoContact opens the Help window with command names, aliases and short descriptions.
+3. User requests detailed help with `help COMMAND` or `? COMMAND`.
+4. sudoContact shows that command's syntax, options, examples and behavior notes in the same window.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. User requests a specific command directly instead of the overview.
+
+  Use case proceeds at step 4.
+
+* 2a. User only needs the overview.
+
+  Use case ends.
+
+* 3a. The requested command is unknown or too many arguments are supplied.
+
+  * 3a1. sudoContact reports the error in the main window and leaves any open help page unchanged.
+
+  Use case resumes at step 3.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
+1.  Should work on any _mainstream OS_ with Java `25` installed.
 2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+3.  The system should maintain responsiveness with command execution times of under 1 second when handling a dataset of up to 1,000 records under typical usage conditions.
+4.  The system should provide smooth scrolling when displaying a dataset of up to 1,000 records under typical usage conditions.
+5.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+6.  Contact data must be stored locally in a human-editable JSON file. If the file is missing at startup, the application loads sample contacts and logs that choice. If the file cannot be read or its data is invalid, the application logs a warning to the terminal and application log, then starts with an empty address book without an unhandled exception. No warning is shown in the application window. The invalid file is retained until a successful command that saves data replaces it.
+7.  After a successful add, edit, or delete command, the updated contact list must be restored when the application is closed and reopened.
+8.  If saving contact data fails, the application must report the failure and leave the last successfully saved data file intact.
 
 ### Glossary
 
+* **Contact**: A stored record for a person or organisation, containing a name and any available contact details, department, and tags.
+* **Contact ID**: A positive one-based position in the currently displayed list, used by `view`, `edit`, and `delete`. Filtering or sorting can change which contact occupies a position.
+* **Department**: An optional organisational unit associated with a contact. Under this specification, assignments must use a name from the shared department catalogue; renaming an entry updates all associated contacts.
+* **Department catalogue**: The complete set of registered department names, including unused entries, managed with `depart --list`, `depart --add`, `depart --edit`, and `depart --delete`.
 * **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Matching contact**: For a tag search, a contact that has at least one of the tags specified in the command (OR matching). A matching contact is displayed once even when it has more than one specified tag.
+* **Private contact detail**: Contact information that the user considers confidential. This term does not indicate an application privacy setting; sudoContact does not provide per-field privacy markers or visibility controls.
+* **Currently displayed list**: The contacts shown after filtering or sorting. The one-based `CONTACT_ID` used by `view`, `edit` and `delete` refers to a position in this list, which can differ from stored order.
+* **Stored contact list**: All contacts in the address book's canonical in-memory order, including contacts hidden by a filter. A normal JSON save persists this list. CSV export uses the entire list; display sorting does not reorder it.
+* **Partial contact**: A contact with some optional details omitted. New contacts require a name and at least one phone number or email address; older saved name-only contacts remain loadable.
+* **Omitted contact detail**: An unknown optional field not supplied when adding a contact. Absent phone, email, address and department show `Not provided`; no tags shows `None`. Explicitly supplied empty phone/email/address values are rejected.
+* **Duplicate contact**: An existing contact with the same name and a matching provided phone number or email address as a contact being added, edited, or restored. Missing fields do not match. Comparisons are case-sensitive.
+* **CSV export**: A UTF-8 comma-separated values file containing a header row and one row for each stored contact.
+* **Tag**: An optional label attached to a contact to support categorisation and searching. Tag matching is case-insensitive.
+* **Session**: One application run, from launch until exit. Command history and individual-deletion undo history are available only within the current session.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Appendix: Instructions for manual testing**
 
-Given below are instructions to test the app manually.
+Use a separate writable folder and a copy of the JAR for each independent test section. Do not use a
+folder containing contacts you want to keep. Run `java -version` to verify Java 25, then launch with
+`java -jar "sudoContact.jar"` from that folder (substitute the actual downloaded filename).
+Unless a section gives another fixture, a fresh folder starts with the built-in sample contacts.
+
+The examples below complement the UG; vary the inputs during exploratory testing. Where a test checks
+file contents, close the app before editing files and preserve a backup before simulating corruption.
+
+### Listing and searching
+
+Use a fresh disposable folder with the built-in sample contacts.
+
+1. Enter `find Alex`. Expected: only Alex Yeoh is displayed. Enter `ls`.
+   Expected: all six sample contacts reappear in stored order.
+1. Enter `sort --by tags`, then `list`. Expected: `list` restores stored order, and indices match that order.
+1. Enter `find --tag friends --tag colleagues`. Expected: Alex Yeoh, Bernice Yu and Roy Balakrishnan appear;
+   Bernice appears once even though more than one requested tag matches.
+1. Compare `find --tag friends` and `find --tag FRIENDS`. Expected: both display Alex Yeoh and Bernice Yu;
+   tag matching ignores case. Enter `find --tag NoSuchTag`. Expected: the no-matches message and an empty list.
+1. Try `find --tag`, `find --TAG friends` and `list extra`. Expected: specific validation/format errors;
+   no contacts are changed. Enter `list` to restore the display.
+
+### Command help and history
+
+1. Enter `help`. Expected: an overview of command names, aliases and short descriptions appears.
+   Enter `help export`. Expected: the same window shows export syntax, options and examples.
+1. Enter `help ls` and `? sort`. Expected: the corresponding manuals appear. Enter `help missing` or
+   `help list extra`. Expected: an error in the main window, while the last valid help page remains.
+1. Focus Help and press unmodified `q`. Expected: Help closes. Open it through the Help menu or F1.
+   Expected: the overview reopens, rather than the previous command-specific page.
+1. With the command prompt focused, submit `list`, then the invalid command `help missing`.
+   Press Up twice. Expected: the failed command and then `list` are recalled without being executed.
+1. Press Down until the newest draft is restored. Type `find Alex` without submitting, press Up and then Down.
+   Expected: the exact draft `find Alex` is restored. Browsing stops at each end; it does not wrap.
+1. Exit and relaunch from the same folder. Press Up in the prompt.
+   Expected: the previous session's history is unavailable; contacts and saved preferences remain.
+
+### Clearing contacts with confirmation
+
+Use disposable data and record the full stored contact count before testing.
+
+1. Enter `clear`. Expected: the warning reports the full stored contact count and explains
+   `clear --confirm`; all contacts remain. Restart and check that stored contacts are unchanged.
+1. Filter with `find`, then enter `clear`. Expected: the warning counts all stored contacts,
+   including hidden contacts; the displayed search result remains unchanged.
+1. Enter `clear 1`, `clear --CONFIRM`, `clear --confirm extra`, and `clear --confirm --confirm`.
+   Expected: each produces an invalid command format error; no contacts are deleted.
+1. Enter `clear --confirm`. Expected: all contacts and registered departments disappear, including hidden
+   contacts and unused department entries. Restart and verify both collections are empty.
+1. With no earlier individual deletions in the session, enter `undo` after a confirmed clear.
+   Expected: there are no deletions to undo. Separately, delete one contact before clearing and
+   verify that `undo` restores only that earlier individual deletion.
+1. On an empty address book, enter `clear`. Expected: a warning with a count of 0.
+
+### Exporting contacts as CSV
+
+Use a fresh disposable launch folder with the built-in sample contacts and no CSV files.
+
+1. Enter `find Alex`, then `export --csv team.csv`. Expected: feedback reports the full stored contact
+   count; the displayed search stays unchanged. Open `team.csv` as UTF-8 text and check the six-column
+   header, all stored contacts, quoted addresses containing commas, empty departments and tag cells.
+1. Enter `export --csv team.csv` again. Expected: an existing-file error; the original CSV is unchanged.
+1. Enter `export --csv`. Expected: `contacts.csv` is created with the same contents (if the name is unused).
+1. Enter `export --csv "my contacts.csv"`. Expected: the file with spaces in its name is created.
+1. Enter `export --csv ../contacts.csv`, `export --csv NUL.csv`, `export --csv ''`, `export --csv a.txt`,
+   `export --json` and `export --csv a.csv b.csv`. Expected: an error and no new export file.
+1. Enter `add --name "Csv Probe" --email csv@example.com --address '北京, "总部"'`, then export to an unused
+   filename. Expected: the Unicode address is intact, surrounded by quotes, with each inner quote doubled.
+1. In a disposable address book, enter `clear --confirm`, then export to an unused filename. Expected:
+   `No contacts found to export.`; no file is created. An empty *search result* with stored contacts should
+   still export those contacts successfully.
+1. Launch from a folder without write permission using a non-administrator account, keeping JSON data
+   in a writable location through the app configuration. Export to an unused filename. Expected: a file
+   creation error; no success message or partially written destination. Restore permissions afterward.
 
 <div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
 testers are expected to do more *exploratory* testing.
@@ -340,43 +1407,198 @@ testers are expected to do more *exploratory* testing.
 
 ### Launch and shutdown
 
-1. Initial launch
+1. Copy the JAR to an empty writable folder, open a terminal there and check `java -version` reports Java 25.
+   Launch with `java -jar "sudoContact.jar"`. Expected: the four-pane sudoContact window opens with sample contacts.
+1. Resize and move the main window, then enter `exit`. Relaunch with the same terminal command from the same
+   folder. Expected: the saved window size and location are restored.
+1. Open Help and two contact-details popups, then exit through the main window.
+   Expected: every application window closes.
+1. Start a second disposable instance from another folder. Expected: it uses that folder's separate data
+   and preferences, rather than the first folder's contacts.
 
-   1. Download the JAR file and copy it into an empty folder.
+### Department catalogue and assignments
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+Deletion check: assign a department to two contacts and delete one contact. Filter out the other contact,
+then run `depart --delete DEPARTMENT`. Verify the entry disappears and the hidden contact has no department.
+The first `undo` restores the department and its assignments; the second restores the deleted contact with its
+department. Check the reverse operation order too. Verify later name/phone edits survive restoration, explicit
+reassignment is preserved, and a re-registered department blocks undo without consuming history.
+Restart after successful restoration and verify saved contacts and catalogue. History itself does not survive restart.
 
-1. Saving window preferences
+For the department assignment examples below, register the required names first with `depart --add`
+(Engineering, "R&D Engineering", Sales, and Support as applicable).
 
-   1. Resize the window to an optimal size. Move the window to a different location. Close the window.
+1. With an empty catalogue, run `depart --list`. Expected: an explicit empty-catalogue result.
+2. Run `depart --add Engineering` and `depart --add "Customer Support"`, then `depart --list`.
+   Expected: both names appear even when no contacts use them. Restart and confirm both remain.
+3. Assign Engineering to two contacts with `edit CONTACT_ID --department Engineering` and filter to show only one.
+   Run `depart --edit Engineering "Research & Development"`.
+   Expected: the catalogue and both contacts use the new name; unrelated fields are unchanged.
+   Restart and confirm the rename persists. The old name is no longer available for assignment.
+4. Run `edit 1 --department "Customer Support"`. Expected: only the selected contact's assignment changes.
+   Edit its phone without a department option. Expected: its department is preserved.
+5. Run `edit 1 --department Unregistered --phone 91234567` with Unregistered absent from the catalogue.
+   Expected: the entire edit fails; neither department nor phone changes.
+6. Try adding an existing name, renaming an unknown source, renaming to another existing entry,
+   empty or invalid names, missing or extra arguments, and combined `depart` operations.
+   Expected: errors with no catalogue or contact changes.
+7. Apply a contact filter and sort, then run `depart --list`.
+   Expected: every registered department is listed; the filter and displayed contact order remain unchanged.
+8. Sort contacts and use `edit 1 -d "Customer Support"`.
+   Expected: the first displayed contact is updated. Try invalid and out-of-range contact IDs;
+   expect an error with no data changes.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
-       Expected: The most recent window size and location are retained.
+### Adding and completing a partial contact
 
-1. _{ more test cases …​ }_
+Start in a separate disposable folder with no contact named Dana Lim, Chen or Bob Lee.
+Register Engineering using `depart --add Engineering` before the assignment steps below.
 
-### Deleting a person
+1. Try `add --name "Dana Lim"` and `add --name "Dana Lim" --address Main Road`.
+   Expected: both fail with `A phone number or email address must be provided.`, without changing contacts or storage.
+1. Add `add --name "Dana Lim" --email dana@example.com` to an address book that has no Dana Lim contact.
+   Expected: the table shows `—` for missing fields. Addition feedback and `view` show `Not provided`
+   for phone/address/department and `None` for tags; email is present.
+1. Restart the app. Expected: Dana Lim is still present with the same omitted fields.
+1. Run `find Dana`, then `edit 1 -p 91234567 -e dana@example.com -a Main Road --department Engineering`.
+   Expected: the contact has the supplied details; restart preserves all fields.
+1. Run `find Dana`, then `edit 1 -p 123`, `edit 1 -p 1234567890123456` and `edit 1 -t #intern`.
+   Expected: both phone edits are rejected with `Invalid phone number: Must contain 7-15 digits.`, as in `add`;
+   the tag edit gives Dana Lim the tag `intern`, without the `#`.
+1. Add another `Dana Lim` with both a different phone and a different email. Expected: the same name is accepted.
+   Reuse either contact's phone or email with the same name, even while changing the other field.
+   Expected: duplicate error, no new entry. Try the same collisions through `edit` and `undo` too.
+1. Try `add --name ""`, `add --name Alice --phone 123456`, `add --name Alice --email broken`,
+   `add --name Alice --department !`, `add --name Alice --tag "two words"`, and
+   `add --name Alice --unknown value`. Expected: errors; existing contacts and the saved file stay unchanged.
+1. Try an unmatched quote and repeated `--name`, `--phone`, `--email`, `--address` or `--department`.
+   Expected: format or duplicate-option error. Multiple `--tag` flags are accepted.
+1. Run `add --name Chen --phone 91234567 --tag #intern new-client team_intern --tag intern`.
+   Expected: three distinct tags, displayed without the leading `#` and preserved after restart.
+1. Run the equivalent short-flag form, for example `add -n Bob Lee -p 91234567 -d Engineering`.
+   Expected: equivalent partial-contact support; omitted fields remain unprovided.
 
-1. Deleting a person while all persons are being shown
+### Viewing a contact's details
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+In a separate disposable folder, prepare the following fixture (one command per line):
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+```text
+clear --confirm
+depart --add "R&D Engineering"
+depart --add Sales
+add --name "Betsy Crowe" --phone 91234567 --email betsy@example.com
+add --name "Benson Meier" --phone 92345678 --email benson@example.com --tag vendor client
+```
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+1. Displayed-list contact IDs
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Run `list`, then `view 2`. Expected: the second contact's supported fields appear in a details popup.
+   1. Run `find Betsy`, then `view 1`. Expected: Betsy's details appear, and the filtered list remains unchanged.
+   1. Run `view 2` when only one search result is displayed. Expected: an error gives the range `1-1`.
+   1. Run `find NoSuchContact`, then `view 1`. Expected: an error says there is no contact to view.
+   1. Try `view`, `view 0`, `view -1`, `view 1.5`, `view 1 2`, and `view 2147483648`.
+      Expected: each reports that the contact ID must be a positive integer and shows the usage.
 
-1. _{ more test cases …​ }_
+1. Details popups
+
+   Run `list` before this group to restore the contacts hidden by the previous empty search.
+
+   1. View a contact with a long name/address and multiple tags. Resize the details popup and scroll.
+      Expected: all values remain readable without truncation; tags are separated by commas.
+      The main result box shows only `Showing details of contact CONTACT_ID: NAME`.
+   1. View a contact without tags. Expected: the Tags field shows a dimmed `None`.
+   1. View a contact without a department. Expected: the Department field shows a dimmed `Not provided`.
+   1. Press Alt+3 until a popup has the focus, then press `j` and `Ctrl+C` (`Cmd+C` on macOS).
+      Expected: the phone number is highlighted and copied to the clipboard.
+   1. Close all contact popups, run `view 1`, click the new popup's title bar, then press `j` twice.
+      Expected: the name is highlighted first, then the phone number.
+   1. Run `find Benson`, then `edit 1 --department "R&D Engineering"`. Run `find Benson` again, then `view 1`.
+      Expected: Benson's details include `Department: R&D Engineering`; `view` preserves the current filter.
+   1. Change the selected contact's department with `edit 1 --department Sales`.
+      Expected: the details snapshot stays unchanged. Run `find Benson` again, then `view 1`;
+      the refreshed snapshot displays `Department: Sales`.
+   1. With Benson's popup open, run `edit 1 --name Benson Renamed`, `find Benson`, then `view 1`.
+      Expected: the existing popup refreshes and is titled `Contact details: Benson Renamed`; no second popup opens.
+   1. Close all contact popups, then run `list`, `view 1` and `view 2`. Expected: exactly two popups are open,
+      offset from each other. Both stay in front of the main window, and the prompt keeps the keyboard focus.
+   1. Run `view 1` again. Expected: its existing popup updates rather than a third popup opening.
+   1. Press Alt+3 repeatedly. Expected: the focus moves to \[3\] Details, then through each open popup,
+      then back to \[3\] Details. Press Esc.
+      Expected: the focus returns to the prompt.
+   1. Focus \[2\] Contacts, move into a popup with Alt+3 and press unmodified `q`.
+      Expected: only that popup closes and the command prompt receives focus, ready for another command.
+      Shift/Ctrl/Alt/Meta+q does not close the popup.
+   1. Close a contact's popup, then view that contact again. Expected: a popup reopens with the current details.
+   1. Click a row in \[2\], then move with `j`/`k`.
+      Expected: \[3\] Details shows each selected contact at once, and no popup opens.
+   1. Select a row in \[2\] with Alt+2 and `j`/`k`, then press Enter. Separately, double-click another row.
+      Expected: each gives the same result as running `view` with that row's contact ID.
+   1. Edit the viewed contact. Expected: the snapshot stays unchanged until another `view` command is run.
+   1. Exit the application while several popups are open. Expected: every popup closes with the main window.
+
+1. Data and persistence
+
+   Relaunch from the same folder after the previous group's exit step.
+
+   1. Filter contacts, then run a valid `view` command. Compare contact values before and after.
+      Expected: contact data, the filter, display order and JSON file remain unchanged.
+   1. Run `view` when the save location cannot be written (for example, configure a directory as the JSON path).
+      Expected: the details popup opens or refreshes normally, without a save error or a write attempt.
+   1. With contacts already loaded, change the JSON file externally and run `view`.
+      Expected: the current in-memory contact is displayed; the external file is neither read nor overwritten.
+
+### Deleting a contact and undoing deletions
+
+Use a fresh disposable folder with the built-in sample contacts.
+
+1. Enter `delete 1`. Expected: Alex Yeoh is deleted and the message ends with `Use 'undo' to restore.`
+   Enter `delete 0`, `delete` and `delete 99`. Expected: an error for each; no contact is deleted.
+1. Enter `delete 1` again to delete Bernice Yu, then `undo`. Expected: Bernice Yu is restored at the end of the list.
+   Enter `undo` again. Expected: Alex Yeoh is restored at the end of the list. Enter `undo` a third time.
+   Expected: `There are no deletions to undo in this session.`
+1. Enter `find Alex`, then `delete 1`. Enter `add --name "Alex Yeoh" --phone 87438807`, then `undo`.
+   Expected: an error naming the existing Alex Yeoh; the deletion stays in the history.
+   Enter `undo --discard-latest`. Expected: the deletion is discarded. Enter `undo`.
+   Expected: there are no deletions to undo.
+1. Enter `undo 2` and `undo --discard`. Expected: an invalid command format error with the undo usage for each.
+1. Enter `delete 1`, then `undo`, then exit and relaunch from the same folder. Expected: the restored contact is
+   still present, and `undo` reports there are no deletions to undo.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+1. Missing data file: in a fresh disposable folder, launch without `data/addressbook.json`.
+   Expected: sample contacts appear. Run a valid `add` and restart; the saved contacts are restored.
+1. Invalid data file: close the app, back up the JSON file and replace its contents with `{`.
+   Restart. Expected: an empty address book and a loading warning in the terminal/log; the invalid file is
+   still present. `view 1` reports an empty list, and `sort --by tags` reports no contacts without replacing it.
+1. Restore the valid backup while the app is closed, then relaunch.
+   Expected: every contact and department loads from the restored file.
+1. Save failure: in a separate disposable folder, replace the configured JSON file with a directory of the
+   same name while the app is closed, then launch and run `add --name "Save Probe" --email probe@example.com`.
+   Expected: a save error, but the new contact remains in the current in-memory list. Exit without assuming
+   persistence. Restore a writable file destination and repeat to check successful save/reload.
+1. With valid contacts loaded, make the JSON destination unwritable and run `view 1`.
+   Expected: viewing still succeeds because it is read-only. After restoring write access, run `list`
+   to persist the current model and restart to verify the data.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+### Sorting contacts
 
-1. _{ more test cases …​ }_
+1. Add contacts with multiple tags, including mixed-case tags and contacts without tags.
+2. Run `sort --by tags`; confirm ordering by the smallest tag, missing tags last, and updated displayed indices.
+3. Register departments with `depart --add DEPARTMENT` and assign them using `edit CONTACT_ID --department DEPARTMENT`.
+   Run `sort -b dept`; confirm alphabetical order and absent departments last.
+4. Run `find NAME`, then sort; confirm hidden contacts remain hidden. Run `list` to restore the normal order.
+5. Sort again and edit or delete index 1; confirm the first displayed contact is affected and the remaining display resets.
+6. Try a repeated option, an invalid field, and `--descending`; confirm exact errors without changing display order.
+7. Compare the contact data file before and after sorting; its contents should be unchanged.
+8. Give two contacts departments that differ only by case. Sort by tags, then by department; confirm their
+   relative order from the tag sort is retained. Repeat with missing fields to confirm those contacts appear last.
+9. Run `depart --list`. If `Support` is absent, register it with `depart --add Support`.
+   Run `sort --by department`, then `view 1`, followed by `edit 1 --department Support`.
+   Expected: viewing and editing both target the first displayed contact.
+   Check the new indices after the edit resets sorting.
+   Sort again, delete the first displayed contact, and run `undo`.
+   Expected: its department and tags are restored, and the full list returns to stored order.
+10. Using a disposable copy of the application, start with malformed contact JSON; confirm the list is empty and
+    sorting reports `No contacts found to sort.` without overwriting the file. Add two valid contacts with different
+    tags and confirm they are saved. Sort by tags in the same session; confirm sorting succeeds and the saved file
+    remains unchanged. Repeat after a startup file-read failure once the file is writable again.

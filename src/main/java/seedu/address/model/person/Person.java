@@ -5,6 +5,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
@@ -16,6 +17,9 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
+    public static final String MESSAGE_CONTACT_INFORMATION_REQUIRED =
+            "A phone number or email address must be provided.";
+
     // Identity fields
     private final Name name;
     private final Phone phone;
@@ -24,17 +28,24 @@ public class Person {
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Department department;
 
     /**
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
+        this(name, phone, email, address, tags, null);
+    }
+
+    /** Every field except department must be present and not null. */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Department department) {
         requireAllNonNull(name, phone, email, address, tags);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
         this.tags.addAll(tags);
+        this.department = department;
     }
 
     public Name getName() {
@@ -61,9 +72,27 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    /** Returns a copy with a renamed department, or this person if the assignment is unaffected. */
+    public Person withRenamedDepartment(Department oldDepartment, Department newDepartment) {
+        if (!getDepartment().filter(oldDepartment::equals).isPresent()) {
+            return this;
+        }
+        return new Person(name, phone, email, address, tags, newDepartment);
+    }
+
+    /** Clears the matching department, preserving all other contact details. */
+    public Person withoutDepartment(Department removedDepartment) {
+        return withRenamedDepartment(removedDepartment, null);
+    }
+
+    /** Returns this person's department, if one has been assigned. */
+    public Optional<Department> getDepartment() {
+        return Optional.ofNullable(department);
+    }
+
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have the same name and share a provided phone number or email address.
+     * Missing fields do not match. This duplicate check is symmetric but is not transitive.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
@@ -71,7 +100,14 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().equals(getName())
+                && ((phone.isProvided() && phone.equals(otherPerson.getPhone()))
+                    || (email.isProvided() && email.equals(otherPerson.getEmail())));
+    }
+
+    /** Returns whether this contact has at least one means of contact. */
+    public boolean hasContactInformation() {
+        return phone.isProvided() || email.isProvided();
     }
 
     /**
@@ -93,13 +129,14 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && Objects.equals(department, otherPerson.department);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, department);
     }
 
     @Override

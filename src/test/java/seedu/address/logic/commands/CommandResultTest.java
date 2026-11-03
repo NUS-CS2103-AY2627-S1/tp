@@ -4,8 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.help.HelpPage;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class CommandResultTest {
     @Test
@@ -53,11 +58,62 @@ public class CommandResultTest {
     }
 
     @Test
+    public void detailsResult_preservesFlagsAndEquality() {
+        Person amy = new PersonBuilder().build();
+        CommandResult details = new CommandResult("feedback", amy);
+        assertTrue(details.isShowDetails());
+        assertFalse(details.isShowHelp());
+        assertFalse(details.isExit());
+        assertFalse(new CommandResult("details").isShowDetails());
+        assertEquals(details, new CommandResult("feedback", new PersonBuilder().build()));
+        assertEquals(details.hashCode(), new CommandResult("feedback", amy).hashCode());
+        assertEquals("feedback", details.getFeedbackToUser());
+        assertEquals(amy, details.getViewedPerson().orElseThrow());
+        assertTrue(new CommandResult("feedback").getViewedPerson().isEmpty());
+        assertNotEquals(details, new CommandResult("feedback"));
+        Person bob = new PersonBuilder().withName("Bob Choo").build();
+        assertNotEquals(details, new CommandResult("feedback", bob));
+    }
+
+    @Test
+    public void detailsResult_nullArgument_throwsNullPointerException() {
+        Person amy = new PersonBuilder().build();
+        assertThrows(NullPointerException.class, () -> new CommandResult(null, amy));
+        assertThrows(NullPointerException.class, () -> new CommandResult("feedback", (Person) null));
+    }
+
+    @Test
+    public void helpResult_preservesPayloadFlagsAndEquality() {
+        HelpPage page = new HelpPage("depart", "manual");
+        CommandResult result = CommandResult.forHelp("feedback", page);
+        CommandResult equal = CommandResult.forHelp("feedback", new HelpPage("depart", "manual"));
+        assertEquals(page, result.getHelpPage().orElseThrow());
+        assertTrue(result.isShowHelp());
+        assertFalse(result.isExit());
+        assertFalse(result.isShowDetails());
+        assertEquals(result, equal);
+        assertEquals(result.hashCode(), equal.hashCode());
+        assertNotEquals(result, new CommandResult("feedback", true, false));
+        assertNotEquals(result, CommandResult.forHelp("feedback", new HelpPage("sort", "manual")));
+        assertNotEquals(result, CommandResult.forHelp("feedback", new HelpPage("depart", "different")));
+        assertTrue(result.toString().contains("helpPage=" + page));
+        assertTrue(new CommandResult("feedback", true, false).getHelpPage().isEmpty());
+        assertTrue(new CommandResult("feedback").getHelpPage().isEmpty());
+    }
+
+    @Test
+    public void helpResult_nullFeedbackOrPage_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> CommandResult.forHelp(null, DepartCommand.HELP_PAGE));
+        assertThrows(NullPointerException.class, () -> CommandResult.forHelp("feedback", null));
+    }
+
+    @Test
     public void toStringMethod() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", showDetails=" + commandResult.isShowDetails()
+                + ", helpPage=" + commandResult.getHelpPage().orElse(null) + "}";
         assertEquals(expected, commandResult.toString());
     }
 }

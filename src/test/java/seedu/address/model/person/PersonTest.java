@@ -12,6 +12,9 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.List;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.testutil.PersonBuilder;
@@ -32,10 +35,10 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
+        // same name, different phone/email -> returns false
         Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
                 .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
-        assertTrue(ALICE.isSamePerson(editedAlice));
+        assertFalse(ALICE.isSamePerson(editedAlice));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
@@ -49,6 +52,32 @@ public class PersonTest {
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
         assertFalse(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void isSamePerson_requiresSameNameAndEitherProvidedContactField() {
+        List<Phone> phones = List.of(Phone.notProvided(), new Phone("91234567"), new Phone("87654321"));
+        List<Email> emails = List.of(Email.notProvided(), new Email("alice@example.com"),
+                new Email("other@example.com"));
+        for (Phone firstPhone : phones) {
+            for (Email firstEmail : emails) {
+                Person first = new Person(new Name("Alice"), firstPhone, firstEmail, Address.notProvided(), Set.of());
+                assertEquals(firstPhone.isProvided() || firstEmail.isProvided(), first.hasContactInformation());
+                for (Phone secondPhone : phones) {
+                    for (Email secondEmail : emails) {
+                        Person second = new Person(new Name("Alice"), secondPhone, secondEmail,
+                                Address.notProvided(), Set.of());
+                        boolean expected = (firstPhone.isProvided() && firstPhone.equals(secondPhone))
+                                || (firstEmail.isProvided() && firstEmail.equals(secondEmail));
+                        assertEquals(expected, first.isSamePerson(second));
+                        assertEquals(expected, second.isSamePerson(first));
+                        Person differentName = new Person(new Name("Bob"), secondPhone, secondEmail,
+                                Address.notProvided(), Set.of());
+                        assertFalse(first.isSamePerson(differentName));
+                    }
+                }
+            }
+        }
     }
 
     @Test
@@ -88,6 +117,22 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        editedAlice = new PersonBuilder(ALICE).withDepartment("Engineering").build();
+        assertFalse(ALICE.equals(editedAlice));
+    }
+
+    @Test
+    public void getDepartment() {
+        assertTrue(ALICE.getDepartment().isEmpty());
+        assertEquals(new Department("Engineering"), new PersonBuilder(ALICE)
+                .withDepartment("Engineering").build().getDepartment().orElseThrow());
+    }
+
+    @Test
+    public void hashCode_withDepartment() {
+        assertEquals(new PersonBuilder(ALICE).withDepartment("Engineering").build().hashCode(),
+                new PersonBuilder(ALICE).withDepartment("Engineering").build().hashCode());
     }
 
     @Test
