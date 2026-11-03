@@ -2,17 +2,25 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Github;
+import seedu.address.model.person.Group;
+import seedu.address.model.person.Linkedin;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Telegram;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +29,9 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    /** Matches a word followed by '/' that starts after whitespace, i.e. something that looks like a flag. */
+    private static final Pattern FLAG_LIKE_TOKEN = Pattern.compile("(?<=\\s)[A-Za-z]+/");
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -96,6 +107,76 @@ public class ParserUtil {
     }
 
     /**
+     * Parses a {@code String telegram} into an {@code Telegram}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code telegram} is invalid.
+     */
+    public static Telegram parseTelegram(String telegram) throws ParseException {
+        requireNonNull(telegram);
+        String trimmedTelegram = telegram.trim();
+
+        if (!Telegram.isValidTelegram(trimmedTelegram)) {
+            throw new ParseException(Telegram.MESSAGE_CONSTRAINTS);
+        }
+
+        return new Telegram(trimmedTelegram);
+    }
+
+    /**
+     * Parses a {@code String github} into an {@code Github}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Github parseGithub(String github) throws ParseException {
+        requireNonNull(github);
+        String trimmedGithub = github.trim();
+        if (!Github.isValidGithub(trimmedGithub)) {
+            throw new ParseException(Github.MESSAGE_CONSTRAINTS);
+        }
+        return new Github(trimmedGithub);
+    }
+
+    /**
+     * Parses a {@code String linkedin} into an {@code Linkedin}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Linkedin parseLinkedin(String linkedin) throws ParseException {
+        requireNonNull(linkedin);
+        String trimmedLinkedin = linkedin.trim();
+        if (!Linkedin.isValidLinkedin(trimmedLinkedin)) {
+            throw new ParseException(Linkedin.MESSAGE_CONSTRAINTS);
+        }
+        return new Linkedin(trimmedLinkedin);
+    }
+
+    /**
+     * Parses a {@code String group} into an {@code Group}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Group parseGroup(String group) throws ParseException {
+        requireNonNull(group);
+        String trimmedGroup = group.trim();
+        if (!Group.isValidGroup(trimmedGroup)) {
+            throw new ParseException(Group.MESSAGE_CONSTRAINTS);
+        }
+        return new Group(trimmedGroup);
+    }
+
+    /**
+     * Parses {@code Collection<String> groups} into a {@code Set<Group>}.
+     */
+    public static Set<Group> parseGroups(Collection<String> groups) throws ParseException {
+        requireNonNull(groups);
+
+        final Set<Group> groupSet = new HashSet<>();
+        for (String groupName : groups) {
+            groupSet.add(parseGroup(groupName));
+        }
+
+        return groupSet;
+    }
+
+    /**
      * Parses a {@code String tag} into a {@code Tag}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -120,5 +201,25 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Returns the distinct flag-like tokens (e.g. {@code x/}) in {@code args} that are not in {@code supported},
+     * in the order they appear. The tokenizer only splits on known prefixes, so such a token would otherwise be
+     * absorbed into the value of the preceding flag.
+     */
+    public static List<String> findUnknownFlags(String args, Collection<Prefix> supported) {
+        requireNonNull(args);
+        requireNonNull(supported);
+        List<String> unknownFlags = new ArrayList<>();
+        Matcher matcher = FLAG_LIKE_TOKEN.matcher(args);
+        while (matcher.find()) {
+            String token = matcher.group();
+            boolean isSupported = supported.stream().anyMatch(prefix -> prefix.getPrefix().equals(token));
+            if (!isSupported && !unknownFlags.contains(token)) {
+                unknownFlags.add(token);
+            }
+        }
+        return unknownFlags;
     }
 }

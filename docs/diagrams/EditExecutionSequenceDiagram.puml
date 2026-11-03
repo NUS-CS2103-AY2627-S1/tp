@@ -1,0 +1,36 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":EditCommand" as EditCommand LOGIC_COLOR
+participant "target:PersonTarget" as PersonTarget LOGIC_COLOR
+participant "model:Model" as Model MODEL_COLOR
+
+LogicManager -> EditCommand : execute(model)
+activate EditCommand
+EditCommand -> PersonTarget : resolve(model, messageNotFound, messageAmbiguous)
+activate PersonTarget
+PersonTarget -> Model : getAddressBook()
+activate Model
+Model --> PersonTarget : addressBook
+deactivate Model
+PersonTarget --> EditCommand : personToEdit
+deactivate PersonTarget
+
+EditCommand -> EditCommand : createEditedPerson(personToEdit, editPersonDescriptor)
+activate EditCommand
+EditCommand --> EditCommand : editedPerson
+deactivate EditCommand
+
+alt changed phone number is already in use
+  EditCommand --> LogicManager : throws CommandException(MESSAGE_DUPLICATE_PERSON)
+else phone number unchanged or phone number is available
+  EditCommand -> Model : setPerson(personToEdit, editedPerson)
+  activate Model
+  Model --> EditCommand
+  deactivate Model
+  EditCommand --> LogicManager : CommandResult with updated contact details
+end
+deactivate EditCommand
+@enduml

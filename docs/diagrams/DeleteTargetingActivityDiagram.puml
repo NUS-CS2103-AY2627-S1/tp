@@ -1,0 +1,21 @@
+@startuml
+skin rose
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+
+start
+:Find contacts matching all supplied criteria;
+
+if () then ([no contacts match])
+  :Report that no contacts match;
+else ([else])
+  if () then ([multiple contacts match])
+    :Display matching contacts;
+    :Request additional search criteria;
+  else ([exactly one contact matches])
+    :Delete the matching contact;
+    :Return a success message\nwith deleted contact details;
+  endif
+endif
+stop
+@enduml

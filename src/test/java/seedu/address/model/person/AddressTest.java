@@ -9,14 +9,32 @@ import org.junit.jupiter.api.Test;
 public class AddressTest {
 
     @Test
-    public void constructor_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> new Address(null));
+    public void fieldValues_validAndInvalidInputs() {
+
+        // valid addresses
+        assertTrue(Address.isValidAddress(""));
+        assertTrue(Address.isValidAddress("123 Main Street"));
+        assertTrue(Address.isValidAddress("Block 12, #03-45 (North)"));
+
+        // invalid addresses
+        assertFalse(Address.isValidAddress(" "));
+        assertFalse(Address.isValidAddress(" 123 Street"));
+        assertFalse(Address.isValidAddress("123/45 Street"));
+        assertFalse(Address.isValidAddress("Street; Block"));
+        assertFalse(Address.isValidAddress("Street_1"));
+        assertFalse(Address.isValidAddress("123\tStreet"));
+        assertFalse(Address.isValidAddress("123\nStreet"));
+        assertFalse(Address.isValidAddress("街道"));
     }
 
     @Test
-    public void constructor_invalidAddress_throwsIllegalArgumentException() {
-        String invalidAddress = "";
-        assertThrows(IllegalArgumentException.class, () -> new Address(invalidAddress));
+    public void constructor_invalidFieldValue_throwsException() {
+        assertThrows(IllegalArgumentException.class, () -> new Address(" 123 Street"));
+    }
+
+    @Test
+    public void constructor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Address(null));
     }
 
     @Test
@@ -25,13 +43,11 @@ public class AddressTest {
         assertThrows(NullPointerException.class, () -> Address.isValidAddress(null));
 
         // invalid addresses
-        assertFalse(Address.isValidAddress("")); // empty string
         assertFalse(Address.isValidAddress(" ")); // spaces only
+        assertFalse(Address.isValidAddress("123/45 Main Street"));
 
         // valid addresses
-        assertTrue(Address.isValidAddress("Blk 456, Den Road, #01-355"));
-        assertTrue(Address.isValidAddress("-")); // one character
-        assertTrue(Address.isValidAddress("Leng Inc; 1234 Market St; San Francisco CA 2349879; USA")); // long address
+        assertTrue(Address.isValidAddress("Leng Inc, 1234 Market St, San Francisco CA 2349879, USA")); // long address
     }
 
     @Test

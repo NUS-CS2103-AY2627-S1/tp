@@ -1,5 +1,6 @@
 package seedu.address.model;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -60,12 +61,36 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /** Returns an unmodifiable filtered list, pinned first and sorted within each section. */
     ObservableList<Person> getFilteredPersonList();
+
+    /**
+     * Returns a copy of every contact in the order shown to the user: pinned first, then the active sort,
+     * then the order added. Unlike {@link #getFilteredPersonList()}, the current filter is ignored.
+     */
+    List<Person> getAllPersonsInDisplayOrder();
 
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Sorts the view without changing its filter or stored order.
+     * Saves the startup preference when continuous, otherwise clears it.
+     */
+    void sortFilteredPersonList(SortSettings settings, boolean isContinuous);
+
+    /**
+     * Saves the given address book state for a future undo operation.
+     */
+    void saveStateForUndo(ReadOnlyAddressBook state);
+
+    /**
+     * Restores the most recently saved address book state.
+     *
+     * @return true if a state was restored, false if there is nothing to undo.
+     */
+    boolean undo();
 }

@@ -1,15 +1,27 @@
 ---
-layout: page
-title: Developer Guide
+  layout: default.md
+  title: "Developer Guide"
+  pageNav: 3
 ---
-* Table of Contents
-{:toc}
+
+# GitMate Developer Guide
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+GitMate is based on [AddressBook-Level3](https://github.com/se-edu/addressbook-level3), created by the [SE-EDU initiative](https://se-education.org). Its architecture, infrastructure, and developer documentation have been adapted for GitMate.
+
+**Notable uses of AI:**
+- Codex was used to explain the existing codebase, suggest implementation approaches, and assist with generating and refining code.
+- Codex was used to assist with debugging, reviewing changes, and developing test cases.
+- Codex was used to draft and refine project documentation, including the User Guide and Developer Guide.
+- @mannymacman used Codex to assist with implementing and refining code related to the `edit` and `delete` commands.
+- @junh4nn used Claude to assist with implementing and refining code related to the `find` and `export` commands.
+- @jonaskke used ChatGPT to assist with implementing and refining code related to navigating command history, `add` and `undo` commands.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -21,14 +33,9 @@ Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
 ## **Design**
 
-<div markdown="span" class="alert alert-primary">
-
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
-
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+<puml src="diagrams/ArchitectureDiagram.puml" width="280" />
 
 The ***Architecture Diagram*** given above explains the high-level design of the App.
 
@@ -36,7 +43,7 @@ The following provides a quick overview of the main components and their interac
 
 **Main components of the architecture**
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
+**`Main`** (consisting of classes [`Main`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
 * At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
 * At shut down, it shuts down the other components and invokes cleanup methods where necessary.
 
@@ -51,9 +58,9 @@ The bulk of the app's work is done by the following four components:
 
 **How the architecture components interact with each other**
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete n/John Doe p/81231234` and exactly one contact matches. Contact resolution and undo bookkeeping are omitted for simplicity.
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+<puml src="diagrams/ArchitectureSequenceDiagram.puml" width="574" />
 
 Each of the four main components (also shown in the diagram above),
 
@@ -62,19 +69,19 @@ Each of the four main components (also shown in the diagram above),
 
 For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
 
-<img src="images/ComponentManagers.png" width="300" />
+<puml src="diagrams/ComponentManagers.puml" width="300" />
 
 The sections below give more details of each component.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+The **API** of this component is specified in [`Ui.java`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/ui/Ui.java)
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+<puml src="diagrams/UiClassDiagram.puml" alt="Structure of the UI Component"/>
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, `PersonDetailsPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/ui/MainWindow.java).
 
 The `UI` component,
 
@@ -83,20 +90,45 @@ The `UI` component,
 * keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
 * depends on some classes in the `Model` component because it displays `Person` objects from the model.
 
+#### Contact list and details panel
+
+`MainWindow.fxml` places `PersonListPanel` and `PersonDetailsPanel` side by side in a resizable `SplitPane`. The command box and result display sit above them, while the status bar below shows the data file path. `GitMateTheme.css` styles the contact cards, selection highlight, badges, and details panel alongside the existing stylesheets.
+
+The two contact panels have separate responsibilities:
+
+| UI part | Responsibility |
+| --- | --- |
+| `PersonListPanel` | Displays the observable contact list supplied by `Logic#getFilteredPersonList`, binds the contact count to its size, and exposes the selected contact through `getSelectedPersonProperty()`. |
+| `PersonCard` | Renders a compact row with the displayed index, initials, name, group badges, and a star when the contact is pinned. |
+| `PersonDetailsPanel` | Displays the selected contact's full details, groups, and tags. Missing scalar values appear as `—`; empty group and tag sections are hidden. |
+
+`MainWindow#fillInnerParts` registers a listener on `PersonListPanel#getSelectedPersonProperty`. Whenever the selected contact changes, `MainWindow` passes the new value to `PersonDetailsPanel#showPerson`. Passing `null` shows the `No contact selected` state. The panels do not directly control each other; `MainWindow` coordinates their interaction.
+
+The details panel rebuilds group and tag badges in alphabetical order and resets its scroll position when a contact is shown. Tooltips expose the full contact name in the list and nonempty scalar details in the details panel. When the displayed list is empty, `PersonListPanel` shows `No contacts to display.` and its count is zero.
+
+#### Selection after commands
+
+On startup, `MainWindow` selects the first visible contact. After command execution, `LogicManager` sets `CommandResult#shouldResetContactSelection` for `add`, `import`, `clear`, `delete`, `edit`, `find`, `list`, `pin`, `unpin`, `sort`, and `undo`. When this result reaches `MainWindow#executeCommand`, the window calls `PersonListPanel#selectFirstContact`, which clears the previous selection, selects the first visible contact, and scrolls the list to it. An empty list leaves the selection cleared.
+
+This policy keeps the details panel aligned with the resulting list, but does not necessarily select the contact changed by the command. For example, unpinning a contact can move it below another pinned contact; the first visible contact is then selected and shown in the details panel. `help` and `export` do not request a selection reset. Commands that throw an exception do not reach this explicit reset step, although a changed list, such as the matches displayed for ambiguous criteria, can still affect selection.
+
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API** : [`Logic.java`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/logic/Logic.java)
 
 Here's a (partial) class diagram of the `Logic` component:
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+<puml src="diagrams/LogicClassDiagram.puml" width="550"/>
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+The sequence diagram below illustrates the high-level interactions within the `Logic` component, taking `execute("delete n/John Doe p/81231234")` as an example where exactly one contact matches all supplied criteria. The search includes contacts hidden by the current filter; undo bookkeeping, storage, and UI updates are omitted.
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+<puml src="diagrams/DeleteSequenceDiagram.puml" alt="Interactions Inside the Logic Component for Deleting a Contact by Exact Field Criteria" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+<box type="info" seamless>
+
+**Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, the lifeline continues till the end of diagram.
+</box>
+
 
 How the `Logic` component works:
 
@@ -108,37 +140,39 @@ How the `Logic` component works:
 
 Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
 
-<img src="images/ParserClasses.png" width="600"/>
+<puml src="diagrams/ParserClasses.puml" width="600"/>
 
 How the parsing works:
 * When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
 * All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
+**API** : [`Model.java`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+<puml src="diagrams/ModelClassDiagram.puml" width="450" />
 
 
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
 * stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
-* stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
+* stores a `UserPrefs` object containing GUI settings and the saved sort preference used at startup. This is exposed to the outside as a `ReadOnlyUserPrefs` object.
 * does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
 
-<img src="images/BetterModelClassDiagram.png" width="450" />
+<box type="info" seamless>
 
-</div>
+**Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+
+<puml src="diagrams/BetterModelClassDiagram.puml" width="450" />
+</box>
 
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-T16-4/tp/blob/master/src/main/java/seedu/address/storage/Storage.java)
 
-<img src="images/StorageClassDiagram.png" width="550" />
+<puml src="diagrams/StorageClassDiagram.puml" width="550" />
 
 The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
@@ -155,94 +189,251 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Add command
 
-#### Proposed Implementation
+The `add` command creates a new contact from the details provided by the user. For example:
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+```text
+add n/John Doe p/81231234 a/123 Clementi Ave 3 e/john.doe@example.com gh/johndoe li/john-doe tg/johndoe g/ProjectTeam t/active t/colleague
+```
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+#### Add implementation
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+Its implementation has five main parts:
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+* **Parsing:** `AddCommandParser` tokenizes the input using the supported prefixes: name `n/`, phone `p/`, address `a/`, email `e/`, GitHub `gh/`, LinkedIn `li/`, Telegram `tg/`, group `g/`, and tag `t/`. The name and phone prefixes are required. Unsupported text, missing required fields, invalid values, and repeated single-value prefixes are rejected.
+* **Field validation:** `ParserUtil` validates each field according to its corresponding model class. Names must contain only alphanumeric characters and spaces. Phone numbers must contain exactly eight digits and begin with `8` or `9`. Emails and tags must follow their respective validation rules, while optional fields may be omitted.
+* **Repeated fields:** Group and tag prefixes may be repeated to assign multiple groups or tags to a contact. For example, `g/Friends g/Project` assigns two groups, while `t/active t/colleague` assigns two tags. The values are stored as sets.
+* **Contact creation:** After parsing and validating the input, `AddCommandParser` creates a Person object containing the supplied details. Fields that were not provided are represented using their default empty values.
+* **Duplicate prevention and persistence:** When executed, `AddCommand` checks whether the phone number is already associated with an existing contact. If it is, the command is rejected with a duplicate-phone error. Otherwise, the new contact is added to the model. Since `AddCommand` is undoable, the previous address book state is saved before the change and the updated address book is saved through Storage.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+### Delete command
 
-![UndoRedoState0](images/UndoRedoState0.png)
+The `delete` command removes exactly one contact identified by exact field criteria, for example:
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+```text
+delete n/John Doe p/81231234
+```
 
-![UndoRedoState1](images/UndoRedoState1.png)
+#### Delete implementation
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+The command has four main parts:
 
-![UndoRedoState2](images/UndoRedoState2.png)
+* **Parsing:** `DeleteCommandParser` delegates to `ExactPersonMatchParser`, using delete-specific usage and error messages. It accepts the same search fields as `edit` and requires at least one nonempty search flag. Unsupported flags, unexpected preamble text, invalid values, and repeated scalar prefixes are rejected; group and tag prefixes may be repeated.
+* **Shared targeting:** `DeleteCommand` uses `PersonTarget` and `PersonMatchesExactFieldsPredicate` to resolve the criteria against all contacts, including those hidden by the current filter. Every supplied criterion must match. No match produces an error; multiple matches are displayed for refinement. Neither failure changes contact data.
+* **Deletion:** Once exactly one contact is resolved, `DeleteCommand` calls `Model#deletePerson` and returns a success message containing the deleted contact's details. Criteria matching multiple contacts never trigger a bulk deletion.
+* **Persistence and undo:** `DeleteCommand#isUndoable` returns `true`. `LogicManager` saves the pre-execution address book snapshot to undo history after successful execution and persists the updated address book through `Storage`. Undo can therefore restore the deleted contact with its previous details and pin state.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+The activity diagram below summarises the delete command’s targeting and deletion flow. No matching contacts or multiple matching contacts prevent deletion, and neither case records an undo state. Multiple matches are displayed so the user can refine the search criteria. Undo recording, saving changes, and subsequent UI updates are omitted for simplicity.
 
-</div>
+<puml src="diagrams/DeleteTargetingActivityDiagram.puml" alt="Delete targeting activity showing no-match, ambiguous-match, and unique-match paths" />
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+For the surrounding parser and command interactions, see the [Logic component sequence diagram](#logic-component).
 
-![UndoRedoState3](images/UndoRedoState3.png)
+#### Delete example execution
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+Assume the address book contains two contacts named John Doe, with phone numbers `81231234` and `91234567`.
 
-</div>
+1. The user enters `delete n/John Doe`. `ExactPersonMatchParser` creates an exact-name predicate, which `DeleteCommand` passes to `PersonTarget#resolve`.
+1. Both contacts match. The resolver calls `Model#updateFilteredPersonList` to display them, then throws a `CommandException` requesting additional criteria. Neither contact is deleted, and no undo state is recorded.
+1. The user refines the request to `delete n/John Doe p/81231234`. The new predicate requires both fields to match the same contact.
+1. The resolver returns the contact with phone `81231234`. `DeleteCommand` calls `Model#deletePerson` and returns that contact's details in a `CommandResult`.
+1. `LogicManager` records the pre-execution snapshot and attempts to save the updated address book. Assuming saving succeeds, the user receives the deletion confirmation.
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+#### Delete design considerations
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+The following alternatives illustrate the tradeoffs of the current implementation.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+| Aspect | Current implementation and benefit | Alternative and tradeoff |
+| --- | --- | --- |
+| Search scope | Resolve exact criteria against all contacts. Targeting works independently of filtering and sorting. | Resolve a displayed-list index. Selection is shorter to type, but depends on the current view. Searching all contacts can affect a contact currently hidden from view. |
+| Ambiguous matches | Display matches and require refinement. This prevents an ambiguous request from deleting multiple contacts. | Delete every match. This supports bulk removal, but broad criteria could remove unintended contacts. |
+| Shared targeting | Reuse `ExactPersonMatchParser` and `PersonTarget` with edit and pin, keeping validation and ambiguity handling consistent. | Implement targeting separately in each command. This permits independent policies, but duplicates logic; shared changes currently affect every command using the mechanism. |
 
-</div>
+### Edit command
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+The `edit` command updates exactly one contact identified by exact field criteria. The `>>` separator distinguishes the search criteria from the requested updates, for example:
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
+```text
+edit n/John Doe p/81231234 >> p/91234567 e/john@example.com
+```
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+#### Edit implementation
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+The command has five main parts:
 
-</div>
+* **Parsing:** `EditCommandParser` requires exactly one `>>`, at least one search flag, and at least one update flag. It delegates search parsing to `ExactPersonMatchParser` and stores updates in an `EditPersonDescriptor`. Supported fields are name (`n/`), phone (`p/`), email (`e/`), address (`a/`), GitHub (`gh/`), LinkedIn (`li/`), Telegram (`tg/`), groups (`g/`), and tags (`t/`). Unsupported flags, unexpected preamble text, invalid values, and repeated scalar prefixes are rejected.
+* **Shared targeting:** `EditCommand` uses `PersonTarget#resolve` with the same exact-match rules and ambiguity handling as [delete](#delete-command). Search values must be nonempty; every supplied criterion must match the same contact.
+* **Field updates:** `EditCommand#createEditedPerson` constructs a replacement `Person`, preserving unspecified fields and the existing pin state. Scalar updates replace their existing values. Empty optional field values clear those fields, while empty name or phone updates are rejected. Tags and groups use the descriptor states described below. The descriptor defensively copies tag and group sets.
+* **Duplicate prevention:** Before calling `Model#setPerson`, the command checks whether a changed phone number already identifies another contact. Such an update is rejected without changing contact data, since phone numbers define contact identity.
+* **Persistence and undo:** `EditCommand#isUndoable` returns `true`. `LogicManager` copies the address book before execution, saves that snapshot to undo history after successful execution, and saves the updated address book through `Storage`. The command returns a success message containing the updated contact's details.
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+`EditPersonDescriptor` distinguishes three states for each tag or group update:
 
-![UndoRedoState4](images/UndoRedoState4.png)
+| Descriptor state | Example update | Effect |
+| --- | --- | --- |
+| Absent (`Optional.empty()` from the getter) | No `t/` supplied | Preserve the existing set. |
+| Present, empty set | `t/` | Clear the entire set. |
+| Present, nonempty set | `t/active t/friend` | Toggle each supplied value: remove it if present, otherwise add it. |
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+The same representation applies to `g/`. Distinguishing absence from an empty set allows the descriptor to represent both "leave unchanged" and "clear all". `applySetEdit` copies the existing set before applying an update. Parsed values are stored in sets, so repeated identical values toggle membership only once. An empty value combined with another occurrence of the same set prefix is rejected, including `t/ t/active` or `g/ g/project`.
 
-![UndoRedoState5](images/UndoRedoState5.png)
+Exact matching uses the field types' normalized values: names are converted to uppercase, while tags and groups are converted to lowercase, for both stored contacts and parsed criteria. Matching these fields is therefore case-insensitive, but still requires the full value rather than a partial match. The same normalization applies to `delete` targeting.
 
-The following activity diagram summarizes what happens when a user executes a new command:
+`EditCommand` uses the same targeting mechanism as `DeleteCommand`, implemented by `PersonTarget#resolve`. The [delete targeting activity diagram](#delete-command) illustrates the shared handling of zero, one, and multiple matches.
 
-<img src="images/CommitActivityDiagram.png" width="250" />
+The edit sequence diagram below focuses on execution after parsing, assuming exactly one contact matches the search criteria. It shows replacement creation and the duplicate-phone check, including the rejection path. `Model#hasPerson` is called only when the phone number changes. Parsing, persistence calls, and UI updates are omitted; the notes indicate where undo recording and persistence occur.
 
-#### Design considerations:
+<puml src="diagrams/EditExecutionSequenceDiagram.puml" alt="Edit execution sequence showing contact resolution, replacement creation, duplicate-phone rejection, and model update" />
 
-**Aspect: How undo & redo execute:**
+#### Edit example execution
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+Assume John Doe has phone `81231234`, tags `{active, colleague}`, and is pinned. No other contact has phone `91234567`. The user enters:
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+```text
+edit p/81231234 >> p/91234567 t/active t/friend
+```
 
-_{more aspects and alternatives to be added}_
+1. `EditCommandParser` splits the arguments at `>>`. It creates a search predicate for phone `81231234` and an `EditPersonDescriptor` containing the replacement phone and tags to toggle.
+1. `PersonTarget#resolve` searches all contacts and returns John using his original phone number, even if he is hidden by the current filter.
+1. `createEditedPerson` constructs a replacement with phone `91234567`. `applySetEdit` removes `active` and adds `friend`, producing `{colleague, friend}`. Unspecified fields and the pin state are preserved.
+1. `EditCommand` uses `Person#isSamePerson` to determine whether the phone number changed. Since it changed, the command calls `Model#hasPerson` to check whether another contact already has the new phone number. If so, it throws a `CommandException` before replacing the contact.
+1. The new phone is available, so the command calls `Model#setPerson` and returns the updated details. `LogicManager` records the pre-execution snapshot and attempts to save the address book.
 
-### \[Proposed\] Data archiving
+#### Edit design considerations
 
-_{Explain here how the data archiving feature will be implemented}_
+The following alternatives illustrate the tradeoffs of the current implementation. The [delete design considerations](#delete-design-considerations) also apply to edit's search scope and shared targeting.
 
+| Aspect | Current implementation and benefit | Alternative and tradeoff |
+| --- | --- | --- |
+| Updating a contact | Construct a replacement `Person` and pass it to `Model#setPerson`. The original object is preserved, and model replacement provides a single update point. | Mutate individual fields on the existing contact. This could avoid a replacement object, but would require changing the immutable field design and supporting notifications for those changes. |
+| Optional updates | Use an absent value for unchanged fields and a present empty set for clearing collections. The descriptor represents both intents explicitly. | Use separate clear commands or flags. These could make clearing more explicit, but add syntax and parsing paths. |
+| Tag and group membership | Toggle supplied values, allowing additions and removals in one edit while preserving unmentioned values. Applying the same nonempty membership update twice restores the original set membership. | Replace the whole set. Applying the same replacement repeatedly has the same result, but users would need to supply every value they want to retain. |
+
+### Find command
+
+The `find` command lists the contacts whose fields start with the supplied values, for example:
+
+```text
+find n/Alex g/T09
+```
+
+Its implementation has four main parts:
+
+* **Parsing:** `FindCommandParser` accepts the name (`n/`), phone (`p/`), address (`a/`), email (`e/`), GitHub (`gh/`), LinkedIn (`li/`), Telegram (`tg/`), group (`g/`), and tag (`t/`) flags, and requires at least one. It rejects unexpected preamble text, unsupported flag-like tokens such as `x/`, empty values, and repeated scalar prefixes; group and tag prefixes may be repeated. The unsupported-flag check is needed because `ArgumentTokenizer` only splits on known prefixes, so an unknown flag would otherwise be absorbed into the value of the preceding flag. The values are stored as raw search text in a `FindPersonDescriptor`. They are not validated as full field values, so that partial values such as `p/98` are accepted.
+* **Matching:** `PersonMatchesFlagsPredicate` tests a `Person` against the descriptor. Every supplied flag must match (an `AND` search), and each value must be a prefix of the corresponding field. Matching ignores letter case except for GitHub usernames, which are case-sensitive. For groups and tags, each supplied value must be a prefix of at least one of the person's groups or tags. This differs from `PersonMatchesExactFieldsPredicate`, which `edit`, `delete`, and `pin` use to match full values, so `find` does not share `PersonTarget` or `ExactPersonMatchParser` with them.
+* **Display:** `FindCommand` calls `Model#updateFilteredPersonList` with the predicate. This replaces any existing filter instead of narrowing it, and `ModelManager` keeps the predicate as the current filter, so it stays active until `list` is run and is reapplied after `undo`. The displayed list still shows pinned contacts first. If no contact matches, `FindCommand` returns an error message naming the flags that were searched.
+* **No persistence or undo:** `FindCommand` does not override `Command#isUndoable`, which returns `false`, so `LogicManager` saves no undo snapshot. `find` changes only the filtered view, not the contact data.
+
+### Pinned contacts
+
+The `pin` command marks one matching contact as pinned; `unpin` removes its pin.
+
+Its implementation has four main parts:
+
+* **Shared targeting:** `PinCommandParser` and `UnpinCommandParser` use `ExactPersonMatchParser` to validate criteria, and `PersonTarget` resolves them against all contacts using `PersonMatchesExactFieldsPredicate`. These targeting classes are shared with `edit` and `delete`. All supplied fields must match. Ambiguous matches are displayed for refinement; unsuccessful requests leave contact data unchanged.
+* **Pin state:** `PinCommand` and `UnpinCommand` replace the contact with an immutable copy whose `isPinned` flag is `true` or `false`, respectively. Both preserve other details and reject contacts already in the requested state. Editing retains the flag.
+* **Display:** `ModelManager` sorts the filtered view with pinned contacts first, then by the active sort within each section, using stored addition order to break ties. Without an active sort, each section follows addition order. The stored list stays in addition order, so unpinning returns a contact to its original position among unpinned contacts unless sorting is active. `PersonCard` shows a star for pinned contacts.
+* **Persistence and undo:** `JsonAdaptedPerson` stores `isPinned`, defaulting to `false` for older files. Successful pin and unpin commands save an undo snapshot through `LogicManager`, allowing the existing undo mechanism to restore the previous state.
+
+The activity diagram summarizes pinning, grouping unsuccessful requests into one path.
+
+<puml src="diagrams/PinActivityDiagram.puml" alt="Pin activity flow showing validation, contact replacement, display update, saving, and feedback" />
+
+### Undo command
+
+The `undo` command restores the address book to the state before the most recent successful undoable command.
+
+```text
+undo
+```
+#### Undo implementation
+
+Its implementation has four main parts:
+
+* **Command parsing:** When the user enters `undo`, `AddressBookParser` creates an `UndoCommand` object. The command does not require any prefixes or additional arguments.
+* **State history:** Before an undoable command is executed, `LogicManager` creates a defensive copy of the current address book. After the command executes successfully, the copy is stored in `ModelManager`'s `undoHistory`. The history is implemented as a stack, so the most recent state is restored first.
+* **State restoration:** `UndoCommand` calls `Model#undo()`. `ModelManager` checks whether `undoHistory` contains a saved state. If a state exists, it is removed from the stack and restored as the current address book. The active filtered contact list is then updated to reflect the restored data.
+* **Feedback and persistence:** If a state is successfully restored, the command returns `The previous command was undone.` If no state is available, the address book remains unchanged and the command returns `There is nothing to undo.` The restored address book is saved through `Storage`.
+
+#### Undoable commands
+
+Commands that modify address-book data save a state for undo. These include:
+
+* `add`
+* `delete`
+* `edit`
+* `clear`
+* `import`
+* `pin`
+* `unpin`
+
+Commands that only change the current view, such as `find`, `list`, and `sort`, do not create an undo state.
+
+### Export command
+
+The `export` command saves all contacts to a new timestamped CSV file next to the data file, for example:
+
+```text
+export
+```
+
+Its implementation has four main parts:
+
+* **Parsing:** `ExportCommandParser` takes no arguments and rejects any non-empty arguments with an invalid command format error. Unlike the other parsers, it is created with the folder to export into. `LogicManager` derives this folder from the parent of the data file path, or the working directory if the path has no folder part, and passes it to `AddressBookParser`, which gives it to `ExportCommandParser`. The folder is supplied this way because `Command#execute(Model)` has no access to `Storage`, so the `Command` API is unchanged.
+* **Selecting contacts:** `ExportCommand` calls `Model#getAllPersonsInDisplayOrder`. This copies every contact in the address book, including those hidden by the current filter, and sorts the copy with the same comparator as the displayed list: pinned contacts first, then the active sort, then the order added. The file therefore matches what the user sees on screen, without the filter.
+* **Writing:** `CsvExporter#write` creates any missing parent folder, then opens the file with `CREATE_NEW`, so an existing file is never overwritten. `ExportCommand` names the file `contacts-yyyyMMdd-HHmmss.csv` from a `Clock`, which tests replace with a fixed one. `CsvExporter` writes a byte order mark, the header row, and one CRLF-terminated row per contact. Groups and tags are sorted alphabetically and joined with semicolons. A cell starting with `=`, `+`, `-`, `@`, a tab, or a carriage return gets a leading apostrophe to prevent spreadsheet formula injection, and a cell containing a comma, quote, or line break is quoted. `CsvImporter` checks its header against `CsvExporter.HEADER`, so the two stay in step.
+* **Errors and no undo:** `CsvExporter#write` throws `FileAlreadyExistsException` both when the file exists (from `CREATE_NEW`) and when the export folder is actually a regular file (from creating the folder), so `ExportCommand` checks `Files.exists` to choose between the file-exists message and the general failure message. Other `IOException`s also give the failure message. `ExportCommand` does not override `Command#isUndoable`, which returns `false`, and leaves the model unchanged. The new file is its only effect.
+
+### Import command
+
+The `import` command appends a batch of contacts from the CSV format produced by `export`:
+
+```text
+import data/contacts.csv
+```
+
+Its implementation has four main parts:
+
+* **Parsing and reading:** `ImportCommandParser` treats the entire trimmed argument as a file path, preserving embedded spaces. It rejects an absent or invalid path. `CsvImporter#read` reads UTF-8, accepts an optional byte order mark, and checks the header against `CsvExporter.HEADER`. It handles quoted cells and validates each contact field before returning the records. Fields and group/tag members are trimmed; one leading spreadsheet-protection apostrophe is removed when followed by an export formula trigger. Pin values accept `true` and `false` without regard to case.
+* **Batch validation:** `ImportCommand` rejects a header-only file because there are no contacts to import. It adds the parsed contacts to a copy of the current address book, checking phone-number identity against both existing contacts and earlier records in the batch. Different names or other details do not make a repeated phone number valid. Duplicate errors identify the CSV record, counting the header as record 1.
+* **Model update:** Only after the entire batch passes validation does the command replace the live address book with the updated copy. Invalid records and duplicates therefore cannot leave an earlier valid row partially imported. The active filter and sort remain in effect, and imported pin states are retained; a successfully imported contact may remain hidden by the current filter.
+* **Persistence and undo:** After successful command execution, `LogicManager` records one snapshot for the whole batch and saves the address book through `Storage`. Each undo removes one successful batch, rather than one contact. Read or validation failures occur before this snapshot is recorded and preserve existing undo history. This guarantee does not imply rollback after a later JSON-save failure: saving occurs after the model update and undo snapshot.
+
+### Sort command
+
+The `sort` command changes the order of the displayed contacts without rearranging the stored address-book list:
+
+```text
+sort name desc cont
+```
+
+* **Parsing:** `SortCommandParser` accepts `name`, `group`, or `tag`, followed by an optional `asc` or `desc` direction and an optional `cont` or `none` persistence mode. Keywords are case-sensitive. The defaults are ascending and session-only. Invalid keywords, extra tokens, or tokens in the wrong order are rejected before the model is changed.
+* **Live display:** `SortCommand` supplies a `SortSettings` value to `ModelManager#sortFilteredPersonList`. The model applies a comparator to the observable sorted view while retaining the current filter. Additions, edits and restored contacts are ordered by that comparator without another sort command. Pinned contacts remain first, with sorting applied separately within each pin section.
+* **Comparison rules:** Name comparison ignores case. For group/tag sorting, the alphabetically first value is the contact's key, even in descending order. Contacts without a value remain last within their pin section in either direction. Equal group/tag keys use ascending name order; remaining ties use stored position. Descending sorting does not reverse these tie-breakers.
+* **Preferences and undo:** `cont` stores the sort setting in `UserPrefs` for reuse at startup. A session-only sort, including explicit `none`, clears any earlier saved sort preference but continues to order the current session's live view. Preferences are saved when the app shuts down and applied by `ModelManager` when it is constructed at startup. Sorting does not create an undo entry; undoing an earlier contact mutation retains the active sort.
+
+### Help and list commands
+
+`AddressBookParser` creates `HelpCommand` and `ListCommand` directly. `HelpCommand` joins the supported command usage sections into feedback for the result display. Its `CommandResult` does not request a separate help window or exit, and `LogicManager` does not request a contact-selection reset for help. Calling help repeatedly leaves the filter and contact data unchanged.
+
+`ListCommand` sets the filter to `Model.PREDICATE_SHOW_ALL_PERSONS`. It restores all contacts to the view while retaining pin priority, the active comparator and the saved sort preference. An empty filtered view is not necessarily an empty address book: the empty-list message is returned only when there are no contacts after removing the filter. Repeating list has the same result, and `LogicManager` requests selection of the first visible contact.
+
+Neither command records an undo snapshot. An undo after help or list still targets the preceding undoable contact mutation; it does not restore an earlier filter. Successful executions still pass through `LogicManager`'s address-book saving step, although these commands do not modify contact data.
+
+### Command history
+
+The command history feature allows users to reuse successfully executed commands with the `↑` and `↓` arrow keys.
+
+#### Command history implementation
+
+Its implementation has three main parts:
+
+* **Command storage:** `CommandHistory` stores successfully executed commands in an ordered list. Commands are added only after `CommandExecutor#execute` completes successfully. Empty commands and commands that throw an exception are not stored.
+* **History navigation:** `CommandHistory` maintains an index representing the current position in the history. `previous()` moves backward through the list and returns the previous command. `next()` moves forward through the list and returns the next command. Navigating beyond the oldest command keeps returning the oldest command, while navigating beyond the newest command returns an empty string.
+* **User interface handling:** `CommandBox` listens for `KeyCode.UP` and `KeyCode.DOWN` events. The `↑` key calls `CommandHistory#previous`, while the `↓` key calls `CommandHistory#next`. The returned command is placed in the input field and the caret is moved to the end of the text. The key event is consumed so that the text field does not perform its default cursor movement.
+
+Command history is stored only in memory and is cleared when the application is restarted.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -261,82 +452,395 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+* has a need to manage a significant number of teammate and peer contacts across multiple concurrent group projects and school activities
+* prefers fast, command-driven interfaces over mouse interactions and visual dashboards
+* can type fast and prefers typing commands for quick lookups and updates
+* is reasonably comfortable using command-line interfaces to manage contacts efficiently
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: Helps NUS students rapidly track and access group project groupmates details through an intuitive command interface tailored for fast typists.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | Scope      | As a … | I want to …                                                            | So that I can …                                                                     |
+|:---------|:-----------| :- |:-----------------------------------------------------------------------|:------------------------------------------------------------------------------------|
+| `***`    | MVP        | New user | See sample data upon launching the app                                 | Immediately understand how a populated contact list looks and functions             |
+| `***`    | MVP        | New user | Clear the sample data                                                  | Start populating the app with my own data                                           |
+| `***`    | MVP        | New user | See instructions for commands                                          | Quickly learn how to use the app and know what command formats are accepted         |
+| `***`    | MVP        | User | Add my groupmate’s contacts                                            | Keep track of their contact information for project collaboration                   |
+| `***`    | MVP        | User | Delete my groupmate’s contact                                          | Remove groupmates who I do not keep in contact with anymore                         |
+| `***`    | MVP        | User | List all my contacts                                                   | See an overview of all my current group project contacts                            |
+| `***`    | MVP        | User | Find my contacts                                                       | Quickly retrieve specific contact details without searching through the entire list |
+| `**`     | MVP        | Second-time user | Receive clear, non-destructive error messages when I mistype a command | Correct my input without losing my progress                                         |
+| `**`     | MVP        | 10th time user | To see my previous commands autofilled when I click the up arrow key   | Quickly repeat or correct recent commands without having to retype them             |
+| `***`    | Beyond MVP | User | Edit my groupmate's contact details                                    | Update outdated contact information without deleting and re-adding them             |
+| `*`      | Beyond MVP | Experienced User | Pin contacts to appear at the top                                      | Access important contacts quickly                                                   |
+| `*`      | Beyond MVP | Experienced User | Sort my contacts                                                       | Change the view of my contact list to my preferred choice                           |
+| `*`      | Beyond MVP | User             | Export my contacts to a CSV file                                       | Back up my contacts or open them in a spreadsheet                                   |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
-
-**Use case: Delete a person**
+**System:** GitMate (GM)  
+**Use case:** U1. Add a contact  
+**Actor:** User
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1.  User enters the add command with contact details. 
+2.  GM adds the contact to the list. 
+3.  GM displays a confirmation message.
 
     Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 1a. GM detects missing mandatory fields or invalid format in the entered data.
 
-  Use case ends.
+    * 1a1. GM displays an error message with the correct format.
 
-* 3a. The given index is invalid.
+    * Use case ends.
 
-    * 3a1. AddressBook shows an error message.
+* 1b. GM detects that contact already exists.
 
-      Use case resumes at step 2.
+    * 1b1. GM informs user of the duplicate contact.
 
-*{More to be added}*
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U2. Delete a contact  
+**Actor:** User
+
+**MSS**
+
+1.  User enters the delete command with contact details. 
+2.  GM deletes the contact. 
+3.  GM displays a confirmation message.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. GM detects an invalid command format, missing search criteria, or invalid field values.
+
+    * 1a1. GM displays an error explaining the accepted input. 
+
+    * Use case ends.
+
+* 1b. GM detects that the contact does not exist.
+
+    * 1b1. GM informs the user that the contact does not exist.
+
+    * Use case ends.
+
+* 1c. GM detects multiple contacts matching the identifier.
+
+    * 1c1. GM displays ambiguous contacts and prompts the user to specify further details to resolve ambiguity.
+
+    * Use case ends.
+ 
+**System:** GitMate (GM)  
+**Use case:** U3. Find a contact  
+**Actor:** User
+
+**MSS**
+
+1.  User enters a find command with search details. 
+2.  GM displays all matching contacts.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. GM detects an invalid command format, missing search criteria, an unsupported flag, a repeated flag that may appear only once, or an empty search value.
+
+    * 1a1. GM displays an error message explaining the accepted input.
+
+    * Use case ends.
+
+* 1b. GM detects that there are no matching contacts.
+
+    * 1b1. GM displays an empty list and informs the user that no contact matches the flags searched.
+
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U4. View help  
+**Actor:** User
+
+**MSS**
+
+1.  User enters help command. 
+2.  GM displays a list of available commands, flags and examples.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. User selects the help button instead.
+
+    * 1a1. GM opens the help window, displaying the available commands, flags and examples.
+
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U5. List all contacts  
+**Actor:** User
+
+**MSS**
+
+1.  User enters the list command.
+2.  GM displays a list of all stored contacts.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. GM detects that stored contact list in GM is empty.
+
+    * 1a1. GM displays an empty list and informs user that contact list is empty.
+
+    * Use case ends.
+
+**System:** GitMate (GM)<br>
+**Use case:** U6. Pin a contact<br>
+**Actor:** User<br>
+
+**MSS**
+
+1. User requests to pin a contact, supplying details that identify it uniquely.
+2. GM pins the contact and displays it above unpinned contacts whenever it is included in the current view.
+3. GM displays a confirmation message.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. GM detects missing or invalid contact criteria.
+
+    * 1a1. GM displays an error explaining the accepted input.
+    
+    * Use case ends.
+
+* 1b. GM finds no contact matching the supplied criteria.
+
+    * 1b1. GM informs the user that no contact matches.
+    
+    * Use case ends.
+
+* 1c. GM finds multiple matching contacts.
+
+    * 1c1. GM displays the matching contacts and requests additional details. No contact is pinned.
+    
+    * 1c2. User supplies further details to identify one contact.
+    
+    * Use case resumes at step 1.
+
+* 1d. GM finds that the contact is already pinned.
+
+    * 1d1. GM informs the user that the contact is already pinned.
+    
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U7. Sort Address Book
+**Actor:** User
+
+**MSS**
+
+1.  User enters sort command with sorting details.
+2.  GM reorganises current contacts according to details.
+3.  GM repeats to user details to confirm sort.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. User enters an unsupported field
+
+    * 1a1. GM displays an error explaining the accepted input.
+
+    * Use case ends.
+
+* 1b. User does a non-persistent sort after a previous persistent sort
+
+    * 1b1. GM replaces the previous persistent sort with non-persistent
+
+    * 1b2. Sort preference is overridden, no longer persisting between sessions
+
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U8. Edit a contact  
+**Actor:** User
+
+**MSS**
+
+1.  User enters edit command with contact details to identify the contact along with the desired updates.
+2.  GM updates the contact.
+3.  GM displays a confirmation message.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. GM detects an invalid command format, missing search criteria, invalid field values, or no fields to update.
+
+    * 1a1. GM displays an error message explaining the accepted input.
+
+    * Use case ends.
+
+* 1b. GM detects that the contact does not exist.
+
+    * 1b1. GM informs the user that no contact matches the supplied details.
+
+    * Use case ends.
+
+* 1c. GM detects multiple contacts matching the identifier.
+
+    * 1c1. GM displays ambiguous contacts and prompts the user to specify further details to resolve ambiguity.
+
+    * Use case ends.
+
+* 1d. GM detects an attempt to clear the contact's name or phone number.
+
+    * 1d1. GM informs the user that name and phone number cannot be cleared.
+
+    * Use case ends.
+
+* 1e. GM detects that the supplied phone number belongs to another contact.
+
+    * 1e1. GM informs the user of the duplicate phone number.
+
+    * Use case ends.
+    
+**System:** GitMate (GM)  
+**Use case:** U9. Undo most recent command  
+**Actor:** User  
+**Precondition:** GM is running and ready to receive commands
+
+**MSS**
+
+1.  User enters the undo command.
+2.  GM restores most recent saved state.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. There is no previous state to restore.
+
+    * 1a1. The system displays an error message.
+
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U10. Export contacts  
+**Actor:** User
+
+**MSS**
+
+1.  User enters the export command.
+2.  GM saves all contacts to a new timestamped CSV file.
+3.  GM displays the number of contacts exported and the location of the file.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. GM detects an invalid command format, such as extra text after the command word.
+
+    * 1a1. GM displays an error message explaining the accepted input.
+
+    * Use case ends.
+
+* 2a. GM detects that a file with the same name already exists.
+
+    * 2a1. GM displays an error asking the user to try again. The existing file is kept.
+
+    * Use case ends.
+
+* 2b. GM cannot write the file, for example because the folder cannot be written to.
+
+    * 2b1. GM displays an error message with the reason.
+
+    * Use case ends.
+
+**System:** GitMate (GM)  
+**Use case:** U11. Reuse a previous command  
+**Actor:** User
+
+**MSS**
+
+1. User presses the `↑` key in the command box.
+2. GM displays the most recent successfully executed command.
+3. User presses `↑` or `↓` to navigate through the command history.
+4. GM displays the corresponding command in the command box.
+
+   Use case ends.
+
+**Extensions**
+
+* 1a. There are no previous commands.
+
+    * 1a1. GM leaves the command box empty.
+
+    * Use case ends.
+
+* 1b. User presses `↓` while viewing the newest command.
+
+    * 1b1. GM clears the command box.
+
+    * Use case ends.
+
+* 1c. The previous command failed.
+
+    * 1c1. GM does not save the failed command in the history.
+
+    * Use case ends.
 
 ### Non-Functional Requirements
 
 1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+2.  The system should respond to any valid user command within two seconds when storing a contact list of up to 1,000 entries.
+3.  A user who can type at least 60 words per minute should be able to complete routine contact management tasks (adding, searching, deleting) faster using keyboard commands than performing the equivalent operations via GUI mouse interactions.
+4.  The application should be fully functional for all core contact management features without requiring an active internet connection after initial installation.
+5.  The user interface should have a clear, consistent layout with readable text and sufficient contrast between text and backgrounds.
+6.  Error messages and help descriptions should use clear, simple language that users can understand without technical knowledge.
+7.  All contact data should persist automatically across application sessions, saving to local storage upon the completion of any add, edit, or delete action.
+8.  A first-time user should be able to add, find, edit, and delete contacts within 15 minutes of completing setup, using only the application’s help messages and user guide for guidance.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
-
+* **MVP (Minimum Viable Product)**: The smallest set of features that makes GitMate usable, i.e. the features marked MVP in the user stories.
+* **Valid command**: A command that follows an accepted command format, with all required parameters present and correctly formatted.
+* **Core contact management features**: Our MVP commands of 'add', 'delete', 'find', 'help' and the sample data.
+* **Duplicate contact**: A contact whose phone number is already associated with another contact. Two contacts may share the same name, so a matching name alone does not make a duplicate.
+* **Mandatory field**: A contact detail that must be provided when adding a contact (name and phone number); the command is rejected if either is missing.
+* **CCA (Co-Curricular Activity)**: A student club, committee or organisation at NUS that a user may belong to outside their modules.
+* **Group**: A named set of groupmates, such as a module project team or a CCA committee (such contacts can be organised under the `g/` field).
+* **Groupmate**: A student collaborator assigned to the same project team or CCA as the user, whose contact details are managed within the application.
+* **Tag**: A label describing a contact's trait or project role (e.g. "frontend"), added with the `t/` field.
+* **Event**: A scheduled meeting or deadline linked to a group (e.g. a project meeting).
+* **Fast typist**: A user who types at least 60 words per minute.
+* **Local storage**: The data file on the user's own computer where GitMate saves contacts, so no internet connection or server is needed.
+* **Mainstream OS**: Windows, Linux, and macOS.
+* **Flag (prefix)**: A short marker such as `n/` or `p/` that identifies a contact field in a command, for example `n/John Doe` supplies the name. The User Guide calls these flags and the Developer Guide also calls them prefixes.
+* **Prefix matching**: How `find` compares a search value with a field: the value must match the start of the field, ignoring case (except GitHub usernames). `n/Al` matches `Alex Yeoh`, but `n/Yeoh` does not.
+* **Filter**: The search that decides which contacts the list currently shows. `find` sets it and it stays active until `list` is run. Commands that identify a contact by its details, such as `delete` and `edit`, ignore it.
+* **CSV (comma-separated values)**: A plain-text table format where each line is a row and cells are separated by commas. `export` writes contacts in this format, and spreadsheet applications can open it.
 --------------------------------------------------------------------------------------------------------------------
 
 ## **Appendix: Instructions for manual testing**
 
 Given below are instructions to test the app manually.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** These instructions only provide a starting point for testers to work on;
-testers are expected to do more *exploratory* testing.
+<box type="info" seamless>
 
-</div>
+**Note:** These instructions only provide a starting point for testers to work on;
+testers are expected to do more *exploratory* testing.
+</box>
 
 ### Launch and shutdown
 
@@ -354,24 +858,275 @@ testers are expected to do more *exploratory* testing.
    1. Relaunch the app by double-clicking the JAR file.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Viewing contacts and details
+
+Run these tests in a separate test copy of the app. Ensure that phone numbers `81119901` and `81119902` and names beginning with `UI Review` are unused, then add these contacts:
+
+```text
+add n/UI Review Alex p/81119901 e/uireview@example.com a/123 Test Road, Block 456, #07-89 gh/uireviewalex li/uireviewalex tg/uireviewalex g/zeta g/alpha t/testing t/frontend
+add n/UI Review Beth p/81119902
+```
+
+Run the cases in order. These tests change the displayed list and sort order, so use the test copy rather than your normal data.
+
+1. Viewing contacts and their details
+
+   1. Run `sort name asc`, then `find n/UI Review`.<br>
+      Expected: The Contacts count is `2`. Alex is selected first and Alex's details appear on the right. Both contacts have initials and a displayed index.
+
+   1. Click Beth's row.<br>
+      Expected: The selection highlight moves to Beth, and the details panel shows Beth's name and phone. Unspecified scalar fields display `—`, and the Groups and Tags sections are hidden.
+
+   1. Click Alex's row.<br>
+      Expected: Alex's full details replace Beth's. Group badges appear in alphabetical order (`alpha`, `zeta`), as do tags (`frontend`, `testing`). Hover over the address to see its full value in a tooltip.
+
+1. Resetting selection after a view command
+
+   1. Click Beth, then run `find n/UI Review` again.<br>
+      Expected: Alex, the first visible contact, is selected again and Alex's details are shown. The count remains `2`.
+
+1. Updating the UI after pinning and unpinning
+
+   1. Run `pin p/81119902`.<br>
+      Expected: Beth moves above Alex, gains a star beside the name, and is selected. The details panel shows Beth and the count remains `2`.
+
+   1. Run `unpin p/81119902`.<br>
+      Expected: Beth's star disappears. With the active ascending name sort, Alex is first and selected again, and the details panel shows Alex.
+
+1. Showing and leaving an empty state
+
+   1. Run `find n/UI Review Missing`.<br>
+      Expected: The count becomes `0`, the list shows `No contacts to display.`, and the details panel shows `No contact selected` instead of the previous contact's details.
+
+   1. Run `find n/UI Review`.<br>
+      Expected: Both contacts reappear, the count returns to `2`, and Alex is selected with the correct details.
+
+1. Resizing and scrolling
+
+   1. Select Alex, resize the window, and drag the divider between the contact list and details panel.<br>
+      Expected: The panels resize with the available space. Long detail values wrap, and the details panel can be scrolled when its contents exceed the available height. If a list name is truncated, hovering over it reveals the full name.
+
+   1. Scroll down in Alex's details if scrolling is available, then select Beth and Alex again.<br>
+      Expected: The details panel returns to the top when each contact is shown.
+
+After testing, run `delete p/81119901`, `delete p/81119902`, and `list` to remove the fixtures and show all remaining contacts.
 
 ### Deleting a person
 
-1. Deleting a person while all persons are being shown
+Run these tests in a separate test copy of the app. Before starting, ensure that the following names and phone numbers are unused, then add these contacts:
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+```text
+add n/Manual Alex p/81110001 e/alex@example.com a/10 Test Road gh/manualalex li/manualalex tg/manualalex g/manualteam t/backend t/testing
+add n/Manual Alex p/81110002 e/alexother@example.com g/manualteam t/backend
+add n/Manual Beth p/81110003 g/otherteam t/design
+```
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+Run the cases in order. After each successful deletion, run `undo` immediately, then `list`, to restore the fixtures for the next case. Do not run `undo` after a rejected command, as it would undo an earlier successful change.
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+1. Deleting exactly one matching contact
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Test case: `delete p/81110001`<br>
+      Expected: Only the contact with phone `81110001` is deleted. The status message begins with `Deleted person:` and shows that contact's details. `undo` restores all of those details.
 
-1. _{ more test cases …​ }_
+   1. Test case: `delete n/Manual Alex p/81110002`<br>
+      Expected: Only the second Manual Alex is deleted, because both supplied fields must match the same contact.
+
+   1. Test cases (restore after each): `delete e/alex@example.com`, `delete a/10 Test Road`, `delete gh/manualalex`, `delete li/manualalex`, and `delete tg/manualalex`.<br>
+      Expected: Each command deletes only the contact with phone `81110001`.
+
+   1. Test case: `delete g/manualteam t/backend t/testing`<br>
+      Expected: Only the contact with phone `81110001` is deleted. A contact must have the supplied group and every supplied tag.
+
+1. Resolving ambiguous and unmatched criteria
+
+   1. Test case: `delete n/Manual Alex`<br>
+      Expected: Both Manual Alex contacts are displayed. The status message reports multiple matches and asks for additional prefixes. Neither contact is deleted.
+
+   1. Test case: `delete n/Manual Alex p/81110001`<br>
+      Expected: The additional phone criterion resolves the ambiguity and only the intended contact is deleted. Restore it with `undo`, then run `list`.
+
+   1. Test cases: `delete n/Manual`, `delete n/Manual Missing`, and `delete n/Manual Alex p/81110003`.<br>
+      Expected: Each reports `No contact matches the supplied criteria.` No contact is deleted. Partial names do not match, and criteria belonging to different contacts cannot be combined to select a contact.
+
+1. Deleting a contact hidden by the current filter
+
+   1. Run `find p/81110003`, then `delete p/81110001`, then `list`.<br>
+      Expected: The hidden contact with phone `81110001` is deleted; Manual Beth remains. Targeting searches the entire address book. Run `undo`, then `list`, to restore the fixtures.
+
+1. Rejecting invalid input
+
+   1. Test cases: `delete`, `delete 1`, and `delete n/Manual Alex x/value`.<br>
+      Expected: Each reports an invalid command format and displays usage guidance. Index-based deletion is rejected.
+
+   1. Test case: `delete p/`<br>
+      Expected: An error requests a nonempty phone search value.
+
+   1. Test cases: `delete p/abc` and `delete p/81110001 p/81110002`.<br>
+      Expected: The first reports an invalid phone value; the second reports a repeated phone prefix. Neither deletes a contact.
+
+### Editing a person
+
+Use the three contacts created for the delete tests, with all deletions undone. If testing this section independently, add those contacts first. Run the cases in order. After each successful edit, run `undo` immediately, then `list`, unless the case specifies otherwise. Rejected commands must leave contact data unchanged and should not be followed by `undo`.
+
+1. Updating scalar fields while preserving other details
+
+   1. Test case: `edit n/Manual Alex p/81110001 >> n/Manual Alex Updated p/81110004 e/updated@example.com a/20 Test Road gh/manualalexnew li/manualalexnew tg/manualalexnew`<br>
+      Expected: Only the contact with phone `81110001` is updated with all supplied values. Its tags and groups remain unchanged. The status message begins with `Edited person:` and shows the updated details. `undo` restores the original contact and all original values.
+
+   1. Test case: `edit p/81110001 >> e/updated@example.com`<br>
+      Expected: Only the email changes; all other fields remain unchanged.
+
+1. Clearing optional fields and protecting mandatory fields
+
+   1. Test case: `edit p/81110001 >> e/ a/ gh/ li/ tg/`<br>
+      Expected: Email, address, GitHub, LinkedIn, and Telegram are cleared. Name, phone, tags, and groups remain unchanged.
+
+   1. Test cases: `edit p/81110001 >> n/` and `edit p/81110001 >> p/`.<br>
+      Expected: Each reports that name and phone cannot be cleared. No contact details change.
+
+1. Toggling and clearing tags and groups
+
+   1. Test case: `edit p/81110001 >> t/backend t/frontend g/manualteam g/newteam`<br>
+      Expected: The existing `backend` tag and `manualteam` group are removed, while `frontend` and `newteam` are added. The `testing` tag remains.
+
+   1. Test case: `edit p/81110001 >> t/ g/`<br>
+      Expected: All tags and groups are cleared, while scalar fields remain unchanged.
+
+   1. Test cases: `edit p/81110001 >> t/ t/backend` and `edit p/81110001 >> g/ g/manualteam`.<br>
+      Expected: Each reports that clearing and toggling cannot be mixed for the same field. No contact details change.
+
+1. Resolving ambiguous and unmatched criteria
+
+   1. Test case: `edit n/Manual Alex >> e/updated@example.com`<br>
+      Expected: Both Manual Alex contacts are displayed with a multiple-match error. Neither is edited.
+
+   1. Test case: `edit n/Manual Alex p/81110001 >> e/updated@example.com`<br>
+      Expected: Adding the phone criterion identifies exactly one contact, whose email is updated.
+
+   1. Test cases: `edit n/Manual >> e/updated@example.com` and `edit n/Manual Alex p/81110003 >> e/updated@example.com`.<br>
+      Expected: Each reports `No contact matches the supplied criteria.` No contact details change.
+
+1. Editing a contact hidden by the current filter
+
+   1. Run `find p/81110003`, then `edit p/81110001 >> e/updated@example.com`, then `list`.<br>
+      Expected: The hidden contact's email is updated. Manual Beth remains unchanged. Run `undo`, then `list`, to restore the original email.
+
+1. Preventing duplicate phone numbers
+
+   1. Test case: `edit p/81110001 >> p/81110002`<br>
+      Expected: A duplicate-phone error is displayed. Both contacts retain their original phone numbers and details.
+
+1. Rejecting invalid syntax and values
+
+   1. Test cases: `edit p/81110001 e/updated@example.com`, `edit >> e/updated@example.com`, and `edit p/81110001 >> e/updated@example.com >> t/testing`.<br>
+      Expected: Each reports an invalid command format because exactly one separator and nonempty search criteria are required.
+
+   1. Test case: `edit p/81110001 >>`<br>
+      Expected: An error requests at least one update field after `>>`.
+
+   1. Test cases: `edit p/ >> e/updated@example.com`, `edit p/81110001 >> e/invalid`, `edit p/81110001 >> x/value`, and `edit p/81110001 >> p/81110004 p/81110005`.<br>
+      Expected: Respectively, an empty search value, invalid email, unsupported flag, and repeated scalar prefix are rejected.
+
+1. Retaining pin state and saving changes
+
+   1. Run `pin p/81110001`, then `edit p/81110001 >> e/updated@example.com`.<br>
+      Expected: The contact retains its pinned indicator and has the new email.
+
+   1. Close and relaunch the app, then run `list`.<br>
+      Expected: The updated email and pin state are retained. Undo history is not needed to verify persistence; this case finishes with the updated, pinned test contact saved.
+
+### Finding a person
+
+Run these tests in a separate test copy of the app. The edit tests change the Manual contacts, so remove them and add them again. Run `delete p/81110001`, `delete p/81110002`, and `delete p/81110003` (each reports `No contact matches the supplied criteria.` if the contact is absent), then add these contacts:
+
+```text
+add n/Manual Alex p/81110001 e/alex@example.com a/10 Test Road gh/manualalex li/manualalex tg/manualalex g/manualteam t/backend t/testing
+add n/Manual Alex p/81110002 e/alexother@example.com g/manualteam t/backend
+add n/Manual Beth p/81110003 g/otherteam t/design
+```
+
+The sample contacts may still be present, so the cases below use values that only the Manual contacts have. Each `find` replaces the previous filter, so no cleanup is needed between cases. Rejected commands leave the displayed list unchanged. Run `list` at the end.
+
+1. Matching the start of a single field
+
+   1. Test case: `find n/Manual`<br>
+      Expected: All three Manual contacts are listed.
+
+   1. Test case: `find n/manual al`<br>
+      Expected: Only the two Manual Alex contacts are listed. The match is case-insensitive and may continue past a space.
+
+   1. Test case: `find n/Alex`<br>
+      Expected: No contact is listed, because no name starts with `Alex`. The status message reads `No contact was found. Please check the n/ provided.`
+
+   1. Test cases: `find p/8111000` and `find p/81110002`.<br>
+      Expected: The first lists all three Manual contacts. The second lists only the contact with phone `81110002`.
+
+   1. Test cases: `find e/alex@` and `find e/alexo`.<br>
+      Expected: The first lists only the contact with phone `81110001`. The second lists only the contact with phone `81110002`.
+
+   1. Test case: `find a/10`<br>
+      Expected: Only the contact with phone `81110001` is listed.
+
+   1. Test cases: `find gh/manual`, `find li/manual`, and `find tg/manual`.<br>
+      Expected: Each lists only the contact with phone `81110001`.
+
+1. Letter case
+
+   1. Test cases: `find n/MANUAL ALEX`, `find li/MANUAL`, and `find tg/MANUAL`.<br>
+      Expected: The first lists both Manual Alex contacts. The second and third list only the contact with phone `81110001`.
+
+   1. Test case: `find gh/MANUAL`<br>
+      Expected: No contact is listed, because GitHub usernames are case-sensitive. The status message names `gh/`. `find gh/manual` lists the contact with phone `81110001`.
+
+1. Matching groups and tags
+
+   1. Test cases: `find g/manual` and `find g/OTHER`.<br>
+      Expected: The first lists the contacts with phones `81110001` and `81110002`. The second lists only the contact with phone `81110003`.
+
+   1. Test case: `find t/back`<br>
+      Expected: The contacts with phones `81110001` and `81110002` are listed.
+
+   1. Test case: `find t/back t/test`<br>
+      Expected: Only the contact with phone `81110001` is listed. Each supplied value must be a prefix of at least one of the contact's tags.
+
+   1. Test case: `find t/back t/design`<br>
+      Expected: No contact is listed, because no contact has a tag starting with each value.
+
+1. Combining flags
+
+   1. Test case: `find n/Manual Alex p/81110002`<br>
+      Expected: Only the contact with phone `81110002` is listed.
+
+   1. Test case: `find g/manualteam t/testing`<br>
+      Expected: Only the contact with phone `81110001` is listed.
+
+   1. Test case: `find n/Manual Beth p/81110001`<br>
+      Expected: No contact is listed. Flags that match different contacts cannot be combined to select a contact. The status message names `n/ p/`.
+
+1. Viewing and clearing the results
+
+   1. Test case: `find n/Manual`, then `list`.<br>
+      Expected: After `find`, only the Manual contacts are shown. After `list`, all contacts are shown again.
+
+   1. Test case: `find n/Manual`, then `sort name`.<br>
+      Expected: The list is still limited to the Manual contacts and is sorted by name.
+
+   1. Run `pin p/81110002`, then `find n/Manual`.<br>
+      Expected: The pinned Manual Alex with phone `81110002` is listed first, with a star. Run `unpin p/81110002`, then `list`. The star is removed and the contact returns to the unpinned section, following the active sort or addition order.
+
+1. Rejecting invalid input
+
+   1. Test cases: `find`, `find Manual`, and `find n/Manual x/value`.<br>
+      Expected: Each reports an invalid command format and displays usage guidance. Keyword search and unsupported flags are rejected.
+
+   1. Test cases: `find n/` and `find n/Manual p/`.<br>
+      Expected: Each reports `Please provide a value for` the empty flag (`n/` and `p/` respectively) `to search for.`
+
+   1. Test case: `find n/Manual n/Alex`<br>
+      Expected: An error reports the repeated name prefix. `find t/back t/test` is allowed, because tag prefixes may be repeated.
+
+   1. Test case: `find p/abc`<br>
+      Expected: No contact is listed and the status message names `p/`. The value is searched as text and is not validated as a phone number.
 
 ### Saving data
 
@@ -379,4 +1134,152 @@ testers are expected to do more *exploratory* testing.
 
    1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
 
-1. _{ more test cases …​ }_
+1. _{ more test cases … }_
+
+### Exporting contacts
+
+Run these tests in a separate test copy of the app. Exported files are saved in the `data` folder next to `addressbook.json`; open them in a text editor to check them. Remove any earlier Manual contacts, then add the fixtures. Run `delete p/81110001`, `delete p/81110002`, `delete p/81110003`, and `delete p/81110006` (each reports `No contact matches the supplied criteria.` if the contact is absent), then add these contacts:
+
+```text
+add n/Manual Alex p/81110001 e/alex@example.com a/10 Test Road gh/manualalex li/manualalex tg/manualalex g/manualteam t/backend t/testing
+add n/Manual Alex p/81110002 e/alexother@example.com g/manualteam t/backend
+add n/Manual Beth p/81110003 g/otherteam t/design
+```
+
+Run the cases in order. Exported files are not removed by the app, so delete them from the `data` folder when you have finished.
+
+1. Exporting all contacts
+
+   1. Test case: `export`<br>
+      Expected: The status message reads `Exported N contact(s) to ` followed by the full path of `data/contacts-<yyyyMMdd-HHmmss>.csv`, where `N` is the number of contacts in the app. The file exists at that path.
+
+   1. Open the exported file.<br>
+      Expected: The first row is `name,phone,email,address,groups,github,linkedin,telegram,tags,pinned`. It contains these rows for the Manual contacts, with names in capital letters and all other text, except the GitHub username, in lowercase:
+
+      ```csv
+      MANUAL ALEX,81110001,alex@example.com,10 test road,manualteam,manualalex,manualalex,manualalex,backend;testing,false
+      MANUAL ALEX,81110002,alexother@example.com,,manualteam,,,,backend,false
+      MANUAL BETH,81110003,,,otherteam,,,,design,false
+      ```
+
+   1. Wait at least one second, then run `export` again.<br>
+      Expected: A second file with a later timestamp is created. The first file is unchanged.
+
+1. Exporting special characters
+
+   1. Run `add n/Manual Quote p/81110006 a/1 Test Road, #02-01 gh/=cmd`, then `export`.<br>
+      Expected: The new file contains the row `MANUAL QUOTE,81110006,,"1 test road, #02-01",,'=cmd,,,,false`. The address is quoted because it contains a comma, and the GitHub value starts with an apostrophe because it starts with `=`. Run `undo` to remove the contact.
+
+1. Exporting while the list is filtered, pinned, or sorted
+
+   1. Run `find n/Manual`, then `export`.<br>
+      Expected: The status message gives the number of all contacts in the app, not 3, and the file contains the contacts hidden by the filter. Run `list` afterwards.
+
+   1. Run `pin p/81110003`, then `export`.<br>
+      Expected: The `MANUAL BETH` row is the first row after the header, and its `pinned` value is `true`. Run `undo`, then `list`.
+
+   1. Run `sort name desc`, then `export`.<br>
+      Expected: The rows are in the same order as the contact list on screen, so the `MANUAL BETH` row comes before both `MANUAL ALEX` rows. The sort stays active for the rest of the session.
+
+1. Exporting an empty address book and importing the export
+
+   1. Run `export` and note the name of the new file. Then run `clear` and `export` again.<br>
+      Expected: The second status message reads `Exported 0 contact(s) to ` followed by the path. The second file contains only the header row.
+
+   1. Run `import data/FILE_NAME`, where `FILE_NAME` is the file from the first step.<br>
+      Expected: All contacts from the first export are restored, with the same details and pin status.
+
+1. Rejecting invalid input
+
+   1. Test cases: `export x` and `export 1`.<br>
+      Expected: Each reports an invalid command format and displays usage guidance. No new file appears in the `data` folder.
+
+The errors for a file name that already exists and for a folder that cannot be written to are hard to trigger by hand. `ExportCommandTest` covers them.
+
+### Setup for import, help, list, unpin and sort manual checks
+
+Use a separate test copy of the app in its own folder. Before **each** of the five sections below, run the following commands in that copy. `clear` deletes its contacts, so do not use your normal address book. The two Alex contacts intentionally share a name but have different phone numbers.
+
+```text
+clear
+sort name asc none
+add n/Check Alex p/81110201 g/checkteam
+add n/Check Alex p/81110202 g/checkteam
+add n/Check Beth p/81110203 g/otherteam
+list
+```
+
+The initial displayed order is Alex (`81110201`), Alex (`81110202`), then Beth (`81110203`). Undo history already contains the setup commands; do not expect an empty undo stack in these manual checks. After finishing, close the test app and discard its test folder, including any CSV fixtures created below.
+
+### Importing contacts
+
+Create `data/manual-import.csv` in the test app's working directory as a UTF-8 text file with exactly this content:
+
+```csv
+name,phone,email,address,groups,github,linkedin,telegram,tags,pinned
+Check New,81110204,,,checkteam,,,,,false
+Check Duplicate,81110201,,,checkteam,,,,,false
+```
+
+1. Rejecting a duplicate after a valid row
+
+   Run `add n/Check Previous p/81110205`, `sort name desc cont`, then `find p/81110203`. Run `import data/manual-import.csv`.<br>
+   Expected: The error identifies record 3 and phone `81110201`. Only Beth remains visible. Run `list`: Check Previous is still present, Check New was not partially imported, and descending sorting remains active. Run `undo`: Check Previous is removed, demonstrating that the failed import did not replace its undo entry.
+
+1. Rejecting an invalid later row
+
+   In the same CSV, replace the second row's phone `81110201` with `invalid`. Run `import data/manual-import.csv`.<br>
+   Expected: The error identifies invalid record 3. No Check New contact is added and the three setup contacts remain unchanged. Do not undo this rejected operation.
+
+1. Importing and undoing a whole batch
+
+   Change `invalid` to the unused phone `81110206`, then run `find p/81110203` and `import data/manual-import.csv`.<br>
+   Expected: Two contacts are imported, while only Beth remains visible. Run `list` to see all five contacts, then `undo`. Both imported contacts disappear together; the three setup contacts remain and descending sorting is retained.
+
+### Viewing help
+
+Run the shared setup first. Run `add n/Check Temporary p/81110204`, then `find p/81110203`.
+
+1. Run `help` twice.<br>
+   Expected: Usage instructions appear in the result display, including import, unpin, sort and list. No separate help window opens. Only Beth remains visible and the selected contact does not reset because of help.
+
+1. Run `undo`, then `list`.<br>
+   Expected: Check Temporary is removed and the three setup contacts remain. The help calls did not add an undo entry.
+
+### Listing contacts
+
+Run the shared setup first, then run `pin p/81110201`, `sort name desc cont`, and `find n/No Such Contact`.
+
+1. Run `list` twice.<br>
+   Expected: Both calls show Alex (`81110201`, pinned), Beth (`81110203`), then Alex (`81110202`). A search with no matches does not mean the address book is empty. Repeating list leaves the order unchanged.
+
+1. Run `add n/Check Temporary p/81110204`, `find p/81110204`, `list`, then `undo`.<br>
+   Expected: Check Temporary is removed, and all three setup contacts remain visible in the order above. List did not add an undo entry, and undo does not restore the earlier filter for Check Temporary.
+
+### Unpinning contacts
+
+Run the shared setup first. Run `pin p/81110201`, `pin p/81110202`, `unpin p/81110201`, then `find p/81110201`.
+
+1. Run `unpin n/Check Alex`.<br>
+   Expected: The request is ambiguous even though only one Alex was visible. Both Alex contacts are now displayed, with pinned Alex (`81110202`) first. Alex (`81110201`) remains unpinned; the rejected request changes neither contact's pin state.
+
+1. Run `undo`.<br>
+   Expected: Alex (`81110201`) becomes pinned again, undoing the earlier successful unpin. Both Alex contacts remain visible. The ambiguous request did not replace the previous undo entry.
+
+1. Run `unpin p/81110201` again, exit normally, relaunch the same test copy, then run `list`.<br>
+   Expected: Alex (`81110202`) remains pinned and appears first. Alex (`81110201`) remains unpinned, followed by Beth. The contacts retain their original names, phones and groups after reload.
+
+### Sorting contacts
+
+Run the shared setup first. These checks start with no pinned contacts.
+
+1. Run `sort name desc cont`, then exit normally and relaunch the same test copy.<br>
+   Expected: Beth appears first, followed by Alex (`81110201`) and Alex (`81110202`). The saved descending preference is applied at startup; the equal-name contacts retain their addition order.
+
+1. Run `find g/checkteam`, then `sort name sideways cont`.<br>
+   Expected: An invalid-format error is shown. Both Alex contacts remain visible in their previous order. Run `list`: Beth is first again, proving that the invalid request did not replace the active comparator.
+
+1. Run `sort name asc none`, then exit normally and relaunch.<br>
+   Expected: The current session sorts ascending and clears the previously saved descending preference. After restart, contacts follow addition order: Alex (`81110201`), Alex (`81110202`), Beth. The equivalent command without `none`, `sort name asc`, also clears the saved preference.
+
+The automated `SortPreferencesStorageTest` additionally checks the serialized preference value, distinguishing an explicitly saved ascending sort from having no saved sort at all.
