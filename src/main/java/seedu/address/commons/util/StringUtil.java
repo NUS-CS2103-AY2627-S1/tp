@@ -5,7 +5,7 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * Helper functions for handling strings.
@@ -13,29 +13,27 @@ import java.util.Arrays;
 public class StringUtil {
 
     /**
-     * Returns true if the {@code sentence} contains the {@code word}.
-     *   Ignores case, but a full word match is required.
+     * Returns true if the {@code sentence} contains the {@code subword}.
+     *   Ignores case, both partial and full word matches are allowed.
      *   <br>examples:<pre>
-     *       containsWordIgnoreCase("ABc def", "abc") == true
-     *       containsWordIgnoreCase("ABc def", "DEF") == true
-     *       containsWordIgnoreCase("ABc def", "AB") == false //not a full word match
+     *       containsSubwordIgnoreCase("ABc def", "abc") == true
+     *       containsSubwordIgnoreCase("ABc def", "DEF") == true
+     *       containsSubwordIgnoreCase("ABc def", "AB") == true
+     *       containsSubwordIgnoreCase("ABc def", "g") == false //g not in sentence
      *       </pre>
      * @param sentence cannot be null
-     * @param word cannot be null, cannot be empty, must be a single word
+     * @param subword cannot be null or empty after trimming, and must be a single word
      */
-    public static boolean containsWordIgnoreCase(String sentence, String word) {
+    public static boolean containsSubwordIgnoreCase(String sentence, String subword) {
         requireNonNull(sentence);
-        requireNonNull(word);
+        requireNonNull(subword);
 
-        String preppedWord = word.trim();
-        checkArgument(!preppedWord.isEmpty(), "Word parameter cannot be empty");
-        checkArgument(preppedWord.split("\\s+").length == 1, "Word parameter should be a single word");
+        String preppedSubWord = subword.trim().toLowerCase(Locale.ROOT);
+        checkArgument(!preppedSubWord.isEmpty(), "Word parameter cannot be empty");
+        checkArgument(preppedSubWord.split("\\s+").length == 1, "Word parameter should be a single word");
 
-        String preppedSentence = sentence;
-        String[] wordsInPreppedSentence = preppedSentence.split("\\s+");
-
-        return Arrays.stream(wordsInPreppedSentence)
-                .anyMatch(preppedWord::equalsIgnoreCase);
+        String preppedSentence = sentence.toLowerCase(Locale.ROOT);
+        return preppedSentence.contains(preppedSubWord);
     }
 
     /**

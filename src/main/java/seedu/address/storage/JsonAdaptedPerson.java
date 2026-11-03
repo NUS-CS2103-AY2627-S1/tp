@@ -10,11 +10,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
+import seedu.address.model.classcode.ClassCode;
+import seedu.address.model.person.Attendance;
+import seedu.address.model.person.AttendanceRecord;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.MatriculationNumber;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.ParticipationHistory;
+import seedu.address.model.person.ParticipationRecord;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,26 +27,72 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String MESSAGE_NULL_PARTICIPATION_RECORD =
+            "Student participation records must not be null.";
 
     private final String name;
-    private final String phone;
+    private final String matriculationNumber;
     private final String email;
-    private final String address;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<JsonAdaptedAttendanceRecord> attendance = new ArrayList<>();
+    private final List<JsonAdaptedClassCode> classCodes = new ArrayList<>();
+
+    @JsonProperty("participation")
+    private final List<JsonAdaptedParticipationRecord> participation = new ArrayList<>();
 
     /**
-     * Constructs a {@code JsonAdaptedPerson} with the given person details.
+     * Constructs an adapted person without attendance, class codes or participation.
+     */
+    public JsonAdaptedPerson(String name, String matriculationNumber, String email,
+                             List<JsonAdaptedTag> tags) {
+        this(name, matriculationNumber, email, tags, null, null, null);
+    }
+
+    /**
+     * Constructs an adapted person with attendance records but no class codes or participation.
+     */
+    public JsonAdaptedPerson(String name, String matriculationNumber, String email,
+                             List<JsonAdaptedTag> tags, List<JsonAdaptedAttendanceRecord> attendance) {
+        this(name, matriculationNumber, email, tags, attendance, null, null);
+    }
+
+    /**
+     * Constructs an adapted person without participation records.
+     * Retained for existing callers.
+     */
+    public JsonAdaptedPerson(String name, String matriculationNumber, String email,
+                             List<JsonAdaptedTag> tags, List<JsonAdaptedAttendanceRecord> attendance,
+                             List<JsonAdaptedClassCode> classCodes) {
+        this(name, matriculationNumber, email, tags, attendance, classCodes, null);
+    }
+
+    /**
+     * Constructs an adapted person from stored fields.
+     * Missing or null optional lists are treated as empty.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+    public JsonAdaptedPerson(@JsonProperty("name") String name,
+                             @JsonProperty("matriculationNumber") String matriculationNumber,
+                             @JsonProperty("email") String email,
+                             @JsonProperty("tags") List<JsonAdaptedTag> tags,
+                             @JsonProperty("attendance") List<JsonAdaptedAttendanceRecord> attendance,
+                             @JsonProperty("classCodes") List<JsonAdaptedClassCode> classCodes,
+                             @JsonProperty("participation") List<JsonAdaptedParticipationRecord> participation) {
         this.name = name;
-        this.phone = phone;
+        this.matriculationNumber = matriculationNumber;
         this.email = email;
-        this.address = address;
+
+        if (attendance != null) {
+            this.attendance.addAll(attendance);
+        }
         if (tags != null) {
             this.tags.addAll(tags);
+        }
+        if (classCodes != null) {
+            this.classCodes.addAll(classCodes);
+        }
+        if (participation != null) {
+            this.participation.addAll(participation);
         }
     }
 
@@ -51,59 +101,120 @@ class JsonAdaptedPerson {
      */
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
-        phone = source.getPhone().value;
+        matriculationNumber = source.getMatriculationNumber().value;
         email = source.getEmail().value;
-        address = source.getAddress().value;
+
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+
+        attendance.addAll(source.getAttendance().getRecords().stream()
+                .map(JsonAdaptedAttendanceRecord::new)
+                .collect(Collectors.toList()));
+
+        classCodes.addAll(source.getClassCodes().stream()
+                .map(JsonAdaptedClassCode::new)
+                .collect(Collectors.toList()));
+
+        participation.addAll(source.getParticipationHistory().getRecords().stream()
+                .map(JsonAdaptedParticipationRecord::new)
                 .collect(Collectors.toList()));
     }
 
     /**
      * Converts this Jackson-friendly adapted person object into the model's {@code Person} object.
      *
-     * @throws IllegalValueException if there were any data constraints violated in the adapted person.
+     * @throws IllegalValueException if there were any data constraints violated in the adapted person
      */
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
+        final List<ClassCode> personClassCodes = new ArrayList<>();
+
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException("Student tags must not be null.");
+            }
             personTags.add(tag.toModelType());
         }
 
+        for (JsonAdaptedClassCode classCode : classCodes) {
+            if (classCode == null) {
+                throw new IllegalValueException("Student class codes must not be null.");
+            }
+            personClassCodes.add(classCode.toModelType());
+        }
+
         if (name == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
+            throw new IllegalValueException(
+                    String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
         if (!Name.isValidName(name)) {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
         }
         final Name modelName = new Name(name);
 
-        if (phone == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
+        if (matriculationNumber == null) {
+            throw new IllegalValueException(
+                    String.format(MISSING_FIELD_MESSAGE_FORMAT, MatriculationNumber.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
-            throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
+        if (!MatriculationNumber.isValidMatriculationNumber(matriculationNumber)) {
+            throw new IllegalValueException(MatriculationNumber.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
+        final MatriculationNumber modelMatriculationNumber =
+                new MatriculationNumber(matriculationNumber);
 
         if (email == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
+            throw new IllegalValueException(
+                    String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
         }
         if (!Email.isValidEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
         }
         final Email modelEmail = new Email(email);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
-        }
-        final Address modelAddress = new Address(address);
-
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        final Set<ClassCode> modelClassCodes = new HashSet<>(personClassCodes);
+
+        final List<AttendanceRecord> modelRecords = new ArrayList<>();
+        final Set<AttendanceRecord> uniqueRecords = new HashSet<>();
+
+        for (JsonAdaptedAttendanceRecord record : attendance) {
+            if (record == null) {
+                throw new IllegalValueException("Student attendance records must not be null.");
+            }
+            AttendanceRecord modelRecord = record.toModelType();
+            if (!uniqueRecords.add(modelRecord)) {
+                throw new IllegalValueException(Attendance.MESSAGE_DUPLICATE_RECORD);
+            }
+            modelRecords.add(modelRecord);
+        }
+
+        final Attendance modelAttendance = new Attendance(modelRecords);
+        final ParticipationHistory modelParticipationHistory = toParticipationHistory();
+
+        return new Person(modelName, modelMatriculationNumber, modelEmail,
+                modelTags, modelAttendance, modelClassCodes, modelParticipationHistory);
     }
 
+    /**
+     * Converts stored participation records and checks session uniqueness.
+     *
+     * @throws IllegalValueException if a record is null, invalid or duplicates a session
+     */
+    private ParticipationHistory toParticipationHistory() throws IllegalValueException {
+        List<ParticipationRecord> modelRecords = new ArrayList<>();
+
+        for (JsonAdaptedParticipationRecord record : participation) {
+            if (record == null) {
+                throw new IllegalValueException(MESSAGE_NULL_PARTICIPATION_RECORD);
+            }
+            modelRecords.add(record.toModelType());
+        }
+
+        try {
+            return new ParticipationHistory(modelRecords);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalValueException(exception.getMessage());
+        }
+    }
 }

@@ -2,36 +2,50 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.FindPredicate;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists students that match the supplied predicate.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds students by name keywords or an exact matriculation number.\n"
+            + "Matching is case-insensitive.\n"
+            + "Parameters: KEYWORD [MORE_KEYWORDS]... or m/MATRICULATION_NUMBER\n"
+            + "Examples: " + COMMAND_WORD + " alice bob charlie; "
+            + COMMAND_WORD + " m/A1234567X";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private static final Logger logger = LogsCenter.getLogger(FindCommand.class);
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    private final FindPredicate predicate;
+
+    public FindCommand(FindPredicate predicate) {
         this.predicate = predicate;
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
+        if (predicate.ignoresActiveFilter()) {
+            model.resetFilteredPersonList();
+        }
+        model.updateFindPredicate(predicate);
+        model.sortPersons(Model.COMPARATOR_NAME_ASC);
+
+        int resultCount = model.getFilteredPersonList().size();
+        logger.fine("Applied find predicate " + predicate + "; matched " + resultCount + " student(s).");
+
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, resultCount));
     }
 
     @Override

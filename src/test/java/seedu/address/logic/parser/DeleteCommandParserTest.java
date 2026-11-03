@@ -1,13 +1,15 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MATRICULATION_NUMBER;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.model.person.MatriculationNumber;
 
 /**
  * As we are only doing white-box testing, our test cases do not cover path variations
@@ -26,7 +28,56 @@ public class DeleteCommandParserTest {
     }
 
     @Test
+    public void parse_validMatriculationNumber_returnsDeleteCommand() {
+        MatriculationNumber matriculationNumber = new MatriculationNumber("A1234567X");
+        assertParseSuccess(parser, " m/A1234567X", new DeleteCommand(matriculationNumber));
+    }
+
+    @Test
+    public void parse_lowercaseMatriculationNumber_returnsDeleteCommand() {
+        MatriculationNumber matriculationNumber = new MatriculationNumber("A1234567X");
+        assertParseSuccess(parser, " m/a1234567x", new DeleteCommand(matriculationNumber));
+    }
+
+    @Test
     public void parse_invalidArgs_throwsParseException() {
-        assertParseFailure(parser, "a", String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+        assertParseFailure(parser, "a", String.format(ParserUtil.MESSAGE_MISSING_STUDENT_IDENTIFIER,
+                DeleteCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_singleMistypedToken_throwsUsageError() {
+        assertParseFailure(parser, "1c/CS2103T-T10",
+                String.format(Messages.MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_tooLargeSingleIndex_throwsInvalidIndexError() {
+        assertParseFailure(parser, "2147483648", Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+    }
+
+    @Test
+    public void parse_multipleTokensWithBadIndex_throwsIndexError() {
+        assertParseFailure(parser, "1 C/CS2103T-T10", ParserUtil.MESSAGE_INVALID_INDEX);
+        assertParseFailure(parser, "1 2147483648", ParserUtil.MESSAGE_INVALID_INDEX);
+    }
+
+    @Test
+    public void parse_invalidMatriculationNumber_throwsParseException() {
+        assertParseFailure(parser, " m/invalid", MatriculationNumber.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, " m/A123", MatriculationNumber.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_indexAndMatriculationNumber_throwsParseException() {
+        assertParseFailure(parser, "1 m/A1234567X",
+                String.format(ParserUtil.MESSAGE_MULTIPLE_STUDENT_IDENTIFIERS,
+                        DeleteCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_duplicateMatriculationPrefix_throwsParseException() {
+        assertParseFailure(parser, " m/A1234567X m/A7654321Z",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_MATRICULATION_NUMBER));
     }
 }

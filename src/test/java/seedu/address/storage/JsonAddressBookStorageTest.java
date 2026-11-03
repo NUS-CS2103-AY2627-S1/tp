@@ -1,7 +1,9 @@
 package seedu.address.storage;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,6 +11,8 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -16,8 +20,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.logic.commands.AssignmentCommand;
+import seedu.address.logic.commands.MarkCommand;
+import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.gradebook.Assignment;
+import seedu.address.model.gradebook.AssignmentId;
+import seedu.address.model.gradebook.Mark;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -51,6 +65,34 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_trailingContent_preservesFileAndThrowsDataLoadingException() throws Exception {
+        Path filePath = testFolder.resolve("TrailingContentAddressBook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(getTypicalAddressBook());
+        String validRecords = Files.readString(filePath);
+
+        for (String trailingContent : new String[]{validRecords, " \t\r\n" + validRecords,
+            " []", " \"extra\"", " 42", " true", " null", " garbage", " }"}) {
+            Files.writeString(filePath, "{\"persons\":[]}" + trailingContent);
+            byte[] originalContents = Files.readAllBytes(filePath);
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook);
+            assertArrayEquals(originalContents, Files.readAllBytes(filePath));
+        }
+    }
+
+    @Test
+    public void readAddressBook_trailingWhitespace_restoresRecords() throws Exception {
+        Path filePath = testFolder.resolve("TrailingWhitespaceAddressBook.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        Files.writeString(filePath, Files.readString(filePath) + " \t\r\n");
+
+        assertEquals(original, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
     public void readAddressBook_invalidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidPersonAddressBook.json"));
     }
@@ -58,6 +100,68 @@ public class JsonAddressBookStorageTest {
     @Test
     public void readAddressBook_invalidAndValidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_dateOnlyAttendance_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("dateOnlyAttendanceAddressBook.json"));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withAttendance_preservesHistory() throws Exception {
+        Path filePath = testFolder.resolve("AttendanceAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withAttendance("CS2103T-T10", "16-09-2026", "07-10-2026").build());
+        original.addPerson(HOON);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        assertEquals(original, new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_gradebookWithoutEnrollment_preservesDefinitionsAndMarks() throws Exception {
+        Path filePath = testFolder.resolve("GradebookAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        original.addPerson(HOON);
+        AssignmentId id = new AssignmentId("CS2103T:A1");
+        original.addAssignment(new Assignment(id, "Assignment One", new BigDecimal("20.5")));
+        original.assignStudent(ALICE.getMatriculationNumber(), id);
+        original.assignStudent(HOON.getMatriculationNumber(), id);
+        original.recordMark(ALICE.getMatriculationNumber(), id, new Mark(new BigDecimal("17.5")));
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        String saved = Files.readString(filePath);
+        assertTrue(saved.contains("\"mark\" : \"17.5\""));
+        assertTrue(saved.contains("\"mark\" : null"));
+        AddressBook restored = new AddressBook(storage.readAddressBook().orElseThrow());
+        assertEquals(original, restored);
+        assertTrue(restored.getPersonList().stream().allMatch(person -> person.getClassCodes().isEmpty()));
+
+        Model model = new ModelManager(restored, new UserPrefs());
+        new MarkCommand(ALICE.getMatriculationNumber(), id, new Mark(BigDecimal.TEN)).execute(model);
+        new MarkCommand(HOON.getMatriculationNumber(), id, new Mark(BigDecimal.ZERO)).execute(model);
+        model.unassignStudent(HOON.getMatriculationNumber(), id);
+        assertThrows(CommandException.class,
+                String.format(AssignmentCommand.MESSAGE_STUDENT_NOT_ENROLLED,
+                        id, HOON.getMatriculationNumber(), id.getModuleCode()), () ->
+                        new AssignmentCommand(HOON.getMatriculationNumber(), id).execute(model));
+        storage.saveAddressBook(model.getAddressBook());
+        assertEquals(model.getAddressBook(), new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void readAddressBook_invalidGradebook_preservesFileAndThrowsDataLoadingException() throws Exception {
+        Path filePath = testFolder.resolve("InvalidGradebookAddressBook.json");
+        String contents = "{\"persons\":[],\"assignments\":[{\"id\":\"CS2103T:A1\","
+                + "\"name\":\"Assignment One\",\"maxMark\":\"20\"}],"
+                + "\"studentAssignments\":[{\"matriculationNumber\":\"A7654321Y\","
+                + "\"assignmentId\":\"CS2103T:A1\",\"mark\":\"10\"}]}";
+        Files.writeString(filePath, contents);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertEquals(contents, Files.readString(filePath));
     }
 
     @Test

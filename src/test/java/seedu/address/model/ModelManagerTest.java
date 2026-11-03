@@ -7,6 +7,8 @@ import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.FIONA;
 
 import java.util.List;
 
@@ -69,6 +71,24 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void constructor_andAddPerson_displayStudentsByName() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+        assertEquals(List.of(BENSON, ALICE), modelManager.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void addPerson_afterSort_restoresNameOrder() {
+        modelManager.addPerson(BENSON);
+        modelManager.sortPersons(Model.COMPARATOR_NAME_ASC.reversed());
+
+        modelManager.addPerson(ALICE);
+
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
     }
@@ -108,5 +128,66 @@ public class ModelManagerTest {
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    private ModelManager modelWithAliceBensonCarl() {
+        return new ModelManager(new AddressBookBuilder()
+                .withPerson(ALICE).withPerson(BENSON).withPerson(CARL).build(), new UserPrefs());
+    }
+
+    @Test
+    public void updateFindPredicate_nullPredicate_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateFindPredicate(null));
+    }
+
+    @Test
+    public void updateFilterPredicate_nullPredicate_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateFilterPredicate(null));
+    }
+
+    @Test
+    public void updateFindPredicate_withActiveFilter_showsIntersection() {
+        modelManager = modelWithAliceBensonCarl();
+        modelManager.updateFilterPredicate(p -> p.equals(ALICE) || p.equals(BENSON));
+        modelManager.updateFindPredicate(p -> p.equals(BENSON) || p.equals(CARL));
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilterPredicate_withActiveFind_keepsFind() {
+        modelManager = modelWithAliceBensonCarl();
+        modelManager.updateFindPredicate(p -> p.equals(BENSON) || p.equals(CARL));
+        modelManager.updateFilterPredicate(p -> p.equals(ALICE) || p.equals(BENSON));
+        assertEquals(List.of(BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFindPredicate_calledTwice_secondReplacesFirst() {
+        modelManager = modelWithAliceBensonCarl();
+        modelManager.updateFindPredicate(p -> p.equals(ALICE));
+        modelManager.updateFindPredicate(p -> p.equals(CARL));
+        assertEquals(List.of(CARL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_clearsBothFilterAndFind() {
+        modelManager = modelWithAliceBensonCarl();
+        modelManager.updateFilterPredicate(p -> p.equals(ALICE));
+        modelManager.updateFindPredicate(p -> p.equals(BENSON));
+        assertEquals(List.of(), modelManager.getFilteredPersonList());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, BENSON, CARL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void addPerson_withActiveFilterAndFind_resetsBoth() {
+        modelManager = modelWithAliceBensonCarl();
+        modelManager.updateFilterPredicate(p -> p.equals(ALICE));
+        modelManager.updateFindPredicate(p -> p.equals(ALICE));
+
+        modelManager.addPerson(FIONA);
+
+        assertEquals(4, modelManager.getFilteredPersonList().size());
     }
 }

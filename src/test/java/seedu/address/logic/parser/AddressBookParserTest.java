@@ -4,26 +4,56 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CLASS_CODE_CS2103T_T10;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CLASS_CODE_CS3230_T01;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ALL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLASS_CODE;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AssignmentCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EnrollCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.MarkAttendanceCommand;
+import seedu.address.logic.commands.MarkClassAttendanceCommand;
+import seedu.address.logic.commands.MarkCommand;
+import seedu.address.logic.commands.MarksCommand;
+import seedu.address.logic.commands.ParticipationCommand;
+import seedu.address.logic.commands.RemoveAssignmentCommand;
+import seedu.address.logic.commands.RemoveParticipationCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.StudentIdentifier;
+import seedu.address.logic.commands.UnenrollCommand;
+import seedu.address.logic.commands.UnmarkAttendanceCommand;
+import seedu.address.logic.commands.ViewParticipationCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.classcode.ClassCode;
+import seedu.address.model.classcode.ModuleCode;
+import seedu.address.model.gradebook.Assignment;
+import seedu.address.model.gradebook.AssignmentId;
+import seedu.address.model.gradebook.Mark;
+import seedu.address.model.person.AttendanceDate;
+import seedu.address.model.person.MatriculationNumber;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonInModuleOrClassPredicate;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -33,10 +63,76 @@ public class AddressBookParserTest {
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
+    public void parseCommand_attendanceFutureDate_throwsParseException() {
+        assertThrows(ParseException.class,
+                "Attendance date 28-10-2099 is in the future. Use today or an earlier date.", ()
+                -> parser.parseCommand("attendance 1 c/CS2103T-T10 d/28-10-2099"));
+    }
+
+    @Test
     public void parseCommand_add() throws Exception {
         Person person = new PersonBuilder().build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_assignment() throws Exception {
+        MatriculationNumber student = new MatriculationNumber("A1234567X");
+        AssignmentId id = new AssignmentId("CS2103T:A1");
+        Assignment assignment = new Assignment(id, "Assignment One", new BigDecimal("20"));
+        assertEquals(new AssignmentCommand(student, assignment), parser.parseCommand(
+                "assignment m/A1234567X id/CS2103T:A1 n/Assignment One max/20"));
+        assertEquals(new AssignmentCommand(student, id), parser.parseCommand(
+                "assignment m/A1234567X id/CS2103T:A1"));
+    }
+
+    @Test
+    public void parseCommand_mark() throws Exception {
+        assertEquals(new MarkCommand(new MatriculationNumber("A1234567X"), new AssignmentId("CS2103T:A1"),
+                new Mark(new BigDecimal("17.5"))), parser.parseCommand(
+                "mark m/A1234567X id/CS2103T:A1 mark/17.5"));
+    }
+
+    @Test
+    public void parseCommand_marks() throws Exception {
+        assertEquals(new MarksCommand(new AssignmentId("CS2103T:A1")),
+                parser.parseCommand("marks id/CS2103T:A1"));
+    }
+
+    @Test
+    public void parseCommand_removeAssignment() throws Exception {
+        AssignmentId id = new AssignmentId("CS2103T:A1");
+        assertEquals(new RemoveAssignmentCommand(id), parser.parseCommand("removeassignment id/CS2103T:A1"));
+        assertEquals(new RemoveAssignmentCommand(id, new MatriculationNumber("A1234567X")),
+                parser.parseCommand("removeassignment id/CS2103T:A1 m/A1234567X"));
+    }
+
+    @Test
+    public void parseCommand_attendance() throws Exception {
+        assertEquals(new MarkAttendanceCommand(INDEX_FIRST_PERSON, new ClassCode("CS2103T-T10"), Optional.empty()),
+                parser.parseCommand("attendance 1 c/CS2103T-T10"));
+        assertEquals(new MarkAttendanceCommand(INDEX_FIRST_PERSON, new ClassCode("CS2103T-T10"),
+                Optional.of(new AttendanceDate("07-10-2026"))),
+                parser.parseCommand("attendance 1 c/CS2103T-T10 d/07-10-2026"));
+        assertEquals(new MarkAttendanceCommand(new StudentIdentifier(new MatriculationNumber("A1234567X")),
+                new ClassCode("CS2103T-T10"),
+                Optional.empty()),
+                parser.parseCommand("attendance m/A1234567X c/CS2103T-T10"));
+        assertEquals(new MarkClassAttendanceCommand(new ClassCode("CS2103T-T10"),
+                Optional.of(new AttendanceDate("07-10-2026"))),
+                parser.parseCommand("attendance c/CS2103T-T10 d/07-10-2026"));
+    }
+
+    @Test
+    public void parseCommand_unmarkAttendance() throws Exception {
+        assertEquals(new UnmarkAttendanceCommand(new StudentIdentifier(INDEX_FIRST_PERSON), Optional.empty(),
+                Optional.empty()),
+                parser.parseCommand("attendance unmark 1"));
+        assertEquals(new UnmarkAttendanceCommand(new StudentIdentifier(new MatriculationNumber("A1234567X")),
+                Optional.of(new ClassCode("CS2103T-T10")), Optional.of(new AttendanceDate("07-10-2026"))),
+                parser.parseCommand("attendance unmark m/A1234567X c/CS2103T-T10 d/07-10-2026"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("Attendance unmark 1"));
     }
 
     @Test
@@ -84,7 +180,106 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+
+        assertThrows(ParseException.class, () ->
+                parser.parseCommand(ListCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_sort() throws Exception {
+        assertTrue(parser.parseCommand(SortCommand.COMMAND_WORD) instanceof SortCommand);
+        assertThrows(ParseException.class, () -> parser.parseCommand(SortCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_enroll() throws Exception {
+        EnrollCommand command = (EnrollCommand) parser.parseCommand(EnrollCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_CLASS_CODE + VALID_CLASS_CODE_CS2103T_T10);
+        assertEquals(new EnrollCommand(INDEX_FIRST_PERSON, new ClassCode(VALID_CLASS_CODE_CS2103T_T10)), command);
+    }
+
+    @Test
+    public void parseCommand_unenroll() throws Exception {
+        UnenrollCommand command = (UnenrollCommand) parser.parseCommand(UnenrollCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_CLASS_CODE + VALID_CLASS_CODE_CS2103T_T10);
+        assertEquals(new UnenrollCommand(INDEX_FIRST_PERSON, new ClassCode(VALID_CLASS_CODE_CS2103T_T10)), command);
+    }
+
+    @Test
+    public void parseCommand_unenrollAll() throws Exception {
+        UnenrollCommand command = (UnenrollCommand) parser.parseCommand(UnenrollCommand.COMMAND_WORD + " "
+                + INDEX_FIRST_PERSON.getOneBased() + " " + PREFIX_ALL);
+        assertEquals(new UnenrollCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_filter() throws Exception {
+        Set<ClassCode> classCodes = Set.of(new ClassCode(VALID_CLASS_CODE_CS3230_T01),
+                new ClassCode(VALID_CLASS_CODE_CS2103T_T10));
+        Set<ModuleCode> moduleCodes = Set.of(new ModuleCode("CS2103T"),
+                new ModuleCode("CS3230"));
+        FilterCommand command = (FilterCommand) parser.parseCommand(
+                FilterCommand.COMMAND_WORD + " " + String.join(" ", VALID_CLASS_CODE_CS3230_T01,
+                        VALID_CLASS_CODE_CS2103T_T10, "CS2103T", "CS3230"));
+        assertEquals(new FilterCommand(new PersonInModuleOrClassPredicate(classCodes, moduleCodes)), command);
+    }
+
+    @Test
+    public void parseCommand_invalidNumericStudentIndex_throwsConsistentError() {
+        String[] commandFormats = {
+            "delete %s",
+            "attendance %s",
+            "attendance unmark %s",
+            "view %s",
+            "edit %s n/X",
+            "enroll %s c/CS2103T-T10",
+            "unenroll %s c/CS2103T-T10",
+            "unenroll %s all/"
+        };
+        // Overflow and malformed preambles have separate diagnostics covered by ParserUtilTest.
+        String[] invalidIndices = {"0", "-1", "1.5"};
+        for (String commandFormat : commandFormats) {
+            for (String invalidIndex : invalidIndices) {
+                String command = String.format(commandFormat, invalidIndex);
+                assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX, ()
+                    -> parser.parseCommand(command));
+            }
+        }
+    }
+
+    @Test
+    public void parseCommand_nonnumericStudentIdentifier_throwsIdentifierGuidance() {
+        String[][] testCases = {
+            {"delete %s", DeleteCommand.MESSAGE_USAGE},
+            {"attendance %s", MarkAttendanceCommand.MESSAGE_USAGE},
+            {"attendance unmark %s", UnmarkAttendanceCommand.MESSAGE_USAGE},
+            {"enroll %s c/CS2103T-T10", EnrollCommand.MESSAGE_USAGE},
+            {"unenroll %s c/CS2103T-T10", UnenrollCommand.MESSAGE_USAGE},
+            {"unenroll %s all/", UnenrollCommand.MESSAGE_USAGE},
+            {"assignment %s id/CS2103T:A1", AssignmentCommand.MESSAGE_USAGE},
+            {"mark %s id/CS2103T:A1 mark/5", MarkCommand.MESSAGE_USAGE},
+            {"participation %s", ParticipationCommand.MESSAGE_USAGE},
+            {"participation view %s", ViewParticipationCommand.MESSAGE_USAGE},
+            {"participation remove %s", RemoveParticipationCommand.MESSAGE_USAGE}
+        };
+        for (String[] testCase : testCases) {
+            for (String invalidIdentifier : new String[] {"a", "A1234567X"}) {
+                String command = String.format(testCase[0], invalidIdentifier);
+                String expectedMessage = String.format(ParserUtil.MESSAGE_MISSING_STUDENT_IDENTIFIER, testCase[1]);
+                assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(command));
+            }
+        }
+    }
+
+    @Test
+    public void parseCommand_nonnumericIndexOnlyTarget_throwsIndexError() {
+        for (String commandFormat : new String[] {"view %s", "edit %s n/X"}) {
+            for (String invalidIndex : new String[] {"a", "A1234567X"}) {
+                String command = String.format(commandFormat, invalidIndex);
+                assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_INDEX, ()
+                    -> parser.parseCommand(command));
+            }
+        }
     }
 
     @Test

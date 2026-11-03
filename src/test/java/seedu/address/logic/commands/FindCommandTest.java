@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 import static seedu.address.testutil.TypicalPersons.CARL;
 import static seedu.address.testutil.TypicalPersons.ELLE;
 import static seedu.address.testutil.TypicalPersons.FIONA;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.MatriculationNumber;
+import seedu.address.model.person.MatriculationNumberMatchesPredicate;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 
 /**
@@ -71,6 +75,98 @@ public class FindCommandTest {
         expectedModel.updateFilteredPersonList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
         assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_activeSort_resetsToNameOrder() throws Exception {
+        model.sortPersons(Model.COMPARATOR_NAME_ASC.reversed());
+        new FindCommand(preparePredicate("Kurz Elle Kunz")).execute(model);
+
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_partialKeywords_multiplePersonsFound() {
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
+        // "urz" -> back of "Kurz" (CARL), "Ell" -> front of "Elle" (ELLE), "ion" -> middle of "Fiona" (FIONA)
+        NameContainsKeywordsPredicate predicate = preparePredicate("urz Ell ion");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPersonList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_matchingMatriculationNumber_onePersonFound() {
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1);
+        MatriculationNumberMatchesPredicate predicate =
+                new MatriculationNumberMatchesPredicate(ALICE.getMatriculationNumber());
+        FindCommand command = new FindCommand(predicate);
+
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(ALICE), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_nonexistentMatriculationNumber_noPersonFound() {
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+        MatriculationNumberMatchesPredicate predicate =
+                new MatriculationNumberMatchesPredicate(
+                        new MatriculationNumber("A9999999Z"));
+        FindCommand command = new FindCommand(predicate);
+
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_matriculationNumberAfterNameFilter_findsHiddenPerson() {
+        model.updateFilterPredicate(new NameContainsKeywordsPredicate(List.of("Alice")));
+        assertEquals(List.of(ALICE), model.getFilteredPersonList());
+
+        MatriculationNumberMatchesPredicate predicate =
+                new MatriculationNumberMatchesPredicate(BENSON.getMatriculationNumber());
+        FindCommand command = new FindCommand(predicate);
+
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, model, String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1), expectedModel);
+        assertEquals(List.of(BENSON), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_afterFilter_findNarrowsFilteredList() throws Exception {
+        model.updateFilterPredicate(preparePredicate("Kurz Elle Kunz")); // CARL, ELLE, FIONA
+
+        NameContainsKeywordsPredicate predicate = preparePredicate("Elle");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, model, String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1), expectedModel);
+        assertEquals(List.of(ELLE), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_findMatchesOnlyOutsideFilter_noPersonFound() throws Exception {
+        model.updateFilterPredicate(preparePredicate("Kurz Elle Kunz"));
+
+        new FindCommand(preparePredicate("Alice")).execute(model); // ALICE is outside the filter
+
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_secondFindUnderFilter_replacesFirstFind() throws Exception {
+        model.updateFilterPredicate(preparePredicate("Kurz Elle Kunz"));
+
+        new FindCommand(preparePredicate("Elle")).execute(model);
+        new FindCommand(preparePredicate("Carl")).execute(model);
+
+        assertEquals(List.of(CARL), model.getFilteredPersonList());
     }
 
     @Test

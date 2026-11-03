@@ -1,13 +1,17 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import seedu.address.model.person.Address;
+import seedu.address.model.classcode.ClassCode;
+import seedu.address.model.person.Attendance;
+import seedu.address.model.person.AttendanceDate;
+import seedu.address.model.person.AttendanceRecord;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.MatriculationNumber;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -17,25 +21,26 @@ import seedu.address.model.util.SampleDataUtil;
 public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
-    public static final String DEFAULT_PHONE = "85355255";
+    public static final String DEFAULT_MATRICULATION_NUMBER = "A1234567Z";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
     private Name name;
-    private Phone phone;
+    private MatriculationNumber matriculationNumber;
     private Email email;
-    private Address address;
     private Set<Tag> tags;
+    private Attendance attendance;
+    private Set<ClassCode> classCodes;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
-        phone = new Phone(DEFAULT_PHONE);
+        matriculationNumber = new MatriculationNumber(DEFAULT_MATRICULATION_NUMBER);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        attendance = Attendance.empty();
+        classCodes = new HashSet<>();
     }
 
     /**
@@ -43,10 +48,11 @@ public class PersonBuilder {
      */
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
-        phone = personToCopy.getPhone();
+        matriculationNumber = personToCopy.getMatriculationNumber();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
         tags = new HashSet<>(personToCopy.getTags());
+        attendance = personToCopy.getAttendance();
+        classCodes = new HashSet<>(personToCopy.getClassCodes());
     }
 
     /**
@@ -66,18 +72,10 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
+     * Sets the {@code MatriculationNumber} of the {@code Person} that we are building.
      */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
-        return this;
-    }
-
-    /**
-     * Sets the {@code Phone} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withPhone(String phone) {
-        this.phone = new Phone(phone);
+    public PersonBuilder withMatriculationNumber(String matriculationNumber) {
+        this.matriculationNumber = new MatriculationNumber(matriculationNumber);
         return this;
     }
 
@@ -89,8 +87,40 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the attendance history for the given class using the date strings.
+     */
+    public PersonBuilder withAttendance(String classCode, String... dates) {
+        Attendance updatedAttendance = Attendance.empty();
+        for (String date : dates) {
+            updatedAttendance = updatedAttendance.withRecord(new AttendanceRecord(new AttendanceDate(date),
+                    new ClassCode(classCode)));
+        }
+        attendance = updatedAttendance;
+        return this;
+    }
+
+    /**
+     * Sets the attendance history using records from any classes.
+     */
+    public PersonBuilder withAttendanceRecords(AttendanceRecord... records) {
+        attendance = new Attendance(List.of(records));
+        return this;
+    }
+
+    /**
+     * Sets the class codes of the {@code Person} that we are building.
+     */
+    public PersonBuilder withClassCodes(String... classCodes) {
+        this.classCodes = SampleDataUtil.getClassCodeSet(classCodes);
+        return this;
+    }
+
+    /**
+     * Builds a person with the configured details.
+     */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, matriculationNumber, email, tags, attendance, classCodes);
     }
 
 }

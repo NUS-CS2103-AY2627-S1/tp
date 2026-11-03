@@ -36,6 +36,7 @@ public class MainWindow extends UiPart<Stage> {
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private StudentDetailsWindow studentDetailsWindow;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -62,6 +63,8 @@ public class MainWindow extends UiPart<Stage> {
         // Set dependencies
         this.primaryStage = primaryStage;
         this.logic = logic;
+        logic.addressBookRestoreCountProperty().addListener((
+                observable, oldValue, newValue) -> closeStudentDetailsWindow());
         this.dataFilePath = dataFilePath;
 
         // Configure the UI
@@ -114,7 +117,7 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.sortDisplayProperty());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
@@ -125,6 +128,11 @@ public class MainWindow extends UiPart<Stage> {
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+
+        logic.getStartupErrorMessage().ifPresent(message -> {
+            resultDisplay.setFeedbackToUser(message);
+            commandBox.getRoot().setDisable(true);
+        });
     }
 
     /**
@@ -164,11 +172,18 @@ public class MainWindow extends UiPart<Stage> {
                 (int) primaryStage.getX(), (int) primaryStage.getY());
         logic.setGuiSettings(guiSettings);
         helpWindow.hide();
+        closeStudentDetailsWindow();
         primaryStage.hide();
     }
 
     public PersonListPanel getPersonListPanel() {
         return personListPanel;
+    }
+
+    private void closeStudentDetailsWindow() {
+        if (studentDetailsWindow != null) {
+            studentDetailsWindow.getRoot().hide();
+        }
     }
 
     /**
@@ -184,6 +199,18 @@ public class MainWindow extends UiPart<Stage> {
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
+            }
+
+            commandResult.getPersonToView().ifPresent(person -> {
+                if (studentDetailsWindow == null) {
+                    studentDetailsWindow = new StudentDetailsWindow(primaryStage, logic.getPersonList(),
+                            logic::getGradebook);
+                }
+                studentDetailsWindow.showStudent(person);
+            });
+
+            if (studentDetailsWindow != null && commandResult.getPersonToView().isEmpty()) {
+                studentDetailsWindow.refreshIfShowing();
             }
 
             if (commandResult.isExit()) {

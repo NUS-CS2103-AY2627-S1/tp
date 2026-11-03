@@ -14,10 +14,13 @@ public class Messages {
 
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The student index provided is invalid.";
+    public static final String MESSAGE_STUDENT_NOT_FOUND = "No student with matriculation number %1$s found.";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d student(s) listed!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_INVALID_FILTER_KEYWORD = "Each keyword must be a module code (e.g. CS2103T) or a"
+            + " class code (CS2103T-T10).\nInvalid keyword used: %1$s";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -37,13 +40,14 @@ public class Messages {
     public static String format(Person person) {
         final StringBuilder builder = new StringBuilder();
         builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
+            .append("; Matriculation Number: ")
+            .append(person.getMatriculationNumber())
                 .append("; Email: ")
                 .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
                 .append("; Tags: ");
+        if (person.getTags().isEmpty()) {
+            builder.append("No tags");
+        }
         person.getTags().forEach(builder::append);
         return builder.toString();
     }

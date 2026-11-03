@@ -1,6 +1,7 @@
 package seedu.address.ui;
 
 import java.util.Comparator;
+import java.util.Optional;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -33,27 +34,36 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label id;
     @FXML
-    private Label phone;
-    @FXML
-    private Label address;
+    private Label matriculationNumber;
     @FXML
     private Label email;
     @FXML
+    private Label sortDetail;
+    @FXML
     private FlowPane tags;
+    @FXML
+    private FlowPane classCodes;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
      */
-    public PersonCard(Person person, int displayedIndex) {
+    public PersonCard(Person person, int displayedIndex, Optional<String> sortDetail) {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
+        matriculationNumber.setText(person.getMatriculationNumber().value);
         email.setText(person.getEmail().value);
+        sortDetail.ifPresent(detail -> {
+            this.sortDetail.setText(detail);
+            this.sortDetail.setVisible(true);
+            this.sortDetail.setManaged(true);
+        });
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        person.getClassCodes().stream()
+                .sorted(Comparator.comparing(classCode -> classCode.toString()))
+                .forEach(classCode -> classCodes.getChildren().add(new Label(classCode.toString())));
     }
 }
