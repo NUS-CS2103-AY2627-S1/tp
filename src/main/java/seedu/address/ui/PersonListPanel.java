@@ -1,5 +1,6 @@
 package seedu.address.ui;
 
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -16,6 +17,8 @@ import seedu.address.model.person.Person;
 public class PersonListPanel extends UiPart<Region> {
     private static final String FXML = "PersonListPanel.fxml";
     private final Logger logger = LogsCenter.getLogger(PersonListPanel.class);
+    private final Function<Person, String> guardianNames;
+    private final Function<Person, String> studentNames;
 
     @FXML
     private ListView<Person> personListView;
@@ -24,9 +27,32 @@ public class PersonListPanel extends UiPart<Region> {
      * Creates a {@code PersonListPanel} with the given {@code ObservableList}.
      */
     public PersonListPanel(ObservableList<Person> personList) {
+        this(personList, person -> "", person -> "");
+    }
+
+    /**
+     * Creates a panel that retrieves guardian names for each contact.
+     */
+    public PersonListPanel(ObservableList<Person> personList,
+            Function<Person, String> guardianNames) {
+        this(personList, guardianNames, person -> "");
+    }
+
+    /** Creates a panel that retrieves both directions of contact relationships. */
+    public PersonListPanel(ObservableList<Person> personList,
+            Function<Person, String> guardianNames, Function<Person, String> studentNames) {
         super(FXML);
+        this.guardianNames = guardianNames;
+        this.studentNames = studentNames;
         personListView.setItems(personList);
         personListView.setCellFactory(listView -> new PersonListViewCell());
+    }
+
+    /**
+     * Refreshes cards after relationship changes.
+     */
+    public void refresh() {
+        personListView.refresh();
     }
 
     /**
@@ -41,7 +67,8 @@ public class PersonListPanel extends UiPart<Region> {
                 setGraphic(null);
                 setText(null);
             } else {
-                setGraphic(new PersonCard(person, getIndex() + 1).getRoot());
+                setGraphic(new PersonCard(person, getIndex() + 1,
+                        guardianNames.apply(person), studentNames.apply(person)).getRoot());
             }
         }
     }

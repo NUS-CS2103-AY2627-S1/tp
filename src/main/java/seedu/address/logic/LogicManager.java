@@ -2,7 +2,9 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
@@ -13,6 +15,7 @@ import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.group.Group;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -62,6 +65,28 @@ public class LogicManager implements Logic {
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Group> getGroupList() {
+        return model.getAddressBook().getGroupList();
+    }
+
+    @Override
+    public String getGuardianNames(Person student) {
+        return model.getAddressBook().getGuardianStudents().entrySet().stream()
+                .filter(entry -> entry.getValue().contains(student))
+                .map(entry -> entry.getKey().getName().fullName)
+                .sorted()
+                .collect(Collectors.joining(", "));
+    }
+
+    @Override
+    public String getStudentNames(Person guardian) {
+        return model.getAddressBook().getGuardianStudents().getOrDefault(guardian, Set.of()).stream()
+                .map(student -> student.getName().fullName)
+                .sorted()
+                .collect(Collectors.joining(", "));
     }
 
     @Override

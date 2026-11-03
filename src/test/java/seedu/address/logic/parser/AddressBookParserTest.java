@@ -4,33 +4,61 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GROUP_TYPE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_YEAR_OF_STUDY;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_GROUP;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddGroupCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteGroupCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.LinkGroupCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.group.Group;
+import seedu.address.model.group.GroupId;
+import seedu.address.model.group.GroupType;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonFilterCriteria;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.person.PersonMatchesFilterPredicate;
+import seedu.address.model.person.Role;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
+import seedu.address.testutil.GroupBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
 
+/** Tests command routing and propagation of errors from individual command parsers. */
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
+
+    @BeforeEach
+    public void setUp() {
+        PersonId.setNextId(1);
+    }
+
+    @BeforeEach
+    public void resetGroupId() {
+        GroupId.setNextId(1);
+    }
 
     @Test
     public void parseCommand_add() throws Exception {
@@ -46,10 +74,27 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_link() throws Exception {
+        LinkGroupCommand command = (LinkGroupCommand) parser.parseCommand(
+                LinkGroupCommand.COMMAND_WORD + " "
+                + CliSyntax.PREFIX_PERSON_INDEX + 1 + " "
+                + CliSyntax.PREFIX_GROUP_INDEX + 1
+        );
+        assertEquals(new LinkGroupCommand(INDEX_FIRST_PERSON, INDEX_FIRST_GROUP), command);
+    }
+
+    @Test
     public void parseCommand_delete() throws Exception {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_deleteGroup() throws Exception {
+        DeleteGroupCommand command = (DeleteGroupCommand) parser.parseCommand(
+                DeleteGroupCommand.COMMAND_WORD + " " + INDEX_FIRST_GROUP.getOneBased());
+        assertEquals(new DeleteGroupCommand(INDEX_FIRST_GROUP), command);
     }
 
     @Test
@@ -68,17 +113,111 @@ public class AddressBookParserTest {
     }
 
     @Test
-    public void parseCommand_find() throws Exception {
-        List<String> keywords = List.of("foo", "bar", "baz");
-        FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+    public void parseCommand_find_throwsUnknownCommand() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("find"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("find ali"));
+    }
+
+    @Test
+    public void parseCommand_filterWithoutCriteria_throwsParseException() {
+        assertThrows(ParseException.class, () -> parser.parseCommand(FilterCommand.COMMAND_WORD));
+        assertThrows(ParseException.class, () -> parser.parseCommand("  " + FilterCommand.COMMAND_WORD + "  "));
+    }
+
+    @Test
+    public void parseCommand_filterByName_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria = new PersonFilterCriteria(Optional.of("ali"), Optional.empty(),
+                Optional.empty(), Set.of());
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand, parser.parseCommand("filter n/ali"));
+    }
+
+    @Test
+    public void parseCommand_filterByContactType_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria = new PersonFilterCriteria(Optional.empty(), Optional.of(Role.STUDENT),
+                Optional.empty(), Set.of());
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand, parser.parseCommand("filter ct/stu"));
+    }
+
+    @Test
+    public void parseCommand_filterByAllCriteria_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria = new PersonFilterCriteria(Optional.of("ali"), Optional.of(Role.COLLEAGUE),
+                Optional.of("clementi"), Set.of(new Tag("Committee")));
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand,
+                parser.parseCommand("filter n/ali ct/col a/clementi t/Committee"));
+    }
+
+    @Test
+    public void parseCommand_filterByAddress_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria = new PersonFilterCriteria(Optional.of("Clementi Ave"), Set.of());
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand, parser.parseCommand(FilterCommand.COMMAND_WORD + " a/Clementi Ave"));
+    }
+
+    @Test
+    public void parseCommand_filterByTags_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria =
+                new PersonFilterCriteria(Optional.empty(), Set.of(new Tag("Student"), new Tag("student")));
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand, parser.parseCommand(FilterCommand.COMMAND_WORD + " t/Student t/student"));
+    }
+
+    @Test
+    public void parseCommand_filterByCombinedCriteria_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria =
+                new PersonFilterCriteria(Optional.of("Clementi Ave"), Set.of(new Tag("Student"), new Tag("Year2")));
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand,
+                parser.parseCommand(FilterCommand.COMMAND_WORD + " a/Clementi Ave t/Student t/Year2"));
+    }
+
+    /**
+     * Verifies top-level routing of repeated IDs, a year, and an existing text criterion.
+     *
+     * @throws Exception If the valid command unexpectedly cannot be parsed.
+     */
+    @Test
+    public void parseCommand_filterByNumericCriteria_returnsFilterCommand() throws Exception {
+        PersonFilterCriteria criteria = new PersonFilterCriteria(Optional.of("ali"), Optional.empty(),
+                Optional.empty(), Set.of(), Set.of(12, 128), Optional.of(2));
+        FilterCommand expectedCommand = new FilterCommand(new PersonMatchesFilterPredicate(criteria));
+
+        assertEquals(expectedCommand, parser.parseCommand("filter id/12 yos/2 n/ali id/128"));
+    }
+
+    /** Verifies propagation of a numeric-prefix validation error through the main command parser. */
+    @Test
+    public void parseCommand_filterWithDuplicateYear_throwsParseException() {
+        assertThrows(ParseException.class, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_YEAR_OF_STUDY), () ->
+                parser.parseCommand("filter id/12 yos/2 yos/2"));
+    }
+
+    @Test
+    public void parseCommand_filterWithInvalidCriteria_throwsParseException() {
+        String expectedFormatMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FilterCommand.MESSAGE_USAGE);
+        String expectedEmptyMessage = String.format(FilterCommand.MESSAGE_EMPTY_CRITERION, PREFIX_ADDRESS)
+                + "\n" + FilterCommand.MESSAGE_USAGE;
+
+        assertThrows(ParseException.class, expectedEmptyMessage, () -> parser.parseCommand("filter a/"));
+        assertThrows(ParseException.class, expectedFormatMessage, () -> parser.parseCommand("filter Clementi"));
+        assertThrows(ParseException.class, Tag.MESSAGE_CONSTRAINTS, () -> parser.parseCommand("filter t/Student t/"));
+        assertThrows(ParseException.class, Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS), () ->
+                parser.parseCommand("filter a/Clementi a/Bugis"));
     }
 
     @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("  \t" + HelpCommand.COMMAND_WORD + "  \t") instanceof HelpCommand);
     }
 
     @Test
@@ -88,7 +227,20 @@ public class AddressBookParserTest {
     }
 
     @Test
-    public void parseCommand_unrecognisedInput_throwsParseException() {
+    public void parseCommand_createGroup() throws Exception {
+        final String groupName = "Math";
+        final String groupType = "class";
+        AddGroupCommand command = (AddGroupCommand) parser.parseCommand(
+                AddGroupCommand.COMMAND_WORD + " "
+                + groupName + " " + PREFIX_GROUP_TYPE + groupType
+        );
+        final Group group = new GroupBuilder().withGroupId(1).withName(groupName)
+                .withType(GroupType.valueOf(groupType.toUpperCase())).build();
+        assertEquals(new AddGroupCommand(group), command);
+    }
+
+    @Test
+    public void parseCommand_unrecognizedInput_throwsParseException() {
         assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
             -> parser.parseCommand(""));
     }
@@ -96,5 +248,20 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+
+    @Test
+    public void parseCommand_ignoresCase() throws Exception {
+        // Using delete as a representative command since the logic for checking command word should be the same across
+        // all commands.
+
+        // All lowercase accepted
+        assertTrue(parser.parseCommand("delete 1") instanceof DeleteCommand);
+
+        // All uppercase accepted
+        assertTrue(parser.parseCommand("DELETE 1") instanceof DeleteCommand);
+
+        // Mixed case accepted
+        assertTrue(parser.parseCommand("dElEtE 1") instanceof DeleteCommand);
     }
 }

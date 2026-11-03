@@ -6,6 +6,7 @@ import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_YEAR_OF_STUDY;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
@@ -21,11 +22,15 @@ import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
+import seedu.address.model.group.GroupId;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Colleague;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Guardian;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Student;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -43,6 +48,7 @@ public class EditCommand extends Command {
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_YEAR_OF_STUDY + "YEAR OF STUDY (ONLY IF STUDENT)] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
@@ -92,7 +98,8 @@ public class EditCommand extends Command {
      * Creates and returns a {@code Person} with the details of {@code personToEdit}
      * edited with {@code editPersonDescriptor}.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
+    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor)
+            throws CommandException {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
@@ -100,8 +107,29 @@ public class EditCommand extends Command {
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        int personId = personToEdit.getId().getRawId();
+        GroupId groupId = personToEdit.getGroupId();
+        Integer rawGroupId = groupId == null ? null : groupId.getRawId();
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        if (personToEdit instanceof Guardian) {
+            if (editPersonDescriptor.getYearOfStudy().isPresent()) {
+                throw new CommandException("Guardians cannot have a year of study.");
+            }
+            return new Guardian(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags, personId);
+        }
+
+        if (personToEdit instanceof Colleague) {
+            if (editPersonDescriptor.getYearOfStudy().isPresent()) {
+                throw new CommandException("Colleagues cannot have a year of study.");
+            }
+            return new Colleague(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags, personId,
+                    rawGroupId);
+        }
+
+        Student student = (Student) personToEdit;
+        Integer updatedYearOfStudy = editPersonDescriptor.getYearOfStudy().orElse(student.getYearOfStudy());
+        return new Student(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags, personId,
+                rawGroupId, updatedYearOfStudy);
     }
 
     @Override
@@ -137,6 +165,7 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Integer yearOfStudy;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +179,14 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setYearOfStudy(toCopy.yearOfStudy);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags, yearOfStudy);
         }
 
         public void setName(Name name) {
@@ -208,6 +238,14 @@ public class EditCommand extends Command {
             return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
         }
 
+        public void setYearOfStudy(Integer yearOfStudy) {
+            this.yearOfStudy = yearOfStudy;
+        }
+
+        public Optional<Integer> getYearOfStudy() {
+            return Optional.ofNullable(yearOfStudy);
+        }
+
         @Override
         public boolean equals(Object other) {
             if (other == this) {
@@ -223,7 +261,8 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(yearOfStudy, otherEditPersonDescriptor.yearOfStudy);
         }
 
         @Override

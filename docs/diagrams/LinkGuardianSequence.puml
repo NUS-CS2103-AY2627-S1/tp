@@ -1,0 +1,56 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+actor User as user USER_COLOR
+participant ":UI" as ui UI_COLOR
+participant ":Logic" as logic LOGIC_COLOR
+participant ":Model" as model MODEL_COLOR
+participant ":Storage" as storage STORAGE_COLOR
+
+user -> ui : linkguardian s/1 g/2
+activate ui UI_COLOR
+
+ui -> logic : execute(commandText)
+activate logic LOGIC_COLOR
+
+note right of logic
+  Parse the command and execute LinkCommand.
+  Parser and command details are omitted here.
+end note
+
+logic -> model : getFilteredPersonList()
+activate model MODEL_COLOR
+model --> logic : filtered contacts
+deactivate model
+
+logic -> model : linkGuardianToStudent(guardian, student)
+activate model MODEL_COLOR
+note right of model
+  Record the relationship in
+  AddressBook.guardianStudents.
+end note
+deactivate model
+
+logic -> storage : saveAddressBook(model.getAddressBook())
+activate storage STORAGE_COLOR
+note right of storage
+  Serialize the address book, including
+  guardianLinks, and save it to file.
+end note
+deactivate storage
+
+logic --> ui : CommandResult
+deactivate logic
+note right of ui
+  Refresh contact cards and display
+  the success feedback.
+end note
+ui --> user : Success message
+deactivate ui
+
+note over logic, storage
+  Invalid indices or roles, or an existing link, cause an error.
+  Failed commands do not save the address book.
+end note
+@enduml

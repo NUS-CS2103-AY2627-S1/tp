@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
-import seedu.address.testutil.TypicalPersons;
+import seedu.address.model.person.PersonId;
+import seedu.address.testutil.TypicalAddressBook;
 
 public class JsonSerializableAddressBookTest {
 
@@ -19,13 +20,14 @@ public class JsonSerializableAddressBookTest {
     private static final Path TYPICAL_PERSONS_FILE = TEST_DATA_FOLDER.resolve("typicalPersonsAddressBook.json");
     private static final Path INVALID_PERSON_FILE = TEST_DATA_FOLDER.resolve("invalidPersonAddressBook.json");
     private static final Path DUPLICATE_PERSON_FILE = TEST_DATA_FOLDER.resolve("duplicatePersonAddressBook.json");
+    private static final Path NEXT_PERSON_ID_FILE = TEST_DATA_FOLDER.resolve("savedNextPersonId.json");
 
     @Test
     public void toModelType_typicalPersonsFile_success() throws Exception {
         JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(TYPICAL_PERSONS_FILE,
                 JsonSerializableAddressBook.class).get();
         AddressBook addressBookFromFile = dataFromFile.toModelType();
-        AddressBook typicalPersonsAddressBook = TypicalPersons.getTypicalAddressBook();
+        AddressBook typicalPersonsAddressBook = TypicalAddressBook.getTypicalAddressBook();
         assertEquals(addressBookFromFile, typicalPersonsAddressBook);
     }
 
@@ -44,4 +46,13 @@ public class JsonSerializableAddressBookTest {
                 dataFromFile::toModelType);
     }
 
+    @Test
+    public void toModelType_loadsNextPersonId() throws Exception {
+        PersonId.setNextId(1);
+
+        JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(NEXT_PERSON_ID_FILE,
+                JsonSerializableAddressBook.class).get();
+        dataFromFile.toModelType();
+        assertEquals(123, PersonId.getNextId());
+    }
 }

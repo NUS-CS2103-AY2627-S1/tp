@@ -1,0 +1,112 @@
+package seedu.address.model.person;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.Locale;
+import java.util.function.Predicate;
+
+import seedu.address.commons.util.ToStringBuilder;
+
+/**
+ * Tests whether a person satisfies all supplied filter criteria.
+ * Text uses case-insensitive substring matching; contact types, tags, and numeric values match exactly.
+ */
+public class PersonMatchesFilterPredicate implements Predicate<Person> {
+
+    private final PersonFilterCriteria criteria;
+
+    /**
+     * Constructs a predicate for the given filter criteria.
+     *
+     * @throws NullPointerException If {@code criteria} is null.
+     */
+    public PersonMatchesFilterPredicate(PersonFilterCriteria criteria) {
+        this.criteria = requireNonNull(criteria);
+    }
+
+    @Override
+    public boolean test(Person person) {
+        requireNonNull(person);
+        return matchesPersonIds(person)
+                && matchesYearOfStudy(person)
+                && matchesName(person)
+                && matchesContactType(person)
+                && matchesAddress(person)
+                && matchesTags(person);
+    }
+
+    /** Returns true if any supplied permanent person ID matches, or no IDs were supplied. */
+    private boolean matchesPersonIds(Person person) {
+        return criteria.getPersonIds().isEmpty()
+                || criteria.getPersonIds().contains(person.getId().getRawId());
+    }
+
+    /** Returns false for non-students or students without a year when a year criterion is supplied. */
+    private boolean matchesYearOfStudy(Person person) {
+        return criteria.getYearOfStudy()
+                .map(year -> person instanceof Student student && year.equals(student.getYearOfStudy()))
+                .orElse(true);
+    }
+
+    /** Returns true if the name contains the keyword, or no name criterion was supplied. */
+    private boolean matchesName(Person person) {
+        return criteria.getNameKeyword()
+                .map(keyword -> containsIgnoreCase(person.getName().fullName, keyword))
+                .orElse(true);
+    }
+
+    /** Returns true if the contact has the resolved role, or no contact type was supplied. */
+    private boolean matchesContactType(Person person) {
+        return criteria.getContactType()
+                .map(role -> person.getRole() == role)
+                .orElse(true);
+    }
+
+    /**
+     * Returns false for contacts without an address when an address criterion is supplied.
+     */
+    private boolean matchesAddress(Person person) {
+        return criteria.getAddressKeyword()
+                .map(keyword -> person.getAddress() != null
+                        && containsIgnoreCase(person.getAddress().value, keyword))
+                .orElse(true);
+    }
+
+    /**
+     * Returns true if all required tags are present, or no tags were required.
+     */
+    private boolean matchesTags(Person person) {
+        return person.getTags().containsAll(criteria.getRequiredTags());
+    }
+
+    /** Matches a contiguous substring independently of the system locale. */
+    private static boolean containsIgnoreCase(String value, String keyword) {
+        return value.toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof PersonMatchesFilterPredicate otherPredicate)) {
+            return false;
+        }
+
+        return criteria.equals(otherPredicate.criteria);
+    }
+
+    @Override
+    public int hashCode() {
+        return criteria.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("criteria", criteria)
+                .toString();
+    }
+}

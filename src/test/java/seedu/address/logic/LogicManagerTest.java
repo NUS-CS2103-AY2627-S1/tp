@@ -4,11 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.CONTACT_TYPE_STUDENT;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalPersons.BOB;
+import static seedu.address.testutil.TypicalPersons.CARL;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -27,13 +31,23 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Guardian;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.person.Student;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
 
 public class LogicManagerTest {
+    private static final Guardian CARL_GUARDIAN = new Guardian(
+            CARL.getName(),
+            CARL.getPhone(),
+            CARL.getEmail(),
+            CARL.getAddress(),
+            CARL.getTags());
+
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
     private static final IOException DUMMY_AD_EXCEPTION = new AccessDeniedException("dummy access denied exception");
 
@@ -50,6 +64,7 @@ public class LogicManagerTest {
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
         StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
+        PersonId.setNextId(1);
     }
 
     @Test
@@ -85,6 +100,38 @@ public class LogicManagerTest {
     @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void getGuardianNames_linkEditDelete_returnsCurrentNames() throws Exception {
+        Student aliceStudent = new Student(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getTags(), null);
+        model.addPerson(aliceStudent);
+        Guardian bobGuardian = new Guardian(BOB.getName(), BOB.getPhone(), BOB.getEmail(),
+                BOB.getAddress(), BOB.getTags());
+        Guardian carlGuardian = new Guardian(CARL.getName(), CARL.getPhone(), CARL.getEmail(), CARL.getAddress(),
+                CARL.getTags());
+        model.addPerson(carlGuardian);
+        model.addPerson(bobGuardian);
+        assertEquals("", logic.getGuardianNames(aliceStudent));
+
+        logic.execute("linkguardian s/1 g/2");
+        logic.execute("linkguardian s/1 g/3");
+        assertEquals(bobGuardian.getName().fullName + ", " + carlGuardian.getName().fullName,
+                logic.getGuardianNames(aliceStudent));
+
+        // A guardian outside the filtered list must still appear on the student card.
+        model.updateFilteredPersonList(person -> person.equals(aliceStudent));
+        assertEquals(bobGuardian.getName().fullName + ", " + carlGuardian.getName().fullName,
+                logic.getGuardianNames(aliceStudent));
+        model.updateFilteredPersonList(Model.PREDICATE_SHOW_ALL_PERSONS);
+
+        logic.execute("edit 3 n/Aaron Guardian");
+        assertEquals("Aaron Guardian, " + CARL.getName().fullName, logic.getGuardianNames(aliceStudent));
+        logic.execute("delete 3");
+        assertEquals(CARL.getName().fullName, logic.getGuardianNames(aliceStudent));
+        logic.execute("delete 2");
+        assertEquals("", logic.getGuardianNames(aliceStudent));
     }
 
     /**
@@ -136,6 +183,7 @@ public class LogicManagerTest {
      */
     private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
             String expectedMessage, Model expectedModel) {
+        PersonId.setNextId(1);
         assertThrows(expectedException, expectedMessage, () -> logic.execute(inputCommand));
         assertEquals(expectedModel, model);
     }
@@ -164,8 +212,9 @@ public class LogicManagerTest {
         logic = new LogicManager(model, storage);
 
         // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
+        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY + CONTACT_TYPE_STUDENT
                 + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        PersonId.setNextId(1);
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
         expectedModel.addPerson(expectedPerson);

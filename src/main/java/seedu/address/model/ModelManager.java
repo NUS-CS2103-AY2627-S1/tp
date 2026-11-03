@@ -10,8 +10,10 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.group.Group;
+import seedu.address.model.person.Guardian;
 import seedu.address.model.person.Person;
-
+import seedu.address.model.person.Student;
 /**
  * Represents the in-memory model of the address book data.
  */
@@ -93,6 +95,33 @@ public class ModelManager implements Model {
         addressBook.setPerson(target, editedPerson);
     }
 
+    @Override
+    public boolean hasGroup(Group group) {
+        requireNonNull(group);
+        return addressBook.hasGroup(group);
+    }
+
+    @Override
+    public void deleteGroup(Group target) {
+        addressBook.removeGroup(target);
+    }
+
+    @Override
+    public void addGroup(Group group) {
+        addressBook.addGroup(group);
+    }
+
+    @Override
+    public void setGroup(Group target, Group editedGroup) {
+        requireAllNonNull(target, editedGroup);
+        addressBook.setGroup(target, editedGroup);
+    }
+
+    @Override
+    public ObservableList<Group> getGroupList() {
+        return addressBook.getGroupList();
+    }
+
     //=========== Filtered Person List Accessors =============================================================
 
     /**
@@ -124,6 +153,11 @@ public class ModelManager implements Model {
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
+    }
+
+    @Override
+    public void linkGuardianToStudent(Guardian guardian, Student student) {
+        addressBook.linkGuardianToStudent(guardian, student);
     }
 
 }

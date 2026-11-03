@@ -1,6 +1,11 @@
 package seedu.address.model;
 
+import java.util.Map;
+import java.util.Set;
+
 import javafx.collections.ObservableList;
+import seedu.address.model.group.Group;
+import seedu.address.model.person.Guardian;
 import seedu.address.model.person.Person;
 
 /**
@@ -13,5 +18,16 @@ public interface ReadOnlyAddressBook {
      * This list will not contain any duplicate persons.
      */
     ObservableList<Person> getPersonList();
+
+    /**
+     * Returns an unmodifiable view of the groups list.
+     * This list may contain groups with the same name and type.
+     */
+    ObservableList<Group> getGroupList();
+
+    /**
+     * Returns an immutable snapshot of guardian-to-student relationships.
+     */
+    Map<Guardian, Set<Person>> getGuardianStudents();
 
 }

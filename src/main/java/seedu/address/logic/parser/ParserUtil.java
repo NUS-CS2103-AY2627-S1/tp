@@ -9,10 +9,13 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.group.GroupName;
+import seedu.address.model.group.GroupType;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +24,7 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_YEAR_OF_STUDY = "Year of study must be a positive integer.";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -120,5 +124,74 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Parses a {@code String contactType} into an {@code Role}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code contactType} is invalid.
+     */
+    public static Role parseContactType(String contactType) throws ParseException {
+        requireNonNull(contactType);
+        String trimmedContactType = contactType.trim().toUpperCase();
+
+        Role role;
+        try {
+            role = Role.valueOf(trimmedContactType);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException("Contact type must be student, guardian, or colleague.");
+        }
+
+        return role;
+    }
+
+    /**
+     * Parses a {@code String groupName} into a {@code GroupName}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code groupName} is invalid.
+     */
+    public static GroupName parseGroupName(String groupName) throws ParseException {
+        requireNonNull(groupName);
+        String trimmedName = groupName.trim();
+        if (!GroupName.isValidGroupName(trimmedName)) {
+            throw new ParseException(GroupName.MESSAGE_CONSTRAINTS);
+        }
+        return new GroupName(trimmedName);
+    }
+
+    /**
+     * Parses a {@code String groupTypeString} into a {@code GroupType}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code groupTypeString} is invalid.
+     */
+    public static GroupType parseGroupType(String groupTypeString) throws ParseException {
+        requireNonNull(groupTypeString);
+        String trimmedContactType = groupTypeString.trim().toUpperCase();
+
+        GroupType groupType;
+        try {
+            groupType = GroupType.valueOf(trimmedContactType);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException("Group type must be 'class' or 'department'.");
+        }
+
+        return groupType;
+    }
+
+    /**
+     * Parses {@code yearOfStudy} into an {@code Integer} and returns it. Leading and trailing whitespaces will be
+     * trimmed.
+     *
+     * @throws ParseException if the specified year of study is invalid (not a non-zero unsigned integer).
+     */
+    public static Integer parseYearOfStudy(String yearOfStudy) throws ParseException {
+        String trimmedYearOfStudy = yearOfStudy.trim();
+        if (!StringUtil.isNonZeroUnsignedInteger(trimmedYearOfStudy)) {
+            throw new ParseException(MESSAGE_INVALID_YEAR_OF_STUDY);
+        }
+        return Integer.parseInt(trimmedYearOfStudy);
     }
 }

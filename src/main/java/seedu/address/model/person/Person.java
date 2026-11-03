@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.group.GroupId;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -17,24 +18,59 @@ import seedu.address.model.tag.Tag;
 public class Person {
 
     // Identity fields
+    private final PersonId id;
     private final Name name;
     private final Phone phone;
     private final Email email;
 
     // Data fields
     private final Address address;
+    private final GroupId groupId;
+    private final Role role;
     private final Set<Tag> tags = new HashSet<>();
+
+    /**
+     * Creates a person with default role student.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
+        this(name, phone, email, address, tags, Role.STUDENT);
+    }
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Role role) {
+        this(name, phone, email, address, tags, role, null);
+    }
+
+    /** Creates a person with an optional group identifier. */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags,
+            Role role, Integer groupId) {
+        requireAllNonNull(name, tags, role);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.groupId = groupId == null ? null : GroupId.createFromRawId(groupId);
+        this.role = role;
         this.tags.addAll(tags);
+        this.id = new PersonId();
+    }
+
+    /**
+     * Creates a person with a specified person ID instead of an automatically assigned one.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags, Role role, Integer rawPersonId,
+                  Integer groupId) {
+        requireAllNonNull(name, tags, role, rawPersonId);
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
+        this.address = address;
+        this.groupId = groupId == null ? null : GroupId.createFromRawId(groupId);
+        this.role = role;
+        this.tags.addAll(tags);
+        this.id = PersonId.createFromRawId(rawPersonId);
     }
 
     public Name getName() {
@@ -53,6 +89,15 @@ public class Person {
         return address;
     }
 
+    /** Returns the identifier of the group this person belongs to, if any. */
+    public GroupId getGroupId() {
+        return groupId;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -61,9 +106,13 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    public PersonId getId() {
+        return id;
+    }
+
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have the same ID.
+     * Name is not used as multiple people can have the same name.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
@@ -71,7 +120,7 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getId().equals(getId());
     }
 
     /**
@@ -84,22 +133,26 @@ public class Person {
             return true;
         }
 
-        // instanceof handles nulls
-        if (!(other instanceof Person otherPerson)) {
+        if (other == null || getClass() != other.getClass()) {
             return false;
         }
 
+        Person otherPerson = (Person) other;
+
         return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && Objects.equals(phone, otherPerson.phone)
+                && Objects.equals(email, otherPerson.email)
+                && Objects.equals(address, otherPerson.address)
+                && Objects.equals(groupId, otherPerson.groupId)
+                && role == otherPerson.role
+                && tags.equals(otherPerson.tags)
+                && id.equals(otherPerson.id);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, groupId, tags, role, id);
     }
 
     @Override
@@ -109,6 +162,8 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("groupId", groupId)
+                .add("id", id)
                 .add("tags", tags)
                 .toString();
     }

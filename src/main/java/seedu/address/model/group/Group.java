@@ -1,0 +1,90 @@
+package seedu.address.model.group;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.Objects;
+
+import seedu.address.commons.util.ToStringBuilder;
+
+/**
+ * Represent a Group in the address book.
+ */
+public abstract class Group {
+
+    private final GroupId id;
+    private final GroupName groupName;
+
+    /**
+     * Constructs a {@code Group}.
+     */
+    public Group(GroupName groupName) {
+        requireNonNull(groupName);
+        this.id = new GroupId();
+        this.groupName = groupName;
+    }
+
+    /**
+     * Creates a group with a specified group ID instead of an automatically assigned one.
+     */
+    public Group(GroupName groupName, Integer rawGroupId) {
+        requireAllNonNull(groupName);
+        this.id = GroupId.createFromRawId(rawGroupId);
+        this.groupName = groupName;
+    }
+
+    public GroupId getId() {
+        return id;
+    }
+
+    public GroupName getGroupName() {
+        return groupName;
+    }
+
+    public abstract GroupType getGroupType();
+
+    /**
+     * Returns true if both groups have the same name and types.
+     * This defines a weaker notion of equality between two groups.
+     */
+    public boolean isSameGroup(Group otherGroup) {
+        if (otherGroup == this) {
+            return true;
+        }
+
+        return otherGroup != null
+                && otherGroup.getGroupName().equals(getGroupName())
+                && otherGroup.getGroupType().equals(getGroupType());
+    }
+
+    /**
+     * Returns true if both groupName and groupType are the same.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof Group otherGroup)) {
+            return false;
+        }
+
+        return id.equals(otherGroup.id)
+                && groupName.equals(otherGroup.groupName)
+                && getGroupType() == otherGroup.getGroupType();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(groupName, getGroupType());
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("group name", groupName)
+                .toString();
+    }
+}
