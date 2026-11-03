@@ -13,9 +13,13 @@ import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Boss;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpDate;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
@@ -26,7 +30,7 @@ public class ParserUtilTest {
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "12345678";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
@@ -101,6 +105,14 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseEditPhone_validAndInvalidValues() throws Exception {
+        assertEquals(new Phone(VALID_PHONE), ParserUtil.parseEditPhone(VALID_PHONE));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEditPhone("1234 5678"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEditPhone("1234abcd"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEditPhone("1234567"));
+    }
+
+    @Test
     public void parseAddress_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
     }
@@ -144,6 +156,60 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseEmail_validAndInvalidValues() throws Exception {
+        //valid
+        assertEquals(new Email(VALID_EMAIL), ParserUtil.parseEmail(VALID_EMAIL));
+        assertEquals(new Email("rachel@example.org"), ParserUtil.parseEmail("rachel@example.org"));
+
+        //invalid
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("rachel walker@example.com"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("rachel@@example.com"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail("rachel@.com"));
+    }
+
+    @Test
+    public void parseName_validAndInvalidValues() throws Exception {
+        assertEquals(new Name(VALID_NAME), ParserUtil.parseName("  Rachel   Walker  "));
+        assertThrows(ParseException.class, () -> ParserUtil.parseName("Rachel"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseName("R@chel Walker"));
+    }
+
+    @Test
+    public void parseEditRole_validAndInvalidValues() throws Exception {
+        assertEquals(new Role("Software Engineer"), ParserUtil.parseEditRole(" Software   Engineer "));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEditRole("Software&Engineer"));
+    }
+
+    @Test
+    public void parseEditCompany_validAndInvalidValues() throws Exception {
+        assertEquals(new Company("Example Company"), ParserUtil.parseEditCompany(" Example   Company "));
+        assertThrows(ParseException.class, () -> ParserUtil.parseEditCompany("Ex&Company"));
+    }
+
+    @Test
+    public void parseBoss_validEmptyAndInvalidValues() throws Exception {
+        assertEquals(new Boss("Jane Smith"), ParserUtil.parseBoss(" Jane   Smith "));
+        assertEquals(new Boss(""), ParserUtil.parseBoss("   "));
+        assertThrows(ParseException.class, () -> ParserUtil.parseBoss("Jane"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseBoss("Jane1 Smith"));
+    }
+
+    @Test
+    public void parseFollowUpDate_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFollowUpDate(null));
+    }
+
+    @Test
+    public void parseFollowUpDate_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseFollowUpDate("2026-02-30"));
+    }
+
+    @Test
+    public void parseFollowUpDate_validValueWithWhitespace_returnsTrimmedDate() throws Exception {
+        assertEquals(new FollowUpDate("2026-10-20"), ParserUtil.parseFollowUpDate(" 2026-10-20 "));
     }
 
     @Test

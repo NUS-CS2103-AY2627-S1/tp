@@ -1,13 +1,22 @@
 package seedu.address.testutil;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Boss;
+import seedu.address.model.person.Category;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpDate;
+import seedu.address.model.person.Interaction;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -20,13 +29,23 @@ public class PersonBuilder {
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_REMARK = "";
+    public static final String DEFAULT_ROLE = "Software Engineer";
+    public static final String DEFAULT_COMPANY = "Acme Corporation";
+    public static final String DEFAULT_BOSS = "Jane Smith";
 
     private Name name;
     private Phone phone;
     private Email email;
     private Address address;
+    private Remark remark;
     private Set<Tag> tags;
-
+    private Category category;
+    private Role role;
+    private Company company;
+    private Boss boss;
+    private List<Interaction> interactions = new ArrayList<>();
+    private FollowUpDate followUpDate;
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
@@ -35,7 +54,13 @@ public class PersonBuilder {
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
+        remark = new Remark(DEFAULT_REMARK);
         tags = new HashSet<>();
+        category = Category.UNCATEGORIZED;
+        role = new Role(DEFAULT_ROLE);
+        company = new Company(DEFAULT_COMPANY);
+        boss = new Boss(DEFAULT_BOSS);
+        followUpDate = null;
     }
 
     /**
@@ -46,7 +71,14 @@ public class PersonBuilder {
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        remark = personToCopy.getRemark();
         tags = new HashSet<>(personToCopy.getTags());
+        category = personToCopy.getCategory();
+        role = personToCopy.getRole();
+        company = personToCopy.getCompany();
+        boss = personToCopy.getBoss();
+        followUpDate = personToCopy.getFollowUpDate();
+        interactions = new ArrayList<>(personToCopy.getInteractions());
     }
 
     /**
@@ -89,8 +121,64 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Role} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRole(String role) {
+        this.role = new Role(role);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Company} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withCompany(String company) {
+        this.company = new Company(company);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Boss} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withBoss(String boss) {
+        this.boss = new Boss(boss);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Remark} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRemark(String remark) {
+        this.remark = new Remark(remark);
+        return this;
+    }
+
+    /** Sets the follow-up date of the person being built. */
+    public PersonBuilder withFollowUpDate(String followUpDate) {
+        this.followUpDate = new FollowUpDate(followUpDate);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Category} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withCategory(Category category) {
+        this.category = category;
+        return this;
+    }
+
+    /**
+     * Sets the interactions of the {@code Person} that we are building.
+     */
+    public PersonBuilder withInteractions(List<Interaction> interactions) {
+        this.interactions = new ArrayList<>(interactions);
+        return this;
+    }
+
+    /** Builds a person with the configured fields. */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, tags, remark, category, role, company, boss,
+                followUpDate, interactions);
     }
 
 }

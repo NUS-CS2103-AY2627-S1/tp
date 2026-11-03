@@ -39,21 +39,40 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label role;
+    @FXML
+    private Label company;
+    @FXML
+    private Label boss;
+    @FXML
+    private Label followUpDate;
+    @FXML
+    private Label remark;
+    @FXML
     private FlowPane tags;
+    @FXML
+    private Label category;
 
     /**
-     * Creates a {@code PersonCard} with the given {@code Person} and index to display.
+     * Creates a {@code PersonCard} with the given {@code Person} and value to display.
      */
     public PersonCard(Person person, int displayedIndex) {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        phone.setText("Phone: " + person.getPhone().value);
+        address.setText("Address: " + person.getAddress().value);
+        email.setText("Email: " + person.getEmail().value);
+        role.setText("Role: " + person.getRole().value);
+        company.setText("Company: " + person.getCompany().value);
+        boss.setText("Boss: " + person.getBoss().fullName);
+        followUpDate.setText(person.getFollowUpDate() == null
+                ? "Follow-up date: not set" : "Follow-up date: " + person.getFollowUpDate());
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        remark.setText("Remark: " + person.getRemark().value);
+        category.setText(person.getCategory().name());
     }
 }

@@ -5,14 +5,15 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
  * Represents a Person's phone number in the address book.
- * Guarantees: immutable; is valid as declared in {@link #isValidPhone(String)}
+ * Guarantees: immutable; number is valid as declared in {@link #isValidPhone(String)}
  */
 public class Phone {
 
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+    public static final String MESSAGE_CONSTRAINTS = "Invalid phone number! Please use numbers only.";
+    public static final String MESSAGE_NUMBERS_ONLY = "Invalid phone number! Please use numbers only.";
+    public static final String MESSAGE_LENGTH = "Invalid phone number! Please enter exactly 8 digits.";
+    public static final String VALIDATION_REGEX = "\\d{8}";
     public final String value;
 
     /**
@@ -21,6 +22,7 @@ public class Phone {
      * @param phone A valid phone number.
      */
     public Phone(String phone) {
+        phone = phone.trim();
         requireNonNull(phone);
         checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
         value = phone;

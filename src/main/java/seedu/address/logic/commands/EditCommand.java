@@ -2,9 +2,13 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_BOSS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_COMPANY;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FOLLOW_UP_DATE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ROLE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
@@ -22,14 +26,21 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Boss;
+import seedu.address.model.person.BossChainValidator;
+import seedu.address.model.person.Category;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpDate;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
- * Edits the details of an existing person in the address book.
+ * Edits the details of an existing contact in the address book.
  */
 public class EditCommand extends Command {
 
@@ -43,14 +54,22 @@ public class EditCommand extends Command {
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_ROLE + "ROLE] "
+            + "[" + PREFIX_COMPANY + "COMPANY] "
+            + "[" + PREFIX_BOSS + "BOSS_NAME] "
+            + "[" + PREFIX_FOLLOW_UP_DATE + "DATE] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited Contact: %1$s";
+    public static final String MESSAGE_NOT_EDITED =
+            "At least one field to edit must be provided (e.g. p/, e/, rl/, com/, b/).";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "Error: An existing contact already uses this name. "
+                    + "Duplicate entries are not allowed.";
+    public static final String MESSAGE_BOSS_CYCLE = BossChainValidator.MESSAGE_BOSS_CYCLE;
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -83,9 +102,15 @@ public class EditCommand extends Command {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
+        if (BossChainValidator.createsCycle(model.getAddressBook().getPersonList(), personToEdit, editedPerson)) {
+            throw new CommandException(MESSAGE_BOSS_CYCLE);
+        }
+
         model.setPerson(personToEdit, editedPerson);
+        model.commitAddressBook(COMMAND_WORD);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS,
+                Messages.formatEditedPerson(editedPerson)));
     }
 
     /**
@@ -100,8 +125,18 @@ public class EditCommand extends Command {
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Remark updatedRemark = editPersonDescriptor.getRemark().orElse(personToEdit.getRemark());
+        Role updatedRole = editPersonDescriptor.getRole().orElse(personToEdit.getRole());
+        Company updatedCompany = editPersonDescriptor.getCompany().orElse(personToEdit.getCompany());
+        Boss updatedBoss = editPersonDescriptor.getBoss().orElse(personToEdit.getBoss());
+        FollowUpDate updatedFollowUpDate = editPersonDescriptor.isFollowUpDateEdited()
+                ? editPersonDescriptor.getFollowUpDate().orElse(null)
+                : personToEdit.getFollowUpDate();
+        Category updatedCategory = editPersonDescriptor.getCategory().orElse(personToEdit.getCategory());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail,
+                updatedAddress, updatedTags, updatedRemark, updatedCategory,
+                updatedRole, updatedCompany, updatedBoss, updatedFollowUpDate, personToEdit.getInteractions());
     }
 
     @Override
@@ -137,6 +172,13 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Remark remark;
+        private Role role;
+        private Company company;
+        private Boss boss;
+        private FollowUpDate followUpDate;
+        private boolean followUpDateEdited;
+        private Category category;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +192,21 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setRemark(toCopy.remark);
+            setRole(toCopy.role);
+            setCompany(toCopy.company);
+            setBoss(toCopy.boss);
+            setFollowUpDate(toCopy.followUpDate);
+            followUpDateEdited = toCopy.followUpDateEdited;
+            setCategory(toCopy.category);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags,
+                    remark, role, company, boss, category) || followUpDateEdited;
         }
 
         public void setName(Name name) {
@@ -191,6 +241,67 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
+        public void setRemark(Remark remark) {
+            this.remark = remark;
+        }
+
+        public Optional<Remark> getRemark() {
+            return Optional.ofNullable(remark);
+        }
+
+        public void setRole(Role role) {
+            this.role = role;
+        }
+
+        public Optional<Role> getRole() {
+            return Optional.ofNullable(role);
+        }
+
+        public void setCompany(Company company) {
+            this.company = company;
+        }
+
+        public Optional<Company> getCompany() {
+            return Optional.ofNullable(company);
+        }
+
+        public void setBoss(Boss boss) {
+            this.boss = boss;
+        }
+
+        public Optional<Boss> getBoss() {
+            return Optional.ofNullable(boss);
+        }
+
+        public void setFollowUpDate(FollowUpDate followUpDate) {
+            this.followUpDate = followUpDate;
+            this.followUpDateEdited = followUpDate != null;
+        }
+
+        /** Marks the follow-up date for removal. */
+        public void clearFollowUpDate() {
+            this.followUpDate = null;
+            this.followUpDateEdited = true;
+        }
+
+        /** Returns whether the follow-up date was explicitly set or cleared. */
+        public boolean isFollowUpDateEdited() {
+            return followUpDateEdited;
+        }
+
+        public Optional<FollowUpDate> getFollowUpDate() {
+            return Optional.ofNullable(followUpDate);
+        }
+
+        public void setCategory(Category category) {
+            this.category = category;
+        }
+
+        public Optional<Category> getCategory() {
+            return Optional.ofNullable(category);
+        }
+
+
         /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
@@ -223,18 +334,35 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(remark, otherEditPersonDescriptor.remark)
+                    && Objects.equals(role, otherEditPersonDescriptor.role)
+                    && Objects.equals(company, otherEditPersonDescriptor.company)
+                    && Objects.equals(boss, otherEditPersonDescriptor.boss)
+                    && Objects.equals(followUpDate, otherEditPersonDescriptor.followUpDate)
+                    && followUpDateEdited == otherEditPersonDescriptor.followUpDateEdited
+                    && Objects.equals(category, otherEditPersonDescriptor.category);
         }
 
         @Override
         public String toString() {
-            return new ToStringBuilder(this)
+            ToStringBuilder builder = new ToStringBuilder(this)
                     .add("name", name)
                     .add("phone", phone)
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
-                    .toString();
+                    .add("remark", remark)
+                    .add("category", category)
+                    .add("role", role)
+                    .add("company", company)
+                    .add("boss", boss);
+            if (followUpDate != null) {
+                builder.add("followUpDate", followUpDate);
+            } else if (followUpDateEdited) {
+                builder.add("followUpDate", "cleared");
+            }
+            return builder.toString();
         }
     }
 }

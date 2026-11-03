@@ -1,8 +1,10 @@
 package seedu.address.storage;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -11,10 +13,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Boss;
+import seedu.address.model.person.Category;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpDate;
+import seedu.address.model.person.Interaction;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -28,7 +37,14 @@ class JsonAdaptedPerson {
     private final String phone;
     private final String email;
     private final String address;
+    private final String remark;
+    private final String role;
+    private final String company;
+    private final String boss;
+    private final String followUpDate;
+    private final String category;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<JsonAdaptedInteraction> interactions = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
@@ -36,14 +52,54 @@ class JsonAdaptedPerson {
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("remark") String remark, @JsonProperty("role") String role,
+            @JsonProperty("company") String company, @JsonProperty("boss") String boss,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags, @JsonProperty("category") String category,
+            @JsonProperty("followUpDate") String followUpDate,
+            @JsonProperty("interactions") List<JsonAdaptedInteraction> interactions) {
+
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.remark = remark;
+        this.role = role;
+        this.company = company;
+        this.boss = boss;
+        this.followUpDate = followUpDate;
+        this.category = category;
         if (tags != null) {
             this.tags.addAll(tags);
         }
+        if (interactions != null) {
+            this.interactions.addAll(interactions);
+        }
+    }
+
+    /**
+     * Constructs an adapted person without a follow-up date or interactions.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, String remark,
+            String role, String company, String boss, List<JsonAdaptedTag> tags, String category) {
+        this(name, phone, email, address, remark, role, company, boss, tags, category, null, List.of());
+    }
+
+    /**
+     * Constructs an adapted person with a follow-up date but no interactions.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, String remark,
+            String role, String company, String boss, List<JsonAdaptedTag> tags, String category,
+            String followUpDate) {
+        this(name, phone, email, address, remark, role, company, boss, tags, category, followUpDate, List.of());
+    }
+
+    /**
+     * Constructs an adapted person with interactions but no follow-up date.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, String remark,
+            String role, String company, String boss, List<JsonAdaptedTag> tags, String category,
+            List<JsonAdaptedInteraction> interactions) {
+        this(name, phone, email, address, remark, role, company, boss, tags, category, null, interactions);
     }
 
     /**
@@ -54,8 +110,17 @@ class JsonAdaptedPerson {
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        remark = source.getRemark().value;
+        role = source.getRole().value;
+        company = source.getCompany().value;
+        boss = source.getBoss().fullName;
+        followUpDate = source.getFollowUpDate() == null ? null : source.getFollowUpDate().toString();
+        category = source.getCategory().name();
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+        interactions.addAll(source.getInteractions().stream()
+                .map(JsonAdaptedInteraction::new)
                 .collect(Collectors.toList()));
     }
 
@@ -102,8 +167,64 @@ class JsonAdaptedPerson {
         }
         final Address modelAddress = new Address(address);
 
+        if (remark == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Remark.class.getSimpleName()));
+        }
+        final Remark modelRemark = new Remark(remark);
+
+        if (role == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Role.class.getSimpleName()));
+        }
+        if (!Role.isValidRole(role)) {
+            throw new IllegalValueException(Role.MESSAGE_CONSTRAINTS);
+        }
+        final Role modelRole = new Role(role);
+
+        if (company == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    Company.class.getSimpleName()));
+        }
+        if (!Company.isValidCompanyName(company)) {
+            throw new IllegalValueException(Company.MESSAGE_CONSTRAINTS);
+        }
+        final Company modelCompany = new Company(company);
+
+        if (boss == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Boss.class.getSimpleName()));
+        }
+        if (!Boss.isValidBoss(boss.trim())) {
+            throw new IllegalValueException(Boss.MESSAGE_CONSTRAINTS);
+        }
+        final Boss modelBoss = new Boss(boss);
+
+        if (followUpDate != null && !FollowUpDate.isValidFollowUpDate(followUpDate.trim())) {
+            throw new IllegalValueException(FollowUpDate.MESSAGE_CONSTRAINTS);
+        }
+        final FollowUpDate modelFollowUpDate = followUpDate == null
+                ? null : new FollowUpDate(followUpDate);
+
+        if (category == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    Category.class.getSimpleName()));
+        }
+
+        if (!Category.isValidCategory(category)) {
+            throw new IllegalValueException(Category.MESSAGE_CONSTRAINTS);
+        }
+
+        final Category modelCategory = Category.valueOf(category.toUpperCase(Locale.ROOT));
+
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        final List<Interaction> modelInteractions = new ArrayList<>();
+        for (JsonAdaptedInteraction interaction : interactions) {
+            if (interaction == null) {
+                throw new IllegalValueException(Interaction.MESSAGE_CONSTRAINTS);
+            }
+            modelInteractions.add(interaction.toModelType());
+        }
+        modelInteractions.sort(Comparator.comparing(Interaction::getDate).reversed());
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags, modelRemark,
+                modelCategory, modelRole, modelCompany, modelBoss, modelFollowUpDate, modelInteractions);
     }
 
 }

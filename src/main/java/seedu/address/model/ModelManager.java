@@ -3,6 +3,7 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -18,9 +19,11 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final VersionedAddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private List<Person> deleteScope = List.of();
+    private boolean hasDeleteScope;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -30,7 +33,7 @@ public class ModelManager implements Model {
 
         logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.addressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
     }
@@ -67,6 +70,38 @@ public class ModelManager implements Model {
     @Override
     public ReadOnlyAddressBook getAddressBook() {
         return addressBook;
+    }
+
+    @Override
+    public void commitAddressBook() {
+        addressBook.commit();
+    }
+
+    @Override
+    public void commitAddressBook(String actionName) {
+        addressBook.commit(actionName);
+    }
+
+    @Override
+    public void undoAddressBook() {
+        addressBook.undo();
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
+
+    @Override
+    public void redoAddressBook() {
+        addressBook.redo();
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return addressBook.canUndo();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return addressBook.canRedo();
     }
 
     @Override
@@ -125,5 +160,39 @@ public class ModelManager implements Model {
                 && userPrefs.equals(otherModelManager.userPrefs)
                 && filteredPersons.equals(otherModelManager.filteredPersons);
     }
+
+
+    @Override
+    public ObservableList<Person> getUnfilteredPersonList() {
+        return addressBook.getPersonList();
+    }
+
+    @Override
+    public void setDeleteScope(List<Person> persons) {
+        deleteScope = List.copyOf(persons);
+        hasDeleteScope = true;
+    }
+
+    @Override
+    public boolean hasDeleteScope() {
+        return hasDeleteScope;
+    }
+
+    @Override
+    public List<Person> getDeleteScope() {
+        return deleteScope;
+    }
+
+    @Override
+    public void removeFromDeleteScope(Person person) {
+        deleteScope = deleteScope.stream().filter(candidate -> !candidate.equals(person)).toList();
+    }
+
+    @Override
+    public void clearDeleteScope() {
+        deleteScope = List.of();
+        hasDeleteScope = false;
+    }
+
 
 }

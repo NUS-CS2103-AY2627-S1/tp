@@ -12,6 +12,8 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.testutil.PersonBuilder;
@@ -41,14 +43,14 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces that are trimmed, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
     }
 
     @Test
@@ -88,12 +90,58 @@ public class PersonTest {
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // different remark -> returns false
+        editedAlice = new PersonBuilder(ALICE).withRemark("Likes cycling.").build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different role -> returns false
+        editedAlice = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getTags(), ALICE.getRemark(), ALICE.getCategory(), new Role("Manager"),
+                ALICE.getCompany(), ALICE.getBoss());
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different company -> returns false
+        editedAlice = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getTags(), ALICE.getRemark(), ALICE.getCategory(), ALICE.getRole(), new Company("Google"),
+                ALICE.getBoss());
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different boss -> returns false
+        editedAlice = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getTags(), ALICE.getRemark(), ALICE.getCategory(), ALICE.getRole(), ALICE.getCompany(),
+                new Boss("Alex Tan"));
+        assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags()
+                + ", role=" + ALICE.getRole() + ", company=" + ALICE.getCompany() + ", boss=" + ALICE.getBoss()
+                + ", category=" + ALICE.getCategory() + ", interactions=" + ALICE.getInteractions() + "}";
         assertEquals(expected, ALICE.toString());
+
+        Person datedAlice = new PersonBuilder(ALICE).withFollowUpDate("2026-10-20").build();
+        String expectedDated = Person.class.getCanonicalName() + "{name=" + datedAlice.getName()
+                + ", phone=" + datedAlice.getPhone() + ", email=" + datedAlice.getEmail()
+                + ", address=" + datedAlice.getAddress() + ", tags=" + datedAlice.getTags()
+                + ", role=" + datedAlice.getRole() + ", company=" + datedAlice.getCompany()
+                + ", boss=" + datedAlice.getBoss() + ", followUpDate=" + datedAlice.getFollowUpDate()
+                + ", category=" + datedAlice.getCategory() + ", interactions=" + datedAlice.getInteractions() + "}";
+        assertEquals(expectedDated, datedAlice.toString());
+
+        assertTrue(datedAlice.equals(new PersonBuilder(datedAlice).build()));
+        assertFalse(ALICE.equals(datedAlice));
+
+        Person differentCategory = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                Set.copyOf(ALICE.getTags()), ALICE.getRemark(), Category.CLIENT, ALICE.getRole(), ALICE.getCompany(),
+                ALICE.getBoss(), ALICE.getFollowUpDate());
+        assertFalse(ALICE.equals(differentCategory));
+
+        Person defaultEmployment = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                Set.copyOf(ALICE.getTags()), ALICE.getRemark(), ALICE.getCategory());
+        assertEquals(new Role("TEST ROLE"), defaultEmployment.getRole());
+        assertEquals(datedAlice.hashCode(), new PersonBuilder(datedAlice).build().hashCode());
     }
 }

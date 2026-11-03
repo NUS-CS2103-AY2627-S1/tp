@@ -3,6 +3,7 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
@@ -10,13 +11,13 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Invalid name! Names must contain at least two words and may contain alphabetic characters only.";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * A valid name consists of at least a first name and last name, separated by spaces.
+     * Single source of truth for both Add and Edit.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[A-Za-z]+( +[A-Za-z]+)+";
 
     public final String fullName;
 
@@ -26,8 +27,26 @@ public class Name {
      * @param name A valid name.
      */
     public Name(String name) {
+        this(name, MESSAGE_CONSTRAINTS);
+    }
+
+    /**
+     * Constructs a {@code Name} with a custom validation message.
+     *
+     * @param name A valid name.
+     * @param messageConstraints The message displayed when validation fails.
+     */
+    protected Name(String name, String messageConstraints) {
+        this(name, messageConstraints, false);
+    }
+
+    /**
+     * Constructs a {@code Name} with a custom validation message and optional empty value.
+     */
+    protected Name(String name, String messageConstraints, boolean allowsEmpty) {
+        name = parseSpaces(name);
         requireNonNull(name);
-        checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
+        checkArgument(allowsEmpty && name.isEmpty() || isValidName(name), messageConstraints);
         fullName = name;
     }
 
@@ -35,9 +54,16 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return parseSpaces(test.trim()).matches(VALIDATION_REGEX);
     }
 
+    /**
+     * Trims {@code name} by removing spaces from front and back
+     * and collapsing repeated spaces into one.
+     */
+    public static String parseSpaces(String name) {
+        return name.trim().replaceAll(" +", " ");
+    }
 
     @Override
     public String toString() {
@@ -55,12 +81,12 @@ public class Name {
             return false;
         }
 
-        return fullName.equals(otherName.fullName);
+        return fullName.equalsIgnoreCase(otherName.fullName);
     }
 
     @Override
     public int hashCode() {
-        return fullName.hashCode();
+        return fullName.toLowerCase(Locale.ROOT).hashCode();
     }
 
 }

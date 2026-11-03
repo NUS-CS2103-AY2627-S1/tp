@@ -1,6 +1,7 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.model.person.Name.parseSpaces;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -10,9 +11,13 @@ import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Boss;
+import seedu.address.model.person.Company;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FollowUpDate;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -20,12 +25,31 @@ import seedu.address.model.tag.Tag;
  */
 public class ParserUtil {
 
-    public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_INDEX =
+            "Index must be a positive integer.";
+    public static final String MESSAGE_EDIT_PHONE_LENGTH =
+            "Invalid phone number! Please enter exactly 8 digits.";
+    public static final String MESSAGE_EDIT_PHONE_CHARACTERS =
+            "Invalid phone number! Please use numbers only.";
+    public static final String MESSAGE_EDIT_PHONE_SPACES =
+            "Invalid phone number! Spaces are not allowed.";
+    public static final String MESSAGE_EDIT_EMAIL_AT =
+            "Invalid email! Please include an '@' symbol.";
+    public static final String MESSAGE_EDIT_EMAIL_DOMAIN =
+            "Invalid email! Please use an email address ending with '.com'.";
+    public static final String MESSAGE_EDIT_EMAIL_SPACES =
+            "Invalid email! Spaces are not allowed.";
+    public static final String MESSAGE_EDIT_EMAIL_FORMAT =
+            "Invalid email! Please use the format username@example.com.";
+    public static final String MESSAGE_EDIT_ROLE =
+            "Invalid role! Please use alphanumeral characters. Special symbols are not allowed.";
+    public static final String MESSAGE_EDIT_COMPANY =
+            "Invalid company name! Please use alphanumeral characters. Special symbols are not allowed.";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
      * trimmed.
-     * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
+     * @throws ParseException if the specified value is invalid (not a non-zero unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
         String trimmedIndex = oneBasedIndex.trim();
@@ -43,7 +67,7 @@ public class ParserUtil {
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
+        String trimmedName = parseSpaces(name);
         if (!Name.isValidName(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
@@ -60,7 +84,26 @@ public class ParserUtil {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
         if (!Phone.isValidPhone(trimmedPhone)) {
+            if (trimmedPhone.matches("[0-9]*")) {
+                throw new ParseException(Phone.MESSAGE_LENGTH);
+            }
             throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+        }
+        return new Phone(trimmedPhone);
+    }
+
+    /** Parses a phone number using the edit command's exact eight-digit rule. */
+    public static Phone parseEditPhone(String phone) throws ParseException {
+        requireNonNull(phone);
+        if (phone.contains(" ")) {
+            throw new ParseException(MESSAGE_EDIT_PHONE_SPACES);
+        }
+        String trimmedPhone = phone.trim();
+        if (!trimmedPhone.matches("\\d+")) {
+            throw new ParseException(MESSAGE_EDIT_PHONE_CHARACTERS);
+        }
+        if (trimmedPhone.length() != 8) {
+            throw new ParseException(MESSAGE_EDIT_PHONE_LENGTH);
         }
         return new Phone(trimmedPhone);
     }
@@ -93,6 +136,95 @@ public class ParserUtil {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);
+    }
+
+    /** Parses an edit email using the command's .com and no-spaces rules. */
+    public static Email parseEditEmail(String email) throws ParseException {
+        requireNonNull(email);
+        if (email.contains(" ")) {
+            throw new ParseException(MESSAGE_EDIT_EMAIL_SPACES);
+        }
+        String trimmedEmail = email.trim();
+        if (trimmedEmail.indexOf('@') < 0) {
+            throw new ParseException(MESSAGE_EDIT_EMAIL_AT);
+        }
+        if (!trimmedEmail.toLowerCase(java.util.Locale.ROOT).endsWith(".com")) {
+            throw new ParseException(MESSAGE_EDIT_EMAIL_DOMAIN);
+        }
+        if (trimmedEmail.indexOf('@') != trimmedEmail.lastIndexOf('@')
+                || !Email.isValidEmail(trimmedEmail)) {
+            throw new ParseException(MESSAGE_EDIT_EMAIL_FORMAT);
+        }
+        return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses a {@code String role} into a {@code Role}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Role parseRole(String role) throws ParseException {
+        requireNonNull(role);
+        String normalizedRole = role.trim().replaceAll(" +", " ");
+        if (!Role.isValidRole(normalizedRole)) {
+            throw new ParseException(Role.MESSAGE_CONSTRAINTS);
+        }
+        return new Role(normalizedRole);
+    }
+
+    /** Parses a role for the edit command. */
+    public static Role parseEditRole(String role) throws ParseException {
+        requireNonNull(role);
+        String normalizedRole = role.trim().replaceAll(" +", " ");
+        if (!Role.isValidRole(normalizedRole)) {
+            throw new ParseException(MESSAGE_EDIT_ROLE);
+        }
+        return new Role(normalizedRole);
+    }
+
+    /**
+     * Parses a {@code String company} into a {@code Company}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Company parseCompany(String company) throws ParseException {
+        requireNonNull(company);
+        String normalizedCompany = company.trim().replaceAll(" +", " ");
+        if (!Company.isValidCompanyName(normalizedCompany)) {
+            throw new ParseException(Company.MESSAGE_CONSTRAINTS);
+        }
+        return new Company(normalizedCompany);
+    }
+
+    /** Parses a company for the edit command. */
+    public static Company parseEditCompany(String company) throws ParseException {
+        requireNonNull(company);
+        String normalizedCompany = company.trim().replaceAll(" +", " ");
+        if (!Company.isValidCompanyName(normalizedCompany)) {
+            throw new ParseException(MESSAGE_EDIT_COMPANY);
+        }
+        return new Company(normalizedCompany);
+    }
+
+    /**
+     * Parses a {@code String boss} into a {@code Boss}.
+     * Leading and trailing whitespaces will be trimmed.
+     */
+    public static Boss parseBoss(String boss) throws ParseException {
+        requireNonNull(boss);
+        String trimmedBoss = parseSpaces(boss.trim());
+        if (!Boss.isValidBoss(trimmedBoss)) {
+            throw new ParseException(Boss.MESSAGE_CONSTRAINTS);
+        }
+        return new Boss(trimmedBoss);
+    }
+
+    /** Parses a follow-up date in the format {@code yyyy-MM-dd}. */
+    public static FollowUpDate parseFollowUpDate(String followUpDate) throws ParseException {
+        requireNonNull(followUpDate);
+        String trimmedFollowUpDate = followUpDate.trim();
+        if (!FollowUpDate.isValidFollowUpDate(trimmedFollowUpDate)) {
+            throw new ParseException(FollowUpDate.MESSAGE_CONSTRAINTS);
+        }
+        return new FollowUpDate(trimmedFollowUpDate);
     }
 
     /**

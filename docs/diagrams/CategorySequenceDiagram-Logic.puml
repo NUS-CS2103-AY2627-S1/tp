@@ -1,0 +1,61 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant "c:CategoryCommand" as CategoryCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant ":Model" as Model MODEL_COLOR
+end box
+
+[-> LogicManager : execute(commandText)
+activate LogicManager
+
+LogicManager -> AddressBookParser : parseCommand\n(commandText)
+activate AddressBookParser
+
+create CategoryCommand
+AddressBookParser -> CategoryCommand
+activate CategoryCommand
+
+CategoryCommand --> AddressBookParser
+deactivate CategoryCommand
+
+AddressBookParser --> LogicManager : c
+deactivate AddressBookParser
+
+LogicManager -> CategoryCommand : execute(model)
+activate CategoryCommand
+
+CategoryCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> CategoryCommand : shownPersons
+deactivate Model
+
+CategoryCommand -> CategoryCommand : personToCategorize = shownPersons.get(index)
+alt category changes
+    CategoryCommand -> Model : setPerson(personToCategorize,\neditedPerson)
+    activate Model
+    Model --> CategoryCommand
+    deactivate Model
+
+    CategoryCommand -> Model : commitAddressBook("category")
+    activate Model
+    Model --> CategoryCommand
+    deactivate Model
+else already in category
+    CategoryCommand --> CategoryCommand : return unchanged result
+end
+
+CategoryCommand --> LogicManager : result
+deactivate CategoryCommand
+CategoryCommand -[hidden]-> LogicManager : result
+destroy CategoryCommand
+
+[<--LogicManager : result
+deactivate LogicManager
+@enduml

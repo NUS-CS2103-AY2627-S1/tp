@@ -4,6 +4,7 @@ import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -20,21 +21,63 @@ public class Person {
     private final Name name;
     private final Phone phone;
     private final Email email;
+    private final Remark remark;
+    private final Role role;
+    private final Company company;
+    private final Boss boss;
+    private final FollowUpDate followUpDate;
 
     // Data fields
     private final Address address;
     private final Set<Tag> tags = new HashSet<>();
+    private final Category category;
+    private final List<Interaction> interactions;
 
     /**
-     * Every field must be present and not null.
+     * Creates a person with the required contact details and default employment details.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address,
+                  Set<Tag> tags, Remark remark, Category category) {
+        this(name, phone, email, address, tags, remark, category, new Role("TEST ROLE"),
+                new Company("TEST COMPANY"), new Boss("TEST BOSS"), null, List.of());
+    }
+
+    /**
+     * Creates a person with all contact and employment details.
+     */
+    public Person(Name name, Phone phone, Email email, Address address,
+                  Set<Tag> tags, Remark remark, Category category, Role role, Company company, Boss boss) {
+        this(name, phone, email, address, tags, remark, category, role, company, boss, null, List.of());
+    }
+
+    /**
+     * Creates a person with all contact and employment details, including an optional follow-up date.
+     */
+    public Person(Name name, Phone phone, Email email, Address address,
+                  Set<Tag> tags, Remark remark, Category category, Role role, Company company, Boss boss,
+                  FollowUpDate followUpDate) {
+        this(name, phone, email, address, tags, remark, category, role, company, boss, followUpDate, List.of());
+    }
+
+    /**
+     * Creates a person with EVERY FIELD. {@code followUpDate} may be null. {@code interactions} may be List.of().
+     */
+    public Person(Name name, Phone phone, Email email, Address address,
+                  Set<Tag> tags, Remark remark, Category category, Role role, Company company, Boss boss,
+                  FollowUpDate followUpDate, List<Interaction> interactions) {
+        requireAllNonNull(name, phone, email, address, tags, remark, category, role, company, boss, interactions);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.remark = remark;
+        this.role = role;
+        this.company = company;
+        this.boss = boss;
+        this.followUpDate = followUpDate;
         this.tags.addAll(tags);
+        this.category = category;
+        this.interactions = List.copyOf(interactions);
     }
 
     public Name getName() {
@@ -53,6 +96,26 @@ public class Person {
         return address;
     }
 
+    public Remark getRemark() {
+        return remark;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public Boss getBoss() {
+        return boss;
+    }
+
+    public FollowUpDate getFollowUpDate() {
+        return followUpDate;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -61,8 +124,25 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+
+    public Category getCategory() {
+        return this.category;
+    }
+
+    public List<Interaction> getInteractions() {
+        return interactions;
+    }
+
     /**
-     * Returns true if both persons have the same name.
+     * Returns a copy of this person with the given interactions and all other details preserved.
+     */
+    public Person withInteractions(List<Interaction> interactions) {
+        return new Person(name, phone, email, address, tags, remark, category, role, company, boss,
+                followUpDate, interactions);
+    }
+
+    /**
+     * Returns true if both persons have the same name, ignoring case.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -70,8 +150,7 @@ public class Person {
             return true;
         }
 
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        return otherPerson != null && otherPerson.getName().equals(getName());
     }
 
     /**
@@ -93,23 +172,39 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && remark.equals(otherPerson.remark)
+                && role.equals(otherPerson.role)
+                && company.equals(otherPerson.company)
+                && boss.equals(otherPerson.boss)
+                && category.equals(otherPerson.category)
+                && Objects.equals(followUpDate, otherPerson.followUpDate)
+                && interactions.equals(otherPerson.interactions);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, tags, remark, role, company, boss, followUpDate,
+                category, interactions);
     }
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
+        ToStringBuilder builder = new ToStringBuilder(this)
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
                 .add("tags", tags)
+                .add("role", role)
+                .add("company", company)
+                .add("boss", boss);
+        if (followUpDate != null) {
+            builder.add("followUpDate", followUpDate);
+        }
+        return builder.add("category", category)
+                .add("interactions", interactions)
                 .toString();
     }
 

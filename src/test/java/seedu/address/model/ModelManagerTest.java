@@ -74,6 +74,52 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void commitUndoRedoAddressBook_updatesAddressBookAndFilteredList() {
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook();
+        modelManager.addPerson(BENSON);
+        modelManager.commitAddressBook();
+        modelManager.updateFilteredPersonList(person -> false);
+
+        modelManager.undoAddressBook();
+
+        assertEquals(List.of(ALICE), modelManager.getFilteredPersonList());
+        assertTrue(modelManager.canUndoAddressBook());
+        assertTrue(modelManager.canRedoAddressBook());
+
+        modelManager.redoAddressBook();
+
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+        assertTrue(modelManager.canUndoAddressBook());
+        assertFalse(modelManager.canRedoAddressBook());
+    }
+
+    @Test
+    public void commitAddressBook_afterUndo_discardsRedoState() {
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook();
+        modelManager.addPerson(BENSON);
+        modelManager.commitAddressBook();
+        modelManager.undoAddressBook();
+
+        modelManager.deletePerson(ALICE);
+        modelManager.commitAddressBook();
+
+        assertFalse(modelManager.canRedoAddressBook());
+        assertEquals(List.of(), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void removeFromDeleteScope_personInScope_removesOnlyThatPerson() {
+        modelManager.setDeleteScope(List.of(ALICE, BENSON));
+
+        modelManager.removeFromDeleteScope(ALICE);
+
+        assertTrue(modelManager.hasDeleteScope());
+        assertEquals(List.of(BENSON), modelManager.getDeleteScope());
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
