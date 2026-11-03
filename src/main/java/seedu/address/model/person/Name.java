@@ -9,14 +9,14 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Name {
 
-    public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+    public static final String MESSAGE_CONSTRAINTS = "Names should only contain alphanumeric characters "
+            + "and spaces, should not be blank, and should be at most 100 characters long.";
 
     /*
      * The first character of the name must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]{0,99}";
 
     public final String fullName;
 
@@ -38,6 +38,10 @@ public class Name {
         return test.matches(VALIDATION_REGEX);
     }
 
+    /** Returns a copy of this Name instance. */
+    public Name copy() {
+        return new Name(this.fullName);
+    }
 
     @Override
     public String toString() {

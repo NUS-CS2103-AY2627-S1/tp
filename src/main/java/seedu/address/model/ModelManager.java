@@ -3,6 +3,9 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -10,7 +13,13 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.ParentContact;
 import seedu.address.model.person.Person;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.schedule.ScheduledSession;
+import seedu.address.model.statistics.AssessmentRecord;
+import seedu.address.model.statistics.LessonRecord;
+import seedu.address.storage.SnapshotManager;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -21,22 +30,40 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final FilteredList<ParentContact> parentList;
+    private final SnapshotManager snapshotManager;
+    private final Clock clock;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
      */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
+        this(addressBook, userPrefs, Clock.systemDefaultZone());
+    }
+
+    /** Initializes a ModelManager with an injectable time source. */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs, Clock clock) {
         requireAllNonNull(addressBook, userPrefs);
+        requireNonNull(clock);
 
         logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        this.filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        this.parentList = new FilteredList<>(this.addressBook.getParentContactList());
+        this.snapshotManager = new SnapshotManager();
+        this.clock = clock;
+        snapshotManager.saveSnapshot(this.addressBook, "");
     }
 
     public ModelManager() {
         this(new AddressBook(), new UserPrefs());
+    }
+
+    @Override
+    public void setHistory(List<LessonRecord> lessons, List<AssessmentRecord> assessments) {
+        addressBook.setHistory(lessons, assessments);
     }
 
     //=========== UserPrefs ==================================================================================
@@ -108,6 +135,103 @@ public class ModelManager implements Model {
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+    }
+
+    /**
+     * Returns an unmodifiable view of the unfiltered list of {@code Person} backed by the internal list of
+     * {@code addressBook}
+     */
+    @Override
+    public ObservableList<Person> getPersonList() {
+        return this.addressBook.getPersonList();
+    }
+
+    @Override public void addParentContact(ParentContact contact) {
+        addressBook.addParentContact(contact); }
+    @Override public boolean hasParentContact(ParentContact contact) {
+        return addressBook.hasParentContact(contact); }
+    @Override public void setParentContact(ParentContact target, ParentContact replacement) {
+        addressBook.setParentContact(target, replacement);
+    }
+    @Override public void deleteParentContact(ParentContact target) {
+        addressBook.removeParentContact(target); }
+
+    @Override public ObservableList<ParentContact> getParentContactList() {
+        return parentList; }
+
+    @Override
+    public void updateParentList(Predicate<ParentContact> predicate) {
+        requireNonNull(predicate);
+        parentList.setPredicate(predicate);
+    }
+
+    @Override
+    public void addScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        addressBook.addScheduledSession(session);
+    }
+
+    @Override
+    public boolean hasScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        return addressBook.hasScheduledSession(session);
+    }
+
+    @Override
+    public void deleteScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        addressBook.removeScheduledSession(session);
+    }
+
+    @Override
+    public ObservableList<ScheduledSession> getScheduleList() {
+        return addressBook.getScheduleList();
+    }
+
+    @Override
+    public Reminder addReminder(String text, LocalDateTime dueAt) {
+        requireNonNull(text);
+        return addressBook.createReminder(text, dueAt);
+    }
+
+    @Override
+    public void deleteReminder(int id) {
+        addressBook.removeReminder(id);
+    }
+
+    @Override
+    public java.util.List<Reminder> getReminderList() {
+        return addressBook.getReminderList();
+    }
+
+    @Override
+    public Clock getClock() {
+        return clock;
+    }
+
+    @Override
+    public void save(String feedbackToUser) {
+        snapshotManager.saveSnapshot(addressBook, feedbackToUser);
+    }
+
+    @Override
+    public String undo() {
+        AddressBook newAddressBook = snapshotManager.undo();
+
+        if (newAddressBook != null) {
+            this.setAddressBook(newAddressBook);
+        }
+        return snapshotManager.getCommandMessage();
+    }
+
+    @Override
+    public String redo() {
+        AddressBook newAddressBook = snapshotManager.redo();
+
+        if (newAddressBook != null) {
+            this.setAddressBook(newAddressBook);
+        }
+        return snapshotManager.getCommandMessage();
     }
 
     @Override

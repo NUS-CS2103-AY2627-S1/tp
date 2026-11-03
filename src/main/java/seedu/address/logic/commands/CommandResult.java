@@ -3,6 +3,7 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import seedu.address.commons.util.ToStringBuilder;
 
@@ -19,13 +20,29 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
+    private final boolean undo;
+
+    private final boolean redo;
+
+    private final boolean search;
+
+    private final String keyword;
+
+    /** The id of the student the window should switch to and select, or null to leave the selection alone. */
+    private final String studentIdToShow;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
-    public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+    public CommandResult(String feedbackToUser, boolean showHelp, boolean exit, boolean undo, boolean redo) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.keyword = null;
+        this.undo = undo;
+        this.redo = redo;
+        this.search = false;
+        this.studentIdToShow = null;
     }
 
     /**
@@ -33,7 +50,42 @@ public class CommandResult {
      * and other fields set to their default value.
      */
     public CommandResult(String feedbackToUser) {
-        this(feedbackToUser, false, false);
+        this(feedbackToUser, false, false, false, false);
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the default fields and a keyword.
+     */
+    public CommandResult(String feedbackToUser, String keyword) {
+        this.feedbackToUser = requireNonNull(feedbackToUser);
+        this.showHelp = false;
+        this.exit = false;
+        this.keyword = keyword;
+        undo = false;
+        redo = false;
+        this.search = true;
+        this.studentIdToShow = null;
+    }
+
+    private CommandResult(String feedbackToUser, boolean showHelp, boolean exit, boolean undo, boolean redo,
+            boolean search, String keyword, String studentIdToShow) {
+        this.feedbackToUser = requireNonNull(feedbackToUser);
+        this.showHelp = showHelp;
+        this.exit = exit;
+        this.undo = undo;
+        this.redo = redo;
+        this.search = search;
+        this.keyword = keyword;
+        this.studentIdToShow = studentIdToShow;
+    }
+
+    /**
+     * Returns a {@code CommandResult} that asks the window to switch to the Students tab and select the
+     * student with {@code studentId}.
+     */
+    public static CommandResult showingStudent(String feedbackToUser, String studentId) {
+        requireNonNull(studentId);
+        return new CommandResult(feedbackToUser, false, false, false, false, false, null, studentId);
     }
 
     public String getFeedbackToUser() {
@@ -46,6 +98,29 @@ public class CommandResult {
 
     public boolean isExit() {
         return exit;
+    }
+
+    public boolean isUndo() {
+        return undo;
+    }
+
+    public boolean isRedo() {
+        return redo;
+    }
+
+    public boolean isSearch() {
+        return search;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    /**
+     * Returns the id of the student the window should switch to and select, if this result asks for one.
+     */
+    public Optional<String> getStudentIdToShow() {
+        return Optional.ofNullable(studentIdToShow);
     }
 
     @Override
@@ -61,12 +136,14 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && Objects.equals(keyword, otherCommandResult.keyword)
+                && Objects.equals(studentIdToShow, otherCommandResult.studentIdToShow);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, keyword, studentIdToShow);
     }
 
     @Override
@@ -75,6 +152,7 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("studentIdToShow", studentIdToShow)
                 .toString();
     }
 

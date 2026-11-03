@@ -6,15 +6,19 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.task.TaskList;
 
 /**
  * Represents a Person in the address book.
  * Guarantees: details are present and not null, field values are validated, immutable.
  */
 public class Person {
+
+    private final String studentId;
 
     // Identity fields
     private final Name name;
@@ -23,22 +27,76 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final Subject subject;
+    private final GradeLevel gradeLevel;
+    private final PhotoPath photoPath;
+    private final TaskList taskList;
     private final Set<Tag> tags = new HashSet<>();
 
     /**
+     * Creates a person without a grade level.
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Subject subject, Set<Tag> tags) {
+        this(name, phone, email, address, subject, GradeLevel.NONE, PhotoPath.NONE, new TaskList(), tags);
+    }
+
+    /**
+     * Every field must be present and not null. Use {@link GradeLevel#NONE} if there is no grade level.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Subject subject,
+            GradeLevel gradeLevel, Set<Tag> tags) {
+        this(name, phone, email, address, subject, gradeLevel, PhotoPath.NONE, new TaskList(), tags);
+    }
+
+    /**
+     * Every field must be present and not null. Use {@link GradeLevel#NONE} if there is no grade level.
+     * Use {@link PhotoPath#NONE} if there is no photo path.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Subject subject, GradeLevel gradeLevel,
+            PhotoPath photoPath, Set<Tag> tags) {
+        this(name, phone, email, address, subject, gradeLevel, photoPath, new TaskList(), tags);
+    }
+
+    /**
+     * Every field must be present and not null. Use {@link GradeLevel#NONE} and {@link PhotoPath#NONE}
+     * when those values are not specified.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Subject subject, GradeLevel gradeLevel,
+            PhotoPath photoPath, TaskList taskList, Set<Tag> tags) {
+        this(UUID.randomUUID().toString(), name, phone, email, address, subject, gradeLevel, photoPath, taskList, tags);
+    }
+
+    /**
+     * creates a standard Person. The studentId is randomized and subsequent changes to the student's attributes
+     * should require copying the same studentId.
+     */
+    public Person(String studentId, Name name, Phone phone, Email email, Address address, Subject subject,
+            GradeLevel gradeLevel, PhotoPath photoPath, TaskList taskList, Set<Tag> tags) {
+        requireAllNonNull(name, phone, email, address, subject, gradeLevel, photoPath, taskList, tags);
+        this.studentId = UUID.fromString(studentId).toString();
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.subject = subject;
+        this.gradeLevel = gradeLevel;
+        this.photoPath = photoPath;
+        this.taskList = taskList;
         this.tags.addAll(tags);
     }
 
     public Name getName() {
         return name;
+    }
+
+    public String getStudentId() {
+        return studentId;
+    }
+
+    /** Returns these details with the given persistent identity. Value equality remains detail-based. */
+    public Person withStudentId(String id) {
+        return new Person(id, name, phone, email, address, subject, gradeLevel, photoPath, taskList, tags);
     }
 
     public Phone getPhone() {
@@ -53,6 +111,22 @@ public class Person {
         return address;
     }
 
+    public Subject getSubject() {
+        return subject;
+    }
+
+    public GradeLevel getGradeLevel() {
+        return gradeLevel;
+    }
+
+    public PhotoPath getPhotoPath() {
+        return photoPath;
+    }
+
+    public TaskList getTaskList() {
+        return taskList;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,7 +136,7 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same name (case-insensitive) and phone number.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +145,21 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getName().fullName.equalsIgnoreCase(getName().fullName)
+                && otherPerson.getPhone().equals(getPhone());
+    }
+
+    /** Returns a copy of this Person instance by copying every attribute*/
+    public Person copy() {
+        Set<Tag> tagsCopy = new HashSet<>();
+        for (Tag tag : tags) {
+            tagsCopy.add(tag.copy());
+        }
+
+        Person copy = new Person(name.copy(), phone.copy(), email.copy(), address.copy(), subject.copy(),
+                gradeLevel.copy(), photoPath.copy(), taskList.copy(), tagsCopy);
+
+        return copy.withStudentId(studentId);
     }
 
     /**
@@ -93,13 +181,17 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
+                && subject.equals(otherPerson.subject)
+                && gradeLevel.equals(otherPerson.gradeLevel)
+                && photoPath.equals(otherPerson.photoPath)
+                && taskList.equals(otherPerson.taskList)
                 && tags.equals(otherPerson.tags);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, subject, gradeLevel, photoPath, taskList, tags);
     }
 
     @Override
@@ -109,6 +201,10 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("subject", subject)
+                .add("gradeLevel", gradeLevel)
+                .add("photoPath", photoPath)
+                .add("taskList", taskList)
                 .add("tags", tags)
                 .toString();
     }

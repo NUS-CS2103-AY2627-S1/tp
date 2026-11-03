@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_GRADE_LEVEL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SUBJECT_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
@@ -14,6 +16,7 @@ import static seedu.address.testutil.TypicalPersons.BOB;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.task.TaskStatus;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
@@ -32,18 +35,23 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        // same name and phone, all other attributes different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB)
+                .withAddress(VALID_ADDRESS_BOB).withSubject(VALID_SUBJECT_BOB)
+                .withGradeLevel(VALID_GRADE_LEVEL_BOB).withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
-        // different name, all other attributes same -> returns false
+        // same name, different phone, all other attributes same -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same phone, different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, same phone, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
         // name has trailing spaces, all other attributes same -> returns false
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
@@ -85,15 +93,50 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different subject -> returns false
+        editedAlice = new PersonBuilder(ALICE).withSubject(VALID_SUBJECT_BOB).build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different grade level -> returns false
+        editedAlice = new PersonBuilder(ALICE).withGradeLevel(VALID_GRADE_LEVEL_BOB).build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different photo path -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhotoPath("photos/alice.png").build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different task list -> returns false
+        editedAlice = new PersonBuilder(ALICE).withTasks("do homework").build();
         assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress()
+                + ", subject=" + ALICE.getSubject() + ", gradeLevel=" + ALICE.getGradeLevel()
+                + ", photoPath=" + ALICE.getPhotoPath() + ", taskList=" + ALICE.getTaskList()
+                + ", tags=" + ALICE.getTags() + "}";
         assertEquals(expected, ALICE.toString());
+    }
+
+    @Test
+    public void equals_differentTaskStatus_returnsFalse() {
+        Person notDone = new PersonBuilder(ALICE).withTasks("do homework").build();
+        Person done = new PersonBuilder(ALICE).withTasks().withTask("do homework", TaskStatus.DONE).build();
+
+        assertFalse(notDone.equals(done));
+    }
+
+    @Test
+    public void builderCopy_preservesTaskList() {
+        Person personWithTasks = new PersonBuilder(ALICE).withTasks("do homework", "revise notes").build();
+
+        assertEquals(personWithTasks, new PersonBuilder(personWithTasks).build());
+        assertEquals(personWithTasks.getTaskList(), new PersonBuilder(personWithTasks).build().getTaskList());
     }
 }

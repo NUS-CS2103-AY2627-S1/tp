@@ -9,7 +9,7 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Tag {
 
-    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric";
+    public static final String MESSAGE_CONSTRAINTS = "Tags should be alphanumeric.";
     public static final String VALIDATION_REGEX = "\\p{Alnum}+";
 
     public final String tagName;
@@ -30,6 +30,11 @@ public class Tag {
      */
     public static boolean isValidTagName(String test) {
         return test.matches(VALIDATION_REGEX);
+    }
+
+    /** Returns a copy of this Phone instance */
+    public Tag copy() {
+        return new Tag(tagName);
     }
 
     @Override

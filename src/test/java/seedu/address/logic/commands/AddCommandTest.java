@@ -21,7 +21,9 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.person.ParentContact;
 import seedu.address.model.person.Person;
+import seedu.address.model.schedule.ScheduledSession;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -138,7 +140,52 @@ public class AddCommandTest {
         }
 
         @Override
+        public void updateParentList(Predicate<ParentContact> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Person> getPersonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addScheduledSession(ScheduledSession session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasScheduledSession(ScheduledSession session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteScheduledSession(ScheduledSession session) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<ScheduledSession> getScheduleList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void save(String feedbackToUser) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String redo() {
             throw new AssertionError("This method should not be called.");
         }
     }

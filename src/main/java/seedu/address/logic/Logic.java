@@ -1,11 +1,16 @@
 package seedu.address.logic;
 
+import java.time.Clock;
+
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.ParentContact;
 import seedu.address.model.person.Person;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.schedule.ScheduledSession;
 
 /**
  * API of the Logic component
@@ -22,6 +27,27 @@ public interface Logic {
 
     /** Returns an unmodifiable view of the filtered list of persons */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns an unmodifiable view of the list of persons */
+    ObservableList<Person> getPersonList();
+
+    /** Sets the filtered list to the original list */
+    void resetPersonList();
+
+    /** Returns an unmodifiable view of the filtered list of parent contacts */
+    ObservableList<ParentContact> getParentContactList();
+
+    /** Returns an unmodifiable view of the scheduled sessions */
+    ObservableList<ScheduledSession> getScheduleList();
+
+    /** Returns tutor-level reminders in insertion order. */
+    default java.util.List<Reminder> getReminderList() {
+        return java.util.List.of();
+    }
+
+    default Clock getClock() {
+        return Clock.systemDefaultZone();
+    }
 
     /**
      * Returns the user prefs' GUI settings.

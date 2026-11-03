@@ -3,11 +3,20 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Objects;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.person.ParentContact;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.reminder.ReminderList;
+import seedu.address.model.schedule.Schedule;
+import seedu.address.model.schedule.ScheduledSession;
+import seedu.address.model.statistics.AssessmentRecord;
+import seedu.address.model.statistics.LessonRecord;
 
 /**
  * Wraps all data at the address-book level.
@@ -16,6 +25,12 @@ import seedu.address.model.person.UniquePersonList;
 public class AddressBook implements ReadOnlyAddressBook {
 
     private final UniquePersonList persons = new UniquePersonList();
+    private final javafx.collections.ObservableList<ParentContact> parentContacts = FXCollections.observableArrayList();
+    private final Schedule schedule = new Schedule();
+    private ReminderList reminders = new ReminderList();
+    private int nextReminderId = 1;
+    private List<LessonRecord> lessons = List.of();
+    private List<AssessmentRecord> assessments = List.of();
 
     public AddressBook() {}
 
@@ -44,6 +59,11 @@ public class AddressBook implements ReadOnlyAddressBook {
         requireNonNull(newData);
 
         setPersons(newData.getPersonList());
+        parentContacts.setAll(newData.getParentContactList());
+        schedule.setSessions(newData.getScheduleList());
+        reminders = new ReminderList(newData.getReminderList());
+        nextReminderId = newData.getNextReminderId();
+        setHistory(newData.getLessonRecords(), newData.getAssessmentRecords());
     }
 
     //// person-level operations
@@ -61,6 +81,9 @@ public class AddressBook implements ReadOnlyAddressBook {
      * The person must not already exist in the address book.
      */
     public void addPerson(Person p) {
+        if (getPersonList().stream().anyMatch(person -> person.getStudentId().equals(p.getStudentId()))) {
+            throw new IllegalArgumentException("Student IDs must be unique.");
+        }
         persons.add(p);
     }
 
@@ -72,7 +95,12 @@ public class AddressBook implements ReadOnlyAddressBook {
     public void setPerson(Person target, Person editedPerson) {
         requireNonNull(editedPerson);
 
-        persons.setPerson(target, editedPerson);
+        Person identifiedPerson = editedPerson.withStudentId(target.getStudentId());
+        persons.setPerson(target, identifiedPerson);
+        List<ScheduledSession> updated = schedule.asUnmodifiableObservableList().stream()
+                .map(s -> s.getStudent().equals(target) ? s.withStudent(identifiedPerson) : s)
+                .toList();
+        schedule.setSessions(updated);
     }
 
     /**
@@ -81,6 +109,123 @@ public class AddressBook implements ReadOnlyAddressBook {
      */
     public void removePerson(Person key) {
         persons.remove(key);
+        schedule.removeIf(s -> s.getStudent().equals(key));
+    }
+
+    //// schedule-level operations
+
+    /**
+     * Adds a session to the schedule. Overlapping sessions are allowed.
+     * The session's student must exist in the address book.
+     */
+    public void addScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        schedule.add(session);
+    }
+
+    /**
+     * Returns true if a session equal to {@code session} is in the schedule.
+     */
+    public boolean hasScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        return schedule.contains(session);
+    }
+
+    /**
+     * Removes one session equal to {@code session} from the schedule.
+     * At least one such session must exist.
+     */
+    public void removeScheduledSession(ScheduledSession session) {
+        requireNonNull(session);
+        if (!schedule.remove(session)) {
+            throw new IllegalArgumentException("Session is not in the schedule.");
+        }
+    }
+
+    /**
+     * Adds a parent contact to the address book.
+     */
+    public void addParentContact(ParentContact contact) {
+        requireNonNull(contact);
+        if (parentContacts.stream().anyMatch(contact::isSameContact)) {
+            throw new seedu.address.model.person.exceptions.DuplicatePersonException();
+        }
+        parentContacts.add(contact);
+    }
+
+    public boolean hasParentContact(ParentContact contact) {
+        return parentContacts.stream().anyMatch(contact::isSameContact);
+    }
+
+    public void setParentContact(ParentContact target, ParentContact replacement) {
+        int index = parentContacts.indexOf(target);
+        if (index < 0) {
+            throw new seedu.address.model.person.exceptions.PersonNotFoundException();
+        }
+        if (!target.isSameContact(replacement) && hasParentContact(replacement)) {
+            throw new seedu.address.model.person.exceptions.DuplicatePersonException();
+        }
+        parentContacts.set(index, replacement);
+    }
+
+    public void removeParentContact(ParentContact contact) {
+        parentContacts.remove(contact);
+    }
+
+    /** Adds an already identified reminder, primarily while loading or copying data. */
+    public void addReminder(Reminder reminder) {
+        reminders = reminders.withReminder(reminder);
+        nextReminderId = Math.max(nextReminderId, reminder.getId() + 1);
+    }
+
+    /** Creates and adds a reminder with the next never-reused ID. */
+    public Reminder createReminder(String text, java.time.LocalDateTime dueAt) {
+        Reminder reminder = new Reminder(nextReminderId, text, dueAt);
+        addReminder(reminder);
+        return reminder;
+    }
+
+    public void removeReminder(int id) {
+        reminders = reminders.withoutReminderId(id);
+    }
+
+    /** Replaces reminders and ID allocation state when loading persisted data. */
+    public void setReminderData(List<Reminder> reminders, int nextReminderId) {
+        if (nextReminderId <= 0 || reminders.stream().anyMatch(reminder -> reminder.getId() >= nextReminderId)) {
+            throw new IllegalArgumentException("Next reminder ID must exceed all reminder IDs.");
+        }
+        this.reminders = new ReminderList(reminders);
+        this.nextReminderId = nextReminderId;
+    }
+
+    /**
+     * Creates a copy of the address book by copying every {@code Person} and {@code ParentContact}.
+     *
+     * @return the copied AddressBook.
+     */
+    public AddressBook copy() {
+        AddressBook copy = new AddressBook();
+
+        for (Person student : persons) {
+            copy.addPerson(student.copy());
+        }
+        for (ParentContact parent : parentContacts) {
+            copy.addParentContact(parent.copy());
+        }
+        for (ScheduledSession session : schedule.asUnmodifiableObservableList()) {
+            Person studentCopy = copy.persons.asUnmodifiableObservableList().stream()
+                    .filter(p -> p.equals(session.getStudent()))
+                    .findFirst()
+                    .orElseThrow();
+            copy.addScheduledSession(session.withStudent(studentCopy));
+        }
+        for (Reminder reminder : reminders.getReminders()) {
+            copy.addReminder(reminder.copy());
+        }
+        copy.nextReminderId = nextReminderId;
+        copy.setHistory(lessons, assessments);
+
+        return copy;
     }
 
     //// util methods
@@ -98,6 +243,57 @@ public class AddressBook implements ReadOnlyAddressBook {
     }
 
     @Override
+    public ObservableList<ParentContact> getParentContactList() {
+        return FXCollections.unmodifiableObservableList(parentContacts);
+    }
+
+    @Override
+    public ObservableList<ScheduledSession> getScheduleList() {
+        return schedule.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public List<Reminder> getReminderList() {
+        return reminders.getReminders();
+    }
+
+    @Override
+    public int getNextReminderId() {
+        return nextReminderId;
+    }
+
+    @Override
+    public List<LessonRecord> getLessonRecords() {
+        return lessons;
+    }
+
+    @Override
+    public List<AssessmentRecord> getAssessmentRecords() {
+        return assessments;
+    }
+
+    /** Replaces source history atomically; immutable records are safe to share between snapshots. */
+    public void setHistory(List<LessonRecord> lessons, List<AssessmentRecord> assessments) {
+        List<LessonRecord> newLessons = List.copyOf(lessons);
+        List<AssessmentRecord> newAssessments = List.copyOf(assessments);
+        if (newLessons.stream().map(LessonRecord::id).distinct().count() != newLessons.size()
+                || newAssessments.stream().map(AssessmentRecord::id).distinct().count() != newAssessments.size()) {
+            throw new IllegalArgumentException("Historical record IDs must be unique within each collection.");
+        }
+        List<LessonRecord> linked = newLessons.stream().filter(r -> r.sourceSessionId() != null).toList();
+        if (linked.stream().map(r -> r.sourceSessionId() + "/" + r.date()).distinct().count() != linked.size()) {
+            throw new IllegalArgumentException("Only one linked lesson is allowed per scheduled session and date.");
+        }
+        if (linked.stream().anyMatch(r -> getScheduleList().stream().anyMatch(s ->
+                s.getSessionId().equals(r.sourceSessionId())
+                    && !s.getStudent().getStudentId().equals(r.studentId())))) {
+            throw new IllegalArgumentException("Linked lesson must belong to the scheduled session's student.");
+        }
+        this.lessons = newLessons;
+        this.assessments = newAssessments;
+    }
+
+    @Override
     public boolean equals(Object other) {
         if (other == this) {
             return true;
@@ -108,11 +304,17 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons)
+                && parentContacts.equals(otherAddressBook.parentContacts)
+                && schedule.equals(otherAddressBook.schedule)
+                && reminders.equals(otherAddressBook.reminders)
+                && nextReminderId == otherAddressBook.nextReminderId
+                && lessons.equals(otherAddressBook.lessons)
+                && assessments.equals(otherAddressBook.assessments);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(persons, parentContacts, schedule, reminders, nextReminderId, lessons, assessments);
     }
 }

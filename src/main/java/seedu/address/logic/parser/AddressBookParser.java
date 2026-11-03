@@ -9,14 +9,35 @@ import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddContactCommand;
+import seedu.address.logic.commands.AddParentPhotoCommand;
+import seedu.address.logic.commands.AddPhotoCommand;
+import seedu.address.logic.commands.AddReminderCommand;
+import seedu.address.logic.commands.AddTaskCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
-import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.DeleteParentCommand;
+import seedu.address.logic.commands.DeleteParentPhotoCommand;
+import seedu.address.logic.commands.DeletePhotoCommand;
+import seedu.address.logic.commands.DeleteReminderCommand;
+import seedu.address.logic.commands.DeleteTaskCommand;
+import seedu.address.logic.commands.EditParentCommand;
+import seedu.address.logic.commands.EditStudentCommand;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListParentsCommand;
+import seedu.address.logic.commands.ListRemindersCommand;
+import seedu.address.logic.commands.ListScheduleCommand;
+import seedu.address.logic.commands.MarkAttendanceCommand;
+import seedu.address.logic.commands.MarkTaskCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.ScheduleStudentCommand;
+import seedu.address.logic.commands.SearchCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UnscheduleStudentCommand;
+import seedu.address.logic.commands.ViewChildCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -52,14 +73,50 @@ public class AddressBookParser {
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
         return switch (commandWord) {
+            case ListScheduleCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException("Usage: " + ListScheduleCommand.COMMAND_WORD);
+                }
+                yield new ListScheduleCommand();
+            }
+            case MarkAttendanceCommand.COMMAND_WORD -> new MarkAttendanceCommandParser().parse(arguments);
+            case "record-assessment", "edit-assessment", "delete-assessment", "delete-lesson",
+                    "list-lessons", "list-assessments" ->
+                new HistoryCommandParser(commandWord).parse(arguments);
+            case "stats" -> new StatsCommandParser(false).parse(arguments);
+            case "stats-student" -> new StatsCommandParser(true).parse(arguments);
+            case AddContactCommand.COMMAND_WORD -> new AddContactCommandParser().parse(arguments);
+            case DeleteParentCommand.COMMAND_WORD -> new DeleteParentCommandParser().parse(arguments);
+            case ViewChildCommand.COMMAND_WORD -> new ViewChildCommandParser().parse(arguments);
+            case ListParentsCommand.COMMAND_WORD -> new ListParentsCommand();
+            case EditParentCommand.COMMAND_WORD -> new EditParentCommandParser().parse(arguments);
+            case AddParentPhotoCommand.COMMAND_WORD -> new AddParentPhotoCommandParser().parse(arguments);
+            case DeleteParentPhotoCommand.COMMAND_WORD -> new DeleteParentPhotoCommandParser().parse(arguments);
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
-            case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
+            case AddPhotoCommand.COMMAND_WORD -> new AddPhotoCommandParser().parse(arguments);
+            case AddReminderCommand.COMMAND_WORD -> new AddReminderCommandParser().parse(arguments);
+            case AddTaskCommand.COMMAND_WORD -> new AddTaskCommandParser().parse(arguments);
+            case MarkTaskCommand.COMMAND_WORD -> new MarkTaskCommandParser().parse(arguments);
+            case ScheduleStudentCommand.COMMAND_WORD -> new ScheduleStudentCommandParser().parse(arguments);
+            case UnscheduleStudentCommand.COMMAND_WORD -> new UnscheduleStudentCommandParser().parse(arguments);
+            case EditStudentCommand.COMMAND_WORD -> new EditStudentCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
-            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case DeletePhotoCommand.COMMAND_WORD -> new DeletePhotoCommandParser().parse(arguments);
+            case DeleteReminderCommand.COMMAND_WORD -> new DeleteReminderCommandParser().parse(arguments);
+            case DeleteTaskCommand.COMMAND_WORD -> new DeleteTaskCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException("Usage: " + ClearCommand.COMMAND_WORD);
+                }
+                yield new ClearCommand();
+            }
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case ListRemindersCommand.COMMAND_WORD -> new ListRemindersCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case SearchCommand.COMMAND_WORD -> new SearchCommandParser().parse(arguments);
+            case UndoCommand.COMMAND_WORD -> new UndoCommand();
+            case RedoCommand.COMMAND_WORD -> new RedoCommand();
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);

@@ -7,13 +7,16 @@ import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalSchedule.ALICE_MONDAY_MORNING;
+import static seedu.address.testutil.TypicalSchedule.BENSON_MONDAY_OVERLAP;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonContainsKeywordsPredicate;
+import seedu.address.model.reminder.Reminder;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -74,6 +77,168 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void addScheduledSession_nullSession_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.addScheduledSession(null));
+    }
+
+    @Test
+    public void addScheduledSession_validSession_appearsInScheduleList() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        modelManager.addScheduledSession(ALICE_MONDAY_MORNING);
+        modelManager.addScheduledSession(BENSON_MONDAY_OVERLAP);
+
+        assertEquals(List.of(ALICE_MONDAY_MORNING, BENSON_MONDAY_OVERLAP), modelManager.getScheduleList());
+    }
+
+    @Test
+    public void getScheduleList_modifyList_throwsUnsupportedOperationException() {
+        modelManager.addPerson(ALICE);
+        modelManager.addScheduledSession(ALICE_MONDAY_MORNING);
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getScheduleList().remove(0));
+    }
+
+    @Test
+    public void reminderOperations_addAccessDeleteAndPreventExternalMutation() {
+        Reminder first = modelManager.addReminder("First", null);
+        Reminder second = modelManager.addReminder("Second", null);
+
+        assertEquals(List.of(first, second), modelManager.getReminderList());
+        assertThrows(UnsupportedOperationException.class, () ->
+                modelManager.getReminderList().add(new Reminder(3, "Third")));
+
+        modelManager.deleteReminder(1);
+        assertEquals(List.of(second), modelManager.getReminderList());
+    }
+
+    @Test
+    public void undoRedo_reminder_restoresReminderState() {
+        Reminder reminder = modelManager.addReminder("First", null);
+        modelManager.save("");
+        modelManager.deleteReminder(1);
+        modelManager.save("");
+
+        modelManager.undo();
+        assertEquals(List.of(reminder), modelManager.getReminderList());
+        modelManager.redo();
+        assertEquals(List.of(), modelManager.getReminderList());
+    }
+
+    @Test
+    public void undoRedo_scheduledSession_restoresSchedule() {
+        modelManager.addPerson(ALICE);
+        modelManager.save("");
+
+        modelManager.addScheduledSession(ALICE_MONDAY_MORNING);
+        modelManager.save("");
+
+        modelManager.undo();
+        assertEquals(List.of(), modelManager.getScheduleList());
+
+        modelManager.redo();
+        assertEquals(List.of(ALICE_MONDAY_MORNING), modelManager.getScheduleList());
+    }
+
+    @Test
+    public void hasAndDeleteScheduledSession_nullSession_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasScheduledSession(null));
+        assertThrows(NullPointerException.class, () -> modelManager.deleteScheduledSession(null));
+    }
+
+    @Test
+    public void deleteScheduledSession_existingSession_removesIt() {
+        modelManager.addPerson(ALICE);
+        modelManager.addScheduledSession(ALICE_MONDAY_MORNING);
+        assertTrue(modelManager.hasScheduledSession(ALICE_MONDAY_MORNING));
+
+        modelManager.deleteScheduledSession(ALICE_MONDAY_MORNING);
+
+        assertFalse(modelManager.hasScheduledSession(ALICE_MONDAY_MORNING));
+        assertEquals(List.of(), modelManager.getScheduleList());
+    }
+
+    @Test
+    public void deleteScheduledSession_absentSession_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                modelManager.deleteScheduledSession(ALICE_MONDAY_MORNING));
+    }
+
+    @Test
+    public void undo_afterDeletingSession_restoresSession() {
+        modelManager.addPerson(ALICE);
+        modelManager.addScheduledSession(ALICE_MONDAY_MORNING);
+        modelManager.save("");
+
+        modelManager.deleteScheduledSession(ALICE_MONDAY_MORNING);
+        modelManager.save("");
+
+        modelManager.undo();
+        assertEquals(List.of(ALICE_MONDAY_MORNING), modelManager.getScheduleList());
+
+        modelManager.redo();
+        assertEquals(List.of(), modelManager.getScheduleList());
+    }
+
+    @Test
+    public void save_validAddressBook_savesSnapshot() {
+        modelManager.addPerson(ALICE);
+        modelManager.save("");
+
+        modelManager.addPerson(BENSON);
+        modelManager.save("");
+
+        modelManager.undo();
+
+        assertTrue(modelManager.hasPerson(ALICE));
+        assertFalse(modelManager.hasPerson(BENSON));
+    }
+
+    @Test
+    public void undo_previousSnapshotExists_restoresPreviousState() {
+        modelManager.addPerson(ALICE);
+        modelManager.save("");
+
+        modelManager.addPerson(BENSON);
+        modelManager.save("");
+
+        modelManager.undo();
+
+        assertTrue(modelManager.hasPerson(ALICE));
+        assertFalse(modelManager.hasPerson(BENSON));
+    }
+
+    @Test
+    public void redo_previousUndoExists_restoresNextState() {
+        modelManager.addPerson(ALICE);
+        modelManager.save("");
+
+        modelManager.addPerson(BENSON);
+        modelManager.save("");
+
+        modelManager.undo();
+        modelManager.redo();
+
+        assertTrue(modelManager.hasPerson(ALICE));
+        assertTrue(modelManager.hasPerson(BENSON));
+    }
+
+    @Test
+    public void undo_noPreviousSnapshot_doesNothing() {
+        modelManager.undo();
+        AddressBook expected = new AddressBook();
+        expected.addPerson(ALICE);
+
+        assertEquals(expected, new AddressBook(modelManager.getAddressBook()));
+    }
+
+    @Test
+    public void redo_noNextSnapshot_doesNothing() {
+        modelManager.redo();
+
+        assertEquals(new AddressBook(), new AddressBook(modelManager.getAddressBook()));
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
@@ -98,7 +263,7 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new PersonContainsKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests

@@ -1,5 +1,6 @@
 @startuml
 !include style.puml
+skinparam nodesep 25
 skinparam arrowThickness 1.1
 skinparam arrowColor STORAGE_COLOR
 skinparam classBackgroundColor STORAGE_COLOR
@@ -18,8 +19,18 @@ Class JsonAddressBookStorage
 Class JsonSerializableAddressBook
 Class JsonAdaptedPerson
 Class JsonAdaptedTag
+Class JsonAdaptedTask
+Class JsonAdaptedParentContact
+Class JsonAdaptedScheduledSession
+Class JsonAdaptedReminder
 }
 
+Class SnapshotManager
+
+}
+
+package Model <<Rectangle>> {
+Class HiddenModel #FFFFFF
 }
 
 Class HiddenOutside #FFFFFF
@@ -31,6 +42,17 @@ StorageManager -down-> "1" JsonAddressBookStorage
 
 JsonAddressBookStorage ..> JsonSerializableAddressBook
 JsonSerializableAddressBook --> "*" JsonAdaptedPerson
+JsonSerializableAddressBook --> "*" JsonAdaptedParentContact
+JsonSerializableAddressBook ---> "*" JsonAdaptedScheduledSession
+JsonSerializableAddressBook ----> "*" JsonAdaptedReminder
 JsonAdaptedPerson --> "*" JsonAdaptedTag
+JsonAdaptedPerson --> "*" JsonAdaptedTask
+
+JsonAdaptedParentContact -[hidden]down- JsonAdaptedScheduledSession
+JsonAdaptedScheduledSession -[hidden]down- JsonAdaptedReminder
+
+Storage .right.> Model
+SnapshotManager ..> Model
+Model ..> SnapshotManager
 
 @enduml

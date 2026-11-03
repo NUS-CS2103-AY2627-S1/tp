@@ -7,20 +7,30 @@ import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.SUBJECT_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddReminderCommand;
+import seedu.address.logic.commands.AddTaskCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteReminderCommand;
+import seedu.address.logic.commands.DeleteTaskCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListRemindersCommand;
+import seedu.address.logic.commands.ScheduleStudentCommand;
+import seedu.address.logic.commands.UnscheduleStudentCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
@@ -28,6 +38,8 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.task.Task;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
@@ -60,7 +72,7 @@ public class LogicManagerTest {
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
+        String deleteCommand = DeleteCommand.COMMAND_WORD + " 9";
         assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
     }
 
@@ -80,6 +92,60 @@ public class LogicManagerTest {
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void getScheduleList_afterScheduleAndUnscheduleCommands_reflectsSchedule() throws Exception {
+        model.addPerson(AMY);
+        String slot = " 1 day/monday from/10-00 to/12-00";
+
+        logic.execute(ScheduleStudentCommand.COMMAND_WORD + slot);
+        assertEquals(1, logic.getScheduleList().size());
+        assertEquals(AMY, logic.getScheduleList().get(0).getStudent());
+
+        logic.execute(UnscheduleStudentCommand.COMMAND_WORD + slot);
+        assertEquals(0, logic.getScheduleList().size());
+    }
+
+    @Test
+    public void execute_reminderCommands_mutateListAndPersistAcrossReload() throws Exception {
+        logic.execute("add-reminder r/Collect worksheets");
+        logic.execute("add-reminder r/Confirm December availability");
+        assertEquals(List.of(new Reminder(1, "Collect worksheets"),
+                new Reminder(2, "Confirm December availability")), logic.getReminderList());
+
+        CommandResult listResult = logic.execute(ListRemindersCommand.COMMAND_WORD);
+        assertEquals("Reminders:" + System.lineSeparator() + "[ID 1] Collect worksheets [EVERY STARTUP]"
+                + System.lineSeparator() + "[ID 2] Confirm December availability [EVERY STARTUP]",
+                listResult.getFeedbackToUser());
+
+        CommandResult deleteResult = logic.execute(DeleteReminderCommand.COMMAND_WORD + " 1");
+        assertEquals("Deleted reminder: Collect worksheets", deleteResult.getFeedbackToUser());
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook reloaded = storage.readAddressBook().get();
+        assertEquals(List.of(new Reminder(2, "Confirm December availability")), reloaded.getReminderList());
+    }
+
+    @Test
+    public void execute_addReminder_studentTasksRemainUnchanged() throws Exception {
+        Person studentWithTask = new PersonBuilder(AMY).withTasks("Do homework").build();
+        model.addPerson(studentWithTask);
+
+        logic.execute(AddReminderCommand.COMMAND_WORD + " r/Tutor note");
+
+        assertEquals(List.of(new Task("Do homework")), model.getPersonList().get(0).getTaskList().getTasks());
+    }
+
+    @Test
+    public void execute_deleteTask_removesTaskFromStudent() throws Exception {
+        model.addPerson(AMY);
+        logic.execute(AddTaskCommand.COMMAND_WORD + " 1 task/do homework");
+        assertEquals(1, logic.getFilteredPersonList().get(0).getTaskList().size());
+
+        logic.execute(DeleteTaskCommand.COMMAND_WORD + " 1 tid/1");
+
+        assertEquals(0, logic.getFilteredPersonList().get(0).getTaskList().size());
     }
 
     @Test
@@ -165,7 +231,7 @@ public class LogicManagerTest {
 
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + SUBJECT_DESC_AMY;
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
         expectedModel.addPerson(expectedPerson);

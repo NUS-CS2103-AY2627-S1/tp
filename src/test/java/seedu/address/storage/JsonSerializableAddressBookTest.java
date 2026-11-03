@@ -1,17 +1,27 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
+import seedu.address.model.person.Person;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.schedule.ScheduledSession;
+import seedu.address.model.task.Task;
+import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.TypicalPersons;
+import seedu.address.testutil.TypicalSchedule;
 
 public class JsonSerializableAddressBookTest {
 
@@ -42,6 +52,152 @@ public class JsonSerializableAddressBookTest {
                 JsonSerializableAddressBook.class).get();
         assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_PERSON,
                 dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_fileWithoutSchedule_loadsWithEmptySchedule() throws Exception {
+        JsonSerializableAddressBook dataFromFile = JsonUtil.readJsonFile(TYPICAL_PERSONS_FILE,
+                JsonSerializableAddressBook.class).get();
+        assertEquals(List.of(), dataFromFile.toModelType().getScheduleList());
+    }
+
+    @Test
+    public void toModelType_fileWithoutReminders_loadsWithEmptyReminderList() throws Exception {
+        JsonSerializableAddressBook data = JsonUtil.fromJsonString("{\"persons\":[]}",
+                JsonSerializableAddressBook.class);
+        assertEquals(List.of(), data.toModelType().getReminderList());
+    }
+
+    @Test
+    public void conversion_addressBookWithReminders_roundTripsThroughJsonInOrder() throws Exception {
+        AddressBook original = new AddressBook();
+        original.addReminder(new Reminder(1, "First"));
+        original.addReminder(new Reminder(2, "Second"));
+
+        String json = JsonUtil.toJsonString(new JsonSerializableAddressBook(original));
+        AddressBook restored = JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class).toModelType();
+
+        assertEquals(original, restored);
+        assertEquals(List.of(new Reminder(1, "First"), new Reminder(2, "Second")), restored.getReminderList());
+    }
+
+    @Test
+    public void toModelType_invalidReminder_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook data = JsonUtil.fromJsonString(
+                "{\"persons\":[],\"reminders\":[{\"text\":\"   \"}]}",
+                JsonSerializableAddressBook.class);
+        assertThrows(IllegalValueException.class, Reminder.MESSAGE_CONSTRAINTS, data::toModelType);
+    }
+
+    @Test
+    public void conversion_timedReminderAndNextId_roundTrips() throws Exception {
+        AddressBook original = new AddressBook();
+        original.addReminder(new Reminder(3, "Timed", LocalDateTime.of(2026, 10, 22, 18, 0)));
+        original.setReminderData(original.getReminderList(), 8);
+
+        AddressBook restored = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonSerializableAddressBook(original)),
+                JsonSerializableAddressBook.class).toModelType();
+
+        assertEquals(original, restored);
+        assertEquals(8, restored.getNextReminderId());
+    }
+
+    @Test
+    public void toModelType_oldTextOnlyReminders_assignsDeterministicIdsAndDerivesNextId() throws Exception {
+        String json = "{\"persons\":[],\"reminders\":[{\"text\":\"First\"},{\"text\":\"Second\"}]}";
+
+        AddressBook restored = JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class).toModelType();
+
+        assertEquals(List.of(new Reminder(1, "First"), new Reminder(2, "Second")), restored.getReminderList());
+        assertEquals(3, restored.getNextReminderId());
+    }
+
+    @Test
+    public void toModelType_mixedOldAndNewIds_skipsUsedIdsDuringMigration() throws Exception {
+        String json = "{\"persons\":[],\"reminders\":[{\"text\":\"Old\"},"
+                + "{\"id\":1,\"text\":\"New\"}]}";
+
+        AddressBook restored = JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class).toModelType();
+
+        assertEquals(List.of(new Reminder(2, "Old"), new Reminder(1, "New")), restored.getReminderList());
+        assertEquals(3, restored.getNextReminderId());
+    }
+
+    @Test
+    public void toModelType_duplicateInvalidIdsOrNextId_throwsIllegalValueException() throws Exception {
+        assertInvalidReminderJson("{\"persons\":[],\"reminders\":[{\"id\":1,\"text\":\"A\"},"
+                + "{\"id\":1,\"text\":\"B\"}]}");
+        assertInvalidReminderJson("{\"persons\":[],\"reminders\":[{\"id\":0,\"text\":\"A\"}]}");
+        assertInvalidReminderJson("{\"persons\":[],\"reminders\":[{\"id\":4,\"text\":\"A\"}],"
+                + "\"nextReminderId\":4}");
+    }
+
+    @Test
+    public void toModelType_invalidDueTimestamp_throwsIllegalValueException() throws Exception {
+        assertInvalidReminderJson("{\"persons\":[],\"reminders\":[{\"id\":1,\"text\":\"A\","
+                + "\"dueAt\":\"2026-02-30 18:00\"}]}");
+    }
+
+    private static void assertInvalidReminderJson(String json) throws Exception {
+        JsonSerializableAddressBook data = JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class);
+        assertThrows(IllegalValueException.class, data::toModelType);
+    }
+
+    @Test
+    public void conversion_addressBookWithSchedule_roundTripsThroughJson() throws Exception {
+        AddressBook original = TypicalSchedule.getTypicalAddressBookWithSchedule();
+
+        String json = JsonUtil.toJsonString(new JsonSerializableAddressBook(original));
+        JsonSerializableAddressBook reloaded = JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class);
+
+        AddressBook restored = reloaded.toModelType();
+        assertEquals(original, restored);
+        assertEquals(TypicalSchedule.getTypicalSessions(), restored.getScheduleList());
+    }
+
+    @Test
+    public void conversion_afterSessionRemoved_removedSessionIsNotSaved() throws Exception {
+        AddressBook original = TypicalSchedule.getTypicalAddressBookWithSchedule();
+        original.removeScheduledSession(TypicalSchedule.ALICE_MONDAY_MORNING);
+
+        AddressBook restored = new JsonSerializableAddressBook(original).toModelType();
+
+        assertEquals(List.of(TypicalSchedule.ALICE_WEDNESDAY, TypicalSchedule.BENSON_MONDAY_OVERLAP),
+                restored.getScheduleList());
+    }
+
+    @Test
+    public void conversion_afterTaskDeleted_deletedTaskIsNotSaved() throws Exception {
+        Person withTasks = new PersonBuilder().withName("Zed Tester").withPhone("90000000")
+                .withTasks("a", "b", "c").build();
+        Person afterDelete = new Person(withTasks.getName(), withTasks.getPhone(), withTasks.getEmail(),
+                withTasks.getAddress(), withTasks.getSubject(), withTasks.getGradeLevel(), withTasks.getPhotoPath(),
+                withTasks.getTaskList().withoutTask(Index.fromOneBased(2)), withTasks.getTags());
+        AddressBook original = new AddressBook();
+        original.addPerson(afterDelete);
+
+        AddressBook restored = new JsonSerializableAddressBook(original).toModelType();
+
+        assertEquals(List.of(new Task("a"), new Task("c")), restored.getPersonList().get(0).getTaskList().getTasks());
+    }
+
+    @Test
+    public void toModelType_sessionsPointToLoadedPersons() throws Exception {
+        AddressBook original = TypicalSchedule.getTypicalAddressBookWithSchedule();
+
+        AddressBook restored = new JsonSerializableAddressBook(original).toModelType();
+
+        for (ScheduledSession session : restored.getScheduleList()) {
+            assertTrue(restored.getPersonList().stream().anyMatch(p -> p == session.getStudent()));
+        }
+    }
+
+    @Test
+    public void toModelType_sessionWithUnknownStudent_throwsIllegalValueException() {
+        JsonSerializableAddressBook data = new JsonSerializableAddressBook(List.of(), List.of(),
+                List.of(new JsonAdaptedScheduledSession(0, "MONDAY", "10-00", "12-00")));
+        assertThrows(IllegalValueException.class, data::toModelType);
     }
 
 }

@@ -9,51 +9,48 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Euan Tan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/euanlt.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/euanlt)]
 
 * Role: Project Advisor
 
-### Jane Doe
+### Pranav Jagatheeswaran
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/pranavj-960.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/pranavj-960)]
 
 * Role: Team Lead
 * Responsibilities: UI
 
-### Johnny Doe
+### Stuart
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/mr-yeo.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/mr-yeo)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Aidan Chiang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/vanillajohn.png" width="200px">
 
-[[github](http://github.com/johndoe)]
+[[github](https://github.com/Vanillajohn)]
 [[portfolio](team/johndoe.md)]
 
 * Role: Developer
 * Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Alfred Chew
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/polar1605.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Polar1605)]
+[[portfolio](https://www.linkedin.com/in/alfred-chew-23292a267/)]
 
 * Role: Developer
 * Responsibilities: UI

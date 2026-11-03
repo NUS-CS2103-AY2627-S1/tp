@@ -5,10 +5,16 @@ import java.util.Set;
 
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GradeLevel;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.PhotoPath;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.task.Task;
+import seedu.address.model.task.TaskList;
+import seedu.address.model.task.TaskStatus;
 import seedu.address.model.util.SampleDataUtil;
 
 /**
@@ -16,25 +22,37 @@ import seedu.address.model.util.SampleDataUtil;
  */
 public class PersonBuilder {
 
+    public static final String DEFAULT_ID = "12345";
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_SUBJECT = "Mathematics";
 
+    private String id;
     private Name name;
     private Phone phone;
     private Email email;
     private Address address;
+    private Subject subject;
+    private GradeLevel gradeLevel;
+    private PhotoPath photoPath;
+    private TaskList taskList;
     private Set<Tag> tags;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
+        id = DEFAULT_ID;
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
+        subject = new Subject(DEFAULT_SUBJECT);
+        gradeLevel = GradeLevel.NONE;
+        photoPath = PhotoPath.NONE;
+        taskList = new TaskList();
         tags = new HashSet<>();
     }
 
@@ -42,11 +60,24 @@ public class PersonBuilder {
      * Initializes the PersonBuilder with the data of {@code personToCopy}.
      */
     public PersonBuilder(Person personToCopy) {
+        id = personToCopy.getStudentId();
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        subject = personToCopy.getSubject();
+        gradeLevel = personToCopy.getGradeLevel();
+        photoPath = personToCopy.getPhotoPath();
+        taskList = personToCopy.getTaskList();
         tags = new HashSet<>(personToCopy.getTags());
+    }
+
+    /**
+     * Sets the {@code Id} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withId(String id) {
+        this.id = id;
+        return this;
     }
 
     /**
@@ -89,8 +120,48 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Subject} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withSubject(String subject) {
+        this.subject = new Subject(subject);
+        return this;
+    }
+
+    /**
+     * Sets the {@code GradeLevel} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withGradeLevel(String gradeLevel) {
+        this.gradeLevel = new GradeLevel(gradeLevel);
+        return this;
+    }
+
+    /**
+     * Sets the {@code PhotoPath} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withPhotoPath(String photoPath) {
+        this.photoPath = new PhotoPath(photoPath);
+        return this;
+    }
+
+    /**
+     * Parses the descriptions into a {@code TaskList} and sets it on the person being built.
+     */
+    public PersonBuilder withTasks(String... taskDescriptions) {
+        taskList = SampleDataUtil.getTaskList(taskDescriptions);
+        return this;
+    }
+
+    /**
+     * Appends a task with the given description and status to the person being built.
+     */
+    public PersonBuilder withTask(String description, TaskStatus status) {
+        taskList = taskList.withTask(new Task(description, status));
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, subject, gradeLevel, photoPath, taskList, tags);
     }
 
 }

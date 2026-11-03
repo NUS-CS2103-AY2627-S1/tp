@@ -6,6 +6,7 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.Set;
 
@@ -16,11 +17,14 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.schedule.TimeSlot;
 import seedu.address.model.tag.Tag;
+import seedu.address.model.task.Task;
+import seedu.address.model.task.TaskStatus;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "12";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
@@ -190,5 +194,96 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseTask_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTask(null));
+    }
+
+    @Test
+    public void parseTask_blankValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTask(WHITESPACE));
+    }
+
+    @Test
+    public void parseTask_overLengthLimit_throwsParseException() {
+        assertThrows(ParseException.class, Task.MESSAGE_LENGTH_CONSTRAINTS, () ->
+                ParserUtil.parseTask("a".repeat(Task.MAX_DESCRIPTION_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseTask_atLengthLimitWithWhitespace_returnsTrimmedTask() throws Exception {
+        String longest = "a".repeat(Task.MAX_DESCRIPTION_LENGTH);
+        assertEquals(new Task(longest), ParserUtil.parseTask("  " + longest + "  "));
+    }
+
+    @Test
+    public void parseTask_validValueWithWhitespace_returnsTrimmedTask() throws Exception {
+        assertEquals(new Task("do homework"), ParserUtil.parseTask("  do homework  "));
+    }
+
+    @Test
+    public void parseTaskStatus_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTaskStatus(null));
+    }
+
+    @Test
+    public void parseTaskStatus_invalidValue_throwsParseException() {
+        String message = TaskStatus.MESSAGE_CONSTRAINTS;
+
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTaskStatus("finished"));
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTaskStatus(""));
+    }
+
+    @Test
+    public void parseTaskStatus_validValue_returnsStatus() throws Exception {
+        assertEquals(TaskStatus.DONE, ParserUtil.parseTaskStatus("done"));
+        assertEquals(TaskStatus.NOT_DONE, ParserUtil.parseTaskStatus("not done"));
+        assertEquals(TaskStatus.DONE, ParserUtil.parseTaskStatus(WHITESPACE + "DONE" + WHITESPACE));
+    }
+
+    @Test
+    public void parseDay_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDay(null));
+    }
+
+    @Test
+    public void parseDay_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DAY, () -> ParserUtil.parseDay(""));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DAY, () -> ParserUtil.parseDay("someday"));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DAY, () -> ParserUtil.parseDay("mo"));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_INVALID_DAY, () -> ParserUtil.parseDay("1"));
+    }
+
+    @Test
+    public void parseDay_validValue_returnsDay() throws Exception {
+        assertEquals(DayOfWeek.MONDAY, ParserUtil.parseDay("monday"));
+        assertEquals(DayOfWeek.MONDAY, ParserUtil.parseDay("MON"));
+        assertEquals(DayOfWeek.THURSDAY, ParserUtil.parseDay(WHITESPACE + "Thu" + WHITESPACE));
+        assertEquals(DayOfWeek.SUNDAY, ParserUtil.parseDay("Sunday"));
+    }
+
+    @Test
+    public void parseTimeSlot_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTimeSlot(null, "12-00"));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTimeSlot("10-00", null));
+    }
+
+    @Test
+    public void parseTimeSlot_invalidValue_throwsParseException() {
+        String message = TimeSlot.MESSAGE_CONSTRAINTS;
+
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTimeSlot("", "12-00"));
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTimeSlot("10:00", "12:00"));
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTimeSlot("12-00", "10-00"));
+        assertThrows(ParseException.class, message, () -> ParserUtil.parseTimeSlot("10-00", "10-00"));
+    }
+
+    @Test
+    public void parseTimeSlot_validValue_returnsTimeSlot() throws Exception {
+        assertEquals(TimeSlot.of("10-00", "12-00"), ParserUtil.parseTimeSlot("10-00", "12-00"));
+        assertEquals(TimeSlot.of("10-00", "12-00"),
+                ParserUtil.parseTimeSlot(WHITESPACE + "10-00" + WHITESPACE, WHITESPACE + "12-00"));
     }
 }

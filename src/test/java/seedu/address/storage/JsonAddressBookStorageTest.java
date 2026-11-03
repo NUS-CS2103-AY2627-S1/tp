@@ -11,6 +11,7 @@ import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +19,11 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Person;
+import seedu.address.model.reminder.Reminder;
+import seedu.address.model.task.Task;
+import seedu.address.model.task.TaskList;
+import seedu.address.model.task.TaskStatus;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -84,6 +90,41 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withTasks_preservesTaskOrder() throws Exception {
+        Path filePath = testFolder.resolve("AddressBookWithTasks.json");
+        AddressBook original = getTypicalAddressBook();
+        Person aliceWithTasks = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getSubject(), ALICE.getGradeLevel(), ALICE.getPhotoPath(),
+                new TaskList(List.of(new Task("do homework"), new Task("revise notes", TaskStatus.DONE))),
+                ALICE.getTags());
+        original.setPerson(ALICE, aliceWithTasks);
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original, filePath);
+        ReadOnlyAddressBook readBack = storage.readAddressBook(filePath).get();
+
+        assertEquals(original, new AddressBook(readBack));
+        assertEquals(List.of(new Task("do homework"), new Task("revise notes", TaskStatus.DONE)),
+                readBack.getPersonList().get(0).getTaskList().getTasks());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_withReminders_preservesOrderAcrossReload() throws Exception {
+        Path filePath = testFolder.resolve("AddressBookWithReminders.json");
+        AddressBook original = getTypicalAddressBook();
+        original.addReminder(new Reminder(1, "Collect worksheets"));
+        original.addReminder(new Reminder(2, "Confirm December availability"));
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        ReadOnlyAddressBook readBack = storage.readAddressBook().get();
+
+        assertEquals(original, new AddressBook(readBack));
+        assertEquals(List.of(new Reminder(1, "Collect worksheets"),
+                new Reminder(2, "Confirm December availability")), readBack.getReminderList());
     }
 
     @Test
