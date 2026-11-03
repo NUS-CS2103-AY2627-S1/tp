@@ -8,7 +8,7 @@ import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.testutil.TypicalPersons.CARL;
 import static seedu.address.testutil.TypicalPersons.ELLE;
 import static seedu.address.testutil.TypicalPersons.FIONA;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalPersons.getTypicalClientBook;
 
 import java.util.List;
 
@@ -17,14 +17,20 @@ import org.junit.jupiter.api.Test;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.NameAndRelationshipMatchesPredicate;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Relationship;
+import seedu.address.model.person.RelationshipMatchesPredicate;
+import seedu.address.testutil.ClientBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
  */
 public class FindCommandTest {
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
-    private Model expectedModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+    private Model model = new ModelManager(getTypicalClientBook(), new UserPrefs());
+    private Model expectedModel = new ModelManager(getTypicalClientBook(), new UserPrefs());
 
     @Test
     public void equals() {
@@ -59,7 +65,7 @@ public class FindCommandTest {
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertCommandSuccess(command, model, expectedFindResult(expectedMessage), expectedModel);
         assertEquals(List.of(), model.getFilteredPersonList());
     }
 
@@ -69,8 +75,73 @@ public class FindCommandTest {
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertCommandSuccess(command, model, expectedFindResult(expectedMessage), expectedModel);
         assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_relationship_multiplePersonsFoundInOriginalOrder() {
+        Person clientCarl = new PersonBuilder(CARL).withRelationship(Relationship.CLIENT).build();
+        Person clientFiona = new PersonBuilder(FIONA).withRelationship(Relationship.CLIENT).build();
+        Model relationshipModel = new ModelManager(new ClientBookBuilder()
+                .withPerson(ELLE)
+                .withPerson(clientCarl)
+                .withPerson(clientFiona)
+                .build(), new UserPrefs());
+        Model expectedRelationshipModel = new ModelManager(relationshipModel.getClientBook(), new UserPrefs());
+        RelationshipMatchesPredicate predicate = new RelationshipMatchesPredicate(Relationship.CLIENT);
+        FindCommand command = new FindCommand(predicate);
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 2);
+
+        expectedRelationshipModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, relationshipModel, expectedFindResult(expectedMessage),
+                expectedRelationshipModel);
+        assertEquals(List.of(clientCarl, clientFiona), relationshipModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_nameAndRelationship_onlyPersonsMatchingBothFound() {
+        Person clientCarl = new PersonBuilder(CARL).withRelationship(Relationship.CLIENT).build();
+        Person clientFiona = new PersonBuilder(FIONA).withRelationship(Relationship.CLIENT).build();
+        Model combinedFilterModel = new ModelManager(new ClientBookBuilder()
+                .withPerson(ELLE)
+                .withPerson(clientCarl)
+                .withPerson(clientFiona)
+                .build(), new UserPrefs());
+        Model expectedCombinedFilterModel = new ModelManager(combinedFilterModel.getClientBook(), new UserPrefs());
+        NameAndRelationshipMatchesPredicate predicate =
+                new NameAndRelationshipMatchesPredicate(List.of("Elle", "Kurz"), Relationship.CLIENT);
+        FindCommand command = new FindCommand(predicate);
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1);
+
+        expectedCombinedFilterModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, combinedFilterModel, expectedFindResult(expectedMessage),
+                expectedCombinedFilterModel);
+        assertEquals(List.of(clientCarl), combinedFilterModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_multipleClientsMatchDifferentKeywords_allFound() {
+        Person clientCarl = new PersonBuilder(CARL).withRelationship(Relationship.CLIENT).build();
+        Person clientFiona = new PersonBuilder(FIONA).withRelationship(Relationship.CLIENT).build();
+        Model combinedFilterModel = new ModelManager(new ClientBookBuilder()
+                .withPerson(ELLE)
+                .withPerson(clientCarl)
+                .withPerson(clientFiona)
+                .build(), new UserPrefs());
+        Model expectedCombinedFilterModel = new ModelManager(combinedFilterModel.getClientBook(), new UserPrefs());
+        NameAndRelationshipMatchesPredicate predicate =
+                new NameAndRelationshipMatchesPredicate(List.of("Elle", "Kurz", "Kunz"), Relationship.CLIENT);
+        FindCommand command = new FindCommand(predicate);
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 2);
+
+        expectedCombinedFilterModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(command, combinedFilterModel, expectedFindResult(expectedMessage),
+                expectedCombinedFilterModel);
+        assertEquals(List.of(clientCarl, clientFiona), combinedFilterModel.getFilteredPersonList());
     }
 
     @Test
@@ -86,5 +157,10 @@ public class FindCommandTest {
      */
     private NameContainsKeywordsPredicate preparePredicate(String userInput) {
         return new NameContainsKeywordsPredicate(List.of(userInput.split("\\s+")));
+    }
+
+    /** Creates the command result expected after a successful find. */
+    private CommandResult expectedFindResult(String message) {
+        return new CommandResult(message, false, false, false, true);
     }
 }

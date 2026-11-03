@@ -1,0 +1,64 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":ClientBookParser" as Parser LOGIC_COLOR
+participant ":ContactCommandParser" as FeatureParser LOGIC_COLOR
+participant "command:ContactCommand" as Command LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "live:Model" as Live MODEL_COLOR
+participant "temporary:ModelManager" as Temp MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> Logic : execute("contact 2 ch/WhatsApp tm/-")
+activate Logic
+Logic -> Parser : parseCommand(commandText)
+activate Parser
+Parser -> FeatureParser : parse(arguments)
+activate FeatureParser
+note right of FeatureParser : Validate index syntax and fields;\nbuild set/omit/clear descriptor.
+create Command
+FeatureParser -> Command : new ContactCommand(index, descriptor)
+FeatureParser --> Parser : command
+deactivate FeatureParser
+Parser --> Logic : command
+deactivate Parser
+
+Logic -> Live : getClientBook(), getUserPrefs(),\ngetFilteredPersonPredicate(), getFilteredPersonComparator()
+Live --> Logic : data, preferences, predicate, comparator
+create Temp
+Logic -> Temp : new ModelManager(data, preferences)
+Logic -> Temp : updateFilteredPersonList(predicate, comparator)
+Logic -> Command : execute(temporary, storage)
+activate Command
+Command -> Temp : getClientBook().getPersonList()
+Temp --> Command : complete list
+note right of Command : Check full-list bounds;\nselect person at original index 2.
+Command -> Temp : getFilteredPersonList()
+Temp --> Command : visible persons
+note right of Command : Reject if selected person is hidden.\nConstruct replacement only after checks.
+Command -> Temp : setPerson(original, updated)
+note right of Temp : Channel replaced; timing cleared.\nUnrelated fields preserved.
+Command --> Logic : CommandResult
+deactivate Command
+
+Logic -> Temp : getClientBook()
+Temp --> Logic : updated client book
+opt client book changed
+    Logic -> Storage : saveClientBook(updated client book)
+    Storage --> Logic : save completed
+end
+note over Logic, Live : Save failure returns an error without committing.\nUnchanged data skips saving.
+Logic -> Live : setClientBook(updated client book)
+Logic -> Live : updateFilteredPersonList(predicate, comparator)
+[<-- Logic : CommandResult
+deactivate Logic
+@enduml

@@ -1,5 +1,6 @@
 package seedu.address.model;
 
+import java.util.Comparator;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -29,43 +30,59 @@ public interface Model {
     void setGuiSettings(GuiSettings guiSettings);
 
     /**
-     * Replaces address book data with the data in {@code addressBook}.
+     * Replaces client book data with the data in {@code clientBook}.
      */
-    void setAddressBook(ReadOnlyAddressBook addressBook);
+    void setClientBook(ReadOnlyClientBook clientBook);
 
-    /** Returns the AddressBook */
-    ReadOnlyAddressBook getAddressBook();
+    /** Returns the ClientBook */
+    ReadOnlyClientBook getClientBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a person with the same identity as {@code person} exists in the client book.
      */
     boolean hasPerson(Person person);
 
     /**
      * Deletes the given person.
-     * The person must exist in the address book.
+     * The person must exist in the client book.
      */
     void deletePerson(Person target);
 
     /**
      * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * {@code person} must not already exist in the client book.
      */
     void addPerson(Person person);
 
     /**
      * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * {@code target} must exist in the client book.
+     * The person identity of {@code editedPerson} must not be the same as another existing person in the client book.
      */
     void setPerson(Person target, Person editedPerson);
 
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Returns the predicate currently applied to the filtered person list. */
+    default Predicate<? super Person> getFilteredPersonListPredicate() {
+        return PREDICATE_SHOW_ALL_PERSONS;
+    }
+
+    /**
+     * Returns the predicate currently applied to the filtered person list.
+     */
+    Predicate<Person> getFilteredPersonPredicate();
+
+    /** Returns the current display comparator, or null for the stored contact order. */
+    Comparator<? super Person> getFilteredPersonComparator();
+
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /** Updates the display filter and order without reordering stored contacts; null clears sorting. */
+    void updateFilteredPersonList(Predicate<Person> predicate, Comparator<? super Person> comparator);
 }

@@ -29,10 +29,15 @@ jobs:
           java-package: jdk+fx
 
       - name: Build and check with Gradle
+        if: runner.os != 'Linux'
         run: ./gradlew check coverage
 
-      - name: Upload coverage reports to Codecov
+      - name: Build and check with Gradle using a virtual display
         if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v7
+        run: xvfb-run --auto-servernum ./gradlew check coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: AY2627S1-CS2103T-F14a-4/tp

@@ -3,13 +3,17 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -25,6 +29,8 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double RESULT_DISPLAY_COMPACT_MIN_HEIGHT = 50;
+    private static final double RESULT_DISPLAY_PREFERRED_HEIGHT = 140;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -36,6 +42,8 @@ public class MainWindow extends UiPart<Stage> {
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    // Arrow-key navigation is enabled only while a successful find result remains active.
+    private boolean findResultNavigationActive;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -66,6 +74,7 @@ public class MainWindow extends UiPart<Stage> {
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
+        configureResultDisplayHeight();
 
         setAccelerators();
 
@@ -74,6 +83,23 @@ public class MainWindow extends UiPart<Stage> {
 
     public Stage getPrimaryStage() {
         return primaryStage;
+    }
+
+    /** Keeps the preferred result height at normal sizes, relaxing it as the window shrinks. */
+    private void configureResultDisplayHeight() {
+        resultDisplayPlaceholder.minHeightProperty().bind(Bindings.createDoubleBinding(() ->
+                resultDisplayMinHeight(primaryStage.getHeight()),
+                primaryStage.heightProperty()));
+    }
+
+    /** Returns a finite minimum height, including before the stage has a usable height. */
+    static double resultDisplayMinHeight(double stageHeight) {
+        if (!Double.isFinite(stageHeight) || stageHeight <= 0) {
+            return RESULT_DISPLAY_PREFERRED_HEIGHT;
+        }
+        double normalWindowHeight = new GuiSettings().getWindowHeight();
+        return Math.max(RESULT_DISPLAY_COMPACT_MIN_HEIGHT, RESULT_DISPLAY_PREFERRED_HEIGHT
+                - Math.max(0, normalWindowHeight - stageHeight));
     }
 
     private void setAccelerators() {
@@ -114,10 +140,16 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        fillInnerParts("");
+    }
 
-        resultDisplay = new ResultDisplay();
+    /** Fills the window and displays any startup warning before the first command. */
+    void fillInnerParts(String startupWarning) {
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.getPersonList());
+        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, this::handlePersonListNavigation);
+
+        resultDisplay = new ResultDisplay(startupWarning);
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
@@ -127,16 +159,38 @@ public class MainWindow extends UiPart<Stage> {
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
     }
 
+    /** Moves the selected find result when an unmodified up or down arrow key is pressed. */
+    private void handlePersonListNavigation(KeyEvent event) {
+        if (event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return;
+        }
+        if (!findResultNavigationActive || !personListPanel.hasSelectedPerson()) {
+            return;
+        }
+        if (event.getCode() == KeyCode.DOWN) {
+            personListPanel.selectNextPerson();
+            event.consume();
+        } else if (event.getCode() == KeyCode.UP) {
+            personListPanel.selectPreviousPerson();
+            event.consume();
+        }
+    }
+
     /**
-     * Sets the default size based on {@code guiSettings}.
+     * Restores the window within the primary screen's usable area, excluding the taskbar.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
-        }
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+        double height = Math.min(guiSettings.getWindowHeight(), bounds.getHeight());
+        double width = Math.min(guiSettings.getWindowWidth(), bounds.getWidth());
+        primaryStage.setHeight(height);
+        primaryStage.setWidth(width);
+        double x = guiSettings.getWindowCoordinates() == null ? bounds.getMinX() + (bounds.getWidth() - width) / 2
+                : guiSettings.getWindowCoordinates().getX();
+        double y = guiSettings.getWindowCoordinates() == null ? bounds.getMinY() + (bounds.getHeight() - height) / 2
+                : guiSettings.getWindowCoordinates().getY();
+        primaryStage.setX(Math.max(bounds.getMinX(), Math.min(x, bounds.getMaxX() - width)));
+        primaryStage.setY(Math.max(bounds.getMinY(), Math.min(y, bounds.getMaxY() - height)));
     }
 
     /**
@@ -177,10 +231,16 @@ public class MainWindow extends UiPart<Stage> {
      * @see seedu.address.logic.Logic#execute(String)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        findResultNavigationActive = false;
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            logger.fine("Result: " + commandResult.getFeedbackToUser());
+            resultDisplay.setFeedbackToUser(commandText, commandResult.getFeedbackToUser());
+
+            if (commandResult.shouldSelectFirstResult()) {
+                personListPanel.selectFirstPerson();
+                findResultNavigationActive = personListPanel.hasSelectedPerson();
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -192,8 +252,8 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            logger.info("An error occurred while executing a command.");
+            resultDisplay.setFeedbackToUser(commandText, e.getMessage());
             throw e;
         }
     }

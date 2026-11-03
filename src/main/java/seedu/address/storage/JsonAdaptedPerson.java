@@ -4,17 +4,25 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
+import seedu.address.model.person.AreaOfInterest;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FinancialNeed;
+import seedu.address.model.person.InteractionNote;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.PreferredContactChannel;
+import seedu.address.model.person.PreferredContactTiming;
+import seedu.address.model.person.Priority;
+import seedu.address.model.person.RecurringReminder;
+import seedu.address.model.person.Relationship;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -27,22 +35,91 @@ class JsonAdaptedPerson {
     private final String name;
     private final String phone;
     private final String email;
-    private final String address;
+    private final String relationship;
+    private final String financialNeed;
+    private final String priority;
+    private final String areaOfInterest;
+    private final JsonAdaptedNextAction nextAction;
+    private final String preferredContactChannel;
+    private final String preferredContactTiming;
+    private final List<JsonAdaptedRecurringReminder> recurringReminders = new ArrayList<>();
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final List<JsonAdaptedInteractionNote> interactionNotes = new ArrayList<>();
+
+    JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, tags, null);
+    }
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
+    public JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags,
+            String relationship) {
+        this(name, phone, email, tags, relationship, null, null, null);
+    }
+
+    /**
+     * Constructs an adapted person with optional financial information; null represents absence.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags,
+            String relationship, String financialNeed, String priority, String areaOfInterest) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest, null);
+    }
+
+    /** Retains the existing constructor for callers without follow-up information. */
+    public JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags,
+            String relationship, String financialNeed, String priority, String areaOfInterest,
+            List<JsonAdaptedInteractionNote> interactionNotes) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest, interactionNotes, null);
+    }
+
+    /** Retains callers without contact preferences. */
+    public JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags,
+            String relationship, String financialNeed, String priority, String areaOfInterest,
+            List<JsonAdaptedInteractionNote> interactionNotes, JsonAdaptedNextAction nextAction) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, null, null);
+    }
+
+    /** Retains callers without recurring reminders. */
+    public JsonAdaptedPerson(String name, String phone, String email, List<JsonAdaptedTag> tags,
+            String relationship, String financialNeed, String priority, String areaOfInterest,
+            List<JsonAdaptedInteractionNote> interactionNotes, JsonAdaptedNextAction nextAction,
+            String preferredContactChannel, String preferredContactTiming) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, null);
+    }
+
+    /** Missing optional information in older files is treated as absent. */
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("email") String email, @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("relationship") String relationship,
+            @JsonProperty("financialNeed") String financialNeed, @JsonProperty("priority") String priority,
+            @JsonProperty("areaOfInterest") String areaOfInterest,
+            @JsonProperty("interactionNotes") List<JsonAdaptedInteractionNote> interactionNotes,
+            @JsonProperty("nextAction") JsonAdaptedNextAction nextAction,
+            @JsonProperty("preferredContactChannel") String preferredContactChannel,
+            @JsonProperty("preferredContactTiming") String preferredContactTiming,
+            @JsonProperty("recurringReminders") List<JsonAdaptedRecurringReminder> recurringReminders) {
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
+        this.relationship = relationship;
+        this.financialNeed = financialNeed;
+        this.priority = priority;
+        this.areaOfInterest = areaOfInterest;
+        this.nextAction = nextAction;
+        this.preferredContactChannel = preferredContactChannel;
+        this.preferredContactTiming = preferredContactTiming;
+        if (recurringReminders != null) {
+            this.recurringReminders.addAll(recurringReminders);
+        }
         if (tags != null) {
             this.tags.addAll(tags);
+        }
+        if (interactionNotes != null) {
+            this.interactionNotes.addAll(interactionNotes);
         }
     }
 
@@ -50,10 +127,19 @@ class JsonAdaptedPerson {
      * Converts a given {@code Person} into this class for Jackson use.
      */
     public JsonAdaptedPerson(Person source) {
+        preferredContactChannel = source.getPreferredContactChannel().map(value -> value.value).orElse(null);
+        preferredContactTiming = source.getPreferredContactTiming().map(value -> value.value).orElse(null);
+        source.getRecurringReminders().stream().map(JsonAdaptedRecurringReminder::new)
+                .forEach(recurringReminders::add);
+        nextAction = source.getNextAction().map(JsonAdaptedNextAction::new).orElse(null);
         name = source.getName().fullName;
         phone = source.getPhone().value;
         email = source.getEmail().value;
-        address = source.getAddress().value;
+        relationship = source.getRelationship().toString();
+        financialNeed = source.getFinancialNeed().map(value -> value.value).orElse(null);
+        priority = source.getPriority().map(value -> value.value).orElse(null);
+        areaOfInterest = source.getAreaOfInterest().map(value -> value.value).orElse(null);
+        source.getInteractionNotes().stream().map(JsonAdaptedInteractionNote::new).forEach(interactionNotes::add);
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -73,37 +159,111 @@ class JsonAdaptedPerson {
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
-        if (!Name.isValidName(name)) {
-            throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
+        String nameValidationError = Name.getValidationError(name);
+        if (nameValidationError != null) {
+            throw new IllegalValueException(nameValidationError);
         }
         final Name modelName = new Name(name);
 
         if (phone == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
-            throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
+        String phoneValidationError = Phone.getValidationError(phone);
+        if (phoneValidationError != null) {
+            throw new IllegalValueException(phoneValidationError);
         }
         final Phone modelPhone = new Phone(phone);
 
         if (email == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
         }
-        if (!Email.isValidEmail(email)) {
-            throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+        String emailValidationError = Email.getValidationError(email);
+        if (emailValidationError != null) {
+            throw new IllegalValueException(emailValidationError);
         }
         final Email modelEmail = new Email(email);
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
-        }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
-        }
-        final Address modelAddress = new Address(address);
-
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        Relationship modelRelationship = relationship == null
+                ? Relationship.PROSPECT : parseRelationship(relationship);
+        FinancialNeed modelFinancialNeed = null;
+        if (financialNeed != null) {
+            String validationError = FinancialNeed.getValidationError(financialNeed);
+            if (validationError != null) {
+                throw new IllegalValueException(validationError);
+            }
+            modelFinancialNeed = new FinancialNeed(financialNeed);
+        }
+
+        Priority modelPriority = null;
+        if (priority != null) {
+            String validationError = Priority.getValidationError(priority);
+            if (validationError != null) {
+                throw new IllegalValueException(validationError);
+            }
+            modelPriority = new Priority(priority);
+        }
+
+        AreaOfInterest modelAreaOfInterest = null;
+        if (areaOfInterest != null) {
+            String validationError = AreaOfInterest.getValidationError(areaOfInterest);
+            if (validationError != null) {
+                throw new IllegalValueException(validationError);
+            }
+            modelAreaOfInterest = new AreaOfInterest(areaOfInterest);
+        }
+
+        PreferredContactChannel modelChannel = null;
+        if (preferredContactChannel != null) {
+            if (!PreferredContactChannel.isValidPreferredContactChannel(preferredContactChannel)) {
+                throw new IllegalValueException(PreferredContactChannel.MESSAGE_CONSTRAINTS);
+            }
+            modelChannel = new PreferredContactChannel(preferredContactChannel);
+        }
+        PreferredContactTiming modelTiming = null;
+        if (preferredContactTiming != null) {
+            if (!PreferredContactTiming.isValidPreferredContactTiming(preferredContactTiming)) {
+                throw new IllegalValueException(PreferredContactTiming.MESSAGE_CONSTRAINTS);
+            }
+            modelTiming = new PreferredContactTiming(preferredContactTiming);
+        }
+
+        List<InteractionNote> modelNotes = new ArrayList<>();
+        for (JsonAdaptedInteractionNote note : interactionNotes) {
+            if (note == null) {
+                throw new IllegalValueException("Interaction note cannot be null.");
+            }
+            modelNotes.add(note.toModelType());
+        }
+        List<RecurringReminder> modelReminders = toModelRecurringReminders();
+        return new Person(modelName, modelPhone, modelEmail, modelTags, modelRelationship,
+                modelFinancialNeed, modelPriority, modelAreaOfInterest, modelNotes,
+                nextAction == null ? null : nextAction.toModelType(), modelChannel, modelTiming, modelReminders);
+    }
+
+    /** Converts recurring reminders while rejecting null entries and case-insensitive duplicate labels. */
+    private List<RecurringReminder> toModelRecurringReminders() throws IllegalValueException {
+        List<RecurringReminder> modelReminders = new ArrayList<>();
+        Set<String> reminderLabels = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (JsonAdaptedRecurringReminder reminder : recurringReminders) {
+            if (reminder == null) {
+                throw new IllegalValueException("Recurring reminder cannot be null.");
+            }
+            RecurringReminder modelReminder = reminder.toModelType();
+            if (!reminderLabels.add(modelReminder.getLabel())) {
+                throw new IllegalValueException("Recurring reminder labels must be unique ignoring case.");
+            }
+            modelReminders.add(modelReminder);
+        }
+        return modelReminders;
+    }
+
+    private static Relationship parseRelationship(String relationship) throws IllegalValueException {
+        try {
+            return Relationship.fromString(relationship);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalValueException(Relationship.MESSAGE_CONSTRAINTS);
+        }
     }
 
 }

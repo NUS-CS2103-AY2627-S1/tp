@@ -11,23 +11,24 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
+import seedu.address.model.person.AreaOfInterest;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FinancialNeed;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Priority;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
-    private static final String VALID_ADDRESS = "123 Main Street #0505";
+    private static final String VALID_PHONE = "12345678";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
@@ -52,6 +53,56 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseSingleIndex_validIndex_returnsIndex() throws Exception {
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseSingleIndex("1", "done", "Person index is required."));
+        assertEquals(INDEX_FIRST_PERSON,
+                ParserUtil.parseSingleIndex(WHITESPACE + "1" + WHITESPACE, "done", "Person index is required."));
+        assertEquals(Index.fromOneBased(Integer.MAX_VALUE),
+                ParserUtil.parseSingleIndex("2147483647", "done", "Person index is required."));
+    }
+
+    @Test
+    public void parseSingleIndex_missingIndex_reportsProvidedMessage() {
+        for (String command : List.of("done", "next", "reschedule", "remind", "unremind")) {
+            for (String input : List.of("", WHITESPACE)) {
+                String missingMessage = "Usage for " + command + ":\n" + command + " INDEX";
+                assertThrows(ParseException.class, missingMessage, ()
+                        -> ParserUtil.parseSingleIndex(input, command, missingMessage));
+            }
+        }
+    }
+
+    @Test
+    public void parseSingleIndex_extraArguments_reportsRemainingArguments() {
+        for (String command : List.of("done", "next", "reschedule", "remind", "unremind")) {
+            String expectedMessage = command + " accepts exactly one index. Unexpected argument: ";
+            assertThrows(ParseException.class, expectedMessage + "extra", ()
+                    -> ParserUtil.parseSingleIndex("1 extra", command, "Missing index"));
+            assertThrows(ParseException.class, expectedMessage + "extra  more", ()
+                    -> ParserUtil.parseSingleIndex(" \t1\t extra  more \n", command, "Missing index"));
+            assertThrows(ParseException.class, expectedMessage + "extra", ()
+                    -> ParserUtil.parseSingleIndex("0 extra", command, "Missing index"));
+        }
+    }
+
+    @Test
+    public void parseSingleIndex_invalidIndex_reportsExistingIndexError() {
+        for (String input : List.of("0", "-1", "abc", "1.5", "+1", "2147483648", "99999999999999999999")) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
+                    -> ParserUtil.parseSingleIndex(input, "done", "Person index is required."));
+        }
+    }
+
+    @Test
+    public void parseSingleIndex_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseSingleIndex("1", "done", null));
+        assertThrows(NullPointerException.class, ()
+                -> ParserUtil.parseSingleIndex(null, "done", "Person index is required."));
+        assertThrows(NullPointerException.class, ()
+                -> ParserUtil.parseSingleIndex("1", null, "Person index is required."));
     }
 
     @Test
@@ -98,29 +149,6 @@ public class ParserUtilTest {
         String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
         Phone expectedPhone = new Phone(VALID_PHONE);
         assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
-    }
-
-    @Test
-    public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
-    }
-
-    @Test
-    public void parseAddress_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
     }
 
     @Test
@@ -191,4 +219,43 @@ public class ParserUtilTest {
 
         assertEquals(expectedTagSet, actualTagSet);
     }
+    @Test
+    public void parseFinancialNeed_validAndInvalidValues() throws Exception {
+        assertEquals(new FinancialNeed("Long  term"), ParserUtil.parseFinancialNeed("  Long  term  "));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFinancialNeed(null));
+        assertThrows(ParseException.class, FinancialNeed.MESSAGE_BLANK, () -> ParserUtil.parseFinancialNeed(" "));
+        assertThrows(ParseException.class, FinancialNeed.MESSAGE_LENGTH, () ->
+                ParserUtil.parseFinancialNeed("A".repeat(201)));
+        for (String value : new String[] {"Needs:Wants", "\tPlan", "Plan\n", "Plan\r"}) {
+            assertThrows(ParseException.class, FinancialNeed.MESSAGE_INVALID_CHARACTERS, () ->
+                    ParserUtil.parseFinancialNeed(value));
+        }
+    }
+
+    @Test
+    public void parsePriority_validAndInvalidValues() throws Exception {
+        assertEquals(new Priority("Long  term"), ParserUtil.parsePriority("  Long  term  "));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parsePriority(null));
+        assertThrows(ParseException.class, Priority.MESSAGE_BLANK, () -> ParserUtil.parsePriority(" "));
+        assertThrows(ParseException.class, Priority.MESSAGE_LENGTH, () ->
+                ParserUtil.parsePriority("A".repeat(201)));
+        for (String value : new String[] {"Needs:Wants", "\tPlan", "Plan\n", "Plan\r"}) {
+            assertThrows(ParseException.class, Priority.MESSAGE_INVALID_CHARACTERS, () ->
+                    ParserUtil.parsePriority(value));
+        }
+    }
+
+    @Test
+    public void parseAreaOfInterest_validAndInvalidValues() throws Exception {
+        assertEquals(new AreaOfInterest("Long  term"), ParserUtil.parseAreaOfInterest("  Long  term  "));
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAreaOfInterest(null));
+        assertThrows(ParseException.class, AreaOfInterest.MESSAGE_BLANK, () -> ParserUtil.parseAreaOfInterest(" "));
+        assertThrows(ParseException.class, AreaOfInterest.MESSAGE_LENGTH, () ->
+                ParserUtil.parseAreaOfInterest("A".repeat(201)));
+        for (String value : new String[] {"Needs:Wants", "\tPlan", "Plan\n", "Plan\r"}) {
+            assertThrows(ParseException.class, AreaOfInterest.MESSAGE_INVALID_CHARACTERS, () ->
+                    ParserUtil.parseAreaOfInterest(value));
+        }
+    }
+
 }

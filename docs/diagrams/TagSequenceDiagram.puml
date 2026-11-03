@@ -1,0 +1,43 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":Parser" as Parser LOGIC_COLOR
+participant "command:TagCommand" as Command LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "temporary:Model" as Temp MODEL_COLOR
+participant "live:Model" as Live MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> Logic : execute("tag 1 priority referral")
+activate Logic
+Logic -> Parser : parseCommand(...)
+activate Parser
+note right of Parser : Validate the displayed-list index and tags;\nreject repeated supplied tags.
+Parser --> Logic : command
+deactivate Parser
+
+Logic -> Command : execute(temporary model)
+activate Command
+Command -> Temp : get visible person at index
+Temp --> Command : person
+note right of Command : Reject tags already on the person;\notherwise build a replacement person.
+Command -> Temp : setPerson(original, replacement)
+Command --> Logic : command result
+deactivate Command
+
+Logic -> Storage : save updated client book
+Storage --> Logic : save completed
+Logic -> Live : commit updated state
+note right of Logic : Commit only after a successful save.
+[<-- Logic : command result
+deactivate Logic
+@enduml

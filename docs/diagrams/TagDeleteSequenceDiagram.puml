@@ -1,0 +1,51 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":Parser" as Parser LOGIC_COLOR
+participant "command:TagDeleteCommand" as Command LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "live:Model" as Live MODEL_COLOR
+participant "temporary:Model" as Temp MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+== Request tag deletion ==
+[-> Logic : execute("tagdelete 1 friend referral")
+activate Logic
+Logic -> Parser : parseCommand(...)
+activate Parser
+Parser --> Logic : TagDeleteCommand
+deactivate Parser
+Logic -> Command : prepare confirmation
+activate Command
+Command -> Live : inspect person and tags
+Live --> Command : person and exact tags
+Command --> Logic : confirmation message
+deactivate Command
+Logic -> Logic : store pending command
+[<-- Logic : confirmation prompt
+note right of Logic : "no" cancels the pending command.\nOther responses keep it pending.
+deactivate Logic
+
+== Confirm tag deletion ==
+[-> Logic : execute("yes")
+activate Logic
+Logic -> Command : execute(temporary model)
+activate Command
+Command -> Temp : remove selected tags
+Command --> Logic : command result
+deactivate Command
+Logic -> Storage : save updated client book
+Storage --> Logic : save completed
+Logic -> Live : commit updated state
+[<-- Logic : command result
+deactivate Logic
+@enduml

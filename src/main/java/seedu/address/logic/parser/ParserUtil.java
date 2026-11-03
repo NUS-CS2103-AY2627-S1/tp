@@ -9,10 +9,13 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
+import seedu.address.model.person.AreaOfInterest;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.FinancialNeed;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Priority;
+import seedu.address.model.person.Relationship;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +24,45 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    /**
+     * Parses a {@code FinancialNeed}, using its validation and ordinary-space trimming rules.
+     * @throws ParseException if the value is invalid.
+     */
+    public static FinancialNeed parseFinancialNeed(String financialNeed) throws ParseException {
+        requireNonNull(financialNeed);
+        String error = FinancialNeed.getValidationError(financialNeed);
+        if (error != null) {
+            throw new ParseException(error);
+        }
+        return new FinancialNeed(financialNeed);
+    }
+
+    /**
+     * Parses a {@code Priority}, using its validation and ordinary-space trimming rules.
+     * @throws ParseException if the value is invalid.
+     */
+    public static Priority parsePriority(String priority) throws ParseException {
+        requireNonNull(priority);
+        String error = Priority.getValidationError(priority);
+        if (error != null) {
+            throw new ParseException(error);
+        }
+        return new Priority(priority);
+    }
+
+    /**
+     * Parses a {@code AreaOfInterest}, using its validation and ordinary-space trimming rules.
+     * @throws ParseException if the value is invalid.
+     */
+    public static AreaOfInterest parseAreaOfInterest(String areaOfInterest) throws ParseException {
+        requireNonNull(areaOfInterest);
+        String error = AreaOfInterest.getValidationError(areaOfInterest);
+        if (error != null) {
+            throw new ParseException(error);
+        }
+        return new AreaOfInterest(areaOfInterest);
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,6 +78,26 @@ public class ParserUtil {
     }
 
     /**
+     * Parses exactly one index, using {@code missingIndexMessage} when the preamble is empty.
+     * @throws ParseException if the index is missing, invalid, or followed by unexpected arguments.
+     */
+    public static Index parseSingleIndex(String preamble, String commandWord, String missingIndexMessage)
+            throws ParseException {
+        requireNonNull(preamble);
+        requireNonNull(commandWord);
+        requireNonNull(missingIndexMessage);
+        String trimmedPreamble = preamble.trim();
+        if (trimmedPreamble.isEmpty()) {
+            throw new ParseException(missingIndexMessage);
+        }
+        String[] tokens = trimmedPreamble.split("\\s+", 2);
+        if (tokens.length > 1) {
+            throw new ParseException(commandWord + " accepts exactly one index. Unexpected argument: " + tokens[1]);
+        }
+        return parseIndex(tokens[0]);
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -44,8 +106,9 @@ public class ParserUtil {
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
         String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
-            throw new ParseException(Name.MESSAGE_CONSTRAINTS);
+        String validationError = Name.getValidationError(trimmedName);
+        if (validationError != null) {
+            throw new ParseException(validationError);
         }
         return new Name(trimmedName);
     }
@@ -59,25 +122,11 @@ public class ParserUtil {
     public static Phone parsePhone(String phone) throws ParseException {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+        String validationError = Phone.getValidationError(trimmedPhone);
+        if (validationError != null) {
+            throw new ParseException(validationError);
         }
         return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
     }
 
     /**
@@ -89,10 +138,25 @@ public class ParserUtil {
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
         String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
+        String validationError = Email.getValidationError(trimmedEmail);
+        if (validationError != null) {
+            throw new ParseException(validationError);
         }
         return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses a {@code String relationship} into a {@code Relationship}.
+     *
+     * @throws ParseException if the given relationship is invalid.
+     */
+    public static Relationship parseRelationship(String relationship) throws ParseException {
+        requireNonNull(relationship);
+        try {
+            return Relationship.fromString(relationship);
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(Relationship.MESSAGE_CONSTRAINTS);
+        }
     }
 
     /**

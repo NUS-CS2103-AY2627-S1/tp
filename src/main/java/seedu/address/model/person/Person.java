@@ -1,18 +1,24 @@
 package seedu.address.model.person;
 
+import static seedu.address.commons.util.AppUtil.checkArgument;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
 
 /**
- * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * Represents a Person in the client book.
+ * Guarantees: required details are not null, field values are validated, immutable.
  */
 public class Person {
 
@@ -20,21 +26,162 @@ public class Person {
     private final Name name;
     private final Phone phone;
     private final Email email;
+    private final Relationship relationship;
 
     // Data fields
-    private final Address address;
+    private final FinancialNeed financialNeed;
+    private final Priority priority;
+    private final AreaOfInterest areaOfInterest;
+    private final List<InteractionNote> interactionNotes;
+    private final NextAction nextAction;
+    private final List<RecurringReminder> recurringReminders;
+    private final PreferredContactChannel preferredContactChannel;
+    private final PreferredContactTiming preferredContactTiming;
     private final Set<Tag> tags = new HashSet<>();
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags) {
+        this(name, phone, email, tags, Relationship.PROSPECT);
+    }
+
+    /**
+     * Every field must be present and not null.
+     */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship) {
+        this(name, phone, email, tags, relationship, null, null, null);
+    }
+
+    /**
+     * Creates a person with optional financial information.
+     * Required fields must not be null; a null financial need, priority, or area of interest represents absence.
+     */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship,
+            FinancialNeed financialNeed, Priority priority, AreaOfInterest areaOfInterest) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest, List.of());
+    }
+
+    /** Creates a person with a defensive copy of their interaction history. */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship,
+            FinancialNeed financialNeed, Priority priority, AreaOfInterest areaOfInterest,
+            List<InteractionNote> interactionNotes) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest, interactionNotes, null);
+    }
+
+    /** Creates a person with optional follow-up information; null means no follow-up. */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship,
+            FinancialNeed financialNeed, Priority priority, AreaOfInterest areaOfInterest,
+            List<InteractionNote> interactionNotes, NextAction nextAction) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, null, null);
+    }
+
+    /** Creates a person with optional contact preferences; null represents absence. */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship,
+            FinancialNeed financialNeed, Priority priority, AreaOfInterest areaOfInterest,
+            List<InteractionNote> interactionNotes, NextAction nextAction,
+            PreferredContactChannel preferredContactChannel, PreferredContactTiming preferredContactTiming) {
+        this(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, List.of());
+    }
+
+    /** Creates a person with a defensive copy of their yearly reminders. */
+    public Person(Name name, Phone phone, Email email, Set<Tag> tags, Relationship relationship,
+            FinancialNeed financialNeed, Priority priority, AreaOfInterest areaOfInterest,
+            List<InteractionNote> interactionNotes, NextAction nextAction,
+            PreferredContactChannel preferredContactChannel, PreferredContactTiming preferredContactTiming,
+            List<RecurringReminder> recurringReminders) {
+        requireAllNonNull(name, phone, email, tags, relationship, interactionNotes, recurringReminders);
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
         this.tags.addAll(tags);
+        this.relationship = relationship;
+        this.financialNeed = financialNeed;
+        this.priority = priority;
+        this.areaOfInterest = areaOfInterest;
+        this.interactionNotes = List.copyOf(interactionNotes).stream()
+                .sorted(Comparator.comparing(InteractionNote::getDate)).toList();
+        this.nextAction = nextAction;
+        this.recurringReminders = List.copyOf(recurringReminders);
+        Set<String> reminderLabels = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        this.recurringReminders.forEach(reminder -> reminderLabels.add(reminder.getLabel()));
+        checkArgument(reminderLabels.size() == this.recurringReminders.size(),
+                "Recurring reminder labels must be unique ignoring case.");
+        this.preferredContactChannel = preferredContactChannel;
+        this.preferredContactTiming = preferredContactTiming;
+    }
+
+    /**
+     * Creates a contact without tags, as required by the add command.
+     */
+    public Person(Name name, Phone phone, Email email, Relationship relationship) {
+        this(name, phone, email, Collections.emptySet(), relationship);
+    }
+
+    /** Returns immutable notes in ascending date order, preserving input order for notes with the same date. */
+    public List<InteractionNote> getInteractionNotes() {
+        return interactionNotes;
+    }
+
+    public List<RecurringReminder> getRecurringReminders() {
+        return recurringReminders;
+    }
+
+    /** Updates a label ignoring case, preserving its display spelling; otherwise appends a new reminder. */
+    public Person withRecurringReminder(RecurringReminder reminder) {
+        requireAllNonNull(reminder);
+        List<RecurringReminder> updated = new ArrayList<>(recurringReminders);
+        int existing = -1;
+        for (int i = 0; i < updated.size(); i++) {
+            if (updated.get(i).getLabel().equalsIgnoreCase(reminder.getLabel())) {
+                existing = i;
+                break;
+            }
+        }
+        if (existing < 0) {
+            updated.add(reminder);
+        } else {
+            updated.set(existing, new RecurringReminder(updated.get(existing).getLabel(), reminder.getDate()));
+        }
+        return new Person(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, updated);
+    }
+
+    /** Removes the label ignoring case, preserving every other person field. */
+    public Person withoutRecurringReminder(String label) {
+        String trimmed = RecurringReminder.parseLabel(label);
+        List<RecurringReminder> updated = new ArrayList<>(recurringReminders);
+        boolean removed = updated.removeIf(reminder -> reminder.getLabel().equalsIgnoreCase(trimmed));
+        checkArgument(removed, "No yearly reminder matches the supplied label.");
+        return new Person(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, updated);
+    }
+
+    public Optional<NextAction> getNextAction() {
+        return Optional.ofNullable(nextAction);
+    }
+
+    /** Returns a copy with the supplied follow-up and all other fields preserved. */
+    public Person withNextAction(NextAction nextAction) {
+        return new Person(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, recurringReminders);
+    }
+
+    public Optional<PreferredContactChannel> getPreferredContactChannel() {
+        return Optional.ofNullable(preferredContactChannel);
+    }
+
+    public Optional<PreferredContactTiming> getPreferredContactTiming() {
+        return Optional.ofNullable(preferredContactTiming);
+    }
+
+    /** Returns a copy replacing supplied preferences; null means keep the existing value. */
+    public Person withContactPreferences(PreferredContactChannel channel, PreferredContactTiming timing) {
+        return new Person(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, channel == null ? preferredContactChannel : channel,
+                timing == null ? preferredContactTiming : timing, recurringReminders);
     }
 
     public Name getName() {
@@ -49,8 +196,20 @@ public class Person {
         return email;
     }
 
-    public Address getAddress() {
-        return address;
+    public Relationship getRelationship() {
+        return relationship;
+    }
+
+    public Optional<FinancialNeed> getFinancialNeed() {
+        return Optional.ofNullable(financialNeed);
+    }
+
+    public Optional<Priority> getPriority() {
+        return Optional.ofNullable(priority);
+    }
+
+    public Optional<AreaOfInterest> getAreaOfInterest() {
+        return Optional.ofNullable(areaOfInterest);
     }
 
     /**
@@ -61,8 +220,14 @@ public class Person {
         return Collections.unmodifiableSet(tags);
     }
 
+    /** Returns a copy with the supplied tags and all other fields preserved. */
+    public Person withTags(Set<Tag> tags) {
+        return new Person(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, recurringReminders);
+    }
+
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same email address or phone number.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +236,8 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && (otherPerson.getEmail().equals(getEmail())
+                || otherPerson.getPhone().hasSamePhoneNumber(getPhone()));
     }
 
     /**
@@ -92,14 +258,23 @@ public class Person {
         return name.equals(otherPerson.name)
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && tags.equals(otherPerson.tags)
+                && relationship.equals(otherPerson.relationship)
+                && Objects.equals(financialNeed, otherPerson.financialNeed)
+                && Objects.equals(priority, otherPerson.priority)
+                && Objects.equals(areaOfInterest, otherPerson.areaOfInterest)
+                && interactionNotes.equals(otherPerson.interactionNotes)
+                && Objects.equals(nextAction, otherPerson.nextAction)
+                && recurringReminders.equals(otherPerson.recurringReminders)
+                && Objects.equals(preferredContactChannel, otherPerson.preferredContactChannel)
+                && Objects.equals(preferredContactTiming, otherPerson.preferredContactTiming);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, tags, relationship, financialNeed, priority, areaOfInterest,
+                interactionNotes, nextAction, preferredContactChannel, preferredContactTiming, recurringReminders);
     }
 
     @Override
@@ -108,8 +283,16 @@ public class Person {
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
-                .add("address", address)
+                .add("relationship", relationship)
                 .add("tags", tags)
+                .add("financialNeed", financialNeed)
+                .add("priority", priority)
+                .add("areaOfInterest", areaOfInterest)
+                .add("interactionNotes", interactionNotes)
+                .add("nextAction", nextAction)
+                .add("recurringReminders", recurringReminders)
+                .add("preferredContactChannel", preferredContactChannel)
+                .add("preferredContactTiming", preferredContactTiming)
                 .toString();
     }
 

@@ -1,12 +1,15 @@
 ---
-layout: page
-title: Testing guide
+  layout: default.md
+  title: "Testing guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# Testing guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Running tests
 
@@ -19,8 +22,10 @@ You can run tests in two ways.
 * **Method 2: Using Gradle**
   * Open a console and run the command `gradlew clean test` (Mac/Linux: `./gradlew clean test`)
 
-<div markdown="span" class="alert alert-secondary">:link: **Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
-</div>
+<box type="info" seamless>
+
+**Link**: Read [this Gradle Tutorial from the se-edu/guides](https://se-education.org/guides/tutorials/gradle.html) to learn more about using Gradle.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -34,3 +39,65 @@ This project has three types of tests:
    For example: `seedu.address.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
    For example: `seedu.address.logic.LogicManagerTest`
+
+## US14 interaction-note regression checks
+
+Run the full suite and coding checks on Windows with:
+
+```powershell
+.\gradlew.bat test checkstyleMain checkstyleTest
+git diff --check
+```
+
+Relevant tests include `InteractionNoteTest`, `NoteCommandParserTest`, `NoteCommandTest`, `JsonAdaptedPersonTest`,
+`LogicManagerTest` and `PersonCardTest`. They cover strict date parsing, realistic note text, first/repeated entries,
+filtered indices, old JSON compatibility, persistence across reopening, and preservation through `edit` and `info`.
+The JavaFX tests check the preferred height before first layout, immediate ListView resizing after model replacement,
+additional/long wrapped notes, compact unaffected cards and scrolling. These tests require a graphical environment.
+
+On headless Linux, provide a virtual display rather than skipping the JavaFX tests:
+
+```sh
+xvfb-run --auto-servernum ./gradlew check coverage
+```
+
+The Linux GitHub Actions job uses this command. Windows and macOS use `./gradlew check coverage` with their
+desktop display. `PersonCardTest` starts the real JavaFX toolkit; `java.awt.headless=true` does not supply a JavaFX
+display. Xvfb and its `xauth` dependency must be installed when running on other headless Linux machines.
+
+For manual checks, use disposable records and a separate data file:
+
+1. Display at least three records. Run `note 1 d/2026-10-06 n/Test note`. Confirm the dated entry appears immediately
+   and the next card remains directly underneath without clicking or scrolling to correct the layout.
+2. Repeat the command. Confirm the duplicate-note error appears and no second entry is added.
+3. Add a long note containing Unicode, punctuation and a URL. Confirm wrapping is readable and scrolling reaches
+   other records; records without notes remain compact.
+4. Run `find` to display a person whose full-list index is 2, then `note 2 d/2020-02-29 n/Backdated interaction`.
+   Confirm only that person changes, retaining index 2 and the active filter.
+5. Update that person's phone with `edit`, then their financial need with `info`. Confirm all notes remain.
+6. Close and reopen the app using the same data file. Confirm the entries and their chronological order remain.
+7. Try an impossible date, blank note and out-of-range index. Confirm clear errors and unchanged records.
+8. Load an older valid JSON file without `interactionNotes`. Confirm its records load with no note entries.
+
+For command setup, expected messages, editing, deletion and restart checks, see the Developer Guide's
+[Interaction notes manual tests](DeveloperGuide.md#interaction-notes-manual-tests).
+
+### Follow-up date validation (#115)
+
+Use fictional records in a separate test folder. Replace `TODAY`, `TOMORROW` and `YESTERDAY`
+with those dates from your computer's local calendar in `yyyy-MM-dd` format; they are placeholders,
+not literal command arguments. Ensure the displayed person at index 1 exists before each command.
+
+1. Run `next 1 a/Call d/TODAY`. Expect success and a pending follow-up due today.
+2. Run `next 1 a/Email d/YESTERDAY`. Expect `Follow-up date cannot be before today.`;
+   the description, date, completion status and current filter must remain unchanged.
+3. Run `done 1`, then `next 1 a/Email d/YESTERDAY`. Expect the same rejection and the existing
+   follow-up to remain completed. Use `list` first if the completed person disappeared from `due`.
+4. Run `next 1 a/Email d/TOMORROW`. Expect success, the replacement description/date, and a pending status.
+5. In a saved test file containing a valid incomplete follow-up dated before today, restart the app
+   and run `due`. Expect that overdue follow-up to load and appear. Do not edit production data.
+6. A malformed calendar date such as `next 1 a/Call d/2026-02-30` must still report the existing
+   date-format validation error and leave the record unchanged.
+
+Automated command tests use fixed clocks; a JSON round-trip regression confirms that the restriction
+on new commands does not reject historical stored follow-ups or hide them from `due`.

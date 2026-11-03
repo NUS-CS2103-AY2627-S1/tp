@@ -57,6 +57,28 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void test_nameContainsPartialContiguousKeyword_returnsTrue() {
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Alex"))
+                .test(new PersonBuilder().withName("Alexander Lim").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Anne"))
+                .test(new PersonBuilder().withName("Anne-Marie Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Marie"))
+                .test(new PersonBuilder().withName("Anne-Marie Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("mARie"))
+                .test(new PersonBuilder().withName("Anne-Marie Tan").build()));
+    }
+
+    @Test
+    public void test_nameContainsPunctuatedKeyword_returnsTrue() {
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Anne-Marie"))
+                .test(new PersonBuilder().withName("Anne-Marie Tan").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("O'Connor"))
+                .test(new PersonBuilder().withName("Alice O'Connor").build()));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("s/o"))
+                .test(new PersonBuilder().withName("Jack s/o David").build()));
+    }
+
+    @Test
     public void test_nameDoesNotContainKeywords_returnsFalse() {
         // Zero keywords
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of());
@@ -66,10 +88,14 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
+        // Non-contiguous keyword
+        predicate = new NameContainsKeywordsPredicate(List.of("Aex"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alexander Lim").build()));
+
         // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
-        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
-                .withEmail("alice@email.com").withAddress("Main Street").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("12345678", "alice@email.com", "Main", "Street"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345678")
+                .withEmail("alice@email.com").build()));
     }
 
     @Test

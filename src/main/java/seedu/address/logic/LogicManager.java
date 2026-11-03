@@ -2,6 +2,7 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -9,10 +10,12 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ConfirmableCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.ClientBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -20,16 +23,18 @@ import seedu.address.storage.Storage;
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    public static final String FILE_OPS_ERROR_FORMAT =
+            "Changes cannot be saved. Please try again. If the problem persists, ensure that the data folder and "
+                    + "clientbook.json file are accessible and writable.";
 
-    public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
-            "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
+    public static final String FILE_OPS_PERMISSION_ERROR_FORMAT = FILE_OPS_ERROR_FORMAT;
 
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
     private final Model model;
     private final Storage storage;
-    private final AddressBookParser addressBookParser;
+    private final ClientBookParser clientBookParser;
+    private Command pendingCommand;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -37,31 +42,85 @@ public class LogicManager implements Logic {
     public LogicManager(Model model, Storage storage) {
         this.model = model;
         this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        clientBookParser = new ClientBookParser();
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
-
-        CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
-
-        try {
-            storage.saveAddressBook(model.getAddressBook());
-        } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
-        } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+        if (pendingCommand != null) {
+            logger.info("----------------[USER COMMAND][confirmation response]");
+            return handleConfirmation(commandText);
         }
 
+        Command command;
+        try {
+            command = clientBookParser.parseCommand(commandText);
+        } catch (ParseException e) {
+            logger.info("----------------[USER COMMAND][unrecognised]");
+            throw e;
+        }
+        logger.info("----------------[USER COMMAND][" + command.getClass().getSimpleName() + "]");
+        if (command instanceof ConfirmableCommand confirmableCommand) {
+            String confirmationMessage = confirmableCommand.getConfirmationMessage(model);
+            pendingCommand = command;
+            return new CommandResult(confirmationMessage);
+        }
+        return executeCommand(command);
+    }
+
+    private CommandResult handleConfirmation(String commandText) throws CommandException {
+        String response = commandText.strip().toLowerCase(Locale.ROOT);
+        if (response.equals("n") || response.equals("no")) {
+            String cancellationMessage = ((ConfirmableCommand) pendingCommand).getCancellationMessage();
+            pendingCommand = null;
+            return new CommandResult(cancellationMessage);
+        }
+        if (!response.equals("y") && !response.equals("yes")) {
+            throw new CommandException(ConfirmableCommand.MESSAGE_INVALID_CONFIRMATION);
+        }
+
+        Command confirmedCommand = pendingCommand;
+        pendingCommand = null;
+        return executeCommand(confirmedCommand);
+    }
+
+    private CommandResult executeCommand(Command command) throws CommandException {
+        Model temporaryModel = new ModelManager(model.getClientBook(), model.getUserPrefs());
+        temporaryModel.updateFilteredPersonList(model.getFilteredPersonPredicate(),
+                model.getFilteredPersonComparator());
+        CommandResult commandResult = command.execute(temporaryModel, storage);
+
+        if (!commandResult.isModelSaved()
+                && !temporaryModel.getClientBook().equals(model.getClientBook())) {
+            try {
+                storage.saveClientBook(temporaryModel.getClientBook());
+            } catch (AccessDeniedException e) {
+                throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT,
+                                                         e.getMessage()), e);
+            } catch (IOException ioe) {
+                throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+            }
+        }
+
+        commitModel(temporaryModel);
         return commandResult;
+    }
+
+    /** Replaces the visible model with a command result that has been successfully persisted. */
+    private void commitModel(Model temporaryModel) {
+        model.setClientBook(temporaryModel.getClientBook());
+        model.updateFilteredPersonList(temporaryModel.getFilteredPersonPredicate(),
+                temporaryModel.getFilteredPersonComparator());
     }
 
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Person> getPersonList() {
+        return model.getClientBook().getPersonList();
     }
 
     @Override

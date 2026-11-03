@@ -5,50 +5,72 @@ skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
 
 Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
+Class "<<interface>>\nReadOnlyClientBook" as ReadOnlyClientBook
 Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
 Class "<<interface>>\nModel" as Model
-Class AddressBook
+Class ClientBook
 Class ModelManager
 Class UserPrefs
 
 Class UniquePersonList
 Class Person
-Class Address
+Class InteractionNote
+Class NextAction
+Class RecurringReminder
+Class FinancialNeed
+Class Priority
+Class AreaOfInterest
+Class PreferredContactChannel
+Class PreferredContactTiming
 Class Email
 Class Name
 Class Phone
 Class Tag
-
-Class I #FFFFFF
+Enum Relationship
+Enum InteractionType
+Enum InteractionOutcome
 }
 
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Model
 
-AddressBook .up.|> ReadOnlyAddressBook
+ClientBook .up.|> ReadOnlyClientBook
 
 ModelManager .up.|> Model
 Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
+Model .left.> ReadOnlyClientBook
+ModelManager -left-> "1" ClientBook
 ModelManager -right-> "1" UserPrefs
 UserPrefs .up.|> ReadOnlyUserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+ClientBook *--> "1" UniquePersonList
+UniquePersonList --> "*" Person : all persons
+Person *-left-> "1" Name
+Person *-left-> "1" Phone
+Person *-left-> "1" Email
+Person -left-> "1" Relationship
+Person *-left-> "*" Tag
+Person *-down-> "*" InteractionNote : ordered by date
+Person *-down-> "0..1" NextAction
+Person *-down-> "*" RecurringReminder
+Person *-right-> "0..1" FinancialNeed
+Person *-right-> "0..1" Priority
+Person *-right-> "0..1" AreaOfInterest
+Person *-right-> "0..1" PreferredContactChannel
+Person *-right-> "0..1" PreferredContactTiming
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+InteractionNote -down-> "1" InteractionType
+InteractionNote -down-> "1" InteractionOutcome
 
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
+Relationship -[hidden]down- Email
+Email -[hidden]down- Phone
+Phone -[hidden]down- Name
+Name -[hidden]down- Tag
 
-ModelManager --> "~* filtered" Person
+PreferredContactChannel -[hidden]down- AreaOfInterest
+AreaOfInterest -[hidden]down- Priority
+Priority -[hidden]down- FinancialNeed
+FinancialNeed -[hidden]down- PreferredContactTiming
+
+ModelManager --> "*" Person : filtered persons
 @enduml

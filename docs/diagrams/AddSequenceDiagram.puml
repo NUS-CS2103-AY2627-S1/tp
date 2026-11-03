@@ -1,0 +1,95 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":ClientBookParser" as ClientBookParser LOGIC_COLOR
+participant ":AddCommandParser" as AddCommandParser LOGIC_COLOR
+participant "a:AddCommand" as AddCommand LOGIC_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:Model" as Model MODEL_COLOR
+participant "temp:Model" as Temp MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("add r/Client n/Alex Tan e/alex@example.com p/91234567")
+activate LogicManager
+
+LogicManager -> ClientBookParser : parseCommand(commandText)
+activate ClientBookParser
+
+create AddCommandParser
+ClientBookParser -> AddCommandParser : new AddCommandParser()
+activate AddCommandParser
+
+AddCommandParser --> ClientBookParser
+deactivate AddCommandParser
+
+ClientBookParser -> AddCommandParser : parse(arguments)
+activate AddCommandParser
+
+create AddCommand
+AddCommandParser -> AddCommand : new AddCommand(person)
+activate AddCommand
+
+AddCommand --> AddCommandParser : a: AddCommand
+deactivate AddCommand
+
+AddCommandParser --> ClientBookParser : a
+deactivate AddCommandParser
+' Hidden arrow positions the destroy marker below the activation bar.
+AddCommandParser -[hidden]-> ClientBookParser
+destroy AddCommandParser
+
+ClientBookParser --> LogicManager : a
+deactivate ClientBookParser
+
+LogicManager -> Model : getClientBook()\ngetUserPrefs()
+Model --> LogicManager : clientBook, userPrefs
+create Temp
+LogicManager -> Temp : new ModelManager(clientBook, userPrefs)
+LogicManager -> Model : getFilteredPersonPredicate()\ngetFilteredPersonComparator()
+Model --> LogicManager : predicate, comparator
+LogicManager -> Temp : updateFilteredPersonList(predicate, comparator)
+
+LogicManager -> AddCommand : execute(temp, storage)
+activate AddCommand
+
+AddCommand -> Temp : addPerson(person)
+activate Temp
+
+Temp --> AddCommand
+deactivate Temp
+
+create CommandResult
+AddCommand -> CommandResult : new CommandResult(message)
+activate CommandResult
+
+CommandResult --> AddCommand
+deactivate CommandResult
+
+AddCommand --> LogicManager : r: CommandResult
+deactivate AddCommand
+
+LogicManager -> Temp : getClientBook()
+Temp --> LogicManager : updatedClientBook
+opt data changed and !r.isModelSaved()
+LogicManager -> Storage : saveClientBook(updatedClientBook)
+Storage --> LogicManager
+end
+note over LogicManager, Storage : A save failure throws; the live model is not committed.
+LogicManager -> Model : setClientBook(updatedClientBook)
+LogicManager -> Temp : getFilteredPersonPredicate()\ngetFilteredPersonComparator()
+Temp --> LogicManager : updatedPredicate, updatedComparator
+LogicManager -> Model : updateFilteredPersonList(updatedPredicate, updatedComparator)
+
+[<-- LogicManager : r
+deactivate LogicManager
+@enduml
