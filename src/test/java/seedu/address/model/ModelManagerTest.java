@@ -1,19 +1,30 @@
 package seedu.address.model;
 
+
+
+
+
+
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_STUDENTS;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalStudents.ALICE;
+import static seedu.address.testutil.TypicalStudents.BENSON;
+import static seedu.address.testutil.TypicalStudents.CARL;
+import static seedu.address.testutil.TypicalStudents.DANIEL;
+import static seedu.address.testutil.TypicalStudents.getTypicalAddressBook;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.course.CourseCode;
+import seedu.address.model.course.Semester;
+import seedu.address.model.student.NameContainsKeywordsPredicate;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -53,29 +64,81 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    public void hasStudent_nullStudent_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasStudent(null));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
+    public void hasStudent_studentNotInAddressBook_returnsFalse() {
+        assertFalse(modelManager.hasStudent(ALICE));
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
+    public void hasStudent_studentInAddressBook_returnsTrue() {
+        modelManager.addStudent(ALICE);
+        assertTrue(modelManager.hasStudent(ALICE));
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void getFilteredStudentList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredStudentList().remove(0));
+    }
+
+    @Test
+    public void getStudentsEnrolledIn_returnsStudentsInMainListOrder() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+
+        assertEquals(List.of(ALICE, BENSON, CARL, DANIEL), modelManager.getStudentsEnrolledIn(
+                new CourseCode("CS2103T"), new Semester("AY26/27-S1")));
+        assertTrue(modelManager.getStudentsEnrolledIn(
+                new CourseCode("CS2105"), new Semester("AY26/27-S1")).isEmpty());
+    }
+
+    @Test
+    public void getStudentsEnrolledIn_nullArgument_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.getStudentsEnrolledIn(null,
+                new Semester("AY26/27-S1")));
+        assertThrows(NullPointerException.class, () -> modelManager.getStudentsEnrolledIn(
+                new CourseCode("CS2103T"), null));
+    }
+
+    @Test
+    public void getCourse_existingAndMissingCourse_returnsExpectedResult() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        Semester semester = new Semester("AY26/27-S1");
+
+        assertTrue(modelManager.getCourse(new CourseCode("CS2103T"), semester).isPresent());
+        assertTrue(modelManager.getCourse(new CourseCode("CS2105"), semester).isEmpty());
+    }
+
+    @Test
+    public void getCourse_nullArgument_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.getCourse(null,
+                new Semester("AY26/27-S1")));
+        assertThrows(NullPointerException.class, () -> modelManager.getCourse(
+                new CourseCode("CS2103T"), null));
+    }
+
+    @Test
+    public void getCourseProgressOverview_returnsStudentCountsInMainListOrder() {
+        modelManager = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        CourseCode courseCode = new CourseCode("CS2103T");
+        Semester semester = new Semester("AY26/27-S1");
+
+        var overview = modelManager.getCourseProgressOverview(courseCode, semester).orElseThrow();
+
+        assertEquals(2, overview.getTotalDeliverables());
+        assertEquals(List.of(ALICE, BENSON, CARL, DANIEL), overview.getStudentProgressSummaries().stream()
+                .map(summary -> summary.getStudent()).toList());
+        assertEquals(List.of(0, 0, 0, 0), overview.getStudentProgressSummaries().stream()
+                .map(summary -> summary.getCompletedDeliverables()).toList());
+        assertTrue(modelManager.getCourseProgressOverview(
+                new CourseCode("CS2105"), semester).isEmpty());
     }
 
     @Test
     public void equals() {
-        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        AddressBook addressBook = new AddressBookBuilder().withStudent(ALICE).withStudent(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
 
@@ -98,11 +161,11 @@ public class ModelManagerTest {
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredStudentList(new NameContainsKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredStudentList(PREDICATE_SHOW_ALL_STUDENTS);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

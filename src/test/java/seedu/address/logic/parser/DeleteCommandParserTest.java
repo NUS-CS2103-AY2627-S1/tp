@@ -3,30 +3,65 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.model.student.Id;
 
-/**
- * As we are only doing white-box testing, our test cases do not cover path variations
- * outside of the DeleteCommand code. For example, inputs "1" and "1 abc" take the
- * same path through the DeleteCommand, and therefore we test only one of them.
- * The path variation for those two cases occurs inside the ParserUtil, and
- * therefore should be covered by the ParserUtilTest.
- */
+/** Tests for {@code DeleteCommandParser}. */
 public class DeleteCommandParserTest {
 
-    private DeleteCommandParser parser = new DeleteCommandParser();
+    private final DeleteCommandParser parser = new DeleteCommandParser();
 
     @Test
-    public void parse_validArgs_returnsDeleteCommand() {
-        assertParseSuccess(parser, "1", new DeleteCommand(INDEX_FIRST_PERSON));
+    public void parse_validId_returnsDeleteCommand() {
+        assertParseSuccess(parser, " /id A1234567Z", new DeleteCommand(new Id("A1234567Z")));
     }
 
     @Test
-    public void parse_invalidArgs_throwsParseException() {
-        assertParseFailure(parser, "a", String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
+    public void parse_validName_returnsDeleteCommand() {
+        assertParseSuccess(parser, " /name John Doe", new DeleteCommand("John Doe"));
+    }
+
+    @Test
+    public void parse_missingIdentifier_throwsParseException() {
+        assertParseFailure(parser, "", "Missing required parameter: /id or /name");
+    }
+
+    @Test
+    public void parse_emptyIdentifier_throwsParseException() {
+        assertParseFailure(parser, " /id", "Empty parameter value(s): /id");
+        assertParseFailure(parser, " /name", "Empty parameter value(s): /name");
+    }
+
+    @Test
+    public void parse_bothIdentifiers_throwsParseException() {
+        assertParseFailure(parser, " /id A1234567Z /name John Doe",
+                "Please specify either /id or /name, not both.");
+    }
+
+    @Test
+    public void parse_duplicateIdentifier_throwsParseException() {
+        assertParseFailure(parser, " /id A1234567Z /id A7654321Z",
+                "Multiple values specified for the following single-valued field(s): /id");
+    }
+
+    @Test
+    public void parse_unknownParameter_throwsParseException() {
+        assertParseFailure(parser, " /id A1234567Z /studentName John Doe",
+                "Unknown parameter: /studentName");
+    }
+
+    @Test
+    public void parse_unexpectedTextBeforeParameter_throwsParseException() {
+        assertParseFailure(parser, " randomText /id A1234567Z",
+                "Unexpected text found before parameter.");
+    }
+
+    @Test
+    public void parse_invalidFormat_throwsParseException() {
+        assertParseFailure(parser, " A1234567Z",
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE));
     }
 }

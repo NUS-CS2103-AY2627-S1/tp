@@ -9,51 +9,47 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Kevin Tan Shin Wei
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/mizzfain.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/mizzfain)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Project Direction
 
-### Jean Doe
+### Goh Min Rui
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/minrui13.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/minrui13)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Project Direction
 
-### James Doe
+### Piyaphat Klanprayoon
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/piyaphat38030.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/piyaphat38030)]
+
+* Role: Developer
+* Responsibilities: Documentation
+
+### Arun Baskaran
+
+<img src="images/arun-bas.png" width="200px">
+
+[[github](https://github.com/arun-bas)]
 
 * Role: Developer
 * Responsibilities: UI
+
+### Indra Bachtiar
+
+<img src="images/indraarr.png" width="200px">
+
+[[github](https://github.com/indraarr)]
+
+* Role: Developer
+* Responsibilities: Project Direction

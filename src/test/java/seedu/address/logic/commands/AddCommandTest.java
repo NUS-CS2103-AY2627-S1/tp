@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalStudents.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -21,50 +22,86 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.course.Course;
+import seedu.address.model.course.CourseCode;
+import seedu.address.model.course.Deliverable;
+import seedu.address.model.course.Semester;
+import seedu.address.model.enrolment.NotesList;
+import seedu.address.model.enrolment.StudentCourseEnrolment;
+import seedu.address.model.progress.CourseProgressOverview;
+import seedu.address.model.progress.StudentCourseProgress;
+import seedu.address.model.student.Id;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.TutorialClass;
+import seedu.address.testutil.StudentBuilder;
 
 public class AddCommandTest {
 
-    @Test
-    public void constructor_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> new AddCommand(null));
+    private static StudentCourseEnrolment enrolment(Student student) {
+        Id id = student == null ? new Id("A1234567Y") : student.getId();
+        return new StudentCourseEnrolment(id, new CourseCode("CS2103T"),
+                new Semester("AY26/27-S1"), new TutorialClass("T07"), new NotesList());
     }
 
     @Test
-    public void execute_personAcceptedByModel_addSuccessful() throws Exception {
-        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
-        Person validPerson = new PersonBuilder().build();
+    public void constructor_nullStudent_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AddCommand(null, List.of(enrolment(null))));
+    }
 
-        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+    @Test
+    public void constructor_emptyEnrolments_throwsIllegalArgumentException() {
+        Student validStudent = new StudentBuilder().build();
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertThrows(IllegalArgumentException.class,
+                "A student must have at least one enrolment.", (
+                ) -> new AddCommand(validStudent, List.of()));
+    }
+
+    @Test
+    public void execute_studentAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingStudentAdded modelStub = new ModelStubAcceptingStudentAdded();
+        Student validStudent = new StudentBuilder().build();
+
+        CommandResult commandResult = new AddCommand(validStudent, List.of(enrolment(validStudent))).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validStudent)),
                 commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals(List.of(validStudent), modelStub.studentsAdded);
     }
 
     @Test
-    public void execute_duplicatePerson_throwsCommandException() {
-        Person validPerson = new PersonBuilder().build();
-        AddCommand addCommand = new AddCommand(validPerson);
-        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+    public void execute_duplicateStudent_throwsCommandException() {
+        Student validStudent = new StudentBuilder().build();
+        AddCommand addCommand = new AddCommand(validStudent, List.of(enrolment(validStudent)));
+        ModelStub modelStub = new ModelStubWithStudent(validStudent);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_STUDENT, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_uninitialisedCourse_throwsCommandException() {
+        Student validStudent = new StudentBuilder().build();
+        AddCommand addCommand = new AddCommand(validStudent, List.of(enrolment(validStudent)));
+
+        assertThrows(CommandException.class,
+                String.format(AddCommand.MESSAGE_COURSE_NOT_FOUND, "CS2103T", "AY26/27-S1"), (
+                ) -> addCommand.execute(new ModelStubMissingCourse()));
     }
 
     @Test
     public void equals() {
-        Person alice = new PersonBuilder().withName("Alice").build();
-        Person bob = new PersonBuilder().withName("Bob").build();
-        AddCommand addAliceCommand = new AddCommand(alice);
-        AddCommand addBobCommand = new AddCommand(bob);
+        Student alice = new StudentBuilder().withName("Alice").build();
+        Student bob = new StudentBuilder().withName("Bob").build();
+        AddCommand addAliceCommand = new AddCommand(alice, List.of(enrolment(alice)));
+        AddCommand addBobCommand = new AddCommand(bob, List.of(enrolment(bob)));
 
         // same object -> returns true
         assertTrue(addAliceCommand.equals(addAliceCommand));
 
         // same values -> returns true
-        AddCommand addAliceCommandCopy = new AddCommand(alice);
+        AddCommand addAliceCommandCopy = new AddCommand(alice, List.of(enrolment(alice)));
         assertTrue(addAliceCommand.equals(addAliceCommandCopy));
+        assertEquals(addAliceCommand.hashCode(), addAliceCommandCopy.hashCode());
 
         // different types -> returns false
         assertFalse(addAliceCommand.equals(1));
@@ -72,14 +109,21 @@ public class AddCommandTest {
         // null -> returns false
         assertFalse(addAliceCommand.equals(null));
 
-        // different person -> returns false
+        // different student -> returns false
         assertFalse(addAliceCommand.equals(addBobCommand));
+
+        // same student with different enrolments -> returns false
+        StudentCourseEnrolment differentEnrolment = new StudentCourseEnrolment(
+                alice.getId(), new CourseCode("CS2103T"), new Semester("AY26/27-S1"),
+                new TutorialClass("T08"), new NotesList());
+        assertFalse(addAliceCommand.equals(new AddCommand(alice, List.of(differentEnrolment))));
     }
 
     @Test
     public void toStringMethod() {
-        AddCommand addCommand = new AddCommand(ALICE);
-        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
+        AddCommand addCommand = new AddCommand(ALICE, List.of(enrolment(ALICE)));
+        String expected = AddCommand.class.getCanonicalName() + "{student=" + ALICE
+                + ", initialEnrolments=" + List.of(enrolment(ALICE)) + "}";
         assertEquals(expected, addCommand.toString());
     }
 
@@ -103,7 +147,7 @@ public class AddCommandTest {
         }
 
         @Override
-        public void addPerson(Person person) {
+        public void addStudent(Student student) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -118,70 +162,182 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
+        public boolean hasStudent(Student student) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void deletePerson(Person target) {
+        public void deleteStudent(Student target) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void setPerson(Person target, Person editedPerson) {
+        public void setStudent(Student target, Student editedStudent) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public ObservableList<Person> getFilteredPersonList() {
+        public boolean hasDuplicateStudent(Student otherStudent, Student originalStudent) {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
+        public boolean hasCourse(Course course) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasEnrolment(StudentCourseEnrolment enrolment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Course> getCourse(CourseCode courseCode, Semester semester) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Student> getStudentsEnrolledIn(CourseCode courseCode, Semester semester) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<CourseProgressOverview> getCourseProgressOverview(
+                CourseCode courseCode, Semester semester) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addCourse(Course course) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setStudentCourseProgresses(List<StudentCourseProgress> studentCourseProgresses) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setStudentCourseProgress(StudentCourseProgress target, StudentCourseProgress updatedProgress) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void removeEnrolment(Id studentId, CourseCode courseCode, Semester semester) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setEnrolment(StudentCourseEnrolment target, StudentCourseEnrolment editedEnrolment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addEnrolment(StudentCourseEnrolment enrolment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addStudentWithEnrolments(Student student,
+                List<StudentCourseEnrolment> enrolments) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addStudentWithEnrolment(Student student, StudentCourseEnrolment enrolment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Student> getFilteredStudentList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<StudentCourseProgress> getStudentCourseProgressList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredStudentList(Predicate<Student> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Student> getStudentById(Id id) {
             throw new AssertionError("This method should not be called.");
         }
     }
 
     /**
-     * A Model stub that contains a single person.
+     * A Model stub that contains a single student.
      */
-    private class ModelStubWithPerson extends ModelStub {
-        private final Person person;
+    private class ModelStubWithStudent extends ModelStub {
+        private final Student student;
 
-        ModelStubWithPerson(Person person) {
-            requireNonNull(person);
-            this.person = person;
+        ModelStubWithStudent(Student student) {
+            requireNonNull(student);
+            this.student = student;
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public boolean hasStudent(Student student) {
+            requireNonNull(student);
+            return this.student.isSameStudent(student);
         }
     }
 
     /**
-     * A Model stub that always accepts the person being added.
+     * A Model stub that always accepts the student being added.
      */
-    private class ModelStubAcceptingPersonAdded extends ModelStub {
-        final ArrayList<Person> personsAdded = new ArrayList<>();
+    private class ModelStubAcceptingStudentAdded extends ModelStub {
+        final ArrayList<Student> studentsAdded = new ArrayList<>();
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+        public boolean hasStudent(Student student) {
+            requireNonNull(student);
+            return studentsAdded.stream().anyMatch(student::isSameStudent);
         }
 
         @Override
-        public void addPerson(Person person) {
-            requireNonNull(person);
-            personsAdded.add(person);
+        public Optional<Course> getCourse(CourseCode courseCode, Semester semester) {
+            return Optional.of(new Course(courseCode, semester, List.of(new Deliverable("MVP"))));
+        }
+
+        @Override
+        public void addStudent(Student student) {
+            requireNonNull(student);
+            studentsAdded.add(student);
+        }
+
+        @Override
+        public void addStudentWithEnrolments(Student student,
+                List<StudentCourseEnrolment> enrolments) {
+            requireNonNull(student);
+            studentsAdded.add(student);
+        }
+
+        @Override
+        public void updateFilteredStudentList(Predicate<Student> predicate) {
+            requireNonNull(predicate);
         }
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
             return new AddressBook();
+        }
+    }
+
+    /** A model stub that reports that the enrolment course is not initialised. */
+    private class ModelStubMissingCourse extends ModelStub {
+        @Override
+        public boolean hasStudent(Student student) {
+            return false;
+        }
+
+        @Override
+        public Optional<Course> getCourse(CourseCode courseCode, Semester semester) {
+            return Optional.empty();
         }
     }
 

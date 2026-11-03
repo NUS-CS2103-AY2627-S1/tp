@@ -3,14 +3,26 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.course.Course;
+import seedu.address.model.course.CourseCode;
+import seedu.address.model.course.Semester;
+import seedu.address.model.enrolment.StudentCourseEnrolment;
+import seedu.address.model.progress.CompletionStatus;
+import seedu.address.model.progress.CourseProgressOverview;
+import seedu.address.model.progress.StudentCourseProgress;
+import seedu.address.model.student.Id;
+import seedu.address.model.student.Student;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -20,7 +32,7 @@ public class ModelManager implements Model {
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Student> filteredStudents;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -32,14 +44,15 @@ public class ModelManager implements Model {
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredStudents = new FilteredList<>(this.addressBook.getStudentList());
     }
 
     public ModelManager() {
         this(new AddressBook(), new UserPrefs());
     }
 
-    //=========== UserPrefs ==================================================================================
+    // =========== UserPrefs
+    // ==================================================================================
 
     @Override
     public ReadOnlyUserPrefs getUserPrefs() {
@@ -57,7 +70,8 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
-    //=========== AddressBook ================================================================================
+    // =========== AddressBook
+    // ================================================================================
 
     @Override
     public void setAddressBook(ReadOnlyAddressBook addressBook) {
@@ -70,44 +84,174 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasStudent(Student student) {
+        requireNonNull(student);
+        return addressBook.hasStudent(student);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void deleteStudent(Student target) {
+        addressBook.removeStudent(target);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void addStudent(Student student) {
+        addressBook.addStudent(student);
+        updateFilteredStudentList(PREDICATE_SHOW_ALL_STUDENTS);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
+    public void setStudent(Student target, Student editedStudent) {
+        requireAllNonNull(target, editedStudent);
 
-        addressBook.setPerson(target, editedPerson);
+        addressBook.setStudent(target, editedStudent);
     }
 
-    //=========== Filtered Person List Accessors =============================================================
+    @Override
+    public boolean hasCourse(Course course) {
+        requireNonNull(course);
+        return addressBook.hasCourse(course);
+    }
+
+    @Override
+    public void addCourse(Course course) {
+        requireNonNull(course);
+        addressBook.addCourse(course);
+    }
+
+    @Override
+    public void setStudentCourseProgresses(List<StudentCourseProgress> studentCourseProgresses) {
+        addressBook.setStudentCourseProgresses(studentCourseProgresses);
+    }
+
+    @Override
+    public void setStudentCourseProgress(StudentCourseProgress target, StudentCourseProgress updatedProgress) {
+        addressBook.setStudentCourseProgress(target, updatedProgress);
+    }
+
+    @Override
+    public boolean hasEnrolment(StudentCourseEnrolment enrolment) {
+        requireNonNull(enrolment);
+        return addressBook.hasEnrolment(enrolment);
+    }
+
+    @Override
+    public Optional<Course> getCourse(CourseCode courseCode, Semester semester) {
+        requireAllNonNull(courseCode, semester);
+        return addressBook.getCourse(courseCode, semester);
+    }
+
+    @Override
+    public List<Student> getStudentsEnrolledIn(CourseCode courseCode, Semester semester) {
+        requireAllNonNull(courseCode, semester);
+        Set<Id> enrolledStudentIds = addressBook.getEnrolmentList().stream()
+                .filter(enrolment -> enrolment.getCourseCode().equals(courseCode)
+                        && enrolment.getSemester().equals(semester))
+                .map(StudentCourseEnrolment::getStudentId)
+                .collect(Collectors.toSet());
+        return addressBook.getStudentList().stream()
+                .filter(student -> enrolledStudentIds.contains(student.getId()))
+                .toList();
+    }
+
+    @Override
+    public Optional<CourseProgressOverview> getCourseProgressOverview(CourseCode courseCode, Semester semester) {
+        requireAllNonNull(courseCode, semester);
+        Optional<Course> course = addressBook.getCourse(courseCode, semester);
+        if (course.isEmpty()) {
+            return Optional.empty();
+        }
+
+        var progressByStudentId = addressBook.getStudentCourseProgressList().stream()
+                .filter(progress -> progress.getCourseCode().equals(courseCode)
+                        && progress.getSemester().equals(semester))
+                .collect(Collectors.toMap(StudentCourseProgress::getStudentId, progress -> progress));
+        List<CourseProgressOverview.StudentProgressSummary> summaries = getStudentsEnrolledIn(courseCode, semester)
+                .stream()
+                .map(student -> new CourseProgressOverview.StudentProgressSummary(student,
+                        countCompletedDeliverables(progressByStudentId.get(student.getId()))))
+                .toList();
+        return Optional.of(new CourseProgressOverview(course.orElseThrow().getDeliverables().size(), summaries));
+    }
+
+    private int countCompletedDeliverables(StudentCourseProgress progress) {
+        if (progress == null) {
+            return 0;
+        }
+        return (int) progress.getDeliverableStatuses().values().stream()
+                .filter(status -> status == CompletionStatus.DONE)
+                .count();
+    }
+
+    @Override
+    public void addStudentWithEnrolments(
+            Student student, List<StudentCourseEnrolment> enrolments) {
+        requireAllNonNull(student, enrolments);
+        addressBook.addStudentWithEnrolments(student, enrolments);
+    }
+
+    @Override
+    public void addStudentWithEnrolment(Student student, StudentCourseEnrolment enrolment) {
+        requireAllNonNull(student, enrolment);
+        addressBook.addStudentWithEnrolment(student, enrolment);
+    }
+
+    @Override
+    public void addEnrolment(StudentCourseEnrolment enrolment) {
+        requireNonNull(enrolment);
+        addressBook.addEnrolment(enrolment);
+    }
+
+    @Override
+    public void setEnrolment(StudentCourseEnrolment target, StudentCourseEnrolment editedEnrolment) {
+        addressBook.setEnrolment(target, editedEnrolment);
+    }
+
+    @Override
+    public void removeEnrolment(Id studentId, CourseCode courseCode, Semester semester) {
+        requireAllNonNull(studentId, courseCode, semester);
+        addressBook.removeEnrolment(studentId, courseCode, semester);
+        updateFilteredStudentList(PREDICATE_SHOW_ALL_STUDENTS);
+    }
+
+    // =========== Filtered Student List Accessors
+    // =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
+     * Returns an unmodifiable view of the list of {@code Student} backed by the
+     * internal list of
      * {@code addressBook}
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public ObservableList<Student> getFilteredStudentList() {
+        return filteredStudents;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public ObservableList<StudentCourseProgress> getStudentCourseProgressList() {
+        return addressBook.getStudentCourseProgressList();
+    }
+
+    @Override
+    public void updateFilteredStudentList(Predicate<Student> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredStudents.setPredicate(predicate);
+    }
+
+    @Override
+    public Optional<Student> getStudentById(Id id) {
+        requireNonNull(id);
+        return addressBook.getStudentList().stream()
+                .filter(student -> student.getId().equals(id))
+                .findFirst();
+    }
+
+    @Override
+    public boolean hasDuplicateStudent(Student otherStudent, Student originalStudent) {
+        requireAllNonNull(otherStudent, originalStudent);
+        return addressBook.getStudentList().stream()
+                .filter(student -> !student.equals(originalStudent))
+                .anyMatch(student -> student.isSameStudent(otherStudent));
     }
 
     @Override
@@ -123,7 +267,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredStudents.equals(otherModelManager.filteredStudents);
     }
 
 }

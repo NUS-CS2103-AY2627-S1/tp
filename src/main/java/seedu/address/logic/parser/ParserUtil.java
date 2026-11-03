@@ -2,37 +2,57 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.course.Course;
+import seedu.address.model.course.CourseCode;
+import seedu.address.model.course.Deliverable;
+import seedu.address.model.course.Semester;
+import seedu.address.model.student.Email;
+import seedu.address.model.student.Id;
+import seedu.address.model.student.Name;
+import seedu.address.model.student.TutorialClass;
 
 /**
- * Contains utility methods used for parsing strings in the various *Parser classes.
+ * Contains utility methods used for parsing strings in the various *Parser
+ * classes.
  */
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    private static final Pattern PARAMETER_PATTERN = Pattern.compile("(^|\\s)/(\\S+)");
 
     /**
-     * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
+     * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading
+     * and trailing whitespaces will be
      * trimmed.
-     * @throws ParseException if the specified index is invalid (not a non-zero unsigned integer).
+     *
+     * @throws ParseException if the specified index is invalid (not a non-zero
+     *                        unsigned integer).
      */
     public static Index parseIndex(String oneBasedIndex) throws ParseException {
         String trimmedIndex = oneBasedIndex.trim();
         if (!StringUtil.isNonZeroUnsignedInteger(trimmedIndex)) {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
-        return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+        try {
+            return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+        } catch (NumberFormatException exception) {
+            throw new ParseException(MESSAGE_INVALID_INDEX, exception);
+        }
     }
 
     /**
@@ -50,34 +70,24 @@ public class ParserUtil {
         return new Name(trimmedName);
     }
 
-    /**
-     * Parses a {@code String phone} into a {@code Phone}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code phone} is invalid.
-     */
-    public static Phone parsePhone(String phone) throws ParseException {
-        requireNonNull(phone);
-        String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
+    /** Parses a student ID. */
+    public static Id parseId(String id) throws ParseException {
+        requireNonNull(id);
+        String trimmedId = id.trim().toUpperCase(Locale.ROOT);
+        if (!Id.isValidId(trimmedId)) {
+            throw new ParseException(Id.MESSAGE_CONSTRAINTS);
         }
-        return new Phone(trimmedPhone);
+        return new Id(trimmedId);
     }
 
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
+    /** Parses a tutorial class. */
+    public static TutorialClass parseTutorialClass(String tutorialClass) throws ParseException {
+        requireNonNull(tutorialClass);
+        String trimmedClass = tutorialClass.trim();
+        if (!TutorialClass.isValidClass(trimmedClass)) {
+            throw new ParseException(TutorialClass.MESSAGE_CONSTRAINTS);
         }
-        return new Address(trimmedAddress);
+        return new TutorialClass(trimmedClass);
     }
 
     /**
@@ -96,29 +106,165 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * Parses a {@code String courseCode} into a {@code CourseCode}.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static CourseCode parseCourseCode(String courseCode) throws ParseException {
+        requireNonNull(courseCode);
+        String trimmedCourseCode = courseCode.trim();
+        if (!CourseCode.isValidCourseCode(trimmedCourseCode)) {
+            throw new ParseException(CourseCode.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return new CourseCode(trimmedCourseCode);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses a {@code String semester} into a {@code Semester}.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    public static Semester parseSemester(String semester) throws ParseException {
+        requireNonNull(semester);
+        String trimmedSemester = semester.trim();
+        if (!Semester.isValidSemester(trimmedSemester)) {
+            throw new ParseException(Semester.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new Semester(trimmedSemester);
     }
+
+    /**
+     * Splits a comma-separated value into trimmed, non-blank values.
+     *
+     * @throws ParseException if any value is blank.
+     */
+    public static List<String> parseCommaSeparatedValues(
+            String input, String emptyValueMessage) throws ParseException {
+        requireNonNull(input);
+        requireNonNull(emptyValueMessage);
+
+        List<String> values = Arrays.stream(input.split(",", -1))
+                .map(String::trim)
+                .toList();
+        if (values.stream().anyMatch(String::isBlank)) {
+            throw new ParseException(emptyValueMessage);
+        }
+        return values;
+    }
+
+    /**
+     * Parses a comma-separated {@code String} into a list of deliverables.
+     */
+    public static List<Deliverable> parseDeliverables(String deliverables) throws ParseException {
+        requireNonNull(deliverables);
+        List<String> deliverableNames = parseCommaSeparatedValues(
+                deliverables, Deliverable.MESSAGE_CONSTRAINTS);
+        List<Deliverable> parsedDeliverables = new java.util.ArrayList<>();
+        for (String deliverableName : deliverableNames) {
+            if (!Deliverable.isValidDeliverable(deliverableName)) {
+                throw new ParseException(Deliverable.MESSAGE_CONSTRAINTS);
+            }
+            parsedDeliverables.add(new Deliverable(deliverableName));
+        }
+        if (deliverableNames.size() > Course.MAX_DELIVERABLES) {
+            throw new ParseException(Course.MESSAGE_TOO_MANY_DELIVERABLES);
+        }
+        if (!Course.hasUniqueDeliverables(parsedDeliverables)) {
+            throw new ParseException(Course.MESSAGE_DELIVERABLES);
+        }
+        return parsedDeliverables;
+    }
+
+    /**
+     * Rejects parameters that are not included in {@code allowedPrefixes}.
+     *
+     * @throws ParseException if an unknown parameter is found.
+     */
+    public static void rejectUnknownParameters(
+            String args, Prefix... allowedPrefixes) throws ParseException {
+        requireNonNull(args);
+        requireNonNull(allowedPrefixes);
+
+        Set<String> allowed = Arrays.stream(allowedPrefixes)
+                .map(Objects::requireNonNull)
+                .map(Prefix::toString)
+                .collect(Collectors.toSet());
+
+        Matcher matcher = PARAMETER_PATTERN.matcher(args);
+
+        while (matcher.find()) {
+            String parameter = "/" + matcher.group(2);
+
+            if (!allowed.contains(parameter)) {
+                throw new ParseException(String.format(Messages.MESSAGE_UNKNOWN_PARAMETER, parameter));
+            }
+        }
+    }
+
+    /**
+     * Validates that all required parameters are present and non-blank.
+     *
+     * @throws ParseException if any required parameter is missing or empty.
+     */
+    public static void validateRequiredParameters(
+            ArgumentMultimap argMultimap, Prefix... requiredPrefixes)
+            throws ParseException {
+        requireNonNull(argMultimap);
+        requireNonNull(requiredPrefixes);
+
+        StringJoiner missingParameters = new StringJoiner(", ");
+        StringJoiner emptyParameters = new StringJoiner(", ");
+
+        for (Prefix prefix : requiredPrefixes) {
+            requireNonNull(prefix);
+
+            Optional<String> value = argMultimap.getValue(prefix);
+
+            if (value.isEmpty()) {
+                missingParameters.add(prefix.toString());
+            } else if (value.orElseThrow().isBlank()) {
+                emptyParameters.add(prefix.toString());
+            }
+        }
+
+        StringJoiner errors = new StringJoiner("\n");
+
+        if (missingParameters.length() > 0) {
+            errors.add(String.format(Messages.MESSAGE_MISSING_PARAMETERS, missingParameters));
+        }
+
+        if (emptyParameters.length() > 0) {
+            errors.add(String.format(Messages.MESSAGE_EMPTY_PARAMETERS, emptyParameters));
+        }
+
+        if (errors.length() > 0) {
+            throw new ParseException(errors.toString());
+        }
+    }
+
+    /**
+     * Validates that exactly one of the two prefixes is present and non-blank.
+     *
+     * @throws ParseException if neither or both prefixes are present,
+     *                        or the selected value is blank.
+     */
+    public static void validateExactlyOneOf(
+            ArgumentMultimap argMultimap, Prefix firstPrefix, Prefix secondPrefix)
+            throws ParseException {
+        requireNonNull(argMultimap);
+        requireNonNull(firstPrefix);
+        requireNonNull(secondPrefix);
+
+        boolean hasFirst = argMultimap.getValue(firstPrefix).isPresent();
+        boolean hasSecond = argMultimap.getValue(secondPrefix).isPresent();
+
+        if (!hasFirst && !hasSecond) {
+            throw new ParseException(String.format(
+                    Messages.MESSAGE_MISSING_IDENTIFIER, firstPrefix, secondPrefix));
+        }
+
+        if (hasFirst && hasSecond) {
+            throw new ParseException(String.format(
+                    Messages.MESSAGE_CONFLICTING_IDENTIFIERS, firstPrefix, secondPrefix));
+        }
+
+        validateRequiredParameters(argMultimap, hasFirst ? firstPrefix : secondPrefix);
+    }
+
 }

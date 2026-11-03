@@ -1,14 +1,57 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# TAssist
 
+[![Java CI](https://github.com/AY2627S1-CS2103T-F11-1/tp/actions/workflows/gradle.yml/badge.svg?branch=master)](https://github.com/AY2627S1-CS2103T-F11-1/tp/actions/workflows/gradle.yml)
 ![Ui](docs/images/Ui.png)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+## Introduction
+
+TAssist is designed for university teaching assistants teaching computing modules with at least one multi-week coding project.
+
+With many students across different tutorial classes and courses, TAs may not
+remember every student's project context. TAssist keeps course enrolments,
+deliverable progress, and project-work notes together so TAs can offer more
+contextualised support.
+
+## Features
+
+- Manage student records across different tutorial classes
+- Record student information and deliverable-specific notes
+- Search for students by one or more case-insensitive partial name queries, or by student ID
+- Track project deliverables and completion statuses
+- View project progress across each student's course enrolments
+- Add, view and delete deliverable-specific notes about students' project work
+- Use commands to perform actions efficiently
+
+## Example Commands
+
+```text
+list
+overview /course CS2103T /sem AY26/27-S1
+list /course CS2103T /sem AY26/27-S1
+list /course CS2103T /sem AY26/27-S1 /class T07
+list /course CS2103T /sem AY26/27-S1 /deliverable MVP
+search /name Alex Yeoh, Bernice Yu
+search /id A2345678C, A1234567Z
+add /name John Doe /id A1234567Z /email johndoe@u.nus.edu /course CS2103T, CS1231 /sem AY26/27-S1, AY26/27-S1 /class T07, T02
+edit /id A1234567Z /name John Doe /newid A1234567Y /email johndoe@u.nus.edu
+delete /id A1234567Z
+delete /name John Doe
+enrol /id A1234567Z /course CS2103T /sem AY26/27-S1 /class T07
+unenrol /id A1234567Z /course CS2103T /sem AY26/27-S1
+init course /course CS2103T /sem AY26/27-S1 /deliverable v1.1, v1.2, MVP
+notes /id A1234567Z /course CS2103T /sem AY26/27-S1 /deliverable MVP /notes Discussed inheritance
+view notes /id A1234567Z /course CS2103T /sem AY26/27-S1
+delete notes /id A1234567Z /course CS2103T /sem AY26/27-S1
+mark /id A1234567Z /course CS2103T /sem AY26/27-S1 /deliverable MVP
+mark /name John Doe /course CS2103T /sem AY26/27-S1 /deliverable v1.1
+unmark /id A1234567Z /course CS2103T /sem AY26/27-S1 /deliverable MVP
+unmark /name John Doe /course CS2103T /sem AY26/27-S1 /deliverable v1.1, MVP
+view /id A1234567Z
+view /name John Doe
+help
+clear
+exit
+```
+
+## Acknowledgements
+- This project is based on the [AddressBook Level 3](https://github.com/se-edu/addressbook-level3) project created by the [SE-EDU initiative](https://se-education.org).

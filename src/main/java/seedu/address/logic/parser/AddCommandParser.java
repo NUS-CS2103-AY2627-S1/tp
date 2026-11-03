@@ -1,61 +1,100 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLASS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_COURSE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ID;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SEMESTER;
 
-import java.util.Set;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
 
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.course.CourseCode;
+import seedu.address.model.course.Semester;
+import seedu.address.model.enrolment.NotesList;
+import seedu.address.model.enrolment.StudentCourseEnrolment;
+import seedu.address.model.student.Email;
+import seedu.address.model.student.Id;
+import seedu.address.model.student.Name;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.TutorialClass;
 
 /**
  * Parses input arguments and creates a new AddCommand object
  */
 public class AddCommandParser implements Parser<AddCommand> {
 
+    public static final String MESSAGE_DUPLICATE_ENROLMENT = "Duplicate course-semester enrolment specified.";
+    public static final String MESSAGE_EMPTY_ENROLMENT_VALUE = "Enrolment values cannot be empty.";
+    public static final String MESSAGE_MISMATCHED_ENROLMENTS =
+            "The number of courses, semesters and tutorial classes must match.";
+
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
      * and returns an AddCommand object for execution.
-     * @throws ParseException if the user input does not conform to the expected format
+     *
+     * @throws ParseException if the user input does not conform to the expected
+     *                        format
      */
     public AddCommand parse(String args) throws ParseException {
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+        requireNonNull(args);
+        ParserUtil.rejectUnknownParameters(args, PREFIX_NAME, PREFIX_ID, PREFIX_EMAIL,
+                PREFIX_COURSE, PREFIX_SEMESTER, PREFIX_CLASS);
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_ID, PREFIX_EMAIL,
+                PREFIX_COURSE, PREFIX_SEMESTER, PREFIX_CLASS);
 
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
-                || !argMultimap.getPreamble().isEmpty()) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+        if (!argMultimap.getPreamble().isEmpty()) {
+            throw new ParseException(Messages.MESSAGE_UNEXPECTED_TEXT);
+        }
+        argMultimap.verifyNoDuplicatePrefixesFor(
+                PREFIX_NAME, PREFIX_ID, PREFIX_EMAIL,
+                PREFIX_COURSE, PREFIX_SEMESTER, PREFIX_CLASS);
+        ParserUtil.validateRequiredParameters(
+                argMultimap, PREFIX_NAME, PREFIX_ID, PREFIX_EMAIL,
+                PREFIX_COURSE, PREFIX_SEMESTER, PREFIX_CLASS);
+        Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).orElseThrow());
+        Id id = ParserUtil.parseId(argMultimap.getValue(PREFIX_ID).orElseThrow());
+        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).orElseThrow());
+
+        List<String> courses = ParserUtil.parseCommaSeparatedValues(
+                argMultimap.getValue(PREFIX_COURSE).orElseThrow(), MESSAGE_EMPTY_ENROLMENT_VALUE);
+
+        List<String> semesters = ParserUtil.parseCommaSeparatedValues(
+                argMultimap.getValue(PREFIX_SEMESTER).orElseThrow(), MESSAGE_EMPTY_ENROLMENT_VALUE);
+
+        List<String> classes = ParserUtil.parseCommaSeparatedValues(
+                argMultimap.getValue(PREFIX_CLASS).orElseThrow(), MESSAGE_EMPTY_ENROLMENT_VALUE);
+        Student student = new Student(name, id, email);
+
+        if (courses.size() != semesters.size()
+                || courses.size() != classes.size()) {
+            throw new ParseException(MESSAGE_MISMATCHED_ENROLMENTS);
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-        Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
+        List<StudentCourseEnrolment> enrolments = new ArrayList<>();
 
-        Person person = new Person(name, phone, email, address, tagList);
+        for (int i = 0; i < courses.size(); i++) {
+            CourseCode courseCode = ParserUtil.parseCourseCode(courses.get(i));
+            Semester semester = ParserUtil.parseSemester(semesters.get(i));
+            TutorialClass tutorialClass = ParserUtil.parseTutorialClass(classes.get(i));
 
-        return new AddCommand(person);
-    }
+            StudentCourseEnrolment enrolment = new StudentCourseEnrolment(
+                    id, courseCode, semester, tutorialClass, new NotesList());
 
-    /**
-     * Returns true if none of the prefixes contains empty {@code Optional} values in the given
-     * {@code ArgumentMultimap}.
-     */
-    private static boolean arePrefixesPresent(ArgumentMultimap argumentMultimap, Prefix... prefixes) {
-        return Stream.of(prefixes).allMatch(prefix -> argumentMultimap.getValue(prefix).isPresent());
+            if (enrolments.stream().anyMatch(existing -> existing.isSameEnrolment(enrolment))) {
+                throw new ParseException(MESSAGE_DUPLICATE_ENROLMENT);
+            }
+
+            enrolments.add(enrolment);
+        }
+
+        return new AddCommand(student, enrolments);
+
     }
 
 }

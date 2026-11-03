@@ -1,0 +1,6 @@
+{
+  "students" : [
+    { "name" : "Alice Pauline", "id" : "A1234567Y", "email" : "alice@u.nus.edu" },
+    { "name" : "Alice Pauline", "id" : "A1234567Y", "email" : "alice@u.nus.edu" }
+  ]
+}

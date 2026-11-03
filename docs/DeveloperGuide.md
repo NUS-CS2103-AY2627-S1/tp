@@ -2,334 +2,696 @@
 layout: page
 title: Developer Guide
 ---
-* Table of Contents
+
+* Table of Contents 
 {:toc}
 
---------------------------------------------------------------------------------------------------------------------
 
-## **Acknowledgements**
+## Acknowledgements
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+- This project is based on the [AddressBook Level 3](https://github.com/se-edu/addressbook-level3) project created by the [SE-EDU initiative](https://se-education.org).
 
---------------------------------------------------------------------------------------------------------------------
+### Notable uses of AI
 
-## **Setting up, getting started**
+- OpenAI Codex was used by Piyaphat Klanprayoon throughout the project to assist with planning code changes and,
+  in some cases, implementing them. It also assisted with running tests, comparing proposed changes against the
+  existing codebase, and suggesting relevant software-engineering and testing practices. Piyaphat reviewed and
+  adapted proposed changes before raising them for peer review, ran and reviewed relevant tests for submitted
+  changes, and remains responsible for the submitted work.
+
+- OpenAI Codex was used by Min Rui throughout the project to assist with with evaluating design decisions, 
+identifying documentation inconsistencies, and suggesting relevant coding and testing practices. Additionally, 
+it aided in running tests and comparing proposed modifications against the existing codebase. AI-generated 
+suggestions were reviewed and adapted against the existing codebase and project requirements before incorporation 
+into the submitted work.
+
+## Setting up, getting started
 
 Refer to the guide [_Setting up and getting started_](SettingUp.md).
 
---------------------------------------------------------------------------------------------------------------------
 
-## **Design**
+## Design
 
-<div markdown="span" class="alert alert-primary">
+This section describes TAssist's architecture and the responsibilities of its main components. It also explains how the components collaborate to support student management, course enrolments, deliverable tracking, and data persistence.
 
-:bulb: **Tip:** The `.puml` files used to create diagrams are in `docs/diagrams`. Refer to the [_PlantUML Tutorial_ at se-edu/guides](https://se-education.org/guides/tutorials/plantUml.html) to learn how to create and edit diagrams.
-</div>
+The PlantUML source files for the diagrams are located in `docs/diagrams`.
 
 ### Architecture
 
-<img src="images/ArchitectureDiagram.png" width="280" />
+TAssist follows a component-based architecture comprising `Main`, `UI`, `Logic`, `Model`, and `Storage`. The `Commons` package provides shared utilities used across components.
 
-The ***Architecture Diagram*** given above explains the high-level design of the App.
+The following architecture diagram illustrates the main components and their dependencies.
 
-The following provides a quick overview of the main components and their interactions.
+![Architecture diagram](images/ArchitectureDiagram.png)
 
-**Main components of the architecture**
+The **`Main`** component consists of `Main` and `MainApp`. It is responsible for launching TAssist, initializing and connecting the other components, and coordinating application shutdown.
 
-**`Main`** (consisting of classes [`Main`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/Main.java) and [`MainApp`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java)) is in charge of the app launch and shut down.
-* At app launch, it initializes the other components in the correct sequence, and connects them up with each other.
-* At shut down, it shuts down the other components and invokes cleanup methods where necessary.
+The four main components have distinct responsibilities:
 
-The bulk of the app's work is done by the following four components:
+| Component | Responsibility |
+|---|---|
+| `UI` | Handles user interaction and presents application data. |
+| `Logic` | Parses and executes user commands. |
+| `Model` | Maintains application data and enforces domain constraints. |
+| `Storage` | Loads and persists application data in JSON files. |
 
-* [**`UI`**](#ui-component): The UI of the App.
-* [**`Logic`**](#logic-component): The command executor.
-* [**`Model`**](#model-component): Holds the data of the App in memory.
-* [**`Storage`**](#storage-component): Reads data from, and writes data to, the hard disk.
+`Commons` contains shared functionality, including logging, file utilities, and common exceptions.
 
-[**`Commons`**](#common-classes) represents a collection of classes used by multiple other components.
+#### Component interactions
 
-**How the architecture components interact with each other**
+The following sequence diagram illustrates how the main components collaborate when executing `delete /id A1234567B`.
 
-The *Sequence Diagram* below shows how the components interact with each other for the scenario where the user issues the command `delete 1`.
+![Architecture sequence diagram](images/ArchitectureSequenceDiagram.png)
 
-<img src="images/ArchitectureSequenceDiagram.png" width="574" />
+The `UI` forwards the command to `Logic`, which executes the corresponding operation against `Model`. After successful command execution, `Logic` requests `Storage` to persist the address book before returning the result to `UI`.
 
-Each of the four main components (also shown in the diagram above),
+The diagram intentionally abstracts the internal parsing, command execution, and JSON serialization steps. These are explained in the component-specific sections.
 
-* defines its *API* in an `interface` with the same name as the Component.
-* provides its functionality through a concrete `{Component Name}Manager` class that implements the corresponding API interface.
+#### Component interfaces and implementations
 
-For example, the `Logic` component defines its API in `Logic.java` and implements it in `LogicManager.java`. Other components interact with a component through its interface rather than its concrete class, preventing them from coupling to that component's implementation, as illustrated in the following partial class diagram.
+Each major component exposes its functionality through an interface and provides a concrete manager implementation.
 
-<img src="images/ComponentManagers.png" width="300" />
+For example, `LogicManager` implements the `Logic` interface, while `ModelManager` and `StorageManager` implement `Model` and `Storage` respectively.
 
-The sections below give more details of each component.
+![Component managers class diagram](images/ComponentManagersClassDiagram.png)
+
+This separation allows components to depend on public APIs rather than the internal implementation of another component. It also supports testing by allowing alternative implementations of component interfaces.
 
 ### UI component
 
-The **API** of this component is specified in [`Ui.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/Ui.java)
+**API:** `Ui.java`
 
-![Structure of the UI Component](images/UiClassDiagram.png)
+The `UI` component uses JavaFX to handle user interaction and display information maintained by TAssist.
 
-The UI consists of a `MainWindow` and its parts, such as `CommandBox`, `ResultDisplay`, `PersonListPanel`, and `StatusBarFooter`. All of these, including `MainWindow`, inherit from the abstract `UiPart` class, which captures common behavior among classes that represent visible GUI parts.
+The following class diagram illustrates the structure of the UI component.
 
-The `UI` component uses the JavaFX UI framework. The layouts of these UI parts are defined in matching `.fxml` files in `src/main/resources/view`. For example, [`MainWindow.fxml`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/resources/view/MainWindow.fxml) specifies the layout of [`MainWindow`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/ui/MainWindow.java).
+![UI class diagram](images/UiClassDiagram.png)
 
-The `UI` component,
+`UiManager` implements the `Ui` interface and manages the application's main window.
 
-* executes user commands using the `Logic` component.
-* listens for changes to `Model` data so that the UI can be updated with the modified data.
-* keeps a reference to the `Logic` component, because the `UI` relies on the `Logic` to execute commands.
-* depends on some classes in the `Model` component because it displays `Person` objects from the model.
+`MainWindow` coordinates several UI parts, including:
+
+- `CommandBox`, which accepts user commands.
+- `ResultDisplay`, which displays command feedback.
+- `StudentListPanel`, which displays student records through `StudentCard` instances.
+- `DeliverablesPanel`, which displays structured deliverable-progress information.
+- `StatusBarFooter`, which displays application status information.
+- `HelpWindow`, which provides command guidance.
+
+These UI classes inherit from the abstract `UiPart` class, which provides shared functionality for JavaFX UI components.
+
+UI layouts are defined using FXML resources, while their corresponding Java classes handle interaction and presentation logic.
+
+The `UI` component communicates with `Logic` to execute commands and retrieve application data. It also uses Model types when rendering students and deliverable-progress information.
 
 ### Logic component
 
-**API** : [`Logic.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/logic/Logic.java)
+**API:** `Logic.java`
 
-Here's a (partial) class diagram of the `Logic` component:
+The `Logic` component interprets user commands, executes the corresponding operations, and returns their results.
 
-<img src="images/LogicClassDiagram.png" width="550"/>
+The following class diagram shows the main structural relationships within Logic.
 
-The sequence diagram below illustrates the interactions within the `Logic` component, taking `execute("delete 1")` API call as an example.
+![Logic class diagram](images/LogicClassDiagram.png)
 
-![Interactions Inside the Logic Component for the `delete 1` Command](images/DeleteSequenceDiagram.png)
+`LogicManager` implements the `Logic` interface and coordinates command execution.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `DeleteCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-</div>
+It uses `AddressBookParser` to convert command text into a `Command` object. The command is then executed against `Model`, producing a `CommandResult`.
 
-How the `Logic` component works:
+`LogicManager` also interacts with `Storage` to persist the address book after successful command execution.
 
-1. When `Logic` is called upon to execute a command, the command is passed to an `AddressBookParser` object, which in turn creates a parser that matches the command (e.g., `DeleteCommandParser`) and uses it to parse the command.
-1. This results in a `Command` object (more precisely, an object of one of its subclasses e.g., `DeleteCommand`) which is executed by the `LogicManager`.
-1. The command can communicate with the `Model` when it is executed (e.g. to delete a person).<br>
-   Note that although this is shown as a single step in the diagram above for simplicity, the code can require several interactions between the command object and the `Model` to complete the operation.
-1. The result of the command execution is encapsulated as a `CommandResult` object which is returned from `Logic`.
+#### Command execution
 
-Here are the other classes in `Logic` (omitted from the class diagram above) that are used for parsing a user command:
+The following sequence diagram illustrates the execution of `delete /id A1234567B`.
 
-<img src="images/ParserClasses.png" width="600"/>
+![Delete sequence diagram](images/DeleteSequenceDiagram.png)
 
-How the parsing works:
-* When called upon to parse a user command, the `AddressBookParser` class creates an `XYZCommandParser` (`XYZ` is a placeholder for the specific command name, e.g., `AddCommandParser`). The parser uses the other classes shown above to parse the user command and create an `XYZCommand` object (e.g., `AddCommand`). The `AddressBookParser` returns that object as a `Command` object.
-* All `XYZCommandParser` classes, such as `AddCommandParser` and `DeleteCommandParser`, implement the `Parser` interface so they can be treated similarly where appropriate, for example during testing.
+The command execution proceeds as follows:
+
+1. `LogicManager` passes the command text to `AddressBookParser`.
+2. `AddressBookParser` creates the appropriate command-specific parser, `DeleteCommandParser`.
+3. `DeleteCommandParser` parses the arguments and creates a `DeleteCommand`.
+4. `LogicManager` executes the returned command against `Model`.
+5. `DeleteCommand` identifies the target student and invokes `Model.deleteStudent(...)`.
+6. The command creates and returns a `CommandResult`.
+
+The diagram focuses on the internal Logic execution path. Student lookup details, exception handling, and persistence are omitted to keep the interaction focused. Persistence is represented in the architecture sequence diagram.
+
+#### Command parsing
+
+The parser subsystem separates command identification from command-specific argument parsing.
+
+The following partial class diagram illustrates the shared parsing architecture.
+
+![Parser class diagram](images/ParserClassDiagram.png)
+
+`AddressBookParser` identifies the command word and delegates argument parsing to the appropriate parser.
+
+Command-specific parsers use shared infrastructure such as:
+
+- `ArgumentTokenizer` to separate arguments into prefixed values.
+- `ArgumentMultimap` to store and retrieve tokenized arguments.
+- `ParserUtil` to validate and convert argument values.
+- `CliSyntax` and `Prefix` to define command parameter syntax.
+
+In the diagram, **`XYZCommandParser` and `XYZCommand` are representative placeholders**, not actual Java classes. They illustrate the general relationship between a command-specific parser and the command it creates. For example, `SearchCommandParser` creates a `SearchCommand`.
+
+The diagram intentionally omits specialized parser inheritance relationships. For example, progress commands share parsing behavior through `StudentProgressCommandParser`, which is extended by `MarkCommandParser` and `UnmarkCommandParser`.
+
+This design allows common parsing and validation behavior to be reused while retaining command-specific parsing responsibilities.
 
 ### Model component
-**API** : [`Model.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/model/Model.java)
 
-<img src="images/ModelClassDiagram.png" width="450" />
+**API:** `Model.java`
 
+The `Model` component maintains TAssist's in-memory application data and provides operations for managing students, courses, enrolments, and deliverable progress.
 
-The `Model` component,
+The following class diagram illustrates its main structural relationships.
 
-* stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
-* stores the `Person` objects selected by the current filter, such as search results, in a separate _filtered_ list. It exposes this list as an unmodifiable `ObservableList<Person>` that the UI can observe and bind to, so the UI updates when the list changes.
-* stores a `UserPrefs` object that represents the user’s preferences (currently, just the GUI settings). This is exposed to the outside as a `ReadOnlyUserPrefs` object.
-* does not depend on any of the other three components (as the `Model` represents data entities of the domain, they should make sense on their own without depending on other components)
+![Model class diagram](images/ModelClassDiagram.png)
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The alternative, arguably more object-oriented, design below keeps a unique list of tags in `AddressBook`, and each `Person` references tags from that list. This lets `AddressBook` maintain one `Tag` object per unique tag instead of each `Person` holding its own `Tag` objects.<br>
+`ModelManager` implements the `Model` interface and maintains an `AddressBook` and a `UserPrefs` object.
 
-<img src="images/BetterModelClassDiagram.png" width="450" />
+`AddressBook` organizes domain records through four specialized collections:
 
-</div>
+| Collection | Stored records |
+|---|---|
+| `UniqueStudentList` | `Student` |
+| `UniqueCourseList` | `Course` |
+| `UniqueStudentCourseEnrolment` | `StudentCourseEnrolment` |
+| `UniqueStudentCourseProgressList` | `StudentCourseProgress` |
 
+These collection classes encapsulate record management and enforce uniqueness constraints.
+
+The `Model` interface exposes read-only interfaces such as `ReadOnlyAddressBook` and `ReadOnlyUserPrefs`. This separates data access from the mutable operations provided by their concrete implementations.
+
+The Model also maintains a filtered student list, exposed through an unmodifiable observable list. This allows the UI to observe changes without directly modifying the underlying student collection.
+
+#### Multiple course enrolments and independent progress
+
+TAssist separates student identity from course enrolment and deliverable progress.
+
+A `Student` represents a student independently of their course registrations. Each `StudentCourseEnrolment` identifies the student and a particular course-semester, while a corresponding `StudentCourseProgress` records completion statuses for that course's deliverables.
+
+The following object diagram shows a concrete snapshot of one student enrolled in two courses.
+
+![Student-course progress object diagram](images/StudentCourseProgressObjectDiagram.png)
+
+The snapshot demonstrates that:
+
+- One student record can be associated with multiple enrolments.
+- Each enrolment belongs to a particular course-semester.
+- Each course defines its own deliverables.
+- Progress is tracked independently for each student-course-semester combination.
+
+The model uses identifying values such as student ID, course code, and semester to associate these records, rather than storing direct references between all domain entities.
+
+This separation avoids duplicating student information across courses and allows progress to be maintained independently for each enrolment.
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API:** `Storage.java`
 
-<img src="images/StorageClassDiagram.png" width="550" />
+The `Storage` component manages the persistence of TAssist's address-book data and user preferences.
 
-The `Storage` component,
-* can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
-* is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
-* depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+The following class diagram illustrates its structure.
 
-### Common classes
+![Storage class diagram](images/StorageClassDiagram.png)
 
-Classes used by multiple components are in the `seedu.address.commons` package.
+`StorageManager` implements the `Storage` interface and delegates file operations to two specialized storage classes:
 
---------------------------------------------------------------------------------------------------------------------
+- `JsonAddressBookStorage`, which manages address-book data.
+- `JsonUserPrefsStorage`, which manages user preferences.
 
-## **Implementation**
+`JsonAddressBookStorage` uses `JsonSerializableAddressBook` to convert between JSON data and the Model representation.
 
-This section describes some noteworthy details on how certain features are implemented.
+The JSON representation includes adapters for students, courses, enrolments, and progress records.
 
-### \[Proposed\] Undo/redo feature
+#### Loading address-book data
 
-#### Proposed Implementation
+When TAssist starts, `MainApp` requests the saved address book through `StorageManager`.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+The following sequence diagram illustrates the successful loading interaction.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+![Address-book loading sequence diagram](images/AddressBookLoadingSequenceDiagram.png)
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+`StorageManager` delegates loading to `JsonAddressBookStorage`, which uses `JsonUtil` to deserialize the JSON file into `JsonSerializableAddressBook`.
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+The deserialized data is then converted into an `AddressBook` through `toModelType()`, which validates the persisted records and their relationships.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+The sequence diagram intentionally focuses on successful object collaboration. Missing files, invalid data, and startup failure handling are explained separately below.
 
-![UndoRedoState0](images/UndoRedoState0.png)
+#### Storage loading outcomes
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+TAssist distinguishes a missing data file from an existing file that cannot be loaded safely.
 
-![UndoRedoState1](images/UndoRedoState1.png)
+The following activity diagram summarizes the startup outcomes.
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+![Address-book loading activity diagram](images/AddressBookLoadingActivityDiagram.png)
 
-![UndoRedoState2](images/UndoRedoState2.png)
+| Storage condition | Behaviour |
+|---|---|
+| Address-book file is missing | Initialize the application with sample data. |
+| Existing file is valid | Load the saved address book. |
+| Existing file contains reconcilable progress differences | Reconcile and persist the corrected progress before normal startup. |
+| Existing file is malformed or contains invalid records | Reject loading and stop normal startup. |
+| Existing file cannot be read | Stop normal startup and report the loading failure. |
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+An invalid existing file is **never treated as a missing file**.
 
-</div>
+This distinction prevents TAssist from silently replacing user data with sample data when loading fails.
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+When loading fails, TAssist displays a JavaFX error dialog and exits after the user dismisses it. Normal command execution is not initialized, preventing subsequent commands from overwriting the invalid address-book file.
 
-![UndoRedoState3](images/UndoRedoState3.png)
+#### Progress reconciliation
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+TAssist applies a limited reconciliation policy to progress records whose deliverables differ from those currently defined by their course.
 
-</div>
+The following activity diagram illustrates the reconciliation workflow and its persistence safeguards.
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+![Progress reconciliation activity diagram](images/ProgressReconciliationActivityDiagram.png)
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+During conversion, progress statuses are aligned with the deliverables defined by the corresponding course.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+| Situation | Reconciliation behaviour |
+|---|---|
+| Stored deliverable matches a course deliverable | Preserve its existing completion status. |
+| Course deliverable is missing from progress | Add it with status `NOT_DONE`. |
+| Stored progress contains an unknown deliverable | Exclude it from the reconciled record. |
+| Deliverable differs only in capitalization | Match case-insensitively and preserve its status. |
+| Progress records are already consistent | Do not unnecessarily rewrite the storage file. |
 
-</div>
+For example, suppose a course defines `MVP` and `Final`, but the saved progress contains:
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+```json
+{
+  "mvp": "DONE",
+  "Old": "NOT_DONE"
+}
+```
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
+The reconciled progress becomes:
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+```json
+{
+  "MVP": "DONE",
+  "Final": "NOT_DONE"
+}
+```
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+The valid `MVP` status is preserved, the missing `Final` status is initialized as `NOT_DONE`, and the obsolete `Old` entry is excluded.
 
-</div>
+Reconciliation is tracked during conversion, and the final reconciliation state is recorded only after successful validation.
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+The activity diagram separates validation and reconciliation into conceptual actions for readability. In the implementation, some validation occurs while individual progress records are being reconciled.
 
-![UndoRedoState4](images/UndoRedoState4.png)
+**Reconciliation is not a general corruption-recovery mechanism.** Invalid references, duplicate records, invalid notes, and malformed data are rejected rather than silently corrected.
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+#### Persistence safety and failure handling
 
-![UndoRedoState5](images/UndoRedoState5.png)
+Reconciled data is saved only after successful model conversion and validation.
 
-The following activity diagram summarizes what happens when a user executes a new command:
+If no reconciliation is required, the existing address-book file is not unnecessarily rewritten.
 
-<img src="images/CommitActivityDiagram.png" width="250" />
+TAssist also uses a temporary-file write strategy to reduce the risk of corrupting existing data during saving:
 
-#### Design considerations:
+1. Write the new JSON content to a temporary file in the target directory.
+2. Replace the original file after the temporary content has been written successfully.
+3. Use atomic replacement where supported, with a non-atomic replacement fallback where necessary.
+4. Clean up temporary files after failures where possible.
 
-**Aspect: How undo & redo execute:**
+If saving reconciled data fails, loading reports a `DataLoadingException` instead of treating persistence as successful.
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+The non-atomic fallback cannot guarantee protection against every interruption. Likewise, reconciliation may intentionally discard completion statuses associated with unknown deliverables, because TAssist cannot safely infer how an obsolete deliverable maps to a current one.
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+These behaviors are deliberate storage policies that future developers should preserve or explicitly reconsider when modifying persistence logic.
 
-_{more aspects and alternatives to be added}_
+---
 
-### \[Proposed\] Data archiving
+## Implementation
 
-_{Explain here how the data archiving feature will be implemented}_
+This section explains noteworthy TAssist-specific workflows and the design decisions behind them.
+
+### Course initialisation
+
+The `init course` command establishes the course-semester and deliverable definitions used by subsequent enrolment and progress-tracking operations.
+
+`InitCourseCommandParser` parses the course code, semester, and requested deliverables before constructing an `InitCourseCommand`.
+
+A course is identified by its `CourseCode` and `Semester`. Its deliverables define the milestones against which student progress is tracked.
+
+`UniqueCourseList` prevents duplicate course-semester records, while the Model API provides operations such as `hasCourse()` and `addCourse()`.
+
+Persisting course definitions alongside the other address-book records ensures that course information remains available after restarting TAssist.
+
+### Updating deliverable progress
+
+`MarkCommand` and `UnmarkCommand` share their execution workflow through `StudentProgressCommand`.
+
+The commands differ in the target completion status:
+
+- `mark` updates requested deliverables to `DONE`.
+- `unmark` updates requested deliverables to `NOT_DONE`.
+
+The following activity diagram illustrates the shared workflow.
+
+![Update progress activity diagram](images/UpdateProgressActivityDiagram.png)
+
+The command first identifies exactly one student and the requested course-semester. It then validates the requested deliverables, retrieves the matching progress record, and checks its current completion statuses.
+
+`StudentCourseProgress` is immutable. Therefore, the command uses `withStatus(...)` to construct updated progress records rather than mutating the existing stored record.
+
+Only after all required checks and updates succeed does the command replace the original record through the Model API.
+
+This ensures that failed validation does not leave a partially updated progress record in the Model.
+
+The diagram combines the validation outcomes into a single decision for readability. In the actual implementation, a failed lookup or validation throws `CommandException` immediately.
+
+### Viewing student deliverables
+
+The `view` command retrieves the deliverable progress associated with a selected student across their enrolled course-semesters.
+
+`ViewProgressCommand` identifies the student and collects matching `StudentCourseProgress` records.
+
+For students with available progress records, the command constructs a `StudentDeliverablesView` containing the selected student and an immutable list of their progress records.
+
+The view is included in `CommandResult`, alongside the textual feedback.
+
+The following sequence diagram illustrates how this structured result reaches the UI.
+
+![View deliverables sequence diagram](images/ViewDeliverablesSequenceDiagram.png)
+
+`MainWindow` receives the `CommandResult` from Logic and retrieves its optional `StudentDeliverablesView` payload.
+
+When the payload is present, `MainWindow` passes it to `DeliverablesPanel` through `showDeliverables(...)`.
+
+The diagram illustrates a successful view operation with progress records. Parser interactions, Model lookups, Storage persistence, student-list scrolling, and the empty-progress case are intentionally omitted to focus on the structured-result handoff.
+
+#### Design consideration: structured UI data
+
+Two approaches were considered for passing deliverable information to the UI.
+
+| Approach | Advantage | Drawback |
+|---|---|---|
+| Parse formatted command feedback in the UI | Avoids introducing another result type | Couples UI behavior to the wording and formatting of feedback messages |
+| Include a structured view in `CommandResult` | Provides strongly typed data independent of feedback formatting | Requires an additional view representation |
+
+TAssist uses the second approach.
+
+This separates the textual feedback shown in `ResultDisplay` from the structured progress data consumed by `DeliverablesPanel`.
+
+As a result, changes to feedback wording do not require the panel to change how it interprets deliverable information.
+
+---
+
+## Common classes
+
+Classes shared by multiple components are located in the `seedu.address.commons` package.
+
+These include utilities and common types supporting logging, file operations, exception handling, and application configuration.
+
+Keeping shared functionality in Commons avoids duplicating cross-cutting infrastructure within the individual components. 
 
 
---------------------------------------------------------------------------------------------------------------------
-
-## **Documentation, logging, testing, dev-ops**
+## Documentation, logging, testing, dev-ops
 
 * [Documentation guide](Documentation.md)
 * [Testing guide](Testing.md)
 * [Logging guide](Logging.md)
 * [DevOps guide](DevOps.md)
 
---------------------------------------------------------------------------------------------------------------------
 
-## **Appendix: Requirements**
+## Appendix: Requirements
 
 ### Product scope
 
 **Target user profile**:
+University teaching assistants supporting computing modules with multi-week programming projects, particularly those managing students across multiple courses or tutorial classes.
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
-
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**:
+Managing many students can make it difficult for teaching assistants to keep track of individual progress and previous observations. TAssist centralises student information, course enrolments, project deliverable progress, and project-work notes, enabling TAs to monitor students more efficiently and provide contextualised academic support.
 
 
 ### User stories
 
-Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
+Priorities: High (must have) - `***`, Medium (nice to have) - `**`,
+Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
+#### Current release user stories
 
-*{More to be added}*
+| Priority | As a … | I want to … | So that I can … |
+| -------- | ------ | ------------ | --------------- |
+| `***` | TA | view all students under my supervision | keep track of the students I manage |
+| `***` | TA | add a student to my records | maintain accurate student records |
+| `***` | TA | search for a student in my records | quickly retrieve their information |
+| `***` | TA | update a student’s details | keep student information up to date |
+| `***` | TA | remove a student from my records | keep my student list relevant |
+| `***` | TA | initialise a course and its project deliverables | track progress against the course's milestones |
+| `***` | TA | 	manage a student's course enrolments | keep course registrations accurate |
+| `***` | TA | view students’ progress | identify completed and outstanding deliverables |
+| `***` | TA | view a course progress overview | compare progress across students in a course-semester |
+| `***` | TA | mark a student’s project deliverable as completed | record the student’s progress |
+| `***` | TA | unmark a completed deliverable | correct an inaccurate progress record |
+| `**` | TA | record a note about a student’s project work | remember observations about their progress |
+| `**` | TA | view a student’s project-work notes | recall previous observations and interactions |
+| `**` | TA | delete an outdated or incorrect project-work note | keep the student’s record accurate |
+| `**` | TA | view students in a selected tutorial class | prepare for a specific tutorial session |
+
+#### Future user stories
+
+| Priority | As a … | I want to … | So that I can … |
+| -------- | ------ | ------------ | --------------- |
+| `*` | TA | record a student’s attendance | identify students who may require additional support |
+| `*` | TA | track follow-up actions for a student | prioritise and monitor support actions |
+| `*` | TA | generate a progress report | review an overview of student performance |
+
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+**Actor:** TA (Teaching Assistant), unless otherwise specified.
 
-**Use case: Delete a person**
+---
+
+#### Use case: Add a student
+
+**Preconditions:** The course-semesters in which the student will be enrolled have been initialised in TAssist.
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. TA requests to add a student, providing their details and one or more course enrolments.
+2. TAssist validates the supplied information.
+3. TAssist adds the student, their enrolments, and corresponding initial deliverable-progress records.
+4. TAssist displays a confirmation.
 
-    Use case ends.
+   Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+- 2a. The supplied information is missing or invalid.
 
-  Use case ends.
+  - 2a1. TAssist displays an error message.
 
-* 3a. The given index is invalid.
+    Use case ends.
 
-    * 3a1. AddressBook shows an error message.
+- 2b. The student ID or email address conflicts with an existing student.
 
-      Use case resumes at step 2.
+  - 2b1. TAssist displays an error message.
 
-*{More to be added}*
+    Use case ends.
+
+- 2c. A requested course-semester has not been initialised.
+
+  - 2c1. TAssist displays an error message.
+
+    Use case ends.
+
+---
+
+#### Use case: Search for a student
+
+**MSS**
+
+1. TA requests to search for students using a name or student ID.
+2. TAssist searches the student records.
+3. TAssist displays the matching students.
+
+   Use case ends.
+
+**Extensions**
+
+- 2a. No matching students are found.
+  - 2a1. TAssist displays an empty result or appropriate feedback.
+
+    Use case ends.
+
+---
+
+#### Use case: Initialise a course and its project deliverables
+
+**MSS**
+
+1. TA requests to initialise a course for a specified semester with its project deliverables.
+2. TAssist validates the supplied information.
+3. TAssist creates the course record and its deliverables.
+4. TAssist displays a confirmation.
+
+   Use case ends.
+
+**Extensions**
+
+- 2a. The supplied information is missing or invalid.
+
+  - 2a1. TAssist displays an error message.
+
+    Use case ends.
+
+- 2b. A course record for the same course-semester already exists.
+
+  - 2b1. TAssist displays an error message.
+
+    Use case ends.
+
+---
+
+#### Use case: Manage a student's course enrolments
+
+**Preconditions:** The student and relevant course-semester records exist in TAssist.
+
+**MSS**
+
+1. TA requests to enrol a student in an additional course-semester, providing the student's ID and enrolment details.
+2. TAssist validates the student, course-semester, and enrolment details.
+3. TAssist adds the enrolment and initialises the student's deliverable progress for that course-semester.
+4. TAssist displays a confirmation.
+
+   Use case ends.
+
+**Extensions**
+
+- 2a. The student or course-semester cannot be found, or the supplied enrolment details are invalid.
+
+  - 2a1. TAssist displays an error message.
+
+    Use case ends.
+
+- 2b. The student is already enrolled in the specified course-semester.
+
+  - 2b1. TAssist displays an error message.
+
+    Use case ends.
+
+**Related operation:** The `unenrol` command removes an existing course-semester enrolment and its associated progress. If the student has no remaining enrolments, TAssist also removes the student record.
+
+---
+
+#### Use case: Add a project-work note
+
+**Preconditions:** The student is enrolled in the specified course-semester, and the selected deliverable belongs to that course-semester.
+
+**MSS**
+
+1. TA requests to record a project-work note, providing the student ID, course-semester, deliverable, and note text.
+2. TAssist validates the supplied information.
+3. TAssist records the note for the student's course-semester enrolment and selected deliverable.
+4. TAssist displays a confirmation.
+
+   Use case ends.
+
+**Extensions**
+
+- 2a. The supplied information is missing or invalid.
+
+  - 2a1. TAssist displays an error message.
+
+    Use case ends.
+
+- 2b. The student, enrolment, or deliverable cannot be found.
+
+  - 2b1. TAssist displays an error message.
+
+    Use case ends.
+
+---
+
+#### Use case: Update a student's deliverable completion status
+
+**Preconditions:** The student is enrolled in the specified course-semester, and the requested deliverables belong to that course.
+
+**MSS**
+
+1. TA requests to mark or unmark one or more deliverables for a student in a specified course-semester.
+2. TAssist validates the student, course-semester, requested deliverables, and their current completion statuses.
+3. TAssist updates the requested completion statuses.
+4. TAssist displays the updated progress.
+
+   Use case ends.
+
+**Extensions**
+
+- 2a. The student, course-semester, or requested deliverable cannot be found.
+
+  - 2a1. TAssist displays an error message.
+
+    Use case ends.
+
+- 2b. A requested deliverable is already in the target completion status.
+
+  - 2b1. TAssist displays an error message without updating the progress record.
+
+    Use case ends.
+
+- 2c. The supplied information is missing or invalid.
+
+  - 2c1. TAssist displays an error message.
+
+    Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
+1. **Compatibility:** TAssist should run on Windows, macOS, and Linux with Java 25 installed.
 
-*{More to be added}*
+2. **Responsiveness:** TAssist should display student search results and deliverable-progress information within two seconds when managing up to 1,000 student records.
+
+3. **Data integrity:** Invalid commands should not partially modify student records, course enrolments, project-work notes, or deliverable completion statuses.
+
+4. **Persistence:** Student records, course enrolments, project-work notes, and deliverable completion statuses should remain available after a normal application exit and restart.
+
+5. **Storage safety:** If an existing data file is invalid or unreadable, TAssist should prevent normal startup without overwriting the file with sample data.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Completion status**: Whether a student has completed a particular
+  project deliverable.
 
---------------------------------------------------------------------------------------------------------------------
+* **Course**: A university course tracked in TAssist for a specified
+  semester.
 
-## **Appendix: Instructions for manual testing**
+* **Course-semester**: A course identified together with the academic
+  semester in which it is being tracked.
+
+* **Student-course enrolment**: A student's registration in one
+  course-semester, including their tutorial class and project-work notes.
+
+* **Student-course progress**: The completion status of each deliverable for
+  one student and course-semester.
+
+* **Project deliverable**: A required part or milestone of a course
+  project that a student is expected to complete.
+
+* **Project-work note**: A note recorded by a TA about a student's
+  project progress, implementation, or difficulties.
+
+* **Student record**: The information TAssist stores for one student,
+  including their personal details and associated course enrolments.
+
+* **TA**: A university teaching assistant who uses TAssist to manage
+  students and monitor their project progress.
+
+* **Tutorial class**: A class group in which a student is enrolled for a
+  particular course-semester.
+
+
+## Appendix: Instructions for manual testing
 
 Given below are instructions to test the app manually.
 
@@ -342,41 +704,94 @@ testers are expected to do more *exploratory* testing.
 
 1. Initial launch
 
-   1. Download the JAR file and copy it into an empty folder.
+   1. Download the JAR file and copy it into an empty folder in which TAssist
+      can create its data files.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Open a terminal in that folder and run `java -jar TAssist.jar`.<br>
+      Expected: The GUI opens with sample student records. The window size may not be optimal.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the app using `java -jar TAssist.jar`.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+1. Continue with the representative feature scenarios below after confirming that the application launches and the sample data is present.
 
-### Deleting a person
+### Deleting a student
 
-1. Deleting a person while all persons are being shown
+1. Deleting a student while all students are being shown
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Prerequisites: List all students using the `list` command, with multiple students in the list.
 
-   1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+   1. Test case: `delete /id A1234567B`<br>
+      Expected: Alex Yeoh is deleted from the list. The status message shows the deleted student's details.
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
+   1. Test case: `delete /name Bernice Yu`<br>
+      Expected: Bernice Yu is deleted from the list. The status message shows the deleted student's details.
 
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
+   1. Other incorrect delete commands to try: `delete`, `delete /id`, and `delete /unknown value`.<br>
+      Expected: No student is deleted. The status message shows the relevant error details.
 
-1. _{ more test cases …​ }_
+1. Use a disposable data folder for the storage scenarios below so that real user data is not modified.
 
-### Saving data
+### Course, enrolment, and progress workflow
 
-1. Dealing with missing/corrupted data files
+1. Start with the sample data, or use `clear` and recreate a disposable data set.
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+1. Initialise a course:
+   `init course /course CS2040S /sem AY26/27-S1 /deliverable MVP, Final`.<br>
+   Expected: TAssist confirms the course was initialised. Repeating the command for the same course-semester is rejected.
 
-1. _{ more test cases …​ }_
+1. Add a student with that enrolment:
+   `add /name Test Student /id A1111111A /email test@example.com /course CS2040S /sem AY26/27-S1 /class T01`.<br>
+   Expected: the student appears in the list with an initial progress record for `MVP` and `Final`.
+
+1. Update and inspect progress using:
+   `mark /id A1111111A /course CS2040S /sem AY26/27-S1 /deliverable MVP`,
+   `unmark /id A1111111A /course CS2040S /sem AY26/27-S1 /deliverable MVP`,
+   `view /id A1111111A`, and
+   `overview /course CS2040S /sem AY26/27-S1`.<br>
+   Expected: the relevant status changes, the individual view shows the student's progress, and the overview shows the course's students.
+
+1. Initialise another course using `init course /course CS2040C /sem AY26/27-S1 /deliverable Proposal, Final`.
+
+   Enrol the student using `enrol /id A1111111A /course CS2040C /sem AY26/27-S1 /class T02`.
+
+   Unenrol the student using `unenrol /id A1111111A /course CS2040C /sem AY26/27-S1`.
+
+   Expected: The additional enrolment and its initial progress record are created, then both are removed. The student's original CS2040S enrolment remains unchanged.
+
+### Notes, search, listing, and editing
+
+1. Add a project-work note:
+   `notes /id A1111111A /course CS2040S /sem AY26/27-S1 /deliverable MVP /notes Tested the project scope`.<br>
+   Expected: TAssist confirms the note was added.
+
+1. Run `view notes /id A1111111A /course CS2040S /sem AY26/27-S1`, then
+   `delete notes /id A1111111A /course CS2040S /sem AY26/27-S1`.<br>
+   Expected: the note is displayed, then all notes for that enrolment are deleted.
+
+1. Try `search /name Test` and `search /id A1111111A`, followed by
+   `list /course CS2040S /sem AY26/27-S1 /class T01`.<br>
+   Expected: matching students are shown, and the list filter shows the expected tutorial class.
+
+1. Edit the student with `edit /id A1111111A /name Updated Student`.<br>
+   Expected: the student's name changes while the ID, enrolments, notes, and progress remain associated with the student.
+
+### Clearing and persistence
+
+1. Before destructive testing, make a copy of the `data` folder. Run `clear` and confirm that students, courses, enrolments, notes, and progress are removed from the application.
+
+1. Restart TAssist and verify that the cleared state persists. Restore the copied data folder if further testing is required.
+
+### Invalid existing storage
+
+1. Use a disposable folder and make a backup of `data/addressbook.json` before editing it.
+
+1. Introduce one invalid value, such as a note referring to a deliverable that is not defined by its course, then launch TAssist.<br>
+   Expected: TAssist displays an **Unable to load saved data** dialog, does not load sample data, does not accept normal commands, and preserves the original file.
+
+1. Dismiss the dialog, restore the backup or correct the invalid value, and restart TAssist.<br>
+   Expected: TAssist loads normally after the file is valid again.

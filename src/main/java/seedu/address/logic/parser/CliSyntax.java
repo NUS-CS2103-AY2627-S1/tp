@@ -1,15 +1,40 @@
 package seedu.address.logic.parser;
 
 /**
- * Contains Command Line Interface (CLI) syntax definitions common to multiple commands
+ * Contains Command Line Interface (CLI) syntax definitions common to multiple
+ * commands
  */
-public class CliSyntax {
+public final class CliSyntax {
 
-    /* Prefix definitions */
-    public static final Prefix PREFIX_NAME = new Prefix("n/");
-    public static final Prefix PREFIX_PHONE = new Prefix("p/");
-    public static final Prefix PREFIX_EMAIL = new Prefix("e/");
-    public static final Prefix PREFIX_ADDRESS = new Prefix("a/");
-    public static final Prefix PREFIX_TAG = new Prefix("t/");
+    /* Prefix definitions for Students */
+    public static final Prefix PREFIX_NAME = new Prefix("/name");
+    public static final Prefix PREFIX_ID = new Prefix("/id");
+    public static final Prefix PREFIX_NEW_ID = new Prefix("/newid");
+    public static final Prefix PREFIX_EMAIL = new Prefix("/email");
+    public static final Prefix PREFIX_CLASS = new Prefix("/class");
+    public static final Prefix PREFIX_NOTES = new Prefix("/notes");
+    /* Prefix definitions for Courses */
+    public static final Prefix PREFIX_COURSE = new Prefix("/course");
+    public static final Prefix PREFIX_SEMESTER = new Prefix("/sem");
+    public static final Prefix PREFIX_DELIVERABLE = new Prefix("/deliverable");
 
+    /** Common argument labels used in command usage messages. */
+    public static final String ARGUMENT_ID = "ID";
+    public static final String ARGUMENT_NAME = "NAME";
+    public static final String ARGUMENT_EMAIL = "EMAIL";
+    public static final String ARGUMENT_CLASS = "CLASS";
+    public static final String ARGUMENT_COURSE = "COURSE";
+    public static final String ARGUMENT_SEMESTER = "SEMESTER";
+    public static final String ARGUMENT_DELIVERABLE = "DELIVERABLE";
+
+    /** Common example values used in command usage messages. */
+    public static final String EXAMPLE_ID = "A1234567Z";
+    public static final String EXAMPLE_NAME = "John Doe";
+    public static final String EXAMPLE_EMAIL = "johndoe@u.nus.edu";
+    public static final String EXAMPLE_COURSE = "CS2103T";
+    public static final String EXAMPLE_SEMESTER = "AY26/27-S1";
+    public static final String EXAMPLE_DELIVERABLE = "MVP";
+
+    private CliSyntax() {
+    }
 }

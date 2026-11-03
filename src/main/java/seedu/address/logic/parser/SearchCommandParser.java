@@ -1,0 +1,58 @@
+package seedu.address.logic.parser;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ID;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.SearchCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.student.Id;
+import seedu.address.model.student.StudentMatchesQueryPredicate;
+
+/** Parses input arguments and creates a {@code SearchCommand}. */
+public class SearchCommandParser implements Parser<SearchCommand> {
+    @Override
+    public SearchCommand parse(String args) throws ParseException {
+        requireNonNull(args);
+        ParserUtil.rejectUnknownParameters(args, PREFIX_ID, PREFIX_NAME);
+
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_ID);
+        boolean hasName = argMultimap.getValue(PREFIX_NAME).isPresent();
+        boolean hasId = argMultimap.getValue(PREFIX_ID).isPresent();
+
+        if (!hasName && !hasId) {
+            if (args.trim().isEmpty()) {
+                throw new ParseException(String.format(Messages.MESSAGE_MISSING_IDENTIFIER, PREFIX_NAME, PREFIX_ID));
+            }
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, SearchCommand.MESSAGE_USAGE));
+        }
+        if (!argMultimap.getPreamble().isEmpty()) {
+            throw new ParseException(Messages.MESSAGE_UNEXPECTED_TEXT);
+        }
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_ID);
+        ParserUtil.validateExactlyOneOf(argMultimap, PREFIX_NAME, PREFIX_ID);
+
+        if (hasName) {
+            ParserUtil.validateRequiredParameters(argMultimap, PREFIX_NAME);
+            return new SearchCommand(new StudentMatchesQueryPredicate(
+                    ParserUtil.parseCommaSeparatedValues(
+                            argMultimap.getValue(PREFIX_NAME).orElseThrow(),
+                            String.format(Messages.MESSAGE_EMPTY_PARAMETERS, PREFIX_NAME))));
+        }
+
+        ParserUtil.validateRequiredParameters(argMultimap, PREFIX_ID);
+        List<Id> ids = new ArrayList<>();
+        for (String value : ParserUtil.parseCommaSeparatedValues(
+                argMultimap.getValue(PREFIX_ID).orElseThrow(),
+                String.format(Messages.MESSAGE_EMPTY_PARAMETERS, PREFIX_ID))) {
+            ids.add(ParserUtil.parseId(value));
+        }
+        return new SearchCommand(StudentMatchesQueryPredicate.forIds(ids));
+    }
+
+}
