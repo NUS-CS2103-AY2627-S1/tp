@@ -1,36 +1,43 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalProperties.BUKIT_TIMAH_LANDED;
+import static seedu.address.testutil.TypicalProperties.CLEMENTI_HDB;
+import static seedu.address.testutil.TypicalProperties.TAMPINES_CONDO;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
+import seedu.address.commons.util.JsonUtil;
+import seedu.address.model.person.ClientIntention;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.property.Property;
+import seedu.address.model.property.PropertyStatus;
+import seedu.address.model.property.PropertyType;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = BENSON.getName().toString();
     private static final String VALID_PHONE = BENSON.getPhone().toString();
     private static final String VALID_EMAIL = BENSON.getEmail().toString();
-    private static final String VALID_ADDRESS = BENSON.getAddress().toString();
-    private static final List<JsonAdaptedTag> VALID_TAGS = BENSON.getTags().stream()
-            .map(JsonAdaptedTag::new)
-            .collect(Collectors.toList());
+    private static final String VALID_INTENTION = "Seller";
 
     @Test
     public void toModelType_validPersonDetails_returnsPerson() throws Exception {
@@ -39,16 +46,144 @@ public class JsonAdaptedPersonTest {
     }
 
     @Test
+    public void json_legacyClientBudget_ignoredWithoutChangingPropertyPricesStatusesOrDerivedRole() throws Exception {
+        Property viewingHdb = new Property(CLEMENTI_HDB.getType(), CLEMENTI_HDB.getIntention(),
+                CLEMENTI_HDB.getLocation(), CLEMENTI_HDB.getPrice().orElse(null), PropertyStatus.VIEWING);
+        Person expected = new PersonBuilder(BENSON).withRemark("Call next week")
+                .withProperties(viewingHdb, TAMPINES_CONDO).build();
+        String currentJson = JsonUtil.toJsonString(new JsonAdaptedPerson(expected));
+        for (String legacyBudget : new String[] {"\"900000\"", "null", "\"invalid\"", "-1"}) {
+            String legacyJson = currentJson.replaceFirst("\\{", "{\"budget\":" + legacyBudget + ",");
+            Person loaded = JsonUtil.fromJsonString(legacyJson, JsonAdaptedPerson.class).toModelType();
+            assertEquals(expected, loaded);
+            assertEquals(expected.getIntention(), loaded.getIntention());
+            String savedJson = JsonUtil.toJsonString(new JsonAdaptedPerson(loaded));
+            assertFalse(savedJson.contains("\"budget\""));
+            assertEquals(expected, JsonUtil.fromJsonString(savedJson, JsonAdaptedPerson.class).toModelType());
+        }
+    }
+
+    @Test
+    public void json_propertiesRoundTrip_preservesOrderDuplicatesAndUnrelatedClientFields() throws Exception {
+        Person person = new PersonBuilder(BENSON)
+                .withRemark("Call next week")
+                .withProperties(CLEMENTI_HDB, TAMPINES_CONDO, CLEMENTI_HDB, BUKIT_TIMAH_LANDED).build();
+        String json = JsonUtil.toJsonString(new JsonAdaptedPerson(person));
+        Person reloaded = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+        assertEquals(person, reloaded);
+        assertEquals(List.of(CLEMENTI_HDB, TAMPINES_CONDO, CLEMENTI_HDB, BUKIT_TIMAH_LANDED),
+                reloaded.getProperties());
+    }
+
+    @Test
+    public void json_missingNullOrEmptyProperties_returnsEmptyList() throws Exception {
+        for (String propertiesField : new String[]{"", ",\"properties\":null", ",\"properties\":[]"}) {
+            String json = "{\"name\":\"" + VALID_NAME + "\",\"phone\":\"" + VALID_PHONE + "\","
+                    + "\"email\":\"" + VALID_EMAIL + "\",\"intention\":\"" + VALID_INTENTION + "\""
+                    + propertiesField + "}";
+            Person person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+            assertEquals(BENSON, person);
+            assertEquals(List.of(), person.getProperties());
+        }
+    }
+
+    @Test
+    public void constructor_mutableProperties_copiesList() throws Exception {
+        List<JsonAdaptedProperty> input = new ArrayList<>(List.of(new JsonAdaptedProperty(CLEMENTI_HDB)));
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION,
+                "", input);
+        input.clear();
+        assertEquals(List.of(CLEMENTI_HDB), person.toModelType().getProperties());
+    }
+
+    @Test
+    public void toModelType_nullPropertyEntry_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION,
+                "", Arrays.asList(new JsonAdaptedProperty(CLEMENTI_HDB), null));
+        assertThrows(IllegalValueException.class, String.format(JsonAdaptedPerson.MESSAGE_NULL_PROPERTY_FORMAT, 2),
+                person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidProperty_reportsItsIndexAndConstraint() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION,
+                "", List.of(new JsonAdaptedProperty(CLEMENTI_HDB),
+                        new JsonAdaptedProperty("flat", "Buyer", "Clementi", null)));
+        String expectedMessage = String.format(JsonAdaptedPerson.MESSAGE_INVALID_PROPERTY_FORMAT, 2,
+                PropertyType.MESSAGE_CONSTRAINTS);
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidPropertyIntention_reportsItsIndexAndConstraint() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION,
+                "", List.of(new JsonAdaptedProperty(CLEMENTI_HDB),
+                        new JsonAdaptedProperty("HDB", "Both", "Clementi", null)));
+        String expectedMessage = String.format(JsonAdaptedPerson.MESSAGE_INVALID_PROPERTY_FORMAT, 2,
+                JsonAdaptedProperty.MESSAGE_INVALID_INTENTION);
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_buyer_roundTrip() throws Exception {
+        Person buyer = new PersonBuilder(BENSON).withProperties(CLEMENTI_HDB).build();
+        assertEquals(buyer, new JsonAdaptedPerson(buyer).toModelType());
+    }
+
+    @Test
+    public void toModelType_legacyIntention_ignoresValueAndDerivesFromProperties() throws Exception {
+        for (String value : new String[]{null, "Buyer", "Seller", "", "buyer", "Tenant", " Seller "}) {
+            JsonAdaptedPerson empty = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, value);
+            assertEquals(BENSON, empty.toModelType());
+            assertEquals(ClientIntention.UNSPECIFIED, empty.toModelType().getIntention());
+            JsonAdaptedPerson buying = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, value,
+                    "", List.of(new JsonAdaptedProperty(CLEMENTI_HDB)));
+            assertEquals(ClientIntention.BUYER, buying.toModelType().getIntention());
+        }
+    }
+
+    @Test
+    public void json_roundTrip_derivesAllRolesWithoutSavingClientIntention() throws Exception {
+        for (List<Property> properties : List.of(List.<Property>of(), List.of(CLEMENTI_HDB),
+                List.of(TAMPINES_CONDO), List.of(CLEMENTI_HDB, TAMPINES_CONDO))) {
+            Person person = new PersonBuilder(BENSON).withProperties(properties.toArray(Property[]::new)).build();
+            String json = JsonUtil.toJsonString(new JsonAdaptedPerson(person));
+            assertFalse(JsonUtil.fromJsonString(json, JsonNode.class).has("intention"));
+            assertEquals(person, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+        }
+    }
+
+    @Test
+    public void json_roundTrip_preservesRemarkWithoutTags() throws Exception {
+        Person person = new PersonBuilder(BENSON).withRemark("Call next week").build();
+        String json = JsonUtil.toJsonString(new JsonAdaptedPerson(person));
+
+        assertFalse(json.contains("\"tags\""));
+        assertEquals(person, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void json_missingIntention_returnsUnspecifiedClient() throws Exception {
+        String json = "{\"name\":\"Alice\",\"phone\":\"12345678\","
+                + "\"email\":\"alice@example.com\"}";
+        Person person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+        assertEquals(new PersonBuilder().withName("Alice").withPhone("12345678")
+                .withEmail("alice@example.com").build(), person);
+        assertEquals(ClientIntention.UNSPECIFIED, person.getIntention());
+    }
+
+    @Test
     public void toModelType_invalidName_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION);
         String expectedMessage = Name.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullName_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_INTENTION);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
@@ -56,14 +191,15 @@ public class JsonAdaptedPersonTest {
     @Test
     public void toModelType_invalidPhone_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_INTENTION);
         String expectedMessage = Phone.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullPhone_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_INTENTION);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
@@ -71,40 +207,44 @@ public class JsonAdaptedPersonTest {
     @Test
     public void toModelType_invalidEmail_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_INTENTION);
         String expectedMessage = Email.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullEmail_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_INTENTION);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_invalidAddress_throwsIllegalValueException() {
-        JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, INVALID_ADDRESS, VALID_TAGS);
-        String expectedMessage = Address.MESSAGE_CONSTRAINTS;
+    public void toModelType_invalidPropertyStatus_reportsItsIndexAndConstraint() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_INTENTION,
+                "", List.of(new JsonAdaptedProperty(CLEMENTI_HDB),
+                        new JsonAdaptedProperty("HDB", "Buyer", "Clementi", null, "Cancelled")));
+        String expectedMessage = String.format(JsonAdaptedPerson.MESSAGE_INVALID_PROPERTY_FORMAT, 2,
+                PropertyStatus.MESSAGE_CONSTRAINTS);
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_nullAddress_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null, VALID_TAGS);
-        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName());
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_invalidContactAndProperty_reportsContactFirst() {
+        List<JsonAdaptedProperty> invalidProperties = List.of(new JsonAdaptedProperty("flat", "Both", "", "0"));
+        assertInvalidContact(
+                new JsonAdaptedPerson(INVALID_NAME, INVALID_PHONE, INVALID_EMAIL, null, "", invalidProperties),
+                Name.MESSAGE_CONSTRAINTS);
+        assertInvalidContact(
+                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, INVALID_EMAIL, null, "", invalidProperties),
+                Phone.MESSAGE_CONSTRAINTS);
+        assertInvalidContact(new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, null, "", invalidProperties),
+                Email.MESSAGE_CONSTRAINTS);
     }
 
-    @Test
-    public void toModelType_invalidTags_throwsIllegalValueException() {
-        List<JsonAdaptedTag> invalidTags = new ArrayList<>(VALID_TAGS);
-        invalidTags.add(new JsonAdaptedTag(INVALID_TAG));
-        JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, invalidTags);
-        assertThrows(IllegalValueException.class, person::toModelType);
+    private void assertInvalidContact(JsonAdaptedPerson person, String expectedMessage) {
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
 }

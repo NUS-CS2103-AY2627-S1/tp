@@ -1,0 +1,14 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "RESIDEX docs",
+  "scripts": {
+    "init": "markbind init",
+    "build": "node scripts/markbind.cjs build",
+    "serve": "node scripts/markbind.cjs serve",
+    "deploy": "markbind deploy"
+  },
+  "devDependencies": {
+    "markbind-cli": "^5.1.0"
+  }
+}

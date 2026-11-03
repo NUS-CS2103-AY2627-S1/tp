@@ -1,28 +1,87 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_INTENTION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROPERTY_BEDROOMS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROPERTY_LOCATION;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROPERTY_PRICE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROPERTY_STATUS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROPERTY_TYPE;
+
+import java.util.function.Predicate;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.property.PropertyBedrooms;
+import seedu.address.model.property.PropertyStatus;
+import seedu.address.model.property.PropertyType;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists all persons in the address book matching the given predicate.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    /** Search value that selects properties whose price or number of bedrooms is not recorded. */
+    public static final String UNKNOWN_VALUE = "unknown";
 
-    private final NameContainsKeywordsPredicate predicate;
+    /** Keyword arguments shared by {@link #MESSAGE_USAGE} and {@link #MESSAGE_FORMAT_HINT}. */
+    public static final String KEYWORD_PARAMETERS = "KEYWORD [MORE_KEYWORDS]";
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds all clients matching the specified keywords (case-insensitive).\n"
+            + "Name search: " + COMMAND_WORD + " " + PREFIX_NAME + KEYWORD_PARAMETERS + "\n"
+            + "Email search: " + COMMAND_WORD + " " + PREFIX_EMAIL + KEYWORD_PARAMETERS + "\n"
+            + "Phone search: " + COMMAND_WORD + " " + PREFIX_PHONE + KEYWORD_PARAMETERS + "\n"
+            + "Location search: " + COMMAND_WORD + " " + PREFIX_PROPERTY_LOCATION + KEYWORD_PARAMETERS + "\n"
+            + "Intention search: " + COMMAND_WORD + " " + PREFIX_INTENTION + "buyer|seller|both\n"
+            + "Property status search: " + COMMAND_WORD + " " + PREFIX_PROPERTY_STATUS
+            + "unspecified|enquiring|viewing|negotiating|closing|completed\n"
+            + "Status search also accepts Not specified as an alias for unspecified.\n"
+            + "Property type search: " + COMMAND_WORD + " " + PREFIX_PROPERTY_TYPE + "HDB|Condominium|Landed\n"
+            + "Property price search: " + COMMAND_WORD + " " + PREFIX_PROPERTY_PRICE
+            + "MIN-MAX (either side optional) or unknown\n"
+            + "Property bedrooms search: " + COMMAND_WORD + " " + PREFIX_PROPERTY_BEDROOMS + "NUMBER or unknown\n"
+            + "Example: " + COMMAND_WORD + " " + PREFIX_EMAIL + "gmail";
+
+    public static final String MESSAGE_INVALID_INTENTION =
+            "Intention must be buyer, seller or both (case-insensitive).";
+    public static final String MESSAGE_INVALID_STATUS = PropertyStatus.MESSAGE_CONSTRAINTS;
+    public static final String MESSAGE_INVALID_TYPE = PropertyType.MESSAGE_CONSTRAINTS;
+    public static final String MESSAGE_INVALID_BEDROOMS = PropertyBedrooms.MESSAGE_CONSTRAINTS
+            + ". Use " + UNKNOWN_VALUE + " to search for properties without recorded bedrooms.";
+    public static final String MESSAGE_INVALID_PRICE_RANGE = "Price range must look like 500000-800000, 500000- "
+            + "or -800000, using whole-dollar amounts without commas, and the minimum must not exceed the maximum."
+            + " Use " + UNKNOWN_VALUE + " to search for properties without a recorded price.";
+    public static final String MESSAGE_FORMAT_HINT = "Format: " + COMMAND_WORD + " FIELD/" + KEYWORD_PARAMETERS + "\n"
+            + "Example: " + COMMAND_WORD + " " + PREFIX_NAME + "alex";
+    public static final String MESSAGE_MISSING_ARGUMENTS =
+            "Search field and search keyword are missing.\n" + MESSAGE_FORMAT_HINT;
+    public static final String MESSAGE_MISSING_PROPERTY =
+            "Search field is missing. Use " + PREFIX_NAME + ", " + PREFIX_EMAIL + ", "
+                    + PREFIX_PHONE + ", " + PREFIX_PROPERTY_LOCATION + ", " + PREFIX_INTENTION
+                    + ", " + PREFIX_PROPERTY_STATUS + ", " + PREFIX_PROPERTY_TYPE + ", " + PREFIX_PROPERTY_PRICE
+                    + ", or " + PREFIX_PROPERTY_BEDROOMS + ".";
+    public static final String MESSAGE_INVALID_PROPERTY =
+            "Invalid search field. Use " + PREFIX_NAME + ", " + PREFIX_EMAIL + ", "
+                    + PREFIX_PHONE + ", " + PREFIX_PROPERTY_LOCATION + ", " + PREFIX_INTENTION
+                    + ", " + PREFIX_PROPERTY_STATUS + ", " + PREFIX_PROPERTY_TYPE + ", " + PREFIX_PROPERTY_PRICE
+                    + ", or " + PREFIX_PROPERTY_BEDROOMS + ".";
+    public static final String MESSAGE_MULTIPLE_PROPERTIES = "Specify exactly one search field.";
+    public static final String MESSAGE_MISSING_KEYWORD = "Search keyword is missing.\n" + MESSAGE_FORMAT_HINT;
+
+    private final Predicate<Person> predicate;
+
+    /**
+     * Creates a command that finds clients matching the supplied predicate.
+     */
+    public FindCommand(Predicate<Person> predicate) {
         this.predicate = predicate;
     }
 
@@ -31,7 +90,8 @@ public class FindCommand extends Command {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW,
+                        model.getFilteredPersonList().size()));
     }
 
     @Override

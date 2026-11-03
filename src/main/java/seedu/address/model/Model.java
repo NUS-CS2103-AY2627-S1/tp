@@ -2,6 +2,7 @@ package seedu.address.model;
 
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.Person;
@@ -37,6 +38,39 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
+     * Saves the current address book data as a new state that can be undone to.
+     * Any states that could still be redone are discarded.
+     */
+    void commitAddressBook();
+
+    /**
+     * Returns true if there is an earlier address book state to undo to.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Returns true if an undone address book state can be redone.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Restores the previous address book state.
+     * The model must be able to undo, as reported by {@link #canUndoAddressBook()}.
+     */
+    void undoAddressBook();
+
+    /**
+     * Applies the address book state that was undone most recently.
+     * The model must be able to redo, as reported by {@link #canRedoAddressBook()}.
+     */
+    void redoAddressBook();
+
+    /**
+     * Cancels the latest commit, keeping any states that could still be redone.
+     */
+    void revertLastCommit();
+
+    /**
      * Returns true if a person with the same identity as {@code person} exists in the address book.
      */
     boolean hasPerson(Person person);
@@ -60,11 +94,24 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /** Returns the unmodifiable displayed person list used by the UI and displayed-index commands. */
     ObservableList<Person> getFilteredPersonList();
+
+    /** Returns the predicate currently filtering the displayed clients. */
+    Predicate<Person> getPersonFilter();
+
+    /** Returns the observable display mode used by the client list UI. */
+    ReadOnlyObjectProperty<ClientViewMode> clientViewModeProperty();
+
+    /**
+     * Shows only {@code person} in detail mode. The person must exist in the address book.
+     */
+    void showPersonDetails(Person person);
 
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Intention searches show exact-role matches first; other predicates restore source order.
+     * Exits detail mode. Only {@link #PREDICATE_SHOW_ALL_PERSONS} clears search mode.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);

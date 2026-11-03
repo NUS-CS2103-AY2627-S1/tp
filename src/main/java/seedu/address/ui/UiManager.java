@@ -1,7 +1,11 @@
 package seedu.address.ui;
 
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
 import java.util.logging.Logger;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -10,8 +14,10 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import seedu.address.MainApp;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
+import seedu.address.storage.DataFileLock;
 
 /**
  * The manager of the UI component.
@@ -58,6 +64,49 @@ public class UiManager implements Ui {
         return new Image(MainApp.class.getResourceAsStream(imagePath));
     }
 
+    /**
+     * Shows recovery instructions when client data cannot be loaded, before the main window is created.
+     */
+    public static void showDataLoadingError(Path dataFilePath, DataLoadingException error) {
+        String reason = getDataLoadingErrorReason(error.getCause());
+        String message = "Unable to load client data from:\n" + dataFilePath.toAbsolutePath().normalize()
+                + "\n\nReason: " + reason
+                + "\n\nYour client data file has not been changed. RESIDEX will close to prevent overwriting it."
+                + "\n\nBack up this file, then repair it or replace it with a valid backup and restart RESIDEX."
+                + "\n\nTo start fresh with sample clients, move the file aside before restarting.";
+        showAlertDialogAndWait(null, AlertType.ERROR, "Unable to load client data",
+                "RESIDEX could not open your client data", message);
+    }
+
+    private static String getDataLoadingErrorReason(Throwable cause) {
+        if (cause instanceof AccessDeniedException) {
+            return "Access to the file was denied. Check its permissions.";
+        }
+        if (cause instanceof JsonProcessingException) {
+            return "The data file is not in the expected JSON format.";
+        }
+        if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank()) {
+            return "The data file could not be read. Check that it exists and is readable.";
+        }
+        return cause.getMessage().split("\\R", 2)[0];
+    }
+
+    /**
+     * Explains why this instance cannot obtain exclusive access, before any user files are loaded or saved.
+     */
+    public static void showDataFileLockError(Path dataFilePath, IOException error) {
+        boolean isInUse = error instanceof DataFileLock.InUseException;
+        String header = isInUse ? "This client data is already open in RESIDEX"
+                : "RESIDEX could not secure access to your client data";
+        String recovery = isInUse ? "Close the other RESIDEX instance, then launch again."
+                : "Check folder permissions or move RESIDEX to a writable local folder, then try again."
+                        + "\nReason: " + error.getMessage();
+        String message = "Client data file:\n" + dataFilePath.toAbsolutePath().normalize()
+                + "\n\n" + recovery
+                + "\n\nThis instance has not changed your client data or preferences. It will now close.";
+        showAlertDialogAndWait(null, AlertType.ERROR, "Unable to open RESIDEX", header, message);
+    }
+
     void showAlertDialogAndWait(Alert.AlertType type, String title, String headerText, String contentText) {
         showAlertDialogAndWait(mainWindow.getPrimaryStage(), type, title, headerText, contentText);
     }
@@ -69,7 +118,7 @@ public class UiManager implements Ui {
     private static void showAlertDialogAndWait(Stage owner, AlertType type, String title, String headerText,
                                                String contentText) {
         final Alert alert = new Alert(type);
-        alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
+        alert.getDialogPane().getStylesheets().add("view/Residex.css");
         alert.initOwner(owner);
         alert.setTitle(title);
         alert.setHeaderText(headerText);

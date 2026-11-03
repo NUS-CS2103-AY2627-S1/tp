@@ -3,14 +3,14 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
+import static seedu.address.testutil.TypicalProperties.CLEMENTI_HDB;
+import static seedu.address.testutil.TypicalProperties.TAMPINES_CONDO;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,9 +19,32 @@ import seedu.address.testutil.PersonBuilder;
 public class PersonTest {
 
     @Test
-    public void asObservableList_modifyList_throwsUnsupportedOperationException() {
+    public void constructor_nullDetails_throwsNullPointerException() {
         Person person = new PersonBuilder().build();
-        assertThrows(UnsupportedOperationException.class, () -> person.getTags().remove(0));
+        assertThrows(NullPointerException.class, () -> new Person(null, person.getPhone(), person.getEmail(),
+                person.getRemark(), null));
+        assertThrows(NullPointerException.class, () -> new Person(person.getName(), null, person.getEmail(),
+                person.getRemark(), null));
+        assertThrows(NullPointerException.class, () -> new Person(person.getName(), person.getPhone(), null,
+                person.getRemark(), null));
+        assertThrows(NullPointerException.class, () -> new Person(person.getName(), person.getPhone(),
+                person.getEmail(), null, null));
+    }
+
+    @Test
+    public void getIntention_returnsIntention() {
+        assertEquals(ClientIntention.BUYER, new PersonBuilder().withProperties(CLEMENTI_HDB).build().getIntention());
+        assertEquals(ClientIntention.SELLER, new PersonBuilder().withProperties(TAMPINES_CONDO).build().getIntention());
+    }
+
+    @Test
+    public void properties_differentValue_affectsEqualityButNotIdentity() {
+        Person seller = new PersonBuilder(ALICE).withProperties(TAMPINES_CONDO).build();
+        assertFalse(ALICE.equals(seller));
+        assertTrue(ALICE.isSamePerson(seller));
+        Person sellerCopy = new PersonBuilder(seller).build();
+        assertEquals(seller, sellerCopy);
+        assertEquals(seller.hashCode(), sellerCopy.hashCode());
     }
 
     @Test
@@ -32,22 +55,44 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        // same name and phone, all other attributes different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).withProperties(TAMPINES_CONDO)
+                .withRemark("Call next week").build();
         assertTrue(ALICE.isSamePerson(editedAlice));
+
+        // same name, different phone -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, same phone -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, same phone -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // name differs in case and spacing, same phone -> returns true in both directions
+        editedBob = new PersonBuilder(BOB).withName("bOb   cHoo  ").build();
+        assertTrue(BOB.isSamePerson(editedBob));
+        assertTrue(editedBob.isSamePerson(BOB));
+        assertFalse(BOB.equals(editedBob));
+
+        // normalized names match, different phones -> returns false
+        editedBob = new PersonBuilder(editedBob).withPhone(ALICE.getPhone().value).build();
+        assertFalse(BOB.isSamePerson(editedBob));
+
+        // names differ beyond case and spacing, same phone -> returns false
+        editedBob = new PersonBuilder(BOB).withName("BobChoo").build();
+        assertFalse(BOB.isSamePerson(editedBob));
+
+        // leading zero in phone number is significant -> returns false
+        editedBob = new PersonBuilder(BOB).withPhone("0" + BOB.getPhone().value).build();
         assertFalse(BOB.isSamePerson(editedBob));
     }
 
@@ -81,19 +126,18 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different address -> returns false
-        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
+        // different remark -> returns false
+        editedAlice = new PersonBuilder(ALICE).withRemark("Likes baseball").build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different tags -> returns false
-        editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
-        assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", intention=" + ALICE.getIntention()
+                + ", remark=" + ALICE.getRemark()
+                + ", properties=" + ALICE.getProperties() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

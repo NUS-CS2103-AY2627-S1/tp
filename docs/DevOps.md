@@ -1,12 +1,15 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
@@ -19,7 +22,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/Residex.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -31,6 +34,9 @@ The following commands perform common Gradle tasks.
 * **`test`**
   * `./gradlew test`: Runs all tests.
   * `./gradlew clean test`: Cleans the project before running all tests
+
+* **`captureDocumentationScreenshots`**: Captures the current UI with sample clients into `docs/images/`.<br>
+  Requires a graphical desktop or Xvfb. See [Refreshing UI screenshots](Documentation.html#refreshing-ui-screenshots).
 
 --------------------------------------------------------------------------------------------------------------------
 

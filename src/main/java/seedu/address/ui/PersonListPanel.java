@@ -1,13 +1,18 @@
 package seedu.address.ui;
 
-import java.util.logging.Logger;
-
+import javafx.beans.InvalidationListener;
+import javafx.beans.WeakInvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Region;
-import seedu.address.commons.core.LogsCenter;
+import seedu.address.logic.commands.ViewCommand;
+import seedu.address.model.ClientViewMode;
 import seedu.address.model.person.Person;
 
 /**
@@ -15,24 +20,69 @@ import seedu.address.model.person.Person;
  */
 public class PersonListPanel extends UiPart<Region> {
     private static final String FXML = "PersonListPanel.fxml";
-    private final Logger logger = LogsCenter.getLogger(PersonListPanel.class);
+
+    private final BooleanBinding showClientDetails;
+
+    @FXML
+    private Label clientListHeading;
+    @FXML
+    private Label clientCount;
+    @FXML
+    private Label returnToListHint;
 
     @FXML
     private ListView<Person> personListView;
 
     /**
-     * Creates a {@code PersonListPanel} with the given {@code ObservableList}.
+     * Creates a panel whose cards, heading and return hint follow the model's display mode.
      */
-    public PersonListPanel(ObservableList<Person> personList) {
+    public PersonListPanel(ObservableList<Person> personList, ObservableList<Person> allPersons,
+            ObservableValue<ClientViewMode> viewMode) {
         super(FXML);
+        showClientDetails = Bindings.createBooleanBinding(() ->
+                viewMode.getValue() == ClientViewMode.CLIENT_DETAILS, viewMode);
         personListView.setItems(personList);
         personListView.setCellFactory(listView -> new PersonListViewCell());
+        clientCount.textProperty().bind(Bindings.createStringBinding(() ->
+                personList.size() + " of " + allPersons.size() + " clients", personList, allPersons));
+        returnToListHint.setText(ViewCommand.MESSAGE_RETURN_TO_LIST);
+        returnToListHint.visibleProperty().bind(showClientDetails);
+        returnToListHint.managedProperty().bind(showClientDetails);
+        clientListHeading.textProperty().bind(Bindings.createStringBinding(() -> switch (viewMode.getValue()) {
+            case ALL_CLIENTS -> "All clients";
+            case FILTERED_CLIENTS -> "Filtered clients";
+            case CLIENT_DETAILS -> "Client details";
+        }, viewMode));
+        showClientDetails.addListener((observable, oldValue, showDetails) -> {
+            assert !showDetails || personListView.getItems().size() == 1
+                    : "The detail view requires exactly one displayed client";
+            personListView.scrollTo(0);
+        });
     }
 
     /**
      * Custom {@code ListCell} that displays the graphics of a {@code Person} using a {@code PersonCard}.
      */
     class PersonListViewCell extends ListCell<Person> {
+        // Keep this listener alive with the cell, without retaining discarded cells in the panel.
+        private final InvalidationListener displayModeListener = observable -> updateItem(getItem(), isEmpty());
+
+        PersonListViewCell() {
+            showClientDetails.addListener(new WeakInvalidationListener(displayModeListener));
+        }
+
+        @Override
+        protected double computePrefHeight(double width) {
+            if (getGraphic() instanceof Region card) {
+                double cardWidth = Math.max(0, (width < 0 ? personListView.getWidth() : width)
+                        - getInsets().getLeft() - getInsets().getRight());
+                // Measure at the available width so wrapped remarks expand the row rather than being clipped.
+                return Math.max(card.minHeight(cardWidth), card.prefHeight(cardWidth))
+                        + getInsets().getTop() + getInsets().getBottom();
+            }
+            return super.computePrefHeight(width);
+        }
+
         @Override
         protected void updateItem(Person person, boolean empty) {
             super.updateItem(person, empty);
@@ -41,7 +91,14 @@ public class PersonListPanel extends UiPart<Region> {
                 setGraphic(null);
                 setText(null);
             } else {
-                setGraphic(new PersonCard(person, getIndex() + 1).getRoot());
+                setText(null);
+                Region card = showClientDetails.get()
+                        ? new PersonDetailsCard(person).getRoot()
+                        : new PersonCard(person, getIndex() + 1).getRoot();
+                card.prefWidthProperty().bind(Bindings.createDoubleBinding(() ->
+                        Math.max(0, getWidth() - getInsets().getLeft() - getInsets().getRight()),
+                        widthProperty(), insetsProperty()));
+                setGraphic(card);
             }
         }
     }

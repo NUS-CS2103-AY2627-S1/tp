@@ -3,13 +3,21 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.IntentionMatchesPredicate;
 import seedu.address.model.person.Person;
 
 /**
@@ -18,9 +26,16 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
-    private final AddressBook addressBook;
+    private final VersionedAddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
+    private final ObservableList<Person> displayedPersons;
+    private Predicate<Person> personFilter = PREDICATE_SHOW_ALL_PERSONS;
+    private final Map<Person, Integer> sourcePositions = new IdentityHashMap<>();
+    private final ReadOnlyObjectWrapper<ClientViewMode> clientViewMode =
+            new ReadOnlyObjectWrapper<>(ClientViewMode.ALL_CLIENTS);
+    private Person viewedPerson;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,11 +43,15 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing with RESIDEX client data: " + addressBook + " and user prefs " + userPrefs);
 
-        this.addressBook = new AddressBook(addressBook);
+        this.addressBook = new VersionedAddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
+        // Invalidation precedes transformation change events, so sorting sees current source positions.
+        this.addressBook.getPersonList().addListener((InvalidationListener) observable -> sourcePositions.clear());
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
+        displayedPersons = FXCollections.unmodifiableObservableList(sortedPersons);
     }
 
     public ModelManager() {
@@ -70,6 +89,36 @@ public class ModelManager implements Model {
     }
 
     @Override
+    public void commitAddressBook() {
+        addressBook.commit();
+    }
+
+    @Override
+    public boolean canUndoAddressBook() {
+        return addressBook.canUndo();
+    }
+
+    @Override
+    public boolean canRedoAddressBook() {
+        return addressBook.canRedo();
+    }
+
+    @Override
+    public void undoAddressBook() {
+        addressBook.undo();
+    }
+
+    @Override
+    public void redoAddressBook() {
+        addressBook.redo();
+    }
+
+    @Override
+    public void revertLastCommit() {
+        addressBook.revertLastCommit();
+    }
+
+    @Override
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
@@ -78,6 +127,9 @@ public class ModelManager implements Model {
     @Override
     public void deletePerson(Person target) {
         addressBook.removePerson(target);
+        if (viewedPerson != null && viewedPerson.isSamePerson(target)) {
+            updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        }
     }
 
     @Override
@@ -91,23 +143,70 @@ public class ModelManager implements Model {
         requireAllNonNull(target, editedPerson);
 
         addressBook.setPerson(target, editedPerson);
+        if (viewedPerson != null && viewedPerson.isSamePerson(target)) {
+            showPersonDetails(editedPerson);
+        }
     }
 
     //=========== Filtered Person List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * Returns the single displayed order used by both the UI and index-based commands.
+     * Filtering and sorting never reorder the underlying address book.
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return displayedPersons;
+    }
+
+    @Override
+    public Predicate<Person> getPersonFilter() {
+        return personFilter;
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<ClientViewMode> clientViewModeProperty() {
+        return clientViewMode.getReadOnlyProperty();
+    }
+
+    @Override
+    public void showPersonDetails(Person person) {
+        requireNonNull(person);
+        setPersonFilter(person::isSamePerson);
+        viewedPerson = person;
+        clientViewMode.set(ClientViewMode.CLIENT_DETAILS);
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        setPersonFilter(predicate);
+        viewedPerson = null;
+        clientViewMode.set(predicate == PREDICATE_SHOW_ALL_PERSONS
+                ? ClientViewMode.ALL_CLIENTS : ClientViewMode.FILTERED_CLIENTS);
+    }
+
+    /** Applies filtering and ranking without changing the chosen display mode. */
+    private void setPersonFilter(Predicate<Person> predicate) {
         filteredPersons.setPredicate(predicate);
+        personFilter = predicate;
+        // Replacements can disturb SortedList ties, so resolve equal ranks using the source positions.
+        sortedPersons.setComparator(predicate instanceof IntentionMatchesPredicate intentionPredicate
+                ? intentionPredicate.getComparator().thenComparingInt(this::getSourcePosition) : null);
+    }
+
+    /**
+     * Builds the lookup once on demand after a source change, then resolves each tie in constant time.
+     * Identity keys avoid comparing clients' fields and keep distinct replacement instances separate.
+     */
+    private int getSourcePosition(Person person) {
+        if (sourcePositions.isEmpty()) {
+            ObservableList<Person> source = addressBook.getPersonList();
+            for (int i = 0; i < source.size(); i++) {
+                sourcePositions.put(source.get(i), i);
+            }
+        }
+        return sourcePositions.get(person);
     }
 
     @Override
@@ -123,7 +222,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && clientViewMode.get() == otherModelManager.clientViewMode.get()
+                && displayedPersons.equals(otherModelManager.displayedPersons);
     }
 
 }

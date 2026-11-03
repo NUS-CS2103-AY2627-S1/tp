@@ -2,6 +2,7 @@ package seedu.address.commons.util;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +63,9 @@ public class JsonUtil {
 
         try {
             jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
+            if (jsonFile == null) {
+                throw new IOException("JSON file must not contain null.");
+            }
         } catch (IOException e) {
             logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
             throw new DataLoadingException(e);
@@ -85,12 +90,23 @@ public class JsonUtil {
 
 
     /**
-     * Converts a given string representation of JSON data to an instance of a class
+     * Converts one complete JSON value to an instance of a class, accepting one initial UTF-8 byte-order mark
+     * and allowing only whitespace after the value.
      * @param <T> The generic type to create an instance of
      * @return The instance of T with the specified values in the JSON string
      */
     public static <T> T fromJsonString(String json, Class<T> instanceClass) throws IOException {
-        return objectMapper.readValue(json, instanceClass);
+        String content = json.startsWith("\uFEFF") ? json.substring(1) : json;
+        if (content.isBlank()) {
+            throw new EOFException("The data file is empty.");
+        }
+        try (JsonParser parser = objectMapper.getFactory().createParser(content)) {
+            T value = objectMapper.readValue(parser, instanceClass);
+            if (parser.nextToken() != null) {
+                throw new IOException("JSON file must contain only one top-level value.");
+            }
+            return value;
+        }
     }
 
     /**

@@ -1,59 +1,52 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Sylvester Lim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/sea1vester.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Sea1vester)]
 
-* Role: Project Advisor
+* Role: Developer
 
-### Jane Doe
+### Lim Kai Hui Brendan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/brendan-lim.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/brendan-lim)]
 
 * Role: Team Lead
-* Responsibilities: UI
 
-### Johnny Doe
+### Ray
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/rayyngg.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://rayyngg.github.io)] [[github](https://github.com/rayyngg)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Sean Tan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/sntan1214.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/sntan1214)]
 
 * Role: Developer
-* Responsibilities: UI
+
+### Nathan Yeo
+
+<img src="images/legalunicorn.png" width="200px">
+
+[[github](https://github.com/legalunicorn)]
+
+* Role: Developer

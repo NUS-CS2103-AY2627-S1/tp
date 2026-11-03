@@ -1,14 +1,15 @@
 package seedu.address.model.person;
 
+import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.property.Property;
 
 /**
  * Represents a Person in the address book.
@@ -19,22 +20,31 @@ public class Person {
     // Identity fields
     private final Name name;
     private final Phone phone;
-    private final Email email;
 
     // Data fields
-    private final Address address;
-    private final Set<Tag> tags = new HashSet<>();
+    private final Email email;
+    private final Remark remark;
+    private final List<Property> properties;
 
     /**
-     * Every field must be present and not null.
+     * Constructs a person with no properties.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Remark remark) {
+        this(name, phone, email, remark, List.of());
+    }
+
+    /**
+     * Constructs a person with an ordered, defensively copied property list.
+     * Every field must be non-null, and the list must not contain null entries.
+     * Equal property entries are allowed. Each entry's position is its index within this client.
+     */
+    public Person(Name name, Phone phone, Email email, Remark remark, List<Property> properties) {
+        requireAllNonNull(name, phone, email, remark, properties);
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
-        this.tags.addAll(tags);
+        this.remark = remark;
+        this.properties = List.copyOf(properties);
     }
 
     public Name getName() {
@@ -49,20 +59,87 @@ public class Person {
         return email;
     }
 
-    public Address getAddress() {
-        return address;
-    }
-
     /**
-     * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
-     * if modification is attempted.
+     * Derives the client's role from the current properties without storing a second source of truth.
      */
-    public Set<Tag> getTags() {
-        return Collections.unmodifiableSet(tags);
+    public ClientIntention getIntention() {
+        boolean hasBuyingProperty = false;
+        boolean hasSellingProperty = false;
+        for (Property property : properties) {
+            switch (property.getIntention()) {
+                case BUYING -> hasBuyingProperty = true;
+                case SELLING -> hasSellingProperty = true;
+                default -> throw new IllegalStateException("Unsupported property intention");
+            }
+            if (hasBuyingProperty && hasSellingProperty) {
+                return ClientIntention.BOTH;
+            }
+        }
+        if (hasBuyingProperty) {
+            return ClientIntention.BUYER;
+        }
+        return hasSellingProperty ? ClientIntention.SELLER : ClientIntention.UNSPECIFIED;
+    }
+
+    public Remark getRemark() {
+        return remark;
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns the unmodifiable property list in index order. An empty list means no properties are recorded.
+     */
+    public List<Property> getProperties() {
+        return properties;
+    }
+
+    /**
+     * Returns a new person with {@code property} appended, preserving all existing fields and entries.
+     *
+     * @throws NullPointerException if {@code property} is null.
+     */
+    public Person withAddedProperty(Property property) {
+        requireNonNull(property);
+        List<Property> updatedProperties = new ArrayList<>(properties);
+        updatedProperties.add(property);
+        return copyWithProperties(updatedProperties);
+    }
+
+    /**
+     * Returns a new person with the property at {@code propertyIndex} replaced, preserving list order.
+     *
+     * @throws NullPointerException if the index or replacement is null.
+     * @throws IndexOutOfBoundsException if the index does not identify an existing property of this client.
+     */
+    public Person withUpdatedProperty(Index propertyIndex, Property replacement) {
+        requireAllNonNull(propertyIndex, replacement);
+        List<Property> updatedProperties = new ArrayList<>(properties);
+        updatedProperties.set(propertyIndex.getZeroBased(), replacement);
+        return copyWithProperties(updatedProperties);
+    }
+
+    /**
+     * Returns a new person without the indexed property. Later entries shift down by one index.
+     *
+     * @throws NullPointerException if {@code propertyIndex} is null.
+     * @throws IndexOutOfBoundsException if the index does not identify an existing property of this client.
+     */
+    public Person withoutProperty(Index propertyIndex) {
+        requireNonNull(propertyIndex);
+        List<Property> updatedProperties = new ArrayList<>(properties);
+        updatedProperties.remove(propertyIndex.getZeroBased());
+        return copyWithProperties(updatedProperties);
+    }
+
+    private Person copyWithProperties(List<Property> updatedProperties) {
+        Person updated = new Person(name, phone, email, remark, updatedProperties);
+        assert isSamePerson(updated) : "Property updates must preserve client identity";
+        return updated;
+    }
+
+    /**
+     * Returns true if both persons have the same normalised name and phone number.
+     * Name comparison ignores case, trailing spaces and repeated spaces between words.
+     * Phone numbers contain only digits and are compared exactly.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
@@ -71,7 +148,15 @@ public class Person {
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && otherPerson.getPhone().equals(getPhone())
+                && normaliseName(otherPerson.getName()).equalsIgnoreCase(normaliseName(getName()));
+    }
+
+    /**
+     * Returns a name with surrounding spaces removed and consecutive spaces replaced by a single space.
+     */
+    private static String normaliseName(Name name) {
+        return name.fullName.trim().replaceAll(" +", " ");
     }
 
     /**
@@ -92,14 +177,14 @@ public class Person {
         return name.equals(otherPerson.name)
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && remark.equals(otherPerson.remark)
+                && properties.equals(otherPerson.properties);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, remark, properties);
     }
 
     @Override
@@ -108,8 +193,9 @@ public class Person {
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
+                .add("intention", getIntention())
+                .add("remark", remark)
+                .add("properties", properties)
                 .toString();
     }
 

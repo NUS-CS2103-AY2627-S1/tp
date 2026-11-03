@@ -1,18 +1,26 @@
 package seedu.address.logic;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static seedu.address.logic.Messages.MESSAGE_TAGS_NOT_SUPPORTED;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalProperties.CLEMENTI_HDB;
+import static seedu.address.testutil.TypicalProperties.TAMPINES_CONDO;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,18 +28,24 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RedoCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.ClientViewMode;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.ClientIntention;
 import seedu.address.model.person.Person;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
 import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.PersonUtil;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -53,6 +67,115 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_addWithoutIntention_savesUnspecifiedClient() throws Exception {
+        Person client = new PersonBuilder(AMY).build();
+
+        logic.execute(PersonUtil.getAddCommand(client));
+
+        assertEquals(client, model.getAddressBook().getPersonList().get(0));
+        assertEquals(ClientIntention.UNSPECIFIED, client.getIntention());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(client, storage.readAddressBook().orElseThrow().getPersonList().get(0));
+    }
+
+    @Test
+    public void execute_addSameNameDifferentPhone_savesBothClients() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Alice Tan p/92345678 e/anotheralice@example.com");
+
+        List<Person> clients = model.getAddressBook().getPersonList();
+        assertEquals(2, clients.size());
+        assertEquals("91234567", clients.get(0).getPhone().value);
+        assertEquals("92345678", clients.get(1).getPhone().value);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_addNormalisedDuplicate_doesNotChangeModelOrStorage() throws Exception {
+        logic.execute("add n/Alice   Tan p/91234567 e/alice@example.com");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+
+        assertCommandException("add n/ALICE TAN p/91234567 e/other@example.com",
+                String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, "Alice   Tan", "91234567"));
+
+        assertEquals(savedData, Files.readString(dataFile));
+    }
+
+    @Test
+    public void execute_editToSameNameDifferentPhone_success() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+
+        logic.execute("edit 2 n/Alice Tan");
+
+        Person editedClient = model.getAddressBook().getPersonList().get(1);
+        assertEquals("Alice Tan", editedClient.getName().fullName);
+        assertEquals("92345678", editedClient.getPhone().value);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_editPhoneToDuplicateOutsideFilter_doesNotChangeModelOrStorage() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/ALICE   TAN p/92345678 e/anotheralice@example.com");
+        logic.execute("find p/92345678");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+        List<Person> savedClients = List.copyOf(model.getAddressBook().getPersonList());
+
+        assertThrows(CommandException.class,
+                String.format(EditCommand.MESSAGE_DUPLICATE_PERSON, "Alice Tan", "91234567"), () ->
+                logic.execute("edit 1 p/91234567"));
+
+        assertEquals(savedClients, model.getAddressBook().getPersonList());
+        assertEquals(1, model.getFilteredPersonList().size());
+        assertEquals("92345678", model.getFilteredPersonList().get(0).getPhone().value);
+        assertEquals(savedData, Files.readString(dataFile));
+    }
+
+    @Test
+    public void execute_editNameToNormalisedDuplicate_doesNotChangeModelOrStorage() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/91234567 e/ben@example.com");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+
+        assertCommandException("edit 2 n/ALICE   TAN",
+                String.format(EditCommand.MESSAGE_DUPLICATE_PERSON, "Alice Tan", "91234567"));
+
+        assertEquals(savedData, Files.readString(dataFile));
+    }
+
+    @Test
+    public void execute_editOwnNameCaseAndSpacing_savesUpdatedName() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+
+        logic.execute("edit 1 n/ALICE   TAN");
+
+        assertEquals("ALICE   TAN", model.getAddressBook().getPersonList().get(0).getName().fullName);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_tagArguments_doesNotChangeModelOrStorage() throws Exception {
+        Person person = new PersonBuilder(AMY).build();
+        logic.execute(PersonUtil.getAddCommand(person));
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        String savedData = Files.readString(dataFile);
+
+        assertParseException(PersonUtil.getAddCommand(person) + " t/friends", MESSAGE_TAGS_NOT_SUPPORTED);
+        assertParseException("edit 1 a/New address t/clients",
+                String.format(Messages.MESSAGE_UNEXPECTED_PARAMETER, "a/New"));
+        assertParseException("edit 1 t/", MESSAGE_TAGS_NOT_SUPPORTED);
+
+        assertEquals(savedData, Files.readString(dataFile));
+    }
+
+    @Test
     public void execute_invalidCommandFormat_throwsParseException() {
         String invalidCommand = "uicfhmowqewca";
         assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
@@ -71,6 +194,63 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_exitWithoutDataFile_doesNotAttemptSave() throws Exception {
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        for (IOException exception : new IOException[]{DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION}) {
+            AtomicInteger saveAttempts = useFailingStorage(exception);
+
+            assertTrue(logic.execute("exit").isExit());
+
+            assertEquals(0, saveAttempts.get());
+            assertEquals(List.of(), model.getAddressBook().getPersonList());
+            assertFalse(model.canUndoAddressBook());
+            assertFalse(model.canRedoAddressBook());
+            assertFalse(Files.exists(dataFile));
+        }
+    }
+
+    @Test
+    public void execute_exitWithSavedClients_doesNotAttemptSaveOrChangeData() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        byte[] savedFile = Files.readAllBytes(dataFile);
+        ReadOnlyAddressBook savedClients = new AddressBook(model.getAddressBook());
+        for (IOException exception : new IOException[]{DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION}) {
+            AtomicInteger saveAttempts = useFailingStorage(exception);
+
+            assertTrue(logic.execute("exit").isExit());
+
+            assertEquals(0, saveAttempts.get());
+            assertSavedStateUnchanged(savedClients, savedFile, dataFile);
+        }
+    }
+
+    @Test
+    public void execute_exitAfterFailedEdit_preservesSavedDataWithoutRetryingSave() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        Path dataFile = temporaryFolder.resolve("addressBook.json");
+        byte[] savedFile = Files.readAllBytes(dataFile);
+        ReadOnlyAddressBook savedClients = new AddressBook(model.getAddressBook());
+        for (IOException exception : new IOException[]{DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION}) {
+            AtomicInteger saveAttempts = useFailingStorage(exception);
+            assertThrows(CommandException.class, () -> logic.execute("edit 1 p/92345678"));
+
+            assertTrue(logic.execute("exit").isExit());
+
+            assertEquals(1, saveAttempts.get());
+            assertSavedStateUnchanged(savedClients, savedFile, dataFile);
+        }
+    }
+
+    private void assertSavedStateUnchanged(ReadOnlyAddressBook savedClients, byte[] savedFile, Path dataFile)
+            throws IOException {
+        assertEquals(savedClients, model.getAddressBook());
+        assertTrue(model.canUndoAddressBook());
+        assertFalse(model.canRedoAddressBook());
+        assertArrayEquals(savedFile, Files.readAllBytes(dataFile));
+    }
+
+    @Test
     public void execute_storageThrowsIoException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
@@ -80,6 +260,282 @@ public class LogicManagerTest {
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_storageThrowsOnUndo_restoresCurrentStateAndDoesNotSkipHistory() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("undo"));
+
+        assertEquals(2, model.getAddressBook().getPersonList().size());
+        assertEquals("Ben Ong", model.getAddressBook().getPersonList().get(1).getName().fullName);
+        assertTrue(model.canUndoAddressBook());
+        assertFalse(model.canRedoAddressBook());
+
+        useWorkingStorage();
+        logic.execute("undo");
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("Alice Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+    }
+
+    @Test
+    public void execute_storageThrowsOnRedo_restoresUndoneStateAndKeepsRedo() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+        logic.execute("undo");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("redo"));
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("Alice Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+        assertTrue(model.canRedoAddressBook());
+
+        useWorkingStorage();
+        logic.execute("redo");
+        assertEquals(2, model.getAddressBook().getPersonList().size());
+        assertEquals("Ben Ong", model.getAddressBook().getPersonList().get(1).getName().fullName);
+    }
+
+    @Test
+    public void execute_storageThrowsOnAdd_discardsFailedStateFromRedo() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("add n/SaveFail p/88119991 e/savefail@example.com"));
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("Alice Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+        assertFalse(model.canRedoAddressBook());
+
+        useWorkingStorage();
+        assertThrows(CommandException.class, RedoCommand.MESSAGE_FAILURE, () -> logic.execute("redo"));
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("Alice Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+    }
+
+    @Test
+    public void execute_storageThrowsOnAddAfterUndo_keepsExistingRedoHistory() throws Exception {
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+        logic.execute("undo");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("add n/SaveFail p/88119991 e/savefail@example.com"));
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertTrue(model.canRedoAddressBook());
+
+        useWorkingStorage();
+        logic.execute("redo");
+        assertEquals(2, model.getAddressBook().getPersonList().size());
+        assertEquals("Ben Ong", model.getAddressBook().getPersonList().get(1).getName().fullName);
+    }
+
+    @Test
+    public void execute_storageThrowsOnAddWhenUndoUnavailable_restoresSnapshot() {
+        model = new ModelManager() {
+            @Override
+            public boolean canUndoAddressBook() {
+                return false;
+            }
+        };
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("add n/SaveFail p/88119991 e/savefail@example.com"));
+
+        assertEquals(List.of(), model.getAddressBook().getPersonList());
+        assertFalse(model.canRedoAddressBook());
+    }
+
+    @Test
+    public void execute_storageThrowsOnUndoWhenRedoUnavailable_restoresPreUndoClients() throws Exception {
+        model = new ModelManager() {
+            private boolean acceptUndo = true;
+
+            @Override
+            public boolean canUndoAddressBook() {
+                return acceptUndo && super.canUndoAddressBook();
+            }
+
+            @Override
+            public boolean canRedoAddressBook() {
+                return false;
+            }
+
+            @Override
+            public void undoAddressBook() {
+                super.undoAddressBook();
+                acceptUndo = false;
+            }
+        };
+        useWorkingStorage();
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("undo"));
+
+        assertEquals(2, model.getAddressBook().getPersonList().size());
+        assertEquals("Ben Ong", model.getAddressBook().getPersonList().get(1).getName().fullName);
+    }
+
+    @Test
+    public void execute_storageThrowsOnRedoWhenUndoUnavailable_restoresPreRedoClients() throws Exception {
+        model = new ModelManager() {
+            private boolean acceptRedo = true;
+
+            @Override
+            public boolean canUndoAddressBook() {
+                return acceptRedo && super.canUndoAddressBook();
+            }
+
+            @Override
+            public boolean canRedoAddressBook() {
+                return acceptRedo && super.canRedoAddressBook();
+            }
+
+            @Override
+            public void redoAddressBook() {
+                super.redoAddressBook();
+                acceptRedo = false;
+            }
+        };
+        useWorkingStorage();
+        logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+        logic.execute("add n/Ben Ong p/92345678 e/ben@example.com");
+        logic.execute("undo");
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+
+        assertThrows(CommandException.class, String.format(
+                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()), () ->
+                logic.execute("redo"));
+
+        assertEquals(1, model.getAddressBook().getPersonList().size());
+        assertEquals("Alice Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+    }
+
+    @Test
+    public void execute_saveFailureAfterFind_preservesSearchForRetry() throws Exception {
+        for (IOException exception : List.of(DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION)) {
+            model = new ModelManager();
+            useWorkingStorage();
+            logic.execute("add n/Bob Tan p/92345678 e/bob@example.com");
+            logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+            logic.execute("find n/Alice");
+            ReadOnlyAddressBook original = new AddressBook(model.getAddressBook());
+            Path savedFile = temporaryFolder.resolve("addressBook.json");
+            String savedData = Files.readString(savedFile);
+            AtomicInteger saveAttempts = useFailingStorage(exception);
+
+            assertThrows(CommandException.class, () -> logic.execute("edit 1 n/Alice Updated"));
+
+            assertEquals(1, saveAttempts.get());
+            assertEquals(original, model.getAddressBook());
+            assertEquals(savedData, Files.readString(savedFile));
+            assertEquals(ClientViewMode.FILTERED_CLIENTS, model.clientViewModeProperty().get());
+            assertEquals("Alice Tan", model.getFilteredPersonList().getFirst().getName().fullName);
+            assertEquals(1, model.getFilteredPersonList().size());
+
+            useWorkingStorage();
+            logic.execute("edit 1 n/Alice Updated");
+            assertEquals("Bob Tan", model.getAddressBook().getPersonList().get(0).getName().fullName);
+            assertEquals("Alice Updated", model.getAddressBook().getPersonList().get(1).getName().fullName);
+        }
+    }
+
+    @Test
+    public void execute_saveFailureAfterRankedFind_preservesDisplayedOrder() throws Exception {
+        Person mixed = new PersonBuilder().withName("Mixed Client")
+                .withProperties(CLEMENTI_HDB, TAMPINES_CONDO).build();
+        Person buyer = new PersonBuilder().withName("Buyer Client").withProperties(CLEMENTI_HDB).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.setPersons(List.of(mixed, buyer));
+        model = new ModelManager(addressBook, new UserPrefs());
+        useFailingStorage(DUMMY_IO_EXCEPTION);
+        logic.execute("find i/buyer");
+        assertEquals(List.of(buyer, mixed), model.getFilteredPersonList());
+
+        assertThrows(CommandException.class, () -> logic.execute("edit 1 n/Changed Client"));
+
+        assertEquals(addressBook, model.getAddressBook());
+        assertEquals(ClientViewMode.FILTERED_CLIENTS, model.clientViewModeProperty().get());
+        assertEquals(List.of(buyer, mixed), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_saveFailureAfterAllOrNoMatchFind_preservesFilteredHeading() throws Exception {
+        for (String query : List.of("Tan", "Nobody")) {
+            model = new ModelManager();
+            useWorkingStorage();
+            logic.execute("add n/Bob Tan p/92345678 e/bob@example.com");
+            logic.execute("add n/Alice Tan p/91234567 e/alice@example.com");
+            logic.execute("find n/" + query);
+            List<Person> displayed = List.copyOf(model.getFilteredPersonList());
+            ReadOnlyAddressBook original = new AddressBook(model.getAddressBook());
+            useFailingStorage(DUMMY_IO_EXCEPTION);
+
+            assertThrows(CommandException.class, () ->
+                    logic.execute("add n/Third Client p/91110003 e/third@example.com"));
+
+            assertEquals(original, model.getAddressBook());
+            assertEquals(ClientViewMode.FILTERED_CLIENTS, model.clientViewModeProperty().get());
+            assertEquals(displayed, model.getFilteredPersonList());
+        }
+    }
+
+    @Test
+    public void execute_saveFailureInDetails_restoresDataViewAndUndoRedoHistory() throws Exception {
+        for (IOException exception : List.of(DUMMY_IO_EXCEPTION, DUMMY_AD_EXCEPTION)) {
+            for (String command : List.of("add n/Third Client p/91110003 e/third@example.com",
+                    "edit 1 n/Changed Client", "delete 1", "remark 1 r/Changed remark",
+                    "addp 1 t/HDB i/Buying l/Bishan", "editp 1 1 l/Bishan", "delp 1 1", "undo", "redo")) {
+                model = new ModelManager();
+                useWorkingStorage();
+                logic.execute("add n/First Client p/91110001 e/first@example.com");
+                logic.execute("add n/Second Client p/91110002 e/second@example.com");
+                logic.execute("addp 2 t/HDB i/Buying l/Clementi");
+                logic.execute("remark 2 r/Original remark");
+                logic.execute("remark 2 r/Redo remark");
+                logic.execute("undo");
+                logic.execute("view 2");
+                ReadOnlyAddressBook original = new AddressBook(model.getAddressBook());
+                Person viewedClient = model.getFilteredPersonList().getFirst();
+                Path savedFile = temporaryFolder.resolve("addressBook.json");
+                String savedData = Files.readString(savedFile);
+                AtomicInteger saveAttempts = useFailingStorage(exception);
+
+                assertThrows(CommandException.class, () -> logic.execute(command));
+
+                assertEquals(1, saveAttempts.get(), command);
+                assertEquals(original, model.getAddressBook(), command);
+                assertEquals(savedData, Files.readString(savedFile), command);
+                assertEquals(ClientViewMode.CLIENT_DETAILS, model.clientViewModeProperty().get(), command);
+                assertEquals(List.of(viewedClient), model.getFilteredPersonList(), command);
+                assertTrue(model.canUndoAddressBook(), command);
+                assertTrue(model.canRedoAddressBook(), command);
+                useWorkingStorage();
+                logic.execute("redo");
+                assertEquals("Redo remark", model.getAddressBook().getPersonList().get(1).getRemark().value, command);
+                logic.execute("undo");
+                assertEquals(original, model.getAddressBook(), command);
+            }
+        }
     }
 
     @Test
@@ -165,10 +621,39 @@ public class LogicManagerTest {
 
         // Triggers the saveAddressBook method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+                + EMAIL_DESC_AMY;
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+    }
+
+    /**
+     * Points {@code logic} at storage that throws {@code exception} when saving client data.
+     *
+     * @return the counter of attempted client-data saves.
+     */
+    private AtomicInteger useFailingStorage(IOException exception) {
+        AtomicInteger saveAttempts = new AtomicInteger();
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(
+                temporaryFolder.resolve("failingAddressBook.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                saveAttempts.incrementAndGet();
+                throw exception;
+            }
+        };
+        JsonUserPrefsStorage userPrefsStorage =
+                new JsonUserPrefsStorage(temporaryFolder.resolve("failingUserPrefs.json"));
+        logic = new LogicManager(model, new StorageManager(addressBookStorage, userPrefsStorage));
+        return saveAttempts;
+    }
+
+    /**
+     * Points {@code logic} back at writable storage while keeping the current model.
+     */
+    private void useWorkingStorage() {
+        JsonAddressBookStorage addressBookStorage =
+                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
+        logic = new LogicManager(model, new StorageManager(addressBookStorage, userPrefsStorage));
     }
 }

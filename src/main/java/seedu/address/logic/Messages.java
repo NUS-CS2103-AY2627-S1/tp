@@ -12,12 +12,29 @@ import seedu.address.model.person.Person;
  */
 public class Messages {
 
+    public static final String MESSAGE_DERIVED_CLIENT_INTENTION =
+            "Client intention is derived from property intentions and cannot be set directly. Remove i/.";
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
+    public static final String MESSAGE_EMPTY_COMMAND = "Please enter a command. Type help to see the list of commands.";
+    public static final String MESSAGE_CLIENT_BUDGET_NOT_SUPPORTED =
+            "Client budgets are no longer supported. Remove all b/ arguments and try again.";
+    public static final String MESSAGE_TAGS_NOT_SUPPORTED =
+            "Tags are no longer supported. Remove all t/ arguments and try again.";
+    public static final String MESSAGE_UNEXPECTED_PARAMETER = "Unexpected parameter: %1$s";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The client index provided is invalid.";
+    public static final String MESSAGE_CLIENT_INDEX_POSITIVE_INTEGER =
+            "Client index must be a positive integer, starting from 1.";
+    public static final String MESSAGE_PROPERTY_INDEX_POSITIVE_INTEGER =
+            "Property index must be a positive integer, starting from 1.";
+    public static final String MESSAGE_INVALID_PROPERTY_INDEX =
+            "The property index provided is invalid for the selected client.";
+    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d client(s) found!";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "Both name and phone match an existing client: %1$s (%2$s).\n"
+                    + "Name matching ignores capitalisation and extra spaces.";
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -41,10 +58,22 @@ public class Messages {
                 .append(person.getPhone())
                 .append("; Email: ")
                 .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
+                .append("; Remark: ")
+                .append(person.getRemark());
+        return builder.toString();
+    }
+
+    /**
+     * Formats a deleted {@code person}, including numbered property lines that match the client card.
+     */
+    public static String formatDeletedClient(Person person) {
+        final StringBuilder builder = new StringBuilder(format(person));
+        for (int i = 0; i < person.getProperties().size(); i++) {
+            builder.append("\n")
+                    .append(i + 1)
+                    .append(". ")
+                    .append(person.getProperties().get(i).toDisplay());
+        }
         return builder.toString();
     }
 

@@ -2,18 +2,18 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
@@ -21,6 +21,50 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    private static final Pattern CLIENT_INTENTION_PREFIX = Pattern.compile("(?i)(?<!\\S)i/");
+    private static final Pattern CLIENT_BUDGET_PREFIX = Pattern.compile("(?i)(?<!\\S)b/");
+    private static final Pattern CLIENT_PARAMETER = Pattern.compile("(?<!\\S)([A-Za-z]+)/\\S*");
+    private static final Set<String> CLIENT_FIELD_NAMES = Set.of("n", "p", "e", "t", "i", "b");
+
+    /**
+     * Rejects a manual client intention before it can be consumed as another field's text.
+     *
+     * @throws ParseException if an i/ field is supplied, regardless of its value.
+     */
+    public static void rejectClientIntention(String args) throws ParseException {
+        requireNonNull(args);
+        if (CLIENT_INTENTION_PREFIX.matcher(args).find()) {
+            throw new ParseException(Messages.MESSAGE_DERIVED_CLIENT_INTENTION);
+        }
+    }
+
+    /**
+     * Rejects the removed client budget prefix before it can be consumed as another field's text.
+     *
+     * @throws ParseException if a b/ field is supplied, regardless of its value or case.
+     */
+    public static void rejectClientBudget(String args) throws ParseException {
+        requireNonNull(args);
+        if (CLIENT_BUDGET_PREFIX.matcher(args).find()) {
+            throw new ParseException(Messages.MESSAGE_CLIENT_BUDGET_NOT_SUPPORTED);
+        }
+    }
+
+    /**
+     * Rejects a parameter whose prefix is not a client field, before it can be absorbed into another value.
+     *
+     * @throws ParseException if an unexpected {@code x/value} style parameter is present.
+     */
+    public static void rejectUnknownClientParameters(String args) throws ParseException {
+        requireNonNull(args);
+        Matcher matcher = CLIENT_PARAMETER.matcher(args);
+        while (matcher.find()) {
+            if (!CLIENT_FIELD_NAMES.contains(matcher.group(1).toLowerCase(Locale.ROOT))) {
+                throw new ParseException(String.format(Messages.MESSAGE_UNEXPECTED_PARAMETER, matcher.group()));
+            }
+        }
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -66,21 +110,6 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
-    }
-
-    /**
      * Parses a {@code String email} into an {@code Email}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -95,30 +124,4 @@ public class ParserUtil {
         return new Email(trimmedEmail);
     }
 
-    /**
-     * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code tag} is invalid.
-     */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
-        }
-        return new Tag(trimmedTag);
-    }
-
-    /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
-     */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
-        }
-        return tagSet;
-    }
 }

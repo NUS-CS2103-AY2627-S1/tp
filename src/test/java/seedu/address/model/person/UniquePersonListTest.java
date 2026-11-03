@@ -3,8 +3,8 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
@@ -40,8 +40,7 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         assertTrue(uniquePersonList.contains(editedAlice));
     }
 
@@ -54,6 +53,16 @@ public class UniquePersonListTest {
     public void add_duplicatePerson_throwsDuplicatePersonException() {
         uniquePersonList.add(ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(ALICE));
+    }
+
+    @Test
+    public void add_sameNameDifferentPhone_success() {
+        uniquePersonList.add(ALICE);
+        Person anotherAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+
+        uniquePersonList.add(anotherAlice);
+
+        assertEquals(List.of(ALICE, anotherAlice), uniquePersonList.asUnmodifiableObservableList());
     }
 
     @Test
@@ -83,8 +92,7 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
         expectedUniquePersonList.add(editedAlice);
@@ -105,6 +113,18 @@ public class UniquePersonListTest {
         uniquePersonList.add(ALICE);
         uniquePersonList.add(BOB);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(ALICE, BOB));
+    }
+
+    @Test
+    public void setPerson_phoneCreatesDuplicate_throwsDuplicatePersonException() {
+        Person anotherAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(anotherAlice);
+        Person duplicate = new PersonBuilder(anotherAlice).withPhone(ALICE.getPhone().value).build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(anotherAlice, duplicate));
+
+        assertEquals(List.of(ALICE, anotherAlice), uniquePersonList.asUnmodifiableObservableList());
     }
 
     @Test
@@ -158,6 +178,23 @@ public class UniquePersonListTest {
     public void setPersons_listWithDuplicatePersons_throwsDuplicatePersonException() {
         List<Person> listWithDuplicatePersons = List.of(ALICE, ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(listWithDuplicatePersons));
+    }
+
+    @Test
+    public void setPersons_sameNameDifferentPhones_success() {
+        Person anotherAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        List<Person> clients = List.of(ALICE, anotherAlice);
+
+        uniquePersonList.setPersons(clients);
+
+        assertEquals(clients, uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPersons_normalisedDuplicates_throwsDuplicatePersonException() {
+        Person duplicate = new PersonBuilder(ALICE).withName("ALICE   PAULINE").build();
+
+        assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(List.of(ALICE, duplicate)));
     }
 
     @Test
