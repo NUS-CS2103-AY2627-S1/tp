@@ -1,6 +1,7 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
 
 import java.util.Objects;
 
@@ -11,6 +12,15 @@ import seedu.address.commons.util.ToStringBuilder;
  */
 public class CommandResult {
 
+    /** Identifies where the UI should display the command feedback. */
+    public enum DisplayTarget {
+        RESULT_DISPLAY,
+        ATTENDANCE_HISTORY,
+        GRADE_HISTORY
+    }
+
+    public static final String MESSAGE_HELP_AND_EXIT = "A command result cannot both show help and exit";
+
     private final String feedbackToUser;
 
     /** Help information should be shown to the user. */
@@ -19,13 +29,31 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
+    /** The UI location in which the command feedback should be displayed. */
+    private final DisplayTarget displayTarget;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
+     *
+     * @throws IllegalArgumentException if both {@code showHelp} and {@code exit} are true, as the app cannot
+     *         show help and exit in response to the same command.
      */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+        this(feedbackToUser, showHelp, exit, DisplayTarget.RESULT_DISPLAY);
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the specified fields.
+     *
+     * @throws IllegalArgumentException if both {@code showHelp} and {@code exit} are true, as the app cannot
+     *         show help and exit in response to the same command.
+     */
+    public CommandResult(String feedbackToUser, boolean showHelp, boolean exit, DisplayTarget displayTarget) {
+        checkArgument(!(showHelp && exit), MESSAGE_HELP_AND_EXIT);
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.displayTarget = requireNonNull(displayTarget);
     }
 
     /**
@@ -34,6 +62,14 @@ public class CommandResult {
      */
     public CommandResult(String feedbackToUser) {
         this(feedbackToUser, false, false);
+    }
+
+    /**
+     * Constructs a {@code CommandResult} with the specified feedback and display target, and other fields set
+     * to their default value.
+     */
+    public CommandResult(String feedbackToUser, DisplayTarget displayTarget) {
+        this(feedbackToUser, false, false, displayTarget);
     }
 
     public String getFeedbackToUser() {
@@ -46,6 +82,10 @@ public class CommandResult {
 
     public boolean isExit() {
         return exit;
+    }
+
+    public DisplayTarget getDisplayTarget() {
+        return displayTarget;
     }
 
     @Override
@@ -61,12 +101,13 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && displayTarget == otherCommandResult.displayTarget;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, displayTarget);
     }
 
     @Override
@@ -75,6 +116,7 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("displayTarget", displayTarget)
                 .toString();
     }
 

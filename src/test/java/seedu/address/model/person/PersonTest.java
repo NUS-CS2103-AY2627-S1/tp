@@ -3,20 +3,81 @@ package seedu.address.model.person;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CLASS_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_CLASS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
+
+    @Test
+    public void constructor_duplicateAttendanceDates_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build();
+        List<Attendance> sameDate = List.of(
+                new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT),
+                new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.ABSENT));
+
+        assertThrows(IllegalArgumentException.class, Person.MESSAGE_DUPLICATE_ATTENDANCE_DATE, () ->
+                new Person(person.getName(), person.getClassName(), person.getEmail(), person.getTags(), sameDate));
+        assertThrows(IllegalArgumentException.class, Person.MESSAGE_DUPLICATE_ATTENDANCE_DATE, () ->
+                new Person(person.getName(), person.getClassName(), person.getEmail(), person.getTags(), sameDate,
+                        List.of()));
+    }
+
+    @Test
+    public void constructor_duplicateAssessments_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build();
+        // assessment names are compared ignoring case
+        List<Grade> sameAssessment = List.of(new Grade("Quiz 1", BigDecimal.valueOf(80)),
+                new Grade("quiz 1", BigDecimal.valueOf(20)));
+
+        assertThrows(IllegalArgumentException.class, Person.MESSAGE_DUPLICATE_ASSESSMENT, () ->
+                new Person(person.getName(), person.getClassName(), person.getEmail(), person.getTags(),
+                        List.of(), sameAssessment));
+    }
+
+    @Test
+    public void constructor_differentDatesAndAssessments_success() {
+        Person person = new PersonBuilder().build();
+        List<Attendance> differentDates = List.of(
+                new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT),
+                new Attendance(LocalDate.of(2026, 9, 17), Attendance.Status.PRESENT));
+        List<Grade> differentAssessments = List.of(new Grade("Quiz 1", BigDecimal.valueOf(80)),
+                new Grade("Quiz 2", BigDecimal.valueOf(80)));
+
+        Person withRecords = new Person(person.getName(), person.getClassName(), person.getEmail(),
+                person.getTags(), differentDates, differentAssessments);
+
+        assertEquals(differentDates, withRecords.getAttendanceRecords());
+        assertEquals(differentAssessments, withRecords.getGradeRecords());
+    }
+
+    @Test
+    public void hasUniqueAttendanceDates_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> Person.hasUniqueAttendanceDates(null));
+    }
+
+    @Test
+    public void hasUniqueAssessments_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> Person.hasUniqueAssessments(null));
+    }
 
     @Test
     public void asObservableList_modifyList_throwsUnsupportedOperationException() {
@@ -25,34 +86,250 @@ public class PersonTest {
     }
 
     @Test
-    public void isSamePerson() {
+    public void hasTag_nullTag_throwsNullPointerException() {
+        Person person = new PersonBuilder().build();
+        assertThrows(NullPointerException.class, () -> person.hasTag(null));
+    }
+
+    @Test
+    public void hasTag_tagPresent_returnsTrue() {
+        Person person = new PersonBuilder().withTags("Group A", "team-1").build();
+        assertTrue(person.hasTag(new Tag("team-1")));
+    }
+
+    @Test
+    public void hasTag_tagPresentWithDifferentCasingAndSpacing_returnsTrue() {
+        Person person = new PersonBuilder().withTags("Group A", "team-1").build();
+        assertTrue(person.hasTag(new Tag("  gROUP   a ")));
+    }
+
+    @Test
+    public void hasTag_tagAbsent_returnsFalse() {
+        Person person = new PersonBuilder().withTags("Group A", "team-1").build();
+        assertFalse(person.hasTag(new Tag("Group B")));
+    }
+
+    @Test
+    public void hasTag_personWithoutTags_returnsFalse() {
+        Person person = new PersonBuilder().withTags().build();
+        assertFalse(person.hasTag(new Tag("Group A")));
+    }
+
+    @Test
+    public void withoutTag_nullTag_throwsNullPointerException() {
+        Person person = new PersonBuilder().build();
+        assertThrows(NullPointerException.class, () -> person.withoutTag(null));
+    }
+
+    @Test
+    public void withoutTag_tagPresent_removesOnlyThatTag() {
+        Person person = new PersonBuilder().withTags("Group A", "Group B").build();
+
+        Person untagged = person.withoutTag(new Tag("Group B"));
+
+        assertEquals(new PersonBuilder(person).withTags("Group A").build(), untagged);
+    }
+
+    @Test
+    public void withoutTag_tagPresentWithDifferentCasingAndSpacing_removesTag() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        Person untagged = person.withoutTag(new Tag("  gROUP   a "));
+
+        assertTrue(untagged.getTags().isEmpty());
+    }
+
+    @Test
+    public void withoutTag_tagAbsent_keepsTheSameTags() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        Person untagged = person.withoutTag(new Tag("Group B"));
+
+        assertEquals(person.getTags(), untagged.getTags());
+    }
+
+    @Test
+    public void withoutTag_tagPresent_doesNotModifyOriginalPerson() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        person.withoutTag(new Tag("Group A"));
+
+        assertEquals(Set.of(new Tag("Group A")), person.getTags());
+    }
+
+    @Test
+    public void withoutTag_personWithoutEmail_returnsPersonWithoutEmail() {
+        Person person = new PersonBuilder().withoutEmail().withTags("Group A").build();
+
+        Person untagged = person.withoutTag(new Tag("Group A"));
+
+        assertEquals(new PersonBuilder(person).withTags().build(), untagged);
+        assertTrue(untagged.getEmail().isEmpty());
+    }
+
+    @Test
+    public void withoutTag_personWithRecords_keepsAttendanceAndGradeRecords() {
+        Attendance attendance = new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT);
+        Grade grade = new Grade("Assignment 1", new BigDecimal("97.5"));
+        Person person = new PersonBuilder().withTags("Group A").build().withAttendance(attendance).withGrade(grade);
+
+        Person untagged = person.withoutTag(new Tag("Group A"));
+
+        assertEquals(List.of(attendance), untagged.getAttendanceRecords());
+        assertEquals(List.of(grade), untagged.getGradeRecords());
+    }
+
+    @Test
+    public void withTag_nullTag_throwsNullPointerException() {
+        Person person = new PersonBuilder().build();
+        assertThrows(NullPointerException.class, () -> person.withTag(null));
+    }
+
+    @Test
+    public void withTag_newTag_keepsExistingTagsAndOtherFields() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        Person tagged = person.withTag(new Tag("Group B"));
+
+        assertEquals(new PersonBuilder(person).withTags("Group A", "Group B").build(), tagged);
+    }
+
+    @Test
+    public void withTag_newTag_doesNotModifyOriginalPerson() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        person.withTag(new Tag("Group B"));
+
+        assertEquals(Set.of(new Tag("Group A")), person.getTags());
+    }
+
+    @Test
+    public void withTag_personWithoutEmail_returnsPersonWithoutEmail() {
+        Person person = new PersonBuilder().withoutEmail().withTags().build();
+
+        Person tagged = person.withTag(new Tag("Group A"));
+
+        assertEquals(new PersonBuilder(person).withTags("Group A").build(), tagged);
+        assertTrue(tagged.getEmail().isEmpty());
+    }
+
+    @Test
+    public void withTag_tagAlreadyPresent_keepsExistingTag() {
+        Person person = new PersonBuilder().withTags("Group A").build();
+
+        Person tagged = person.withTag(new Tag("group a"));
+
+        assertEquals(1, tagged.getTags().size());
+        assertEquals("Group A", tagged.getTags().iterator().next().tagName);
+    }
+
+    @Test
+    public void withTag_personWithRecords_keepsAttendanceAndGradeRecords() {
+        Attendance attendance = new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT);
+        Grade grade = new Grade("Assignment 1", new BigDecimal("97.5"));
+        Person person = new PersonBuilder().build().withAttendance(attendance).withGrade(grade);
+
+        Person tagged = person.withTag(new Tag("Group A"));
+
+        assertEquals(List.of(attendance), tagged.getAttendanceRecords());
+        assertEquals(List.of(grade), tagged.getGradeRecords());
+    }
+
+    @Test
+    public void isSamePerson_variousPersons_returnsExpected() {
         // same object -> returns true
         assertTrue(ALICE.isSamePerson(ALICE));
 
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
+        // same name and class, all other attributes different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // name has repeated spaces, all other attributes same -> returns true
+        String nameWithRepeatedSpaces = VALID_NAME_BOB.replace(" ", "   ");
+        editedBob = new PersonBuilder(BOB).withName(nameWithRepeatedSpaces).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // same name, different class, all other attributes same -> returns false
+        editedBob = new PersonBuilder(BOB).withClassName(VALID_CLASS_AMY).build();
         assertFalse(BOB.isSamePerson(editedBob));
+
+        // same name, class differs in case, all other attributes same -> returns true
+        editedBob = new PersonBuilder(BOB).withClassName(VALID_CLASS_BOB.toLowerCase()).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // same name and class, no email, all other attributes same -> returns true
+        editedBob = new PersonBuilder(BOB).withoutEmail().build();
+        assertTrue(BOB.isSamePerson(editedBob));
     }
 
     @Test
-    public void equals() {
+    public void hasNameAndClass_variousInputs_matchesIgnoringCaseAndExtraSpaces() {
+        // exact name and class -> returns true
+        assertTrue(BOB.hasNameAndClass(VALID_NAME_BOB, VALID_CLASS_BOB));
+
+        // name and class differ in case -> returns true
+        assertTrue(BOB.hasNameAndClass(VALID_NAME_BOB.toUpperCase(), VALID_CLASS_BOB.toLowerCase()));
+
+        // name and class have extra spaces -> returns true
+        String nameWithExtraSpaces = "  " + VALID_NAME_BOB.replace(" ", "   ") + " ";
+        assertTrue(BOB.hasNameAndClass(nameWithExtraSpaces, " " + VALID_CLASS_BOB));
+
+        // person without email is matched in the same way -> returns true
+        Person bobWithoutEmail = new PersonBuilder(BOB).withoutEmail().build();
+        assertTrue(bobWithoutEmail.hasNameAndClass(VALID_NAME_BOB, VALID_CLASS_BOB));
+
+        // right name, wrong class -> returns false
+        assertFalse(BOB.hasNameAndClass(VALID_NAME_BOB, VALID_CLASS_AMY));
+
+        // wrong name, right class -> returns false
+        assertFalse(BOB.hasNameAndClass(VALID_NAME_AMY, VALID_CLASS_BOB));
+
+        // name and class swapped -> returns false
+        assertFalse(BOB.hasNameAndClass(VALID_CLASS_BOB, VALID_NAME_BOB));
+
+        // empty or invalid values do not match and do not throw
+        assertFalse(BOB.hasNameAndClass("", ""));
+        assertFalse(BOB.hasNameAndClass("R@chel", "A1/B2"));
+    }
+
+    @Test
+    public void hasNameAndClass_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> BOB.hasNameAndClass(null, VALID_CLASS_BOB));
+        assertThrows(NullPointerException.class, () -> BOB.hasNameAndClass(VALID_NAME_BOB, null));
+    }
+
+    @Test
+    public void getEmail_personWithoutEmail_returnsEmptyOptional() {
+        Person personWithoutEmail = new PersonBuilder().withoutEmail().build();
+        assertTrue(personWithoutEmail.getEmail().isEmpty());
+        assertTrue(new PersonBuilder().build().getEmail().isPresent());
+    }
+
+    @Test
+    public void constructor_nullEmailOptional_throwsNullPointerException() {
+        Person person = new PersonBuilder().build();
+        assertThrows(NullPointerException.class, () ->
+                new Person(person.getName(), person.getClassName(), null, person.getTags()));
+    }
+
+    @Test
+    public void equals_variousPersons_returnsExpected() {
         // same values -> returns true
         Person aliceCopy = new PersonBuilder(ALICE).build();
         assertTrue(ALICE.equals(aliceCopy));
@@ -73,17 +350,22 @@ public class PersonTest {
         Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different phone -> returns false
-        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        // different class -> returns false
+        editedAlice = new PersonBuilder(ALICE).withClassName(VALID_CLASS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
         // different email -> returns false
         editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different address -> returns false
-        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
+        // email removed -> returns false
+        editedAlice = new PersonBuilder(ALICE).withoutEmail().build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // both without email -> returns true
+        Person aliceWithoutEmail = new PersonBuilder(ALICE).withoutEmail().build();
+        assertTrue(aliceWithoutEmail.equals(new PersonBuilder(ALICE).withoutEmail().build()));
+        assertEquals(aliceWithoutEmail.hashCode(), new PersonBuilder(ALICE).withoutEmail().build().hashCode());
 
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
@@ -91,9 +373,203 @@ public class PersonTest {
     }
 
     @Test
-    public void toStringMethod() {
-        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+    public void toString_person_returnsExpectedFormat() {
+        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", className="
+                + ALICE.getClassName() + ", email=" + ALICE.getEmail().get() + ", tags=" + ALICE.getTags()
+                + ", attendanceRecords=" + ALICE.getAttendanceRecords() + ", gradeRecords="
+                + ALICE.getGradeRecords() + "}";
         assertEquals(expected, ALICE.toString());
     }
+
+    @Test
+    public void hasAttendanceOn_variousDates_returnsExpected() {
+        LocalDate date = LocalDate.of(2026, 9, 16);
+        Person person = new PersonBuilder().build().withAttendance(new Attendance(date, Attendance.Status.LATE));
+
+        assertTrue(person.hasAttendanceOn(date));
+        assertFalse(person.hasAttendanceOn(date.plusDays(1)));
+        assertFalse(new PersonBuilder().build().hasAttendanceOn(date));
+    }
+
+    @Test
+    public void hasAttendanceOn_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().hasAttendanceOn(null));
+    }
+
+    @Test
+    public void getAttendanceOn_variousDates_returnsExpected() {
+        LocalDate date = LocalDate.of(2026, 9, 16);
+        Attendance record = new Attendance(date, Attendance.Status.LATE);
+        Person person = new PersonBuilder().build().withAttendance(record);
+
+        assertEquals(Optional.of(record), person.getAttendanceOn(date));
+        assertEquals(Optional.empty(), person.getAttendanceOn(date.plusDays(1)));
+        assertEquals(Optional.empty(), new PersonBuilder().build().getAttendanceOn(date));
+    }
+
+    @Test
+    public void getAttendanceOn_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().getAttendanceOn(null));
+    }
+
+    @Test
+    public void getGradeFor_variousAssessments_returnsTheStoredGrade() {
+        Grade stored = new Grade("Quiz 1", BigDecimal.TEN);
+        Person person = new PersonBuilder().build().withGrade(stored);
+
+        assertEquals(Optional.of(stored), person.getGradeFor(new Grade("Quiz 1", BigDecimal.ONE)));
+        assertEquals(Optional.of(stored), person.getGradeFor(new Grade("  QUIZ   1 ", BigDecimal.ONE)));
+        assertEquals(Optional.empty(), person.getGradeFor(new Grade("Quiz 2", BigDecimal.TEN)));
+        assertEquals(Optional.empty(), new PersonBuilder().build().getGradeFor(new Grade("Quiz 1", BigDecimal.TEN)));
+    }
+
+    @Test
+    public void getGradeFor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().getGradeFor(null));
+    }
+
+    @Test
+    public void hasGradeFor_variousAssessments_returnsExpected() {
+        Person person = new PersonBuilder().build().withGrade(new Grade("Quiz 1", BigDecimal.TEN));
+
+        assertTrue(person.hasGradeFor(new Grade("Quiz 1", BigDecimal.ONE))); // score is not compared
+        assertTrue(person.hasGradeFor(new Grade("  QUIZ   1 ", BigDecimal.ONE))); // case and spaces
+        assertFalse(person.hasGradeFor(new Grade("Quiz 2", BigDecimal.TEN)));
+        assertFalse(new PersonBuilder().build().hasGradeFor(new Grade("Quiz 1", BigDecimal.TEN)));
+    }
+
+    @Test
+    public void hasGradeFor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().hasGradeFor(null));
+    }
+
+    @Test
+    public void withAttendance_newDate_returnsPersonWithRecord() {
+        LocalDate date = LocalDate.of(2026, 9, 16);
+        Attendance record = new Attendance(date, Attendance.Status.PRESENT);
+
+        Person updatedPerson = new PersonBuilder().build().withAttendance(record);
+
+        assertEquals(Collections.singletonList(record), updatedPerson.getAttendanceRecords());
+    }
+
+    @Test
+    public void withAttendance_duplicateDate_throwsIllegalArgumentException() {
+        LocalDate date = LocalDate.of(2026, 9, 16);
+        Person person = new PersonBuilder().build()
+            .withAttendance(new Attendance(date, Attendance.Status.PRESENT));
+
+        assertThrows(IllegalArgumentException.class, () ->
+            person.withAttendance(new Attendance(date, Attendance.Status.ABSENT)));
+    }
+
+    @Test
+    public void withoutAttendance_existingAttendance_removesOnlySpecifiedAttendance() {
+        Attendance first = new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT);
+        Attendance second = new Attendance(LocalDate.of(2026, 9, 17), Attendance.Status.ABSENT);
+        Person original = new PersonBuilder().build().withAttendance(first).withAttendance(second);
+
+        Person updated = original.withoutAttendance(first);
+
+        assertEquals(List.of(first, second), original.getAttendanceRecords());
+        assertEquals(List.of(second), updated.getAttendanceRecords());
+    }
+
+    @Test
+    public void withoutAttendance_nullAttendance_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().withoutAttendance(null));
+    }
+
+    @Test
+    public void withoutAttendance_missingAttendance_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build().withAttendance(
+                new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT));
+
+        assertThrows(IllegalArgumentException.class, () -> person.withoutAttendance(
+                new Attendance(LocalDate.of(2026, 9, 17), Attendance.Status.PRESENT)));
+    }
+
+    @Test
+    public void attendanceRecords_modifyList_throwsUnsupportedOperationException() {
+        Person person = new PersonBuilder().build()
+            .withAttendance(new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT));
+
+        assertThrows(UnsupportedOperationException.class, () -> person.getAttendanceRecords().add(
+            new Attendance(LocalDate.of(2026, 9, 17), Attendance.Status.ABSENT)));
+    }
+
+    @Test
+    public void equals_differentAttendanceRecords_returnsFalse() {
+        Person personWithoutAttendance = new PersonBuilder().build();
+        Person personWithAttendance = personWithoutAttendance.withAttendance(
+            new Attendance(LocalDate.of(2026, 9, 16), Attendance.Status.PRESENT));
+
+        assertFalse(personWithoutAttendance.equals(personWithAttendance));
+    }
+
+    @Test
+    public void equals_differentGradeRecords_returnsFalse() {
+        Person personWithoutGrades = new PersonBuilder().build();
+        Person personWithGrade = personWithoutGrades.withGrade(new Grade("Quiz 1", new BigDecimal("90")));
+
+        assertFalse(personWithoutGrades.equals(personWithGrade));
+    }
+
+    @Test
+    public void withGrade_newAssessment_returnsPersonWithGrade() {
+        Person original = new PersonBuilder().build();
+        Grade grade = new Grade("Assignment 1", new BigDecimal("97.5"));
+
+        Person updated = original.withGrade(grade);
+
+        assertTrue(original.getGradeRecords().isEmpty());
+        assertEquals(List.of(grade), updated.getGradeRecords());
+
+        assertThrows(IllegalArgumentException.class, () ->
+            updated.withGrade(new Grade("Assignment 1", BigDecimal.ONE)));
+        assertThrows(UnsupportedOperationException.class, () -> updated.getGradeRecords().clear());
+    }
+
+    @Test
+    public void withGrade_sameAssessmentWithExtraSpaces_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build().withGrade(new Grade("Quiz 1", new BigDecimal("90")));
+
+        assertThrows(IllegalArgumentException.class, () ->
+            person.withGrade(new Grade(" quiz   1 ", new BigDecimal("80"))));
+    }
+
+    @Test
+    public void withGrade_sameAssessmentDifferentCase_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build().withGrade(new Grade("Quiz 1", new BigDecimal("90")));
+
+        assertThrows(IllegalArgumentException.class, () ->
+            person.withGrade(new Grade("quiz 1", new BigDecimal("80"))));
+    }
+
+    @Test
+    public void withoutGrade_existingGrade_removesOnlySpecifiedGrade() {
+        Grade quiz = new Grade("Quiz 1", new BigDecimal("90"));
+        Grade exam = new Grade("Exam", new BigDecimal("80"));
+        Person original = new PersonBuilder().build().withGrade(quiz).withGrade(exam);
+
+        Person updated = original.withoutGrade(quiz);
+
+        assertEquals(List.of(quiz, exam), original.getGradeRecords());
+        assertEquals(List.of(exam), updated.getGradeRecords());
+    }
+
+    @Test
+    public void withoutGrade_nullGrade_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new PersonBuilder().build().withoutGrade(null));
+    }
+
+    @Test
+    public void withoutGrade_missingGrade_throwsIllegalArgumentException() {
+        Person person = new PersonBuilder().build()
+                .withGrade(new Grade("Quiz 1", new BigDecimal("90")));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                person.withoutGrade(new Grade("Exam", new BigDecimal("80"))));
+    }
+
 }

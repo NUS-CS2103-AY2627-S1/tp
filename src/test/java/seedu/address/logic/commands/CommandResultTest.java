@@ -4,17 +4,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandResult.DisplayTarget.ATTENDANCE_HISTORY;
+import static seedu.address.logic.commands.CommandResult.DisplayTarget.GRADE_HISTORY;
+import static seedu.address.logic.commands.CommandResult.DisplayTarget.RESULT_DISPLAY;
+import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
 public class CommandResultTest {
+    // EP_1: Invalid flags, showHelp and exit are both true
     @Test
-    public void equals() {
+    public void constructor_showHelpAndExit_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, CommandResult.MESSAGE_HELP_AND_EXIT, () ->
+                new CommandResult("feedback", true, true));
+    }
+
+    // EP_2_1: Invalid constructor. Feedback is null, for both constructor forms
+    @Test
+    public void constructor_nullFeedback_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new CommandResult(null));
+        assertThrows(NullPointerException.class, () -> new CommandResult(null, true, false));
+    }
+
+    // EP_2_2: Invalid constructor. display target is null, for both constructor forms
+    @Test
+    public void constructor_nullDisplayTarget_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new CommandResult("feedback", null));
+        assertThrows(NullPointerException.class, () -> new CommandResult("feedback", false, false, null));
+    }
+
+    // Command equality behavior
+    @Test
+    public void equals_variousResults_returnsExpected() {
         CommandResult commandResult = new CommandResult("feedback");
 
         // same values -> returns true
         assertTrue(commandResult.equals(new CommandResult("feedback")));
         assertTrue(commandResult.equals(new CommandResult("feedback", false, false)));
+        assertTrue(commandResult.equals(new CommandResult("feedback", false, false, RESULT_DISPLAY)));
 
         // same object -> returns true
         assertTrue(commandResult.equals(commandResult));
@@ -33,10 +60,14 @@ public class CommandResultTest {
 
         // different exit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+
+        // different displayTarget value -> returns false
+        assertFalse(commandResult.equals(new CommandResult("feedback", ATTENDANCE_HISTORY)));
     }
 
+    // Command equality behavior
     @Test
-    public void hashcode() {
+    public void hashCode_variousResults_matchesEquality() {
         CommandResult commandResult = new CommandResult("feedback");
 
         // same values -> returns same hashcode
@@ -50,14 +81,19 @@ public class CommandResultTest {
 
         // different exit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+
+        // different displayTarget value -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", GRADE_HISTORY).hashCode());
     }
 
+    // Command equality behavior
     @Test
-    public void toStringMethod() {
+    public void toString_commandResult_returnsExpectedFormat() {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", displayTarget=" + commandResult.getDisplayTarget() + "}";
         assertEquals(expected, commandResult.toString());
     }
+
 }

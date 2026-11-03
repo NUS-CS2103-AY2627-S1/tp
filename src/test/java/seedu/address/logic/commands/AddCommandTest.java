@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
@@ -26,11 +25,13 @@ import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
 
+    // EP_1: Test for constructor with null person
     @Test
     public void constructor_nullPerson_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> new AddCommand(null));
     }
 
+    // EP_2: Person does not exist
     @Test
     public void execute_personAcceptedByModel_addSuccessful() throws Exception {
         ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
@@ -38,22 +39,46 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validPerson.getName(), validPerson.getClassName()),
                 commandResult.getFeedbackToUser());
+        assertEquals("Amy Bee in class A1 added to contacts", commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
 
+    // EP_3: Execute with null model
+    @Test
+    public void execute_nullModel_throwsNullPointerException() {
+        AddCommand addCommand = new AddCommand(new PersonBuilder().build());
+        assertThrows(NullPointerException.class, () -> addCommand.execute(null));
+    }
+
+    // EP_4: Model does not store person
+    @Test
+    public void execute_modelDoesNotStorePerson_throwsAssertionError() {
+        AddCommand addCommand = new AddCommand(new PersonBuilder().build());
+        ModelStub modelStub = new ModelStubDroppingPersonAdded();
+
+        // Gradle runs the tests with assertions enabled
+        assertThrows(AssertionError.class, () -> addCommand.execute(modelStub));
+    }
+
+    // EP_5: Person already exists
     @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expectedMessage = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON, validPerson.getName(),
+                validPerson.getClassName());
+
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+        assertEquals("Amy Bee already exists in class A1", expectedMessage);
     }
 
+    // Command equality behavior
     @Test
-    public void equals() {
+    public void equals_variousCommands_returnsExpected() {
         Person alice = new PersonBuilder().withName("Alice").build();
         Person bob = new PersonBuilder().withName("Bob").build();
         AddCommand addAliceCommand = new AddCommand(alice);
@@ -76,8 +101,9 @@ public class AddCommandTest {
         assertFalse(addAliceCommand.equals(addBobCommand));
     }
 
+    // Command equality behavior
     @Test
-    public void toStringMethod() {
+    public void toString_addCommand_returnsExpectedFormat() {
         AddCommand addCommand = new AddCommand(ALICE);
         String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
         assertEquals(expected, addCommand.toString());
@@ -158,6 +184,21 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return this.person.isSamePerson(person);
+        }
+    }
+
+    /**
+     * A Model stub that reports no person as present, and ignores the person being added.
+     */
+    private class ModelStubDroppingPersonAdded extends ModelStub {
+        @Override
+        public boolean hasPerson(Person person) {
+            return false;
+        }
+
+        @Override
+        public void addPerson(Person person) {
+            // Intentionally does nothing, to simulate a model that fails to store the person
         }
     }
 

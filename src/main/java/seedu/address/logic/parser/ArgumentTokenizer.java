@@ -3,23 +3,35 @@ package seedu.address.logic.parser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import seedu.address.commons.util.StringUtil;
+
 /**
- * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
- *     e.g. {@code some preamble text t/ 11.00 t/12.00 k/ m/ July}  where prefixes are {@code t/ k/ m/}.<br>
- * 1. An argument's value can be an empty string e.g. the value of {@code k/} in the above example.<br>
+ * Tokenizes arguments string of the form: {@code preamble <prefix> value <prefix> value ...}<br>
+ *     e.g. {@code some preamble text /t 11.00 /t 12.00 /k /m July}  where prefixes are {@code /t /k /m}.<br>
+ * 1. An argument's value can be an empty string e.g. the value of {@code /k} in the above example.<br>
  * 2. Leading and trailing whitespaces of an argument value will be discarded.<br>
- * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code t/}
+ * 3. An argument may be repeated and all its values will be accumulated e.g. the value of {@code /t}
  *    in the above example.<br>
+ * 4. A prefix is only recognized if it is preceded by a whitespace and followed by a whitespace or the end of
+ *    the arguments string e.g. {@code /classroom} is not recognized as the prefix {@code /class}.<br>
+ * 5. A prefix is recognized whatever its case e.g. {@code /Class} is the prefix {@code /class}. Only the English
+ *    letters are matched ignoring case, so that no letter of another language matches a prefix by accident.<br>
  */
 public class ArgumentTokenizer {
+
+    /** Matches a whitespace-delimited token that starts with a slash, which is how all prefixes begin. */
+    private static final Pattern PREFIX_LIKE_TOKEN = Pattern.compile("(?<=\\s)/\\S*");
 
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
      * respective argument values. Only the given prefixes will be recognized in the arguments string.
      *
-     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
+     * @param argsString Arguments string of the form: {@code preamble <prefix> value <prefix> value ...}
      * @param prefixes   Prefixes to tokenize the arguments string with
      * @return           ArgumentMultimap object that maps prefixes to their arguments
      */
@@ -29,9 +41,39 @@ public class ArgumentTokenizer {
     }
 
     /**
+     * Returns the tokens in the arguments string that look like prefixes, i.e. start with a slash and are
+     * preceded by a whitespace, but are not one of the {@code knownPrefixes}. The tokens are returned in the
+     * order they appear, including repeated occurrences. A token that only differs from a known prefix, or one
+     * of its aliases, in the case of its English letters is a known prefix.
+     *
+     * E.g. if {@code argsString} = " /name John /phone 123 /names" and {@code knownPrefixes} = {"/name"},
+     * this method returns ["/phone", "/names"].
+     *
+     * @param argsString    Arguments string of the form: {@code preamble <prefix> value <prefix> value ...}
+     * @param knownPrefixes Prefixes that are recognized and hence are not reported
+     * @return              List of unrecognized prefix-like tokens, empty if there are none
+     */
+    public static List<String> findUnrecognizedPrefixes(String argsString, Prefix... knownPrefixes) {
+        Set<String> knownPrefixStrings = Arrays.stream(knownPrefixes)
+                .flatMap(prefix -> prefix.getAllForms().stream())
+                .map(StringUtil::toAsciiLowerCase)
+                .collect(Collectors.toSet());
+
+        List<String> unrecognizedPrefixes = new ArrayList<>();
+        Matcher matcher = PREFIX_LIKE_TOKEN.matcher(argsString);
+        while (matcher.find()) {
+            String token = matcher.group();
+            if (!knownPrefixStrings.contains(StringUtil.toAsciiLowerCase(token))) {
+                unrecognizedPrefixes.add(token);
+            }
+        }
+        return unrecognizedPrefixes;
+    }
+
+    /**
      * Finds all zero-based prefix positions in the given arguments string.
      *
-     * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
+     * @param argsString Arguments string of the form: {@code preamble <prefix> value <prefix> value ...}
      * @param prefixes   Prefixes to find in the arguments string
      * @return           List of zero-based prefix positions in the given arguments string
      */
@@ -46,12 +88,24 @@ public class ArgumentTokenizer {
      */
     private static List<PrefixPosition> findPrefixPositions(String argsString, Prefix prefix) {
         List<PrefixPosition> positions = new ArrayList<>();
+        for (String form : prefix.getAllForms()) {
+            positions.addAll(findFormPositions(argsString, prefix, form));
+        }
+        return positions;
+    }
 
-        int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
-        while (prefixPosition != -1) {
-            PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
-            positions.add(extendedPrefix);
-            prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
+    /**
+     * Finds the zero-based positions of {@code form}, which is the full form or an alias of {@code prefix}, in
+     * the given arguments string. Each position is for {@code prefix}, and remembers the length of
+     * {@code form}.
+     */
+    private static List<PrefixPosition> findFormPositions(String argsString, Prefix prefix, String form) {
+        List<PrefixPosition> positions = new ArrayList<>();
+
+        int formPosition = findPrefixPosition(argsString, form, 0);
+        while (formPosition != -1) {
+            positions.add(new PrefixPosition(prefix, formPosition, form.length()));
+            formPosition = findPrefixPosition(argsString, form, formPosition);
         }
 
         return positions;
@@ -59,20 +113,45 @@ public class ArgumentTokenizer {
 
     /**
      * Returns the index of the first occurrence of {@code prefix} in
-     * {@code argsString} starting from index {@code fromIndex}. An occurrence
-     * is valid if there is a whitespace before {@code prefix}. Returns -1 if no
-     * such occurrence can be found.
+     * {@code argsString} starting from index {@code fromIndex}, ignoring the case of English letters.
+     * An occurrence is valid if there is a whitespace before {@code prefix} and a whitespace
+     * or the end of {@code argsString} after it. Returns -1 if no such
+     * occurrence can be found.
      *
-     * E.g if {@code argsString} = "e/hip/900", {@code prefix} = "p/" and
+     * E.g if {@code argsString} = "e/hip/ 900", {@code prefix} = "p/" and
      * {@code fromIndex} = 0, this method returns -1 as there are no valid
-     * occurrences of "p/" with whitespace before it. However, if
-     * {@code argsString} = "e/hi p/900", {@code prefix} = "p/" and
-     * {@code fromIndex} = 0, this method returns 5.
+     * occurrences of "p/" with whitespace before it. Similarly, if
+     * {@code argsString} = "e/hi /names", {@code prefix} = "/name" and
+     * {@code fromIndex} = 0, this method returns -1 as "/name" is not followed
+     * by whitespace. However, if {@code argsString} = "e/hi p/ 900",
+     * {@code prefix} = "p/" and {@code fromIndex} = 0, this method returns 5.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        int prefixIndex = indexOfIgnoringCase(argsString, " " + prefix, fromIndex);
+        while (prefixIndex != -1) {
+            int prefixPosition = prefixIndex + 1; // +1 as offset for whitespace
+            if (isEndOfToken(argsString, prefixPosition + prefix.length())) {
+                return prefixPosition;
+            }
+            prefixIndex = indexOfIgnoringCase(argsString, " " + prefix, prefixPosition);
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the index of the first occurrence of {@code target} in {@code text} at or after
+     * {@code fromIndex}, where the English letters of the two strings are compared ignoring case.
+     * Returns -1 if there is no such occurrence.
+     */
+    private static int indexOfIgnoringCase(String text, String target, int fromIndex) {
+        return StringUtil.toAsciiLowerCase(text).indexOf(StringUtil.toAsciiLowerCase(target), fromIndex);
+    }
+
+    /**
+     * Returns true if {@code index} is the end of {@code argsString} or points to a whitespace.
+     */
+    private static boolean isEndOfToken(String argsString, int index) {
+        return index == argsString.length() || Character.isWhitespace(argsString.charAt(index));
     }
 
     /**
@@ -80,7 +159,7 @@ public class ArgumentTokenizer {
      * extracted prefixes to their respective arguments. Prefixes are extracted based on their zero-based positions in
      * {@code argsString}.
      *
-     * @param argsString      Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
+     * @param argsString      Arguments string of the form: {@code preamble <prefix> value <prefix> value ...}
      * @param prefixPositions Zero-based positions of all prefixes in {@code argsString}
      * @return                ArgumentMultimap object that maps prefixes to their arguments
      */
@@ -90,11 +169,11 @@ public class ArgumentTokenizer {
         prefixPositions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
 
         // Insert a PrefixPosition to represent the preamble
-        PrefixPosition preambleMarker = new PrefixPosition(new Prefix(""), 0);
+        PrefixPosition preambleMarker = new PrefixPosition(new Prefix(""), 0, 0);
         prefixPositions.addFirst(preambleMarker);
 
         // Add a dummy PrefixPosition to represent the end of the string
-        PrefixPosition endPositionMarker = new PrefixPosition(new Prefix(""), argsString.length());
+        PrefixPosition endPositionMarker = new PrefixPosition(new Prefix(""), argsString.length(), 0);
         prefixPositions.add(endPositionMarker);
 
         // Map prefixes to their argument values (if any)
@@ -116,28 +195,33 @@ public class ArgumentTokenizer {
     private static String extractArgumentValue(String argsString,
                                         PrefixPosition currentPrefixPosition,
                                         PrefixPosition nextPrefixPosition) {
-        Prefix prefix = currentPrefixPosition.getPrefix();
-
-        int valueStartPos = currentPrefixPosition.getStartPosition() + prefix.getPrefix().length();
+        int valueStartPos = currentPrefixPosition.getStartPosition() + currentPrefixPosition.getLength();
         String value = argsString.substring(valueStartPos, nextPrefixPosition.getStartPosition());
 
         return value.trim();
     }
 
     /**
-     * Represents a prefix's position in an arguments string.
+     * Represents a prefix's position in an arguments string. The length is the length of the text that was
+     * found, which is the full form of the prefix or one of its aliases.
      */
     private static class PrefixPosition {
         private int startPosition;
         private final Prefix prefix;
+        private final int length;
 
-        PrefixPosition(Prefix prefix, int startPosition) {
+        PrefixPosition(Prefix prefix, int startPosition, int length) {
             this.prefix = prefix;
             this.startPosition = startPosition;
+            this.length = length;
         }
 
         int getStartPosition() {
             return startPosition;
+        }
+
+        int getLength() {
+            return length;
         }
 
         Prefix getPrefix() {

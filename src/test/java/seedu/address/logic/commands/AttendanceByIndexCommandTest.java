@@ -1,0 +1,249 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.time.LocalDate;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Attendance;
+import seedu.address.model.person.Person;
+
+/**
+ * Contains integration tests (interaction with the Model) and unit tests for
+ * {@code AttendanceByIndexCommand}.
+ */
+public class AttendanceByIndexCommandTest {
+
+    private static final LocalDate DATE = LocalDate.of(2026, 9, 16);
+
+    private final Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+
+    // EP_1: Test for constructor with null parameters
+    @Test
+    public void constructor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                new AttendanceByIndexCommand(null, DATE, Attendance.Status.PRESENT));
+        assertThrows(NullPointerException.class, () ->
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, null, Attendance.Status.PRESENT));
+        assertThrows(NullPointerException.class, () ->
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, null));
+    }
+
+    // EP_2_1: Valid index, unfiltered list
+    @Test
+    public void execute_validIndexUnfilteredList_recordsAttendance() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person,
+                person.withAttendance(new Attendance(DATE, Attendance.Status.ABSENT)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.ABSENT);
+        String expectedMessage = "Attendance for " + person.getName() + " on 16-09-2026 recorded as absent.";
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_2_2: Valid index, filtered list
+    @Test
+    public void execute_validIndexFilteredList_recordsAttendanceOfDisplayedPerson() {
+        showPersonAtIndex(model, INDEX_SECOND_PERSON);
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        showPersonAtIndex(expectedModel, INDEX_SECOND_PERSON);
+        expectedModel.setPerson(person, person.withAttendance(new Attendance(DATE, Attendance.Status.LATE)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.LATE);
+        String expectedMessage = "Attendance for " + person.getName() + " on 16-09-2026 recorded as late.";
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_3_1: Invalid Index, unfiltered list
+    @Test
+    public void execute_invalidIndexUnfilteredList_throwsCommandException() {
+        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(outOfBoundIndex, DATE, Attendance.Status.PRESENT);
+
+        assertCommandFailure(command, model,
+                Messages.getInvalidDisplayedIndexMessage(model.getFilteredPersonList().size()));
+    }
+
+    // EP_3_2: Invalid Index, filtered list
+    @Test
+    public void execute_invalidIndexFilteredList_throwsCommandException() {
+        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+        assertTrue(INDEX_SECOND_PERSON.getZeroBased() < model.getAddressBook().getPersonList().size());
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_SECOND_PERSON, DATE, Attendance.Status.PRESENT);
+
+        assertCommandFailure(command, model,
+                Messages.getInvalidDisplayedIndexMessage(model.getFilteredPersonList().size()));
+    }
+
+    // EP_4_1: Valid date, today's date
+    // Boundary Value: Today's date is a valid date for recording attendance
+    @Test
+    public void execute_todayDate_recordsAttendance() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        LocalDate today = LocalDate.now();
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person,
+                person.withAttendance(new Attendance(today, Attendance.Status.PRESENT)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, today, Attendance.Status.PRESENT);
+        String expectedMessage = "Attendance for " + person.getName() + " on " + Attendance.formatDate(today)
+                + " recorded as present.";
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_4_2: Valid date, zero year
+    @Test
+    public void execute_yearZeroDate_messageShowsYearZero() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        LocalDate date = LocalDate.of(0, 1, 1);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person, person.withAttendance(new Attendance(date, Attendance.Status.LATE)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, date, Attendance.Status.LATE);
+        String expectedMessage = "Attendance for " + person.getName() + " on 01-01-0000 recorded as late."
+                + String.format(AttendanceCommand.MESSAGE_UNUSUAL_YEAR, "0000",
+                        Attendance.EARLIEST_EXPECTED_YEAR);
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_4_3: Valid date, year before earliest expected year
+    @Test
+    public void execute_yearBeforeEarliestExpectedYear_recordsAttendanceWithWarning() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        LocalDate date = LocalDate.of(Attendance.EARLIEST_EXPECTED_YEAR - 1, 12, 31);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person, person.withAttendance(new Attendance(date, Attendance.Status.LATE)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, date, Attendance.Status.LATE);
+        String expectedMessage = "Attendance for " + person.getName() + " on 31-12-1999 recorded as late."
+                + " Warning: the year 1999 is before 2000. If the date is a typo, use deleteA to remove the "
+                + "record and enter it again.";
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_4_4: Valid date, earliest expected year
+    // Boundary Value: The earliest expected year does not give warning
+    @Test
+    public void execute_earliestExpectedYear_recordsAttendanceWithoutWarning() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        LocalDate date = LocalDate.of(Attendance.EARLIEST_EXPECTED_YEAR, 1, 1);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(person, person.withAttendance(new Attendance(date, Attendance.Status.LATE)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, date, Attendance.Status.LATE);
+        String expectedMessage = "Attendance for " + person.getName() + " on 01-01-2000 recorded as late.";
+
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_5: Invalid future date
+    @Test
+    public void execute_futureDate_throwsCommandException() {
+        AttendanceByIndexCommand command = new AttendanceByIndexCommand(
+                INDEX_FIRST_PERSON, LocalDate.now().plusDays(1), Attendance.Status.PRESENT);
+
+        assertCommandFailure(command, model, AttendanceCommand.MESSAGE_FUTURE_DATE);
+    }
+
+    // EP_5_1: Invalid future date, invalid index
+    @Test
+    public void execute_futureDateAndInvalidIndex_reportsFutureDate() {
+        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
+        AttendanceByIndexCommand command = new AttendanceByIndexCommand(
+                outOfBoundIndex, LocalDate.now().plusDays(1), Attendance.Status.PRESENT);
+
+        assertCommandFailure(command, model, AttendanceCommand.MESSAGE_FUTURE_DATE);
+    }
+
+    // EP_6: Duplicate date
+    @Test
+    public void execute_duplicateDate_throwsCommandException() {
+        Person person = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        model.setPerson(person, person.withAttendance(new Attendance(DATE, Attendance.Status.PRESENT)));
+
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.ABSENT);
+
+        assertCommandFailure(command, model, String.format(AttendanceCommand.MESSAGE_DUPLICATE_ATTENDANCE,
+                person.getName(), "16-09-2026", Attendance.Status.PRESENT));
+    }
+
+    // EP_7: Valid attendance record
+    @Test
+    public void execute_validAttendance_recordIsPresentInModel() throws Exception {
+        LocalDate date = LocalDate.of(2026, 9, 16);
+
+        AttendanceByIndexCommand command =
+            new AttendanceByIndexCommand(INDEX_FIRST_PERSON, date, Attendance.Status.PRESENT);
+
+        command.execute(model);
+
+        Person updatedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+        assertTrue(updatedPerson.hasAttendanceOn(date));
+        assertEquals(Attendance.Status.PRESENT, updatedPerson.getAttendanceOn(date).orElseThrow().getStatus());
+    }
+
+    // Command equality behavior
+    @Test
+    public void equals_variousCommands_followsEqualityContract() {
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.PRESENT);
+
+        assertTrue(command.equals(command));
+        assertTrue(command.equals(
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.PRESENT)));
+
+        assertFalse(command.equals(null));
+        assertFalse(command.equals("not an AttendanceByIndexCommand"));
+        assertFalse(command.equals(
+                new AttendanceByIndexCommand(INDEX_SECOND_PERSON, DATE, Attendance.Status.PRESENT)));
+        assertFalse(command.equals(
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE.plusDays(1),
+                        Attendance.Status.PRESENT)));
+        assertFalse(command.equals(
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.ABSENT)));
+    }
+
+    // Command equality behavior
+    @Test
+    public void toString_validCommand_returnsFieldsRepresentation() {
+        AttendanceByIndexCommand command =
+                new AttendanceByIndexCommand(INDEX_FIRST_PERSON, DATE, Attendance.Status.PRESENT);
+        String expected = AttendanceByIndexCommand.class.getCanonicalName()
+                + "{targetIndex=" + INDEX_FIRST_PERSON + ", date=" + DATE + ", status=present}";
+
+        assertEquals(expected, command.toString());
+    }
+
+}

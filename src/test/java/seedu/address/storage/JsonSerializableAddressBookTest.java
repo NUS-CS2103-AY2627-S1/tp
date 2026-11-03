@@ -2,9 +2,14 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalPersons.BOB;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +32,26 @@ public class JsonSerializableAddressBookTest {
         AddressBook addressBookFromFile = dataFromFile.toModelType();
         AddressBook typicalPersonsAddressBook = TypicalPersons.getTypicalAddressBook();
         assertEquals(addressBookFromFile, typicalPersonsAddressBook);
+    }
+
+    @Test
+    public void toModelType_nullPerson_throwsIllegalValueException() {
+        List<JsonAdaptedPerson> personsWithNull = new ArrayList<>();
+        personsWithNull.add(null);
+        JsonSerializableAddressBook dataFromFile = new JsonSerializableAddressBook(personsWithNull);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_EMPTY_PERSON,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_afterConversionFromAddressBook_keepsPersonOrder() throws Exception {
+        AddressBook original = new AddressBook();
+        original.setPersons(List.of(BOB, ALICE, AMY));
+
+        AddressBook restored = new JsonSerializableAddressBook(original).toModelType();
+
+        assertEquals(List.of(BOB, ALICE, AMY), restored.getPersonList());
     }
 
     @Test

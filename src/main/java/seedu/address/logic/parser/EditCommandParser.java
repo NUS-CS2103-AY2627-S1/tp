@@ -2,84 +2,111 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLASS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
-import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new EditCommand object
  */
 public class EditCommandParser implements Parser<EditCommand> {
 
+    public static final String MESSAGE_UNKNOWN_PARAMETER =
+            "Unknown parameter. Use " + PREFIX_NAME + ", " + PREFIX_CLASS + " or " + PREFIX_EMAIL
+            + ParserUtil.MESSAGE_SLASH_WORD_HINT;
+
+    private static final String INVALID_FORMAT_MESSAGE =
+            String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
+
+    private static final Prefix[] EDIT_PREFIXES = {
+        PREFIX_NAME, PREFIX_CLASS, PREFIX_EMAIL
+    };
+
     /**
      * Parses the given {@code String} of arguments in the context of the EditCommand
      * and returns an EditCommand object for execution.
+     * Problems are reported in this order: no arguments, unrecognized parameters, repeated parameters, parameter
+     * missing a space before it, missing index, no detail to edit, invalid index and invalid name, class or email.
+     * A name or class without a value is invalid, and an email without a value removes the email.
      * @throws ParseException if the user input does not conform to the expected format
      */
+    @Override
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+        if (args.isBlank()) {
+            throw new ParseException(INVALID_FORMAT_MESSAGE);
+        }
+        ParserUtil.requireNoUnrecognizedPrefixes(args, MESSAGE_UNKNOWN_PARAMETER, EDIT_PREFIXES);
 
-        Index index;
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, EDIT_PREFIXES);
+        argMultimap.verifyNoDuplicatePrefixesFor(EDIT_PREFIXES);
+        ParserUtil.requireNoStuckPrefixes(args);
 
-        try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
+        String preamble = argMultimap.getPreamble();
+        if (preamble.isBlank()) {
+            throw new ParseException(INVALID_FORMAT_MESSAGE);
+        }
+        if (!hasDetail(argMultimap)) {
+            throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        Index index = ParserUtil.parseIndex(preamble);
+        EditPersonDescriptor editPersonDescriptor = parseDescriptor(argMultimap);
+        return new EditCommand(index, editPersonDescriptor);
+    }
 
+    /**
+     * Returns whether at least one editable parameter was given. A parameter without a value still counts as
+     * given, since an empty email removes it and an empty name or class has its own validation message.
+     */
+    private static boolean hasDetail(ArgumentMultimap argMultimap) {
+        return argMultimap.getValue(PREFIX_NAME).isPresent()
+                || argMultimap.getValue(PREFIX_CLASS).isPresent()
+                || argMultimap.getValue(PREFIX_EMAIL).isPresent();
+    }
+
+    /**
+     * Returns an {@code EditPersonDescriptor} with the details given in {@code argMultimap}.
+     * @throws ParseException if a detail is invalid
+     */
+    private static EditPersonDescriptor parseDescriptor(ArgumentMultimap argMultimap) throws ParseException {
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
 
         if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
             editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
         }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
+        if (argMultimap.getValue(PREFIX_CLASS).isPresent()) {
+            editPersonDescriptor.setClassName(
+                    ParserUtil.parseClassName(argMultimap.getValue(PREFIX_CLASS).get()));
         }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
+        parseEmail(argMultimap, editPersonDescriptor);
 
-        if (!editPersonDescriptor.isAnyFieldEdited()) {
-            throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
-        }
-
-        return new EditCommand(index, editPersonDescriptor);
+        return editPersonDescriptor;
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
+     * Sets the email of {@code editPersonDescriptor} to the email given in {@code argMultimap}, or marks the
+     * email as removed if the email is given without a value. Does nothing if no email is given.
+     * @throws ParseException if the email is invalid
      */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
+    private static void parseEmail(ArgumentMultimap argMultimap, EditPersonDescriptor editPersonDescriptor)
+            throws ParseException {
+        Optional<String> email = argMultimap.getValue(PREFIX_EMAIL);
+        if (email.isEmpty()) {
+            return;
         }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
+        if (email.get().isBlank()) {
+            editPersonDescriptor.setEmailCleared(true);
+        } else {
+            editPersonDescriptor.setEmail(ParserUtil.parseEmail(email.get()));
+        }
     }
 
 }

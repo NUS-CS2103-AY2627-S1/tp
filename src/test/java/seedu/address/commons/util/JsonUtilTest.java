@@ -18,7 +18,7 @@ public class JsonUtilTest {
     private static final Path SERIALIZATION_FILE = TestUtil.getFilePathInSandboxFolder("serialize.json");
 
     @Test
-    public void serializeObjectToJsonFile_noExceptionThrown() throws IOException {
+    public void serializeObjectToJsonFile_validObject_writesExpectedJson() throws IOException {
         SerializableTestClass serializableTestClass = new SerializableTestClass();
         serializableTestClass.setTestValues();
 
@@ -28,7 +28,7 @@ public class JsonUtilTest {
     }
 
     @Test
-    public void deserializeObjectFromJsonFile_noExceptionThrown() throws IOException {
+    public void deserializeObjectFromJsonFile_validJson_returnsExpectedObject() throws IOException {
         FileUtil.writeToFile(SERIALIZATION_FILE, SerializableTestClass.JSON_STRING_REPRESENTATION);
 
         SerializableTestClass serializableTestClass = JsonUtil
@@ -37,6 +37,16 @@ public class JsonUtilTest {
         assertEquals(serializableTestClass.getName(), SerializableTestClass.getNameTestValue());
         assertEquals(serializableTestClass.getListOfLocalDateTimes(), SerializableTestClass.getListTestValues());
         assertEquals(serializableTestClass.getMapOfIntegerToString(), SerializableTestClass.getHashMapTestValues());
+    }
+
+    @Test
+    public void deserializeObjectFromJsonFile_fileWithByteOrderMark_noExceptionThrown() throws IOException {
+        FileUtil.writeToFile(SERIALIZATION_FILE, "\uFEFF" + SerializableTestClass.JSON_STRING_REPRESENTATION);
+
+        SerializableTestClass serializableTestClass = JsonUtil
+                .deserializeObjectFromJsonFile(SERIALIZATION_FILE, SerializableTestClass.class);
+
+        assertEquals(serializableTestClass.getName(), SerializableTestClass.getNameTestValue());
     }
 
     //TODO: @Test jsonUtil_readJsonStringToObjectInstance_correctObject()

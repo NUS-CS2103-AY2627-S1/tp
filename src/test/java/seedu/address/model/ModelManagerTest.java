@@ -8,12 +8,12 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
-import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PersonMatchesKeyword;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -21,7 +21,7 @@ public class ModelManagerTest {
     private ModelManager modelManager = new ModelManager();
 
     @Test
-    public void constructor() {
+    public void constructor_noArguments_usesDefaults() {
         assertEquals(new UserPrefs(), modelManager.getUserPrefs());
         assertEquals(new GuiSettings(), modelManager.getGuiSettings());
         assertEquals(new AddressBook(), new AddressBook(modelManager.getAddressBook()));
@@ -58,6 +58,16 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void addPerson_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.addPerson(null));
+    }
+
+    @Test
+    public void deletePerson_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.deletePerson(null));
+    }
+
+    @Test
     public void hasPerson_personNotInAddressBook_returnsFalse() {
         assertFalse(modelManager.hasPerson(ALICE));
     }
@@ -74,7 +84,41 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void equals() {
+    public void findPerson_validNameAndClass_returnsMatchingPerson() {
+        modelManager.addPerson(ALICE);
+        assertEquals(Optional.of(ALICE),
+                modelManager.findPerson(ALICE.getName().toString(), ALICE.getClassName().toString()));
+    }
+
+    @Test
+    public void findPerson_personNotFound_returnsEmpty() {
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.findPerson("Unknown Student", "A1").isEmpty());
+    }
+
+    @Test
+    public void findPerson_matchingNameDifferentClass_returnsEmpty() {
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.findPerson(ALICE.getName().toString(), "B999").isEmpty());
+    }
+
+    @Test
+    public void findPerson_stringNameAndClass_ignoresCaseAndExtraSpaces() {
+        modelManager.addPerson(ALICE);
+        String name = "  " + ALICE.getName().toString().toUpperCase().replace(" ", "   ") + " ";
+        String className = ALICE.getClassName().toString().toLowerCase();
+        assertEquals(Optional.of(ALICE), modelManager.findPerson(name, className));
+    }
+
+    @Test
+    public void findPerson_stringNameAndClassNotValidOrNotFound_returnsEmpty() {
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.findPerson("@@@", "!!!").isEmpty());
+        assertTrue(modelManager.findPerson(ALICE.getName().toString(), "B999").isEmpty());
+    }
+
+    @Test
+    public void equals_variousModels_returnsExpected() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
@@ -97,8 +141,7 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new PersonMatchesKeyword(ALICE.getName().fullName));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests

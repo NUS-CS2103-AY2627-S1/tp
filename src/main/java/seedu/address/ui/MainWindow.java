@@ -5,11 +5,18 @@ import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -31,6 +38,7 @@ public class MainWindow extends UiPart<Stage> {
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private String startupMessage;
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
@@ -54,15 +62,17 @@ public class MainWindow extends UiPart<Stage> {
 
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
-     * and the data file path to show in the status bar.
+     * and the data file path to show in the status bar. The {@code startupMessage} is shown in the result
+     * display when the window opens, unless it is empty.
      */
-    public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
+    public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath, String startupMessage) {
         super(FXML, primaryStage);
 
         // Set dependencies
         this.primaryStage = primaryStage;
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.startupMessage = startupMessage;
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
@@ -119,6 +129,7 @@ public class MainWindow extends UiPart<Stage> {
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        resultDisplay.setFeedbackToUser(startupMessage);
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
@@ -180,7 +191,12 @@ public class MainWindow extends UiPart<Stage> {
         try {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            switch (commandResult.getDisplayTarget()) {
+                case RESULT_DISPLAY -> resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+                case ATTENDANCE_HISTORY -> showHistoryPopup("Attendance History", commandResult.getFeedbackToUser());
+                case GRADE_HISTORY -> showHistoryPopup("Grade History", commandResult.getFeedbackToUser());
+                default -> throw new AssertionError("Unknown display target: " + commandResult.getDisplayTarget());
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -197,4 +213,42 @@ public class MainWindow extends UiPart<Stage> {
             throw e;
         }
     }
+
+    /**
+     * Shows attendance or grade history in a separate pop-up window.
+     *
+     * @param title heading to show above the history
+     * @param feedback text to display in the pop-up
+     */
+    private void showHistoryPopup(String title, String feedback) {
+        Stage popupStage = new Stage();
+        popupStage.setMinWidth(400);
+        popupStage.setMinHeight(300);
+
+        popupStage.setTitle("ClassMates");
+        popupStage.initOwner(primaryStage);
+
+        Label heading = new Label(title);
+        heading.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        TextArea historyDisplay = new TextArea(feedback);
+        historyDisplay.setEditable(false);
+        historyDisplay.setWrapText(true);
+        historyDisplay.setStyle("-fx-font-size: 14px;");
+
+        VBox.setVgrow(historyDisplay, Priority.ALWAYS);
+
+        Button closeButton = new Button("Close");
+        closeButton.setOnAction(event -> popupStage.close());
+
+        VBox layout = new VBox(10, heading, historyDisplay, closeButton);
+        layout.setPadding(new Insets(10));
+        layout.setStyle("-fx-background-color: #C5A7C9;");
+
+        Scene scene = new Scene(layout, 500, 400);
+
+        popupStage.setScene(scene);
+        popupStage.show();
+    }
+
 }

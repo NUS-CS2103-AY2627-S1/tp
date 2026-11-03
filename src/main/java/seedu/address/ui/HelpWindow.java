@@ -15,8 +15,38 @@ import seedu.address.commons.core.LogsCenter;
  */
 public class HelpWindow extends UiPart<Stage> {
 
-    public static final String USERGUIDE_URL = "https://se-education.org/addressbook-level3/UserGuide.html";
-    public static final String HELP_MESSAGE = "Refer to the user guide: " + USERGUIDE_URL;
+    public static final String USERGUIDE_URL = "https://ay2627s1-cs2103-f09-1.github.io/tp/UserGuide.html";
+    public static final String HELP_MESSAGE = """
+            Command summary
+
+            add /name NAME /class CLASS [/email EMAIL]
+            edit INDEX [/name NAME] [/class CLASS] [/email [EMAIL]]
+            attendance INDEX /date DATE /status STATUS
+            attendance /name NAME /class CLASS /date DATE /status STATUS
+            clear
+            delete INDEX
+            delete /name NAME /class CLASS
+            deleteA INDEX /date DATE
+            deleteA /name NAME /class CLASS /date DATE
+            grade INDEX /assessment ASSESSMENT_NAME /score SCORE
+            grade /name NAME /class CLASS /assessment ASSESSMENT_NAME /score SCORE
+            tag /group GROUP_NAME /members INDEX[,INDEX]...
+            untag /group GROUP_NAME /members INDEX[,INDEX]...
+            list [KEYWORD]
+            import PATH
+            viewA /name NAME /class CLASS
+            viewG /name NAME /class CLASS
+            deleteG INDEX /assessment ASSESSMENT_NAME
+            deleteG /name NAME /class CLASS /assessment ASSESSMENT_NAME
+            help
+            exit
+
+            Shortcuts
+
+            Commands   att = attendance, va = viewA, vg = viewG,
+                       da = deleteA, dg = deleteG
+            Prefixes   /n = /name, /c = /class, /m = /members,
+                       /as = /assessment, /st = /status, /sc = /score""";
 
     private static final Logger logger = LogsCenter.getLogger(HelpWindow.class);
     private static final String FXML = "HelpWindow.fxml";
@@ -99,4 +129,5 @@ public class HelpWindow extends UiPart<Stage> {
         url.putString(USERGUIDE_URL);
         clipboard.setContent(url);
     }
+
 }

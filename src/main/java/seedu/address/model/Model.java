@@ -1,5 +1,6 @@
 package seedu.address.model;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -48,7 +49,7 @@ public interface Model {
     void deletePerson(Person target);
 
     /**
-     * Adds the given person.
+     * Adds the given person to the top of the address book.
      * {@code person} must not already exist in the address book.
      */
     void addPerson(Person person);
@@ -68,4 +69,19 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Finds a person whose name and class match {@code name} and {@code className}, ignoring case and extra
+     * whitespace. The strings do not need to be a valid name or class, in which case they simply do not match.
+     *
+     * @param name name of the person
+     * @param className class of the person
+     * @return the matching person, if one exists
+     */
+    default Optional<Person> findPerson(String name, String className) {
+        return getAddressBook().getPersonList().stream()
+                .filter(person -> person.hasNameAndClass(name, className))
+                .findFirst();
+    }
+
 }

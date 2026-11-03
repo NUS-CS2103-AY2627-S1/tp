@@ -1,0 +1,188 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalRecords.ALICE_WITH_GRADES;
+import static seedu.address.testutil.TypicalRecords.GRADE;
+import static seedu.address.testutil.TypicalRecords.OTHER_GRADE;
+import static seedu.address.testutil.TypicalRecords.getModelWithAliceGrades;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.Messages;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+
+/**
+ * Contains integration tests (interaction with the Model) and unit tests for
+ * {@code DeleteGradeByNameAndClassCommand}.
+ */
+public class DeleteGradeByNameAndClassCommandTest {
+
+    private static final String ALICE_NAME = ALICE.getName().toString();
+    private static final String ALICE_CLASS = ALICE.getClassName().toString();
+
+    private Model model;
+
+    @BeforeEach
+    public void setUp() {
+        model = getModelWithAliceGrades();
+    }
+
+    // EP_1_1: Invalid constructor. Null name, null class, or null assessment
+    @Test
+    public void constructor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                new DeleteGradeByNameAndClassCommand(null, ALICE_CLASS, "Quiz 1"));
+        assertThrows(NullPointerException.class, () ->
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, null, "Quiz 1"));
+        assertThrows(NullPointerException.class, () ->
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, ALICE_CLASS, null));
+    }
+
+    // EP_1_2: Invalid constructor. Invalid assessment name (empty or whitespace)
+    @Test
+    public void constructor_invalidAssessment_throwsAssertionError() {
+        assertThrows(AssertionError.class, () ->
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, ALICE_CLASS, "Quiz 期末"));
+        assertThrows(AssertionError.class, () ->
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, ALICE_CLASS, "   "));
+    }
+
+    // EP_2_1: Valid name, class and assessment. Unfiltered list
+    @Test
+    public void execute_nameAndClassMatch_success() {
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, ALICE_CLASS, "Quiz 1");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(ALICE_WITH_GRADES, ALICE.withGrade(OTHER_GRADE));
+
+        String expectedMessage = String.format(DeleteGradeCommand.MESSAGE_SUCCESS,
+                "90.5", "Quiz 1", ALICE.getName(), ALICE.getClassName());
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+    }
+
+    // EP_2_2: Valid name, class and assessment. Ignore case and extra spaces. Unfiltered list
+    @Test
+    public void execute_caseAndExtraSpacesIgnored_successShowsStoredDetails() {
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand("  aLiCe   Pauline ", "a1", "QUIZ    1");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(ALICE_WITH_GRADES, ALICE.withGrade(OTHER_GRADE));
+
+        assertCommandSuccess(command, model,
+                "Grade of 90.5 for Quiz 1 for student Alice Pauline in class A1 has been deleted",
+                expectedModel);
+    }
+
+    // EP_2_3: Valid name, class and assessment. Same name in other class. Unfiltered list
+    @Test
+    public void execute_sameNameInOtherClass_deletesOnlyMatchingStudentGrade() {
+        Person aliceInOtherClass = new PersonBuilder(ALICE).withClassName("B2").build().withGrade(GRADE);
+        model.addPerson(aliceInOtherClass);
+
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, "b2", "Quiz 1");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(aliceInOtherClass,
+                new PersonBuilder(ALICE).withClassName("B2").build());
+
+        assertCommandSuccess(command, model,
+                "Grade of 90.5 for Quiz 1 for student Alice Pauline in class B2 has been deleted",
+                expectedModel);
+        assertEquals(2, model.getAddressBook().getPersonList().stream()
+                .filter(person -> person.getName().equals(ALICE.getName()))
+                .count());
+        assertEquals(2, model.getAddressBook().getPersonList().stream()
+                .filter(person -> person.equals(ALICE_WITH_GRADES))
+                .findFirst().orElseThrow().getGradeRecords().size());
+    }
+
+    // EP_2_4: Valid name, class and assessment. Filtered list
+    @Test
+    public void execute_personHiddenByFilter_success() {
+        Person bensonWithGrade = BENSON.withGrade(GRADE);
+        model.setPerson(BENSON, bensonWithGrade);
+        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+        assertFalse(model.getFilteredPersonList().contains(bensonWithGrade));
+
+        DeleteGradeByNameAndClassCommand command = new DeleteGradeByNameAndClassCommand(
+                BENSON.getName().toString(), BENSON.getClassName().toString(), "Quiz 1");
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.setPerson(bensonWithGrade, BENSON);
+        showPersonAtIndex(expectedModel, INDEX_FIRST_PERSON);
+
+        assertCommandSuccess(command, model,
+                "Grade of 90.5 for Quiz 1 for student Benson Meier in class A1 has been deleted",
+                expectedModel);
+        assertEquals(1, model.getFilteredPersonList().size());
+        assertTrue(model.getFilteredPersonList().contains(ALICE_WITH_GRADES));
+    }
+
+    // EP_3_1: Name matches, class does not
+    @Test
+    public void execute_matchingNameButOtherClass_throwsCommandException() {
+        // EP: [name matches, class does not]
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand(ALICE_NAME, "Z9", "Quiz 1");
+        assertCommandFailure(command, model, Messages.MESSAGE_CONTACT_NOT_FOUND);
+    }
+
+    // EP_3_2: Class matches, name does not
+    @Test
+    public void execute_matchingClassButOtherName_throwsCommandException() {
+        // EP: [name does not match, class matches] (complement of previous combination)
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand("Nobody Here", ALICE_CLASS, "Quiz 1");
+        assertCommandFailure(command, model, Messages.MESSAGE_CONTACT_NOT_FOUND);
+    }
+
+    // Command equality behavior
+    @Test
+    public void equals_variousCommands_followsEqualityContract() {
+        DeleteGradeByNameAndClassCommand deleteAliceQuiz =
+                new DeleteGradeByNameAndClassCommand("Alice", "A1", "Quiz 1");
+
+        assertTrue(deleteAliceQuiz.equals(deleteAliceQuiz));
+        assertTrue(deleteAliceQuiz.equals(
+                new DeleteGradeByNameAndClassCommand("Alice", "A1", "Quiz 1")));
+        assertFalse(deleteAliceQuiz.equals(null));
+        assertFalse(deleteAliceQuiz.equals(1));
+        assertFalse(deleteAliceQuiz.equals(
+                new DeleteGradeByNameAndClassCommand("Bob", "A1", "Quiz 1")));
+        assertFalse(deleteAliceQuiz.equals(
+                new DeleteGradeByNameAndClassCommand("Alice", "B2", "Quiz 1")));
+        assertFalse(deleteAliceQuiz.equals(
+                new DeleteGradeByNameAndClassCommand("Alice", "A1", "Exam")));
+        assertFalse(deleteAliceQuiz.equals(
+                new DeleteGradeByIndexCommand(INDEX_FIRST_PERSON, "Quiz 1")));
+    }
+
+    // Command equality behavior
+    @Test
+    public void toString_validCommand_returnsFieldsRepresentation() {
+        DeleteGradeByNameAndClassCommand command =
+                new DeleteGradeByNameAndClassCommand("Alice", "A1", "Quiz 1");
+        String expected = DeleteGradeByNameAndClassCommand.class.getCanonicalName()
+                + "{name=Alice, className=A1, assessmentName=Quiz 1}";
+
+        assertEquals(expected, command.toString());
+    }
+
+}
