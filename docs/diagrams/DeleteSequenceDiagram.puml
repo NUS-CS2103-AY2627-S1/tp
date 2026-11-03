@@ -4,10 +4,13 @@ skinparam ArrowFontStyle plain
 
 box Logic LOGIC_COLOR_T1
 participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":InsureConnectParser" as InsureConnectParser LOGIC_COLOR
 participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
 participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
-participant "r:CommandResult" as CommandResult LOGIC_COLOR
+participant "dConfirmed:DeleteCommand" as ConfirmedDeleteCommand LOGIC_COLOR
+participant "r1:CommandResult" as ConfirmationResult LOGIC_COLOR
+participant "r2:CommandResult" as DeletionResult LOGIC_COLOR
+participant "r3:CommandResult" as CancellationResult LOGIC_COLOR
 end box
 
 box Model MODEL_COLOR_T1
@@ -17,17 +20,17 @@ end box
 [-> LogicManager : execute("delete 1")
 activate LogicManager
 
-LogicManager -> AddressBookParser : parseCommand("delete 1")
-activate AddressBookParser
+LogicManager -> InsureConnectParser : parseCommand("delete 1")
+activate InsureConnectParser
 
 create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
+InsureConnectParser -> DeleteCommandParser
 activate DeleteCommandParser
 
-DeleteCommandParser --> AddressBookParser
+DeleteCommandParser --> InsureConnectParser
 deactivate DeleteCommandParser
 
-AddressBookParser -> DeleteCommandParser : parse("1")
+InsureConnectParser -> DeleteCommandParser : parse("1")
 activate DeleteCommandParser
 
 create DeleteCommand
@@ -37,34 +40,83 @@ activate DeleteCommand
 DeleteCommand --> DeleteCommandParser :
 deactivate DeleteCommand
 
-DeleteCommandParser --> AddressBookParser : d
+DeleteCommandParser --> InsureConnectParser : d
 deactivate DeleteCommandParser
 'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
+DeleteCommandParser -[hidden]-> InsureConnectParser
 destroy DeleteCommandParser
 
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
+InsureConnectParser --> LogicManager : d
+deactivate InsureConnectParser
 
 LogicManager -> DeleteCommand : execute(m)
 activate DeleteCommand
 
-DeleteCommand -> Model : deletePerson(1)
-activate Model
+create ConfirmationResult
+DeleteCommand -> ConfirmationResult
+activate ConfirmationResult
 
-Model --> DeleteCommand
-deactivate Model
+ConfirmationResult --> DeleteCommand
+deactivate ConfirmationResult
 
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
-
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
+DeleteCommand --> LogicManager : r1
 deactivate DeleteCommand
 
-[<--LogicManager
+LogicManager -> LogicManager : pendingConfirmationCommand = d
+
+[<-- LogicManager
+deactivate LogicManager
+
+== User responds to confirmation ==
+
+[-> LogicManager : execute("y" / other input)
+activate LogicManager
+
+LogicManager -> LogicManager : commandAwaitingConfirmation = pendingConfirmationCommand
+LogicManager -> LogicManager : pendingConfirmationCommand = null
+
+alt input is "y" (case-insensitive)
+    LogicManager -> DeleteCommand : confirmed()
+    activate DeleteCommand
+
+    create ConfirmedDeleteCommand
+    DeleteCommand -> ConfirmedDeleteCommand
+    activate ConfirmedDeleteCommand
+
+    ConfirmedDeleteCommand --> DeleteCommand : dConfirmed
+    deactivate ConfirmedDeleteCommand
+
+    DeleteCommand --> LogicManager : dConfirmed
+    deactivate DeleteCommand
+
+    LogicManager -> ConfirmedDeleteCommand : execute(m)
+    activate ConfirmedDeleteCommand
+
+    ConfirmedDeleteCommand -> Model : deletePerson(person)
+    activate Model
+
+    Model --> ConfirmedDeleteCommand
+    deactivate Model
+
+    create DeletionResult
+    ConfirmedDeleteCommand -> DeletionResult
+    activate DeletionResult
+
+    DeletionResult --> ConfirmedDeleteCommand
+    deactivate DeletionResult
+
+    ConfirmedDeleteCommand --> LogicManager : r2
+    deactivate ConfirmedDeleteCommand
+
+else input is not "y" (including "n" or empty)
+    create CancellationResult
+    LogicManager -> CancellationResult
+    activate CancellationResult
+
+    CancellationResult --> LogicManager : r3
+    deactivate CancellationResult
+end
+
+[<-- LogicManager
 deactivate LogicManager
 @enduml

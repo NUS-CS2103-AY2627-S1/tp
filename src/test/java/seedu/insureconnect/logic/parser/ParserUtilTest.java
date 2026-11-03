@@ -1,0 +1,288 @@
+package seedu.insureconnect.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.insureconnect.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
+import static seedu.insureconnect.testutil.Assert.assertThrows;
+import static seedu.insureconnect.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.insureconnect.logic.parser.exceptions.ParseException;
+import seedu.insureconnect.model.person.Address;
+import seedu.insureconnect.model.person.Email;
+import seedu.insureconnect.model.person.Name;
+import seedu.insureconnect.model.person.Phone;
+import seedu.insureconnect.model.person.Remark;
+import seedu.insureconnect.model.tag.Tag;
+
+public class ParserUtilTest {
+    private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_PHONE = "65+1234";
+    private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_EMAIL = "example.com";
+    private static final String INVALID_TAG = "#friend";
+
+    private static final String VALID_NAME = "Rachel Walker";
+    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE_WITH_PLUS = "+65123456";
+    private static final String VALID_ADDRESS = "123 Main Street #0505";
+    private static final String VALID_EMAIL = "rachel@example.com";
+    private static final String VALID_TAG_1 = "friend";
+    private static final String VALID_TAG_2 = "neighbour";
+
+    private static final String WHITESPACE = " \t\r\n";
+
+    @Test
+    public void parseIndex_invalidInput_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseIndex("10 a"));
+    }
+
+    @Test
+    public void parseIndex_outOfRangeInput_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
+            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+    }
+
+    @Test
+    public void parseIndex_validInput_success() throws Exception {
+        // No whitespaces
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("1"));
+
+        // Leading and trailing whitespaces
+        assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseName_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
+    }
+
+    @Test
+    public void parseName_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseName(INVALID_NAME));
+    }
+
+    @Test
+    public void parseName_validValueWithoutWhitespace_returnsName() throws Exception {
+        Name expectedName = new Name(VALID_NAME);
+        assertEquals(expectedName, ParserUtil.parseName(VALID_NAME));
+    }
+
+    @Test
+    public void parseName_validValueWithWhitespace_returnsTrimmedName() throws Exception {
+        String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
+        Name expectedName = new Name(VALID_NAME);
+        assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_validValueWithPunctuation_returnsName() throws Exception {
+        String nameWithPunctuation = "Dr. John O'Connor-Smith Jr.";
+        Name expectedName = new Name(nameWithPunctuation);
+        assertEquals(expectedName, ParserUtil.parseName(nameWithPunctuation));
+    }
+
+    @Test
+    public void parseName_validValueWithSlash_returnsName() throws Exception {
+        String nameWithSlash = "Ravi s/o Muthu";
+        Name expectedName = new Name(nameWithSlash);
+        assertEquals(expectedName, ParserUtil.parseName(nameWithSlash));
+    }
+
+    @Test
+    public void parseName_validValueWithEscapedPrefix_returnsUnescapedName() throws Exception {
+        assertEquals(new Name("Mohd a/l Kassim"), ParserUtil.parseName("Mohd !a/l Kassim"));
+        assertEquals(new Name("Mohd a/l Kassim"), ParserUtil.parseName("Mohd a!/l Kassim"));
+        assertEquals(new Name("Tan t/o Smith"), ParserUtil.parseName("Tan !t/o Smith"));
+    }
+
+    @Test
+    public void parseName_escapedExclamationMark_returnsLiteralExclamationMark() throws Exception {
+        assertEquals(new Name("Zoe !"), ParserUtil.parseName("Zoe !!"));
+        assertEquals(new Name("Zoe! Tan"), ParserUtil.parseName("Zoe!! Tan"));
+    }
+
+    @Test
+    public void unescape() {
+        assertEquals("Mohd a/l Kassim", ParserUtil.unescape("Mohd !a/l Kassim"));
+        assertEquals("Mohd a/l Kassim", ParserUtil.unescape("Mohd a!/l Kassim"));
+        assertEquals("Ravi s/o Muthu", ParserUtil.unescape("Ravi s/o Muthu"));
+        assertEquals("!Exclamation", ParserUtil.unescape("!!Exclamation"));
+        assertEquals("Ending with !", ParserUtil.unescape("Ending with !"));
+    }
+
+    @Test
+    public void parsePhone_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
+    }
+
+    @Test
+    public void parsePhone_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone(INVALID_PHONE));
+    }
+
+    @Test
+    public void parsePhone_validValueWithoutWhitespace_returnsPhone() throws Exception {
+        Phone expectedPhone = new Phone(VALID_PHONE);
+        assertEquals(expectedPhone, ParserUtil.parsePhone(VALID_PHONE));
+    }
+
+    @Test
+    public void parsePhone_validValueWithWhitespace_returnsTrimmedPhone() throws Exception {
+        String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
+        Phone expectedPhone = new Phone(VALID_PHONE);
+        assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
+    }
+
+    @Test
+    public void parsePhone_validValueWithLeadingPlus_returnsPhone() throws Exception {
+        Phone expectedPhone = new Phone(VALID_PHONE_WITH_PLUS);
+        assertEquals(expectedPhone, ParserUtil.parsePhone(VALID_PHONE_WITH_PLUS));
+    }
+
+    @Test
+    public void parseAddress_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
+    }
+
+    @Test
+    public void parseAddress_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
+    }
+
+    @Test
+    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
+        Address expectedAddress = new Address(VALID_ADDRESS);
+        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
+    }
+
+    @Test
+    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
+        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
+        Address expectedAddress = new Address(VALID_ADDRESS);
+        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
+    }
+
+    @Test
+    public void parseAddress_escapedPrefixAndExclamation_returnsUnescapedAddress() throws Exception {
+        assertEquals(new Address("Blk 123 t/4!"), ParserUtil.parseAddress("Blk 123 !t/4!!"));
+    }
+
+    @Test
+    public void parseAddress_lengthCheckedAfterUnescaping() throws Exception {
+        String address = "a".repeat(Address.MAX_LENGTH - 1) + "!!";
+        assertEquals(new Address("a".repeat(Address.MAX_LENGTH - 1) + "!"), ParserUtil.parseAddress(address));
+    }
+
+    @Test
+    public void parseAddress_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, Address.MESSAGE_LENGTH_CONSTRAINTS, () ->
+            ParserUtil.parseAddress("a".repeat(Address.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void parseEmail_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
+    }
+
+    @Test
+    public void parseEmail_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+    }
+
+    @Test
+    public void parseEmail_validValueWithoutWhitespace_returnsEmail() throws Exception {
+        Email expectedEmail = new Email(VALID_EMAIL);
+        assertEquals(expectedEmail, ParserUtil.parseEmail(VALID_EMAIL));
+    }
+
+    @Test
+    public void parseEmail_validValueWithWhitespace_returnsTrimmedEmail() throws Exception {
+        String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
+        Email expectedEmail = new Email(VALID_EMAIL);
+        assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseTag_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTag(null));
+    }
+
+    @Test
+    public void parseTag_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTag(INVALID_TAG));
+    }
+
+    @Test
+    public void parseTag_validValueWithoutWhitespace_returnsTag() throws Exception {
+        Tag expectedTag = new Tag(VALID_TAG_1);
+        assertEquals(expectedTag, ParserUtil.parseTag(VALID_TAG_1));
+    }
+
+    @Test
+    public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
+        String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
+        Tag expectedTag = new Tag(VALID_TAG_1);
+        assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    }
+
+    @Test
+    public void parseTags_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTags(null));
+    }
+
+    @Test
+    public void parseTags_collectionWithInvalidTags_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTags(List.of(VALID_TAG_1, INVALID_TAG)));
+    }
+
+    @Test
+    public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
+        assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
+    }
+
+    @Test
+    public void parseTags_collectionWithValidTags_returnsTagSet() throws Exception {
+        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2));
+        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
+
+        assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseRemark_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseRemark(null));
+    }
+
+    @Test
+    public void parseRemark_validValue_returnsNormalizedRemark() throws Exception {
+        // EP: remarks with leading, trailing, and repeated whitespace
+        assertEquals(new Remark("Prefers WhatsApp after 6pm"),
+                ParserUtil.parseRemark("   Prefers   WhatsApp after 6pm   "));
+        assertEquals(new Remark(""), ParserUtil.parseRemark("   "));
+    }
+
+    @Test
+    public void parseRemark_escapingAndPunctuation_returnsExpectedRemark() throws Exception {
+        // EP: escape marker before a prefix-like sequence is removed
+        assertEquals(new Remark("dietary restrictions: n/a Follow up!"),
+                ParserUtil.parseRemark("dietary restrictions: !n/a Follow up!!"));
+
+        // EP: doubled exclamation mark represents one literal exclamation mark
+        assertEquals(new Remark("Follow up!"), ParserUtil.parseRemark("Follow up!!"));
+
+        // EP: single exclamation mark before another character is removed
+        assertEquals(new Remark("Great Thanks"), ParserUtil.parseRemark("Great! Thanks"));
+    }
+
+    @Test
+    public void parseRemark_tooLong_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseRemark("a".repeat(501)));
+    }
+
+
+}

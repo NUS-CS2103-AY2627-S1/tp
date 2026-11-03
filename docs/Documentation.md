@@ -10,7 +10,7 @@ title: Documentation guide
 * To learn how to set up and maintain the project website, follow the guide [_[se-edu/guides] **Using Jekyll for project documentation**_](https://se-education.org/guides/tutorials/jekyll.html).
 * Note these points when adapting the documentation to a different project/product:
   * The 'Site-wide settings' section of the page linked above has information on how to update site-wide elements such as the top navigation bar.
-  * :bulb: In addition to updating content files, you might have to update the config files `docs/_config.yml` and `docs/_sass/minima/_base.scss`. The latter contains a reference to `AB-3` that is used when converting documentation pages to PDF format.
+  * :bulb: In addition to updating content files, you might have to update the config files `docs/_config.yml` and `docs/_sass/minima/_base.scss`. The latter contains a reference to `InsureConnect` that is used when converting documentation pages to PDF format.
 * If you are using IntelliJ for editing documentation files, you can consider enabling 'soft wrapping' for `*.md` files, as explained in [_[se-edu/guides] **Intellij IDEA: Useful settings**_](https://se-education.org/guides/tutorials/intellijUsefulSettings.html#enabling-soft-wrapping)
 
 
@@ -27,3 +27,18 @@ title: Documentation guide
 **Converting a document to the PDF format:**
 
 * See the guide [_[se-edu/guides] **Saving web documents as PDF files**_](https://se-education.org/guides/tutorials/savingPdf.html)
+
+**Maintaining the offline User Guide:**
+
+* The `userguide` (`ug`) command opens a self-contained HTML copy bundled in the JAR.
+* After editing `docs/UserGuide.md` or its screenshots, regenerate the copy:
+  ```sh
+  python3 -m pip install Markdown==3.7
+  python3 tools/generate_offline_guide.py
+  ```
+* Commit both files in `docs/offline/` with the source documentation changes.
+  `./gradlew checkOfflineGuide` verifies their source checksums, and both
+  `check` and resource packaging run this check to prevent stale release guides.
+* The generator embeds screenshots and styles. Only external links need a network.
+  Verify the guide's contents, tables, screenshots and table-of-contents links
+  before releasing. Python is needed only for regeneration, not to build or run the app.
