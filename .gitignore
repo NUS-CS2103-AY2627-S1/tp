@@ -1,6 +1,7 @@
 # Gradle build files
 /.gradle/
 /build/
+/bin/
 src/main/resources/docs/
 
 # IDEA files
@@ -29,3 +30,10 @@ CLAUDE.md
 
 # Temp files
 _temp/
+
+# Others
+/.settings/
+.classpath
+.project
+docs/images/assertion-failure-output.txt
+docs/images/assertion-failure-screenshot.png

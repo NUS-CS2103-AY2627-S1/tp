@@ -5,14 +5,17 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.model.ContactSection;
+import seedu.address.model.ContactSnapshot;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UndoHistory;
 import seedu.address.model.UserPrefs;
 
 /**
  * API of the Storage component
  */
-public interface Storage {
+public interface Storage extends UndoHistory {
 
     /**
      * Returns the file path of the UserPrefs data file.
@@ -49,9 +52,32 @@ public interface Storage {
 
     /**
      * Saves the given {@link ReadOnlyAddressBook} to the storage.
+     * If saving fails, the previously saved address book must remain unchanged.
      * @param addressBook cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
     void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
+
+    /**
+     * Saves one operation with the before-state of both collections in shared undo history.
+     * Identical data is saved without adding history. A failed backup or save preserves saved data and history.
+     * The initiating section is saved even for an identical edit or clear; unrelated failed loads are preserved.
+     */
+    void saveUndoableChange(ContactSnapshot previous, ContactSnapshot candidate,
+            String undoDescription, ContactSection initiatingSection) throws IOException;
+
+    /**
+     * Closes undo storage while preserving history already saved with each successful operation.
+     */
+    void closeUndoHistory();
+
+    /** Returns the file path of the independent favorites collection. */
+    Path getFavouritesFilePath();
+
+    /** Reads favorites, returning an empty optional if the file does not exist. */
+    Optional<ReadOnlyAddressBook> readFavourites() throws DataLoadingException;
+
+    /** Saves favorites atomically, preserving the previous file if saving fails. */
+    void saveFavourites(ReadOnlyAddressBook favourites) throws IOException;
 
 }

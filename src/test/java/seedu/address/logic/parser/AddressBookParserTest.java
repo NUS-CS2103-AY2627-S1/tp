@@ -7,36 +7,119 @@ import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FavouriteCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RecentCommand;
+import seedu.address.logic.commands.TabCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.ContactSection;
+import seedu.address.model.ContactSnapshot;
+import seedu.address.model.UndoHistory;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonContainsKeywordsPredicate;
+import seedu.address.model.person.PersonHasTagsPredicate;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
 
 public class AddressBookParserTest {
 
-    private final AddressBookParser parser = new AddressBookParser();
+    private final AddressBookParser parser = new AddressBookParser(new UndoHistory() {
+        @Override
+        public Optional<ContactSnapshot> readLatestSnapshot() {
+            throw new AssertionError("Parsing must not read undo history");
+        }
+
+        @Override
+        public String getLatestUndoDescription() {
+            throw new AssertionError("Parsing must not read undo descriptions");
+        }
+
+        @Override
+        public void saveRestoredSnapshot(ContactSnapshot snapshot) {
+            throw new AssertionError("Parsing must not save undo history");
+        }
+
+        @Override
+        public void discardLatestSnapshot() {
+            throw new AssertionError("Parsing must not consume undo history");
+        }
+    });
+
+    @Test
+    public void parseCommand_favourite_returnsFavouriteCommand() throws Exception {
+        FavouriteCommand expected = new FavouriteCommand(BigInteger.ONE);
+        Command actual = parser.parseCommand("favourite \t1 ");
+        assertEquals(expected, actual);
+        assertEquals(expected.hashCode(), actual.hashCode());
+    }
+
+    @Test
+    public void parseCommand_favouriteInvalidArguments_reportsUsage() {
+        String expected = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FavouriteCommand.MESSAGE_USAGE);
+        for (String input : List.of("favourite", "favourite 0", "favourite 1 2")) {
+            assertThrows(ParseException.class, expected, () -> parser.parseCommand(input));
+        }
+    }
+
+    @Test
+    public void parseCommand_tab_returnsSelectedSection() throws Exception {
+        assertEquals(new TabCommand(ContactSection.CONTACTS), parser.parseCommand("tab contacts"));
+        TabCommand expected = new TabCommand(ContactSection.FAVOURITES);
+        Command actual = parser.parseCommand("tab favourites");
+        assertEquals(expected, actual);
+        assertEquals(expected.hashCode(), actual.hashCode());
+    }
+
+    @Test
+    public void parseCommand_tabInvalidArguments_reportsUsage() {
+        String expected = String.format(MESSAGE_INVALID_COMMAND_FORMAT, TabCommand.MESSAGE_USAGE);
+        for (String input : List.of("tab", "tab other", "tab favourites extra")) {
+            assertThrows(ParseException.class, expected, () -> parser.parseCommand(input));
+        }
+    }
 
     @Test
     public void parseCommand_add() throws Exception {
         Person person = new PersonBuilder().build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_addWithNote() throws Exception {
+        Person person = new PersonBuilder().withNote("Known through a dating app").build();
+        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
+        assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_addWithTrailingLineBreakInNote_throwsNoteParseException() {
+        Person person = new PersonBuilder().withNote("Known through a dating app").build();
+        String command = PersonUtil.getAddCommand(person) + "\n";
+        assertThrows(ParseException.class, Note.MESSAGE_CONSTRAINTS, () -> parser.parseCommand(command));
     }
 
     @Test
@@ -50,6 +133,18 @@ public class AddressBookParserTest {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_deleteSpacing_returnsDeleteCommand() throws Exception {
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), parser.parseCommand(" \tdelete \t 1\t "));
+    }
+
+    @Test
+    public void parseCommand_deleteWrongCase_throwsUnknownCommand() {
+        for (String input : new String[] {"Delete 1", "DELETE 1"}) {
+            assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand(input));
+        }
     }
 
     @Test
@@ -72,7 +167,15 @@ public class AddressBookParserTest {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
                 FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+        assertEquals(new FindCommand(new PersonContainsKeywordsPredicate(keywords)), command);
+    }
+
+    @Test
+    public void parseCommand_filter() throws Exception {
+        Set<Tag> tags = Set.of(new Tag("friends"), new Tag("owesMoney"));
+        FilterCommand command = (FilterCommand) parser.parseCommand(
+                FilterCommand.COMMAND_WORD + " t/friends t/owesMoney");
+        assertEquals(new FilterCommand(new PersonHasTagsPredicate(tags)), command);
     }
 
     @Test
@@ -85,6 +188,38 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_recent() throws Exception {
+        assertTrue(parser.parseCommand(RecentCommand.COMMAND_WORD) instanceof RecentCommand);
+    }
+
+    @Test
+    public void parseCommand_recentWithArguments_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, RecentCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () ->
+                parser.parseCommand(RecentCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_undoWithoutArguments_returnsUndoCommand() throws Exception {
+        assertTrue(parser.parseCommand("undo") instanceof UndoCommand);
+        assertTrue(parser.parseCommand(" \tundo \t ") instanceof UndoCommand);
+    }
+
+    @Test
+    public void parseCommand_undoWithArgumentsOrWrongCase_throwsParseException() {
+        String usage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, UndoCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, usage, () -> parser.parseCommand("undo 1"));
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("Undo"));
     }
 
     @Test

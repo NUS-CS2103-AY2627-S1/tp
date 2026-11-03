@@ -6,6 +6,7 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
 
@@ -15,6 +16,7 @@ import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
@@ -52,6 +54,27 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parsePositiveInteger_validInput_returnsUnboundedInteger() throws Exception {
+        assertEquals(BigInteger.ONE, ParserUtil.parsePositiveInteger(" \t1\t "));
+        for (String input : new String[] {"2147483647", "2147483648", "9".repeat(1000)}) {
+            assertEquals(new BigInteger(input), ParserUtil.parsePositiveInteger(input));
+        }
+    }
+
+    @Test
+    public void parsePositiveInteger_invalidInput_throwsParseException() {
+        for (String input : new String[] {"", " \t", "0", "01", "-1", "+1", "1.0", "1e3", "abc",
+            "١", "１", "1 2", "1\t2", "\n1", "1\n"}) {
+            assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parsePositiveInteger(input));
+        }
+    }
+
+    @Test
+    public void parsePositiveInteger_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parsePositiveInteger(null));
     }
 
     @Test
@@ -144,6 +167,22 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseNote_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseNote(null));
+    }
+
+    @Test
+    public void parseNote_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Note.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseNote(""));
+        assertThrows(ParseException.class, Note.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseNote("first\nsecond"));
+    }
+
+    @Test
+    public void parseNote_validPaddedValue_returnsTrimmedNote() throws Exception {
+        assertEquals(new Note("Known through an app"), ParserUtil.parseNote(" \u2003Known through an app\u00a0 "));
     }
 
     @Test

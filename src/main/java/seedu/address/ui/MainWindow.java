@@ -5,11 +5,14 @@ import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +20,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ContactSection;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -35,7 +39,15 @@ public class MainWindow extends UiPart<Stage> {
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
     private ResultDisplay resultDisplay;
+    private PersonDetailsPanel personDetailsPanel;
     private HelpWindow helpWindow;
+    private StatusBarFooter statusBarFooter;
+
+    @FXML
+    private Label activeSectionLabel;
+
+    @FXML
+    private Label activeFilterLabel;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +57,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane personDetailsPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -117,25 +132,55 @@ public class MainWindow extends UiPart<Stage> {
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
+        personDetailsPanel = new PersonDetailsPanel();
+        personDetailsPlaceholder.getChildren().add(personDetailsPanel.getRoot());
+
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
-        StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
+        statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        CommandBox commandBox = new CommandBox(this::executeCommand, logic.getCommandWords());
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        refreshActiveSection();
+    }
+
+    /**
+     * Updates the section label, active filter, displayed contacts, favorite indicators, and save path.
+     * Shows favorite indicators only in Contacts, using the same identity rule as the favorite command.
+     */
+    private void refreshActiveSection() {
+        activeSectionLabel.setText(logic.getActiveSection().getDisplayName());
+        String activeFilter = logic.getActiveFilter();
+        boolean hasFilter = !activeFilter.isEmpty();
+        activeFilterLabel.setVisible(hasFilter);
+        activeFilterLabel.setManaged(hasFilter);
+        if (hasFilter) {
+            activeFilterLabel.setText("Active filter: " + activeFilter);
+        }
+        personListPanel.setPersonList(logic.getFilteredPersonList(),
+                person -> logic.getActiveSection() == ContactSection.CONTACTS && logic.isFavourite(person));
+        statusBarFooter.setSaveLocation(logic.getActiveDataFilePath());
     }
 
     /**
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
         if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+            bounds = Screen.getScreensForRectangle(guiSettings.getWindowCoordinates().getX(),
+                    guiSettings.getWindowCoordinates().getY(), 1, 1).stream()
+                    .findFirst().orElse(Screen.getPrimary()).getVisualBounds();
+        }
+        primaryStage.setHeight(Math.min(guiSettings.getWindowHeight(), bounds.getHeight()));
+        primaryStage.setWidth(Math.min(guiSettings.getWindowWidth(), bounds.getWidth()));
+        if (guiSettings.getWindowCoordinates() != null) {
+            primaryStage.setX(Math.max(bounds.getMinX(), Math.min(guiSettings.getWindowCoordinates().getX(),
+                    bounds.getMaxX() - primaryStage.getWidth())));
+            primaryStage.setY(Math.max(bounds.getMinY(), Math.min(guiSettings.getWindowCoordinates().getY(),
+                    bounds.getMaxY() - primaryStage.getHeight())));
         }
     }
 
@@ -179,6 +224,11 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
+            refreshActiveSection();
+            personDetailsPanel.clearIfMissing(logic.getFilteredPersonList());
+            commandResult.getPersonToView().ifPresent(personDetailsPanel::showPerson);
+            personListPanel.clearHighlight();
+            commandResult.getHighlightedIndex().ifPresent(personListPanel::highlight);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 

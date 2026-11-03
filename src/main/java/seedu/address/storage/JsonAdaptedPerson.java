@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -13,6 +14,7 @@ import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
@@ -23,37 +25,61 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String INVALID_ID_MESSAGE = "Contact ID must be a valid UUID.";
 
+    private final String id;
     private final String name;
     private final String phone;
     private final String email;
     private final String address;
+    private final String note;
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
 
     /**
-     * Constructs a {@code JsonAdaptedPerson} with the given person details.
+     * Creates a JSON contact with its persistent ID and details.
+     * A missing ID is supported for files saved before persistent IDs were introduced.
      */
     @JsonCreator
-    public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
+    public JsonAdaptedPerson(@JsonProperty("id") String id,
+            @JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("note") String note, @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+        this.id = id;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.note = note;
         if (tags != null) {
             this.tags.addAll(tags);
         }
     }
 
     /**
+     * Creates a JSON contact without a persistent ID for compatibility with existing callers.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address,
+            String note, List<JsonAdaptedTag> tags) {
+        this(null, name, phone, email, address, note, tags);
+    }
+
+    /**
+     * Constructs a {@code JsonAdaptedPerson} without a note for compatibility with existing callers.
+     */
+    public JsonAdaptedPerson(String name, String phone, String email, String address, List<JsonAdaptedTag> tags) {
+        this(name, phone, email, address, null, tags);
+    }
+
+    /**
      * Converts a given {@code Person} into this class for Jackson use.
      */
     public JsonAdaptedPerson(Person source) {
+        id = source.getId().toString();
         name = source.getName().fullName;
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        note = source.getNote().isEmpty() ? null : source.getNote().value;
         tags.addAll(source.getTags().stream()
                 .map(JsonAdaptedTag::new)
                 .collect(Collectors.toList()));
@@ -65,8 +91,21 @@ class JsonAdaptedPerson {
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
+        final UUID modelId;
+        try {
+            modelId = id == null ? UUID.randomUUID() : UUID.fromString(id);
+            if (id != null && !modelId.toString().equalsIgnoreCase(id)) {
+                throw new IllegalArgumentException(INVALID_ID_MESSAGE);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalValueException(INVALID_ID_MESSAGE);
+        }
+
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException("A tag must not be null.");
+            }
             personTags.add(tag.toModelType());
         }
 
@@ -102,8 +141,18 @@ class JsonAdaptedPerson {
         }
         final Address modelAddress = new Address(address);
 
+        final Note modelNote;
+        if (note == null) {
+            modelNote = Note.empty();
+        } else {
+            if (!Note.isValidNote(note)) {
+                throw new IllegalValueException(Note.MESSAGE_CONSTRAINTS);
+            }
+            modelNote = new Note(note);
+        }
+
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return new Person(modelId, modelName, modelPhone, modelEmail, modelAddress, modelNote, modelTags);
     }
 
 }

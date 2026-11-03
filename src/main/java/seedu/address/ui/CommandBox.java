@@ -1,9 +1,16 @@
 package seedu.address.ui;
 
+import java.util.List;
+import java.util.Optional;
+
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
+import seedu.address.logic.CommandAutocompleter;
+import seedu.address.logic.CommandWords;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
@@ -17,18 +24,70 @@ public class CommandBox extends UiPart<Region> {
     private static final String FXML = "CommandBox.fxml";
 
     private final CommandExecutor commandExecutor;
+    private final CommandHistory commandHistory;
+    private final CommandAutocompleter autocompleter;
+    private boolean isUpdatingFromAutocomplete;
 
     @FXML
     private TextField commandTextField;
 
     /**
-     * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
+     * Creates a {@code CommandBox} with the given {@code CommandExecutor}
+     * and the default command-word list.
      */
     public CommandBox(CommandExecutor commandExecutor) {
+        this(commandExecutor, CommandWords.get(), new CommandHistory());
+    }
+
+    /**
+     * Creates a {@code CommandBox} with the given {@code CommandExecutor}
+     * and command words used for Tab autocomplete.
+     */
+    public CommandBox(CommandExecutor commandExecutor, List<String> commandWords) {
+        this(commandExecutor, commandWords, new CommandHistory());
+    }
+
+    CommandBox(CommandExecutor commandExecutor, CommandHistory commandHistory) {
+        this(commandExecutor, CommandWords.get(), commandHistory);
+    }
+
+    CommandBox(CommandExecutor commandExecutor, List<String> commandWords, CommandHistory commandHistory) {
         super(FXML);
         this.commandExecutor = commandExecutor;
+        this.commandHistory = commandHistory;
+        this.autocompleter = new CommandAutocompleter(commandWords);
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
-        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> {
+            setStyleToDefault();
+            if (!isUpdatingFromAutocomplete) {
+                autocompleter.reset();
+            }
+        });
+        commandTextField.addEventFilter(KeyEvent.KEY_PRESSED, this::handleTabPressed);
+        commandTextField.setOnKeyPressed(this::handleKeyPressed);
+    }
+
+    /**
+     * Completes the command word when Tab is pressed.
+     */
+    private void handleTabPressed(KeyEvent event) {
+        if (event.getCode() != KeyCode.TAB) {
+            return;
+        }
+
+        var completion = autocompleter.complete(commandTextField.getText(), commandTextField.getCaretPosition());
+        if (completion.isEmpty()) {
+            return;
+        }
+
+        event.consume();
+        isUpdatingFromAutocomplete = true;
+        try {
+            commandTextField.setText(completion.get().newText());
+            commandTextField.positionCaret(completion.get().newCaretPosition());
+        } finally {
+            isUpdatingFromAutocomplete = false;
+        }
     }
 
     /**
@@ -41,12 +100,40 @@ public class CommandBox extends UiPart<Region> {
             return;
         }
 
+        commandHistory.add(commandText);
+
         try {
             commandExecutor.execute(commandText);
             commandTextField.setText("");
         } catch (CommandException | ParseException e) {
             setStyleToIndicateCommandFailure();
         }
+    }
+
+    private void handleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.UP) {
+            navigateToPreviousCommand();
+        } else if (event.getCode() == KeyCode.DOWN) {
+            navigateToNextCommand();
+        } else {
+            return;
+        }
+
+        event.consume();
+    }
+
+    private void navigateToPreviousCommand() {
+        Optional<String> previousCommand = commandHistory.getPreviousCommand(commandTextField.getText());
+        previousCommand.ifPresent(this::displayCommand);
+    }
+
+    private void navigateToNextCommand() {
+        commandHistory.getNextCommand().ifPresent(this::displayCommand);
+    }
+
+    private void displayCommand(String command) {
+        commandTextField.setText(command);
+        commandTextField.positionCaret(command.length());
     }
 
     /**

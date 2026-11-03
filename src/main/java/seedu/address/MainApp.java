@@ -20,6 +20,7 @@ import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.ContactDataLoadingException;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
@@ -32,7 +33,7 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.5";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
@@ -42,6 +43,8 @@ public class MainApp extends Application {
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+
+    private String contactLoadError;
 
     @Override
     public void init() throws Exception {
@@ -57,15 +60,19 @@ public class MainApp extends Application {
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), contactLoadError);
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns a {@code ModelManager} with the data from {@code storage}'s address
+     * book and {@code userPrefs}. <br>
+     * The data from the sample address book will be used instead if
+     * {@code storage}'s address book is not found,
+     * or an empty address book will be used instead if errors occur when reading
+     * {@code storage}'s address book. Favorites load independently, defaulting to an empty collection.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+    protected Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+        contactLoadError = null;
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
@@ -81,13 +88,30 @@ public class MainApp extends Application {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
                     + " Will be starting with an empty AddressBook.");
             initialData = new AddressBook();
+            contactLoadError = e instanceof ContactDataLoadingException
+                    ? e.getMessage()
+                    : ContactDataLoadingException.MESSAGE_UNREADABLE;
+            contactLoadError = "Contacts (" + storage.getAddressBookFilePath() + "): " + contactLoadError;
         }
 
-        return new ModelManager(initialData, userPrefs);
+        ReadOnlyAddressBook favourites;
+        try {
+            favourites = storage.readFavourites().orElseGet(AddressBook::new);
+        } catch (DataLoadingException e) {
+            String detail = e instanceof ContactDataLoadingException
+                    ? e.getMessage()
+                    : ContactDataLoadingException.MESSAGE_UNREADABLE;
+            String error = "Favourites (" + storage.getFavouritesFilePath() + "): " + detail;
+            logger.warning(error);
+            contactLoadError = contactLoadError == null ? error : contactLoadError + "\n\n" + error;
+            favourites = new AddressBook();
+        }
+        return new ModelManager(initialData, favourites, userPrefs);
     }
 
     /**
-     * Returns a {@code UserPrefs} using the file at {@code storage}'s user prefs file path,
+     * Returns a {@code UserPrefs} using the file at {@code storage}'s user prefs
+     * file path,
      * or a new {@code UserPrefs} with default configuration if errors occur when
      * reading from the file.
      */
@@ -108,7 +132,8 @@ public class MainApp extends Application {
             initializedPrefs = new UserPrefs();
         }
 
-        //Update prefs file in case it was missing to begin with or there are new/unused fields
+        // Update prefs file in case it was missing to begin with or there are
+        // new/unused fields
         try {
             storage.saveUserPrefs(initializedPrefs);
         } catch (IOException e) {
@@ -131,6 +156,8 @@ public class MainApp extends Application {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {
             logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+        } finally {
+            storage.closeUndoHistory();
         }
     }
 }

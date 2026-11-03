@@ -4,8 +4,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.group.Group;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.UniquePersonList;
 
@@ -16,6 +18,7 @@ import seedu.address.model.person.UniquePersonList;
 public class AddressBook implements ReadOnlyAddressBook {
 
     private final UniquePersonList persons = new UniquePersonList();
+    private final ObservableList<Group> groups = FXCollections.observableArrayList();
 
     public AddressBook() {}
 
@@ -44,6 +47,7 @@ public class AddressBook implements ReadOnlyAddressBook {
         requireNonNull(newData);
 
         setPersons(newData.getPersonList());
+        groups.setAll(newData.getGroupList());
     }
 
     //// person-level operations
@@ -54,6 +58,16 @@ public class AddressBook implements ReadOnlyAddressBook {
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return persons.contains(person);
+    }
+
+    /**
+     * Returns true if a person with the same identity as {@code person} exists in the address book, excluding
+     * {@code personToExclude}.
+     */
+    public boolean hasPersonOtherThan(Person person, Person personToExclude) {
+        requireNonNull(person);
+        requireNonNull(personToExclude);
+        return persons.containsOtherThan(person, personToExclude);
     }
 
     /**
@@ -73,6 +87,14 @@ public class AddressBook implements ReadOnlyAddressBook {
         requireNonNull(editedPerson);
 
         persons.setPerson(target, editedPerson);
+        if (!target.getId().equals(editedPerson.getId())) {
+            for (int i = 0; i < groups.size(); i++) {
+                Group group = groups.get(i);
+                if (group.getMembers().contains(target.getId())) {
+                    groups.set(i, group.withoutMember(target.getId()).withMember(editedPerson.getId()));
+                }
+            }
+        }
     }
 
     /**
@@ -81,6 +103,46 @@ public class AddressBook implements ReadOnlyAddressBook {
      */
     public void removePerson(Person key) {
         persons.remove(key);
+        for (int i = 0; i < groups.size(); i++) {
+            Group group = groups.get(i);
+            if (group.getMembers().contains(key.getId())) {
+                groups.set(i, group.withoutMember(key.getId()));
+            }
+        }
+    }
+
+    /** Adds a group whose name is unique. */
+    public void addGroup(Group group) {
+        requireNonNull(group);
+        if (getGroup(group.getName()) != null) {
+            throw new IllegalArgumentException("Group already exists");
+        }
+        groups.add(group);
+    }
+
+    /** Removes the group with the given name. */
+    public void removeGroup(String name) {
+        requireNonNull(name);
+        if (!groups.removeIf(group -> group.getName().equals(name))) {
+            throw new IllegalArgumentException("Group does not exist");
+        }
+    }
+
+    /** Returns the group with this name, or null if absent. */
+    public Group getGroup(String name) {
+        return groups.stream().filter(group -> group.getName().equals(name)).findFirst().orElse(null);
+    }
+
+    /** Replaces an existing group. */
+    public void setGroup(Group group) {
+        requireNonNull(group);
+        for (int i = 0; i < groups.size(); i++) {
+            if (groups.get(i).getName().equals(group.getName())) {
+                groups.set(i, group);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Group does not exist");
     }
 
     //// util methods
@@ -89,12 +151,18 @@ public class AddressBook implements ReadOnlyAddressBook {
     public String toString() {
         return new ToStringBuilder(this)
                 .add("persons", persons)
+                .add("groups", groups)
                 .toString();
     }
 
     @Override
     public ObservableList<Person> getPersonList() {
         return persons.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Group> getGroupList() {
+        return FXCollections.unmodifiableObservableList(groups);
     }
 
     @Override
@@ -108,11 +176,11 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons) && groups.equals(otherAddressBook.groups);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return java.util.Objects.hash(persons, groups);
     }
 }

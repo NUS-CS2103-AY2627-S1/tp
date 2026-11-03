@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
@@ -16,25 +17,52 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
-    // Identity fields
+    private final UUID id;
     private final Name name;
+
+    // Identity fields
     private final Phone phone;
     private final Email email;
 
     // Data fields
     private final Address address;
+    private final Note note;
     private final Set<Tag> tags = new HashSet<>();
 
     /**
      * Every field must be present and not null.
      */
     public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+        this(name, phone, email, address, Note.empty(), tags);
+    }
+
+    /**
+     * Creates a contact with a new persistent ID and the given details.
+     * Every field must be present and not null. The note may be {@link Note#empty()}.
+     */
+    public Person(Name name, Phone phone, Email email, Address address, Note note, Set<Tag> tags) {
+        this(UUID.randomUUID(), name, phone, email, address, note, tags);
+    }
+
+    /**
+     * Creates a contact with an existing persistent ID, such as when loading or editing a contact.
+     * Every field must be present and not null. The note may be {@link Note#empty()}.
+     *
+     * @throws NullPointerException If any argument is null.
+     */
+    public Person(UUID id, Name name, Phone phone, Email email, Address address, Note note, Set<Tag> tags) {
+        requireAllNonNull(id, name, phone, email, address, note, tags);
+        this.id = id;
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.note = note;
         this.tags.addAll(tags);
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public Name getName() {
@@ -53,6 +81,10 @@ public class Person {
         return address;
     }
 
+    public Note getNote() {
+        return note;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,21 +94,26 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
+     * Returns true if both persons have the same non-empty phone number or email address.
      * This defines a weaker notion of equality between two persons.
      */
     public boolean isSamePerson(Person otherPerson) {
-        if (otherPerson == this) {
-            return true;
+        if (otherPerson == null) {
+            return false;
         }
 
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        boolean hasSamePhone = !phone.value.isEmpty()
+                && !otherPerson.phone.value.isEmpty()
+                && phone.equals(otherPerson.phone);
+        boolean hasSameEmail = !email.value.isEmpty()
+                && !otherPerson.email.value.isEmpty()
+                && email.equals(otherPerson.email);
+        return hasSamePhone || hasSameEmail;
     }
 
     /**
-     * Returns true if both persons have the same identity and data fields.
-     * This defines a stronger notion of equality between two persons.
+     * Returns true if both persons have the same contact details, regardless of their persistent IDs.
+     * Value equality remains separate from persistent identity so unchanged edits remain detectable.
      */
     @Override
     public boolean equals(Object other) {
@@ -93,13 +130,14 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
+                && note.equals(otherPerson.note)
                 && tags.equals(otherPerson.tags);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, note, tags);
     }
 
     @Override
@@ -109,6 +147,7 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("note", note)
                 .add("tags", tags)
                 .toString();
     }
