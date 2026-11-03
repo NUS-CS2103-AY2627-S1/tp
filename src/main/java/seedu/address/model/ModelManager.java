@@ -3,24 +3,33 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentDisplayList;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of the app data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final ReadOnlyObjectWrapper<Predicate<Student>> studentListPredicate =
+            new ReadOnlyObjectWrapper<>(PREDICATE_SHOW_ALL_STUDENTS);
+    private final FilteredList<Student> filteredStudents;
+    private final StudentDisplayList displayedStudents;
+    private final ObservableList<Student> unmodifiableDisplayedStudents;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -32,7 +41,10 @@ public class ModelManager implements Model {
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredStudents = new FilteredList<>(this.addressBook.getStudentList());
+        filteredStudents.predicateProperty().bind(studentListPredicate);
+        displayedStudents = new StudentDisplayList(filteredStudents);
+        unmodifiableDisplayedStudents = FXCollections.unmodifiableObservableList(displayedStudents);
     }
 
     public ModelManager() {
@@ -69,45 +81,54 @@ public class ModelManager implements Model {
         return addressBook;
     }
 
+    //=========== Students =================================================================================
+
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasStudent(Student student) {
+        requireNonNull(student);
+        return addressBook.hasStudent(student);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void addStudent(Student student) {
+        addressBook.addStudent(student);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void setStudent(Student target, Student editedStudent) {
+        requireAllNonNull(target, editedStudent);
+        addressBook.setStudent(target, editedStudent);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
-    }
-
-    //=========== Filtered Person List Accessors =============================================================
-
-    /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
-     */
-    @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public void deleteStudent(Student student) {
+        addressBook.deleteStudent(student);
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
-        requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+    public ObservableList<Student> getStudentList() {
+        return unmodifiableDisplayedStudents;
+    }
+
+    @Override
+    public void updateFilteredStudentList(Predicate<Student> predicate) {
+        studentListPredicate.set(requireNonNull(predicate));
+        displayedStudents.resetOrder();
+    }
+
+    @Override
+    public Predicate<Student> getFilteredStudentListPredicate() {
+        return studentListPredicate.get();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<Predicate<Student>> studentListPredicateProperty() {
+        return studentListPredicate.getReadOnlyProperty();
+    }
+
+    @Override
+    public void setStudentListOrder(List<Student> students) {
+        displayedStudents.setOrder(students);
     }
 
     @Override
@@ -122,8 +143,7 @@ public class ModelManager implements Model {
         }
 
         return addressBook.equals(otherModelManager.addressBook)
-                && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && userPrefs.equals(otherModelManager.userPrefs);
     }
 
 }

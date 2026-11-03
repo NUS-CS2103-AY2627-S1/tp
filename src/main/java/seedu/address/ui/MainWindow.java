@@ -1,22 +1,35 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javafx.animation.PauseTransition;
+import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.FilterCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.SortCommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.student.Student;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -26,16 +39,21 @@ public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
 
-    private final Logger logger = LogsCenter.getLogger(getClass());
+    private final Logger logger = LogsCenter.getLogger(MainWindow.class);
 
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private final Clock clock;
+    private LocalDate displayDate;
+    private final PauseTransition dateRefreshTimer = new PauseTransition();
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private StudentListPanel studentListPanel;
+    private UpcomingPanel upcomingPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandBox commandBox;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +62,13 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane studentListPanelPlaceholder;
+
+    @FXML
+    private StackPane upcomingPanelPlaceholder;
+
+    @FXML
+    private SplitPane contentSplitPane;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -57,7 +81,16 @@ public class MainWindow extends UiPart<Stage> {
      * and the data file path to show in the status bar.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
+        this(primaryStage, logic, dataFilePath, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Creates a window whose sidebar and student cards share the given clock for date-sensitive displays.
+     */
+    MainWindow(Stage primaryStage, Logic logic, Path dataFilePath, Clock clock) {
         super(FXML, primaryStage);
+        this.clock = clock;
+        displayDate = LocalDate.now(clock);
 
         // Set dependencies
         this.primaryStage = primaryStage;
@@ -114,17 +147,79 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
-
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+        resultDisplay.enableScrollingFrom(resultDisplayPlaceholder);
+
+        studentListPanel = createStudentListPanel(logic.getStudentList(), this::handleStudentRenderingError);
+        studentListPanel.bindStudentListPredicate(logic.studentListPredicateProperty());
+        studentListPanelPlaceholder.getChildren().add(studentListPanel.getRoot());
+
+        upcomingPanel = new UpcomingPanel(logic.getAllStudentList(), clock);
+        upcomingPanelPlaceholder.getChildren().add(upcomingPanel.getRoot());
+        // Reserve enough height for wrapped headings at each section's narrowest permitted width.
+        contentSplitPane.minHeightProperty().bind(Bindings.createDoubleBinding(() -> Math.max(
+                studentListPanelPlaceholder.minHeight(studentListPanelPlaceholder.minWidth(-1)),
+                upcomingPanelPlaceholder.minHeight(upcomingPanelPlaceholder.minWidth(-1)))
+                + contentSplitPane.getInsets().getTop() + contentSplitPane.getInsets().getBottom(),
+                studentListPanelPlaceholder.widthProperty(), upcomingPanelPlaceholder.widthProperty(),
+                studentListPanelPlaceholder.minWidthProperty(), upcomingPanelPlaceholder.minWidthProperty(),
+                contentSplitPane.insetsProperty()));
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        helpWindow.getRoot().setOnHidden(unused -> focusCommandBox());
+        dateRefreshTimer.setOnFinished(unused -> refreshDate());
+        primaryStage.showingProperty().addListener((observable, wasShowing, isShowing) -> {
+            if (isShowing) {
+                refreshDate();
+            } else {
+                dateRefreshTimer.stop();
+            }
+        });
+        primaryStage.focusedProperty().addListener((observable, wasFocused, isFocused) -> {
+            if (isFocused) {
+                refreshDate();
+            }
+        });
+        refreshDate();
+    }
+
+    /**
+     * Rechecks the local date after midnight, window activation or a command, keeping both displays consistent.
+     */
+    void refreshDate() {
+        LocalDate today = LocalDate.now(clock);
+        if (!today.equals(displayDate)) {
+            displayDate = today;
+            upcomingPanel.refreshDate(today);
+            studentListPanel.refreshDate();
+        }
+        if (primaryStage.isShowing()) {
+            ZonedDateTime now = ZonedDateTime.now(clock);
+            ZonedDateTime nextDay = now.toLocalDate().plusDays(1).atStartOfDay(clock.getZone());
+            long delay = java.time.Duration.between(now, nextDay).toMillis();
+            dateRefreshTimer.setDuration(Duration.millis(Math.max(1, delay)));
+            dateRefreshTimer.playFromStart();
+        }
+    }
+
+    /**
+     * Creates the panel for {@code students}, reporting rendering failures through {@code renderingErrorHandler}.
+     */
+    StudentListPanel createStudentListPanel(ObservableList<Student> students, Runnable renderingErrorHandler) {
+        return new StudentListPanel(students, renderingErrorHandler, (student, index) ->
+                new StudentCard(student, index, displayDate).getRoot());
+    }
+
+    /**
+     * Shows a safe rendering error after the student panel has logged its technical cause.
+     */
+    private void handleStudentRenderingError() {
+        resultDisplay.setFeedbackToUser(FilterCommand.MESSAGE_INTERNAL_ERROR);
     }
 
     /**
@@ -151,6 +246,15 @@ public class MainWindow extends UiPart<Stage> {
         }
     }
 
+    /**
+     * Moves keyboard focus back to the command box so that the next command typed after closing the help window
+     * is not lost.
+     */
+    private void focusCommandBox() {
+        primaryStage.requestFocus();
+        commandBox.requestFocus();
+    }
+
     void show() {
         primaryStage.show();
     }
@@ -167,20 +271,27 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
-    }
-
     /**
      * Executes the command and returns the result.
      *
      * @see seedu.address.logic.Logic#execute(String)
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+        refreshDate();
+        StudentListPanel.ViewState previousStudentView = studentListPanel.captureViewState();
+        UpcomingPanel.ViewState previousUpcomingView = upcomingPanel.captureViewState();
+        boolean isSortRequest = commandText.strip().split("\\s+", 2)[0].equals(SortCommand.COMMAND_WORD);
+        studentListPanel.beginCommandRendering();
         try {
-            CommandResult commandResult = logic.execute(commandText);
+            CommandResult commandResult = isSortRequest ? executeStudentSort(commandText) : logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            if (!studentListPanel.hasRenderingError()) {
+                resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            }
+
+            if (commandResult.shouldShowStudentList()) {
+                studentListPanel.showFromTop();
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -192,9 +303,82 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
+            if (!isSortRequest) {
+                try {
+                    studentListPanel.prepareRestore(previousStudentView);
+                    studentListPanel.restoreViewState(previousStudentView);
+                    upcomingPanel.restoreViewState(previousUpcomingView);
+                } catch (RuntimeException recoveryFailure) {
+                    e.addSuppressed(recoveryFailure);
+                    logger.log(Level.WARNING, "Could not restore navigation after a rejected command", recoveryFailure);
+                }
+            }
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
+        } finally {
+            studentListPanel.endCommandRendering();
+        }
+    }
+
+    /**
+     * Keeps the previous view available until the sorted cards and visible layout have been verified.
+     */
+    private CommandResult executeStudentSort(String commandText) throws CommandException, ParseException {
+        StudentListPanel.ViewState previousState = studentListPanel.beginSort();
+        SortCommandResult completedSort = null;
+        try {
+            CommandResult result = logic.execute(commandText);
+            if (result instanceof SortCommandResult sortedResult) {
+                completedSort = sortedResult;
+                studentListPanel.verifySortRendering();
+            } else {
+                studentListPanel.prepareRestore(previousState);
+            }
+            return result;
+        } catch (CommandException | ParseException exception) {
+            if (!restoreStudentSort(null, previousState, exception)) {
+                logger.log(Level.SEVERE, "Student sort view recovery failed after command rejection", exception);
+                throw new CommandException(SortCommand.MESSAGE_INTERNAL_ERROR, exception);
+            }
+            throw exception;
+        } catch (RuntimeException exception) {
+            boolean isRestored = restoreStudentSort(completedSort, previousState, exception);
+            reportStudentSortFailure(completedSort, isRestored, exception);
+            throw new CommandException(SortCommand.MESSAGE_INTERNAL_ERROR, exception);
+        } finally {
+            studentListPanel.endSort();
+        }
+    }
+
+    /**
+     * Reports a sort failure with its recovery outcome and execution context without replacing its cause.
+     */
+    private void reportStudentSortFailure(SortCommandResult completedSort, boolean isRestored,
+            RuntimeException exception) {
+        logger.log(isRestored ? Level.WARNING : Level.SEVERE,
+                "Student sort failed: phase=rendering, recovery=" + (isRestored ? "restored" : "failed")
+                + ", context=" + (completedSort == null ? "execution" : completedSort.getFeedbackToUser()),
+                exception);
+    }
+
+    /**
+     * Restores cards before notifying observers, then restores selection and viewport without hiding failures.
+     */
+    private boolean restoreStudentSort(SortCommandResult completedSort, StudentListPanel.ViewState previousState,
+            Exception failure) {
+        try {
+            studentListPanel.prepareRestore(previousState);
+            if (completedSort != null) {
+                completedSort.restorePreviousOrder();
+            }
+            studentListPanel.restoreViewState(previousState);
+            return true;
+        } catch (RuntimeException recoveryFailure) {
+            if (recoveryFailure != failure) {
+                failure.addSuppressed(recoveryFailure);
+            }
+            return false;
         }
     }
 }

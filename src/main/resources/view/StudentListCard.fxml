@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- prefWidth="0" lets the list cell, not the longest name, decide the card width -->
+<VBox id="cardPane" prefWidth="0" spacing="5" styleClass="student-card" xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1">
+  <padding><Insets top="10" right="12" bottom="10" left="12" /></padding>
+  <HBox alignment="TOP_LEFT" spacing="8">
+    <Label fx:id="index" styleClass="student-card-name">
+      <minWidth><Region fx:constant="USE_PREF_SIZE" /></minWidth>
+    </Label>
+    <Label fx:id="name" styleClass="student-card-name" wrapText="true" maxWidth="Infinity" HBox.hgrow="ALWAYS" />
+  </HBox>
+  <HBox spacing="8">
+    <Label fx:id="academicLevel" styleClass="student-card-badge">
+      <minWidth><Region fx:constant="USE_PREF_SIZE" /></minWidth>
+    </Label>
+    <Label fx:id="subjects" styleClass="student-card-badge">
+      <minWidth><Region fx:constant="USE_PREF_SIZE" /></minWidth>
+    </Label>
+  </HBox>
+  <!-- minWidth="0" and maxWidth="${details.width}" shorten a detail wider than the card instead of widening it -->
+  <VBox fx:id="details" minWidth="0" spacing="4">
+    <Label fx:id="studentPhone" maxWidth="${details.width}" styleClass="student-card-detail" />
+    <Label fx:id="guardianName" maxWidth="${details.width}" styleClass="student-card-detail" />
+    <Label fx:id="guardianPhone" maxWidth="${details.width}" styleClass="student-card-detail" />
+  </VBox>
+  <VBox minWidth="0" spacing="4">
+    <Label fx:id="upcomingHomeworkCount" styleClass="student-card-detail" />
+    <Label fx:id="overdueHomeworkCount" styleClass="student-card-detail" />
+  </VBox>
+</VBox>

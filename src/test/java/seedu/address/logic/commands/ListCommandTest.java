@@ -1,39 +1,73 @@
 package seedu.address.logic.commands;
 
-import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.BeforeEach;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
-import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.UserPrefs;
+import seedu.address.model.student.Student;
+import seedu.address.testutil.StudentBuilder;
 
 /**
- * Contains integration tests (interaction with the Model) and unit tests for ListCommand.
+ * Tests listing the in-memory student roster without modifying it.
  */
 public class ListCommandTest {
 
-    private Model model;
-    private Model expectedModel;
+    @Test
+    public void execute_emptyRoster_showsEmptyMessage() {
+        ModelManager model = new ModelManager();
 
-    @BeforeEach
-    public void setUp() {
-        model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
-        expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        CommandResult result = new ListCommand().execute(model);
+
+        assertEquals(ListCommand.MESSAGE_EMPTY, result.getFeedbackToUser());
+        assertTrue(result.shouldShowStudentList());
+        assertTrue(model.getStudentList().isEmpty());
     }
 
     @Test
-    public void execute_listIsNotFiltered_showsSameList() {
-        assertCommandSuccess(new ListCommand(), model, ListCommand.MESSAGE_SUCCESS, expectedModel);
+    public void execute_oneStudent_usesSingularMessageAndPreservesRoster() {
+        ModelManager model = new ModelManager();
+        Student student = new StudentBuilder().build();
+        model.addStudent(student);
+
+        CommandResult result = new ListCommand().execute(model);
+
+        assertEquals(ListCommand.MESSAGE_SUCCESS_SINGULAR, result.getFeedbackToUser());
+        assertEquals(student, model.getStudentList().get(0));
+        assertTrue(result.shouldShowStudentList());
     }
 
     @Test
-    public void execute_listIsFiltered_showsEverything() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
-        assertCommandSuccess(new ListCommand(), model, ListCommand.MESSAGE_SUCCESS, expectedModel);
+    public void execute_studentsPresent_preservesRosterOrder() {
+        ModelManager model = new ModelManager();
+        Student first = new StudentBuilder().build();
+        Student second = new StudentBuilder().withName("Jane Tan").build();
+        model.addStudent(first);
+        model.addStudent(second);
+
+        CommandResult result = new ListCommand().execute(model);
+
+        assertEquals("Listed 2 students.", result.getFeedbackToUser());
+        assertEquals(first, model.getStudentList().get(0));
+        assertEquals(second, model.getStudentList().get(1));
+        assertTrue(result.shouldShowStudentList());
+    }
+
+    @Test
+    public void execute_afterSearch_restoresEveryStudent() throws Exception {
+        ModelManager model = new ModelManager();
+        Student first = new StudentBuilder().build();
+        Student second = new StudentBuilder().withName("Jane Tan").build();
+        model.addStudent(first);
+        model.addStudent(second);
+        new SearchCommand("Jane").execute(model);
+
+        CommandResult result = new ListCommand().execute(model);
+
+        assertEquals("Listed 2 students.", result.getFeedbackToUser());
+        assertEquals(List.of(first, second), model.getStudentList());
     }
 }

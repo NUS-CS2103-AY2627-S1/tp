@@ -1,17 +1,18 @@
 package seedu.address.model;
 
+import java.util.List;
 import java.util.function.Predicate;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.student.Student;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
-    /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Student> PREDICATE_SHOW_ALL_STUDENTS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -37,35 +38,44 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a student with the same normalized name and student phone exists.
      */
-    boolean hasPerson(Person person);
+    boolean hasStudent(Student student);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Adds a student to the end of the student roster. The student must not already exist.
      */
-    void deletePerson(Person target);
+    void addStudent(Student student);
+
+    /** Deletes a student from the student roster. The student must be present. */
+    void deleteStudent(Student student);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Replaces the given student {@code target} with {@code editedStudent}, keeping its position in the roster.
+     * {@code target} must exist in the roster.
+     * The identity of {@code editedStudent} must not be the same as another existing student in the roster.
+     * A displayed student keeps its position if it still matches the active predicate, even if a sort key changes.
+     * Sorting is applied only by an explicit sort request; replacement does not reset or reapply it.
      */
-    void addPerson(Person person);
+    void setStudent(Student target, Student editedStudent);
+
+    /** Returns an unmodifiable observable view of the currently displayed students. */
+    ObservableList<Student> getStudentList();
+
+    /** Updates the students displayed in the UI without changing the stored roster. */
+    void updateFilteredStudentList(Predicate<Student> predicate);
+
+    /** Returns the predicate that selects the displayed students. */
+    Predicate<Student> getFilteredStudentListPredicate();
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Returns a read-only observable of the predicate selecting the displayed students.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    ReadOnlyObjectProperty<Predicate<Student>> studentListPredicateProperty();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
-     * @throws NullPointerException if {@code predicate} is null.
+     * Reorders the displayed occurrences without changing the active predicate or stored roster.
+     * The supplied list must contain the same student references with the same multiplicities.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void setStudentListOrder(List<Student> students);
 }

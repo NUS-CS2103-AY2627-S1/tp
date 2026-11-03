@@ -2,9 +2,11 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.UserPrefs;
 
 public class JsonUserPrefsStorageTest {
@@ -41,6 +44,65 @@ public class JsonUserPrefsStorageTest {
     @Test
     public void readUserPrefs_notJsonFormat_exceptionThrown() {
         assertThrows(DataLoadingException.class, () -> readUserPrefs("NotJsonFormatUserPrefs.json"));
+    }
+
+    @Test
+    public void readUserPrefs_duplicateKey_exceptionThrown() throws IOException {
+        Path prefsFilePath = testFolder.resolve("DuplicateKeyPrefs.json");
+        Files.writeString(prefsFilePath, "{\"guiSettings\" : {\"windowWidth\" : 1000.0, \"windowWidth\" : 800.0}}");
+
+        assertThrows(DataLoadingException.class, () -> new JsonUserPrefsStorage(prefsFilePath).readUserPrefs());
+    }
+
+    @Test
+    public void readUserPrefs_trailingContent_exceptionThrown() throws IOException {
+        Path prefsFilePath = testFolder.resolve("TrailingContentPrefs.json");
+        Files.writeString(prefsFilePath, Files.readString(TEST_DATA_FOLDER.resolve("TypicalUserPref.json"))
+                + "{\"guiSettings\" : {}}");
+
+        assertThrows(DataLoadingException.class, () -> new JsonUserPrefsStorage(prefsFilePath).readUserPrefs());
+    }
+
+    @Test
+    public void readUserPrefs_nullGuiSettings_exceptionThrown() throws IOException {
+        // Issue #152: an explicit null bypasses the non-null check of UserPrefs#setGuiSettings
+        Path prefsFilePath = testFolder.resolve("NullGuiSettingsPrefs.json");
+        Files.writeString(prefsFilePath, "{\"guiSettings\":null}");
+
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(prefsFilePath);
+        String expectedMessage = new IllegalValueException(JsonUserPrefsStorage.MESSAGE_NULL_GUI_SETTINGS).toString();
+        assertThrows(DataLoadingException.class, expectedMessage, () -> storage.readUserPrefs());
+    }
+
+    @Test
+    public void readUserPrefs_nullWindowCoordinates_noCoordinatesUsed() throws Exception {
+        // null is how the default preferences save "no window position", so it stays valid
+        Path prefsFilePath = testFolder.resolve("NullCoordinatesPrefs.json");
+        Files.writeString(prefsFilePath, "{\"guiSettings\":{\"windowWidth\":740.0,\"windowHeight\":600.0,"
+                + "\"windowCoordinates\":null}}");
+
+        assertEquals(new UserPrefs(), new JsonUserPrefsStorage(prefsFilePath).readUserPrefs().orElseThrow());
+    }
+
+    @Test
+    public void readUserPrefs_nullWindowWidth_zeroWidthKeepsHeight() throws Exception {
+        // the window's minimum width, not the preferences, keeps the window usable
+        Path prefsFilePath = testFolder.resolve("NullWindowWidthPrefs.json");
+        Files.writeString(prefsFilePath, "{\"guiSettings\":{\"windowWidth\":null,\"windowHeight\":700.0}}");
+
+        GuiSettings guiSettings = new JsonUserPrefsStorage(prefsFilePath).readUserPrefs().orElseThrow()
+                .getGuiSettings();
+        assertEquals(0.0, guiSettings.getWindowWidth());
+        assertEquals(700.0, guiSettings.getWindowHeight());
+        assertNull(guiSettings.getWindowCoordinates());
+    }
+
+    @Test
+    public void readUserPrefs_nullUnknownField_ignored() throws Exception {
+        Path prefsFilePath = testFolder.resolve("NullUnknownFieldPrefs.json");
+        Files.writeString(prefsFilePath, "{\"addressBookFilePath\":null}");
+
+        assertEquals(new UserPrefs(), new JsonUserPrefsStorage(prefsFilePath).readUserPrefs().orElseThrow());
     }
 
     private Path addToTestDataPathIfNotNull(String userPrefsFileInTestDataFolder) {

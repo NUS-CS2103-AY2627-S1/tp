@@ -2,183 +2,247 @@ package seedu.address.logic.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
-import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
-import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
-import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.logic.commands.CommandTestUtil.CAUSE_READ_ONLY_FOLDER;
+import static seedu.address.logic.commands.CommandTestUtil.SHOWN_DATA_FILE_NAME;
+import static seedu.address.testutil.TypicalHomeworks.ALGEBRA;
+import static seedu.address.testutil.TypicalRegularLessons.MONDAY_MATH;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.AddressBook;
-import seedu.address.model.Model;
+import seedu.address.logic.commands.EditCommand.EditStudentDescriptor;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.EditCommandParser;
+import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.ModelManager;
-import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.testutil.StudentBuilder;
 
-/**
- * Contains integration tests (interaction with the Model) and unit tests for EditCommand.
- */
 public class EditCommandTest {
-
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+    private final EditCommandParser parser = new EditCommandParser();
 
     @Test
-    public void execute_allFieldsSpecifiedUnfilteredList_success() {
-        Person editedPerson = new PersonBuilder().build();
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(editedPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+    public void execute_oneField_preservesUnspecifiedFieldsAndLinkedRecords() throws Exception {
+        Student original = new StudentBuilder().withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
+        ModelManager model = modelWith(original);
+        Student expected = new StudentBuilder().withGuardianName("Jane Tan")
+                .withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        CommandResult result = execute("1 gn/Jane Tan", model);
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertEquals(String.format(EditCommand.MESSAGE_SUCCESS, Messages.format(expected)),
+                result.getFeedbackToUser());
+        assertEquals(List.of(expected), model.getStudentList());
+        assertEquals(original.getHomeworks(), model.getStudentList().get(0).getHomeworks());
+        assertEquals(original.getLessons(), model.getStudentList().get(0).getLessons());
     }
 
     @Test
-    public void execute_someFieldsSpecifiedUnfilteredList_success() {
-        Index indexLastPerson = Index.fromOneBased(model.getFilteredPersonList().size());
-        Person lastPerson = model.getFilteredPersonList().get(indexLastPerson.getZeroBased());
+    public void execute_allFields_replacesOnlySelectedStudentAtSameIndex() throws Exception {
+        Student first = new StudentBuilder().build();
+        Student original = new StudentBuilder().withName("Jane Tan").withPhone("92345678")
+                .withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
+        ModelManager model = modelWith(first, original);
+        Student expected = new StudentBuilder().withName("Jenna Tan").withAcademicLevel("S4")
+                .withSubjects("MATH, PHYSICS").withPhone("93334444").withGuardianName("May Tan")
+                .withGuardianPhone("95554444").withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
 
-        PersonBuilder personInList = new PersonBuilder(lastPerson);
-        Person editedPerson = personInList.withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB)
-                .withTags(VALID_TAG_HUSBAND).build();
+        execute("2 n/Jenna Tan l/S4 s/MATH, PHYSICS p/93334444 gn/May Tan gp/95554444", model);
 
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB)
-                .withPhone(VALID_PHONE_BOB).withTags(VALID_TAG_HUSBAND).build();
-        EditCommand editCommand = new EditCommand(indexLastPerson, descriptor);
-
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
-
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(lastPerson, editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertEquals(List.of(first, expected), model.getStudentList());
     }
 
     @Test
-    public void execute_noFieldSpecifiedUnfilteredList_success() {
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
-        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+    public void execute_sameNameDifferentPhoneAndSamePhoneDifferentName_areAllowed() throws Exception {
+        Student first = new StudentBuilder().build();
+        Student second = new StudentBuilder().withName("Jane Tan").withPhone("92345678").build();
+        ModelManager model = modelWith(first, second);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        execute("2 n/John Tan", model);
+        assertEquals(new StudentBuilder().withPhone("92345678").build(), model.getStudentList().get(1));
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        execute("2 n/Jane Tan p/91234567", model);
+        assertEquals(new StudentBuilder().withName("Jane Tan").build(), model.getStudentList().get(1));
     }
 
     @Test
-    public void execute_filteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_duplicateIdentity_isRejectedWithoutChangingRoster() throws ParseException {
+        Student first = new StudentBuilder().build();
+        Student second = new StudentBuilder().withName("Jane Tan").withPhone("92345678").build();
+        ModelManager model = modelWith(first, second);
 
-        Person personInFilteredList = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        Person editedPerson = new PersonBuilder(personInFilteredList).withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
-
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
-
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertFailure("2 n/JOHN TAN p/91234567", model,
+                String.format(EditCommand.MESSAGE_DUPLICATE, first.getName(), first.getPhone()));
+        assertFailure("2 n/JOHN TAN p/+6591234567", model,
+                String.format(EditCommand.MESSAGE_DUPLICATE, first.getName(), first.getPhone()));
+        assertEquals(List.of(first, second), model.getStudentList());
     }
 
     @Test
-    public void execute_duplicatePersonUnfilteredList_failure() {
-        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(firstPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+    public void execute_duplicateIdentityHiddenBySearch_isRejectedWithoutChangingViews() throws Exception {
+        Student first = new StudentBuilder().build();
+        Student second = new StudentBuilder().withName("Jane Tan").withPhone("92345678").build();
+        ModelManager model = modelWith(first, second);
+        List<Student> originalRoster = List.copyOf(model.getAddressBook().getStudentList());
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        new SearchCommand("Jane").execute(model);
+        assertEquals(List.of(second), model.getStudentList());
+
+        assertFailure("1 n/John Tan p/+6591234567", model,
+                String.format(EditCommand.MESSAGE_DUPLICATE, first.getName(), first.getPhone()));
+
+        assertEquals(originalRoster, model.getAddressBook().getStudentList());
+        assertEquals(List.of(second), model.getStudentList());
     }
 
     @Test
-    public void execute_duplicatePersonFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_caseOnlyNameChange_succeeds() throws Exception {
+        ModelManager model = modelWith(new StudentBuilder().build());
 
-        // edit person in filtered list into a duplicate in address book
-        Person personInList = model.getAddressBook().getPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder(personInList).build());
+        execute("1 n/JOHN TAN", model);
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        assertEquals("JOHN TAN", model.getStudentList().get(0).getName().toString());
     }
 
     @Test
-    public void execute_invalidPersonIndexUnfilteredList_failure() {
-        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(outOfBoundIndex, descriptor);
+    public void execute_sameValues_isRejectedWithoutChangingRoster() throws ParseException {
+        Student original = new StudentBuilder().build();
+        ModelManager model = modelWith(original);
 
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
-    }
-
-    /**
-     * Edit filtered list where index is larger than size of filtered list,
-     * but smaller than size of address book
-     */
-    @Test
-    public void execute_invalidPersonIndexFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
-        Index outOfBoundIndex = INDEX_SECOND_PERSON;
-        // ensures that outOfBoundIndex is still in bounds of address book list
-        assertTrue(outOfBoundIndex.getZeroBased() < model.getAddressBook().getPersonList().size());
-
-        EditCommand editCommand = new EditCommand(outOfBoundIndex,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
-
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertFailure("1 l/s3 s/math gn/Mary   Tan", model, EditCommand.MESSAGE_NO_CHANGES);
+        assertEquals(List.of(original), model.getStudentList());
     }
 
     @Test
-    public void equals() {
-        final EditCommand standardCommand = new EditCommand(INDEX_FIRST_PERSON, DESC_AMY);
+    public void execute_removingHomeworkSubject_isRejected() throws ParseException {
+        Student original = new StudentBuilder().withSubjects("MATH, PHYSICS")
+                .withHomeworks(ALGEBRA).build();
+        ModelManager model = modelWith(original);
 
-        // same values -> returns true
-        EditPersonDescriptor copyDescriptor = new EditPersonDescriptor(DESC_AMY);
-        EditCommand commandWithSameValues = new EditCommand(INDEX_FIRST_PERSON, copyDescriptor);
-        assertTrue(standardCommand.equals(commandWithSameValues));
-
-        // same object -> returns true
-        assertTrue(standardCommand.equals(standardCommand));
-
-        // null -> returns false
-        assertFalse(standardCommand.equals(null));
-
-        // different types -> returns false
-        assertFalse(standardCommand.equals(new ClearCommand()));
-
-        // different index -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_SECOND_PERSON, DESC_AMY)));
-
-        // different descriptor -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_FIRST_PERSON, DESC_BOB)));
+        assertFailure("1 s/PHYSICS", model, EditCommand.MESSAGE_SUBJECT_IN_USE);
+        assertEquals(List.of(original), model.getStudentList());
     }
 
     @Test
-    public void toStringMethod() {
-        Index index = Index.fromOneBased(1);
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-        EditCommand editCommand = new EditCommand(index, editPersonDescriptor);
-        String expected = EditCommand.class.getCanonicalName() + "{index=" + index + ", editPersonDescriptor="
-                + editPersonDescriptor + "}";
-        assertEquals(expected, editCommand.toString());
+    public void execute_removingLessonSubject_isRejected() throws ParseException {
+        Student original = new StudentBuilder().withSubjects("MATH, PHYSICS")
+                .withLessons(MONDAY_MATH).build();
+        ModelManager model = modelWith(original);
+
+        assertFailure("1 s/PHYSICS", model, EditCommand.MESSAGE_SUBJECT_IN_USE);
+        assertEquals(List.of(original), model.getStudentList());
     }
 
+    @Test
+    public void execute_addingSubject_preservesHomeworkAndLessons() throws Exception {
+        Student original = new StudentBuilder().withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
+        ModelManager model = modelWith(original);
+
+        execute("1 s/MATH, PHYSICS", model);
+
+        assertEquals(new StudentBuilder().withSubjects("MATH, PHYSICS")
+                .withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build(), model.getStudentList().get(0));
+    }
+
+    @Test
+    public void execute_reorderingSubjects_updatesDisplayedOrder() throws Exception {
+        Student original = new StudentBuilder().withSubjects("MATH, PHYSICS").withHomeworks(ALGEBRA).build();
+        ModelManager model = modelWith(original);
+
+        execute("1 s/PHYSICS, MATH", model);
+
+        Student edited = model.getStudentList().get(0);
+        assertEquals("PHYSICS, MATH", edited.getSubjects().toString());
+        assertEquals(original.getHomeworks(), edited.getHomeworks());
+    }
+
+    @Test
+    public void execute_removingUnusedSubject_succeeds() throws Exception {
+        Student original = new StudentBuilder().withSubjects("MATH, PHYSICS")
+                .withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build();
+        ModelManager model = modelWith(original);
+
+        execute("1 s/MATH", model);
+
+        assertEquals(new StudentBuilder().withHomeworks(ALGEBRA).withLessons(MONDAY_MATH).build(),
+                model.getStudentList().get(0));
+    }
+
+    @Test
+    public void execute_emptyOrOutOfRangeIndex_isRejected() throws ParseException {
+        ModelManager emptyModel = modelWith();
+        assertFailure("1 n/Jane", emptyModel, Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+
+        Student original = new StudentBuilder().build();
+        ModelManager model = modelWith(original);
+        assertFailure("2 n/Jane", model, Messages.MESSAGE_INVALID_STUDENT_DISPLAYED_INDEX);
+        assertEquals(List.of(original), model.getStudentList());
+    }
+
+    @Test
+    public void execute_unexpectedModelError_reportsInternalErrorAndKeepsRoster() throws ParseException {
+        IllegalStateException failure = new IllegalStateException("dummy internal error");
+        ModelManager model = new ModelManager() {
+            @Override
+            public void setStudent(Student target, Student editedStudent) {
+                throw failure;
+            }
+        };
+        Student original = new StudentBuilder().build();
+        model.addStudent(original);
+
+        CommandException exception = assertThrows(CommandException.class, () -> execute("1 n/Jane", model));
+
+        assertEquals(EditCommand.MESSAGE_INTERNAL_ERROR, exception.getMessage());
+        assertSame(failure, exception.getCause());
+        assertEquals(List.of(original), model.getStudentList());
+    }
+
+    @Test
+    public void getSaveFailureMessage_cause_namesFileAndCause() throws ParseException {
+        String expectedMessage = "The student could not be edited because TutorFlow could not save "
+                + SHOWN_DATA_FILE_NAME + ": the data folder is read-only. No student data was changed.";
+        assertEquals(expectedMessage, parser.parse("1 n/Jane").getSaveFailureMessage(SHOWN_DATA_FILE_NAME,
+                CAUSE_READ_ONLY_FOLDER));
+    }
+
+    @Test
+    public void equalsAndToString() throws ParseException {
+        EditCommand editFirst = parser.parse("1 n/Jane");
+        assertTrue(editFirst.equals(editFirst));
+        assertTrue(editFirst.equals(parser.parse("1 n/Jane")));
+        assertEquals(editFirst.hashCode(), parser.parse("1 n/Jane").hashCode());
+        assertFalse(editFirst.equals(parser.parse("2 n/Jane")));
+        assertFalse(editFirst.equals(parser.parse("1 n/Mary")));
+        assertFalse(editFirst.equals(null));
+        assertFalse(editFirst.equals("edit"));
+        EditStudentDescriptor descriptor = new EditStudentDescriptor(new StudentName("Jane"), null,
+                null, null, null, null);
+        assertEquals(EditCommand.class.getCanonicalName()
+                + "{index=" + Index.fromOneBased(1) + ", descriptor=" + descriptor + "}", editFirst.toString());
+    }
+
+    private CommandResult execute(String arguments, ModelManager model) throws ParseException, CommandException {
+        return parser.parse(arguments).execute(model);
+    }
+
+    private void assertFailure(String arguments, ModelManager model, String expectedMessage) throws ParseException {
+        CommandException exception = assertThrows(CommandException.class, () -> execute(arguments, model));
+        assertEquals(expectedMessage, exception.getMessage());
+    }
+
+    private static ModelManager modelWith(Student... students) {
+        ModelManager model = new ModelManager();
+        for (Student student : students) {
+            model.addStudent(student);
+        }
+        return model;
+    }
 }

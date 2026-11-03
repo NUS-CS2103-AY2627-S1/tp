@@ -1,18 +1,20 @@
 package seedu.address.testutil;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import seedu.address.commons.core.index.Index;
-import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import java.util.Locale;
 
 /**
  * A utility class for test cases.
  */
 public class TestUtil {
+
+    /** Locale whose default number format uses Arabic-Indic digits, e.g. U+0661 for 1. */
+    public static final Locale ARABIC_EGYPT = Locale.forLanguageTag("ar-EG");
 
     /**
      * Folder used for temp files created during testing. Ignored by Git.
@@ -33,23 +35,28 @@ public class TestUtil {
     }
 
     /**
-     * Returns the middle index of the person in the {@code model}'s person list.
+     * Creates a symbolic link at {@code link} to {@code target}, skipping the test where symbolic links cannot be
+     * created, e.g. on Windows without the privilege to create them.
      */
-    public static Index getMidIndex(Model model) {
-        return Index.fromOneBased(model.getFilteredPersonList().size() / 2);
+    public static void createSymbolicLinkOrSkip(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (UnsupportedOperationException | IOException e) {
+            assumeTrue(false, "symbolic links cannot be created here: " + e);
+        }
     }
 
     /**
-     * Returns the last index of the person in the {@code model}'s person list.
+     * Runs {@code action} with {@code locale} as the default locale for formatting numbers, then restores the
+     * previous default, so that a test can check output that must not depend on the user's locale.
      */
-    public static Index getLastIndex(Model model) {
-        return Index.fromOneBased(model.getFilteredPersonList().size());
-    }
-
-    /**
-     * Returns the person in the {@code model}'s person list at {@code index}.
-     */
-    public static Person getPerson(Model model, Index index) {
-        return model.getFilteredPersonList().get(index.getZeroBased());
+    public static void runWithFormatLocale(Locale locale, Runnable action) {
+        Locale previousLocale = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, locale);
+        try {
+            action.run();
+        } finally {
+            Locale.setDefault(Locale.Category.FORMAT, previousLocale);
+        }
     }
 }

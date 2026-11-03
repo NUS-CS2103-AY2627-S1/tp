@@ -1,85 +1,55 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditCommand.EditStudentDescriptor;
+import seedu.address.logic.parser.StrictArgumentTokenizer.TokenizedArguments;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.AcademicLevel;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.StudentPhone;
+import seedu.address.model.student.TuitionSubjects;
 
 /**
- * Parses input arguments and creates a new EditCommand object
+ * Parses a displayed student index and one or more replacement profile fields.
  */
 public class EditCommandParser implements Parser<EditCommand> {
+    public static final String MESSAGE_INVALID_INDEX_SYNTAX =
+            "INDEX must be a positive whole number without leading zeroes.";
 
-    /**
-     * Parses the given {@code String} of arguments in the context of the EditCommand
-     * and returns an EditCommand object for execution.
-     * @throws ParseException if the user input does not conform to the expected format
-     */
+    private static final List<String> PREFIXES = List.of("n/", "l/", "s/", "p/", "gn/", "gp/");
+
+    @Override
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
-
-        Index index;
+        TokenizedArguments tokens = StrictArgumentTokenizer.tokenizeWithPreamble(args, PREFIXES,
+                EditCommand.MESSAGE_INVALID_FORMAT, StudentAddParser::isPartOfName);
+        String[] indexWords = tokens.preamble().split("\\s+");
+        if (indexWords.length != 1 || indexWords[0].isEmpty()) {
+            throw new ParseException(EditCommand.MESSAGE_INVALID_FORMAT);
+        }
+        Index index = ParserUtil.parseStrictIndex(indexWords[0], MESSAGE_INVALID_INDEX_SYNTAX);
+        Map<String, String> fields = tokens.values();
+        if (fields.isEmpty()) {
+            throw new ParseException(EditCommand.MESSAGE_NO_FIELDS);
+        }
 
         try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
+            EditStudentDescriptor descriptor = new EditStudentDescriptor(
+                    fields.containsKey("n/") ? new StudentName(fields.get("n/")) : null,
+                    fields.containsKey("l/") ? AcademicLevel.parse(fields.get("l/")) : null,
+                    fields.containsKey("s/") ? new TuitionSubjects(fields.get("s/")) : null,
+                    fields.containsKey("p/") ? new StudentPhone(fields.get("p/")) : null,
+                    fields.containsKey("gn/") ? new StudentName(fields.get("gn/")) : null,
+                    fields.containsKey("gp/") ? new StudentPhone(fields.get("gp/")) : null);
+            return new EditCommand(index, descriptor);
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
         }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-
-        if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
-            editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
-        }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
-        }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
-
-        if (!editPersonDescriptor.isAnyFieldEdited()) {
-            throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
-        }
-
-        return new EditCommand(index, editPersonDescriptor);
     }
-
-    /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
-     */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
-        }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
-    }
-
 }

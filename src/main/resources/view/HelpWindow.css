@@ -1,19 +1,87 @@
-#copyButton, #helpMessage {
+.help-root {
+    -fx-background-color: derive(#1d1d1d, 20%);
+}
+
+.help-search-field {
+    -fx-font-size: 12pt;
+}
+
+.help-root .help-note {
+    -fx-font-style: italic;
+    -fx-text-fill: #c8c8c8;
+}
+
+.help-root .help-no-results {
+    -fx-text-fill: #c8c8c8;
+    -fx-padding: 12 0 12 0;
+}
+
+.help-scroll-pane, .help-scroll-pane > .viewport, .help-content {
+    -fx-background-color: derive(#1d1d1d, 20%);
+}
+
+.help-scroll-pane {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.help-scroll-pane:focused {
+    -fx-background-insets: 0;
+}
+
+.help-content .label {
+    -fx-text-fill: white;
+    -fx-font-size: 11pt;
+}
+
+.help-content .help-note {
+    -fx-font-style: italic;
+    -fx-text-fill: #c8c8c8;
+}
+
+.help-content .help-section-title {
+    -fx-font-size: 15pt;
+    -fx-font-weight: bold;
+    -fx-padding: 8 0 2 0;
+}
+
+.help-content .help-entry {
     -fx-text-fill: white;
 }
 
-#copyButton {
-    -fx-background-color: dimgray;
+.help-content .help-entry > .title {
+    -fx-background-color: derive(#1d1d1d, 34%);
+    -fx-padding: 7 10 7 10;
 }
 
-#copyButton:hover {
-    -fx-background-color: gray;
+.help-content .help-entry > .content {
+    -fx-background-color: derive(#1d1d1d, 24%);
+    -fx-border-color: derive(#1d1d1d, 42%);
+    -fx-padding: 4 10 8 10;
 }
 
-#copyButton:armed {
-    -fx-background-color: darkgray;
+.help-content .help-command-word {
+    -fx-font-weight: bold;
+    -fx-text-fill: #8fd3ff;
 }
 
-#helpMessageContainer {
-    -fx-background-color: derive(#1d1d1d, 20%);
+.help-content .help-command-summary {
+    -fx-text-fill: #dedede;
+}
+
+.help-content .help-format {
+    -fx-font-family: "Monospaced";
+    -fx-font-weight: bold;
+    -fx-text-fill: #8fd3ff;
+    -fx-padding: 6 0 0 0;
+}
+
+.help-content .help-description {
+    -fx-padding: 0 0 0 12;
+}
+
+.help-content .help-example {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: #c8c8c8;
+    -fx-padding: 0 0 0 12;
 }

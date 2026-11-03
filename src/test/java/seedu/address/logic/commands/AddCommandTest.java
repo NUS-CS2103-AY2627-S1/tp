@@ -1,188 +1,96 @@
 package seedu.address.logic.commands;
 
-import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
-import javafx.collections.ObservableList;
-import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.model.AddressBook;
-import seedu.address.model.Model;
-import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.ReadOnlyUserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.ModelManager;
+import seedu.address.model.student.Student;
+import seedu.address.testutil.StudentBuilder;
 
 public class AddCommandTest {
-
     @Test
-    public void constructor_nullPerson_throwsNullPointerException() {
+    public void constructor_nullStudent_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> new AddCommand(null));
     }
 
     @Test
-    public void execute_personAcceptedByModel_addSuccessful() throws Exception {
-        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
-        Person validPerson = new PersonBuilder().build();
+    public void toString_includesStudentToAdd() {
+        Student student = new StudentBuilder().build();
 
-        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
-
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
-                commandResult.getFeedbackToUser());
-        assertEquals(List.of(validPerson), modelStub.personsAdded);
+        assertEquals("seedu.address.logic.commands.AddCommand{studentToAdd=" + student + "}",
+                new AddCommand(student).toString());
     }
 
     @Test
-    public void execute_duplicatePerson_throwsCommandException() {
-        Person validPerson = new PersonBuilder().build();
-        AddCommand addCommand = new AddCommand(validPerson);
-        ModelStub modelStub = new ModelStubWithPerson(validPerson);
+    public void execute_newStudent_addsOnceAndShowsFullSummary() throws CommandException {
+        Student student = new StudentBuilder().build();
+        ModelStub model = new ModelStub();
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        CommandResult result = new AddCommand(student).execute(model);
+
+        assertEquals("New student added: " + Messages.format(student), result.getFeedbackToUser());
+        assertEquals(List.of(student), model.studentsAdded);
     }
 
     @Test
-    public void equals() {
-        Person alice = new PersonBuilder().withName("Alice").build();
-        Person bob = new PersonBuilder().withName("Bob").build();
-        AddCommand addAliceCommand = new AddCommand(alice);
-        AddCommand addBobCommand = new AddCommand(bob);
+    public void execute_duplicateStudent_doesNotAdd() throws CommandException {
+        Student original = new StudentBuilder().build();
+        Student duplicate = new StudentBuilder().withName("john   tan").build();
+        ModelStub model = new ModelStub();
+        model.addStudent(original);
 
-        // same object -> returns true
-        assertTrue(addAliceCommand.equals(addAliceCommand));
+        CommandException exception = assertThrows(CommandException.class, () ->
+                new AddCommand(duplicate).execute(model));
 
-        // same values -> returns true
-        AddCommand addAliceCommandCopy = new AddCommand(alice);
-        assertTrue(addAliceCommand.equals(addAliceCommandCopy));
-
-        // different types -> returns false
-        assertFalse(addAliceCommand.equals(1));
-
-        // null -> returns false
-        assertFalse(addAliceCommand.equals(null));
-
-        // different person -> returns false
-        assertFalse(addAliceCommand.equals(addBobCommand));
+        assertEquals(AddCommand.MESSAGE_DUPLICATE_STUDENT, exception.getMessage());
+        assertEquals(List.of(original), model.studentsAdded);
     }
 
     @Test
-    public void toStringMethod() {
-        AddCommand addCommand = new AddCommand(ALICE);
-        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
-        assertEquals(expected, addCommand.toString());
+    public void execute_sameSingaporePhoneWithCountryCode_isRejected() throws CommandException {
+        Student original = new StudentBuilder().build();
+        Student duplicate = new StudentBuilder().withPhone("+6591234567").build();
+        ModelStub model = new ModelStub();
+        model.addStudent(original);
+
+        CommandException exception = assertThrows(CommandException.class, () ->
+                new AddCommand(duplicate).execute(model));
+
+        assertEquals(AddCommand.MESSAGE_DUPLICATE_STUDENT, exception.getMessage());
+        assertEquals(List.of(original), model.studentsAdded);
     }
 
-    /**
-     * A default model stub that has all of the methods failing.
-     */
-    private class ModelStub implements Model {
-        @Override
-        public ReadOnlyUserPrefs getUserPrefs() {
-            throw new AssertionError("This method should not be called.");
-        }
+    @Test
+    public void equals_comparesStudentValues() {
+        Student john = new StudentBuilder().build();
+        Student mary = new StudentBuilder().withName("Mary Tan").build();
+        AddCommand addJohn = new AddCommand(john);
 
-        @Override
-        public GuiSettings getGuiSettings() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setGuiSettings(GuiSettings guiSettings) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void addPerson(Person person) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setAddressBook(ReadOnlyAddressBook newData) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public boolean hasPerson(Person person) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void deletePerson(Person target) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void setPerson(Person target, Person editedPerson) {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public ObservableList<Person> getFilteredPersonList() {
-            throw new AssertionError("This method should not be called.");
-        }
-
-        @Override
-        public void updateFilteredPersonList(Predicate<Person> predicate) {
-            throw new AssertionError("This method should not be called.");
-        }
+        assertTrue(addJohn.equals(new AddCommand(john)));
+        assertFalse(addJohn.equals(new AddCommand(mary)));
+        assertFalse(addJohn.equals(null));
     }
 
-    /**
-     * A Model stub that contains a single person.
-     */
-    private class ModelStubWithPerson extends ModelStub {
-        private final Person person;
+    private static class ModelStub extends ModelManager {
+        private final List<Student> studentsAdded = new ArrayList<>();
 
-        ModelStubWithPerson(Person person) {
-            requireNonNull(person);
-            this.person = person;
+        @Override
+        public boolean hasStudent(Student student) {
+            return studentsAdded.stream().anyMatch(existing -> existing.isSameStudent(student));
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public void addStudent(Student student) {
+            studentsAdded.add(student);
         }
     }
-
-    /**
-     * A Model stub that always accepts the person being added.
-     */
-    private class ModelStubAcceptingPersonAdded extends ModelStub {
-        final ArrayList<Person> personsAdded = new ArrayList<>();
-
-        @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
-        }
-
-        @Override
-        public void addPerson(Person person) {
-            requireNonNull(person);
-            personsAdded.add(person);
-        }
-
-        @Override
-        public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
-        }
-    }
-
 }

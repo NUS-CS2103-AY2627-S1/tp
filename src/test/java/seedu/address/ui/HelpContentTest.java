@@ -1,0 +1,204 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
+import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.HomeworkAddCommand;
+import seedu.address.logic.commands.HomeworkDeleteCommand;
+import seedu.address.logic.commands.HomeworkEditCommand;
+import seedu.address.logic.commands.HomeworkFilterCommand;
+import seedu.address.logic.commands.HomeworkListCommand;
+import seedu.address.logic.commands.HomeworkMarksCommand;
+import seedu.address.logic.commands.HomeworkStatusCommand;
+import seedu.address.logic.commands.HomeworkUpcomingCommand;
+import seedu.address.logic.commands.LessonAddCommand;
+import seedu.address.logic.commands.LessonDeleteCommand;
+import seedu.address.logic.commands.LessonEditCommand;
+import seedu.address.logic.commands.LessonListCommand;
+import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.SearchCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.util.SampleDataUtil;
+
+public class HelpContentTest {
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-10-05T00:00:00Z"), ZoneOffset.UTC);
+
+    @Test
+    public void getSections_sectionTitles_inDisplayOrder() {
+        List<String> titles = HelpContent.getSections().stream().map(HelpContent.Section::title).toList();
+        assertEquals(List.of(HelpContent.SECTION_STUDENTS, HelpContent.SECTION_HOMEWORK,
+                HelpContent.SECTION_LESSONS, HelpContent.SECTION_GENERAL), titles);
+    }
+
+    @Test
+    public void getSections_entries_inUserGuideOrder() {
+        Map<String, List<String>> commandWordsBySection = HelpContent.getSections().stream()
+                .collect(Collectors.toMap(HelpContent.Section::title, section -> section.entries().stream()
+                        .map(HelpContent.Entry::commandWord).toList()));
+
+        assertEquals(List.of("add", "edit", "list", "search", "filter", "sort", "delete"),
+                commandWordsBySection.get(HelpContent.SECTION_STUDENTS));
+        assertEquals(List.of("homework add", "homework list", "homework upcoming", "homework edit", "homework marks",
+                "homework delete", "homework filter", "homework status"),
+                commandWordsBySection.get(HelpContent.SECTION_HOMEWORK));
+        assertEquals(List.of("lesson add", "lesson list", "lesson delete", "lesson edit"),
+                commandWordsBySection.get(HelpContent.SECTION_LESSONS));
+        assertEquals(List.of("help", "clear", "exit"), commandWordsBySection.get(HelpContent.SECTION_GENERAL));
+    }
+
+    @Test
+    public void getSections_listEntry_showsAlias() {
+        HelpContent.Entry listEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals(ListCommand.COMMAND_WORD)).findFirst().orElseThrow();
+        assertEquals("list|ls", listEntry.format());
+    }
+
+    @Test
+    public void getSections_homeworkEditExample_matchesSampleData() {
+        HelpContent.Entry editEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals("homework edit")).findFirst().orElseThrow();
+        // homework 2 of the first sample student is the PHYSICS record "Kinematics practice set"
+        assertEquals("hw e 1 2 t/Kinematics practice set B", editEntry.example());
+    }
+
+    @Test
+    public void getSections_homeworkListDescription_explainsWhenNumbersChange() {
+        HelpContent.Entry listEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals("homework list")).findFirst().orElseThrow();
+        assertEquals("Lists the homework of the student at STUDENT_INDEX that is due today or later, earliest first,"
+                + " with its score and status. Add all to list homework due before today too. The number before each"
+                + " homework is its HOMEWORK_INDEX for the other homework commands. Hiding homework due before today"
+                + " does not change these numbers, but deleting a homework renumbers the homework after it.",
+                listEntry.description());
+    }
+
+    @Test
+    public void getSections_homeworkUpcomingDescription_explainsStudentListReset() {
+        HelpContent.Entry upcomingEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals("homework upcoming")).findFirst().orElseThrow();
+        assertEquals("Lists the homework of all students that is due from today to DAYS days later, earliest first,"
+                + " with its score and status. Includes completed records by due date. Each line starts with the"
+                + " STUDENT_INDEX of the student. DAYS is a number of days from 0 to 365, not a date, and is 7 if not"
+                + " given. The lines are not numbered by HOMEWORK_INDEX; use homework list STUDENT_INDEX to find it."
+                + " Like list, it shows all students again, clearing any search or filter and undoing any sort.",
+                upcomingEntry.description());
+    }
+
+    @Test
+    public void getSections_homeworkAddExample_notDueBeforeTodayOnExamDays() throws Exception {
+        HelpContent.Entry addEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals("homework add")).findFirst().orElseThrow();
+        String expectedMessage = "New homework added for Ethan Lim (91234567):\n"
+                + "3. Algebra worksheet (MATH) - due 2026-12-01 - score Not recorded - status ASSIGNED";
+
+        for (String date : List.of("2026-11-06", "2026-11-07")) {
+            Clock clock = Clock.fixed(Instant.parse(date + "T00:00:00Z"), ZoneOffset.UTC);
+            ModelManager model = new ModelManager(SampleDataUtil.getSampleAddressBook(), new UserPrefs());
+            assertEquals(expectedMessage, new AddressBookParser(clock).parseCommand(addEntry.example())
+                    .execute(model).getFeedbackToUser(), date);
+        }
+    }
+
+    @Test
+    public void getSections_filterExample_matchesSampleStudent() throws Exception {
+        HelpContent.Entry filterEntry = getEntries().stream()
+                .filter(entry -> entry.commandWord().equals(FilterCommand.COMMAND_WORD)).findFirst().orElseThrow();
+        ModelManager model = new ModelManager(SampleDataUtil.getSampleAddressBook(), new UserPrefs());
+
+        new AddressBookParser(FIXED_CLOCK).parseCommand(filterEntry.example()).execute(model);
+
+        assertEquals(List.of("Nurul Aisyah"), model.getStudentList().stream()
+                .map(student -> student.getName().toString()).toList());
+    }
+
+    @Test
+    public void getSections_listedCommands_useUsageConstants() {
+        Map<String, String> expectedFormats = Map.ofEntries(
+                Map.entry(AddCommand.COMMAND_WORD, AddCommand.MESSAGE_USAGE),
+                Map.entry(DeleteCommand.COMMAND_WORD, DeleteCommand.MESSAGE_USAGE),
+                Map.entry(EditCommand.COMMAND_WORD, EditCommand.MESSAGE_USAGE),
+                // the help entry adds the ls alias, which the list command's usage text does not show
+                Map.entry(ListCommand.COMMAND_WORD, ListCommand.COMMAND_WORD + "|" + ListCommand.SHORT_COMMAND_WORD),
+                Map.entry(SearchCommand.COMMAND_WORD, SearchCommand.MESSAGE_USAGE),
+                Map.entry(SortCommand.COMMAND_WORD, SortCommand.MESSAGE_USAGE),
+                Map.entry(FilterCommand.COMMAND_WORD, FilterCommand.MESSAGE_USAGE),
+                Map.entry("homework add", HomeworkAddCommand.MESSAGE_USAGE),
+                Map.entry("homework list", HomeworkListCommand.MESSAGE_USAGE),
+                Map.entry("homework upcoming", HomeworkUpcomingCommand.MESSAGE_USAGE),
+                Map.entry("homework edit", HomeworkEditCommand.MESSAGE_USAGE),
+                Map.entry("homework filter", HomeworkFilterCommand.MESSAGE_USAGE),
+                Map.entry("homework status", HomeworkStatusCommand.MESSAGE_USAGE),
+                Map.entry("homework marks", HomeworkMarksCommand.MESSAGE_USAGE),
+                Map.entry("homework delete", HomeworkDeleteCommand.MESSAGE_USAGE),
+                Map.entry("lesson add", LessonAddCommand.MESSAGE_USAGE),
+                Map.entry("lesson list", LessonListCommand.MESSAGE_USAGE),
+                Map.entry("lesson delete", LessonDeleteCommand.MESSAGE_USAGE),
+                Map.entry("lesson edit", LessonEditCommand.MESSAGE_USAGE),
+                Map.entry(HelpCommand.COMMAND_WORD, HelpCommand.COMMAND_WORD),
+                Map.entry(ClearCommand.COMMAND_WORD, ClearCommand.COMMAND_WORD),
+                Map.entry(ExitCommand.COMMAND_WORD, ExitCommand.COMMAND_WORD));
+
+        List<HelpContent.Entry> entries = getEntries();
+        assertEquals(expectedFormats.size(), entries.size());
+        for (HelpContent.Entry entry : entries) {
+            assertEquals(expectedFormats.get(entry.commandWord()), entry.format(), entry.commandWord());
+        }
+    }
+
+    @Test
+    public void getSections_examples_parseIntoListedCommand() throws Exception {
+        Map<String, Class<? extends Command>> expectedCommandTypes = Map.ofEntries(
+                Map.entry(AddCommand.COMMAND_WORD, AddCommand.class),
+                Map.entry(DeleteCommand.COMMAND_WORD, DeleteCommand.class),
+                Map.entry(EditCommand.COMMAND_WORD, EditCommand.class),
+                Map.entry(ListCommand.COMMAND_WORD, ListCommand.class),
+                Map.entry(SearchCommand.COMMAND_WORD, SearchCommand.class),
+                Map.entry(SortCommand.COMMAND_WORD, SortCommand.class),
+                Map.entry(FilterCommand.COMMAND_WORD, FilterCommand.class),
+                Map.entry("homework add", HomeworkAddCommand.class),
+                Map.entry("homework list", HomeworkListCommand.class),
+                Map.entry("homework upcoming", HomeworkUpcomingCommand.class),
+                Map.entry("homework edit", HomeworkEditCommand.class),
+                Map.entry("homework filter", HomeworkFilterCommand.class),
+                Map.entry("homework status", HomeworkStatusCommand.class),
+                Map.entry("homework marks", HomeworkMarksCommand.class),
+                Map.entry("homework delete", HomeworkDeleteCommand.class),
+                Map.entry("lesson add", LessonAddCommand.class),
+                Map.entry("lesson list", LessonListCommand.class),
+                Map.entry("lesson delete", LessonDeleteCommand.class),
+                Map.entry("lesson edit", LessonEditCommand.class),
+                Map.entry(HelpCommand.COMMAND_WORD, HelpCommand.class),
+                Map.entry(ClearCommand.COMMAND_WORD, ClearCommand.class),
+                Map.entry(ExitCommand.COMMAND_WORD, ExitCommand.class));
+        AddressBookParser parser = new AddressBookParser(FIXED_CLOCK);
+
+        for (HelpContent.Entry entry : getEntries()) {
+            assertInstanceOf(expectedCommandTypes.get(entry.commandWord()), parser.parseCommand(entry.example()),
+                    entry.example());
+        }
+    }
+
+    private static List<HelpContent.Entry> getEntries() {
+        return HelpContent.getSections().stream().flatMap(section -> section.entries().stream()).toList();
+    }
+}

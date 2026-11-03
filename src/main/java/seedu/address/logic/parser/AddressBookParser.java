@@ -1,8 +1,10 @@
 package seedu.address.logic.parser;
 
+import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.time.Clock;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,9 +16,11 @@ import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.SearchCommand;
+import seedu.address.logic.commands.SortCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -29,6 +33,18 @@ public class AddressBookParser {
      */
     private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
+
+    private final Clock clock;
+
+    /** Creates a parser whose {@code homework} commands take today's date from the system clock. */
+    public AddressBookParser() {
+        this(Clock.systemDefaultZone());
+    }
+
+    /** Creates a parser whose {@code homework} commands take today's date from {@code clock}. */
+    public AddressBookParser(Clock clock) {
+        this.clock = requireNonNull(clock);
+    }
 
     /**
      * Parses user input into command for execution.
@@ -53,15 +69,21 @@ public class AddressBookParser {
 
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
-            case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
-            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
             case ClearCommand.COMMAND_WORD -> new ClearCommand();
-            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
+            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
+            case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD, ListCommand.SHORT_COMMAND_WORD -> new ListCommandParser().parse(arguments);
+            case SearchCommand.COMMAND_WORD -> new SearchCommandParser().parse(arguments);
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case LessonCommandParser.COMMAND_WORD -> new LessonCommandParser().parse(arguments);
+            case HomeworkCommandParser.COMMAND_WORD, HomeworkCommandParser.COMMAND_ALIAS ->
+                new HomeworkCommandParser(clock).parse(arguments);
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
+                HomeworkCommandParser.checkCommandWordCase(commandWord);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };

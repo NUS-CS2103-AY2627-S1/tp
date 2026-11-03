@@ -1,0 +1,61 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "upcomingCommand:HomeworkUpcomingCommand" as HomeworkUpcomingCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "model:Model" as Model MODEL_COLOR
+end box
+
+[-> LogicManager : execute("hw up due/3")
+activate LogicManager
+
+note right of LogicManager
+  Parsing works as for hw del 1 2 and is not shown.
+  It creates upcomingCommand, which holds
+  today's date and the 3 days.
+end note
+
+LogicManager -> HomeworkUpcomingCommand : execute(model)
+activate HomeworkUpcomingCommand
+
+HomeworkUpcomingCommand -> HomeworkUpcomingCommand : listUpcomingHomework(model)
+activate HomeworkUpcomingCommand
+
+HomeworkUpcomingCommand -> Model : getAddressBook()
+activate Model
+
+Model --> HomeworkUpcomingCommand : addressBook
+deactivate Model
+
+note right of HomeworkUpcomingCommand
+  Reads every student in addressBook, not only
+  the displayed ones. Keeps each student's
+  homework due from today to today + 3, sorts
+  it by due date and builds one line per homework.
+end note
+
+HomeworkUpcomingCommand --> HomeworkUpcomingCommand : message
+deactivate HomeworkUpcomingCommand
+
+HomeworkUpcomingCommand -> Model : updateFilteredStudentList(PREDICATE_SHOW_ALL_STUDENTS)
+activate Model
+
+Model --> HomeworkUpcomingCommand
+deactivate Model
+
+HomeworkUpcomingCommand --> LogicManager : result
+deactivate HomeworkUpcomingCommand
+
+note right of LogicManager
+  The data is unchanged,
+  so it is not saved.
+end note
+
+[<-- LogicManager : result
+deactivate LogicManager
+@enduml

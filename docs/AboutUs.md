@@ -9,51 +9,47 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Alex Chien
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/alexc09.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/alexc09)]
 
-* Role: Project Advisor
+* Role: QA lead
+* Responsibilities: Coordinate automated testing, CI checks, and regression checks.
 
-### Jane Doe
+### Edison Choo
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/edison-choo.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/Edison-choo)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Documentation lead
+* Responsibilities: Coordinate README, User Guide, and Developer Guide updates, and check their consistency.
 
-### Johnny Doe
+### Lim Jing Kai
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/elljaykei.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/Elljaykei)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Project and website lead
+* Responsibilities: Track iteration tasks and keep the published website and repository settings current.
 
-### Jean Doe
+### Noel Tong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/h0nh0nbaguette.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/h0nh0nbaguette)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: DevOps and architecture lead
+* Responsibilities: Maintain the build workflow and guide changes to core design and threading.
 
-### James Doe
+### Wee Wye Keong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/wyekstudent.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/wyekstudent)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: UI lead
+* Responsibilities: Guide interface design, usability, and UI changes.
