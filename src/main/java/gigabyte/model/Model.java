@@ -1,0 +1,122 @@
+package gigabyte.model;
+
+import java.util.function.Predicate;
+
+import gigabyte.commons.core.GuiSettings;
+import gigabyte.model.client.Client;
+import gigabyte.model.gig.Gig;
+import gigabyte.model.gig.PaymentObligation;
+import javafx.collections.ObservableList;
+
+/**
+ * The API of the Model component.
+ */
+public interface Model {
+    /** {@code Predicate} that always evaluates to true */
+    Predicate<Client> PREDICATE_SHOW_ALL_CLIENTS = unused -> true;
+
+    /**
+     * Returns the user prefs.
+     */
+    ReadOnlyUserPrefs getUserPrefs();
+
+    /**
+     * Returns the user prefs' GUI settings.
+     */
+    GuiSettings getGuiSettings();
+
+    /**
+     * Sets the user prefs' GUI settings.
+     */
+    void setGuiSettings(GuiSettings guiSettings);
+
+    /**
+     * Replaces gigabyte data with the data in {@code gigabyteData}.
+     */
+    void setGigabyteData(ReadOnlyGigabyteData gigabyteData);
+
+    /** Returns the GigabyteData */
+    ReadOnlyGigabyteData getGigabyteData();
+
+    /**
+     * Returns true if a client with the same identity as {@code client} exists in the client list.
+     */
+    boolean hasClient(Client client);
+
+    /**
+     * Returns true if a client other than {@code client} (compared by UID) has the same name as {@code client}
+     * after ignoring case, leading and trailing spaces, and repeated internal spaces.
+     */
+    boolean hasOtherClientWithSameNormalizedName(Client client);
+
+    /**
+     * Deletes the given client.
+     * The client must exist in the client list.
+     */
+    void deleteClient(Client target);
+
+    /**
+     * Adds the given client.
+     * {@code client} must not already exist in the client list.
+     */
+    void addClient(Client client);
+
+    /**
+     * Replaces the given client {@code target} with {@code editedClient}.
+     * {@code target} must exist in the client list.
+     * The client identity of {@code editedClient} must not be the same as another existing client in the client list.
+     */
+    void setClient(Client target, Client editedClient);
+
+    /** Returns an unmodifiable view of the filtered client list */
+    ObservableList<Client> getFilteredClientList();
+
+    /**
+     * Updates the filter of the filtered client list to filter by the given {@code predicate}.
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void updateFilteredClientList(Predicate<Client> predicate);
+
+    /**
+     * Adds a gig.
+     * The gig's client must already exist.
+     */
+    void addGig(Gig gig);
+
+    /**
+     * Deletes the gig with {@code target}'s UID only if it has no payment obligations.
+     */
+    void deleteGig(Gig target);
+
+    /**
+     * Replaces {@code target} with {@code replacement}, preserving the gig's UID and client association.
+     */
+    void setGig(Gig target, Gig replacement);
+
+    /**
+     * Returns an unmodifiable view of all gigs.
+     */
+    ObservableList<Gig> getGigList();
+
+    /**
+     * Returns an unmodifiable view of all payment obligations.
+     */
+    ObservableList<PaymentObligation> getPaymentObligationList();
+
+    /**
+     * Adds a payment obligation linked to an existing gig.
+     */
+    void addPaymentObligation(PaymentObligation obligation);
+
+    /** Sets the exact stored payment obligation's paid state, preserving its gig, amount, and due date. */
+    void setPaymentPaidState(PaymentObligation obligation, boolean isPaid);
+
+    /**
+     * Deletes the exact stored payment obligation, preserving its gig and all other obligations.
+     * @throws IllegalArgumentException if the obligation is not a stored instance
+     */
+    void deletePaymentObligation(PaymentObligation obligation);
+
+    /** Replaces a payment obligation while preserving its gig association and paid state. */
+    void setPaymentObligation(PaymentObligation target, PaymentObligation replacement);
+}

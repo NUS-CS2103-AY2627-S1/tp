@@ -1,0 +1,477 @@
+package gigabyte.model;
+
+import static gigabyte.commons.util.CollectionUtil.requireAllNonNull;
+import static java.util.Objects.requireNonNull;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiPredicate;
+
+import gigabyte.commons.util.ToStringBuilder;
+import gigabyte.model.client.Client;
+import gigabyte.model.client.UniqueClientList;
+import gigabyte.model.gig.Gig;
+import gigabyte.model.gig.PaymentObligation;
+import gigabyte.model.gig.exceptions.ClientHasGigsException;
+import gigabyte.model.gig.exceptions.GigClientNotFoundException;
+import gigabyte.model.gig.exceptions.GigHasPaymentsException;
+import gigabyte.model.gig.exceptions.GigNotFoundException;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+/**
+ * Wraps all data at the application level.
+ */
+public class GigabyteData implements ReadOnlyGigabyteData {
+
+    private final UniqueClientList clients = new UniqueClientList();
+    private final ObservableList<Gig> gigs = FXCollections.observableArrayList();
+    private final ObservableList<Gig> unmodifiableGigs =
+            FXCollections.unmodifiableObservableList(gigs);
+    private final ObservableList<PaymentObligation> paymentObligations = FXCollections.observableArrayList();
+    private final ObservableList<PaymentObligation> unmodifiablePaymentObligations =
+            FXCollections.unmodifiableObservableList(paymentObligations);
+
+    public GigabyteData() {}
+
+    /**
+     * Creates a {@code GigabyteData} using the data in {@code toBeCopied}.
+     */
+    public GigabyteData(ReadOnlyGigabyteData toBeCopied) {
+        this();
+        resetData(toBeCopied);
+    }
+
+    //// list overwrite operations
+
+    /**
+     * Replaces the contents of the client list.
+     *
+     * @throws GigClientNotFoundException if the replacement removes a client
+     *         that is still referenced by a gig
+     */
+    public void setClients(List<Client> clients) {
+        requireAllNonNull(clients);
+
+        List<Client> replacementClients = List.copyOf(clients);
+        List<Gig> replacementGigs = linkGigsToClients(replacementClients, gigs);
+        List<PaymentObligation> replacementObligations = linkPaymentObligations(gigs, replacementGigs,
+                paymentObligations);
+
+        this.clients.setClients(replacementClients);
+        this.gigs.setAll(replacementGigs);
+        paymentObligations.setAll(replacementObligations);
+    }
+
+    /**
+     * Replaces the contents of the gig list.
+     *
+     * @throws GigClientNotFoundException if a gig refers to a client that does
+     *         not exist
+     */
+    public void setGigs(List<Gig> gigs) {
+        requireAllNonNull(gigs);
+        requireUniqueGigUids(gigs);
+        List<Gig> replacementGigs = linkGigsToClients(getClientList(), gigs);
+        List<PaymentObligation> replacementObligations = linkPaymentObligations(this.gigs, replacementGigs,
+                paymentObligations);
+
+        this.gigs.setAll(replacementGigs);
+        paymentObligations.setAll(replacementObligations);
+    }
+
+    /**
+     * Resets this data using {@code newData}, validating linked records before replacing stored lists.
+     */
+    public void resetData(ReadOnlyGigabyteData newData) {
+        requireNonNull(newData);
+
+        List<Client> replacementClients = List.copyOf(newData.getClientList());
+        requireUniqueGigUids(newData.getGigList());
+        List<Gig> replacementGigs =
+                linkGigsToClients(replacementClients, newData.getGigList());
+        List<PaymentObligation> replacementObligations = linkPaymentObligations(newData.getGigList(), replacementGigs,
+                newData.getPaymentObligationList());
+
+        clients.setClients(replacementClients);
+        gigs.setAll(replacementGigs);
+        paymentObligations.setAll(replacementObligations);
+    }
+
+    //// client-level operations
+
+    /**
+     * Returns whether an equivalent client exists.
+     */
+    public boolean hasClient(Client client) {
+        requireNonNull(client);
+        return clients.contains(client);
+    }
+
+    /**
+     * Adds a client.
+     */
+    public void addClient(Client client) {
+        clients.add(client);
+    }
+
+    /**
+     * Replaces {@code target} with {@code editedClient} and updates its gigs.
+     */
+    public void setClient(Client target, Client editedClient) {
+        requireAllNonNull(target, editedClient);
+
+        List<Gig> replacementGigs = new ArrayList<>(gigs);
+        for (int index = 0; index < gigs.size(); index++) {
+            Gig gig = gigs.get(index);
+            if (gig.getClient().hasSameUid(target)) {
+                replacementGigs.set(index, gig.withClient(editedClient));
+            }
+        }
+        List<PaymentObligation> replacementObligations = linkPaymentObligations(gigs, replacementGigs,
+                paymentObligations);
+
+        clients.setClient(target, editedClient);
+        // Replace only this client's linked rows so unrelated selections keep their stored objects.
+        for (int index = 0; index < gigs.size(); index++) {
+            if (gigs.get(index) != replacementGigs.get(index)) {
+                gigs.set(index, replacementGigs.get(index));
+            }
+        }
+        for (int index = 0; index < paymentObligations.size(); index++) {
+            PaymentObligation replacement = replacementObligations.get(index);
+            if (paymentObligations.get(index).getGig() != replacement.getGig()) {
+                paymentObligations.set(index, replacement);
+            }
+        }
+    }
+
+    /**
+     * Removes {@code key}.
+     *
+     * @throws ClientHasGigsException if a gig still refers to the client
+     */
+    public void removeClient(Client key) {
+        requireNonNull(key);
+
+        boolean hasAssociatedGig = gigs.stream()
+                .anyMatch(gig -> gig.getClient().hasSameUid(key));
+
+        if (hasAssociatedGig) {
+            throw new ClientHasGigsException();
+        }
+
+        clients.remove(key);
+    }
+
+    //// gig-level operations
+
+    /**
+     * Adds a gig, linking it to the canonical client stored in this data.
+     *
+     * @throws GigClientNotFoundException if the gig's client does not exist
+     */
+    public void addGig(Gig gig) {
+        requireNonNull(gig);
+
+        Client storedClient = findMatchingClient(getClientList(), gig.getClient());
+        Gig storedGig = gig.withClient(storedClient);
+        boolean hasDuplicateUid = false;
+        for (Gig existing : gigs) {
+            if (existing.hasSameUid(storedGig)) {
+                hasDuplicateUid = true;
+                break;
+            }
+        }
+        if (hasDuplicateUid) {
+            storedGig = storedGig.withNewUid();
+        }
+        gigs.add(storedGig);
+    }
+
+    /**
+     * Replaces {@code target} with {@code replacement}, preserving its UID and client association and relinking
+     * existing payment obligations to the replacement.
+     *
+     * @throws GigNotFoundException if {@code target} does not exist
+     * @throws IllegalArgumentException if {@code replacement} changes the gig UID or client association
+     */
+    public void setGig(Gig target, Gig replacement) {
+        requireAllNonNull(target, replacement);
+
+        int targetIndex = findGigIndexByUid(gigs, target);
+        if (targetIndex < 0) {
+            throw new GigNotFoundException();
+        }
+
+        Gig storedTarget = gigs.get(targetIndex);
+        if (!storedTarget.hasSameUid(replacement)
+                || !storedTarget.getClient().hasSameUid(replacement.getClient())) {
+            throw new IllegalArgumentException("A replacement gig must preserve its UID and client association.");
+        }
+
+        Gig storedReplacement = replacement.withClient(storedTarget.getClient());
+        List<Gig> replacementGigs = new ArrayList<>(gigs);
+        replacementGigs.set(targetIndex, storedReplacement);
+        List<PaymentObligation> replacementObligations = linkPaymentObligations(
+                gigs, replacementGigs, paymentObligations);
+
+        gigs.set(targetIndex, storedReplacement);
+        paymentObligations.setAll(replacementObligations);
+    }
+
+    /**
+     * Removes the gig with {@code target}'s UID without deleting its payment obligations.
+     *
+     * @throws GigNotFoundException if the UID is not stored.
+     * @throws GigHasPaymentsException if any paid or unpaid obligation refers to the gig.
+     */
+    public void removeGig(Gig target) {
+        requireNonNull(target);
+        int index = findGigIndexByUid(gigs, target);
+        if (index < 0) {
+            throw new GigNotFoundException();
+        }
+        if (paymentObligations.stream().anyMatch(payment -> payment.getGig().hasSameUid(target))) {
+            throw new GigHasPaymentsException();
+        }
+        gigs.remove(index);
+    }
+
+    /**
+     * Adds a payment obligation linked to the stored gig with the same UID.
+     *
+     * @throws GigNotFoundException if the gig's UID is not stored.
+     */
+    public void addPaymentObligation(PaymentObligation obligation) {
+        requireNonNull(obligation);
+        int index = findGigIndexByUid(gigs, obligation.getGig());
+        if (index < 0) {
+            throw new GigNotFoundException();
+        }
+        paymentObligations.add(obligation.withGig(gigs.get(index)));
+    }
+
+    /**
+     * Replaces {@code target} with {@code replacement}, preserving its gig association and paid state.
+     */
+    public void setPaymentObligation(PaymentObligation target, PaymentObligation replacement) {
+        requireAllNonNull(target, replacement);
+
+        int targetIndex = findPaymentObligationIndex(target);
+        if (targetIndex < 0) {
+            throw new IllegalArgumentException("Payment obligation must belong to this Gigabyte data.");
+        }
+
+        PaymentObligation storedTarget = paymentObligations.get(targetIndex);
+        boolean hasDifferentGig = !storedTarget.getGig().hasSameUid(replacement.getGig());
+        boolean hasDifferentPaidState = storedTarget.isPaid() != replacement.isPaid();
+        if (hasDifferentGig || hasDifferentPaidState) {
+            throw new IllegalArgumentException("A replacement payment must preserve its gig and paid state.");
+        }
+
+        paymentObligations.set(targetIndex, replacement.withGig(storedTarget.getGig()));
+    }
+
+    /** Replaces the exact stored obligation with a copy having the requested paid state. */
+    public void setPaymentPaidState(PaymentObligation obligation, boolean isPaid) {
+        requireNonNull(obligation);
+        for (int index = 0; index < paymentObligations.size(); index++) {
+            if (paymentObligations.get(index) == obligation) {
+                paymentObligations.set(index, obligation.withPaid(isPaid));
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Payment obligation must belong to this Gigabyte data.");
+    }
+
+    /**
+     * Removes only the exact stored obligation, preserving the order of all remaining obligations.
+     * @throws IllegalArgumentException if the obligation is not a stored instance
+     */
+    public void deletePaymentObligation(PaymentObligation obligation) {
+        requireNonNull(obligation);
+        for (int index = 0; index < paymentObligations.size(); index++) {
+            // Field-identical obligations are independent records, so equality cannot identify the target.
+            if (paymentObligations.get(index) == obligation) {
+                paymentObligations.remove(index);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Payment obligation must belong to this Gigabyte data.");
+    }
+
+    /** Finds {@code target} by identity before matching its gig identity and value. */
+    private int findPaymentObligationIndex(PaymentObligation target) {
+        for (int index = 0; index < paymentObligations.size(); index++) {
+            if (paymentObligations.get(index) == target) {
+                return index;
+            }
+        }
+        for (int index = 0; index < paymentObligations.size(); index++) {
+            PaymentObligation candidate = paymentObligations.get(index);
+            if (candidate.getGig().hasSameUid(target.getGig()) && candidate.equals(target)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    //// accessors
+
+    @Override
+    public ObservableList<Client> getClientList() {
+        return clients.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Gig> getGigList() {
+        return unmodifiableGigs;
+    }
+
+    @Override
+    public ObservableList<PaymentObligation> getPaymentObligationList() {
+        return unmodifiablePaymentObligations;
+    }
+
+    private static List<PaymentObligation> linkPaymentObligations(
+            List<Gig> oldGigs, List<Gig> newGigs, List<PaymentObligation> obligations) {
+        List<Integer> replacementIndexes = matchReplacementGigIndexes(oldGigs, newGigs);
+        return obligations.stream().map(obligation -> {
+            int index = findGigIndexByUid(oldGigs, obligation.getGig());
+            if (index < 0 || replacementIndexes.get(index) < 0) {
+                throw new GigNotFoundException();
+            }
+            return obligation.withGig(newGigs.get(replacementIndexes.get(index)));
+        }).toList();
+    }
+
+    /** Finds a gig by stable UID without falling back to equal field values. */
+    private static int findGigIndexByUid(List<Gig> gigs, Gig target) {
+        for (int index = 0; index < gigs.size(); index++) {
+            if (gigs.get(index).hasSameUid(target)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Matches equal gigs first so reordering does not change obligation ownership. If every remaining old gig has
+     * one remaining new gig, those unmatched entries are treated as edited replacements in relative order.
+     */
+    private static List<Integer> matchReplacementGigIndexes(List<Gig> oldGigs, List<Gig> newGigs) {
+        List<Integer> replacementIndexes = new ArrayList<>(Collections.nCopies(oldGigs.size(), -1));
+        boolean[] isNewGigMatched = new boolean[newGigs.size()];
+        matchUnmatchedGigs(oldGigs, newGigs, replacementIndexes, isNewGigMatched, Gig::hasSameUid);
+        matchUnmatchedGigs(oldGigs, newGigs, replacementIndexes, isNewGigMatched, Gig::equals);
+        pairRemainingGigsInOrder(replacementIndexes, isNewGigMatched);
+        return replacementIndexes;
+    }
+
+    /**
+     * Matches each unmatched old gig to the first unmatched new gig for which {@code isMatch} holds.
+     */
+    private static void matchUnmatchedGigs(List<Gig> oldGigs, List<Gig> newGigs, List<Integer> replacementIndexes,
+            boolean[] isNewGigMatched, BiPredicate<Gig, Gig> isMatch) {
+        for (int oldIndex = 0; oldIndex < oldGigs.size(); oldIndex++) {
+            if (replacementIndexes.get(oldIndex) >= 0) {
+                continue;
+            }
+            for (int newIndex = 0; newIndex < newGigs.size(); newIndex++) {
+                if (!isNewGigMatched[newIndex] && isMatch.test(oldGigs.get(oldIndex), newGigs.get(newIndex))) {
+                    replacementIndexes.set(oldIndex, newIndex);
+                    isNewGigMatched[newIndex] = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Pairs the remaining unmatched old and new gigs in relative order, but only when both sides have the same
+     * number of gigs left.
+     */
+    private static void pairRemainingGigsInOrder(List<Integer> replacementIndexes, boolean[] isNewGigMatched) {
+        List<Integer> unmatchedOldIndexes = new ArrayList<>();
+        List<Integer> unmatchedNewIndexes = new ArrayList<>();
+        for (int oldIndex = 0; oldIndex < replacementIndexes.size(); oldIndex++) {
+            if (replacementIndexes.get(oldIndex) < 0) {
+                unmatchedOldIndexes.add(oldIndex);
+            }
+        }
+        for (int newIndex = 0; newIndex < isNewGigMatched.length; newIndex++) {
+            if (!isNewGigMatched[newIndex]) {
+                unmatchedNewIndexes.add(newIndex);
+            }
+        }
+
+        if (unmatchedOldIndexes.size() == unmatchedNewIndexes.size()) {
+            for (int index = 0; index < unmatchedOldIndexes.size(); index++) {
+                replacementIndexes.set(unmatchedOldIndexes.get(index), unmatchedNewIndexes.get(index));
+            }
+        }
+    }
+
+    private static List<Gig> linkGigsToClients(List<Client> clients, List<Gig> gigs) {
+        requireAllNonNull(clients);
+        requireAllNonNull(gigs);
+
+        return gigs.stream()
+                .map(gig -> gig.withClient(findMatchingClient(clients, gig.getClient())))
+                .toList();
+    }
+
+    private static void requireUniqueGigUids(List<Gig> gigs) {
+        Set<UUID> uids = new HashSet<>();
+        for (Gig gig : gigs) {
+            if (!uids.add(gig.getUid())) {
+                throw new IllegalArgumentException("Gig IDs must be unique.");
+            }
+        }
+    }
+
+    private static Client findMatchingClient(List<Client> clients, Client client) {
+        requireNonNull(client);
+
+        return clients.stream()
+                .filter(storedClient -> storedClient.hasSameUid(client))
+                .findFirst()
+                .orElseThrow(GigClientNotFoundException::new);
+    }
+
+    //// util methods
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("clients", clients)
+                .add("gigs", gigs)
+                .add("paymentObligations", paymentObligations)
+                .toString();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        if (!(other instanceof GigabyteData otherGigabyteData)) {
+            return false;
+        }
+
+        return clients.equals(otherGigabyteData.clients) && gigs.equals(otherGigabyteData.gigs)
+                && paymentObligations.equals(otherGigabyteData.paymentObligations);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(clients, gigs, paymentObligations);
+    }
+}

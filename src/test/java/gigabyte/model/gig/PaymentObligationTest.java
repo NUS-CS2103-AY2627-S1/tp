@@ -1,0 +1,77 @@
+package gigabyte.model.gig;
+
+import static gigabyte.testutil.Assert.assertThrows;
+import static gigabyte.testutil.TypicalClients.ALICE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+public class PaymentObligationTest {
+    private static final Gig GIG = new Gig(ALICE, new GigTitle("Website redesign"), GigStatus.IN_PROGRESS,
+            new Deadline("2026-12-31"), new Fee("100"));
+    private static final Fee AMOUNT = new Fee("50");
+    private static final Deadline DUE_DATE = new Deadline("2026-11-30");
+
+    @Test
+    public void constructor_nullField_throwsNullPointerException() {
+        // One null field at a time
+        assertThrows(NullPointerException.class, () -> new PaymentObligation(null, AMOUNT, DUE_DATE, false)); // gig
+        assertThrows(NullPointerException.class, () -> new PaymentObligation(GIG, null, DUE_DATE, false)); // amount
+        assertThrows(NullPointerException.class, () -> new PaymentObligation(GIG, AMOUNT, null, false)); // due date
+    }
+
+    @Test
+    public void paymentState_canBeChanged() {
+        PaymentObligation obligation = new PaymentObligation(GIG, AMOUNT, DUE_DATE, false);
+        assertFalse(obligation.isPaid());
+        assertTrue(obligation.withPaid(true).isPaid());
+    }
+
+    @Test
+    public void withDetails_replacesDetailsAndPreservesAssociationAndState() {
+        PaymentObligation obligation = new PaymentObligation(GIG, AMOUNT, DUE_DATE, true);
+        Fee replacementAmount = new Fee("75.25");
+        Deadline replacementDueDate = new Deadline("2027-01-15");
+
+        PaymentObligation replacement = obligation.withDetails(replacementAmount, replacementDueDate);
+
+        assertSame(GIG, replacement.getGig());
+        assertEquals(replacementAmount, replacement.getAmount());
+        assertEquals(replacementDueDate, replacement.getDueDate());
+        assertTrue(replacement.isPaid());
+    }
+
+    @Test
+    public void accessorsAndValueMethods_returnExpectedValues() {
+        PaymentObligation obligation = new PaymentObligation(GIG, AMOUNT, DUE_DATE, false);
+        PaymentObligation equivalent = new PaymentObligation(GIG, AMOUNT, DUE_DATE, false);
+
+        // accessors
+        assertEquals(GIG, obligation.getGig());
+        assertEquals(AMOUNT, obligation.getAmount());
+        assertEquals(DUE_DATE, obligation.getDueDate());
+
+        // same values or same object -> equal, with the same hash code
+        assertTrue(obligation.equals(equivalent));
+        assertTrue(obligation.equals(obligation));
+        assertEquals(obligation.hashCode(), equivalent.hashCode());
+
+        // null or a different type -> not equal
+        assertFalse(obligation.equals(null));
+        assertFalse(obligation.equals("not an obligation"));
+
+        assertTrue(obligation.toString().contains("PaymentObligation"));
+    }
+
+    @Test
+    public void withGig_replacesLinkedGig() {
+        Gig replacement = new Gig(ALICE, new GigTitle("Website redesign"), GigStatus.COMPLETED,
+                new Deadline("2027-01-31"), new Fee("200"));
+        PaymentObligation obligation = new PaymentObligation(GIG, AMOUNT, DUE_DATE, false);
+
+        assertEquals(replacement, obligation.withGig(replacement).getGig());
+    }
+}

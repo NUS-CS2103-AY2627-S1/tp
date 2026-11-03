@@ -1,0 +1,45 @@
+@startuml
+!include ../style.puml
+skinparam ArrowFontStyle plain
+
+participant ":MainWindow" as window UI_COLOR
+participant ":LogicManager" as logic LOGIC_COLOR
+participant ":GigabyteParser" as parser LOGIC_COLOR
+participant ":FindGigCommand" as command LOGIC_COLOR
+participant ":Model" as model MODEL_COLOR
+participant ":GigListPanel" as panel UI_COLOR
+
+[-> window : enter "findgig KEYWORD..."
+activate window
+window -> logic : execute(commandText)
+activate logic
+logic -> parser : parseCommand(commandText)
+activate parser
+note over parser
+  FindGigCommandParser splits the keywords
+  and creates a title predicate and command.
+end note
+parser --> logic : FindGigCommand
+deactivate parser
+
+logic -> command : execute(model)
+activate command
+command -> model : getGigList()
+activate model
+model --> command : all gigs
+deactivate model
+note over command
+  Count titles matching the predicate.
+end note
+command --> logic : CommandResult(predicate)
+deactivate command
+logic --> window : CommandResult
+deactivate logic
+
+window -> panel : showGigsMatchingTitle(predicate)
+activate panel
+panel --> window : filtered gig list displayed
+deactivate panel
+deactivate window
+
+@enduml
