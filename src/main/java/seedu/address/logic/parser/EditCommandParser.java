@@ -1,85 +1,142 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditCommand.EditStudentDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Subject;
 
 /**
- * Parses input arguments and creates a new EditCommand object
+ * Parses arguments for editing a student.
  */
 public class EditCommandParser implements Parser<EditCommand> {
 
+    private static final String WHITESPACE_PATTERN = "\\s+";
+    private static final Pattern WHOLE_NUMBER_PATTERN = Pattern.compile("\\d+");
+    /** The start of a word that looks like a parameter prefix, such as the {@code em/} in {@code em/a@b.com} */
+    private static final Pattern PREFIX_LIKE_PATTERN = Pattern.compile("[A-Za-z]+/");
+    private static final List<Prefix> STUDENT_PREFIXES = List.of(
+            PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_SUBJECT, PREFIX_LEVEL);
+    private static final String MESSAGE_WRONG_CASE_PREFIX =
+            "Parameter prefixes must be typed in lowercase: %1$s should be %2$s.";
+
     /**
-     * Parses the given {@code String} of arguments in the context of the EditCommand
-     * and returns an EditCommand object for execution.
-     * @throws ParseException if the user input does not conform to the expected format
+     * Parses {@code args} as a student roster index and one or more replacement fields.
+     *
+     * @throws ParseException If the index, prefixes, or replacement values are invalid.
      */
+    @Override
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+        ArgumentMultimap argMultimap = ParserUtil.tokenizeStudentFields(args);
 
-        Index index;
-
-        try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
+        verifyNoStrayText(argMultimap.getPreamble());
+        Index index = ParserUtil.parseOnlyStudentIndex(argMultimap.getPreamble(), EditCommand.COMMAND_WORD,
+                EditCommand.COMMAND_FORMAT, EditCommand.COMMAND_EXAMPLE);
+        verifyNoDuplicatePrefixes(argMultimap);
+        EditStudentDescriptor descriptor = parseDescriptor(argMultimap);
+        if (!descriptor.isAnyFieldEdited()) {
+            throw new ParseException(withEditFormat(EditCommand.MESSAGE_NOT_EDITED));
         }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-
-        if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
-            editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
-        }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
-        }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
-
-        if (!editPersonDescriptor.isAnyFieldEdited()) {
-            throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
-        }
-
-        return new EditCommand(index, editPersonDescriptor);
+        return new EditCommand(index, descriptor);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
+     * Verifies that the first word of {@code preamble} is a valid index and that every word after it is a
+     * number, so that stray text is reported as such instead of as a second index.
+     *
+     * @throws ParseException If the first word is not a valid index when more words follow it, or a later word
+     *         is not a number. A later word that looks like a parameter prefix is reported as an unknown parameter.
      */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
+    private static void verifyNoStrayText(String preamble) throws ParseException {
+        String[] words = preamble.split(WHITESPACE_PATTERN);
+        if (words.length > 1) {
+            ParserUtil.parseStudentIndex(words[0], ParserUtil.INDEX_LABEL);
         }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
+        for (int i = 1; i < words.length; i++) {
+            if (!WHOLE_NUMBER_PATTERN.matcher(words[i]).matches()) {
+                Matcher unknownPrefix = PREFIX_LIKE_PATTERN.matcher(words[i]);
+                if (unknownPrefix.lookingAt()) {
+                    String typedPrefix = unknownPrefix.group();
+                    Optional<Prefix> matchingPrefix = STUDENT_PREFIXES.stream()
+                            .filter(prefix -> prefix.toString().equalsIgnoreCase(typedPrefix))
+                            .findFirst();
+                    if (matchingPrefix.isPresent()) {
+                        throw new ParseException(withEditFormat(String.format(MESSAGE_WRONG_CASE_PREFIX,
+                                typedPrefix, matchingPrefix.get())));
+                    }
+                    throw new ParseException(withEditFormat(String.format(AddCommandParser.MESSAGE_UNKNOWN_PARAMETER,
+                            typedPrefix, AddCommandParser.MESSAGE_SUPPORTED_PARAMETERS)));
+                }
+                String strayText = String.join(" ", Arrays.copyOfRange(words, i, words.length));
+                throw new ParseException(withEditFormat(
+                        String.format(AddCommandParser.MESSAGE_UNEXPECTED_PREAMBLE, strayText)));
+            }
+        }
     }
 
+    private static void verifyNoDuplicatePrefixes(ArgumentMultimap argMultimap) throws ParseException {
+        try {
+            argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_SUBJECT,
+                    PREFIX_LEVEL);
+        } catch (ParseException exception) {
+            throw new ParseException(withEditFormat(exception.getMessage()), exception);
+        }
+    }
+
+    private static EditStudentDescriptor parseDescriptor(ArgumentMultimap argMultimap) throws ParseException {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        try {
+            argMultimap.getValue(PREFIX_NAME).ifPresent(value -> descriptor.setName(new StudentName(value)));
+            argMultimap.getValue(PREFIX_PHONE).ifPresent(value -> descriptor.setParentPhone(parsePhone(value)));
+            argMultimap.getValue(PREFIX_EMAIL).ifPresent(value -> descriptor.setParentEmail(parseEmail(value)));
+            argMultimap.getValue(PREFIX_SUBJECT).ifPresent(value -> descriptor.setSubject(new Subject(value)));
+            argMultimap.getValue(PREFIX_LEVEL)
+                    .ifPresent(value -> descriptor.setCurrentLevel(new CurrentLevel(value)));
+            return descriptor;
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
+        }
+    }
+
+    private static String parsePhone(String phone) {
+        if (!ParentGuardianContact.isValidPhone(phone)) {
+            throw new IllegalArgumentException(ParentGuardianContact.PHONE_MESSAGE_CONSTRAINTS);
+        }
+        return phone.trim();
+    }
+
+    private static Optional<String> parseEmail(String email) {
+        if (email.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!ParentGuardianContact.isValidEmail(email)) {
+            throw new IllegalArgumentException(ParentGuardianContact.EMAIL_MESSAGE_CONSTRAINTS);
+        }
+        return Optional.of(email.trim());
+    }
+
+    /**
+     * Appends the one-line student edit format to an error about the shape of the command.
+     */
+    private static String withEditFormat(String message) {
+        return Messages.withFormat(message, EditCommand.COMMAND_FORMAT, EditCommand.COMMAND_EXAMPLE);
+    }
 }

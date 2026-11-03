@@ -1,22 +1,28 @@
 package seedu.address.ui;
 
+import java.awt.Point;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.student.StudentId;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,15 +31,18 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double SAVED_ORIGIN_PROBE_SIZE = 1;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private Optional<StudentId> displayedProfileStudentId = Optional.empty();
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private StudentRosterPanel studentRosterPanel;
+    private StudentProfilePanel studentProfilePanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
 
@@ -44,7 +53,10 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane studentRosterPanelPlaceholder;
+
+    @FXML
+    private StackPane studentProfilePanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -114,8 +126,11 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        studentRosterPanel = new StudentRosterPanel(logic.getStudentRoster());
+        studentRosterPanelPlaceholder.getChildren().add(studentRosterPanel.getRoot());
+
+        studentProfilePanel = new StudentProfilePanel();
+        studentProfilePanelPlaceholder.getChildren().add(studentProfilePanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -123,7 +138,7 @@ public class MainWindow extends UiPart<Stage> {
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        CommandBox commandBox = new CommandBox(this::executeCommand, studentProfilePanel::scrollSessionNotes);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
     }
 
@@ -131,12 +146,46 @@ public class MainWindow extends UiPart<Stage> {
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
+        Rectangle2D visualBounds = getTargetScreenVisualBounds(guiSettings);
+        primaryStage.setHeight(Math.min(guiSettings.getWindowHeight(), visualBounds.getHeight()));
+        primaryStage.setWidth(Math.min(guiSettings.getWindowWidth(), visualBounds.getWidth()));
+        Point windowCoordinates = guiSettings.getWindowCoordinates();
+        if (windowCoordinates != null) {
+            double maximumX = visualBounds.getMaxX() - primaryStage.getWidth();
+            double maximumY = visualBounds.getMaxY() - primaryStage.getHeight();
+            primaryStage.setX(clampCoordinate(
+                    windowCoordinates.getX(), visualBounds.getMinX(), maximumX));
+            primaryStage.setY(clampCoordinate(
+                    windowCoordinates.getY(), visualBounds.getMinY(), maximumY));
         }
+    }
+
+    /**
+     * Returns {@code savedCoordinate} limited to the range from {@code minimumCoordinate} to
+     * {@code maximumCoordinate}.
+     */
+    private static double clampCoordinate(double savedCoordinate, double minimumCoordinate, double maximumCoordinate) {
+        double usableMaximum = Math.max(minimumCoordinate, maximumCoordinate);
+        return Math.max(minimumCoordinate, Math.min(savedCoordinate, usableMaximum));
+    }
+
+    /**
+     * Returns the usable bounds of the screen containing the saved window origin.
+     * Falls back to the primary screen when no saved origin is available there.
+     */
+    private Rectangle2D getTargetScreenVisualBounds(GuiSettings guiSettings) {
+        Point windowCoordinates = guiSettings.getWindowCoordinates();
+        Screen targetScreen;
+        if (windowCoordinates == null) {
+            targetScreen = Screen.getPrimary();
+        } else {
+            targetScreen = Screen.getScreensForRectangle(windowCoordinates.getX(), windowCoordinates.getY(),
+                    SAVED_ORIGIN_PROBE_SIZE, SAVED_ORIGIN_PROBE_SIZE)
+                    .stream()
+                    .findFirst()
+                    .orElse(Screen.getPrimary());
+        }
+        return targetScreen.getVisualBounds();
     }
 
     /**
@@ -167,8 +216,12 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public StudentRosterPanel getStudentRosterPanel() {
+        return studentRosterPanel;
+    }
+
+    StudentProfilePanel getStudentProfilePanel() {
+        return studentProfilePanel;
     }
 
     /**
@@ -176,10 +229,16 @@ public class MainWindow extends UiPart<Stage> {
      *
      * @see seedu.address.logic.Logic#execute(String)
      */
-    private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
+    CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
+            studentProfilePanel.clearDeletionPreview();
+            studentRosterPanel.setRoster(logic.getStudentRoster());
+            commandResult.getProfileStudentId()
+                    .ifPresent(studentId -> displayedProfileStudentId = Optional.of(studentId));
+            refreshDisplayedProfile();
+            commandResult.getPreviewNoteNumber().ifPresent(studentProfilePanel::previewDeletionOf);
+            logger.info("Command executed successfully: " + AddressBookParser.getLoggableCommandWord(commandText));
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
 
             if (commandResult.isShowHelp()) {
@@ -192,9 +251,26 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            if (e instanceof CommandException) {
+                studentProfilePanel.clearDeletionPreview();
+            }
+            logger.info("An error occurred while executing command: "
+                    + AddressBookParser.getLoggableCommandWord(commandText));
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }
+    }
+
+    private void refreshDisplayedProfile() {
+        displayedProfileStudentId.ifPresent(studentId -> logic.getStudentProfile(studentId)
+                .ifPresentOrElse(studentProfile -> {
+                    studentProfilePanel.setProfile(studentProfile);
+                    studentRosterPanel.selectStudent(studentId);
+                }, () -> {
+                    logger.fine("Displayed student profile no longer exists; clearing it.");
+                    studentProfilePanel.clearProfile();
+                    studentRosterPanel.clearSelection();
+                    displayedProfileStudentId = Optional.empty();
+                }));
     }
 }

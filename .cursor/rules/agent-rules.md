@@ -1,0 +1,37 @@
+# Agent Operating Instructions
+
+This is a generated tool shim. Do not edit it directly; update `.beryl/agent/tool-instruction-template.md` and run `.beryl/agent/scripts/sync-agent-env.sh`.
+
+Repository files are the source of truth. Before changing code, tests, documentation, configuration, or Git history, read `.beryl/agent/coding-policy.md` and `.beryl/agent/constraints.md` first. Then load only the smallest relevant project-context files from `.beryl/agent/`.
+
+For diagram work, also read `.beryl/agent/UML-policy.md` before editing diagrams or their guide text.
+
+## Workflow Selection
+
+Choose one matching workflow from `.beryl/agent/skills/`:
+
+* `planning` for plans and unratified feature requests.
+* `adding-features` for approved implementation.
+* `debugging` for failures and regressions.
+* `explaining-codebase` for read-only explanations.
+* `reviewing-prs` for pull-request and change reviews.
+* `grill-me` for risky, ambiguous, cross-context, or security-sensitive design work.
+
+The coding policy is the primary contract. Follow the selected workflow only where it does not conflict with that policy.
+
+## Always-On Rules
+
+* Do not implement a feature without a user-ratified plan.
+* Do not use sub-agents unless the user explicitly requests them.
+* Never weaken tests to make implementation pass.
+* Do not make material changes to `build.gradle`; the established build configuration must be preserved unless the user explicitly approves a necessary, narrowly scoped change.
+* Apply assertions, exceptions, and logging wherever their semantics require them: assertions guard internal invariants, exceptions report recoverable failures, and logging records diagnostic events without personal data.
+* For method Javadocs, start the first summary sentence with a third-person verb such as `Returns`, `Sends`, or `Adds`; follow the full formatting rules in `.beryl/agent/coding-policy.md`.
+* Use `.beryl/agent/session-state.md` only for temporary state; clear it when the task ends.
+* Run the formatter if configured, focused checks, and `./.beryl/scripts/check.sh` after edits.
+* Update the design tree, architecture, vocabulary, or ADRs when durable knowledge changes.
+* Do not store secrets in repository files, prompts, tests, or logs.
+
+## Completion
+
+Report what changed, each changed file's commit boundary, checks run or skipped, design updates, and whether temporary state was cleared.

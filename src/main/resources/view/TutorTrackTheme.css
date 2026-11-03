@@ -1,0 +1,547 @@
+/* TutorTrack's light visual system. */
+.root {
+    -app-background: #f5f8f7;
+    -app-surface: #ffffff;
+    -app-surface-muted: #edf4f2;
+    -app-border: #d4e2df;
+    -app-border-strong: #b7cfca;
+    -app-text: #17332f;
+    -app-text-muted: #58736e;
+    -app-accent: #0f766e;
+    -app-accent-dark: #0b5d57;
+    -app-accent-soft: #dff3ef;
+    -app-focus-ring: #17332f;
+    -app-danger: #b42318;
+    -fx-base: -app-surface;
+    -fx-background: -app-background;
+    -fx-control-inner-background: -app-surface;
+    -fx-focus-color: -app-accent;
+    -fx-faint-focus-color: rgba(15, 118, 110, 0.18);
+    -fx-font-family: "System";
+}
+
+.background,
+.stack-pane,
+.student-profile-panel {
+    -fx-background-color: -app-background;
+}
+
+.label {
+    -fx-font-family: "System";
+    -fx-font-size: 13px;
+    -fx-text-fill: -app-text;
+}
+
+.label-bright {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.label-header {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.text-field,
+.text-area {
+    -fx-font-family: "System";
+    -fx-font-size: 14px;
+    -fx-text-fill: -app-text;
+}
+
+.text-field {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 8px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 9px 12px;
+}
+
+.text-field:focused {
+    -fx-border-color: -app-accent;
+    -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.18), 8, 0.2, 0, 1);
+}
+
+.tab-pane {
+    -fx-padding: 0;
+}
+
+.table-view {
+    -fx-background-color: -app-surface;
+    -fx-control-inner-background: -app-surface;
+    -fx-padding: 5px;
+}
+
+.split-pane {
+    -fx-background-color: -app-background;
+    -fx-border-color: -app-border;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.split-pane:horizontal .split-pane-divider {
+    -fx-background-color: -app-border;
+    -fx-border-color: transparent;
+    -fx-padding: 0 1px;
+}
+
+.list-view {
+    -fx-background-color: -app-surface;
+    -fx-background-insets: 0;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 0;
+}
+
+.student-roster-list .list-cell {
+    -fx-background-color: -app-surface;
+    -fx-label-padding: 0;
+    -fx-padding: 5px;
+}
+
+.student-roster-list .list-cell:filled:even {
+    -fx-background-color: -app-surface;
+}
+
+.student-roster-list .list-cell:filled:odd {
+    -fx-background-color: -app-surface;
+}
+
+.student-roster-list .list-cell:filled:hover,
+.student-roster-list .list-cell:filled:selected,
+.student-roster-list .list-cell:filled:focused {
+    -fx-background-color: -app-surface;
+}
+
+.student-roster-list .list-cell:filled:profile-selected #cardPane {
+    -fx-background-color: -app-accent-soft;
+    -fx-border-color: -app-accent;
+    -fx-border-width: 1px 1px 1px 4px;
+}
+
+.student-roster-list .list-cell .label {
+    -fx-text-fill: -app-text;
+}
+
+.student-roster-list .list-cell:empty {
+    -fx-background-color: -app-surface;
+}
+
+.roster-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.roster-index-badge {
+    -fx-background-color: -app-surface-muted;
+    -fx-background-radius: 12px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 12px;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 2px 7px;
+    -fx-text-fill: -app-text-muted;
+}
+
+.roster-context {
+    -fx-font-size: 13px;
+    -fx-text-fill: -app-text-muted;
+}
+
+.roster-note-count {
+    -fx-background-color: -app-surface-muted;
+    -fx-background-radius: 10px;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 3px 8px;
+    -fx-text-fill: -app-accent-dark;
+}
+
+.empty-roster-state {
+    -fx-padding: 24px;
+}
+
+.empty-state-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.empty-state-guidance {
+    -fx-font-size: 13px;
+    -fx-text-fill: -app-text-muted;
+}
+
+.profile-empty-state {
+    -fx-padding: 24px;
+}
+
+.profile-content {
+    -fx-background-color: -app-background;
+}
+
+.profile-scroll-pane,
+.profile-scroll-pane > .viewport {
+    -fx-background-color: -app-background;
+    -fx-background-insets: 0;
+}
+
+.profile-scroll-pane {
+    -fx-padding: 0;
+}
+
+.profile-name {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.profile-details {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 10px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 14px;
+}
+
+.profile-field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text-muted;
+}
+
+.profile-field-value {
+    -fx-font-size: 14px;
+    -fx-text-fill: -app-text;
+}
+
+.profile-section-heading {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.session-note-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.session-note-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 8px 0;
+}
+
+.session-note-list .list-cell:filled:hover,
+.session-note-list .list-cell:filled:selected,
+.session-note-list .list-cell:filled:focused {
+    -fx-background-color: transparent;
+}
+
+.session-note-card {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 8px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+.session-note-list .list-cell:filled:deletion-target .session-note-card {
+    -fx-background-color: #fff4f2;
+    -fx-border-color: -app-danger;
+    -fx-border-width: 1px 1px 1px 4px;
+}
+
+.session-note-header {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text-muted;
+}
+
+.session-note-text {
+    -fx-font-size: 14px;
+    -fx-line-spacing: 2px;
+    -fx-text-fill: -app-text;
+}
+
+.empty-notes-state {
+    -fx-background-color: -app-surface-muted;
+    -fx-background-radius: 10px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 18px;
+}
+
+.empty-notes-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.empty-notes-state .empty-state-guidance {
+    -fx-text-fill: -app-text-muted;
+}
+
+.pane-with-border {
+    -fx-background-color: -app-surface;
+    -fx-border-color: -app-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.status-bar {
+    -fx-background-color: -app-surface-muted;
+    -fx-border-color: -app-border;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.status-bar .label {
+    -fx-font-size: 12px;
+    -fx-padding: 7px 12px;
+    -fx-text-fill: -app-text-muted;
+}
+
+.status-bar-with-border {
+    -fx-background-color: -app-surface-muted;
+    -fx-border-color: -app-border;
+    -fx-border-width: 1px;
+}
+
+.status-bar-with-border .label {
+    -fx-text-fill: -app-text-muted;
+}
+
+.result-display {
+    -fx-background-color: -app-surface;
+    -fx-font-size: 13px;
+    -fx-text-fill: -app-text;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.result-display:focused {
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.result-display .content {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 8px;
+}
+
+.context-menu {
+    -fx-background-color: -app-surface;
+    -fx-border-color: -app-border;
+}
+
+.context-menu .label {
+    -fx-text-fill: -app-text;
+}
+
+.menu-bar {
+    -fx-background-color: -app-surface;
+    -fx-border-color: -app-border;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 0 8px;
+}
+
+.menu-bar .label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.menu:hover,
+.menu:showing,
+.menu-item:focused {
+    -fx-background-color: -app-accent-soft;
+}
+
+.menu .left-container {
+    -fx-background-color: -app-accent-soft;
+}
+
+.button {
+    -fx-background-color: -app-accent;
+    -fx-background-radius: 7px;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7px;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 14px;
+    -fx-text-fill: white;
+}
+
+.button:hover {
+    -fx-background-color: -app-accent-dark;
+}
+
+.button:pressed {
+    -fx-background-color: #084c47;
+}
+
+.button:focused {
+    -fx-border-color: -app-focus-ring;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(gaussian, rgba(23, 51, 47, 0.45), 4, 0.6, 0, 0);
+}
+
+.text-field:focused {
+    -fx-border-color: -app-accent-dark;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 118, 110, 0.18), 8, 0.2, 0, 1);
+}
+
+.button:disabled {
+    -fx-background-color: -app-border-strong;
+    -fx-opacity: 0.7;
+}
+
+.button:default {
+    -fx-background-color: -app-accent;
+}
+
+.dialog-pane {
+    -fx-background-color: -app-surface;
+}
+
+.dialog-pane > *.button-bar > *.container {
+    -fx-background-color: -app-surface-muted;
+}
+
+.dialog-pane > *.label.content {
+    -fx-font-size: 14px;
+    -fx-text-fill: -app-text;
+}
+
+.dialog-pane:header *.header-panel {
+    -fx-background-color: -app-surface-muted;
+}
+
+.dialog-pane:header *.header-panel *.label {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -app-text;
+}
+
+.scroll-bar {
+    -fx-background-color: -app-surface-muted;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -app-border-strong;
+    -fx-background-insets: 3px;
+    -fx-background-radius: 6px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -app-accent;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+}
+
+#cardPane {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 10px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+#commandTypeLabel {
+    -fx-font-size: 11px;
+    -fx-text-fill: -app-danger;
+}
+
+#commandTextField {
+    -fx-background-color: -app-surface;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-font-size: 14px;
+    -fx-padding: 9px 12px;
+}
+
+#tags {
+    -fx-hgap: 7px;
+    -fx-vgap: 3px;
+}
+
+#tags .label {
+    -fx-background-color: -app-accent-soft;
+    -fx-background-radius: 4px;
+    -fx-font-size: 11px;
+    -fx-padding: 2px 5px;
+    -fx-text-fill: -app-accent-dark;
+}
+
+.error {
+    -fx-border-color: -app-danger !important;
+    -fx-text-fill: -app-danger !important;
+}
+
+.tag-selector {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 4px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 4px;
+}
+
+.tooltip-text {
+    -fx-text-fill: -app-text;
+}
+
+.selectable-text,
+.selectable-text:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: null;
+    -fx-highlight-fill: -app-accent;
+    -fx-highlight-text-fill: white;
+    -fx-padding: 0;
+}
+
+.selectable-text > .scroll-pane,
+.selectable-text > .scroll-pane > .viewport,
+.selectable-text .content,
+.selectable-text:focused .content {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.selectable-text .scroll-bar {
+    -fx-max-height: 0;
+    -fx-max-width: 0;
+    -fx-opacity: 0;
+    -fx-pref-height: 0;
+    -fx-pref-width: 0;
+}
+
+.selectable-text .caret {
+    -fx-stroke: transparent;
+}
+
+.profile-empty-state .selectable-text .text,
+.empty-notes-state .selectable-text .text {
+    -fx-text-alignment: center;
+}
+
+.session-note-text .text {
+    -fx-line-spacing: 2px;
+}

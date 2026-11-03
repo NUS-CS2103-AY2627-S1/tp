@@ -1,11 +1,14 @@
 package seedu.address.logic;
 
-import javafx.collections.ObservableList;
+import java.util.Optional;
+
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.profile.StudentProfile;
+import seedu.address.model.student.StudentId;
+import seedu.address.model.student.StudentRoster;
 
 /**
  * API of the Logic component
@@ -20,8 +23,16 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /**
+     * Returns an immutable snapshot of the student roster.
+     */
+    StudentRoster getStudentRoster();
+
+    /**
+     * Returns an immutable profile of the student with {@code studentId}, or an empty optional if the student is
+     * absent.
+     */
+    Optional<StudentProfile> getStudentProfile(StudentId studentId);
 
     /**
      * Returns the user prefs' GUI settings.

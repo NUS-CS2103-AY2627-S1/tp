@@ -1,32 +1,38 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Locale;
+import java.util.Optional;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
-import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteSessionNoteCommand;
 import seedu.address.logic.commands.EditCommand;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
+import seedu.address.logic.commands.EditCommand.EditStudentDescriptor;
+import seedu.address.logic.commands.EditNoteCommand;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
-import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
-import seedu.address.testutil.PersonBuilder;
-import seedu.address.testutil.PersonUtil;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Subject;
+import seedu.address.testutil.LogRecorder;
 
 public class AddressBookParserTest {
 
@@ -34,15 +40,12 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
-        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
-        assertEquals(new AddCommand(person), command);
-    }
-
-    @Test
-    public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        Student student = new Student(new StudentName("Alicia Lim"),
+                new ParentGuardianContact("9123 4567", Optional.empty()),
+                new Subject("Mathematics"), new CurrentLevel("Secondary 3"));
+        AddCommand command = (AddCommand) parser.parseCommand(
+                "add n/Alicia Lim p/9123 4567 sub/Mathematics l/Secondary 3");
+        assertEquals(new AddCommand(student), command);
     }
 
     @Test
@@ -53,12 +56,129 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_confirmedDelete() throws Exception {
+        DeleteCommand command = (DeleteCommand) parser.parseCommand(
+                DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " /confirm");
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON, true), command);
+    }
+
+    @Test
+    public void parseCommand_deleteSessionNote() throws Exception {
+        DeleteSessionNoteCommand command = (DeleteSessionNoteCommand) parser.parseCommand("delete note 1 2");
+        assertEquals(new DeleteSessionNoteCommand(INDEX_FIRST_PERSON, Index.fromOneBased(2)), command);
+    }
+
+    @Test
+    public void parseCommand_confirmedDeleteSessionNote() throws Exception {
+        DeleteSessionNoteCommand command = (DeleteSessionNoteCommand) parser.parseCommand(
+                "delete note 1 2 /confirm");
+        assertEquals(new DeleteSessionNoteCommand(INDEX_FIRST_PERSON, Index.fromOneBased(2), true), command);
+    }
+
+    @Test
     public void parseCommand_edit() throws Exception {
-        Person person = new PersonBuilder().build();
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
-        EditCommand command = (EditCommand) parser.parseCommand(EditCommand.COMMAND_WORD + " "
-                + INDEX_FIRST_PERSON.getOneBased() + " " + PersonUtil.getEditPersonDescriptorDetails(descriptor));
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setSubject(new Subject("Physics"));
+        EditCommand command = (EditCommand) parser.parseCommand("edit 1 sub/Physics");
+
         assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
+    }
+
+    @Test
+    public void parseCommand_editNote() throws Exception {
+        EditNoteCommand command = (EditNoteCommand) parser.parseCommand("edit note 1 2 nt/Corrected summary.");
+        assertEquals(new EditNoteCommand(INDEX_FIRST_PERSON, Index.fromOneBased(2), "Corrected summary."), command);
+    }
+
+    @Test
+    public void parseCommand_uppercaseCommandWords_reportsLowercaseRule() {
+        List<String> uppercaseWords = List.of("ADD", "DELETE", "EDIT", "NOTE", "VIEW", "EXIT", "HELP");
+        for (String commandWord : uppercaseWords) {
+            String commandText = commandWord + " 1";
+            Executable parseCommand = () -> parser.parseCommand(commandText);
+            ParseException exception = Assertions.assertThrows(ParseException.class, parseCommand);
+            assertEquals("Command words must be typed in lowercase. Did you mean "
+                    + commandWord.toLowerCase(Locale.ROOT) + "?", exception.getMessage());
+        }
+    }
+
+    @Test
+    public void parseCommand_mixedCaseCommandWords_reportsLowercaseRule() {
+        assertThrows(ParseException.class, "Command words must be typed in lowercase. Did you mean note?", () ->
+                parser.parseCommand("NOTE 1 nt/hello"));
+        assertThrows(ParseException.class, "Command words must be typed in lowercase. Did you mean delete?", () ->
+                parser.parseCommand("Delete 1"));
+        assertThrows(ParseException.class, "Command words must be typed in lowercase. Did you mean edit?", () ->
+                parser.parseCommand("EDIT note 1 1 nt/x"));
+        assertThrows(ParseException.class, "Command words must be typed in lowercase. Did you mean add?", () ->
+                parser.parseCommand("Add n/Alex Tan p/91234567 sub/Math l/Sec 3"));
+    }
+
+    @Test
+    public void parseCommand_misspelledCommandWord_reportsUnknownCommand() {
+        // A misspelling is not a case difference, so it keeps the unknown-command error.
+        assertThrows(ParseException.class, AddressBookParser.getUnknownCommandMessage("veiw"), () ->
+                parser.parseCommand("veiw 1"));
+        assertThrows(ParseException.class, AddressBookParser.getUnknownCommandMessage("VEIW"), () ->
+                parser.parseCommand("VEIW 1"));
+    }
+
+    @Test
+    public void parseCommand_mistypedEditNoteTarget_suggestsCorrectCommand() {
+        List<String> mistypedTargets = List.of("notes", "nte", "nots", "no");
+        for (String mistypedTarget : mistypedTargets) {
+            String expectedMessage = Messages.withFormat(
+                    String.format(AddressBookParser.MESSAGE_MISTYPED_NOTE_TARGET_FORMAT,
+                            mistypedTarget, "edit note"),
+                    EditNoteCommand.COMMAND_FORMAT, EditNoteCommand.COMMAND_EXAMPLE);
+            Executable parseMistypedCommand = () -> parser.parseCommand(
+                    "edit " + mistypedTarget + " 1 2 nt/Corrected summary.");
+            assertThrows(ParseException.class, expectedMessage, parseMistypedCommand);
+        }
+    }
+
+    @Test
+    public void parseCommand_wrongCaseEditNoteTarget_reportsLowercaseRule() {
+        String expectedMessage = "note must be typed in lowercase.\n"
+                + "Format: edit note STUDENT_INDEX NOTE_NUMBER nt/NEW_NOTE\n"
+                + "Example: edit note 1 2 nt/Corrected lesson summary.";
+        List<String> wrongCaseTargets = List.of("NOTE", "Note", "nOtE");
+        for (String wrongCaseTarget : wrongCaseTargets) {
+            assertThrows(ParseException.class, expectedMessage, () ->
+                    parser.parseCommand("edit " + wrongCaseTarget + " 1 1 nt/x"));
+        }
+        // A typo that differs by more than case keeps the suggestion.
+        String expectedTypoMessage = Messages.withFormat(
+                String.format(AddressBookParser.MESSAGE_MISTYPED_NOTE_TARGET_FORMAT, "notes", "edit note"),
+                EditNoteCommand.COMMAND_FORMAT, EditNoteCommand.COMMAND_EXAMPLE);
+        assertThrows(ParseException.class, expectedTypoMessage, () -> parser.parseCommand("edit notes 1 1 nt/x"));
+    }
+
+    @Test
+    public void parseCommand_editWithoutTarget_usesStudentEditParser() {
+        String expectedMessage = Messages.withFormat("Missing INDEX.", EditCommand.COMMAND_FORMAT,
+                EditCommand.COMMAND_EXAMPLE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("edit"));
+    }
+
+    @Test
+    public void parseCommand_editStudentWithoutIndex_reportsMissingIndex() {
+        String expectedMessage = Messages.withFormat("Missing INDEX.", EditCommand.COMMAND_FORMAT,
+                EditCommand.COMMAND_EXAMPLE);
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("edit n/Bob"));
+        String expectedInvalidIndexMessage = "INDEX must be a positive whole number, e.g. 1.";
+        assertThrows(ParseException.class, expectedInvalidIndexMessage, () -> parser.parseCommand("edit a n/Bob"));
+    }
+
+    @Test
+    public void parseCommand_editStudentWithMistypedIndex_reportsInvalidIndex() {
+        List<String> mistypedIndices = List.of("a", "abc", "-1", "+1", "1x");
+        for (String mistypedIndex : mistypedIndices) {
+            assertThrows(ParseException.class, "INDEX must be a positive whole number, e.g. 1.", ()
+                -> parser.parseCommand("edit " + mistypedIndex + " n/Bob"));
+        }
     }
 
     @Test
@@ -68,33 +188,150 @@ public class AddressBookParserTest {
     }
 
     @Test
-    public void parseCommand_find() throws Exception {
-        List<String> keywords = List.of("foo", "bar", "baz");
-        FindCommand command = (FindCommand) parser.parseCommand(
-                FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
-    }
-
-    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
     }
 
     @Test
-    public void parseCommand_list() throws Exception {
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    public void parseCommand_note() throws Exception {
+        String userInput = NoteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                + " nt/Reviewed factorisation.";
+        NoteCommand command = (NoteCommand) parser.parseCommand(userInput);
+        assertEquals(new NoteCommand(INDEX_FIRST_PERSON, "Reviewed factorisation."), command);
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_removedListCommand_throwsParseException() {
+        String expectedMessage = AddressBookParser.getUnknownCommandMessage("list");
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list 3"));
     }
 
     @Test
     public void parseCommand_unrecognisedInput_throwsParseException() {
-        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
-            -> parser.parseCommand(""));
+        String expectedMessage = "Enter a command. Available commands: add, delete, edit, exit, help, note, view.";
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("   "));
     }
 
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
-        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+        String expectedMessage =
+                "Unknown command: unknownCommand. Available commands: add, delete, edit, exit, help, note, view.";
+
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("unknownCommand"));
     }
+
+    @Test
+    public void parseCommand_removedLegacyCommands_throwParseException() {
+        List<String> legacyCommands = List.of("find Alicia", "clear");
+
+        for (String legacyCommand : legacyCommands) {
+            String expectedMessage = AddressBookParser.getUnknownCommandMessage(legacyCommand.split(" ")[0]);
+            assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(legacyCommand));
+        }
+    }
+
+    @Test
+    public void parseCommand_commandWithArguments_logsCommandWordOnly() {
+        List<String> logMessages = LogRecorder.captureMessages(AddressBookParser.class, () ->
+                assertThrows(ParseException.class, () -> parser.parseCommand("note x nt/Reviewed indices.")));
+
+        assertTrue(logMessages.contains("Command word: note"));
+        assertTrue(logMessages.stream().noneMatch(message -> message.contains("Reviewed indices")));
+    }
+
+    @Test
+    public void parseCommand_unknownCommandWord_logsNoUserInput() {
+        List<String> logMessages = LogRecorder.captureMessages(AddressBookParser.class, () ->
+                assertThrows(ParseException.class, () -> parser.parseCommand("Alex 9123 4567")));
+
+        assertTrue(logMessages.contains("Command word: unknown"));
+        assertTrue(logMessages.stream()
+                .noneMatch(message -> message.contains("Alex") || message.contains("9123")));
+    }
+
+    @Test
+    public void getLoggableCommandWord_knownCommandWithArguments_returnsCommandWordOnly() {
+        assertEquals(NoteCommand.COMMAND_WORD,
+                AddressBookParser.getLoggableCommandWord("  note 1 nt/Reviewed indices."));
+    }
+
+    @Test
+    public void getLoggableCommandWord_everyCommandWord_returnsCommandWord() {
+        List<String> commandWords = List.of(AddCommand.COMMAND_WORD, DeleteCommand.COMMAND_WORD,
+                EditCommand.COMMAND_WORD, NoteCommand.COMMAND_WORD, ViewCommand.COMMAND_WORD,
+                ExitCommand.COMMAND_WORD, HelpCommand.COMMAND_WORD);
+
+        for (String commandWord : commandWords) {
+            assertEquals(commandWord, AddressBookParser.getLoggableCommandWord(commandWord + " extra text"));
+        }
+    }
+
+    @Test
+    public void getLoggableCommandWord_removedLegacyCommandWords_returnsUnknown() {
+        List<String> removedCommandWords = List.of("find", "clear");
+
+        for (String commandWord : removedCommandWords) {
+            assertEquals(AddressBookParser.UNKNOWN_COMMAND_WORD,
+                    AddressBookParser.getLoggableCommandWord(commandWord + " extra text"));
+        }
+    }
+
+    @Test
+    public void getLoggableCommandWord_unknownCommandWord_returnsUnknown() {
+        assertEquals(AddressBookParser.UNKNOWN_COMMAND_WORD,
+                AddressBookParser.getLoggableCommandWord("Alex 9123 4567"));
+    }
+
+    @Test
+    public void getLoggableCommandWord_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> AddressBookParser.getLoggableCommandWord(null));
+    }
+
+    @Test
+    public void getLoggableCommandWord_blankInput_returnsUnknown() {
+        assertEquals(AddressBookParser.UNKNOWN_COMMAND_WORD, AddressBookParser.getLoggableCommandWord("   "));
+    }
+
+    @Test
+    public void getLoggableCommandWord_emptyInput_returnsUnknown() {
+        assertEquals(AddressBookParser.UNKNOWN_COMMAND_WORD, AddressBookParser.getLoggableCommandWord(""));
+    }
+
+    @Test
+    public void getLoggableCommandWord_upperCaseCommandWord_returnsUnknown() {
+        // Command words are case-sensitive, so a differently cased word is not a known command.
+        assertEquals(AddressBookParser.UNKNOWN_COMMAND_WORD,
+                AddressBookParser.getLoggableCommandWord("NOTE 1 nt/Reviewed indices."));
+    }
+
+    // Boundary values of the typo threshold (edit distance 2): distances 3 and 4 are ordinary edit input.
+    @Test
+    public void parseCommand_editTargetBeyondTypoDistance_isNotTreatedAsNoteTypo() {
+        List<String> distantTargets = List.of("n", "abcd", "0");
+        for (String distantTarget : distantTargets) {
+            Executable parseDistantCommand = () -> parser.parseCommand("edit " + distantTarget + " 1");
+            ParseException exception = Assertions.assertThrows(
+                    ParseException.class, parseDistantCommand);
+            assertFalse(exception.getMessage().contains("Unknown edit target"));
+        }
+    }
+
+    @Test
+    public void parseCommand_editWithoutTarget_isNotTreatedAsNoteTypo() {
+        ParseException exception = Assertions.assertThrows(
+                ParseException.class, () -> parser.parseCommand("edit"));
+        assertFalse(exception.getMessage().contains("Unknown edit target"));
+    }
+
 }

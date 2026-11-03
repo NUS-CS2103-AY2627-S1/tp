@@ -1,107 +1,101 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.StudentRosterEntry;
+import seedu.address.model.student.Subject;
 
 /**
- * Edits the details of an existing person in the address book.
+ * Edits selected details of a student in the roster.
  */
 public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
-
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
-            + "Parameters: INDEX (must be a positive integer) "
+    public static final String COMMAND_FORMAT = COMMAND_WORD + " INDEX "
             + "[" + PREFIX_NAME + "NAME] "
-            + "[" + PREFIX_PHONE + "PHONE] "
-            + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " 1 "
-            + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + "[" + PREFIX_PHONE + "PARENT_PHONE] "
+            + "[" + PREFIX_EMAIL + "PARENT_EMAIL] "
+            + "[" + PREFIX_SUBJECT + "SUBJECT] "
+            + "[" + PREFIX_LEVEL + "CURRENT_LEVEL]";
+    public static final String COMMAND_EXAMPLE = COMMAND_WORD + " 2 "
+            + PREFIX_PHONE + "9123 4567 " + PREFIX_LEVEL + "Secondary 4";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_SUCCESS = "Edited student: %1$s (%2$s, %3$s).";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_STUDENT = AddCommand.MESSAGE_DUPLICATE_STUDENT;
 
-    private final Index index;
-    private final EditPersonDescriptor editPersonDescriptor;
+    private final Index targetIndex;
+    private final EditStudentDescriptor editStudentDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * Creates an edit command for the student at {@code targetIndex}.
+     *
+     * @param targetIndex The student's one-based roster index.
+     * @param editStudentDescriptor The student details to replace.
      */
-    public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
-        requireNonNull(index);
-        requireNonNull(editPersonDescriptor);
-
-        this.index = index;
-        this.editPersonDescriptor = new EditPersonDescriptor(editPersonDescriptor);
+    public EditCommand(Index targetIndex, EditStudentDescriptor editStudentDescriptor) {
+        requireAllNonNull(targetIndex, editStudentDescriptor);
+        this.targetIndex = targetIndex;
+        this.editStudentDescriptor = new EditStudentDescriptor(editStudentDescriptor);
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
+        StudentRosterEntry targetEntry = getRosterEntry(model, targetIndex);
+        Student originalStudent = model.getStudent(targetEntry.getStudentId()).orElseThrow();
+        Student editedStudent = createStudent(originalStudent, editStudentDescriptor);
 
-        if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        Optional<Student> conflictingStudent = model.findConflictingStudent(targetEntry.getStudentId(), editedStudent);
+        if (conflictingStudent.isPresent()) {
+            throw new CommandException(String.format(MESSAGE_DUPLICATE_STUDENT, conflictingStudent.get().getName()));
         }
 
-        Person personToEdit = lastShownList.get(index.getZeroBased());
-        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
-
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
-        }
-
-        model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        model.setStudent(targetEntry.getStudentId(), editedStudent);
+        return new CommandResult(String.format(MESSAGE_SUCCESS, editedStudent.getName(), editedStudent.getSubject(),
+                editedStudent.getCurrentLevel()), targetEntry.getStudentId());
     }
 
     /**
-     * Creates and returns a {@code Person} with the details of {@code personToEdit}
-     * edited with {@code editPersonDescriptor}.
+     * Returns a student containing the supplied edits and the original student's unchanged stable ID.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
-        assert personToEdit != null;
+    private static Student createStudent(Student originalStudent, EditStudentDescriptor descriptor) {
+        StudentName name = descriptor.getName().orElse(originalStudent.getName());
+        Subject subject = descriptor.getSubject().orElse(originalStudent.getSubject());
+        CurrentLevel currentLevel = descriptor.getCurrentLevel().orElse(originalStudent.getCurrentLevel());
+        ParentGuardianContact contact = createParentGuardianContact(originalStudent, descriptor);
+        return new Student(name, contact, subject, currentLevel, originalStudent.getId());
+    }
 
-        Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
-        Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
-        Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
-        Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
-
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+    /**
+     * Returns the contact with supplied edits applied to the original student's contact.
+     */
+    private static ParentGuardianContact createParentGuardianContact(Student originalStudent,
+            EditStudentDescriptor descriptor) {
+        String phone = descriptor.getParentPhone()
+                .orElse(originalStudent.getParentGuardianContact().getPhone());
+        Optional<String> email = descriptor.isParentEmailEdited()
+                ? descriptor.getParentEmail()
+                : originalStudent.getParentGuardianContact().getEmail();
+        return new ParentGuardianContact(phone, email);
     }
 
     @Override
@@ -110,102 +104,101 @@ public class EditCommand extends Command {
             return true;
         }
 
-        // instanceof handles nulls
-        if (!(other instanceof EditCommand otherEditCommand)) {
-            return false;
-        }
-
-        return index.equals(otherEditCommand.index)
-                && editPersonDescriptor.equals(otherEditCommand.editPersonDescriptor);
+        return other instanceof EditCommand otherEditCommand
+                && targetIndex.equals(otherEditCommand.targetIndex)
+                && editStudentDescriptor.equals(otherEditCommand.editStudentDescriptor);
     }
 
+    /**
+     * Returns a description that omits edited student details because they may contain private information.
+     */
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("index", index)
-                .add("editPersonDescriptor", editPersonDescriptor)
+                .add("targetIndex", targetIndex)
                 .toString();
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the student details to edit, including whether the optional email should be removed.
      */
-    public static class EditPersonDescriptor {
-        private Name name;
-        private Phone phone;
-        private Email email;
-        private Address address;
-        private Set<Tag> tags;
-
-        public EditPersonDescriptor() {}
+    public static final class EditStudentDescriptor {
+        private StudentName name;
+        private String parentPhone;
+        private boolean isParentEmailEdited;
+        private Optional<String> parentEmail = Optional.empty();
+        private Subject subject;
+        private CurrentLevel currentLevel;
 
         /**
-         * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
+         * Creates an empty descriptor.
          */
-        public EditPersonDescriptor(EditPersonDescriptor toCopy) {
-            setName(toCopy.name);
-            setPhone(toCopy.phone);
-            setEmail(toCopy.email);
-            setAddress(toCopy.address);
-            setTags(toCopy.tags);
+        public EditStudentDescriptor() {
         }
 
         /**
-         * Returns true if at least one field is edited.
+         * Creates a defensive copy of {@code toCopy}.
+         */
+        public EditStudentDescriptor(EditStudentDescriptor toCopy) {
+            requireNonNull(toCopy);
+            name = toCopy.name;
+            parentPhone = toCopy.parentPhone;
+            isParentEmailEdited = toCopy.isParentEmailEdited;
+            parentEmail = toCopy.parentEmail;
+            subject = toCopy.subject;
+            currentLevel = toCopy.currentLevel;
+        }
+
+        /**
+         * Returns whether at least one student field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return isParentEmailEdited || CollectionUtil.isAnyNonNull(name, parentPhone, subject, currentLevel);
         }
 
-        public void setName(Name name) {
-            this.name = name;
+        public void setName(StudentName name) {
+            this.name = requireNonNull(name);
         }
 
-        public Optional<Name> getName() {
+        public Optional<StudentName> getName() {
             return Optional.ofNullable(name);
         }
 
-        public void setPhone(Phone phone) {
-            this.phone = phone;
+        public void setParentPhone(String parentPhone) {
+            this.parentPhone = requireNonNull(parentPhone);
         }
 
-        public Optional<Phone> getPhone() {
-            return Optional.ofNullable(phone);
+        public Optional<String> getParentPhone() {
+            return Optional.ofNullable(parentPhone);
         }
 
-        public void setEmail(Email email) {
-            this.email = email;
+        public void setParentEmail(Optional<String> parentEmail) {
+            this.parentEmail = requireNonNull(parentEmail);
+            isParentEmailEdited = true;
         }
 
-        public Optional<Email> getEmail() {
-            return Optional.ofNullable(email);
+        public boolean isParentEmailEdited() {
+            return isParentEmailEdited;
         }
 
-        public void setAddress(Address address) {
-            this.address = address;
+        public Optional<String> getParentEmail() {
+            return parentEmail;
         }
 
-        public Optional<Address> getAddress() {
-            return Optional.ofNullable(address);
+        public void setSubject(Subject subject) {
+            this.subject = requireNonNull(subject);
         }
 
-        /**
-         * Sets {@code tags} to this object's {@code tags}.
-         * A defensive copy of {@code tags} is used internally.
-         */
-        public void setTags(Set<Tag> tags) {
-            this.tags = (tags != null) ? new HashSet<>(tags) : null;
+        public Optional<Subject> getSubject() {
+            return Optional.ofNullable(subject);
         }
 
-        /**
-         * Returns an unmodifiable tag set, which throws {@code UnsupportedOperationException}
-         * if modification is attempted.
-         * Returns {@code Optional#empty()} if {@code tags} is null.
-         */
-        public Optional<Set<Tag>> getTags() {
-            return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+        public void setCurrentLevel(CurrentLevel currentLevel) {
+            this.currentLevel = requireNonNull(currentLevel);
+        }
+
+        public Optional<CurrentLevel> getCurrentLevel() {
+            return Optional.ofNullable(currentLevel);
         }
 
         @Override
@@ -214,27 +207,18 @@ public class EditCommand extends Command {
                 return true;
             }
 
-            // instanceof handles nulls
-            if (!(other instanceof EditPersonDescriptor otherEditPersonDescriptor)) {
-                return false;
-            }
-
-            return Objects.equals(name, otherEditPersonDescriptor.name)
-                    && Objects.equals(phone, otherEditPersonDescriptor.phone)
-                    && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+            return other instanceof EditStudentDescriptor otherDescriptor
+                    && Objects.equals(name, otherDescriptor.name)
+                    && Objects.equals(parentPhone, otherDescriptor.parentPhone)
+                    && isParentEmailEdited == otherDescriptor.isParentEmailEdited
+                    && Objects.equals(parentEmail, otherDescriptor.parentEmail)
+                    && Objects.equals(subject, otherDescriptor.subject)
+                    && Objects.equals(currentLevel, otherDescriptor.currentLevel);
         }
 
         @Override
-        public String toString() {
-            return new ToStringBuilder(this)
-                    .add("name", name)
-                    .add("phone", phone)
-                    .add("email", email)
-                    .add("address", address)
-                    .add("tags", tags)
-                    .toString();
+        public int hashCode() {
+            return Objects.hash(name, parentPhone, isParentEmailEdited, parentEmail, subject, currentLevel);
         }
     }
 }

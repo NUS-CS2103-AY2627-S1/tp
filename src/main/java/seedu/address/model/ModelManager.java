@@ -3,14 +3,17 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
-import java.util.function.Predicate;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.logging.Logger;
 
-import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.session.SessionNote;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentId;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -20,19 +23,28 @@ public class ModelManager implements Model {
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final Clock clock;
 
     /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
+     * Initializes a ModelManager with the given addressBook and userPrefs, timestamping session notes with
+     * the system clock.
      */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+        this(addressBook, userPrefs, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Initializes a ModelManager with the given addressBook and userPrefs, timestamping session notes with
+     * {@code clock}.
+     */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs, Clock clock) {
+        requireAllNonNull(addressBook, userPrefs, clock);
 
         logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        this.clock = clock;
     }
 
     public ModelManager() {
@@ -70,44 +82,55 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasStudent(Student student) {
+        requireNonNull(student);
+        return addressBook.hasStudent(student);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void addStudent(Student student) {
+        addressBook.addStudent(student);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void setStudent(StudentId studentId, Student editedStudent) {
+        requireAllNonNull(studentId, editedStudent);
+        addressBook.setStudent(studentId, editedStudent);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
+    public int deleteStudent(StudentId studentId) {
+        return addressBook.removeStudent(studentId);
     }
-
-    //=========== Filtered Person List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
+     * {@inheritDoc}
+     * The timestamp is truncated to whole seconds.
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public SessionNote addSessionNote(StudentId studentId, String text) {
+        requireAllNonNull(studentId, text);
+        OffsetDateTime recordedAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
+        SessionNote note = new SessionNote(text, recordedAt);
+        addressBook.addSessionNote(studentId, note);
+        assert addressBook.getSessionHistory(studentId).getNotes().contains(note)
+                : "An added session note must appear in the student's history";
+        return note;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
-        requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+    public SessionNote deleteSessionNote(StudentId studentId, Index noteNumber) {
+        return addressBook.removeSessionNote(studentId, noteNumber);
+    }
+
+    @Override
+    public SessionNote editSessionNote(StudentId studentId, Index noteNumber, String text) {
+        requireAllNonNull(studentId, noteNumber, text);
+        OffsetDateTime lastEditedAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
+        SessionNote editedNote = addressBook.editSessionNote(studentId, noteNumber, text, lastEditedAt);
+        assert addressBook.getSessionHistory(studentId).getNote(noteNumber).equals(editedNote)
+                : "The edited session note must appear in the student's history";
+        return editedNote;
     }
 
     @Override
@@ -122,8 +145,7 @@ public class ModelManager implements Model {
         }
 
         return addressBook.equals(otherModelManager.addressBook)
-                && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && userPrefs.equals(otherModelManager.userPrefs);
     }
 
 }

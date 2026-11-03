@@ -19,7 +19,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/tutortrack.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -67,13 +67,24 @@ Any warnings or errors will be printed out to the console.
 
 * Check scripts must exit with a non-zero exit code if any errors occur.
 
+### Git hooks
+
+The repository provides Git hooks in `.beryl/githooks` that run the project's checks (`./.beryl/scripts/check.sh`) before a commit or a push. Git does not enable them when the repository is cloned. To enable them, execute the following in the repository root directory:
+
+```bash
+git config core.hooksPath .beryl/githooks
+```
+
+* The pre-commit hook runs the fast checks (Markdown and secrets) on staged changes.
+* The pre-push hook runs the full checks, including tests, only when the push targets the remote's default branch (`master` in this repository). Pushes to other branches, such as PR branches, skip them.
+
 --------------------------------------------------------------------------------------------------------------------
 
 ## Making a release
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-F09-1/tp/tree/master/src/main/java/seedu/address/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

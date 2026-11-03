@@ -1,0 +1,100 @@
+# Testing Policy
+
+## Command Matrix
+
+| Check | Command | Status | Notes |
+| --- | --- | --- | --- |
+| Markdown sanity | `./.beryl/scripts/check-md.sh` | available | Unclosed fences and tabs |
+| Affected test gate | `./.beryl/scripts/check-affected.sh --worktree` | available | Selects related tests from changed files and uses full-test fallback for broad changes |
+| Aggregate deterministic gate | `./.beryl/scripts/check.sh` | available | Runs all deterministic checks |
+| Java style | `./gradlew checkstyleMain checkstyleTest` | available | Checkstyle with the SE-EDU configuration |
+| Markdown style | `npx --no-install markdownlint-cli2 --no-globs` | available when dependencies are installed | Enforces the documented Markdown rules |
+| Git commit style | `gitlint --config .gitlint --commits HEAD^..HEAD` | available when gitlint is installed | Enforces mechanically checkable commit-message rules |
+| Typecheck | `not available yet` | unavailable | Add the project typecheck command when configured |
+| Unit tests | `./gradlew test` | available | JUnit 5 tests through Gradle |
+| Integration tests | `not available yet` | unavailable | Add the project integration test command when configured |
+| E2E smoke | `not available yet` | unavailable | When web runtime exists, use Microsoft Playwright MCP for deterministic browser feedback |
+
+## Java Requirement
+
+Use Java 25 for application and build tasks. Gradle 9.1 is supplied through the Gradle Wrapper to run Checkstyle and JUnit 5 tests.
+
+## Default Loop
+
+1. Identify or add the failing behavior.
+1. Select the smallest useful test level.
+1. State success checks before implementation: expected artifact, narrow command, broader command, generated output or browser evidence when applicable, and one user-visible behavior.
+1. Implement one internal feature slice.
+1. Run narrow checks first, then broader checks.
+1. Repair from actual tool output.
+1. For web UI or HTML/CSS work, include a Playwright MCP browser verification step.
+
+## Input Resilience Coverage
+
+For changed input paths, select the relevant cases below. The objective is safe recovery from plausible mistakes, not support for deliberate sabotage:
+
+* missing separators or accidentally concatenated parameters;
+* values too large for the receiving numeric type and other conversion overflows;
+* long text and large numeric values, including their UI presentation where visible;
+* ordinary symbols in names, notes, and free-text fields;
+* harmless non-standard values that should warn rather than block; and
+* specific, actionable validation messages for each materially different rejected value.
+
+When persistence changes, prove that a correctly manually edited data file remains loadable at least to the AddressBook baseline, and that malformed edits follow the documented recovery behavior without silently corrupting valid in-memory data.
+
+## Generated Output Verification
+
+For static-site changes, source inspection is not enough. Always verify generated output that users, crawlers, or downstream tooling receive.
+
+Check affected:
+
+* Relevant `dist` HTML or equivalent built pages.
+* Sitemap, robots, search index, feed, or structured data output.
+* Copied assets when asset handling changed.
+* Browser behavior when UI, routing, or layout changed.
+
+If generated output is unavailable, explain why and run the closest deterministic build or inspection command.
+
+## Affected Test Gate
+
+Commit-time checks are deliberately limited to fast, deterministic validation. Full deterministic checks run only when a push targets the remote's default branch.
+
+* The hooks run only after `git config core.hooksPath .beryl/githooks`; Git does not enable them when the repository is cloned.
+* The pre-commit hook sets `CHECK_AFFECTED_MODE=staged` and runs `./.beryl/scripts/check.sh --fast`. This runs Markdown and staged-secret checks without resolving the agent workspace or running project tests.
+* The pre-push hook runs `./.beryl/scripts/check.sh` only when the remote ref is the remote's default branch (`master` in this repository), or `main` or `master` when Git does not know the remote's default branch; pushes to other branches skip slow checks.
+* Manual `./.beryl/scripts/check.sh` uses worktree mode by default and selects from all changes relative to `HEAD`.
+* `.beryl/scripts/check-affected.sh` reads `.beryl/agent/affected-tests.conf`.
+* Changes to broad configuration, dependency, hook, or test-strategy files force `FULL_TEST_CMD` when configured.
+* Source and test changes run `RELATED_TEST_CMD` with changed files appended when configured, and `FULL_TEST_CMD` otherwise.
+* If no project test runner is configured yet, the gate reports that no project tests are available and exits successfully.
+
+Recommended project configurations:
+
+```bash
+# Jest
+RELATED_TEST_CMD=(npx --no-install jest --findRelatedTests --passWithNoTests)
+FULL_TEST_CMD=(npm test)
+
+# pytest with testmon
+RELATED_TEST_CMD=(pytest --testmon)
+FULL_TEST_CMD=(pytest)
+
+# Gradle, which cannot select tests from file paths
+RELATED_TEST_CMD=()
+FULL_TEST_CMD=(./gradlew test)
+```
+
+## Test Modification Rule
+
+Existing tests may not be weakened to make implementation pass.
+
+Intentional test changes are allowed only when the behavior change is explicit in the task or design artifact and the final response explains why tests changed.
+
+## Coverage-Gate Preflight
+
+Codecov evaluates coverage of changed production lines independently from whether the local test suite passes. When a feature adds or substantially changes production classes, developers MUST inspect the relevant local JaCoCo HTML report after running the focused tests and before opening a PR. Add behavior-focused tests for public accessors, equality and hash-code contracts, null and invalid-input boundaries, and true and false branches that the changed code introduces. Treat a passing Gradle test task as insufficient evidence that the Codecov patch threshold will pass; verify the PR's Codecov result after push and address any missed changed lines with meaningful tests rather than lowering the coverage requirement.
+
+## Mocking Rules
+
+* Mock external systems such as network, clocks, randomness, payment providers, and email providers.
+* Do not mock domain logic in the same bounded context.

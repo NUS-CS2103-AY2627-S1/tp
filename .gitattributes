@@ -1,1 +1,8 @@
+# Check out text files with LF line endings on every OS.
+* text=auto eol=lf
+
+# Windows batch scripts need CRLF line endings to run.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 *.pdf binary

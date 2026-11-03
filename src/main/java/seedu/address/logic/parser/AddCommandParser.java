@@ -1,61 +1,125 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.Messages.withFormat;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 
-import java.util.Set;
-import java.util.stream.Stream;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Subject;
 
 /**
  * Parses input arguments and creates a new AddCommand object
  */
 public class AddCommandParser implements Parser<AddCommand> {
 
+    public static final String MESSAGE_UNKNOWN_PARAMETER = "Unknown parameter: %1$s. Supported parameters: %2$s.";
+    public static final String MESSAGE_UNEXPECTED_PREAMBLE = "Unexpected text before the first parameter: %1$s.";
+    public static final String MESSAGE_MISSING_VALUE = "Missing %1$s%2$s.";
+
+    private static final List<Prefix> SUPPORTED_PREFIXES = List.of(
+            PREFIX_NAME, PREFIX_PHONE, PREFIX_SUBJECT, PREFIX_LEVEL, PREFIX_EMAIL);
+    private static final List<Prefix> REQUIRED_PREFIXES = List.of(
+            PREFIX_NAME, PREFIX_PHONE, PREFIX_SUBJECT, PREFIX_LEVEL);
+    /** Placeholder that follows each required prefix in the add format, such as {@code SUBJECT} */
+    private static final Map<Prefix, String> REQUIRED_PLACEHOLDERS = Map.of(PREFIX_NAME, "NAME",
+            PREFIX_PHONE, "PARENT_PHONE", PREFIX_SUBJECT, "SUBJECT", PREFIX_LEVEL, "CURRENT_LEVEL");
+    public static final String MESSAGE_SUPPORTED_PARAMETERS = SUPPORTED_PREFIXES.stream()
+            .map(Prefix::toString)
+            .collect(Collectors.joining(" "));
+
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
      * and returns an AddCommand object for execution.
-     * @throws ParseException if the user input does not conform to the expected format
+     * Errors about the shape of the command end with the add format; errors about one value do not.
+     *
+     * @throws ParseException If the user input does not conform to the expected format or has an invalid value.
      */
     public AddCommand parse(String args) throws ParseException {
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
-
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
-                || !argMultimap.getPreamble().isEmpty()) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
-        }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-        Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
-
-        Person person = new Person(name, phone, email, address, tagList);
-
-        return new AddCommand(person);
+        ArgumentMultimap argMultimap = ParserUtil.tokenizeStudentFields(args);
+        verifyCommandShape(argMultimap);
+        return new AddCommand(createStudent(argMultimap));
     }
 
     /**
-     * Returns true if none of the prefixes contains empty {@code Optional} values in the given
-     * {@code ArgumentMultimap}.
+     * Verifies that {@code argMultimap} has no preamble, every required value,
+     * and no duplicated prefix, in that order.
+     *
+     * @throws ParseException If any shape rule is violated, with the add format appended.
      */
-    private static boolean arePrefixesPresent(ArgumentMultimap argumentMultimap, Prefix... prefixes) {
-        return Stream.of(prefixes).allMatch(prefix -> argumentMultimap.getValue(prefix).isPresent());
+    private static void verifyCommandShape(ArgumentMultimap argMultimap) throws ParseException {
+        if (!argMultimap.getPreamble().isEmpty()) {
+            throw new ParseException(withAddFormat(
+                    String.format(MESSAGE_UNEXPECTED_PREAMBLE, argMultimap.getPreamble())));
+        }
+
+        Optional<Prefix> missingPrefix = findMissingRequiredPrefix(argMultimap);
+        if (missingPrefix.isPresent()) {
+            String placeholder = REQUIRED_PLACEHOLDERS.get(missingPrefix.get());
+            assert placeholder != null : "Every required prefix needs a placeholder in REQUIRED_PLACEHOLDERS";
+            throw new ParseException(withAddFormat(
+                    String.format(MESSAGE_MISSING_VALUE, missingPrefix.get(), placeholder)));
+        }
+
+        try {
+            argMultimap.verifyNoDuplicatePrefixesFor(SUPPORTED_PREFIXES.toArray(Prefix[]::new));
+        } catch (ParseException exception) {
+            throw new ParseException(withAddFormat(exception.getMessage()), exception);
+        }
     }
 
+    /**
+     * Returns the student described by {@code argMultimap}, whose required values are present.
+     *
+     * @throws ParseException If a present value violates its domain constraints.
+     */
+    private static Student createStudent(ArgumentMultimap argMultimap) throws ParseException {
+        try {
+            return new Student(new StudentName(getVerifiedValue(argMultimap, PREFIX_NAME)),
+                    new ParentGuardianContact(getVerifiedValue(argMultimap, PREFIX_PHONE),
+                            argMultimap.getValue(PREFIX_EMAIL)),
+                    new Subject(getVerifiedValue(argMultimap, PREFIX_SUBJECT)),
+                    new CurrentLevel(getVerifiedValue(argMultimap, PREFIX_LEVEL)));
+        } catch (IllegalArgumentException exception) {
+            throw new ParseException(exception.getMessage(), exception);
+        }
+    }
+
+    /**
+     * Returns the value of a required {@code prefix} that {@link #verifyCommandShape} has already checked.
+     *
+     * @throws IllegalStateException If that precondition is broken, which indicates a parser bug.
+     */
+    private static String getVerifiedValue(ArgumentMultimap argMultimap, Prefix prefix) {
+        return argMultimap.getValue(prefix).orElseThrow(() -> new IllegalStateException(
+                "Required prefix " + prefix + " has no value after verification"));
+    }
+
+    /**
+     * Returns the first required prefix that has no value, if present.
+     */
+    private static Optional<Prefix> findMissingRequiredPrefix(ArgumentMultimap argumentMultimap) {
+        return REQUIRED_PREFIXES.stream()
+                .filter(prefix -> argumentMultimap.getValue(prefix).filter(value -> !value.isEmpty()).isEmpty())
+                .findFirst();
+    }
+
+    /**
+     * Appends the one-line add-command format to an error message.
+     */
+    private static String withAddFormat(String message) {
+        return withFormat(message, AddCommand.COMMAND_FORMAT, AddCommand.COMMAND_EXAMPLE);
+    }
 }

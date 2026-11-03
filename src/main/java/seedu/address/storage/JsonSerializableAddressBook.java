@@ -1,9 +1,15 @@
 package seedu.address.storage;
 
+import static java.util.Objects.requireNonNull;
+
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRootName;
@@ -12,6 +18,8 @@ import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Person;
+import seedu.address.model.session.SessionHistory;
+import seedu.address.model.student.Student;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -20,15 +28,27 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_DUPLICATE_STUDENT_ID = "Students list contains duplicate student IDs.";
+    public static final String MESSAGE_DUPLICATE_STUDENT = "Students list contains duplicate student(s).";
+    public static final String MESSAGE_UNKNOWN_FIELDS = "Data file contains unknown top-level field(s): ";
+    private static final String LEGACY_COMMENT_FIELD = "_comment";
 
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final List<JsonAdaptedStudent> students = new ArrayList<>();
+    private final Set<String> unknownFields = new HashSet<>();
 
     /**
      * Constructs a {@code JsonSerializableAddressBook} with the given persons.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons,
+            @JsonProperty("students") List<JsonAdaptedStudent> students) {
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
+        if (students != null) {
+            this.students.addAll(students);
+        }
     }
 
     /**
@@ -38,15 +58,41 @@ class JsonSerializableAddressBook {
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
         persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        students.addAll(source.getStudentList().stream()
+                .map(student -> new JsonAdaptedStudent(student, source.getSessionHistory(student.getId())))
+                .collect(Collectors.toList()));
+    }
+
+    @JsonAnySetter
+    private void addUnknownField(String fieldName, Object ignoredValue) {
+        if (!LEGACY_COMMENT_FIELD.equals(fieldName)) {
+            unknownFields.add(fieldName);
+        }
     }
 
     /**
      * Converts this address book into the model's {@code AddressBook} object.
      *
+     * @param loadedAt The date-time the data is being loaded.
      * @throws IllegalValueException if there were any data constraints violated.
      */
-    public AddressBook toModelType() throws IllegalValueException {
+    public AddressBook toModelType(OffsetDateTime loadedAt) throws IllegalValueException {
+        requireNonNull(loadedAt);
+        if (!unknownFields.isEmpty()) {
+            throw new IllegalValueException(MESSAGE_UNKNOWN_FIELDS + String.join(", ", unknownFields));
+        }
         AddressBook addressBook = new AddressBook();
+        addPersons(addressBook);
+        addStudents(addressBook, loadedAt);
+        return addressBook;
+    }
+
+    /**
+     * Adds the persisted persons to {@code addressBook}.
+     *
+     * @throws IllegalValueException If a person is invalid or duplicated.
+     */
+    private void addPersons(AddressBook addressBook) throws IllegalValueException {
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
             Person person = jsonAdaptedPerson.toModelType();
             if (addressBook.hasPerson(person)) {
@@ -54,7 +100,26 @@ class JsonSerializableAddressBook {
             }
             addressBook.addPerson(person);
         }
-        return addressBook;
     }
 
+    /**
+     * Adds the persisted students and their session histories to {@code addressBook}.
+     *
+     * @throws IllegalValueException If a student is invalid, shares an ID, or shares an identity.
+     */
+    private void addStudents(AddressBook addressBook, OffsetDateTime loadedAt) throws IllegalValueException {
+        Set<String> studentIds = new HashSet<>();
+        for (JsonAdaptedStudent jsonAdaptedStudent : students) {
+            Student student = jsonAdaptedStudent.toModelType();
+            if (!studentIds.add(student.getId().getValue())) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_STUDENT_ID);
+            }
+            if (addressBook.hasStudent(student)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_STUDENT);
+            }
+            addressBook.addStudent(student);
+            SessionHistory sessionHistory = jsonAdaptedStudent.toModelSessionHistory(loadedAt);
+            addressBook.setSessionHistory(student.getId(), sessionHistory);
+        }
+    }
 }

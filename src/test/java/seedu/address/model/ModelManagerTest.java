@@ -3,17 +3,32 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalSessionNotes.ALEX;
+import static seedu.address.testutil.TypicalSessionNotes.BEA;
+import static seedu.address.testutil.TypicalSessionNotes.FACTORISATION_NOTE;
+import static seedu.address.testutil.TypicalSessionNotes.INDICES_NOTE;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.profile.StudentProfile;
+import seedu.address.model.session.SessionHistory;
+import seedu.address.model.session.SessionNote;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Subject;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -53,24 +68,216 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    public void setAddressBook_withLegacyPersonAndStudent_preservesBothAndSessionNotes() {
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        original.addStudent(ALEX);
+        original.addSessionNote(ALEX.getId(), INDICES_NOTE);
+        modelManager.setAddressBook(original);
+
+        assertEquals(List.of(ALICE), modelManager.getAddressBook().getPersonList());
+        assertEquals(List.of(ALEX), modelManager.getAddressBook().getStudentList());
+        assertEquals(List.of(INDICES_NOTE), modelManager.getSessionHistory(ALEX.getId()).getNotes());
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
+    public void getStudentRoster_returnsImmutableStudentSnapshot() {
+        Student student = new Student(new StudentName("Alex Tan"),
+                new ParentGuardianContact("9123 4567", java.util.Optional.empty()), new Subject("Mathematics"),
+                new CurrentLevel("Secondary 3"));
+        modelManager.addStudent(student);
+
+        assertEquals(List.of(student.getId()), modelManager.getStudentRoster().getEntries().stream()
+                .map(entry -> entry.getStudentId()).toList());
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getStudentRoster().getEntries().clear());
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
+    public void constructor_nullClock_throwsNullPointerException() {
+        AddressBook addressBook = new AddressBook();
+        UserPrefs userPrefs = new UserPrefs();
+
+        assertThrows(NullPointerException.class, () -> new ModelManager(addressBook, userPrefs, null));
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void addSessionNote_validText_timestampsWithClockToWholeSeconds() {
+        Clock clock = Clock.fixed(Instant.parse("2026-09-18T10:35:00.123456Z"), ZoneOffset.ofHours(8));
+        ModelManager model = new ModelManager(new AddressBook(), new UserPrefs(), clock);
+        model.addStudent(ALEX);
+
+        SessionNote note = model.addSessionNote(ALEX.getId(), "  Reviewed factorisation.  ");
+
+        assertEquals("Reviewed factorisation.", note.getText());
+        assertEquals(OffsetDateTime.parse("2026-09-18T18:35:00+08:00"), note.getRecordedAt());
+        assertEquals(List.of(note), model.getSessionHistory(ALEX.getId()).getNotes());
+    }
+
+    @Test
+    public void addSessionNote_sameSecond_numbersNotesInAddedOrder() {
+        Clock clock = Clock.fixed(Instant.parse("2026-09-18T10:35:00Z"), ZoneOffset.ofHours(8));
+        ModelManager model = new ModelManager(new AddressBook(), new UserPrefs(), clock);
+        model.addStudent(ALEX);
+
+        SessionNote firstNote = model.addSessionNote(ALEX.getId(), "Started algebra worksheet.");
+        SessionNote secondNote = model.addSessionNote(ALEX.getId(), "Finished algebra worksheet.");
+
+        SessionHistory history = model.getSessionHistory(ALEX.getId());
+        assertEquals(firstNote, history.getNote(Index.fromOneBased(1)));
+        assertEquals(secondNote, history.getNote(Index.fromOneBased(2)));
+    }
+
+    @Test
+    public void addSessionNote_invalidText_throwsIllegalArgumentExceptionAndKeepsHistory() {
+        modelManager.addStudent(ALEX);
+
+        assertThrows(IllegalArgumentException.class, SessionNote.MESSAGE_CONSTRAINTS, () -> modelManager
+                .addSessionNote(ALEX.getId(), "Line one\nLine two"));
+        assertTrue(modelManager.getSessionHistory(ALEX.getId()).isEmpty());
+    }
+
+    @Test
+    public void addSessionNote_studentNotInRoster_throwsIllegalArgumentException() {
+        modelManager.addStudent(ALEX);
+
+        assertThrows(IllegalArgumentException.class, () -> modelManager.addSessionNote(BEA.getId(),
+                "Reviewed factorisation."));
+    }
+
+    @Test
+    public void addSessionNote_nullArguments_throwsNullPointerException() {
+        String text = "Reviewed indices.";
+
+        assertThrows(NullPointerException.class, () -> modelManager.addSessionNote(null, text));
+        assertThrows(NullPointerException.class, () -> modelManager.addSessionNote(ALEX.getId(), null));
+    }
+
+    @Test
+    public void getStudentRoster_withSessionNotes_reportsNoteCounts() {
+        modelManager.addStudent(ALEX);
+        modelManager.addStudent(BEA);
+        modelManager.addSessionNote(ALEX.getId(), "Reviewed indices.");
+        modelManager.addSessionNote(ALEX.getId(), "Reviewed factorisation.");
+
+        List<Integer> noteCounts = modelManager.getStudentRoster().getEntries().stream()
+                .map(entry -> entry.getNoteCount()).toList();
+
+        assertEquals(List.of(2, 0), noteCounts);
+    }
+
+    @Test
+    public void setStudent_validReplacement_updatesProfileAndPreservesHistory() {
+        modelManager.addStudent(ALEX);
+        modelManager.addSessionNote(ALEX.getId(), "Reviewed indices.");
+        Student editedAlex = new Student(new StudentName("Alexis Tan"),
+                ALEX.getParentGuardianContact(), new Subject("Physics"), new CurrentLevel("Secondary 4"),
+                ALEX.getId());
+
+        modelManager.setStudent(ALEX.getId(), editedAlex);
+
+        StudentProfile profile = modelManager.getStudentProfile(ALEX.getId()).orElseThrow();
+        assertEquals(editedAlex.getName(), profile.getName());
+        assertEquals(editedAlex.getSubject(), profile.getSubject());
+        assertEquals(editedAlex.getCurrentLevel(), profile.getCurrentLevel());
+        assertEquals(1, profile.getSessionNotes().size());
+    }
+
+    @Test
+    public void deleteSessionNote_validNumber_removesOnlySelectedNoteAndUpdatesCount() {
+        AddressBook addressBook = new AddressBook();
+        addressBook.addStudent(ALEX);
+        addressBook.addSessionNote(ALEX.getId(), INDICES_NOTE);
+        addressBook.addSessionNote(ALEX.getId(), FACTORISATION_NOTE);
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        assertEquals(INDICES_NOTE, modelManager.deleteSessionNote(ALEX.getId(), Index.fromOneBased(1)));
+        assertEquals(List.of(FACTORISATION_NOTE), modelManager.getSessionHistory(ALEX.getId()).getNotes());
+        assertEquals(1, modelManager.getStudentRoster().getEntries().get(0).getNoteCount());
+    }
+
+    @Test
+    public void editSessionNote_validNumber_replacesTextAndPreservesTimestamp() {
+        modelManager.addStudent(ALEX);
+        SessionNote originalNote = modelManager.addSessionNote(ALEX.getId(), "Original summary.");
+
+        SessionNote editedNote = modelManager.editSessionNote(ALEX.getId(), Index.fromOneBased(1),
+                "Corrected summary.");
+
+        assertEquals("Corrected summary.", editedNote.getText());
+        assertEquals(originalNote.getRecordedAt(), editedNote.getRecordedAt());
+        assertTrue(editedNote.getLastEditedAt().isPresent());
+        assertEquals(1, modelManager.getStudentRoster().getEntries().get(0).getNoteCount());
+    }
+
+    @Test
+    public void editSessionNote_sameText_recordsLatestEditTime() {
+        AddressBook addressBook = new AddressBook();
+        addressBook.addStudent(ALEX);
+        SessionNote originalNote = new SessionNote("Original summary.",
+                OffsetDateTime.parse("2026-09-18T18:35:00+08:00"));
+        addressBook.addSessionNote(ALEX.getId(), originalNote);
+        OffsetDateTime editTime = OffsetDateTime.parse("2026-10-23T14:10:00+08:00");
+        modelManager = new ModelManager(addressBook, new UserPrefs(),
+                Clock.fixed(editTime.toInstant(), editTime.getOffset()));
+
+        SessionNote editedNote = modelManager.editSessionNote(ALEX.getId(), Index.fromOneBased(1),
+                originalNote.getText());
+
+        assertEquals(editTime, editedNote.getLastEditedAt().orElseThrow());
+        assertEquals(originalNote.getRecordedAt(), editedNote.getRecordedAt());
+    }
+
+    @Test
+    public void editSessionNote_invalidText_throwsIllegalArgumentExceptionAndKeepsHistory() {
+        modelManager.addStudent(ALEX);
+        SessionNote originalNote = modelManager.addSessionNote(ALEX.getId(), "Original summary.");
+
+        assertThrows(IllegalArgumentException.class, SessionNote.MESSAGE_CONSTRAINTS, () -> modelManager
+                .editSessionNote(ALEX.getId(), Index.fromOneBased(1), " "));
+
+        assertEquals(List.of(originalNote), modelManager.getSessionHistory(ALEX.getId()).getNotes());
+    }
+
+    @Test
+    public void getStudentProfile_studentInRoster_returnsComposedProfile() {
+        Clock clock = Clock.fixed(Instant.parse("2026-09-18T10:35:00Z"), ZoneOffset.ofHours(8));
+        ModelManager model = new ModelManager(new AddressBook(), new UserPrefs(), clock);
+        model.addStudent(ALEX);
+        SessionNote firstNote = model.addSessionNote(ALEX.getId(), "Reviewed indices.");
+        SessionNote secondNote = model.addSessionNote(ALEX.getId(), "Reviewed factorisation.");
+
+        StudentProfile profile = model.getStudentProfile(ALEX.getId()).orElseThrow();
+
+        assertEquals(ALEX.getId(), profile.getStudentId());
+        assertEquals(ALEX.getName(), profile.getName());
+        assertEquals(ALEX.getParentGuardianContact(), profile.getParentGuardianContact());
+        assertEquals(ALEX.getSubject(), profile.getSubject());
+        assertEquals(ALEX.getCurrentLevel(), profile.getCurrentLevel());
+        assertEquals(List.of(secondNote, firstNote), profile.getSessionNotes());
+    }
+
+    @Test
+    public void getStudentProfile_unknownStudent_returnsEmptyOptional() {
+        modelManager.addStudent(ALEX);
+
+        assertTrue(modelManager.getStudentProfile(BEA.getId()).isEmpty());
+    }
+
+    @Test
+    public void getStudentProfile_nullStudentId_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.getStudentProfile(null));
+    }
+
+    @Test
+    public void deleteStudent_studentWithNotes_removesStudentAndReturnsNoteCount() {
+        modelManager.addStudent(ALEX);
+        modelManager.addStudent(BEA);
+        modelManager.addSessionNote(ALEX.getId(), "Reviewed indices.");
+
+        assertEquals(1, modelManager.deleteStudent(ALEX.getId()));
+        assertEquals(List.of(BEA.getId()), modelManager.getStudentRoster().getEntries().stream()
+                .map(entry -> entry.getStudentId()).toList());
+        assertTrue(modelManager.getSessionHistory(ALEX.getId()).isEmpty());
     }
 
     @Test
@@ -95,14 +302,6 @@ public class ModelManagerTest {
 
         // different addressBook -> returns false
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
-
-        // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
-        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
-
-        // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

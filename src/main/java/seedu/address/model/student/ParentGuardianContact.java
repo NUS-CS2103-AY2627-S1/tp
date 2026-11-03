@@ -1,0 +1,128 @@
+package seedu.address.model.student;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * Represents the contact details of the adult responsible for a student.
+ */
+public final class ParentGuardianContact {
+
+    public static final String PHONE_MESSAGE_CONSTRAINTS =
+            "Parent or guardian phone numbers must be an 8-digit Singapore number starting with 6, 8, or 9, "
+                    + "or an international number starting with + and containing 8 to 15 digits; "
+                    + "spaces and hyphens are allowed.";
+    public static final String EMAIL_MESSAGE_CONSTRAINTS =
+            "Parent or guardian email addresses must contain one '@' and a domain with at least one dot.";
+    private static final String PHONE_CHARACTERS_REGEX = "\\+?[0-9][0-9 -]*";
+    private static final String PHONE_SEPARATOR_REGEX = "[ -]";
+    private static final String LOCAL_PHONE_REGEX = "[689][0-9]{7}";
+    private static final String SINGAPORE_COUNTRY_CODE = "+65";
+    private static final String INTERNATIONAL_PHONE_REGEX = "\\+[1-9][0-9]{7,14}";
+    private static final String EMAIL_REGEX = "[^@\\s]+@[^@\\s.]+(?:\\.[^@\\s.]+)+";
+
+    private final String phone;
+    private final String email;
+
+    /**
+     * Constructs parent or guardian contact details with an optional email address.
+     *
+     * @param phone A valid phone number.
+     * @param email A valid email address, or an empty optional when it is unavailable.
+     */
+    public ParentGuardianContact(String phone, Optional<String> email) {
+        requireNonNull(phone);
+        requireNonNull(email);
+        checkArgument(isValidPhone(phone), PHONE_MESSAGE_CONSTRAINTS);
+        checkArgument(hasValidOptionalEmail(email), EMAIL_MESSAGE_CONSTRAINTS);
+        this.phone = normalizeSingaporePhone(phone.trim());
+        this.email = email.map(String::trim).orElse(null);
+    }
+
+    /**
+     * Returns whether {@code email} is empty or holds a valid email address.
+     */
+    private static boolean hasValidOptionalEmail(Optional<String> email) {
+        return email.map(ParentGuardianContact::isValidEmail).orElse(true);
+    }
+
+    /**
+     * Returns whether {@code phone} is a valid parent or guardian phone number.
+     */
+    public static boolean isValidPhone(String phone) {
+        requireNonNull(phone);
+        String trimmedPhone = phone.trim();
+        String normalizedPhone = normalizePhone(trimmedPhone);
+        return trimmedPhone.matches(PHONE_CHARACTERS_REGEX)
+                && (normalizedPhone.matches(LOCAL_PHONE_REGEX)
+                || normalizedPhone.matches(INTERNATIONAL_PHONE_REGEX));
+    }
+
+    /**
+     * Returns whether {@code email} is a valid parent or guardian email address.
+     */
+    public static boolean isValidEmail(String email) {
+        requireNonNull(email);
+        return email.trim().matches(EMAIL_REGEX);
+    }
+
+    /**
+     * Returns the phone number without spaces or hyphens for identity comparison.
+     */
+    public static String normalizePhone(String phone) {
+        requireNonNull(phone);
+        return phone.replaceAll(PHONE_SEPARATOR_REGEX, "");
+    }
+
+    /**
+     * Returns a Singapore phone number without its {@code +65} country code.
+     */
+    private static String normalizeSingaporePhone(String phone) {
+        String normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone.startsWith(SINGAPORE_COUNTRY_CODE)
+                && normalizedPhone.substring(SINGAPORE_COUNTRY_CODE.length()).matches(LOCAL_PHONE_REGEX)) {
+            return normalizedPhone.substring(SINGAPORE_COUNTRY_CODE.length());
+        }
+        return phone;
+    }
+
+    /**
+     * Returns the recorded phone number.
+     */
+    public String getPhone() {
+        return phone;
+    }
+
+    /**
+     * Returns the recorded email address when available.
+     */
+    public Optional<String> getEmail() {
+        return Optional.ofNullable(email);
+    }
+
+    /**
+     * Returns the normalized phone number used for student identity comparison.
+     */
+    public String getNormalizedPhone() {
+        return normalizePhone(phone);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        return other instanceof ParentGuardianContact otherContact
+                && phone.equals(otherContact.phone)
+                && Objects.equals(email, otherContact.email);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(phone, email);
+    }
+}

@@ -1,18 +1,24 @@
 package seedu.address.model;
 
-import java.util.function.Predicate;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.profile.StudentProfile;
+import seedu.address.model.session.SessionHistory;
+import seedu.address.model.session.SessionNote;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentId;
+import seedu.address.model.student.StudentRoster;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
-    /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
-
     /**
      * Returns the user prefs.
      */
@@ -37,35 +43,117 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns whether a student with the same identity as {@code student} exists.
      */
-    boolean hasPerson(Person person);
+    default boolean hasStudent(Student student) {
+        return getAddressBook().getStudentList().stream().anyMatch(student::hasSameIdentity);
+    }
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Returns the immutable student with {@code studentId}, or an empty optional if that student is absent.
      */
-    void deletePerson(Person target);
+    default Optional<Student> getStudent(StudentId studentId) {
+        return getAddressBook().getStudent(studentId);
+    }
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Returns another student with the same identity as {@code editedStudent}, if one exists.
      */
-    void addPerson(Person person);
+    default Optional<Student> findConflictingStudent(StudentId targetStudentId, Student editedStudent) {
+        return getAddressBook().findConflictingStudent(targetStudentId, editedStudent);
+    }
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Adds a student to the model.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    default void addStudent(Student student) {
+        throw new UnsupportedOperationException("Student additions are not supported by this model.");
+    }
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
-     * @throws NullPointerException if {@code predicate} is null.
+     * Replaces the student with {@code studentId} while preserving that student's session history.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    default void setStudent(StudentId studentId, Student editedStudent) {
+        throw new UnsupportedOperationException("Student edits are not supported by this model.");
+    }
+
+    /**
+     * Deletes the student with {@code studentId} and that student's session history.
+     *
+     * @return The number of session notes removed with the student.
+     */
+    default int deleteStudent(StudentId studentId) {
+        throw new UnsupportedOperationException("Student deletions are not supported by this model.");
+    }
+
+    /**
+     * Returns an immutable snapshot of the student roster, including each student's session-note count.
+     */
+    default StudentRoster getStudentRoster() {
+        ReadOnlyAddressBook addressBook = getAddressBook();
+        Map<StudentId, Integer> noteCounts = addressBook.getStudentList().stream()
+                .map(Student::getId)
+                .collect(Collectors.toMap(Function.identity(),
+                        studentId -> addressBook.getSessionHistory(studentId).size()));
+        return new StudentRoster(addressBook.getStudentList(), noteCounts);
+    }
+
+    /**
+     * Returns the newest-first session history of the student with {@code studentId}.
+     * Returns an empty history if the student has no session notes.
+     */
+    default SessionHistory getSessionHistory(StudentId studentId) {
+        return getAddressBook().getSessionHistory(studentId);
+    }
+
+    /**
+     * Returns an immutable profile of the student with {@code studentId}, or an empty optional if the student is
+     * absent.
+     */
+    default Optional<StudentProfile> getStudentProfile(StudentId studentId) {
+        Objects.requireNonNull(studentId);
+        ReadOnlyAddressBook addressBook = getAddressBook();
+        return addressBook.getStudentList().stream()
+                .filter(student -> student.getId().equals(studentId))
+                .findFirst()
+                .map(student -> new StudentProfile(student.getId(), student.getName(),
+                        student.getParentGuardianContact(), student.getSubject(), student.getCurrentLevel(),
+                        addressBook.getSessionHistory(studentId).getNotes()));
+    }
+
+    /**
+     * Adds a session note with {@code text}, timestamped at the current time, to the student with
+     * {@code studentId}.
+     *
+     * @param studentId The identifier of a student in the roster.
+     * @param text Valid note text, as checked by {@link SessionNote#isValidText(String)}.
+     * @return The session note that was added.
+     * @throws IllegalArgumentException If the text is invalid or no student in the roster has
+     *         {@code studentId}.
+     */
+    default SessionNote addSessionNote(StudentId studentId, String text) {
+        throw new UnsupportedOperationException("Session note additions are not supported by this model.");
+    }
+
+    /**
+     * Deletes and returns the note with the given chronological {@code noteNumber} from the student's history.
+     */
+    default SessionNote deleteSessionNote(StudentId studentId, Index noteNumber) {
+        throw new UnsupportedOperationException("Session note deletions are not supported by this model.");
+    }
+
+    /**
+     * Replaces a session note's text while preserving its recorded date and time.
+     *
+     * @param studentId The identifier of a student in the roster.
+     * @param noteNumber The chronological number of the note to edit.
+     * @param text Valid replacement note text, as checked by {@link SessionNote#isValidText(String)}.
+     * @return The replacement note.
+     * @throws IllegalArgumentException If the text is invalid or no student in the roster has {@code studentId}.
+     * @throws IndexOutOfBoundsException If {@code noteNumber} exceeds the student's history size.
+     */
+    default SessionNote editSessionNote(StudentId studentId, Index noteNumber, String text) {
+        throw new UnsupportedOperationException("Session note editing is not supported by this model.");
+    }
+
 }

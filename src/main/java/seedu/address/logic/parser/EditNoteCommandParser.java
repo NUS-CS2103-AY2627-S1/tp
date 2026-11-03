@@ -1,0 +1,96 @@
+package seedu.address.logic.parser;
+
+import static seedu.address.logic.Messages.withFormat;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
+
+import java.util.Optional;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.EditNoteCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses input arguments and creates an {@link EditNoteCommand} object.
+ */
+public class EditNoteCommandParser implements Parser<EditNoteCommand> {
+
+    static final String MESSAGE_MISSING_NOTE_TARGET = withEditNoteFormat(
+            "Start the command with " + EditNoteCommand.COMMAND_WORD + " " + EditNoteCommand.NOTE_TARGET + ".");
+    static final String MESSAGE_MISSING_NEW_NOTE = withEditNoteFormat("Missing " + PREFIX_NOTE + "NEW_NOTE.");
+    static final String MESSAGE_MISSING_INDICES = withEditNoteFormat("Missing STUDENT_INDEX and NOTE_NUMBER.");
+    static final String MESSAGE_MISSING_NOTE_NUMBER = withEditNoteFormat(
+            "Missing NOTE_NUMBER. Enter the number shown beside the note in the profile.");
+    static final String MESSAGE_TOO_MANY_INDICES = withEditNoteFormat(
+            EditNoteCommand.COMMAND_WORD + " " + EditNoteCommand.NOTE_TARGET
+                    + " takes only one STUDENT_INDEX and one NOTE_NUMBER.");
+
+    private static final String WHITESPACE_PATTERN = "\\s+";
+    private static final int STUDENT_INDEX_POSITION = 1;
+    private static final int NOTE_NUMBER_POSITION = 2;
+    private static final int ARGUMENT_COUNT_TARGET_ONLY = 1;
+    private static final int ARGUMENT_COUNT_WITHOUT_NOTE_NUMBER = 2;
+    private static final int ARGUMENT_COUNT_COMPLETE = 3;
+
+    /**
+     * Parses the given {@code String} of arguments in the context of the edit note command.
+     *
+     * @throws ParseException If a part of the command is missing or repeated, an index is invalid, or the note
+     *         text is invalid.
+     */
+    @Override
+    public EditNoteCommand parse(String args) throws ParseException {
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, PREFIX_NOTE);
+        Optional<String> noteText = argMultimap.getValue(PREFIX_NOTE);
+        String[] preamble = argMultimap.getPreamble().split(WHITESPACE_PATTERN);
+
+        if (!EditNoteCommand.NOTE_TARGET.equals(preamble[0])) {
+            throw new ParseException(MESSAGE_MISSING_NOTE_TARGET);
+        }
+        if (noteText.isEmpty()) {
+            ParserUtil.verifyNoWrongCaseNotePrefix(args, EditNoteCommand.COMMAND_FORMAT,
+                    EditNoteCommand.COMMAND_EXAMPLE);
+            throw new ParseException(MESSAGE_MISSING_NEW_NOTE);
+        }
+        verifyIndexCount(preamble.length);
+
+        Index studentIndex = ParserUtil.parseStudentIndex(
+                preamble[STUDENT_INDEX_POSITION], ParserUtil.STUDENT_INDEX_LABEL);
+        Index noteNumber = ParserUtil.parseNoteNumber(preamble[NOTE_NUMBER_POSITION]);
+        verifyNoDuplicateNotePrefix(argMultimap);
+        return new EditNoteCommand(studentIndex, noteNumber, ParserUtil.parseNoteText(noteText.get()));
+    }
+
+    /**
+     * Checks that the preamble holds the {@code note} target followed by exactly two indices.
+     *
+     * @throws ParseException If an index is missing or extra values are present.
+     */
+    private static void verifyIndexCount(int preambleWordCount) throws ParseException {
+        if (preambleWordCount == ARGUMENT_COUNT_TARGET_ONLY) {
+            throw new ParseException(MESSAGE_MISSING_INDICES);
+        }
+        if (preambleWordCount == ARGUMENT_COUNT_WITHOUT_NOTE_NUMBER) {
+            throw new ParseException(MESSAGE_MISSING_NOTE_NUMBER);
+        }
+        if (preambleWordCount > ARGUMENT_COUNT_COMPLETE) {
+            throw new ParseException(MESSAGE_TOO_MANY_INDICES);
+        }
+    }
+
+    /**
+     * Checks that the note text prefix appears once, adding the command format to the error otherwise.
+     *
+     * @throws ParseException If the prefix is repeated.
+     */
+    private static void verifyNoDuplicateNotePrefix(ArgumentMultimap argMultimap) throws ParseException {
+        try {
+            argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NOTE);
+        } catch (ParseException exception) {
+            throw new ParseException(withEditNoteFormat(exception.getMessage()), exception);
+        }
+    }
+
+    private static String withEditNoteFormat(String message) {
+        return withFormat(message, EditNoteCommand.COMMAND_FORMAT, EditNoteCommand.COMMAND_EXAMPLE);
+    }
+}

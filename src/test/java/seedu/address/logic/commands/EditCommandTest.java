@@ -2,183 +2,230 @@ package seedu.address.logic.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
-import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalSessionNotes.ALEX;
+import static seedu.address.testutil.TypicalSessionNotes.BEA;
+
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.commons.core.index.Index;
 import seedu.address.logic.Messages;
-import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
-import seedu.address.model.AddressBook;
+import seedu.address.logic.commands.EditCommand.EditStudentDescriptor;
+import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.testutil.EditPersonDescriptorBuilder;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.profile.StudentProfile;
+import seedu.address.model.student.CurrentLevel;
+import seedu.address.model.student.ParentGuardianContact;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Subject;
 
-/**
- * Contains integration tests (interaction with the Model) and unit tests for EditCommand.
- */
 public class EditCommandTest {
 
-    private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
-
     @Test
-    public void execute_allFieldsSpecifiedUnfilteredList_success() {
-        Person editedPerson = new PersonBuilder().build();
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(editedPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+    public void execute_allFieldsSpecified_updatesStudentAndPreservesHistory() throws Exception {
+        Model model = modelWith(ALEX);
+        model.addSessionNote(ALEX.getId(), "Reviewed indices.");
+        EditStudentDescriptor descriptor = descriptor("Alexis Tan", "8000 0001",
+                Optional.of("guardian@example.com"), "Physics", "Secondary 4");
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        CommandResult result = new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        StudentProfile profile = model.getStudentProfile(ALEX.getId()).orElseThrow();
+        assertEquals("Edited student: Alexis Tan (Physics, Secondary 4).", result.getFeedbackToUser());
+        assertEquals(ALEX.getId(), result.getProfileStudentId().orElseThrow());
+        assertEquals(ALEX.getId(), profile.getStudentId());
+        assertEquals(new StudentName("Alexis Tan"), profile.getName());
+        assertEquals(new ParentGuardianContact("8000 0001", Optional.of("guardian@example.com")),
+                profile.getParentGuardianContact());
+        assertEquals(new Subject("Physics"), profile.getSubject());
+        assertEquals(new CurrentLevel("Secondary 4"), profile.getCurrentLevel());
+        assertEquals(1, profile.getSessionNotes().size());
     }
 
     @Test
-    public void execute_someFieldsSpecifiedUnfilteredList_success() {
-        Index indexLastPerson = Index.fromOneBased(model.getFilteredPersonList().size());
-        Person lastPerson = model.getFilteredPersonList().get(indexLastPerson.getZeroBased());
+    public void execute_someFieldsSpecified_retainsUnspecifiedFields() throws Exception {
+        Model model = modelWith(ALEX);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setSubject(new Subject("Physics"));
 
-        PersonBuilder personInList = new PersonBuilder(lastPerson);
-        Person editedPerson = personInList.withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB)
-                .withTags(VALID_TAG_HUSBAND).build();
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
 
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB)
-                .withPhone(VALID_PHONE_BOB).withTags(VALID_TAG_HUSBAND).build();
-        EditCommand editCommand = new EditCommand(indexLastPerson, descriptor);
-
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
-
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(lastPerson, editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        StudentProfile profile = model.getStudentProfile(ALEX.getId()).orElseThrow();
+        assertEquals(ALEX.getName(), profile.getName());
+        assertEquals(ALEX.getParentGuardianContact(), profile.getParentGuardianContact());
+        assertEquals(new Subject("Physics"), profile.getSubject());
+        assertEquals(ALEX.getCurrentLevel(), profile.getCurrentLevel());
     }
 
     @Test
-    public void execute_noFieldSpecifiedUnfilteredList_success() {
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON, new EditPersonDescriptor());
-        Person editedPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
+    public void execute_emptyEmail_removesExistingEmail() throws Exception {
+        Student studentWithEmail = new Student(ALEX.getName(),
+                new ParentGuardianContact("9123 4567", Optional.of("guardian@example.com")), ALEX.getSubject(),
+                ALEX.getCurrentLevel(), ALEX.getId());
+        Model model = modelWith(studentWithEmail);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setParentEmail(Optional.empty());
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
 
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertTrue(model.getStudentProfile(ALEX.getId()).orElseThrow()
+                .getParentGuardianContact().getEmail().isEmpty());
     }
 
     @Test
-    public void execute_filteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_nameChangesRosterOrder_preservesStudentId() throws Exception {
+        Model model = modelWith(ALEX, BEA);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setName(new StudentName("Aaron Tan"));
 
-        Person personInFilteredList = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        Person editedPerson = new PersonBuilder(personInFilteredList).withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
+        CommandResult result = new EditCommand(INDEX_SECOND_PERSON, descriptor).execute(model);
 
-        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
-
-        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
-        expectedModel.setPerson(model.getFilteredPersonList().get(0), editedPerson);
-
-        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertEquals(BEA.getId(), result.getProfileStudentId().orElseThrow());
+        assertEquals(List.of(BEA.getId(), ALEX.getId()), model.getStudentRoster().getEntries().stream()
+                .map(entry -> entry.getStudentId()).toList());
+        assertEquals(new StudentName("Aaron Tan"), model.getStudentProfile(BEA.getId()).orElseThrow().getName());
     }
 
     @Test
-    public void execute_duplicatePersonUnfilteredList_failure() {
-        Person firstPerson = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(firstPerson).build();
-        EditCommand editCommand = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+    public void execute_duplicateIdentity_throwsCommandExceptionAndLeavesStudentsUnchanged() {
+        Model model = modelWith(ALEX, BEA);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setName(BEA.getName());
+        descriptor.setParentPhone(BEA.getParentGuardianContact().getPhone());
+        EditCommand command = new EditCommand(INDEX_FIRST_PERSON, descriptor);
 
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        String expectedMessage = String.format(EditCommand.MESSAGE_DUPLICATE_STUDENT, BEA.getName());
+        assertThrows(CommandException.class, expectedMessage, () -> command.execute(model));
+        assertEquals(ALEX.getName(), model.getStudentProfile(ALEX.getId()).orElseThrow().getName());
     }
 
     @Test
-    public void execute_duplicatePersonFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+    public void execute_singaporeCountryCodeDuplicate_throwsCommandExceptionAndLeavesStudentsUnchanged() {
+        Model model = modelWith(ALEX, BEA);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setName(ALEX.getName());
+        descriptor.setParentPhone("+65 9123 4567");
+        EditCommand command = new EditCommand(INDEX_SECOND_PERSON, descriptor);
 
-        // edit person in filtered list into a duplicate in address book
-        Person personInList = model.getAddressBook().getPersonList().get(INDEX_SECOND_PERSON.getZeroBased());
-        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
-                new EditPersonDescriptorBuilder(personInList).build());
-
-        assertCommandFailure(editCommand, model, EditCommand.MESSAGE_DUPLICATE_PERSON);
+        String expectedMessage = String.format(EditCommand.MESSAGE_DUPLICATE_STUDENT, ALEX.getName());
+        assertThrows(CommandException.class, expectedMessage, () -> command.execute(model));
+        assertEquals(BEA.getParentGuardianContact(), model.getStudentProfile(BEA.getId()).orElseThrow()
+                .getParentGuardianContact());
     }
 
     @Test
-    public void execute_invalidPersonIndexUnfilteredList_failure() {
-        Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
-        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build();
-        EditCommand editCommand = new EditCommand(outOfBoundIndex, descriptor);
+    public void execute_invalidIndex_throwsCommandException() {
+        Model model = modelWith(ALEX);
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setSubject(new Subject("Physics"));
+        EditCommand command = new EditCommand(INDEX_SECOND_PERSON, descriptor);
 
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
-    }
-
-    /**
-     * Edit filtered list where index is larger than size of filtered list,
-     * but smaller than size of address book
-     */
-    @Test
-    public void execute_invalidPersonIndexFilteredList_failure() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
-        Index outOfBoundIndex = INDEX_SECOND_PERSON;
-        // ensures that outOfBoundIndex is still in bounds of address book list
-        assertTrue(outOfBoundIndex.getZeroBased() < model.getAddressBook().getPersonList().size());
-
-        EditCommand editCommand = new EditCommand(outOfBoundIndex,
-                new EditPersonDescriptorBuilder().withName(VALID_NAME_BOB).build());
-
-        assertCommandFailure(editCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String expectedMessage = String.format(Messages.MESSAGE_STUDENT_INDEX_OUT_OF_RANGE, 2, 1);
+        assertThrows(CommandException.class, expectedMessage, () -> command.execute(model));
     }
 
     @Test
-    public void equals() {
-        final EditCommand standardCommand = new EditCommand(INDEX_FIRST_PERSON, DESC_AMY);
+    public void constructor_nullArguments_throwNullPointerException() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setSubject(new Subject("Physics"));
+        EditCommand command = new EditCommand(INDEX_FIRST_PERSON, descriptor);
 
-        // same values -> returns true
-        EditPersonDescriptor copyDescriptor = new EditPersonDescriptor(DESC_AMY);
-        EditCommand commandWithSameValues = new EditCommand(INDEX_FIRST_PERSON, copyDescriptor);
-        assertTrue(standardCommand.equals(commandWithSameValues));
-
-        // same object -> returns true
-        assertTrue(standardCommand.equals(standardCommand));
-
-        // null -> returns false
-        assertFalse(standardCommand.equals(null));
-
-        // different types -> returns false
-        assertFalse(standardCommand.equals(new ClearCommand()));
-
-        // different index -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_SECOND_PERSON, DESC_AMY)));
-
-        // different descriptor -> returns false
-        assertFalse(standardCommand.equals(new EditCommand(INDEX_FIRST_PERSON, DESC_BOB)));
+        assertThrows(NullPointerException.class, () -> new EditCommand(null, new EditStudentDescriptor()));
+        assertThrows(NullPointerException.class, () -> new EditCommand(INDEX_FIRST_PERSON, null));
+        assertThrows(NullPointerException.class, () -> new EditStudentDescriptor(null));
+        assertThrows(NullPointerException.class, () -> command.execute(null));
     }
 
     @Test
-    public void toStringMethod() {
-        Index index = Index.fromOneBased(1);
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-        EditCommand editCommand = new EditCommand(index, editPersonDescriptor);
-        String expected = EditCommand.class.getCanonicalName() + "{index=" + index + ", editPersonDescriptor="
-                + editPersonDescriptor + "}";
-        assertEquals(expected, editCommand.toString());
+    public void descriptor_accessorsCopyAndEquality_behaveAsValueObject() {
+        EditStudentDescriptor descriptor = descriptor("Alexis Tan", "8000 0001",
+                Optional.of("guardian@example.com"), "Physics", "Secondary 4");
+        EditStudentDescriptor copy = new EditStudentDescriptor(descriptor);
+
+        assertTrue(descriptor.isAnyFieldEdited());
+        assertEquals(Optional.of(new StudentName("Alexis Tan")), copy.getName());
+        assertEquals(Optional.of("8000 0001"), copy.getParentPhone());
+        assertTrue(copy.isParentEmailEdited());
+        assertEquals(Optional.of("guardian@example.com"), copy.getParentEmail());
+        assertEquals(Optional.of(new Subject("Physics")), copy.getSubject());
+        assertEquals(Optional.of(new CurrentLevel("Secondary 4")), copy.getCurrentLevel());
+        assertEquals(descriptor, copy);
+        assertEquals(descriptor.hashCode(), copy.hashCode());
+        assertEquals(descriptor, descriptor);
+        assertFalse(descriptor.equals(null));
+        assertFalse(descriptor.equals("not a descriptor"));
+
+        EditStudentDescriptor differentPhone = new EditStudentDescriptor(copy);
+        differentPhone.setParentPhone("8000 0002");
+        assertNotEquals(differentPhone, copy);
+        EditStudentDescriptor clearedEmail = new EditStudentDescriptor(copy);
+        clearedEmail.setParentEmail(Optional.empty());
+        assertNotEquals(clearedEmail, copy);
+        EditStudentDescriptor differentLevel = new EditStudentDescriptor(copy);
+        differentLevel.setCurrentLevel(new CurrentLevel("Secondary 5"));
+        assertNotEquals(differentLevel, copy);
+
+        descriptor.setSubject(new Subject("Chemistry"));
+        assertNotEquals(descriptor, copy);
+        assertThrows(NullPointerException.class, () -> descriptor.setName(null));
+        assertThrows(NullPointerException.class, () -> descriptor.setParentPhone(null));
+        assertThrows(NullPointerException.class, () -> descriptor.setParentEmail(null));
+        assertThrows(NullPointerException.class, () -> descriptor.setSubject(null));
+        assertThrows(NullPointerException.class, () -> descriptor.setCurrentLevel(null));
+        assertFalse(new EditStudentDescriptor().isAnyFieldEdited());
+        assertFalse(new EditStudentDescriptor().isParentEmailEdited());
+
+        EditStudentDescriptor explicitEmailRemoval = new EditStudentDescriptor();
+        explicitEmailRemoval.setParentEmail(Optional.empty());
+        assertTrue(explicitEmailRemoval.isAnyFieldEdited());
+        assertNotEquals(explicitEmailRemoval, new EditStudentDescriptor());
     }
 
+    @Test
+    public void equalsAndToString_useIndexAndDescriptorWithoutPrivateDetails() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setName(new StudentName("Alexis Tan"));
+        EditCommand command = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+        EditCommand sameCommand = new EditCommand(INDEX_FIRST_PERSON, descriptor);
+        EditCommand differentIndex = new EditCommand(INDEX_SECOND_PERSON, descriptor);
+        EditStudentDescriptor differentDescriptor = new EditStudentDescriptor();
+        differentDescriptor.setSubject(new Subject("Physics"));
+
+        assertEquals(command, command);
+        assertEquals(command, sameCommand);
+        assertNotEquals(command, differentIndex);
+        assertNotEquals(command, new EditCommand(INDEX_FIRST_PERSON, differentDescriptor));
+        assertFalse(command.equals(null));
+        assertFalse(command.equals(new HelpCommand()));
+        assertEquals(EditCommand.class.getCanonicalName() + "{targetIndex=" + INDEX_FIRST_PERSON + "}",
+                command.toString());
+        assertFalse(command.toString().contains("Alexis"));
+    }
+
+    private static Model modelWith(Student... students) {
+        Model model = new ModelManager();
+        for (Student student : students) {
+            model.addStudent(student);
+        }
+        return model;
+    }
+
+    private static EditStudentDescriptor descriptor(String name, String phone, Optional<String> email,
+            String subject, String currentLevel) {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setName(new StudentName(name));
+        descriptor.setParentPhone(phone);
+        descriptor.setParentEmail(email);
+        descriptor.setSubject(new Subject(subject));
+        descriptor.setCurrentLevel(new CurrentLevel(currentLevel));
+        return descriptor;
+    }
 }

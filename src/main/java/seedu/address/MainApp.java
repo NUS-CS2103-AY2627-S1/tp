@@ -2,12 +2,12 @@ package seedu.address;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
 import javafx.stage.Stage;
+import seedu.address.commons.core.HomeFolder;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.util.StringUtil;
@@ -19,7 +19,6 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.util.SampleDataUtil;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
@@ -32,58 +31,104 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
-    private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path USER_PREFS_FILE_PATH = HomeFolder.resolve("preferences.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = HomeFolder.resolve("data", "tutortrack.json");
+    private static final String MESSAGE_DATA_LOAD_FAILED_WITH_BACKUP =
+            "TutorTrack could not load your data file. A copy was kept at %1$s. "
+            + "Correct the original file, then restart TutorTrack.";
+    private static final String MESSAGE_DATA_LOAD_AND_BACKUP_FAILED =
+            "TutorTrack could not load or back up your data file. "
+            + "Correct the original file before running a command that saves data.";
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
+    private String dataLoadErrorMessage;
 
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing TutorTrack ]============================");
         super.init();
 
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
+        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(getUserPrefsFilePath());
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(getDataFilePath());
         storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
         model = initModelManager(storage, userPrefs);
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), dataLoadErrorMessage);
+    }
+
+    /**
+     * Returns the path of the user prefs file that {@code init} reads and writes.
+     */
+    protected Path getUserPrefsFilePath() {
+        return USER_PREFS_FILE_PATH;
+    }
+
+    /**
+     * Returns the path of the data file that {@code init} loads the roster from.
+     */
+    protected Path getDataFilePath() {
+        return ADDRESS_BOOK_FILE_PATH;
     }
 
     /**
      * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * An empty address book will be used instead if {@code storage}'s address book is not found or cannot be read.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
+    Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+        Path dataFilePath = HomeFolder.toDisplayPath(storage.getAddressBookFilePath());
+        logger.info("Using data file : " + dataFilePath);
 
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+        return new ModelManager(loadInitialAddressBook(storage, dataFilePath), userPrefs);
+    }
+
+    /**
+     * Returns the address book read from {@code storage}, or an empty one if the data file is missing
+     * or cannot be loaded.
+     */
+    private ReadOnlyAddressBook loadInitialAddressBook(Storage storage, Path dataFilePath) {
         try {
-            addressBookOptional = storage.readAddressBook();
+            Optional<ReadOnlyAddressBook> addressBookOptional = storage.readAddressBook();
             if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+                logger.info("No data file found at " + dataFilePath
+                        + ". Starting with an empty roster; the file is created when the first change is saved.");
             }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
+            return addressBookOptional.orElseGet(AddressBook::new);
         } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            return handleDataLoadingFailure(storage, dataFilePath);
         }
+    }
 
-        return new ModelManager(initialData, userPrefs);
+    /**
+     * Returns an empty address book after recording a user-facing error message about the unreadable data file.
+     */
+    private ReadOnlyAddressBook handleDataLoadingFailure(Storage storage, Path dataFilePath) {
+        logger.warning("Data file at " + dataFilePath + " could not be loaded."
+                + " Will be starting with an empty roster.");
+        dataLoadErrorMessage = createDataLoadErrorMessage(storage);
+        return new AddressBook();
+    }
+
+    /**
+     * Returns an error message after preserving a data file that could not be loaded.
+     */
+    private String createDataLoadErrorMessage(Storage storage) {
+        try {
+            Path backupFilePath = storage.backupAddressBookFile();
+            return String.format(MESSAGE_DATA_LOAD_FAILED_WITH_BACKUP, backupFilePath);
+        } catch (IOException e) {
+            logger.warning("Failed to back up data file : " + e);
+            return MESSAGE_DATA_LOAD_AND_BACKUP_FAILED;
+        }
     }
 
     /**
@@ -92,7 +137,7 @@ public class MainApp extends Application {
      * reading from the file.
      */
     protected UserPrefs initPrefs(JsonUserPrefsStorage storage) {
-        Path prefsFilePath = storage.getUserPrefsFilePath();
+        Path prefsFilePath = HomeFolder.toDisplayPath(storage.getUserPrefsFilePath());
         logger.info("Using preference file : " + prefsFilePath);
 
         UserPrefs initializedPrefs;
@@ -112,7 +157,7 @@ public class MainApp extends Application {
         try {
             storage.saveUserPrefs(initializedPrefs);
         } catch (IOException e) {
-            logger.warning("Failed to save preference file : " + StringUtil.getDetails(e));
+            logger.warning("Failed to save preference file : " + e);
         }
 
         return initializedPrefs;
@@ -120,13 +165,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting TutorTrack " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping TutorTrack ] ==============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

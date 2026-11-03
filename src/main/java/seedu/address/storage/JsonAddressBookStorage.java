@@ -3,14 +3,18 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import seedu.address.commons.core.HomeFolder;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.commons.util.FileUtil;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.ReadOnlyAddressBook;
 
@@ -20,15 +24,60 @@ import seedu.address.model.ReadOnlyAddressBook;
 public class JsonAddressBookStorage {
 
     private static final Logger logger = LogsCenter.getLogger(JsonAddressBookStorage.class);
+    private static final String BACKUP_PREFIX_SUFFIX = ".backup-";
+    private static final String BACKUP_FILE_SUFFIX = ".bak";
 
     private Path filePath;
+    private final Clock clock;
 
     public JsonAddressBookStorage(Path filePath) {
+        this(filePath, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Constructs a storage for {@code filePath} that reads the current time from {@code clock} when loading,
+     * so that saved timestamps can be checked against it.
+     */
+    public JsonAddressBookStorage(Path filePath, Clock clock) {
+        requireNonNull(clock);
         this.filePath = filePath;
+        this.clock = clock;
     }
 
     public Path getAddressBookFilePath() {
         return filePath;
+    }
+
+    /**
+     * Preserves the address-book data file in a uniquely named backup.
+     *
+     * @return the backup file path.
+     * @throws IOException if the data file cannot be copied.
+     */
+    public Path backupAddressBookFile() throws IOException {
+        Path parentDirectory = filePath.toAbsolutePath().getParent();
+        String backupPrefix = filePath.getFileName() + BACKUP_PREFIX_SUFFIX;
+        Path backupFilePath = Files.createTempFile(parentDirectory, backupPrefix, BACKUP_FILE_SUFFIX);
+
+        try {
+            return Files.copy(filePath, backupFilePath, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException copyException) {
+            deleteIncompleteBackup(backupFilePath, copyException);
+            throw copyException;
+        }
+    }
+
+    /**
+     * Deletes the reserved backup file after a failed copy.
+     * A failure to delete is attached to {@code copyException} so the original cause is preserved.
+     * Package-private so that the delete-failure path can be tested without a failing file system.
+     */
+    static void deleteIncompleteBackup(Path backupFilePath, IOException copyException) {
+        try {
+            Files.deleteIfExists(backupFilePath);
+        } catch (IOException deleteException) {
+            copyException.addSuppressed(deleteException);
+        }
     }
 
     /**
@@ -57,9 +106,10 @@ public class JsonAddressBookStorage {
         }
 
         try {
-            return Optional.of(jsonAddressBook.get().toModelType());
+            return Optional.of(jsonAddressBook.get().toModelType(OffsetDateTime.now(clock)));
         } catch (IllegalValueException ive) {
-            logger.info("Illegal values found in " + filePath + ": " + ive.getMessage());
+            logger.info("Illegal values found in " + HomeFolder.toDisplayPath(filePath)
+                    + ": " + ive.getMessage());
             throw new DataLoadingException(ive);
         }
     }
@@ -82,7 +132,6 @@ public class JsonAddressBookStorage {
         requireNonNull(addressBook);
         requireNonNull(filePath);
 
-        FileUtil.createIfMissing(filePath);
         JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
     }
 

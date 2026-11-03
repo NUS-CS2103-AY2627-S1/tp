@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <ListView fx:id="studentRosterListView" styleClass="student-roster-list" />
+  <VBox fx:id="emptyRosterState" alignment="CENTER" spacing="6" styleClass="empty-roster-state"
+        visible="false" managed="false">
+    <Label text="No students yet" styleClass="empty-state-title" />
+    <Label text="Use the add command to create your first student profile."
+           styleClass="empty-state-guidance" textAlignment="CENTER" wrapText="true" />
+  </VBox>
+</StackPane>

@@ -5,55 +5,51 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Roger Zhang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/rogerzhang888.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/rogerzhang888)]
+[[homepage](https://rogerzhang888.github.io)]
 
-* Role: Project Advisor
+* Role: Developer
+* Responsibilities: Developer Guide and UML diagrams
 
-### Jane Doe
+### Gerald Fong Shao En
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/geraldfse.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/geraldFSE)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Session notes and command box
 
-### Johnny Doe
+### Sarah Chau
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/chausarahnusitems-tech.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/chausarahnusitems-tech)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Product Manager
+* Responsibilities: User research, student editing and deletion
 
-### Jean Doe
+### Praneeth Suresh
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/praneeth-suresh.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Praneeth-Suresh)]
+[[homepage](https://notes.praneeth-suresh-s.workers.dev/)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: DevOps, command parsing and user stories
+
+### Wang Jiahua
+
+<img src="images/jiahw4ng.png" width="200px">
+
+[[github](https://github.com/jiahw4ng)]
+
+* Role: Developer
+* Responsibilities: UI and data storage

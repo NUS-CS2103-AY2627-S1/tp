@@ -1,8 +1,10 @@
 package seedu.address.commons.util;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Writes and reads files
@@ -44,11 +46,29 @@ public class FileUtil {
     }
 
     /**
-     * Writes given string to a file.
-     * Will create the file if it does not exist yet.
+     * Writes the given string to a file, replacing its contents safely.
+     * The existing file remains unchanged if writing or replacement fails.
+     *
+     * @param file the file to write.
+     * @param content the content to write.
+     * @throws AccessDeniedException if the existing file is not writable.
+     * @throws IOException if the temporary file cannot be written or moved into place.
      */
     public static void writeToFile(Path file, String content) throws IOException {
-        Files.write(file, content.getBytes(CHARSET));
+        if (Files.exists(file) && !Files.isWritable(file)) {
+            throw new AccessDeniedException(file.toString());
+        }
+
+        Path parentDirectory = file.toAbsolutePath().getParent();
+        Files.createDirectories(parentDirectory);
+        Path temporaryFile = Files.createTempFile(parentDirectory, file.getFileName().toString(), ".tmp");
+
+        try {
+            Files.write(temporaryFile, content.getBytes(CHARSET));
+            Files.move(temporaryFile, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporaryFile);
+        }
     }
 
 }
