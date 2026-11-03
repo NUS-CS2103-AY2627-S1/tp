@@ -21,7 +21,7 @@ public class UiManager implements Ui {
     public static final String ALERT_DIALOG_PANE_FIELD_ID = "alertDialogPane";
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
-    private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String ICON_APPLICATION = "/images/spotter_32.png";
 
     private Logic logic;
     private Path dataFilePath;
@@ -51,6 +51,13 @@ public class UiManager implements Ui {
         } catch (Throwable e) {
             logger.severe(StringUtil.getDetails(e));
             showFatalErrorDialogAndShutdown("Fatal error during initializing", e);
+        }
+    }
+
+    @Override
+    public void showMessage(String message) {
+        if (mainWindow != null) {
+            mainWindow.showMessage(message);
         }
     }
 

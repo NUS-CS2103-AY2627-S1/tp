@@ -1,13 +1,18 @@
 package seedu.address.testutil;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Measurement;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.progress.GymPerformance;
+import seedu.address.model.progress.PerformanceHistory;
+import seedu.address.model.session.NextSession;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -19,13 +24,14 @@ public class PersonBuilder {
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
 
     private Name name;
     private Phone phone;
     private Email email;
-    private Address address;
     private Set<Tag> tags;
+    private NextSession nextSession;
+    private List<Measurement> measurements = List.of();
+    private PerformanceHistory performanceHistory;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
@@ -34,8 +40,8 @@ public class PersonBuilder {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
         tags = new HashSet<>();
+        performanceHistory = new PerformanceHistory();
     }
 
     /**
@@ -44,9 +50,11 @@ public class PersonBuilder {
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
-        email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
+        email = personToCopy.getEmail().orElse(null);
         tags = new HashSet<>(personToCopy.getTags());
+        nextSession = personToCopy.getNextSession().orElse(null);
+        measurements = personToCopy.getMeasurements();
+        performanceHistory = personToCopy.getPerformanceHistory();
     }
 
     /**
@@ -66,14 +74,6 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
-        return this;
-    }
-
-    /**
      * Sets the {@code Phone} of the {@code Person} that we are building.
      */
     public PersonBuilder withPhone(String phone) {
@@ -89,8 +89,40 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the optional next session using the canonical storage format.
+     */
+    public PersonBuilder withNextSession(String nextSession) {
+        this.nextSession = nextSession == null ? null : new NextSession(nextSession);
+        return this;
+    }
+
+    /**
+     * Removes the {@code Email} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withoutEmail() {
+        this.email = null;
+        return this;
+    }
+
+    /**
+     * Sets the measurement records of the client being built.
+     */
+    public PersonBuilder withMeasurements(Measurement... measurements) {
+        this.measurements = List.of(measurements);
+        return this;
+    }
+
+    /**
+     * Sets the gym-performance records of the {@code Person} that we are building, oldest recorded first.
+     */
+    public PersonBuilder withGymPerformances(GymPerformance... performances) {
+        this.performanceHistory = new PerformanceHistory(Arrays.asList(performances));
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, tags, nextSession, measurements, performanceHistory);
     }
 
 }

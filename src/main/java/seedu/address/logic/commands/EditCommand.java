@@ -1,7 +1,6 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
@@ -14,14 +13,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
@@ -29,35 +29,39 @@ import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 /**
- * Edits the details of an existing person in the address book.
+ * Edits the details of an existing client in Spotter.
  */
 public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the client identified "
+            + "by the index number used in the displayed client list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
-            + "[" + PREFIX_ADDRESS + "ADDRESS] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited client: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_NOT_CHANGED = "No changes made: %1$s already has these details.";
+    public static final String MESSAGE_DUPLICATE_PERSON = Messages.MESSAGE_DUPLICATE_CLIENT;
+
+    private static final Logger logger = LogsCenter.getLogger(EditCommand.class);
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
 
     /**
-     * @param index of the person in the filtered person list to edit
-     * @param editPersonDescriptor details to edit the person with
+     * Creates a command to edit a client in the displayed list.
+     *
+     * @param index of the client in the filtered client list to edit
+     * @param editPersonDescriptor details to edit the client with
      */
     public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
         requireNonNull(index);
@@ -78,14 +82,24 @@ public class EditCommand extends Command {
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+        if (editedPerson.equals(personToEdit)) {
+            // Nothing to save, so the displayed list and its indexes are left as they are.
+            return new CommandResult(String.format(MESSAGE_NOT_CHANGED, personToEdit.getName()));
+        }
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
+        if (!personToEdit.getName().equals(editedPerson.getName())
+                && model.hasEquivalentName(editedPerson, personToEdit)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
+        List<Person> shownBefore = List.copyOf(lastShownList);
         model.setPerson(personToEdit, editedPerson);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        logger.info("Edited client at index " + index.getOneBased());
+        // A rename can re-sort the list, and clearing a filter can shift the clients that were shown.
+        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson))
+                + SharedPhoneWarning.forClient(model.getAddressBook(), editedPerson)
+                + ClientOrderNote.forChange(shownBefore, personToEdit, editedPerson, model.getFilteredPersonList()));
     }
 
     /**
@@ -94,14 +108,20 @@ public class EditCommand extends Command {
      */
     private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
         assert personToEdit != null;
+        assert !(editPersonDescriptor.isEmailRemoved() && editPersonDescriptor.getEmail().isPresent())
+                : "An edit cannot both replace and remove the email";
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
-        Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
-        Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Email updatedEmail = editPersonDescriptor.isEmailRemoved()
+                ? null
+                : editPersonDescriptor.getEmail().or(personToEdit::getEmail).orElse(null);
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        // The session and training records cannot be edited here, so they are carried over unchanged.
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedTags,
+                personToEdit.getNextSession().orElse(null), personToEdit.getMeasurements(),
+                personToEdit.getPerformanceHistory());
     }
 
     @Override
@@ -128,27 +148,27 @@ public class EditCommand extends Command {
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the details to edit the client with. Each non-empty field value will replace the
+     * corresponding field value of the client.
      */
     public static class EditPersonDescriptor {
         private Name name;
         private Phone phone;
         private Email email;
-        private Address address;
+        private boolean isEmailRemoved;
         private Set<Tag> tags;
 
         public EditPersonDescriptor() {}
 
         /**
-         * Copy constructor.
+         * Creates a copy of the edit descriptor.
          * A defensive copy of {@code tags} is used internally.
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
             setPhone(toCopy.phone);
             setEmail(toCopy.email);
-            setAddress(toCopy.address);
+            isEmailRemoved = toCopy.isEmailRemoved;
             setTags(toCopy.tags);
         }
 
@@ -156,7 +176,7 @@ public class EditCommand extends Command {
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return isEmailRemoved || CollectionUtil.isAnyNonNull(name, phone, email, tags);
         }
 
         public void setName(Name name) {
@@ -175,20 +195,28 @@ public class EditCommand extends Command {
             return Optional.ofNullable(phone);
         }
 
+        /**
+         * Sets the email to replace the client's email with, cancelling any email removal.
+         */
         public void setEmail(Email email) {
             this.email = email;
+            isEmailRemoved = false;
         }
 
         public Optional<Email> getEmail() {
             return Optional.ofNullable(email);
         }
 
-        public void setAddress(Address address) {
-            this.address = address;
+        /**
+         * Marks the client's email for removal, discarding any replacement email.
+         */
+        public void removeEmail() {
+            email = null;
+            isEmailRemoved = true;
         }
 
-        public Optional<Address> getAddress() {
-            return Optional.ofNullable(address);
+        public boolean isEmailRemoved() {
+            return isEmailRemoved;
         }
 
         /**
@@ -222,7 +250,7 @@ public class EditCommand extends Command {
             return Objects.equals(name, otherEditPersonDescriptor.name)
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
-                    && Objects.equals(address, otherEditPersonDescriptor.address)
+                    && isEmailRemoved == otherEditPersonDescriptor.isEmailRemoved
                     && Objects.equals(tags, otherEditPersonDescriptor.tags);
         }
 
@@ -232,7 +260,7 @@ public class EditCommand extends Command {
                     .add("name", name)
                     .add("phone", phone)
                     .add("email", email)
-                    .add("address", address)
+                    .add("isEmailRemoved", isEmailRemoved)
                     .add("tags", tags)
                     .toString();
         }

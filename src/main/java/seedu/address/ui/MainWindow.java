@@ -3,13 +3,18 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -17,6 +22,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.Person;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -34,6 +40,7 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private ClientDetailPanel clientDetailPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
 
@@ -45,6 +52,9 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane sidePanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -117,6 +127,8 @@ public class MainWindow extends UiPart<Stage> {
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
+        fillSidePanel();
+
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
@@ -128,15 +140,43 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
+     * Fills the right-hand side with the upcoming sessions, swapped for the client's history while a client is
+     * viewed.
+     */
+    private void fillSidePanel() {
+        ObservableValue<Person> viewedPerson = logic.getViewedPerson();
+        BooleanBinding isClientViewed = Bindings.createBooleanBinding(() -> viewedPerson.getValue() != null,
+                viewedPerson);
+
+        UpcomingSessionPanel upcomingSessionPanel = new UpcomingSessionPanel(logic.getUpcomingSessionList());
+        upcomingSessionPanel.getRoot().visibleProperty().bind(isClientViewed.not());
+        clientDetailPanel = new ClientDetailPanel(viewedPerson);
+        clientDetailPanel.getRoot().visibleProperty().bind(isClientViewed);
+
+        sidePanelPlaceholder.getChildren().addAll(upcomingSessionPanel.getRoot(), clientDetailPanel.getRoot());
+    }
+
+    /**
+     * Shows {@code message} in the result display. Must be called after {@link #fillInnerParts()}.
+     */
+    void showMessage(String message) {
+        resultDisplay.setFeedbackToUser(message);
+    }
+
+    /**
      * Sets the default size based on {@code guiSettings}.
      */
     private void setWindowDefaultSize(GuiSettings guiSettings) {
-        primaryStage.setHeight(guiSettings.getWindowHeight());
-        primaryStage.setWidth(guiSettings.getWindowWidth());
-        if (guiSettings.getWindowCoordinates() != null) {
-            primaryStage.setX(guiSettings.getWindowCoordinates().getX());
-            primaryStage.setY(guiSettings.getWindowCoordinates().getY());
-        }
+        Rectangle2D bounds = WindowBounds.resolve(guiSettings,
+                Screen.getScreens().stream().map(Screen::getVisualBounds).toList(),
+                Screen.getPrimary().getVisualBounds(), primaryStage.getMinWidth(), primaryStage.getMinHeight());
+        // FXML minima must not force the restored window beyond a small screen's visual bounds.
+        primaryStage.setMinWidth(Math.min(primaryStage.getMinWidth(), bounds.getWidth()));
+        primaryStage.setMinHeight(Math.min(primaryStage.getMinHeight(), bounds.getHeight()));
+        primaryStage.setWidth(bounds.getWidth());
+        primaryStage.setHeight(bounds.getHeight());
+        primaryStage.setX(bounds.getMinX());
+        primaryStage.setY(bounds.getMinY());
     }
 
     /**
@@ -181,6 +221,8 @@ public class MainWindow extends UiPart<Stage> {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            // Redraws time-dependent text, e.g. a next session that has just passed.
+            clientDetailPanel.refresh();
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -188,6 +230,10 @@ public class MainWindow extends UiPart<Stage> {
 
             if (commandResult.isExit()) {
                 handleExit();
+            }
+
+            if (commandResult.isScrollToTop()) {
+                personListPanel.scrollToTop();
             }
 
             return commandResult;

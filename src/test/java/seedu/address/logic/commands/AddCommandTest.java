@@ -4,23 +4,30 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
@@ -53,6 +60,27 @@ public class AddCommandTest {
     }
 
     @Test
+    public void execute_duplicatePersonDifferentCaseAndSpacing_throwsCommandException() {
+        Person aliceWithVariantName = new PersonBuilder(ALICE).withName("ALICE  pauline").build();
+        AddCommand addCommand = new AddCommand(aliceWithVariantName);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_equivalentAccentName_rejectsDuplicateWithoutChangingModel() {
+        Person existing = new PersonBuilder().withName("Jos\u00e9 Tan").build();
+        Model model = new ModelManager();
+        model.addPerson(existing);
+        Person duplicate = new PersonBuilder().withName("Jose\u0301 Tan").withPhone("98765432").build();
+
+        AddCommand command = new AddCommand(duplicate);
+        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> command.execute(model));
+        assertEquals(List.of(existing), model.getAddressBook().getPersonList());
+    }
+
+    @Test
     public void equals() {
         Person alice = new PersonBuilder().withName("Alice").build();
         Person bob = new PersonBuilder().withName("Bob").build();
@@ -81,6 +109,44 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(ALICE);
         String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
         assertEquals(expected, addCommand.toString());
+    }
+
+    @Test
+    public void execute_sharedPhoneHiddenClients_warnsInAddressBookOrder() {
+        Person zoe = new PersonBuilder().withName("Zoe Tan").withPhone("+65 9123-4567 (HP)").build();
+        Person unrelated = new PersonBuilder().withName("Unrelated Client").withPhone("81112222").build();
+        Person amy = new PersonBuilder().withName("Amy Tan").withPhone("(65) 9123.4567").build();
+        Model model = new ModelManager();
+        model.addPerson(zoe);
+        model.addPerson(unrelated);
+        model.addPerson(amy);
+        model.updateFilteredPersonList(person -> person.equals(unrelated));
+        Person added = new PersonBuilder().withName("New Client").withPhone("6591234567").build();
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.addPerson(added);
+        String expectedMessage = String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(added))
+                + "\nWarning: Zoe Tan also has this phone number."
+                + "\nWarning: Amy Tan also has this phone number.";
+
+        assertCommandSuccess(new AddCommand(added), model, expectedMessage, expectedModel);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "91234567, 81112222",
+        "91234567, +65 9123 4567",
+        "91234567, 9123 4567 (HP) 6111-2222 (Office)",
+        "9123 4567 (HP) 6111-2222 (Office), 91234567"
+    })
+    public void execute_differentCompletePhoneDigits_successWithoutWarning(String existingPhone, String addedPhone) {
+        Model model = new ModelManager();
+        model.addPerson(new PersonBuilder().withName("Existing Client").withPhone(existingPhone).build());
+        Person added = new PersonBuilder().withName("New Client").withPhone(addedPhone).build();
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.addPerson(added);
+
+        assertCommandSuccess(new AddCommand(added), model,
+                String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(added)), expectedModel);
     }
 
     /**
@@ -141,6 +207,31 @@ public class AddCommandTest {
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
+
+        @Override
+        public Predicate<Person> getFilteredPersonListPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Person> getUpcomingSessionList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateSessionLists(LocalDateTime now) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableValue<Person> getViewedPerson() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setViewedPerson(Person person) {
+            throw new AssertionError("This method should not be called.");
+        }
     }
 
     /**
@@ -152,6 +243,13 @@ public class AddCommandTest {
         ModelStubWithPerson(Person person) {
             requireNonNull(person);
             this.person = person;
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
         }
 
         @Override

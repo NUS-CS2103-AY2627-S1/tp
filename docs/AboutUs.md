@@ -1,59 +1,57 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us through our [issue tracker](https://github.com/AY2627S1-CS2103T-F14a-2/tp/issues).
 
 ## Project team
 
-### John Doe
+### Gabriel Wan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/gabriel-wan.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/gabriel-wan)]
 
-* Role: Project Advisor
+* Role: DevOps and Integration
+* Responsibilities: Maintains CI and the project website, coordinates safe PR integration, and helps keep the main branch buildable.
 
-### Jane Doe
+### Vincent Ong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/v1-nce.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/v1-nce)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Testing and Code Quality
+* Responsibilities: In charge of the Logic component; oversees test coverage and reviews PRs for coding standards.
 
-### Johnny Doe
+### Luke Chin
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ekulnich.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/EkulNich)] [[portfolio](team/ekulnich.md)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Target-user profile, value proposition, and user stories
 
-### Jean Doe
+### Dai Yangjie
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/dai-yangjie.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Dai-yangjie)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Implement functions, improve the code framework
+
+### He Jingqi
+
+<img src="images/herohelennn1010.png" width="200px">
+
+[[github](https://github.com/herohelennn1010)]
+
+* Role: UI Developer
+* Responsibilities: Develop and maintain Spotter’s UI components, improve the layout and presentation of client information, and ensure core workflows support keyboard interaction.

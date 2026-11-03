@@ -1,0 +1,70 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":MeasureCommand" as MeasureCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:ModelManager" as ModelManager MODEL_COLOR
+participant ":AddressBook" as AddressBook MODEL_COLOR
+participant "viewedPerson:ObjectProperty" as ViewedPerson MODEL_COLOR
+end box
+
+box UI UI_COLOR_T1
+participant ":ClientDetailPanel" as ClientDetailPanel UI_COLOR
+end box
+
+[-> MeasureCommand : execute(m)
+activate MeasureCommand
+
+MeasureCommand -> ModelManager : getFilteredPersonList()
+activate ModelManager
+ModelManager --> MeasureCommand : displayed clients
+deactivate ModelManager
+
+note right of MeasureCommand
+  p is the client at the given index;
+  editedP = p.withMeasurement(measurement)
+end note
+
+MeasureCommand -> ModelManager : setPerson(p, editedP)
+activate ModelManager
+
+ModelManager -> AddressBook : setPerson(p, editedP)
+activate AddressBook
+AddressBook --> ModelManager
+deactivate AddressBook
+
+opt p is the viewed client
+    ModelManager -> ViewedPerson : set(editedP)
+    activate ViewedPerson
+
+    ViewedPerson -> ClientDetailPanel : changed(obs, p, editedP)
+    activate ClientDetailPanel
+    note right of ClientDetailPanel
+      The panel's listener, registered
+      in its constructor, handles the change.
+    end note
+    ClientDetailPanel -> ClientDetailPanel : refresh()
+    activate ClientDetailPanel
+    note right of ClientDetailPanel
+      redraws with editedP's
+      details and history
+    end note
+    ClientDetailPanel --> ClientDetailPanel
+    deactivate ClientDetailPanel
+    ClientDetailPanel --> ViewedPerson
+    deactivate ClientDetailPanel
+
+    ViewedPerson --> ModelManager
+    deactivate ViewedPerson
+end
+
+ModelManager --> MeasureCommand
+deactivate ModelManager
+
+[<-- MeasureCommand
+deactivate MeasureCommand
+@enduml

@@ -1,12 +1,15 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
@@ -19,7 +22,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/spotter.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -37,6 +40,16 @@ The following commands perform common Gradle tasks.
 ## Continuous integration (CI)
 
 This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`. No further setup is required.
+
+### Documentation deployment
+
+The **MarkBind Action** workflow builds and publishes the team website after a push or merge to the team repository's
+`master` branch. Pushes to personal forks or feature branches do not publish the team website.
+
+To deploy the latest merged documentation manually, open **Actions → MarkBind Action → Run workflow**, select
+`master`, and run the workflow. Check that both the MarkBind run and the subsequent GitHub Pages deployment succeed,
+then verify the changed page on the live website. Re-running an old workflow run builds its original revision,
+so use **Run workflow** on `master` when recovering a stale website.
 
 ### Code coverage
 
@@ -73,7 +86,7 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-F14a-2/tp/tree/master/src/main/java/seedu/address/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

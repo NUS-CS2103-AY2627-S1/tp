@@ -2,24 +2,38 @@ package seedu.address.model.person;
 
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
-import seedu.address.commons.util.StringUtil;
 import seedu.address.commons.util.ToStringBuilder;
 
 /**
- * Tests that a {@code Person}'s {@code Name} matches any of the keywords given.
+ * Tests that a {@code Person}'s {@code Name} contains any keyword as a case-insensitive substring.
+ * Keywords are normalized like names, so equivalent accent encodings match. Matching is independent of the
+ * system locale.
+ *
+ * <p>AI assistance: Vincent used Claude Code to normalize keywords for accent-equivalent search and its tests.
  */
 public class NameContainsKeywordsPredicate implements Predicate<Person> {
     private final List<String> keywords;
+    private final List<String> normalizedKeywords;
 
+    /**
+     * Constructs a predicate that matches names containing any of the given keywords.
+     */
     public NameContainsKeywordsPredicate(List<String> keywords) {
         this.keywords = keywords;
+        this.normalizedKeywords = keywords.stream()
+                .map(keyword -> Name.normalize(keyword).replace('’', '\''))
+                .toList();
     }
 
     @Override
     public boolean test(Person person) {
-        return keywords.stream()
-                .anyMatch(keyword -> StringUtil.containsWordIgnoreCase(person.getName().fullName, keyword));
+        String name = person.getName().fullName.replace('’', '\'');
+        // Use full-name lookup's Unicode case rules without discarding accents or treating punctuation as regex.
+        return normalizedKeywords.stream().anyMatch(keyword ->
+                IntStream.rangeClosed(0, name.length() - keyword.length())
+                        .anyMatch(start -> name.regionMatches(true, start, keyword, 0, keyword.length())));
     }
 
     @Override
@@ -34,6 +48,11 @@ public class NameContainsKeywordsPredicate implements Predicate<Person> {
         }
 
         return keywords.equals(otherNameContainsKeywordsPredicate.keywords);
+    }
+
+    @Override
+    public int hashCode() {
+        return keywords.hashCode();
     }
 
     @Override

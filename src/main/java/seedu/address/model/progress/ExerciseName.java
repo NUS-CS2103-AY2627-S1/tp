@@ -1,0 +1,91 @@
+package seedu.address.model.progress;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
+
+import java.util.Locale;
+
+/**
+ * Represents the name of an exercise in a gym-performance record.
+ * Guarantees: immutable; is valid as declared in {@link #isValidExerciseName(String)}
+ *
+ * <p>Names are normalised by trimming them and collapsing repeated internal whitespace into one space.
+ * Two exercise names are equal if their normalised forms match, ignoring letter case,
+ * so that {@code bench  press} and {@code Bench Press} refer to the same exercise.
+ * A curly apostrophe (’), as copied from formatted text, is compared as a straight one ('),
+ * but the name is still displayed as typed.
+ *
+ * <p>AI assistance: Claude (Anthropic) helped implement this class and its tests.
+ */
+public class ExerciseName {
+
+    public static final String MESSAGE_CONSTRAINTS = "Exercise names must be 1 to 50 characters and may contain "
+            + "only English letters (A-Z), digits (0-9), spaces, hyphens, apostrophes, parentheses, "
+            + "and the symbols & + .";
+
+    public static final int MAX_LENGTH = 50;
+
+    /*
+     * Allows only English letters, digits, spaces, parentheses, hyphens, straight or curly (’) apostrophes,
+     * and the symbols & + . used in names such as "Clean & Jerk" or "1.5 Rep Squat".
+     * Requires at least one letter or digit so that names such as "-" or "&" are rejected.
+     * Parentheses are literal label characters and need not be paired.
+     * "/" is not allowed, as text such as " w/" inside a name would be read as another command prefix.
+     */
+    private static final String VALIDATION_REGEX = "(?=.*\\p{Alnum})[\\p{Alnum} ()'’&+.-]+";
+
+    public final String value;
+
+    /**
+     * Constructs an {@code ExerciseName}.
+     *
+     * @param exerciseName A valid exercise name.
+     */
+    public ExerciseName(String exerciseName) {
+        requireNonNull(exerciseName);
+        checkArgument(isValidExerciseName(exerciseName), MESSAGE_CONSTRAINTS);
+        value = normalise(exerciseName);
+    }
+
+    /**
+     * Returns true if the given string, after normalisation, is a valid exercise name.
+     */
+    public static boolean isValidExerciseName(String test) {
+        requireNonNull(test);
+        String normalised = normalise(test);
+        return normalised.length() <= MAX_LENGTH && normalised.matches(VALIDATION_REGEX);
+    }
+
+    private static String normalise(String exerciseName) {
+        return exerciseName.trim().replaceAll("\\s+", " ");
+    }
+
+    private String comparisonKey() {
+        return value.replace('’', '\'').toLowerCase(Locale.ROOT);
+    }
+
+    @Override
+    public String toString() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof ExerciseName otherExerciseName)) {
+            return false;
+        }
+
+        return comparisonKey().equals(otherExerciseName.comparisonKey());
+    }
+
+    @Override
+    public int hashCode() {
+        return comparisonKey().hashCode();
+    }
+
+}

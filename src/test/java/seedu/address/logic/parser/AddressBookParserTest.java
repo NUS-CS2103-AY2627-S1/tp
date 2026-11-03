@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalGymPerformances.BENCH_PRESS;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
 import java.util.List;
@@ -15,15 +16,20 @@ import org.junit.jupiter.api.Test;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeletePerformanceCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PerformanceCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.TagContainsKeywordsPredicate;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -41,8 +47,16 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertEquals(new ClearCommand(false), parser.parseCommand(ClearCommand.COMMAND_WORD));
+        assertEquals(new ClearCommand(false), parser.parseCommand("  clear \t "));
+        for (String input : List.of("clear confirm", "clear CONFIRM", "CLEAR Confirm", "clear   confirm \t ")) {
+            assertEquals(new ClearCommand(true), parser.parseCommand(input));
+        }
+        for (String argument : List.of("1", "all", "n/Alice", "confirm now", "confrim", "confirm1")) {
+            assertThrows(ParseException.class, ClearCommand.MESSAGE_EXTRA_PARAMETERS, () -> {
+                parser.parseCommand("clear " + argument);
+            });
+        }
     }
 
     @Test
@@ -50,6 +64,13 @@ public class AddressBookParserTest {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
     }
 
     @Test
@@ -76,15 +97,63 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_filter() throws Exception {
+        FilterCommand command = (FilterCommand) parser.parseCommand(
+                FilterCommand.COMMAND_WORD + " t/rehab t/strength");
+        assertEquals(new FilterCommand(new TagContainsKeywordsPredicate(List.of("rehab", "strength"))), command);
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
     }
 
     @Test
+    public void parseCommand_performance() throws Exception {
+        PerformanceCommand command = (PerformanceCommand) parser.parseCommand(PerformanceCommand.COMMAND_WORD
+                + " " + INDEX_FIRST_PERSON.getOneBased() + " d/2026-09-18 e/Bench Press s/3 r/8 w/60");
+        assertEquals(new PerformanceCommand(INDEX_FIRST_PERSON, BENCH_PRESS), command);
+    }
+
+    @Test
+    public void parseCommand_deletePerformance() throws Exception {
+        DeletePerformanceCommand command = (DeletePerformanceCommand) parser.parseCommand(
+                DeletePerformanceCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                + " d/2026-09-18 e/Bench Press");
+        assertEquals(new DeletePerformanceCommand(INDEX_FIRST_PERSON, BENCH_PRESS.getDate(),
+                BENCH_PRESS.getExerciseName()), command);
+    }
+
+    @Test
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + "   ") instanceof ListCommand);
+        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + "\t") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_mixedCaseCommandWord_parsesCommand() throws Exception {
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("Exit") instanceof ExitCommand);
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON),
+                parser.parseCommand("DeLeTe " + INDEX_FIRST_PERSON.getOneBased()));
+
+        // Only the command word ignores case: argument case is kept and prefixes stay lowercase
+        Person person = new PersonBuilder().build();
+        String addArguments = PersonUtil.getAddCommand(person).substring(AddCommand.COMMAND_WORD.length());
+        assertEquals(new AddCommand(person), parser.parseCommand("ADD" + addArguments));
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("add N/Bob Tan p/91234567"));
+    }
+
+    @Test
+    public void parseCommand_listWithParameters_throwsParseException() {
+        String expectedMessage = "\"list\" does not take any parameters.\nExample: list";
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list 3"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list all"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list n/John"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("list\t3"));
     }
 
     @Test
