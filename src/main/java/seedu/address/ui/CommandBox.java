@@ -1,8 +1,15 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.function.Consumer;
+
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -15,20 +22,48 @@ public class CommandBox extends UiPart<Region> {
 
     public static final String ERROR_STYLE_CLASS = "error";
     private static final String FXML = "CommandBox.fxml";
+    private static final PseudoClass INPUT_FOCUSED = PseudoClass.getPseudoClass("input-focused");
 
     private final CommandExecutor commandExecutor;
+    private final Consumer<Boolean> feedbackScroller;
+    private final CommandHistory commandHistory = new CommandHistory();
 
     @FXML
     private TextField commandTextField;
 
     /**
-     * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
+     * Creates a {@code CommandBox} with the given {@code CommandExecutor}. {@code feedbackScroller} is called
+     * with {@code true} when PageDown is pressed and with {@code false} when PageUp is pressed.
      */
-    public CommandBox(CommandExecutor commandExecutor) {
+    public CommandBox(CommandExecutor commandExecutor, Consumer<Boolean> feedbackScroller) {
         super(FXML);
+        requireNonNull(feedbackScroller);
         this.commandExecutor = commandExecutor;
+        this.feedbackScroller = feedbackScroller;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
         commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.focusedProperty().addListener((observable, wasFocused, isFocused) ->
+                getRoot().pseudoClassStateChanged(INPUT_FOCUSED, isFocused));
+        commandTextField.addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+    }
+
+    /**
+     * Returns keyboard focus to command input.
+     */
+    public void focus() {
+        commandTextField.requestFocus();
+    }
+
+    /**
+     * Replaces the current draft with {@code template}, ready for editing without executing it. The replaced
+     * draft stays in the command history so that Up can recall it.
+     */
+    public void fillTemplate(String template) {
+        requireNonNull(template);
+        commandHistory.startNewDraft(commandTextField.getText());
+        focus();
+        showRecalledCommand(template);
+        setStyleToDefault();
     }
 
     /**
@@ -37,16 +72,56 @@ public class CommandBox extends UiPart<Region> {
     @FXML
     private void handleCommandEntered() {
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        if (commandText.isBlank()) {
             return;
         }
 
+        commandHistory.add(commandText);
         try {
-            commandExecutor.execute(commandText);
-            commandTextField.setText("");
+            CommandResult result = commandExecutor.execute(commandText);
+            setStyleToDefault();
+            if (!result.isCancelled()) {
+                commandTextField.setText("");
+            }
         } catch (CommandException | ParseException e) {
             setStyleToIndicateCommandFailure();
         }
+    }
+
+    /**
+     * Recalls an earlier command on Up and a later one on Down, and scrolls the feedback on PageUp and PageDown.
+     * Other keys and modified keys, such as Shift+Up to select text, are left to the text field.
+     */
+    private void handleKeyPressed(KeyEvent event) {
+        if (hasModifier(event)) {
+            return;
+        }
+
+        if (event.getCode() == KeyCode.UP) {
+            commandHistory.previous(commandTextField.getText()).ifPresent(this::showRecalledCommand);
+            event.consume();
+        } else if (event.getCode() == KeyCode.DOWN) {
+            commandHistory.next(commandTextField.getText()).ifPresent(this::showRecalledCommand);
+            event.consume();
+        } else if (event.getCode() == KeyCode.PAGE_UP) {
+            feedbackScroller.accept(false);
+            event.consume();
+        } else if (event.getCode() == KeyCode.PAGE_DOWN) {
+            feedbackScroller.accept(true);
+            event.consume();
+        }
+    }
+
+    private static boolean hasModifier(KeyEvent event) {
+        return event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown();
+    }
+
+    /**
+     * Shows {@code command} in the command box with the cursor at its end, ready to be edited.
+     */
+    private void showRecalledCommand(String command) {
+        commandTextField.setText(command);
+        commandTextField.end();
     }
 
     /**

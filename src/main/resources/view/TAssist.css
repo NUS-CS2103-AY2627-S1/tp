@@ -1,0 +1,195 @@
+/* Visual design adapted from the team-supplied TAssist UI Mockups.html. Native JavaFX controls only. */
+.root {
+    -fx-font-family: "System";
+    -fx-font-size: 13px;
+    -fx-text-background-color: #1c1d1f;
+    -fx-accent: #0e6b61;
+    -fx-focus-color: #0e6b61;
+    -fx-faint-focus-color: transparent;
+    -fx-background-color: #f4f3ee;
+}
+.label { -fx-text-fill: #1c1d1f; }
+.chrome {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #dedcd5 transparent;
+}
+.top-bar {
+    -fx-padding: 0 20;
+    -fx-min-height: 54;
+    -fx-pref-height: 54;
+}
+.brand { -fx-text-fill: #0e6b61; -fx-font-size: 19px; -fx-font-weight: bold; }
+.top-bar-divider {
+    -fx-background-color: #dedcd5;
+    -fx-min-width: 1;
+    -fx-pref-width: 1;
+    -fx-max-width: 1;
+    -fx-min-height: 22;
+    -fx-pref-height: 22;
+    -fx-max-height: 22;
+}
+.context-menu { -fx-background-color: white; -fx-background-radius: 6; -fx-padding: 6; }
+.context-menu .label { -fx-text-fill: #1c1d1f; }
+.menu-item:focused { -fx-background-color: #e6f2ef; }
+.group-chips-scroll { -fx-padding: 0; }
+.group-chips-scroll .scroll-bar:horizontal { -fx-pref-height: 6; }
+.group-chip {
+    -fx-background-color: #efeee8;
+    -fx-background-radius: 12;
+    -fx-text-fill: #3a3d42;
+    -fx-padding: 4 12;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.group-chip:active { -fx-background-color: #0e6b61; -fx-text-fill: white; }
+.eyebrow { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5a5d64; }
+.muted { -fx-text-fill: #5a5d64; -fx-font-size: 12px; }
+.main-content { -fx-padding: 10 20 16 20; }
+/* The tab strip is hidden. The navigation bar in the top chrome opens the screens instead. */
+.workspace-tabs { -fx-tab-min-height: 0; -fx-tab-max-height: 0; }
+.workspace-tabs > .tab-header-area { -fx-padding: 0; -fx-max-height: 0; visibility: hidden; }
+.workspace-tabs > .tab-content-area { -fx-padding: 0; }
+.nav-bar { -fx-padding: 0 14; }
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 2 0;
+    -fx-text-fill: #5a5d64;
+    -fx-font-size: 13px;
+    -fx-padding: 9 10 8 10;
+    -fx-cursor: hand;
+}
+.nav-button:hover { -fx-text-fill: #1c1d1f; }
+.nav-button:current { -fx-text-fill: #0e6b61; -fx-font-weight: bold; -fx-border-color: transparent transparent #0e6b61 transparent; }
+.nav-button:focused { -fx-background-color: transparent; }
+.content-card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-border-color: #dedcd5;
+    -fx-border-radius: 10;
+    -fx-padding: 1;
+}
+.card-heading { -fx-padding: 14 16; -fx-border-color: transparent transparent #dedcd5 transparent; }
+.section-title { -fx-font-size: 17px; -fx-font-weight: bold; }
+.count-badge {
+    -fx-text-fill: #0e6b61;
+    -fx-background-color: #e6f2ef;
+    -fx-background-radius: 10;
+    -fx-padding: 2 9;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.table-view { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; }
+.table-view .column-header-background, .table-view .column-header, .table-view .filler {
+    -fx-background-color: #fafaf7;
+}
+.table-view .column-header { -fx-border-color: transparent transparent #dedcd5 transparent; -fx-size: 38; }
+.table-view .filler { -fx-border-color: transparent transparent #dedcd5 transparent; }
+.table-view .column-header .label {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 12;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #5a5d64;
+}
+.table-row-cell {
+    -fx-background-color: white;
+    -fx-cell-size: 30;
+    -fx-border-color: transparent transparent #ecebe6 transparent;
+}
+.table-row-cell:filled:selected { -fx-background-color: #e6f2ef; }
+.table-row-cell:filled:hover { -fx-background-color: #f2f8f6; }
+.table-cell {
+    -fx-border-color: transparent;
+    -fx-padding: 4 12;
+    -fx-alignment: CENTER_LEFT;
+    -fx-text-fill: #1c1d1f;
+}
+.table-row-cell:empty { -fx-border-color: transparent; }
+.table-view .placeholder { -fx-background-color: white; }
+.empty-state { -fx-padding: 16; }
+.empty-state .label { -fx-alignment: center; -fx-text-alignment: center; }
+.empty-title { -fx-font-size: 16px; -fx-font-weight: bold; }
+.scroll-pane, .scroll-pane > .viewport { -fx-background-color: transparent; }
+.scroll-pane { -fx-padding: 0; -fx-background-insets: 0; }
+.scroll-bar { -fx-background-color: #f4f3ee; -fx-pref-width: 10; -fx-pref-height: 10; }
+.scroll-bar .thumb { -fx-background-color: #c9c7bf; -fx-background-radius: 8; }
+.help-content, .storage-content { -fx-padding: 18 16; }
+.command-reference { -fx-padding: 0 0 12 0; -fx-border-color: transparent transparent #ecebe6 transparent; }
+.command-syntax, .file-path { -fx-font-family: monospace; -fx-font-size: 12px; -fx-text-fill: #0e6b61; }
+.command-box {
+    -fx-background-color: white;
+    -fx-border-color: #b7d3ce;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 0 12;
+}
+.command-box:input-focused { -fx-border-color: #0e6b61; }
+.command-prompt { -fx-text-fill: #0e6b61; -fx-font-family: monospace; -fx-font-weight: bold; }
+.command-box .text-field {
+    -fx-background-color: transparent;
+    -fx-font-family: monospace;
+    -fx-font-size: 13px;
+    -fx-padding: 8 0;
+    -fx-text-fill: #1c1d1f;
+    -fx-prompt-text-fill: #757980;
+}
+.command-box .text-field.error { -fx-text-fill: #a12c2c; }
+.status-bar .key {
+    -fx-background-color: #ecebe6;
+    -fx-background-radius: 4;
+    -fx-text-fill: #3a3d42;
+    -fx-font-weight: bold;
+    -fx-padding: 1 6;
+}
+.feedback-pane {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-border-color: #dedcd5;
+    -fx-border-radius: 8;
+    -fx-padding: 10 12 4 12;
+}
+.feedback-pane:failure { -fx-background-color: #fdf3f1; -fx-border-color: #ebc2bb; }
+.feedback-icon {
+    -fx-background-color: #e6f2ef;
+    -fx-background-radius: 10;
+    -fx-text-fill: #0e6b61;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-min-width: 20;
+    -fx-pref-width: 20;
+    -fx-min-height: 20;
+    -fx-pref-height: 20;
+}
+.feedback-pane:failure .feedback-icon {
+    -fx-background-color: #f7d9d4;
+    -fx-text-fill: #a12c2c;
+    -fx-font-size: 13px;
+}
+.feedback-pane .text-area, .feedback-pane .text-area .content {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-text-fill: #1c1d1f;
+}
+.feedback-pane .text-area { -fx-font-size: 13px; -fx-padding: 0; }
+.feedback-pane .text-area .content { -fx-padding: 0 0 0 0; }
+.status-bar {
+    -fx-padding: 7 20;
+    -fx-border-color: #dedcd5 transparent transparent transparent;
+}
+.status-bar .label { -fx-text-fill: #5a5d64; -fx-font-size: 11px; }
+.status-bar .status-dot { -fx-text-fill: #0e6b61; }
+.status-bar:failure .status-dot { -fx-text-fill: #a12c2c; }
+.tooltip { -fx-font-size: 12px; -fx-background-color: #1c1d1f; -fx-text-fill: white; }
+
+.workspace:compact .top-bar { -fx-min-height: 44; -fx-pref-height: 44; -fx-padding: 0 16; }
+.workspace:compact .main-content { -fx-padding: 6 16 8 16; -fx-spacing: 8; }
+.workspace:compact .nav-button { -fx-padding: 6 8 5 8; }
+.workspace:compact .card-heading { -fx-padding: 10 16; }
+.workspace:compact .table-row-cell { -fx-cell-size: 26; }
+.workspace:compact .table-cell { -fx-padding: 2 12; }
+.workspace:compact .feedback-pane .text-area { -fx-max-height: 54; }
+.workspace:compact .status-bar { -fx-padding: 5 16; }

@@ -10,18 +10,27 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
 
 /**
  * Converts a Java object instance to JSON and vice versa
  */
 public class JsonUtil {
+
+    public static final String MESSAGE_NULL_CONTENT = "The file holds null instead of an object.";
+
+    /** The UTF-8 byte-order mark that some editors, such as Windows Notepad, add at the start of a file. */
+    private static final String BYTE_ORDER_MARK = "\uFEFF";
 
     private static final Logger logger = LogsCenter.getLogger(JsonUtil.class);
 
@@ -37,12 +46,24 @@ public class JsonUtil {
 
     static <T> T deserializeObjectFromJsonFile(Path jsonFile, Class<T> classOfObjectToDeserialize)
             throws IOException {
-        return fromJsonString(FileUtil.readFromFile(jsonFile), classOfObjectToDeserialize);
+        return fromJsonString(removeByteOrderMark(FileUtil.readFromFile(jsonFile)), classOfObjectToDeserialize);
+    }
+
+    /**
+     * Returns {@code content} without its leading byte-order mark, if it has one.
+     */
+    private static String removeByteOrderMark(String content) {
+        if (!content.startsWith(BYTE_ORDER_MARK)) {
+            return content;
+        }
+        logger.fine("Ignoring the byte-order mark at the start of the JSON file.");
+        return content.substring(BYTE_ORDER_MARK.length());
     }
 
     /**
      * Returns the JSON object from the given file or {@code Optional.empty()} object if the file is not found.
      * If any values are missing from the file, default values will be used, as long as the file is a valid JSON file.
+     * A file that holds only {@code null} is treated as invalid.
      *
      * @param filePath cannot be null.
      * @param classOfObjectToDeserialize JSON file has to correspond to the structure in the class given here.
@@ -50,9 +71,13 @@ public class JsonUtil {
      */
     public static <T> Optional<T> readJsonFile(
             Path filePath, Class<T> classOfObjectToDeserialize) throws DataLoadingException {
+        return readJsonFile(filePath, objectMapper.readerFor(classOfObjectToDeserialize));
+    }
+
+    private static <T> Optional<T> readJsonFile(Path filePath, ObjectReader reader) throws DataLoadingException {
         requireNonNull(filePath);
 
-        if (!Files.exists(filePath)) {
+        if (Files.notExists(filePath)) {
             return Optional.empty();
         }
         logger.info("JSON file " + filePath + " found.");
@@ -60,13 +85,31 @@ public class JsonUtil {
         T jsonFile;
 
         try {
-            jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
+            jsonFile = fromJsonString(removeByteOrderMark(FileUtil.readFromFile(filePath)), reader);
         } catch (IOException e) {
             logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
             throw new DataLoadingException(e);
         }
 
+        if (jsonFile == null) {
+            logger.warning("JSON file " + filePath + " holds null instead of an object.");
+            throw new DataLoadingException(new IllegalValueException(MESSAGE_NULL_CONTENT));
+        }
         return Optional.of(jsonFile);
+    }
+
+    /**
+     * Reads a JSON file, rejecting unknown fields and fields repeated within the same object.
+     * Preserves the missing-file, byte-order mark, null-content, and trailing-content handling
+     * of {@link #readJsonFile}.
+     *
+     * @throws DataLoadingException if loading of the JSON file failed.
+     */
+    public static <T> Optional<T> readJsonFileStrictly(
+            Path filePath, Class<T> classOfObjectToDeserialize) throws DataLoadingException {
+        return readJsonFile(filePath, objectMapper.readerFor(classOfObjectToDeserialize)
+                .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION));
     }
 
     /**
@@ -85,12 +128,40 @@ public class JsonUtil {
 
 
     /**
-     * Converts a given string representation of JSON data to an instance of a class
-     * @param <T> The generic type to create an instance of
-     * @return The instance of T with the specified values in the JSON string
+     * Converts a given string representation of JSON data to an instance of a class.
+     * Rejects trailing content after the JSON value, except whitespace.
+     *
+     * @param json The JSON data to deserialize.
+     * @param instanceClass The class to deserialize into.
+     * @param <T> The generic type to create an instance of.
+     * @return The instance of T with the specified values in the JSON string.
+     * @throws IOException if the JSON is invalid or contains trailing content.
      */
     public static <T> T fromJsonString(String json, Class<T> instanceClass) throws IOException {
-        return objectMapper.readValue(json, instanceClass);
+        return fromJsonString(json, objectMapper.readerFor(instanceClass));
+    }
+
+    private static <T> T fromJsonString(String json, ObjectReader reader) throws IOException {
+        try (JsonParser parser = objectMapper.getFactory().createParser(json)) {
+            try {
+                T result = reader.readValue(parser);
+                if (parser.nextToken() != null) {
+                    throw new JsonParseException(parser, "Unexpected content after the JSON value.");
+                }
+                return result;
+            } catch (JsonProcessingException e) {
+                Throwable cause = e;
+                while (cause.getCause() != null) {
+                    cause = cause.getCause();
+                }
+                // Jackson 2.7's duplicate detector omits the parser location, even for nested fields.
+                if (cause instanceof JsonParseException parseException && parseException.getLocation() == null
+                        && parseException.getOriginalMessage().startsWith("Duplicate field ")) {
+                    throw new JsonParseException(parser, parseException.getOriginalMessage(), e);
+                }
+                throw e;
+            }
+        }
     }
 
     /**

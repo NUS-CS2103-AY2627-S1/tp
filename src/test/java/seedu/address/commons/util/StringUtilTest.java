@@ -1,5 +1,6 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -140,4 +141,67 @@ public class StringUtilTest {
         assertThrows(NullPointerException.class, () -> StringUtil.getDetails(null));
     }
 
+    //---------------- Tests for normalizeSpaces --------------------------------------
+
+    @Test
+    public void normalizeSpaces_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.normalizeSpaces(null));
+    }
+
+    @Test
+    public void normalizeSpaces_validInputs_correctResult() {
+        // Blank strings become empty
+        assertEquals("", StringUtil.normalizeSpaces(""));
+        assertEquals("", StringUtil.normalizeSpaces("   "));
+
+        // Already normalized
+        assertEquals("Alice Tan", StringUtil.normalizeSpaces("Alice Tan"));
+
+        // Leading, trailing and repeated internal whitespace, including tabs
+        assertEquals("Alice Tan", StringUtil.normalizeSpaces("  Alice   Tan  "));
+        assertEquals("Alice Tan Wei", StringUtil.normalizeSpaces("Alice\tTan \t Wei"));
+
+        // Unicode spaces from pasted text, such as non-breaking, em, and ideographic spaces
+        assertEquals("Ben Lim", StringUtil.normalizeSpaces("\u00A0Ben\u00A0Lim\u2003"));
+        assertEquals("Ben Lim Wei", StringUtil.normalizeSpaces("Ben\u3000Lim\u2028Wei"));
+        assertEquals("", StringUtil.normalizeSpaces("\u00A0\u3000"));
+
+        // Zero-width characters are not spaces
+        assertEquals("Ben\u200BLim", StringUtil.normalizeSpaces("Ben\u200BLim"));
+    }
+
+    //---------------- Tests for hashCodeIgnoreCase --------------------------------------
+
+    @Test
+    public void hashCodeIgnoreCase_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.hashCodeIgnoreCase(null));
+    }
+
+    @Test
+    public void hashCodeIgnoreCase_stringsEqualIgnoringCase_sameHashCode() {
+        String[][] equalPairs = {
+            {"PS1", "ps1"},
+            {"PSI", "psı"}, // dotless i
+            {"PSİ", "psi"}, // dotted capital I
+            {"Σ", "ς"}, // capital and final sigma
+            {"𐐀", "𐐨"} // supplementary Deseret letters
+        };
+
+        for (String[] pair : equalPairs) {
+            assertTrue(pair[0].equalsIgnoreCase(pair[1]));
+            assertEquals(StringUtil.hashCodeIgnoreCase(pair[0]), StringUtil.hashCodeIgnoreCase(pair[1]));
+        }
+    }
+
+    @Test
+    public void hashCodeIgnoreCase_differentStrings_differentHashCode() {
+        assertFalse(StringUtil.hashCodeIgnoreCase("PS1") == StringUtil.hashCodeIgnoreCase("PS2"));
+    }
+
+    @Test
+    public void pluralize_countOfOneOrOther_addsSOnlyWhenNotOne() {
+        assertEquals("0 students", StringUtil.pluralize(0, "student"));
+        assertEquals("1 student", StringUtil.pluralize(1, "student"));
+        assertEquals("2 matching students", StringUtil.pluralize(2, "matching student"));
+    }
 }

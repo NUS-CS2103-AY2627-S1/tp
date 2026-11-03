@@ -1,0 +1,75 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static seedu.address.logic.commands.HelpCommand.MESSAGE_EXTRA_TEXT;
+import static seedu.address.logic.commands.HelpCommand.MESSAGE_UNKNOWN_TOPIC;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
+
+import java.util.List;
+import java.util.Locale;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.help.HelpEntry;
+import seedu.address.testutil.HelpEntryBuilder;
+
+public class HelpCommandParserTest {
+    private final List<HelpEntry> entries = List.of(new HelpEntryBuilder().build());
+    private final HelpCommandParser parser = new HelpCommandParser(entries);
+
+    @Test
+    public void parse_noTopic_returnsHelpCommandForEveryEntry() {
+        assertParseSuccess(parser, "", new HelpCommand(entries));
+        assertParseSuccess(parser, "   \t ", new HelpCommand(entries));
+    }
+
+    @Test
+    public void parse_validTopic_returnsHelpCommandForTopic() {
+        assertParseSuccess(parser, " group", new HelpCommand(entries, "group"));
+        assertParseSuccess(parser, "  attendance  ", new HelpCommand(entries, "attendance"));
+        assertParseSuccess(parser, " ASSIGNMENT", new HelpCommand(entries, "assignment"));
+    }
+
+    @Test
+    public void parse_pluralTopic_returnsHelpCommandForCanonicalTopic() {
+        for (String topic : List.of("group", "student", "assignment")) {
+            HelpCommand expected = new HelpCommand(entries, topic);
+            assertParseSuccess(parser, " " + topic + "s ", expected);
+            assertParseSuccess(parser, "\t" + topic.toUpperCase(Locale.ROOT) + "S\t", expected);
+        }
+    }
+
+    @Test
+    public void parse_unknownTopic_throwsParseException() {
+        assertParseFailure(parser, " 123", MESSAGE_UNKNOWN_TOPIC);
+        assertParseFailure(parser, " xyz", MESSAGE_UNKNOWN_TOPIC);
+        assertParseFailure(parser, " attendances", MESSAGE_UNKNOWN_TOPIC);
+        assertParseFailure(parser, " participations", MESSAGE_UNKNOWN_TOPIC);
+        assertParseFailure(parser, " groupss", MESSAGE_UNKNOWN_TOPIC);
+        assertParseFailure(parser, " undo now", MESSAGE_UNKNOWN_TOPIC);
+    }
+
+    @Test
+    public void parse_validTopicWithExtraText_throwsParseException() {
+        assertParseFailure(parser, " student add", String.format(MESSAGE_EXTRA_TEXT, "student", "add"));
+        assertParseFailure(parser, " Group  add g/T01 ",
+                String.format(MESSAGE_EXTRA_TEXT, "Group", "add g/T01"));
+        assertParseFailure(parser, " groups assignments",
+                String.format(MESSAGE_EXTRA_TEXT, "groups", "assignments"));
+    }
+
+    @Test
+    public void parse_unknownTopic_messageMatchesSpecification() {
+        assertEquals("Unknown help topic. Available topics: group, student, attendance, participation, "
+                + "assignment.", MESSAGE_UNKNOWN_TOPIC);
+    }
+
+    @Test
+    public void constructorAndParse_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new HelpCommandParser(null));
+        assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+}

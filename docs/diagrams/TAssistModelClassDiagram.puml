@@ -1,0 +1,38 @@
+@startuml
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+
+Package Model as ModelPackage <<Rectangle>>{
+Class "<<interface>>\nReadOnlyTAssist" as ReadOnlyTAssist
+Class TAssist
+Class UniqueGroupList
+Class Group
+Class GroupName
+Class UniqueStudentList
+Class Student
+Class StudentName
+Class StudentId
+Class UniqueAssignmentList
+Class Assignment
+Class AssignmentName
+Class AssignmentRecord
+Class "WeeklyRecord<T>" as WeeklyRecord
+}
+
+TAssist .up.|> ReadOnlyTAssist
+TAssist *--> "1" UniqueGroupList
+TAssist --> "0..1" Group : active
+UniqueGroupList -right-> "~* all" Group
+Group *--> "1" GroupName
+Group *--> "1" UniqueStudentList
+Group *--> "1" UniqueAssignmentList
+UniqueStudentList --> "~* all" Student
+UniqueAssignmentList --> "~* all" Assignment
+Assignment *--> "1" AssignmentName
+Assignment *--> "*" AssignmentRecord : records by StudentId
+Student *--> "1" StudentName
+Student *--> "1" StudentId
+Student *--> "2" WeeklyRecord : records
+@enduml

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.VBox?>
+<VBox styleClass="content-card" minHeight="0" xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1">
+  <VBox styleClass="card-heading" spacing="4">
+    <Label text="Last listed records" styleClass="section-title" />
+    <Label text="The listing updates after each change to your records or active group."
+           styleClass="muted" wrapText="true" />
+  </VBox>
+  <TextArea fx:id="recordListing" VBox.vgrow="ALWAYS" minHeight="0" editable="false" wrapText="true"
+            focusTraversable="false" accessibleText="Last listed records"
+            text="Use attendance list w/WEEK, participation list w/WEEK, assignment list a/NAME, or student records id/STUDENT_ID to show records here." />
+</VBox>
