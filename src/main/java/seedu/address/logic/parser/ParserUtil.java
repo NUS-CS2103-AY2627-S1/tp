@@ -1,26 +1,35 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.model.project.Project;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
  */
 public class ParserUtil {
 
+    public static final String MESSAGE_REMOVED_CONTACT_FIELDS =
+            "Address and tags are no longer supported. Remove a/ and t/ from your command.";
+
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    private static final Logger logger = LogsCenter.getLogger(ParserUtil.class);
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,18 +45,47 @@ public class ParserUtil {
     }
 
     /**
+     * Parses whitespace-separated one-based indices for a command that acts on several contacts.
+     *
+     * @param oneBasedIndices The indices typed by the user.
+     * @param commandUsage The usage message shown when an index is invalid.
+     * @param duplicateIndexMessage The format of the message shown when an index is repeated.
+     * @return The indices in the order given.
+     * @throws ParseException If an index is invalid or repeated.
+     */
+    public static List<Index> parseDistinctIndices(String oneBasedIndices, String commandUsage,
+            String duplicateIndexMessage) throws ParseException {
+        List<Index> indices = new ArrayList<>();
+        for (String token : oneBasedIndices.strip().split("\\s+")) {
+            Index index;
+            try {
+                index = parseIndex(token);
+            } catch (ParseException e) {
+                logger.fine("Project parsing rejected: invalid contact index");
+                throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, commandUsage), e);
+            }
+            if (indices.contains(index)) {
+                logger.fine("Project parsing rejected: repeated contact index " + index.getOneBased());
+                throw new ParseException(String.format(duplicateIndexMessage, index.getOneBased()));
+            }
+            indices.add(index);
+        }
+        return indices;
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Surrounding whitespace is removed and repeated internal whitespace is collapsed to one space.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
+        String normalizedName = Name.normalize(name);
+        if (!Name.isValidName(normalizedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
-        return new Name(trimmedName);
+        return new Name(normalizedName);
     }
 
     /**
@@ -66,21 +104,6 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
-    }
-
-    /**
      * Parses a {@code String email} into an {@code Email}.
      * Leading and trailing whitespaces will be trimmed.
      *
@@ -89,6 +112,9 @@ public class ParserUtil {
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
         String trimmedEmail = email.trim();
+        if (Email.isTooLong(trimmedEmail)) {
+            throw new ParseException(Email.MESSAGE_TOO_LONG);
+        }
         if (!Email.isValidEmail(trimmedEmail)) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
@@ -96,29 +122,39 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Parses a {@code String telegramUsername} into a {@code TelegramUsername}.
+     * Leading and trailing whitespaces will be trimmed. A leading {@code @} is accepted.
      *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * @throws ParseException if the given {@code telegramUsername} is invalid.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static TelegramUsername parseTelegramUsername(String telegramUsername) throws ParseException {
+        requireNonNull(telegramUsername);
+        if (!TelegramUsername.isValidTelegramUsername(telegramUsername)) {
+            throw new ParseException(TelegramUsername.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return new TelegramUsername(telegramUsername);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses a {@code String projectName} into a {@code Project}.
+     * Surrounding whitespace is removed and repeated internal whitespace is collapsed.
+     *
+     * @throws ParseException if the given {@code projectName} is invalid.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    public static Project parseProject(String projectName) throws ParseException {
+        requireNonNull(projectName);
+        if (!Project.isValidProjectName(projectName)) {
+            throw new ParseException(Project.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new Project(projectName);
+    }
+
+    /**
+     * Rejects retired prefixes before their values can be interpreted as another contact field.
+     */
+    public static void rejectRemovedContactFields(ArgumentMultimap arguments) throws ParseException {
+        if (arguments.getValue(PREFIX_ADDRESS).isPresent() || arguments.getValue(PREFIX_TAG).isPresent()) {
+            throw new ParseException(MESSAGE_REMOVED_CONTACT_FIELDS);
+        }
     }
 }

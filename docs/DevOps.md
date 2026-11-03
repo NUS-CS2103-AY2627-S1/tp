@@ -1,12 +1,15 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
@@ -19,7 +22,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/LinkUp.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -36,7 +39,10 @@ The following commands perform common Gradle tasks.
 
 ## Continuous integration (CI)
 
-This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`. No further setup is required.
+`.github/workflows/gradle.yml` runs on pushes and pull requests, with Java 25 builds on Windows, macOS and Linux.
+Each platform runs `check coverage`; Linux uses Xvfb for JavaFX tests and also runs repository-wide checks.
+Codecov uploads occur on Linux using `CODECOV_TOKEN`. Check that the fork has the required Codecov configuration
+before relying on its coverage badge. The separate documentation workflow deploys on pushes to `master`.
 
 ### Code coverage
 
@@ -71,9 +77,12 @@ Any warnings or errors will be printed out to the console.
 
 ## Making a release
 
-Here are the steps to create a new release.
+Here are the steps to create a new LinkUp release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
-1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
-1. Tag the repo with the version number. e.g. `v0.1`
-1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-W14-2/tp/blob/master/src/main/java/seedu/address/MainApp.java).
+1. Generate the fat JAR using `./gradlew shadowJar` (Windows: `.\gradlew.bat shadowJar`). The output is `build/libs/LinkUp.jar`.
+1. Tag the release commit with the version number, for example `v1.3`.
+1. [Create a release in the LinkUp team repository](https://github.com/AY2627S1-CS2103T-W14-2/tp/releases/new) using that tag.
+   Add a title such as `LinkUp v1.3`, describe the changes, and include relevant screenshots in the release notes.
+1. Upload `LinkUp.jar` as a release asset and publish the release.
+1. Download the uploaded JAR and check that it launches with `java -jar LinkUp.jar`.

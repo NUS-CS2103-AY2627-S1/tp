@@ -1,16 +1,22 @@
 package seedu.address.storage;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.ConflictTestUtil.ALICE_NAMESAKE;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
 import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,12 +24,189 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.testutil.AddressBookBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void save_legacyData_backsUpOriginalOnceAndPreservesContacts() throws Exception {
+        Path file = testFolder.resolve("contacts.json");
+        String legacy = """
+                {"persons":[
+                  {"name":"Alex Tan","phone":"91234567","email":"alex@example.com",
+                   "telegramUsername":"alex_tan","projects":["Team *()!%$#&","Orbital"],
+                   "address":"NUS","tags":["friend"]},
+                  {"name":"Wen Jie","phone":"87654321","email":"wen@example.com",
+                   "address":null,"tags":{"retired":"ignored"}},
+                  {"name":"Jordan Lee","phone":"81234567","email":"jordan@example.com"}
+                ]}
+                """;
+        Files.writeString(file, legacy);
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        ReadOnlyAddressBook contacts = storage.readAddressBook().orElseThrow();
+        assertEquals(3, contacts.getPersonList().size());
+        assertEquals("91234567", contacts.getPersonList().getFirst().getPhone().value);
+        assertEquals(TelegramUsername.EMPTY, contacts.getPersonList().get(1).getTelegramUsername());
+        assertTrue(contacts.getPersonList().get(1).getProjects().isEmpty());
+        assertEquals(List.of(), backupFiles()); // Loading alone does not migrate the file.
+
+        storage.saveAddressBook(contacts);
+        assertEquals(1, backupFiles().size());
+        Path backup = backupFiles().getFirst();
+        assertArrayEquals(original, Files.readAllBytes(backup));
+        assertFalse(Files.readString(file).contains("\"address\""));
+        assertFalse(Files.readString(file).contains("\"tags\""));
+        assertTrue(Files.readString(file).contains("\"phone\" : \"91234567\""));
+        assertEquals(contacts, storage.readAddressBook().orElseThrow());
+
+        new JsonAddressBookStorage(file).saveAddressBook(contacts);
+        assertEquals(List.of(backup), backupFiles());
+        assertArrayEquals(original, Files.readAllBytes(backup));
+
+        // Importing another legacy file creates a new backup without replacing the first.
+        Files.writeString(file, legacy.replace("NUS", "New address"));
+        storage.saveAddressBook(storage.readAddressBook().orElseThrow());
+        assertEquals(2, backupFiles().size());
+        assertArrayEquals(original, Files.readAllBytes(backup));
+    }
+
+    @Test
+    public void readAndSave_legacyNameAndEmail_preservesOriginalValues() throws Exception {
+        Path file = testFolder.resolve("legacy-contact.json");
+        Files.writeString(file, """
+                {"persons":[{"name":"12345 ","phone":"91234567","email":"Alex@Example"}]}
+                """);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        ReadOnlyAddressBook contacts = storage.readAddressBook().orElseThrow();
+
+        assertEquals("12345 ", contacts.getPersonList().getFirst().getName().fullName);
+        assertEquals("Alex@Example", contacts.getPersonList().getFirst().getEmail().value);
+
+        storage.saveAddressBook(contacts);
+        String saved = Files.readString(file);
+        assertTrue(saved.contains("\"name\" : \"12345 \""));
+        assertTrue(saved.contains("\"email\" : \"Alex@Example\""));
+        assertEquals(contacts, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void save_backupFailure_leavesOriginalFileUntouched() throws Exception {
+        Path file = testFolder.resolve("contacts.json");
+        Files.writeString(file, "{\"persons\":[{\"address\":\"NUS\"}]}");
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file) {
+            @Override
+            void backupBeforeReplacing(Path filePath) throws IOException {
+                throw new IOException("Backup failed");
+            }
+        };
+        assertThrows(IOException.class, "Backup failed", () -> storage.saveAddressBook(getTypicalAddressBook()));
+        assertArrayEquals(original, Files.readAllBytes(file));
+    }
+
+    @Test
+    public void save_newData_doesNotCreateLegacyBackup() throws Exception {
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("new.json"));
+        storage.saveAddressBook(getTypicalAddressBook());
+        storage.saveAddressBook(getTypicalAddressBook());
+        assertTrue(backupFiles().isEmpty());
+    }
+
+    @Test
+    public void save_malformedDataWithoutStartupBackup_preservesOriginalAsUnreadable() throws Exception {
+        // e.g. the file was broken by hand while LinkUp was open
+        Path file = testFolder.resolve("broken.json");
+        Files.writeString(file, "{broken JSON");
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(getTypicalAddressBook());
+
+        Path backup = backupFiles().getFirst();
+        assertEquals(1, backupFiles().size());
+        assertTrue(backup.getFileName().toString().startsWith("broken.json.unreadable-"));
+        assertArrayEquals(original, Files.readAllBytes(backup));
+        assertEquals(getTypicalAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void readThenSave_trailingContent_keepsExactUnreadableBackup() throws Exception {
+        assertRejectedAndBackedUpBeforeSave("{\"persons\":[]} {\"persons\":[{\"name\":\"Trailing Contact\"}]}");
+    }
+
+    @Test
+    public void readThenSave_repeatedKey_keepsExactUnreadableBackup() throws Exception {
+        assertRejectedAndBackedUpBeforeSave("{\"persons\":[{\"name\":\"Repeated Key\"}],\"persons\":[]}");
+    }
+
+    private void assertRejectedAndBackedUpBeforeSave(String content) throws Exception {
+        Path file = testFolder.resolve("broken.json");
+        Files.writeString(file, content);
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+
+        // No startup backup, as if the file was broken by hand while LinkUp was open.
+        storage.saveAddressBook(getTypicalAddressBook());
+
+        assertEquals(1, backupFiles().size());
+        Path backup = backupFiles().getFirst();
+        assertTrue(backup.getFileName().toString().startsWith("broken.json.unreadable-"));
+        assertArrayEquals(original, Files.readAllBytes(backup));
+        assertEquals(getTypicalAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void backupThenSave_malformedData_keepsOnlyUnreadableBackup() throws Exception {
+        Path file = testFolder.resolve("broken.json");
+        Files.writeString(file, """
+                {"persons":[{"name":"Trailing Comma","phone":"+6597200001","email":"t@example.com",}]}
+                """);
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+
+        // Startup preserves the unreadable file, then the first command saves an empty address book.
+        Path backup = storage.backupAddressBook().orElseThrow();
+        storage.saveAddressBook(new AddressBook());
+
+        assertEquals(List.of(backup), backupFiles());
+        assertTrue(backup.getFileName().toString().startsWith("broken.json.unreadable-"));
+        assertArrayEquals(original, Files.readAllBytes(backup));
+        assertEquals(new AddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void backupThenSave_fileChangedAfterBackup_preservesBothVersions() throws Exception {
+        Path file = testFolder.resolve("broken.json");
+        Files.writeString(file, "{broken at startup");
+        byte[] atStartup = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        Path startupBackup = storage.backupAddressBook().orElseThrow();
+
+        // The file is edited again while LinkUp is open, and is still broken when the next command saves.
+        Files.writeString(file, "{broken differently later");
+        byte[] later = Files.readAllBytes(file);
+        storage.saveAddressBook(new AddressBook());
+
+        List<Path> backups = backupFiles();
+        assertEquals(2, backups.size());
+        assertArrayEquals(atStartup, Files.readAllBytes(startupBackup));
+        Path laterBackup = backups.stream().filter(path -> !path.equals(startupBackup)).findFirst().orElseThrow();
+        assertTrue(laterBackup.getFileName().toString().startsWith("broken.json.unreadable-"));
+        assertArrayEquals(later, Files.readAllBytes(laterBackup));
+    }
+
+    private List<Path> backupFiles() throws IOException {
+        try (var files = Files.list(testFolder)) {
+            return files.filter(path -> path.getFileName().toString().endsWith(".bak")).sorted().toList();
+        }
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -51,8 +234,26 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void read_nullContent_throwsDataLoadingException() {
+        // Regression: these used to escape as NullPointerException, which MainApp does not catch
+        assertThrows(DataLoadingException.class, () -> readAddressBook("nullAddressBook.json"));
+        assertThrows(DataLoadingException.class, () -> readAddressBook("nullPersonAddressBook.json"));
+    }
+
+    @Test
     public void readAddressBook_invalidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_projectNameWithLineBreak_throwsDataLoadingException() throws Exception {
+        Path file = testFolder.resolve("project-with-line-break.json");
+        Files.writeString(file, """
+                {"persons":[{"name":"Alex Tan","phone":"91234567","email":"alex@example.com",
+                  "telegramUsername":"alex_tan","projects":["Alpha\\nBeta"]}]}
+                """);
+
+        assertThrows(DataLoadingException.class, () -> new JsonAddressBookStorage(file).readAddressBook());
     }
 
     @Test
@@ -84,6 +285,50 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void backupAddressBook_unloadableFile_copiesExactBytesBesideOriginal() throws Exception {
+        Path file = testFolder.resolve("clashing.json");
+        Files.copy(Paths.get("src", "test", "data", "JsonSerializableAddressBookTest",
+                "samePhoneDifferentNamesAddressBook.json"), file);
+        byte[] original = Files.readAllBytes(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+
+        Path backup = storage.backupAddressBook().orElseThrow();
+
+        assertEquals(file.toAbsolutePath().getParent(), backup.getParent());
+        assertTrue(backup.getFileName().toString().startsWith("clashing.json.unreadable-"));
+        assertTrue(backup.getFileName().toString().endsWith(".bak"));
+        assertArrayEquals(original, Files.readAllBytes(backup));
+        assertArrayEquals(original, Files.readAllBytes(file));
+    }
+
+    @Test
+    public void backupAddressBook_repeatedBackups_doNotOverwriteEachOther() throws Exception {
+        Path file = testFolder.resolve("data.json");
+        Files.writeString(file, "{}");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+
+        assertFalse(storage.backupAddressBook().equals(storage.backupAddressBook()));
+    }
+
+    @Test
+    public void backupAddressBook_missingFile_returnsEmpty() throws Exception {
+        assertEquals(Optional.empty(), new JsonAddressBookStorage(testFolder.resolve("missing.json"))
+                .backupAddressBook());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_sameNameContacts_success() throws Exception {
+        Path filePath = testFolder.resolve("TempAddressBook.json");
+        AddressBook original = new AddressBookBuilder().withPerson(ALICE).withPerson(ALICE_NAMESAKE).build();
+        JsonAddressBookStorage jsonAddressBookStorage = new JsonAddressBookStorage(filePath);
+
+        jsonAddressBookStorage.saveAddressBook(original, filePath);
+
+        assertEquals(original, new AddressBook(jsonAddressBookStorage.readAddressBook(filePath).get()));
     }
 
     @Test

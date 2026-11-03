@@ -6,18 +6,17 @@ import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PROJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TELEGRAM;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
-import java.util.Set;
+import java.util.function.Consumer;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new EditCommand object
@@ -27,38 +26,21 @@ public class EditCommandParser implements Parser<EditCommand> {
     /**
      * Parses the given {@code String} of arguments in the context of the EditCommand
      * and returns an EditCommand object for execution.
+     * Problems are reported one at a time, in this order: retired fields, projects, the index, repeated prefixes,
+     * then the supplied values (name, phone, email, Telegram username), and finally a missing field.
+     *
      * @throws ParseException if the user input does not conform to the expected format
      */
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL,
+                PREFIX_TELEGRAM, PREFIX_PROJECT, PREFIX_ADDRESS, PREFIX_TAG);
 
-        Index index;
-
-        try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
-        }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-
-        EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
-
-        if (argMultimap.getValue(PREFIX_NAME).isPresent()) {
-            editPersonDescriptor.setName(ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get()));
-        }
-        if (argMultimap.getValue(PREFIX_PHONE).isPresent()) {
-            editPersonDescriptor.setPhone(ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get()));
-        }
-        if (argMultimap.getValue(PREFIX_EMAIL).isPresent()) {
-            editPersonDescriptor.setEmail(ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get()));
-        }
-        if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
-            editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
-        }
-        parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
+        ParserUtil.rejectRemovedContactFields(argMultimap);
+        rejectProjectField(argMultimap);
+        Index index = parseIndex(argMultimap);
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_TELEGRAM);
+        EditPersonDescriptor editPersonDescriptor = parseEditedFields(argMultimap);
 
         if (!editPersonDescriptor.isAnyFieldEdited()) {
             throw new ParseException(EditCommand.MESSAGE_NOT_EDITED);
@@ -68,18 +50,56 @@ public class EditCommandParser implements Parser<EditCommand> {
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>} if {@code tags} is non-empty.
-     * If {@code tags} contains only one element which is an empty string, it will be parsed into a
-     * {@code Set<Tag>} containing zero tags.
+     * Rejects {@code pr/}, whatever its value, because projects can only be added with the project command.
      */
-    private Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
-        assert tags != null;
-
-        if (tags.isEmpty()) {
-            return Optional.empty();
+    private static void rejectProjectField(ArgumentMultimap argMultimap) throws ParseException {
+        if (argMultimap.getValue(PREFIX_PROJECT).isPresent()) {
+            throw new ParseException(EditCommand.MESSAGE_PROJECT_NOT_EDITABLE);
         }
-        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Collections.emptySet() : tags;
-        return Optional.of(ParserUtil.parseTags(tagSet));
     }
 
+    private static Index parseIndex(ArgumentMultimap argMultimap) throws ParseException {
+        try {
+            return ParserUtil.parseIndex(argMultimap.getPreamble());
+        } catch (ParseException pe) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
+        }
+    }
+
+    /**
+     * Returns a descriptor holding only the supplied fields, each parsed with the same rules as {@code add}.
+     * Fields are parsed in a fixed order, so the first invalid one is the one reported.
+     */
+    private static EditPersonDescriptor parseEditedFields(ArgumentMultimap argMultimap) throws ParseException {
+        EditPersonDescriptor descriptor = new EditPersonDescriptor();
+        parseIfPresent(argMultimap, PREFIX_NAME, ParserUtil::parseName, descriptor::setName);
+        parseIfPresent(argMultimap, PREFIX_PHONE, ParserUtil::parsePhone, descriptor::setPhone);
+        parseIfPresent(argMultimap, PREFIX_EMAIL, ParserUtil::parseEmail, descriptor::setEmail);
+        parseIfPresent(argMultimap, PREFIX_TELEGRAM, ParserUtil::parseTelegramUsername,
+                descriptor::setTelegramUsername);
+        return descriptor;
+    }
+
+    /**
+     * Parses the value of {@code prefix} with {@code parser} and passes it to {@code setter}, if the prefix was
+     * supplied. Fields that were not supplied are left unset, so they keep their current values.
+     */
+    private static <T> void parseIfPresent(ArgumentMultimap argMultimap, Prefix prefix, FieldParser<T> parser,
+            Consumer<T> setter) throws ParseException {
+        Optional<String> value = argMultimap.getValue(prefix);
+        if (value.isEmpty()) {
+            return;
+        }
+        T parsedValue = parser.parse(value.get());
+        assert parsedValue != null : "a field parser must return a value or throw";
+        setter.accept(parsedValue);
+    }
+
+    /**
+     * Parses a single field value, throwing a {@code ParseException} if it is invalid.
+     */
+    @FunctionalInterface
+    private interface FieldParser<T> {
+        T parse(String value) throws ParseException;
+    }
 }

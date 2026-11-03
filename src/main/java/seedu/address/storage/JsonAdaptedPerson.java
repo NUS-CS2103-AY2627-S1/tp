@@ -1,21 +1,19 @@
 package seedu.address.storage;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.model.project.Project;
 
 /**
  * Jackson-friendly version of {@link Person}.
@@ -27,22 +25,22 @@ class JsonAdaptedPerson {
     private final String name;
     private final String phone;
     private final String email;
-    private final String address;
-    private final List<JsonAdaptedTag> tags = new ArrayList<>();
+    private final String telegramUsername;
+    private final List<JsonAdaptedProject> projects = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
      */
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("email") String email, @JsonProperty("telegramUsername") String telegramUsername,
+            @JsonProperty("projects") List<JsonAdaptedProject> projects) {
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
-        if (tags != null) {
-            this.tags.addAll(tags);
+        this.telegramUsername = telegramUsername;
+        if (projects != null) {
+            this.projects.addAll(projects);
         }
     }
 
@@ -53,9 +51,9 @@ class JsonAdaptedPerson {
         name = source.getName().fullName;
         phone = source.getPhone().value;
         email = source.getEmail().value;
-        address = source.getAddress().value;
-        tags.addAll(source.getTags().stream()
-                .map(JsonAdaptedTag::new)
+        telegramUsername = source.getTelegramUsername().value;
+        projects.addAll(source.getProjects().stream()
+                .map(JsonAdaptedProject::new)
                 .collect(Collectors.toList()));
     }
 
@@ -65,45 +63,68 @@ class JsonAdaptedPerson {
      * @throws IllegalValueException if there were any data constraints violated in the adapted person.
      */
     public Person toModelType() throws IllegalValueException {
-        final List<Tag> personTags = new ArrayList<>();
-        for (JsonAdaptedTag tag : tags) {
-            personTags.add(tag.toModelType());
-        }
+        final List<Project> personProjects = toModelProjects();
+        final Name modelName = toModelName();
+        final Phone modelPhone = toModelPhone();
+        final Email modelEmail = toModelEmail();
+        final TelegramUsername modelTelegramUsername = toModelTelegramUsername();
+        return new Person(modelName, modelPhone, modelEmail, modelTelegramUsername, personProjects);
+    }
 
+    private List<Project> toModelProjects() throws IllegalValueException {
+        final List<Project> personProjects = new ArrayList<>();
+        for (JsonAdaptedProject project : projects) {
+            if (project == null) {
+                throw new IllegalValueException(Project.MESSAGE_CONSTRAINTS);
+            }
+            Project modelProject = project.toModelType();
+            // A repeat is dropped, keeping the first spelling: older files may list two names that only became
+            // equal once invisible characters were removed (issue #177), and rejecting them would lose every contact.
+            if (!personProjects.contains(modelProject)) {
+                personProjects.add(modelProject);
+            }
+        }
+        return personProjects;
+    }
+
+    private Name toModelName() throws IllegalValueException {
         if (name == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
         }
-        if (!Name.isValidName(name)) {
+        if (!Name.isValidStoredName(name)) {
             throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
         }
-        final Name modelName = new Name(name);
+        return Name.fromStoredValue(name);
+    }
 
+    private Phone toModelPhone() throws IllegalValueException {
         if (phone == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName()));
         }
-        if (!Phone.isValidPhone(phone)) {
+        if (!Phone.isValidStoredPhone(phone)) {
             throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
         }
-        final Phone modelPhone = new Phone(phone);
+        return Phone.fromStoredValue(phone);
+    }
 
+    private Email toModelEmail() throws IllegalValueException {
         if (email == null) {
             throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName()));
         }
-        if (!Email.isValidEmail(email)) {
+        if (!Email.isValidStoredEmail(email)) {
             throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
         }
-        final Email modelEmail = new Email(email);
+        return Email.fromStoredValue(email);
+    }
 
-        if (address == null) {
-            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName()));
+    private TelegramUsername toModelTelegramUsername() throws IllegalValueException {
+        if (telegramUsername == null || telegramUsername.isEmpty()) {
+            return TelegramUsername.EMPTY;
         }
-        if (!Address.isValidAddress(address)) {
-            throw new IllegalValueException(Address.MESSAGE_CONSTRAINTS);
+        if (!TelegramUsername.isValidStoredTelegramUsername(telegramUsername)) {
+            throw new IllegalValueException(TelegramUsername.MESSAGE_CONSTRAINTS);
         }
-        final Address modelAddress = new Address(address);
-
-        final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return TelegramUsername.fromStoredValue(telegramUsername);
     }
 
 }

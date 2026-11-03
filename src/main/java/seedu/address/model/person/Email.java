@@ -3,25 +3,35 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Arrays;
+import java.util.Locale;
+
 /**
  * Represents a Person's email in the address book.
- * Guarantees: immutable; is valid as declared in {@link #isValidEmail(String)}
+ * Guarantees: immutable; is valid for new input or was valid in an older saved contact.
+ * Newly entered emails are stored in lowercase and saved emails keep their case; all emails are compared
+ * case-insensitively.
  */
 public class Email {
 
+    /** Standard maximum length of one dot-separated part of a domain (RFC 1035). */
+    public static final int MAX_DOMAIN_LABEL_LENGTH = 63;
+    public static final String MESSAGE_CONSTRAINTS = "Email must be in the format local@domain, with exactly one @. "
+            + "The local part may contain letters, digits, and common email symbols, with dots only between "
+            + "non-empty parts. The domain needs at least two dot-separated labels of up to "
+            + MAX_DOMAIN_LABEL_LENGTH + " letters, digits, or inner hyphens. Whitespace is not allowed.";
+    /** Standard maximum length of an address (RFC 5321 path limit of 256, minus the enclosing angle brackets). */
+    public static final int MAX_LENGTH = 254;
+    /** Standard maximum length of the part before the {@code @} (RFC 5321). */
+    public static final int MAX_LOCAL_PART_LENGTH = 64;
+    public static final String MESSAGE_TOO_LONG = "Email is too long. Use at most " + MAX_LENGTH
+            + " characters, with at most " + MAX_LOCAL_PART_LENGTH + " before the @.";
+    private static final String NEW_LOCAL_ATOM_REGEX = "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+";
+    private static final String NEW_LOCAL_PART_REGEX = NEW_LOCAL_ATOM_REGEX
+            + "(\\." + NEW_LOCAL_ATOM_REGEX + ")*";
+    private static final String NEW_DOMAIN_LABEL_REGEX = "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?";
     private static final String SPECIAL_CHARACTERS = "+_.-";
-    public static final String MESSAGE_CONSTRAINTS = "Emails should be of the format local-part@domain "
-            + "and adhere to the following constraints:\n"
-            + "1. The local-part should only contain alphanumeric characters and these special characters, excluding "
-            + "the parentheses, (" + SPECIAL_CHARACTERS + "). The local-part may not start or end with any special "
-            + "characters.\n"
-            + "2. The local-part is followed by an '@' and then a domain name. The domain name is made up of domain "
-            + "labels separated by periods.\n"
-            + "The domain name must:\n"
-            + "    - end with a domain label at least 2 characters long\n"
-            + "    - have each domain label start and end with alphanumeric characters\n"
-            + "    - have each domain label consist of alphanumeric characters, separated only by hyphens, if any.";
-    // alphanumeric and special characters
+    // Previous AB3 rule, retained only to read contacts saved before the new input rule.
     private static final String ALPHANUMERIC_NO_UNDERSCORE = "[^\\W_]+"; // alphanumeric characters except underscore
     private static final String LOCAL_PART_REGEX = "^" + ALPHANUMERIC_NO_UNDERSCORE + "([" + SPECIAL_CHARACTERS + "]"
             + ALPHANUMERIC_NO_UNDERSCORE + ")*";
@@ -29,7 +39,7 @@ public class Email {
             + "(-" + ALPHANUMERIC_NO_UNDERSCORE + ")*";
     private static final String DOMAIN_LAST_PART_REGEX = "(" + DOMAIN_PART_REGEX + "){2,}$"; // At least two chars
     private static final String DOMAIN_REGEX = "(" + DOMAIN_PART_REGEX + "\\.)*" + DOMAIN_LAST_PART_REGEX;
-    public static final String VALIDATION_REGEX = LOCAL_PART_REGEX + "@" + DOMAIN_REGEX;
+    private static final String LEGACY_VALIDATION_REGEX = LOCAL_PART_REGEX + "@" + DOMAIN_REGEX;
 
     public final String value;
 
@@ -39,16 +49,85 @@ public class Email {
      * @param email A valid email address.
      */
     public Email(String email) {
+        this(email, false);
+    }
+
+    private Email(String email, boolean isFromStorage) {
         requireNonNull(email);
-        checkArgument(isValidEmail(email), MESSAGE_CONSTRAINTS);
-        value = email;
+        checkArgument(isFromStorage ? isValidStoredEmail(email) : isValidEmail(email), MESSAGE_CONSTRAINTS);
+        value = isFromStorage ? email : email.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Restores a saved email without changing its case. Older contacts may have emails that are no longer accepted
+     * as new input.
+     */
+    public static Email fromStoredValue(String email) {
+        return new Email(email, true);
+    }
+
+    /**
+     * Returns true if the value can be restored from a current or older data file.
+     */
+    public static boolean isValidStoredEmail(String test) {
+        requireNonNull(test);
+        // Checked first: the patterns below recurse once per dot and overflow the stack on very long input.
+        if (isTooLong(test)) {
+            return false;
+        }
+        return hasValidFormat(test) || test.matches(LEGACY_VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns true if {@code test} exceeds the standard size limits for an email address: more than
+     * {@link #MAX_LENGTH} characters, or more than {@link #MAX_LOCAL_PART_LENGTH} before the first {@code @}
+     * (or in total, if there is no {@code @}).
+     */
+    public static boolean isTooLong(String test) {
+        requireNonNull(test);
+        int atIndex = test.indexOf('@');
+        int localPartLength = atIndex < 0 ? test.length() : atIndex;
+        return test.length() > MAX_LENGTH || localPartLength > MAX_LOCAL_PART_LENGTH;
     }
 
     /**
      * Returns true if a given string is a valid email.
      */
     public static boolean isValidEmail(String test) {
-        return test.matches(VALIDATION_REGEX);
+        requireNonNull(test);
+        if (!hasValidFormat(test)) {
+            return false;
+        }
+        String domain = test.substring(test.indexOf('@') + 1);
+        return Arrays.stream(domain.split("\\.")).allMatch(label -> label.length() <= MAX_DOMAIN_LABEL_LENGTH);
+    }
+
+    /**
+     * Returns true if {@code test} has the format of a new email. Saved emails need not meet the domain label
+     * limit, so that data files from older versions still load.
+     */
+    private static boolean hasValidFormat(String test) {
+        // Checked first: the local-part pattern recurses once per dot and overflows the stack on very long input.
+        if (isTooLong(test)) {
+            return false;
+        }
+        int atIndex = test.indexOf('@');
+        if (atIndex < 1 || atIndex != test.lastIndexOf('@')
+                || test.codePoints().anyMatch(Email::isWhitespaceOrControl)) {
+            return false;
+        }
+        String localPart = test.substring(0, atIndex);
+        if (!localPart.matches(NEW_LOCAL_PART_REGEX)) {
+            return false;
+        }
+        String domain = test.substring(atIndex + 1);
+        String[] labels = domain.split("\\.", -1);
+        return labels.length >= 2 && Arrays.stream(labels).allMatch(label -> label.matches(NEW_DOMAIN_LABEL_REGEX));
+    }
+
+    private static boolean isWhitespaceOrControl(int codePoint) {
+        return Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint)
+                || Character.isISOControl(codePoint);
     }
 
     @Override
@@ -67,12 +146,19 @@ public class Email {
             return false;
         }
 
-        return value.equals(otherEmail.value);
+        return normalizedValue().equals(otherEmail.normalizedValue());
     }
 
     @Override
     public int hashCode() {
-        return value.hashCode();
+        return normalizedValue().hashCode();
+    }
+
+    /**
+     * Returns the lower-case form of this email, used only for comparison.
+     */
+    private String normalizedValue() {
+        return value.toLowerCase(Locale.ROOT);
     }
 
 }

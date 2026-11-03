@@ -1,29 +1,68 @@
 ---
-layout: page
-title: Documentation guide
+  layout: default.md
+  title: "Documentation guide"
+  pageNav: 3
 ---
 
-**Setting up and maintaining the project website:**
+# Documentation guide
 
-* We use [**Jekyll**](https://jekyllrb.com/) to manage documentation.
-* The `docs/` folder is used for documentation.
-* To learn how to set up and maintain the project website, follow the guide [_[se-edu/guides] **Using Jekyll for project documentation**_](https://se-education.org/guides/tutorials/jekyll.html).
-* Note these points when adapting the documentation to a different project/product:
-  * The 'Site-wide settings' section of the page linked above has information on how to update site-wide elements such as the top navigation bar.
-  * :bulb: In addition to updating content files, you might have to update the config files `docs/_config.yml` and `docs/_sass/minima/_base.scss`. The latter contains a reference to `AB-3` that is used when converting documentation pages to PDF format.
-* If you are using IntelliJ for editing documentation files, you can consider enabling 'soft wrapping' for `*.md` files, as explained in [_[se-edu/guides] **Intellij IDEA: Useful settings**_](https://se-education.org/guides/tutorials/intellijUsefulSettings.html#enabling-soft-wrapping)
+* We use [**MarkBind**](https://markbind.org/) to manage documentation.
+* The `docs/` folder contains the source files for the documentation website.
+* To learn how to set up and maintain the project website, follow the [guide to working with forked MarkBind sites](https://se-education.org/guides/tutorials/markbind-forked-sites.html).
+
+## Local preview and build
+
+From the repository root, use the scripts declared in `docs/package.json`:
+
+```sh
+cd docs
+npm ci
+npm run serve
+```
+
+Open the local URL printed by MarkBind. Stop the preview with Ctrl+C. To build without a preview server, run
+`npm run build` from `docs`; generated pages go into `docs/_site`. On Windows PowerShell, use `npm.cmd` if
+execution policy prevents running `npm.ps1`. Generated pages and `node_modules` are not documentation sources.
+
+The local dependency currently specifies MarkBind `^5.1.0`, while `.github/workflows/docs.yml` requests
+`^7.2.1` for deployment. A successful local build does not guarantee identical rendering in deployment.
+The workflow runs on pushes to `master`, uses `docs` as its root, and sets `/tp` as the deployed base URL.
+
+## Where to make changes
+
+| File or folder | Purpose |
+| --- | --- |
+| `UserGuide.md` | Commands, examples, limits, launch instructions and user-facing recovery steps. |
+| `DeveloperGuide.md` | Architecture, implementation, current scope, backlog distinctions and manual tests. |
+| `SettingUp.md`, `Testing.md`, `DevOps.md` | Developer setup, verification and release workflow. |
+| `images/` | Screenshots and other image assets. `Ui.png` is also used by the root README. |
+| `diagrams/` | PlantUML sources for the developer-guide UML diagrams. |
+| `_markbind/`, `site.json` | Shared layout, navigation and site configuration. |
+
+## Keeping documentation consistent with code
+
+Before describing a feature as available, inspect its command/parser, model validation and storage paths.
+Check new-input rules separately from legacy-data loading. For example, `add` requires an initial project,
+while old contacts can load with no projects; `edit` changes only name, phone, email and Telegram username.
+Keep future requirements explicitly labelled as deferred rather than presenting them as current commands.
+
+When changing commands or validation, update both guides and their examples. Use a separate test data folder
+for screenshots, with no personal contact data. Update `images/Ui.png` for the main window and
+`images/findAlexDavidResult.png` for the corresponding name-search example. Check captions and alt text too.
+
+Before submitting documentation, run `npm run build`, review warnings, and inspect the changed rendered pages
+for readable tables, working navigation, correct screenshots and command examples. Run repository-wide checks
+as described in [DevOps](DevOps.md). When a change affects a diagram, update its source in `diagrams/` and check
+the diagram against the implementation.
+
+## Style guidance
+
+Use British English consistently in explanatory prose. Keep command output, code identifiers and quoted text unchanged.
+
+* Follow the [Google developer documentation style guide](https://developers.google.com/style).
+* Also relevant is the [se-edu Markdown coding standard](https://se-education.org/guides/conventions/markdown.html).
 
 
-**Style guidance:**
+## Converting to PDF
 
-* Follow the [**_Google developer documentation style guide_**](https://developers.google.com/style).
-
-* Also relevant is the [_[se-edu/guides] **Markdown coding standard**_](https://se-education.org/guides/conventions/markdown.html)
-
-**Diagrams:**
-
-* See the [_[se-edu/guides] **Using PlantUML**_](https://se-education.org/guides/tutorials/plantUml.html)
-
-**Converting a document to the PDF format:**
-
-* See the guide [_[se-edu/guides] **Saving web documents as PDF files**_](https://se-education.org/guides/tutorials/savingPdf.html)
+* See the [guide to saving web documents as PDF files](https://se-education.org/guides/tutorials/savingPdf.html).

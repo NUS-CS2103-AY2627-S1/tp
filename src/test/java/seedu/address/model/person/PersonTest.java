@@ -2,53 +2,174 @@ package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TELEGRAM_USERNAME_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
+
 import org.junit.jupiter.api.Test;
 
+import seedu.address.model.person.ContactConflict.Field;
+import seedu.address.model.project.Project;
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
 
+    private static final String ALEX_NAME = "Alex Yeoh";
+    private static final String ALEX_PHONE = "91234567";
+    private static final String ALEX_EMAIL = "alex@example.com";
+    private static final String ALEX_TELEGRAM_USERNAME = "alex_yeoh";
+    private static final String ALEX_PROJECT = "CS2103T";
+    private static final Person ALEX = new PersonBuilder().withName(ALEX_NAME).withPhone(ALEX_PHONE)
+            .withEmail(ALEX_EMAIL).withTelegramUsername(ALEX_TELEGRAM_USERNAME).withProjects(ALEX_PROJECT).build();
+
+    /** Each modifier makes exactly one contact detail the same as {@code ALEX}'s. */
+    private static final List<UnaryOperator<PersonBuilder>> CLASHES_WITH_ALEX = List.of(
+            builder -> builder.withPhone(ALEX_PHONE),
+            builder -> builder.withEmail(ALEX_EMAIL),
+            builder -> builder.withTelegramUsername(ALEX_TELEGRAM_USERNAME));
+
     @Test
-    public void asObservableList_modifyList_throwsUnsupportedOperationException() {
-        Person person = new PersonBuilder().build();
-        assertThrows(UnsupportedOperationException.class, () -> person.getTags().remove(0));
+    public void getProjects_modifyList_throwsUnsupportedOperationException() {
+        Person person = new PersonBuilder().withProjects("CS2103T").build();
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                person.getProjects().add(new Project("Orbital")));
     }
 
     @Test
-    public void isSamePerson() {
-        // same object -> returns true
-        assertTrue(ALICE.isSamePerson(ALICE));
+    public void constructor_duplicateProjectsIgnoringCase_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new PersonBuilder().withProjects("CS2103T", "cs2103t").build());
+    }
 
-        // null -> returns false
-        assertFalse(ALICE.isSamePerson(null));
+    @Test
+    public void withProjects_legacyContact_preservesDetailsAndCopiesOrderedProjects() {
+        Person original = new PersonBuilder().withPhone("91234567").withStoredEmail("Alex@Example.COM")
+                .withStoredTelegramUsername("legacy_").withProjects("Original").build();
+        List<Project> projects = new ArrayList<>(List.of(new Project("Orbital"), new Project("CS2103T")));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
-                .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
-        assertTrue(ALICE.isSamePerson(editedAlice));
+        Person updated = original.withProjects(projects);
 
-        // different name, all other attributes same -> returns false
-        editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
-        assertFalse(ALICE.isSamePerson(editedAlice));
+        // Legacy values must be retained verbatim rather than revalidated or normalised as new input.
+        assertSame(original.getName(), updated.getName());
+        assertSame(original.getPhone(), updated.getPhone());
+        assertSame(original.getEmail(), updated.getEmail());
+        assertSame(original.getTelegramUsername(), updated.getTelegramUsername());
+        assertEquals(projects, updated.getProjects());
+        assertEquals(List.of(new Project("Original")), original.getProjects());
 
-        // name differs in case, all other attributes same -> returns false
-        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        // Mutating the caller's list cannot change the saved replacement or its project order.
+        projects.clear();
+        assertEquals(List.of(new Project("Orbital"), new Project("CS2103T")), updated.getProjects());
+        assertThrows(UnsupportedOperationException.class, () -> updated.getProjects().clear());
+    }
 
-        // name has trailing spaces, all other attributes same -> returns false
-        String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
-        editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+    @Test
+    public void conflictsWith_sameNameDifferentDetails_returnsFalse() {
+        assertConflictBothWays(ALEX, distinctFromAlex().withName(ALEX_NAME).build(), false);
+    }
+
+    @Test
+    public void conflictsWith_sharedContactDetail_returnsTrue() {
+        for (UnaryOperator<PersonBuilder> clash : CLASHES_WITH_ALEX) {
+            // same name
+            assertConflictBothWays(ALEX, clash.apply(distinctFromAlex().withName(ALEX_NAME)).build(), true);
+            // different name
+            assertConflictBothWays(ALEX, clash.apply(distinctFromAlex()).build(), true);
+        }
+    }
+
+    @Test
+    public void conflictsWith_sameProjectDifferentDetails_returnsFalse() {
+        assertConflictBothWays(ALEX, distinctFromAlex().withProjects(ALEX_PROJECT).build(), false);
+        assertConflictBothWays(ALEX, distinctFromAlex().withName(ALEX_NAME).withProjects(ALEX_PROJECT).build(),
+                false);
+    }
+
+    @Test
+    public void conflictsWith_nameDiffersOnlyInCaseOrSpacing_returnsFalse() {
+        assertConflictBothWays(ALEX, distinctFromAlex().withName("alex yeoh").build(), false);
+        assertConflictBothWays(ALEX, distinctFromAlex().withName("Alex  Yeoh").build(), false);
+    }
+
+    @Test
+    public void conflictsWith_emailDiffersOnlyInCase_returnsTrue() {
+        for (String storedEmail : List.of("ALEX@Example.com", "alex@EXAMPLE.COM")) {
+            Person legacyContact = distinctFromAlex().withStoredEmail(storedEmail).build();
+            assertEquals(storedEmail, legacyContact.getEmail().value);
+            assertFalse(ALEX.getEmail().value.equals(legacyContact.getEmail().value));
+            assertConflictBothWays(ALEX, legacyContact, true);
+        }
+    }
+
+    @Test
+    public void conflictsWith_telegramUsernameWithAtSignAndCase_returnsTrue() {
+        assertConflictBothWays(ALEX, distinctFromAlex().withTelegramUsername("@Alex_Yeoh").build(), true);
+    }
+
+    @Test
+    public void conflictsWith_emptyTelegramUsername_returnsFalse() {
+        Person withoutTelegram = distinctFromAlex().withoutTelegramUsername().build();
+        Person otherWithoutTelegram = new PersonBuilder().withName("Charlotte Oliveiro").withPhone("93210283")
+                .withEmail("charlotte@example.com").withoutTelegramUsername().build();
+
+        assertConflictBothWays(ALEX, withoutTelegram, false);
+        assertConflictBothWays(withoutTelegram, otherWithoutTelegram, false);
+    }
+
+    @Test
+    public void conflictsWith_self_returnsTrue() {
+        assertTrue(ALEX.conflictsWith(ALEX));
+    }
+
+    @Test
+    public void conflictsWith_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ALEX.conflictsWith(null));
+    }
+
+    @Test
+    public void findConflictWith_noSharedDetail_returnsEmpty() {
+        assertEquals(Optional.empty(), distinctFromAlex().build().findConflictWith(ALEX));
+    }
+
+    @Test
+    public void findConflictWith_sharedDetails_reportsPhoneThenEmailThenTelegram() {
+        Person sharesAll = new PersonBuilder(ALEX).withName("Bernice Yu").withEmail("ALEX@example.com").build();
+        Person sharesEmailAndTelegram = distinctFromAlex().withEmail("ALEX@example.com")
+                .withTelegramUsername("alex_yeoh").build();
+        Person sharesTelegram = distinctFromAlex().withTelegramUsername("@Alex_Yeoh").build();
+
+        assertConflict(new ContactConflict(Field.PHONE, ALEX_PHONE, ALEX), sharesAll);
+        assertConflict(new ContactConflict(Field.EMAIL, "alex@example.com", ALEX), sharesEmailAndTelegram);
+        assertConflict(new ContactConflict(Field.TELEGRAM_USERNAME, "@alex_yeoh", ALEX), sharesTelegram);
+    }
+
+    /**
+     * Returns a builder for a person whose name and contact details all differ from {@code ALEX}'s.
+     */
+    private static PersonBuilder distinctFromAlex() {
+        return new PersonBuilder().withName("Bernice Yu").withPhone("82345678")
+                .withEmail("bernice@example.com").withTelegramUsername("bernice_yu");
+    }
+
+    private static void assertConflictBothWays(Person first, Person second, boolean isConflictExpected) {
+        assertEquals(isConflictExpected, first.conflictsWith(second));
+        assertEquals(isConflictExpected, second.conflictsWith(first));
+    }
+
+    private static void assertConflict(ContactConflict expected, Person candidate) {
+        assertEquals(Optional.of(expected), candidate.findConflictWith(ALEX));
     }
 
     @Test
@@ -81,19 +202,25 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different address -> returns false
-        editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
+        // different Telegram username -> returns false
+        editedAlice = new PersonBuilder(ALICE).withTelegramUsername(VALID_TELEGRAM_USERNAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
-        // different tags -> returns false
-        editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
+        // different projects -> returns false
+        editedAlice = new PersonBuilder(ALICE).withProjects("CS2103T").build();
         assertFalse(ALICE.equals(editedAlice));
+
+        // different project order -> returns false
+        Person firstProjectOrder = new PersonBuilder(ALICE).withProjects("CS2103T", "Orbital").build();
+        Person secondProjectOrder = new PersonBuilder(ALICE).withProjects("Orbital", "CS2103T").build();
+        assertFalse(firstProjectOrder.equals(secondProjectOrder));
     }
 
     @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", telegramUsername=" + ALICE.getTelegramUsername()
+                + ", projects=" + ALICE.getProjects() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

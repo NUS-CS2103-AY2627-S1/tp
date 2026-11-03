@@ -1,0 +1,86 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":AddressBookParser" as Parser LOGIC_COLOR
+participant ":RenameProjectCommandParser" as CommandParser LOGIC_COLOR
+participant "command:RenameProjectCommand" as Command LOGIC_COLOR
+participant ":SearchHistory" as SearchHistory LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant ":Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> Logic : execute(input)
+activate Logic
+Logic -> Parser : parseCommand(input)
+activate Parser
+Parser -> CommandParser : parse(arguments)
+activate CommandParser
+create Command
+CommandParser -> Command : RenameProjectCommand(oldProject, newProject)
+activate Command
+Command --> CommandParser
+deactivate Command
+CommandParser --> Parser : command
+deactivate CommandParser
+Parser --> Logic : command
+deactivate Parser
+Logic -> Model : getAddressBook()
+Model --> Logic : addressBook
+note over Logic
+    before = new AddressBook(addressBook)
+end note
+Logic -> Model : getFilteredPersonPredicate()
+Model --> Logic : previousPredicate
+Logic -> SearchHistory : snapshot()
+SearchHistory --> Logic : historyBefore
+Logic -> Command : execute(model)
+activate Command
+Command -> Model : getAddressBook()
+Model --> Command : all contacts
+Command -> Command : validate and build replacement
+note right of Command
+    Each changed contact is copied with person.withProjects(projects),
+    preserving its contact details, including legacy values.
+    Person lifelines are omitted.
+end note
+alt invalid source or no changes
+    Command --> Logic : CommandException
+else rename or merge
+    Command -> Model : setAddressBook(replacement)
+    note right of Model
+        Keep the current filter.
+        Re-evaluate matching contacts.
+    end note
+    Command --> Logic : result (includes undo reminder)
+end
+deactivate Command
+
+alt command failed
+    [<-- Logic : error (no save or undo entry)
+else command succeeded
+    Logic -> Model : getAddressBook()
+    Model --> Logic : current data
+    Logic -> Storage : saveAddressBook(current data)
+    alt save fails
+        Storage --> Logic : IOException
+        Logic -> Model : setAddressBook(before)
+        Logic -> Model : updateFilteredPersonList(previousPredicate)
+        Logic -> SearchHistory : restore(historyBefore)
+        [<-- Logic : save error (no undo entry)
+    else save succeeds
+        Storage --> Logic
+        Logic -> Model : saveUndoState(before)
+        [<-- Logic : success
+    end
+end
+deactivate Logic
+@enduml

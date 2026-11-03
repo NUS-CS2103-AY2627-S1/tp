@@ -1,14 +1,14 @@
 package seedu.address.testutil;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+import java.util.Locale;
 
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.model.project.Project;
 import seedu.address.model.util.SampleDataUtil;
 
 /**
@@ -17,25 +17,25 @@ import seedu.address.model.util.SampleDataUtil;
 public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
-    public static final String DEFAULT_PHONE = "85355255";
+    public static final String DEFAULT_PHONE = "+6585355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
-    public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_TELEGRAM_USERNAME = "amy_bee";
 
     private Name name;
     private Phone phone;
     private Email email;
-    private Address address;
-    private Set<Tag> tags;
+    private TelegramUsername telegramUsername;
+    private List<Project> projects;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
-        phone = new Phone(DEFAULT_PHONE);
+        phone = Phone.fromStoredValue(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
-        address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        telegramUsername = new TelegramUsername(DEFAULT_TELEGRAM_USERNAME);
+        projects = List.of();
     }
 
     /**
@@ -45,8 +45,21 @@ public class PersonBuilder {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
-        address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        telegramUsername = personToCopy.getTelegramUsername();
+        projects = List.copyOf(personToCopy.getProjects());
+    }
+
+    /**
+     * Creates a {@code PersonBuilder} named {@code name}, whose phone, email and Telegram username are derived from
+     * {@code name}. Persons built this way with different names do not share contact details, so they can be added
+     * to the same address book.
+     */
+    public static PersonBuilder named(String name) {
+        String key = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        String phone = "+65" + (10_000_000 + Math.floorMod(key.hashCode(), 90_000_000));
+        String telegramUsername = key + "_user";
+        return new PersonBuilder().withName(name).withPhone(phone).withEmail(key + "@example.com")
+                .withTelegramUsername(telegramUsername.substring(0, Math.min(telegramUsername.length(), 32)));
     }
 
     /**
@@ -58,18 +71,11 @@ public class PersonBuilder {
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
+     * Restores a saved name verbatim, including legacy spacing.
+     * Use {@link #withName(String)} for newly entered names.
      */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
-        return this;
-    }
-
-    /**
-     * Sets the {@code Address} of the {@code Person} that we are building.
-     */
-    public PersonBuilder withAddress(String address) {
-        this.address = new Address(address);
+    public PersonBuilder withStoredName(String name) {
+        this.name = Name.fromStoredValue(name);
         return this;
     }
 
@@ -77,7 +83,7 @@ public class PersonBuilder {
      * Sets the {@code Phone} of the {@code Person} that we are building.
      */
     public PersonBuilder withPhone(String phone) {
-        this.phone = new Phone(phone);
+        this.phone = Phone.fromStoredValue(phone);
         return this;
     }
 
@@ -89,8 +95,50 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Restores a saved email verbatim, including legacy spelling and case.
+     * Use {@link #withEmail(String)} for newly entered email values.
+     */
+    public PersonBuilder withStoredEmail(String email) {
+        this.email = Email.fromStoredValue(email);
+        return this;
+    }
+
+    /**
+     * Sets the {@code TelegramUsername} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withTelegramUsername(String telegramUsername) {
+        this.telegramUsername = new TelegramUsername(telegramUsername);
+        return this;
+    }
+
+    /**
+     * Restores a saved Telegram username, including one that only the pre-v1.5 rule accepts.
+     * Use {@link #withTelegramUsername(String)} for newly entered usernames.
+     */
+    public PersonBuilder withStoredTelegramUsername(String telegramUsername) {
+        this.telegramUsername = TelegramUsername.fromStoredValue(telegramUsername);
+        return this;
+    }
+
+    /**
+     * Gives the {@code Person} that we are building no Telegram username, as for legacy contacts.
+     */
+    public PersonBuilder withoutTelegramUsername() {
+        this.telegramUsername = TelegramUsername.EMPTY;
+        return this;
+    }
+
+    /**
+     * Parses the project names into an ordered project list for the person being built.
+     */
+    public PersonBuilder withProjects(String... projectNames) {
+        projects = SampleDataUtil.getProjectList(projectNames);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, telegramUsername, projects);
     }
 
 }

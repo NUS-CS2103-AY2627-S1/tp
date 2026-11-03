@@ -12,24 +12,25 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.model.project.Project;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_PHONE = "+0123456";
     private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_TELEGRAM_USERNAME = "invalid!";
+    private static final String INVALID_PROJECT = " ";
 
     private static final String VALID_NAME = BENSON.getName().toString();
     private static final String VALID_PHONE = BENSON.getPhone().toString();
     private static final String VALID_EMAIL = BENSON.getEmail().toString();
-    private static final String VALID_ADDRESS = BENSON.getAddress().toString();
-    private static final List<JsonAdaptedTag> VALID_TAGS = BENSON.getTags().stream()
-            .map(JsonAdaptedTag::new)
+    private static final String VALID_TELEGRAM_USERNAME = BENSON.getTelegramUsername().value;
+    private static final List<JsonAdaptedProject> VALID_PROJECTS = BENSON.getProjects().stream()
+            .map(JsonAdaptedProject::new)
             .collect(Collectors.toList());
 
     @Test
@@ -39,16 +40,46 @@ public class JsonAdaptedPersonTest {
     }
 
     @Test
+    public void toModelType_legacyLocalPhone_preservesSavedValue() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, "91234567", VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME, VALID_PROJECTS);
+
+        assertEquals("91234567", person.toModelType().getPhone().value);
+    }
+
+    @Test
+    public void toModelType_legacyNameAndEmail_preservesSavedValues() throws Exception {
+        String oldName = "12345 ";
+        String oldEmail = "Alex@Example";
+        JsonAdaptedPerson person = new JsonAdaptedPerson(oldName, VALID_PHONE, oldEmail,
+                VALID_TELEGRAM_USERNAME, VALID_PROJECTS);
+
+        assertEquals(oldName, person.toModelType().getName().fullName);
+        assertEquals(oldEmail, person.toModelType().getEmail().value);
+    }
+
+    @Test
+    public void toModelType_savedEmailWithOverlongDomainLabel_preservesSavedValue() throws Exception {
+        String savedEmail = "a!b@" + "b".repeat(Email.MAX_DOMAIN_LABEL_LENGTH + 1) + ".com";
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, savedEmail,
+                VALID_TELEGRAM_USERNAME, VALID_PROJECTS);
+
+        assertEquals(savedEmail, person.toModelType().getEmail().value);
+    }
+
+    @Test
     public void toModelType_invalidName_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_TELEGRAM_USERNAME,
+                        VALID_PROJECTS);
         String expectedMessage = Name.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullName_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_TELEGRAM_USERNAME,
+                VALID_PROJECTS);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
@@ -56,14 +87,16 @@ public class JsonAdaptedPersonTest {
     @Test
     public void toModelType_invalidPhone_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_TELEGRAM_USERNAME,
+                        VALID_PROJECTS);
         String expectedMessage = Phone.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
     public void toModelType_nullPhone_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_TELEGRAM_USERNAME,
+                VALID_PROJECTS);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
@@ -71,40 +104,103 @@ public class JsonAdaptedPersonTest {
     @Test
     public void toModelType_invalidEmail_throwsIllegalValueException() {
         JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_TELEGRAM_USERNAME,
+                        VALID_PROJECTS);
         String expectedMessage = Email.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
+    public void toModelType_overlongDottedEmail_throwsIllegalValueExceptionNotStackOverflow() {
+        // Issue #196: a saved email like this used to crash loading instead of being reported as invalid data.
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE,
+                "a.".repeat(17_770) + "a@example.com", VALID_TELEGRAM_USERNAME, VALID_PROJECTS);
+        assertThrows(IllegalValueException.class, Email.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
     public void toModelType_nullEmail_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_ADDRESS, VALID_TAGS);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_TELEGRAM_USERNAME,
+                VALID_PROJECTS);
         String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName());
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
     }
 
     @Test
-    public void toModelType_invalidAddress_throwsIllegalValueException() {
-        JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, INVALID_ADDRESS, VALID_TAGS);
-        String expectedMessage = Address.MESSAGE_CONSTRAINTS;
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_invalidTelegramUsername_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                INVALID_TELEGRAM_USERNAME, VALID_PROJECTS);
+        assertThrows(IllegalValueException.class, TelegramUsername.MESSAGE_CONSTRAINTS, person::toModelType);
     }
 
     @Test
-    public void toModelType_nullAddress_throwsIllegalValueException() {
-        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null, VALID_TAGS);
-        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName());
-        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    public void toModelType_legacyTelegramUsername_preservesSavedValue() throws Exception {
+        // Accepted before v1.5; new input now needs a leading letter and no trailing underscore
+        for (String oldUsername : new String[] {"alex_", "1alex", "_alex"}) {
+            JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, oldUsername,
+                    VALID_PROJECTS);
+
+            assertEquals(oldUsername, person.toModelType().getTelegramUsername().value);
+        }
     }
 
     @Test
-    public void toModelType_invalidTags_throwsIllegalValueException() {
-        List<JsonAdaptedTag> invalidTags = new ArrayList<>(VALID_TAGS);
-        invalidTags.add(new JsonAdaptedTag(INVALID_TAG));
-        JsonAdaptedPerson person =
-                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, invalidTags);
-        assertThrows(IllegalValueException.class, person::toModelType);
+    public void toModelType_missingTelegramUsername_returnsLegacyPerson() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null,
+                VALID_PROJECTS);
+
+        assertEquals(TelegramUsername.EMPTY, person.toModelType().getTelegramUsername());
+    }
+
+    @Test
+    public void toModelType_invalidProject_throwsIllegalValueException() {
+        List<JsonAdaptedProject> invalidProjects = new ArrayList<>(VALID_PROJECTS);
+        invalidProjects.add(new JsonAdaptedProject(INVALID_PROJECT));
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME, invalidProjects);
+
+        assertThrows(IllegalValueException.class, Project.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_duplicateProjectsIgnoringCase_keepsFirstSpelling() throws Exception {
+        List<JsonAdaptedProject> duplicateProjects = List.of(new JsonAdaptedProject("CS2103T"),
+                new JsonAdaptedProject("Orbital"), new JsonAdaptedProject("cs2103t"));
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME, duplicateProjects);
+
+        List<Project> projects = person.toModelType().getProjects();
+        assertEquals(List.of(new Project("CS2103T"), new Project("Orbital")), projects);
+        assertEquals("CS2103T", projects.get(0).projectName);
+    }
+
+    @Test
+    public void toModelType_projectsEqualOnceInvisibleCharactersRemoved_keepsOne() throws Exception {
+        // Issue #177: a file saved before invisible characters were removed can list both spellings
+        List<JsonAdaptedProject> savedProjects = List.of(new JsonAdaptedProject("AlphaBeta"),
+                new JsonAdaptedProject("Alpha" + (char) 0x200B + "Beta"));
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME, savedProjects);
+
+        assertEquals(List.of(new Project("AlphaBeta")), person.toModelType().getProjects());
+    }
+
+    @Test
+    public void toModelType_missingProjects_returnsPersonWithEmptyProjectList() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME, null);
+
+        assertEquals(List.of(), person.toModelType().getProjects());
+    }
+
+    @Test
+    public void toModelType_projects_preservesSavedOrder() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_TELEGRAM_USERNAME,
+                List.of(new JsonAdaptedProject("Orbital"), new JsonAdaptedProject("CS2103T")));
+
+        assertEquals(List.of(new Project("Orbital"), new Project("CS2103T")),
+                person.toModelType().getProjects());
     }
 
 }

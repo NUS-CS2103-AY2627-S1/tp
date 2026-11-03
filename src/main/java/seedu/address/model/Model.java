@@ -1,9 +1,12 @@
 package seedu.address.model;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.person.ContactConflict;
 import seedu.address.model.person.Person;
 
 /**
@@ -37,9 +40,16 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns the first conflict between {@code candidate} and a person in the address book, if any.
+     * Two persons conflict if they share a phone number, email or Telegram username.
      */
-    boolean hasPerson(Person person);
+    Optional<ContactConflict> findConflict(Person candidate);
+
+    /**
+     * Returns the first conflict between {@code candidate} and a person in the address book other than
+     * {@code excluded}, if any. Use this when {@code candidate} is an edited version of {@code excluded}.
+     */
+    Optional<ContactConflict> findConflict(Person candidate, Person excluded);
 
     /**
      * Deletes the given person.
@@ -49,23 +59,64 @@ public interface Model {
 
     /**
      * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * {@code person} must not conflict with any person in the address book.
      */
     void addPerson(Person person);
 
     /**
      * Replaces the given person {@code target} with {@code editedPerson}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * {@code editedPerson} must not conflict with any person in the address book other than {@code target}.
      */
     void setPerson(Person target, Person editedPerson);
+
+    /**
+     * Reorders all persons in the address book according to {@code comparator}.
+     * The current filter is kept, so the filtered list shows its persons in the new order.
+     */
+    void sortPersons(Comparator<Person> comparator);
 
     /** Returns an unmodifiable view of the filtered person list */
     ObservableList<Person> getFilteredPersonList();
 
+    /** Returns the current predicate of the filtered person list so it can be restored after a failed save. */
+    Predicate<Person> getFilteredPersonPredicate();
+
+    /**
+     * Returns an unmodifiable, observable view of persons matching the latest search predicate.
+     * The view is initially empty and reflects changes to the underlying address book.
+     * Updating the main list to show all persons preserves this view's search predicate.
+     */
+    ObservableList<Person> getRecentFindList();
+
     /**
      * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Also updates the recent search predicate unless {@code predicate} is {@link #PREDICATE_SHOW_ALL_PERSONS}.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Adds a copy of {@code previousState} to the undo history.
+     * @throws NullPointerException if {@code previousState} is null.
+     */
+    void saveUndoState(ReadOnlyAddressBook previousState);
+
+    /**
+     * Returns true if there is a saved address book state to restore.
+     */
+    boolean canUndo();
+
+    /**
+     * Returns a copy of the next state to restore without consuming undo history.
+     * @throws IllegalStateException if there is no saved state to restore.
+     */
+    ReadOnlyAddressBook getUndoState();
+
+    /**
+     * Restores the most recent saved address book state and shows all persons.
+     * Only that saved state is discarded after undoing; earlier states remain available.
+     * @throws IllegalStateException if there is no saved state to restore.
+     */
+    void undo();
 }

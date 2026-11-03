@@ -3,10 +3,20 @@ package seedu.address.ui;
 import java.util.logging.Logger;
 
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 
@@ -15,8 +25,57 @@ import seedu.address.commons.core.LogsCenter;
  */
 public class HelpWindow extends UiPart<Stage> {
 
-    public static final String USERGUIDE_URL = "https://se-education.org/addressbook-level3/UserGuide.html";
-    public static final String HELP_MESSAGE = "Refer to the user guide: " + USERGUIDE_URL;
+    public static final String USERGUIDE_URL = "https://ay2627s1-cs2103t-w14-2.github.io/tp/UserGuide.html";
+    public static final String HELP_MESSAGE = "LinkUp command reference\n\n"
+            + "COMMAND: add n/NAME p/PHONE e/EMAIL tele/TELEGRAM_USERNAME pr/PROJECT\n"
+            + "Save a contact with their phone, email, Telegram username and project. "
+            + "Phone example: p/+6591234567.\n\n"
+            + "COMMAND: edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [tele/TELEGRAM_USERNAME]\n"
+            + "Change one or more of these details of the contact at the given index, in any order. "
+            + "Projects stay unchanged; use project to add one.\n\n"
+            + "COMMAND: list\n"
+            + "Show all saved contacts and their projects.\n\n"
+            + "COMMAND: sort\n"
+            + "Sort all contacts by name, ignoring case, and save the new order. Search results stay displayed.\n\n"
+            + "COMMAND: delete INDEX\n"
+            + "Remove the contact at the given index in the displayed list.\n\n"
+            + "COMMAND: find KEYWORD [MORE_KEYWORDS]\n"
+            + "Match any keyword within a name (case-insensitive, including partial words). "
+            + "Search input: 1-60 characters in total after trimming surrounding whitespace.\n\n"
+            + "COMMAND: project INDEX [MORE_INDICES] pr/PROJECT\n"
+            + "Associate selected contacts with one project. "
+            + "All selections must be valid; one undo reverses the batch.\n\n"
+            + "COMMAND: replaceproject INDEX old/OLD_PROJECT new/NEW_PROJECT\n"
+            + "Replace one project association on the selected contact, preserving its position. "
+            + "Capitalisation corrections are allowed; "
+            + "unchanged or duplicate replacements are rejected. Undo restores the association.\n\n"
+            + "COMMAND: renameproject old/OLD_NAME new/NEW_NAME\n"
+            + "Rename across all contacts, including hidden ones, while keeping the current search. "
+            + "An existing destination merges immediately. Use undo to reverse the whole rename or merge. "
+            + "Quotation marks and backslashes are literal parts of project names.\n\n"
+            + "COMMAND: findproject KEYWORD\n"
+            + "Match a whole phrase within any project name, ignoring case. "
+            + "Search input: 1-40 characters after trimming surrounding whitespace.\n\n"
+            + "COMMAND: deleteproject INDEX [MORE_INDICES] pr/PROJECT\n"
+            + "Remove one project from selected contacts, including their last association. "
+            + "All selections must be valid; one undo restores the entire batch.\n\n"
+            + "COMMAND: projects\n"
+            + "List every project across all saved contacts, sorted by name, ignoring case, "
+            + "with the number of contacts in each. "
+            + "Takes no parameters; the displayed contact list stays unchanged.\n\n"
+            + "COMMAND: clear\n"
+            + "Delete all contacts, including contacts hidden by a search. "
+            + "There is no confirmation prompt; use undo in this session to restore them.\n\n"
+            + "COMMAND: undo\n"
+            + "Reverse the latest supported contact or project change. Repeat to undo earlier changes. "
+            + "History is lost when LinkUp closes; there is no redo.\n\n"
+            + "COMMAND: help\n"
+            + "Open this reference. The Help menu and F1 also open it.\n\n"
+            + "COMMAND: exit\n"
+            + "Close LinkUp. Contacts are saved automatically after successful commands.\n\n"
+            + "Use indices from the currently displayed list. Same names are allowed; phone numbers, "
+            + "emails and non-empty Telegram usernames must be unique.\n\n"
+            + "Refer to the user guide: " + USERGUIDE_URL;
 
     private static final Logger logger = LogsCenter.getLogger(HelpWindow.class);
     private static final String FXML = "HelpWindow.fxml";
@@ -34,7 +93,28 @@ public class HelpWindow extends UiPart<Stage> {
      */
     public HelpWindow(Stage root) {
         super(FXML, root);
-        helpMessage.setText(HELP_MESSAGE);
+        HBox container = (HBox) getRoot().getScene().getRoot();
+        container.getChildren().clear();
+
+        VBox content = new VBox(12);
+        content.setMinWidth(0);
+        String[] sections = HELP_MESSAGE.split("\n\n");
+        for (int i = 0; i < sections.length - 1; i++) {
+            content.getChildren().add(createHelpSection(sections[i]));
+        }
+
+        helpMessage.setText(sections[sections.length - 1]);
+        helpMessage.setWrapText(true);
+        VBox guideRow = new VBox(10, helpMessage, copyButton);
+        guideRow.setAlignment(Pos.CENTER_LEFT);
+        content.getChildren().add(guideRow);
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setId("helpScrollPane");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportWidth(620);
+        scrollPane.setPrefViewportHeight(480);
+        HBox.setHgrow(scrollPane, Priority.ALWAYS);
+        container.getChildren().add(scrollPane);
     }
 
     /**
@@ -42,6 +122,27 @@ public class HelpWindow extends UiPart<Stage> {
      */
     public HelpWindow() {
         this(new Stage());
+    }
+
+    /**
+     * Creates a help section with a bold command label where applicable.
+     */
+    private TextFlow createHelpSection(String section) {
+        TextFlow flow = new TextFlow();
+        String sectionText = section;
+        if (section.startsWith("COMMAND:")) {
+            Text commandLabel = new Text("COMMAND:");
+            commandLabel.setFont(Font.font(helpMessage.getFont().getFamily(), FontWeight.BOLD,
+                    helpMessage.getFont().getSize()));
+            commandLabel.setFill(Color.WHITE);
+            flow.getChildren().add(commandLabel);
+            sectionText = section.substring("COMMAND:".length());
+        }
+        Text text = new Text(sectionText);
+        text.setFont(helpMessage.getFont());
+        text.setFill(Color.WHITE);
+        flow.getChildren().add(text);
+        return flow;
     }
 
     /**

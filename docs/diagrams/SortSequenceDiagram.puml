@@ -1,0 +1,116 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant "s:SortCommand" as SortCommand LOGIC_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+participant "before:AddressBook" as Before MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("sort")
+activate LogicManager
+
+LogicManager -> AddressBookParser : parseCommand("sort")
+activate AddressBookParser
+
+create SortCommand
+AddressBookParser -> SortCommand
+activate SortCommand
+SortCommand --> AddressBookParser
+deactivate SortCommand
+
+AddressBookParser --> LogicManager : s
+deactivate AddressBookParser
+
+LogicManager -> Model : getAddressBook()
+activate Model
+Model --> LogicManager : addressBook
+deactivate Model
+
+create Before
+LogicManager -> Before : AddressBook(addressBook)
+activate Before
+Before --> LogicManager
+deactivate Before
+
+note over LogicManager, Model
+    Filter predicate and search-history snapshots are also captured.
+    See the shared persistence diagram.
+end note
+
+LogicManager -> SortCommand : execute(m)
+activate SortCommand
+
+SortCommand -> Model : getAddressBook()
+activate Model
+Model --> SortCommand : addressBook
+deactivate Model
+
+alt no contacts or already sorted
+    note right of SortCommand
+        Feedback: no contacts or already sorted.
+        Result has isDataChanged() = false.
+    end note
+else contacts need sorting
+    SortCommand -> Model : sortPersons(nameComparator)
+    activate Model
+    Model --> SortCommand
+    deactivate Model
+    note right of SortCommand
+        Feedback: sorted contact count.
+        Result has isDataChanged() = true.
+    end note
+end
+
+create CommandResult
+SortCommand -> CommandResult : create result
+activate CommandResult
+CommandResult --> SortCommand : r
+deactivate CommandResult
+note over SortCommand, CommandResult
+    Result creation is abstracted; factory details are omitted.
+end note
+SortCommand --> LogicManager : r
+deactivate SortCommand
+
+LogicManager -> CommandResult : isDataChanged()
+activate CommandResult
+CommandResult --> LogicManager : changed
+deactivate CommandResult
+
+opt changed
+    note over LogicManager, Storage
+        Successful save shown.
+        Failed-save rollback: see the shared persistence diagram.
+    end note
+
+    LogicManager -> Model : getAddressBook()
+    activate Model
+    Model --> LogicManager : addressBook
+    deactivate Model
+
+    LogicManager -> Storage : saveAddressBook(addressBook)
+    activate Storage
+    Storage --> LogicManager
+    deactivate Storage
+
+    LogicManager -> Model : saveUndoState(before)
+    activate Model
+    Model --> LogicManager
+    deactivate Model
+end
+
+[<-- LogicManager : r
+deactivate LogicManager
+@enduml

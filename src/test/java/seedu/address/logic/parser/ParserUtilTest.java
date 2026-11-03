@@ -1,36 +1,31 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
-import java.util.List;
-import java.util.Set;
-
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.person.TelegramUsername;
+import seedu.address.model.project.Project;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
-    private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_PHONE = "91234567";
     private static final String INVALID_EMAIL = "example.com";
-    private static final String INVALID_TAG = "#friend";
+    private static final String INVALID_TELEGRAM_USERNAME = "r@ch";
+    private static final String INVALID_PROJECT = " ";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
-    private static final String VALID_ADDRESS = "123 Main Street #0505";
+    private static final String VALID_PHONE = "+6591234567";
     private static final String VALID_EMAIL = "rachel@example.com";
-    private static final String VALID_TAG_1 = "friend";
-    private static final String VALID_TAG_2 = "neighbour";
+    private static final String VALID_TELEGRAM_USERNAME = "rachel_walker";
+    private static final String VALID_PROJECT = "CS2103T Team Project";
 
     private static final String WHITESPACE = " \t\r\n";
 
@@ -42,15 +37,15 @@ public class ParserUtilTest {
     @Test
     public void parseIndex_outOfRangeInput_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1L)));
     }
 
     @Test
     public void parseIndex_validInput_success() throws Exception {
-        // No whitespaces
+        // EP: No whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("1"));
 
-        // Leading and trailing whitespaces
+        // EP: Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
     }
 
@@ -62,6 +57,8 @@ public class ParserUtilTest {
     @Test
     public void parseName_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseName(INVALID_NAME));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("12345"));
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("A".repeat(61)));
     }
 
     @Test
@@ -75,6 +72,7 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+        assertEquals(expectedName, ParserUtil.parseName("Rachel" + WHITESPACE + "\u00A0 Walker"));
     }
 
     @Test
@@ -101,26 +99,13 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseAddress_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
+    public void parsePhone_separators_returnsCanonicalPhone() throws Exception {
+        assertEquals(VALID_PHONE, ParserUtil.parsePhone("+65 9123-4567").value);
     }
 
     @Test
-    public void parseAddress_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseAddress(INVALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
-    }
-
-    @Test
-    public void parseAddress_validValueWithWhitespace_returnsTrimmedAddress() throws Exception {
-        String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
-        Address expectedAddress = new Address(VALID_ADDRESS);
-        assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
+    public void parsePhone_unverifiedCallingCode_acceptsValidFormat() throws Exception {
+        assertEquals("+9991234567", ParserUtil.parsePhone("+9991234567").value);
     }
 
     @Test
@@ -131,6 +116,20 @@ public class ParserUtilTest {
     @Test
     public void parseEmail_invalidValue_throwsParseException() {
         assertThrows(ParseException.class, () -> ParserUtil.parseEmail(INVALID_EMAIL));
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail("alex@example"));
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseEmail("alex@example..com"));
+        assertThrows(ParseException.class, Email.MESSAGE_CONSTRAINTS, () ->
+                ParserUtil.parseEmail("a@" + "b".repeat(Email.MAX_DOMAIN_LABEL_LENGTH + 1) + ".com"));
+    }
+
+    @Test
+    public void parseEmail_tooLong_throwsSpecificParseException() {
+        assertThrows(ParseException.class, Email.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseEmail("a".repeat(65) + "@example.com"));
+        assertThrows(ParseException.class, Email.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseEmail("a@" + "b".repeat(250) + ".com"));
+        assertThrows(ParseException.class, Email.MESSAGE_TOO_LONG, () ->
+                ParserUtil.parseEmail("a.".repeat(17_770) + "a@example.com")); // issue #196
     }
 
     @Test
@@ -147,48 +146,42 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseTag_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseTag(null));
+    public void parseEmail_mixedCase_storesLowercase() throws Exception {
+        assertEquals("alex@example.com", ParserUtil.parseEmail("Alex@Example.COM").value);
     }
 
     @Test
-    public void parseTag_invalidValue_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseTag(INVALID_TAG));
+    public void parseTelegramUsername_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseTelegramUsername(null));
     }
 
     @Test
-    public void parseTag_validValueWithoutWhitespace_returnsTag() throws Exception {
-        Tag expectedTag = new Tag(VALID_TAG_1);
-        assertEquals(expectedTag, ParserUtil.parseTag(VALID_TAG_1));
+    public void parseTelegramUsername_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseTelegramUsername(INVALID_TELEGRAM_USERNAME));
     }
 
     @Test
-    public void parseTag_validValueWithWhitespace_returnsTrimmedTag() throws Exception {
-        String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
-        Tag expectedTag = new Tag(VALID_TAG_1);
-        assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    public void parseTelegramUsername_validValue_returnsNormalizedTelegramUsername() throws Exception {
+        TelegramUsername expectedTelegramUsername = new TelegramUsername(VALID_TELEGRAM_USERNAME);
+        assertEquals(expectedTelegramUsername,
+                ParserUtil.parseTelegramUsername(WHITESPACE + "@Rachel_Walker" + WHITESPACE));
     }
 
     @Test
-    public void parseTags_null_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> ParserUtil.parseTags(null));
+    public void parseProject_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseProject(null));
     }
 
     @Test
-    public void parseTags_collectionWithInvalidTags_throwsParseException() {
-        assertThrows(ParseException.class, () -> ParserUtil.parseTags(List.of(VALID_TAG_1, INVALID_TAG)));
+    public void parseProject_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseProject(INVALID_PROJECT));
     }
 
     @Test
-    public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
-        assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
+    public void parseProject_validValue_returnsNormalizedProject() throws Exception {
+        Project expectedProject = new Project(VALID_PROJECT);
+        assertEquals(expectedProject, ParserUtil.parseProject("  CS2103T   Team Project  "));
+        assertEquals(VALID_PROJECT, ParserUtil.parseProject("  CS2103T   Team Project  ").projectName);
     }
 
-    @Test
-    public void parseTags_collectionWithValidTags_returnsTagSet() throws Exception {
-        Set<Tag> actualTagSet = ParserUtil.parseTags(List.of(VALID_TAG_1, VALID_TAG_2));
-        Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
-
-        assertEquals(expectedTagSet, actualTagSet);
-    }
 }

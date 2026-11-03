@@ -3,6 +3,10 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayDeque;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -10,6 +14,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.person.ContactConflict;
 import seedu.address.model.person.Person;
 
 /**
@@ -21,6 +26,8 @@ public class ModelManager implements Model {
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final Deque<AddressBook> undoHistory = new ArrayDeque<>();
+    private final FilteredList<Person> recentFind;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -28,11 +35,12 @@ public class ModelManager implements Model {
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+        logger.fine("Initializing model with " + addressBook.getPersonList().size() + " contact(s).");
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        recentFind = new FilteredList<>(this.addressBook.getPersonList(), person -> false);
     }
 
     public ModelManager() {
@@ -70,9 +78,15 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public Optional<ContactConflict> findConflict(Person candidate) {
+        requireNonNull(candidate);
+        return addressBook.findConflict(candidate);
+    }
+
+    @Override
+    public Optional<ContactConflict> findConflict(Person candidate, Person excluded) {
+        requireAllNonNull(candidate, excluded);
+        return addressBook.findConflict(candidate, excluded);
     }
 
     @Override
@@ -93,6 +107,12 @@ public class ModelManager implements Model {
         addressBook.setPerson(target, editedPerson);
     }
 
+    @Override
+    public void sortPersons(Comparator<Person> comparator) {
+        requireNonNull(comparator);
+        addressBook.sortPersons(comparator);
+    }
+
     //=========== Filtered Person List Accessors =============================================================
 
     /**
@@ -105,9 +125,28 @@ public class ModelManager implements Model {
     }
 
     @Override
+    public Predicate<Person> getFilteredPersonPredicate() {
+        Predicate<? super Person> predicate = filteredPersons.getPredicate();
+        return predicate == null || predicate == PREDICATE_SHOW_ALL_PERSONS
+                ? PREDICATE_SHOW_ALL_PERSONS : predicate::test;
+    }
+
+    @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
         filteredPersons.setPredicate(predicate);
+        if (predicate != PREDICATE_SHOW_ALL_PERSONS) {
+            recentFind.setPredicate(predicate);
+        }
+    }
+
+    /**
+     * Returns the live filtered view backed by the address book and retaining the latest search predicate.
+     * The same list instance is returned so UI bindings continue to observe subsequent searches and contact changes.
+     */
+    @Override
+    public ObservableList<Person> getRecentFindList() {
+        return recentFind;
     }
 
     @Override
@@ -126,4 +165,41 @@ public class ModelManager implements Model {
                 && filteredPersons.equals(otherModelManager.filteredPersons);
     }
 
+    /**
+     * Adds a copy of {@code previousState} to the undo history.
+     */
+    @Override
+    public void saveUndoState(ReadOnlyAddressBook previousState) {
+        undoHistory.push(new AddressBook(previousState));
+    }
+
+    /**
+     * Returns true if there is a saved address book state to restore.
+     */
+    @Override
+    public boolean canUndo() {
+        return !undoHistory.isEmpty();
+    }
+
+    @Override
+    public ReadOnlyAddressBook getUndoState() {
+        if (!canUndo()) {
+            throw new IllegalStateException("No command to undo");
+        }
+        return new AddressBook(undoHistory.peek());
+    }
+
+    /**
+     * Restores the most recent saved address book state, discards it and shows all persons.
+     * @throws IllegalStateException if there is no saved state to restore.
+     */
+    @Override
+    public void undo() {
+        if (!canUndo()) {
+            throw new IllegalStateException("No command to undo");
+        }
+
+        addressBook.resetData(undoHistory.pop());
+        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    }
 }

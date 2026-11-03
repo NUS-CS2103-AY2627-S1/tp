@@ -1,0 +1,50 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+participant "p:ProjectCommand" as ProjectCommand LOGIC_COLOR
+participant "m:Model" as Model MODEL_COLOR
+
+[-> ProjectCommand : execute(m)
+activate ProjectCommand
+
+ProjectCommand -> ProjectCommand : getValidatedContacts(m)
+activate ProjectCommand
+ProjectCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> ProjectCommand : displayedContacts
+deactivate Model
+ProjectCommand --> ProjectCommand : originals
+deactivate ProjectCommand
+
+note over ProjectCommand, Model
+    All indices and duplicate associations are checked
+    before any contact is changed.
+    ProjectContactSelection.describeContacts formats conflicts
+    and batch success contacts in the original selection order.
+end note
+
+loop for each selected contact
+    ProjectCommand -> ProjectCommand : createUpdatedContact(original)
+    activate ProjectCommand
+    ProjectCommand --> ProjectCommand : replacement
+    deactivate ProjectCommand
+end
+
+note over ProjectCommand, Model
+    ProjectContactSelection.updateContacts builds every replacement
+    via createUpdatedContact, then calls Model.setPerson for each.
+    createUpdatedContact uses original.withProjects(projects).
+    The helper and Person lifelines are omitted here.
+end note
+
+loop for each prepared replacement
+    ProjectCommand -> Model : setPerson(original, replacement)
+    activate Model
+    Model --> ProjectCommand
+    deactivate Model
+end
+
+[<-- ProjectCommand : success result
+deactivate ProjectCommand
+@enduml

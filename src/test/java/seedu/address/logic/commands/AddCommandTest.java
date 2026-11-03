@@ -5,23 +5,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.ConflictTestUtil.ALICE_NAMESAKE;
+import static seedu.address.testutil.ConflictTestUtil.clashesWith;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.person.ContactConflict;
 import seedu.address.model.person.Person;
+import seedu.address.testutil.ConflictTestUtil.Clash;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -34,22 +40,41 @@ public class AddCommandTest {
     @Test
     public void execute_personAcceptedByModel_addSuccessful() throws Exception {
         ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
-        Person validPerson = new PersonBuilder().build();
+        Person validPerson = new PersonBuilder().withProjects("CS2103T").build();
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
-                commandResult.getFeedbackToUser());
+        assertEquals("Added contact 1: Amy Bee [CS2103T]", commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
 
     @Test
-    public void execute_duplicatePerson_throwsCommandException() {
+    public void execute_samePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
+        String expectedMessage = validPerson.findConflictWith(validPerson).orElseThrow().getMessage();
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_clashingPerson_throwsCommandException() {
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+        for (Clash clash : clashesWith(ALICE, ALICE_NAMESAKE)) {
+            AddCommand addCommand = new AddCommand(clash.person());
+            assertThrows(CommandException.class, clash.expectedMessage(), () -> addCommand.execute(modelStub));
+        }
+    }
+
+    @Test
+    public void execute_sameNameDistinctDetails_addSuccessful() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+
+        new AddCommand(ALICE).execute(modelStub);
+        new AddCommand(ALICE_NAMESAKE).execute(modelStub);
+
+        assertEquals(List.of(ALICE, ALICE_NAMESAKE), modelStub.personsAdded);
     }
 
     @Test
@@ -118,7 +143,12 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
+        public Optional<ContactConflict> findConflict(Person candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<ContactConflict> findConflict(Person candidate, Person excluded) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -133,12 +163,46 @@ public class AddCommandTest {
         }
 
         @Override
+        public void sortPersons(Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
+        public Predicate<Person> getFilteredPersonPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        public ObservableList<Person> getRecentFindList() {
+            throw new AssertionError("This method should not be called");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void saveUndoState(ReadOnlyAddressBook previousState) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyAddressBook getUndoState() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void undo() {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -155,9 +219,9 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public Optional<ContactConflict> findConflict(Person candidate) {
+            requireNonNull(candidate);
+            return candidate.findConflictWith(person);
         }
     }
 
@@ -168,9 +232,9 @@ public class AddCommandTest {
         final ArrayList<Person> personsAdded = new ArrayList<>();
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
+        public Optional<ContactConflict> findConflict(Person candidate) {
+            requireNonNull(candidate);
+            return personsAdded.stream().map(candidate::findConflictWith).flatMap(Optional::stream).findFirst();
         }
 
         @Override
@@ -182,6 +246,11 @@ public class AddCommandTest {
         @Override
         public ReadOnlyAddressBook getAddressBook() {
             return new AddressBook();
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return FXCollections.observableArrayList(personsAdded);
         }
     }
 

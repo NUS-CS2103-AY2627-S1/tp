@@ -1,14 +1,53 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# LinkUp
 
-![Ui](docs/images/Ui.png)
+[![Java CI](https://github.com/AY2627S1-CS2103T-W14-2/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-W14-2/tp/actions/workflows/gradle.yml)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-W14-2/tp/branch/master/graph/badge.svg)](https://app.codecov.io/gh/AY2627S1-CS2103T-W14-2/tp)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+**LinkUp is a desktop contact manager for students working across projects and teams.**
+
+It helps students organise their project mates' contact details together with relevant project information. This makes it easier to retrieve the right contact quickly and distinguish between people with identical or similar names across different projects.
+
+## Get started
+
+1. Install Java 25.
+2. Download `LinkUp.jar` from the [LinkUp releases](https://github.com/AY2627S1-CS2103T-W14-2/tp/releases).
+3. Open a terminal in the folder containing the JAR and run `java -jar LinkUp.jar`.
+4. Try `list`, `find alex`, or `findproject cs2103` with the supplied sample contacts.
+
+LinkUp saves contacts under `data/addressbook.json` relative to the folder from which you launch it.
+See the [User Guide](https://ay2627s1-cs2103t-w14-2.github.io/tp/UserGuide.html) for validation rules,
+duplicate-contact handling, and data recovery.
+
+## Features
+
+- Save names, international phone numbers, emails, Telegram usernames, and an initial project.
+- Allow identical names while rejecting shared phone numbers, emails, or Telegram usernames.
+- Find contacts by partial name keywords or a project-name phrase.
+- Associate additional projects, delete contacts by displayed index, and undo supported changes during the session.
+- Add a project to multiple contacts, replace or remove individual associations, list tracked projects, and rename
+  or merge projects across all contacts.
+- Edit contact details, sort contacts by name, and keep the latest and most frequently matched contacts visible.
+- List all contacts, clear all contacts, open command help, and exit the app.
+
+The core commands are `add`, `list`, `find`, `findproject`, `project`, `delete`, `clear`, `undo`, `help`, and `exit`.
+`edit` changes a contact's name, phone number, email or Telegram username, and `sort` orders contacts by name.
+Projects are added with `project`, listed with `projects`, replaced on one contact with `replaceproject`, removed
+with `deleteproject`, and renamed or merged across all contacts with `renameproject`.
+
+## UI
+
+The screenshot below shows the LinkUp interface.
+
+![LinkUp UI showing project mates' contact details and project labels](docs/images/Ui.png)
+
+## Documentation
+
+Visit the [LinkUp product website](https://ay2627s1-cs2103t-w14-2.github.io/tp/) for project documentation:
+
+- [User Guide](https://ay2627s1-cs2103t-w14-2.github.io/tp/UserGuide.html)
+- [Developer Guide](https://ay2627s1-cs2103t-w14-2.github.io/tp/DeveloperGuide.html)
+- [Release notes](docs/ReleaseNotes.md)
+- [About Us](https://ay2627s1-cs2103t-w14-2.github.io/tp/AboutUs.html)
+
+## Acknowledgement
+This project is based on the AddressBook-Level3 project created by the [SE-EDU initiative](https://se-education.org)

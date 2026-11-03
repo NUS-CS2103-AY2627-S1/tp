@@ -1,14 +1,16 @@
 package seedu.address.model.person;
 
+import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Optional;
 
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.project.Project;
 
 /**
  * Represents a Person in the address book.
@@ -16,25 +18,38 @@ import seedu.address.model.tag.Tag;
  */
 public class Person {
 
-    // Identity fields
+    public static final String MESSAGE_DUPLICATE_PROJECTS = "A contact cannot contain duplicate projects";
+
     private final Name name;
+
+    // Contact details that must be unique across contacts
     private final Phone phone;
     private final Email email;
+    private final TelegramUsername telegramUsername;
 
     // Data fields
-    private final Address address;
-    private final Set<Tag> tags = new HashSet<>();
+    private final List<Project> projects;
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, TelegramUsername telegramUsername) {
+        this(name, phone, email, telegramUsername, List.of());
+    }
+
+    /**
+     * Every field must be present and not null. Projects must not contain duplicates.
+     */
+    public Person(Name name, Phone phone, Email email, TelegramUsername telegramUsername,
+            List<Project> projects) {
+        requireAllNonNull(name, phone, email, telegramUsername);
+        requireAllNonNull(projects);
+        checkArgument(new HashSet<>(projects).size() == projects.size(), MESSAGE_DUPLICATE_PROJECTS);
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.address = address;
-        this.tags.addAll(tags);
+        this.telegramUsername = telegramUsername;
+        this.projects = List.copyOf(projects);
     }
 
     public Name getName() {
@@ -49,34 +64,65 @@ public class Person {
         return email;
     }
 
-    public Address getAddress() {
-        return address;
+    public TelegramUsername getTelegramUsername() {
+        return telegramUsername;
     }
 
     /**
-     * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
-     * if modification is attempted.
+     * Returns the projects in their saved display order.
      */
-    public Set<Tag> getTags() {
-        return Collections.unmodifiableSet(tags);
+    public List<Project> getProjects() {
+        return projects;
+    }
+
+    /** Returns a new contact with the supplied projects, preserving all other fields exactly. */
+    public Person withProjects(List<Project> updatedProjects) {
+        return new Person(name, phone, email, telegramUsername, updatedProjects);
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if this person and {@code otherPerson} cannot both be saved, because they share a phone number,
+     * an email (ignoring case) or a non-empty Telegram username. Names and projects are never compared.
+     * This relation is symmetric but not transitive, so it is not an equivalence.
      */
-    public boolean isSamePerson(Person otherPerson) {
-        if (otherPerson == this) {
-            return true;
+    public boolean conflictsWith(Person otherPerson) {
+        return findConflictWith(otherPerson).isPresent();
+    }
+
+    /**
+     * Returns the first contact detail this person shares with {@code existingPerson}, checking phone, email and
+     * Telegram username in that order, or an empty {@code Optional} if they do not conflict.
+     * The reported value is taken from this person.
+     */
+    public Optional<ContactConflict> findConflictWith(Person existingPerson) {
+        requireNonNull(existingPerson);
+        if (phone.equals(existingPerson.phone)) {
+            return conflictOn(ContactConflict.Field.PHONE, phone, existingPerson);
         }
-
-        return otherPerson != null
-                && otherPerson.getName().equals(getName());
+        if (email.equals(existingPerson.email)) {
+            return conflictOn(ContactConflict.Field.EMAIL, email, existingPerson);
+        }
+        if (hasSameTelegramUsername(existingPerson)) {
+            return conflictOn(ContactConflict.Field.TELEGRAM_USERNAME, telegramUsername, existingPerson);
+        }
+        return Optional.empty();
     }
 
     /**
-     * Returns true if both persons have the same identity and data fields.
-     * This defines a stronger notion of equality between two persons.
+     * Returns true if both persons have the same Telegram username. An empty username never matches.
+     */
+    private boolean hasSameTelegramUsername(Person otherPerson) {
+        return !telegramUsername.isEmpty() && telegramUsername.equals(otherPerson.telegramUsername);
+    }
+
+    private static Optional<ContactConflict> conflictOn(ContactConflict.Field field, Object value,
+            Person existingPerson) {
+        return Optional.of(new ContactConflict(field, value.toString(), existingPerson));
+    }
+
+    /**
+     * Returns true if both persons have identical fields.
+     * Two contacts that are not equal may still conflict; see {@link #conflictsWith(Person)}.
      */
     @Override
     public boolean equals(Object other) {
@@ -92,14 +138,14 @@ public class Person {
         return name.equals(otherPerson.name)
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && telegramUsername.equals(otherPerson.telegramUsername)
+                && projects.equals(otherPerson.projects);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, telegramUsername, projects);
     }
 
     @Override
@@ -108,8 +154,8 @@ public class Person {
                 .add("name", name)
                 .add("phone", phone)
                 .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
+                .add("telegramUsername", telegramUsername)
+                .add("projects", projects)
                 .toString();
     }
 
