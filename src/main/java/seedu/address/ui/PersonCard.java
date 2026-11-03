@@ -1,10 +1,9 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
+import java.util.Optional;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import seedu.address.model.person.Person;
@@ -35,11 +34,11 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label phone;
     @FXML
-    private Label address;
+    private Label academicInfo;
     @FXML
-    private Label email;
+    private Label nextLesson;
     @FXML
-    private FlowPane tags;
+    private Label recurringLesson;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -49,11 +48,21 @@ public class PersonCard extends UiPart<Region> {
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
-        phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        phone.setText("Phone: " + person.getPhone().value);
+        setOptionalLabel(academicInfo, PersonCardFormatter.formatSummaryAcademicInfo(
+                person.getSchoolLevel(), person.getSubject()));
+        setOptionalLabel(nextLesson, PersonCardFormatter.formatNextLessonSummary(person.getNextLesson()));
+        setOptionalLabel(recurringLesson,
+                PersonCardFormatter.formatRecurringLessonSummary(person.getRecurringLesson()));
+    }
+
+    /**
+     * Sets the label text when present, or removes the label from the layout when absent.
+     */
+    private static void setOptionalLabel(Label label, Optional<String> text) {
+        text.ifPresentOrElse(label::setText, () -> {
+            label.setVisible(false);
+            label.setManaged(false);
+        });
     }
 }

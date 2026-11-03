@@ -3,20 +3,26 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
  */
 public class Name {
 
+    public static final int MAX_LENGTH = 100;
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain alphanumeric characters, spaces, hyphens, and apostrophes, "
+                    + "should not be blank, and should use hyphens and apostrophes only between "
+                    + "alphanumeric characters. Names can be at most " + MAX_LENGTH + " characters long";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Each hyphen or apostrophe must join two alphanumeric name segments. Spaces may separate name segments,
+     * while the first character must be alphanumeric.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX =
+            "[\\p{L}\\p{N}]+(?:['-][\\p{L}\\p{N}]+)*(?: +[\\p{L}\\p{N}]+(?:['-][\\p{L}\\p{N}]+)*)* *";
 
     public final String fullName;
 
@@ -35,7 +41,23 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.codePointCount(0, test.length()) <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
+    }
+
+    /**
+     * Returns true if both names are equivalent for duplicate detection.
+     * Comparison is case-insensitive, ignores surrounding spaces, and treats consecutive spaces as one space.
+     */
+    public boolean isSameName(Name otherName) {
+        if (otherName == null) {
+            return false;
+        }
+
+        return normalizeForComparison(fullName).equals(normalizeForComparison(otherName.fullName));
+    }
+
+    private static String normalizeForComparison(String name) {
+        return name.trim().replaceAll(" +", " ").toLowerCase(Locale.ROOT);
     }
 
 

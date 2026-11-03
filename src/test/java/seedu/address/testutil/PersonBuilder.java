@@ -1,13 +1,19 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.NextLesson;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.RecurringLesson;
+import seedu.address.model.person.SchoolLevel;
+import seedu.address.model.person.StudentNote;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -25,6 +31,11 @@ public class PersonBuilder {
     private Phone phone;
     private Email email;
     private Address address;
+    private SchoolLevel schoolLevel;
+    private Subject subject;
+    private StudentNote note;
+    private Optional<NextLesson> nextLesson;
+    private Optional<RecurringLesson> recurringLesson;
     private Set<Tag> tags;
 
     /**
@@ -35,6 +46,11 @@ public class PersonBuilder {
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
+        schoolLevel = new SchoolLevel(SchoolLevel.DEFAULT_VALUE);
+        subject = new Subject(Subject.DEFAULT_VALUE);
+        note = new StudentNote("");
+        nextLesson = Optional.empty();
+        recurringLesson = Optional.empty();
         tags = new HashSet<>();
     }
 
@@ -46,6 +62,11 @@ public class PersonBuilder {
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        schoolLevel = personToCopy.getSchoolLevel();
+        subject = personToCopy.getSubject();
+        note = personToCopy.getNote();
+        nextLesson = personToCopy.getNextLesson();
+        recurringLesson = personToCopy.getRecurringLesson();
         tags = new HashSet<>(personToCopy.getTags());
     }
 
@@ -89,8 +110,54 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the school level of the {@code Person} that we are building.
+     */
+    public PersonBuilder withSchoolLevel(String schoolLevel) {
+        this.schoolLevel = new SchoolLevel(schoolLevel);
+        return this;
+    }
+
+    /**
+     * Sets the subject of the {@code Person} that we are building.
+     */
+    public PersonBuilder withSubject(String subject) {
+        this.subject = new Subject(subject);
+        return this;
+    }
+
+    /** Sets the note of the person being built. */
+    public PersonBuilder withNote(String note) {
+        this.note = new StudentNote(note);
+        return this;
+    }
+
+    /**
+     * Sets the next lesson of the {@code Person} that we are building.
+     */
+    public PersonBuilder withNextLesson(NextLesson nextLesson) {
+        this.nextLesson = Optional.of(nextLesson);
+        return this;
+    }
+
+    /**
+     * Clears the next lesson of the {@code Person} that we are building.
+     */
+    public PersonBuilder withoutNextLesson() {
+        this.nextLesson = Optional.empty();
+        return this;
+    }
+
+    /**
+     * Sets the recurring lesson of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRecurringLesson(RecurringLesson recurringLesson) {
+        this.recurringLesson = Optional.of(recurringLesson);
+        return this;
+    }
+
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, schoolLevel, subject, note, nextLesson, recurringLesson, tags);
     }
 
 }

@@ -1,0 +1,142 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.person.LessonDuration;
+import seedu.address.model.person.NextLesson;
+import seedu.address.model.person.RecurringLesson;
+import seedu.address.model.person.SchoolLevel;
+import seedu.address.model.person.StudentNote;
+import seedu.address.model.person.Subject;
+
+public class PersonCardFormatterTest {
+
+    @Test
+    public void formatNextLesson_scheduledLesson_returnsFormattedLesson() {
+        NextLesson nextLesson = new NextLesson(
+                LocalDate.of(2099, 10, 16), LocalTime.of(16, 0), "Quadratic equations",
+                new LessonDuration("90"));
+
+        PersonCardFormatter.LessonDisplay display =
+                PersonCardFormatter.formatNextLesson(Optional.of(nextLesson));
+
+        assertEquals("16 Oct 2099, 4:00 PM (90 min)", display.lessonText());
+        assertEquals(Optional.of("Topic: Quadratic equations"), display.topicText());
+    }
+
+    @Test
+    public void formatNextLesson_noLesson_returnsNotScheduled() {
+        PersonCardFormatter.LessonDisplay display = PersonCardFormatter.formatNextLesson(Optional.empty());
+
+        assertEquals("Not scheduled", display.lessonText());
+        assertTrue(display.topicText().isEmpty());
+    }
+
+    @Test
+    public void formatRecurringLesson_scheduledLesson_returnsFormattedLesson() {
+        RecurringLesson recurringLesson =
+                new RecurringLesson(DayOfWeek.MONDAY, LocalTime.of(16, 30), "Algebra",
+                        new LessonDuration("60"));
+
+        PersonCardFormatter.LessonDisplay display =
+                PersonCardFormatter.formatRecurringLesson(Optional.of(recurringLesson));
+
+        assertEquals("Every Monday at 4:30 PM (60 min)", display.lessonText());
+        assertEquals(Optional.of("Topic: Algebra"), display.topicText());
+    }
+
+    @Test
+    public void formatRecurringLesson_noLesson_returnsNotScheduled() {
+        PersonCardFormatter.LessonDisplay display = PersonCardFormatter.formatRecurringLesson(Optional.empty());
+
+        assertEquals("Not scheduled", display.lessonText());
+        assertTrue(display.topicText().isEmpty());
+    }
+
+    @Test
+    public void formatNote_nonBlankNote_returnsFormattedNote() {
+        StudentNote note = new StudentNote("Needs more practice");
+
+        assertEquals(Optional.of("Note: Needs more practice"), PersonCardFormatter.formatNote(note));
+    }
+
+    @Test
+    public void formatNote_blankNote_returnsEmpty() {
+        assertTrue(PersonCardFormatter.formatNote(new StudentNote("")).isEmpty());
+    }
+
+    @Test
+    public void formatSubject_validSubject_returnsPrefixedSubject() {
+        assertEquals("Subject: Mathematics", PersonCardFormatter.formatSubject(new Subject("Mathematics")));
+    }
+
+    @Test
+    public void formatSummaryAcademicInfo_levelAndSubject_returnsCombinedText() {
+        Optional<String> result = PersonCardFormatter.formatSummaryAcademicInfo(
+                new SchoolLevel("Secondary 4"), new Subject("Mathematics"));
+
+        assertEquals(Optional.of("Sec 4 Mathematics"), result);
+    }
+
+    @Test
+    public void formatSummaryAcademicInfo_onlyLevelSpecified_returnsLevel() {
+        Optional<String> result = PersonCardFormatter.formatSummaryAcademicInfo(
+                new SchoolLevel("Junior College 1"), new Subject(Subject.DEFAULT_VALUE));
+
+        assertEquals(Optional.of("JC 1"), result);
+    }
+
+    @Test
+    public void formatSummaryAcademicInfo_onlySubjectSpecified_returnsSubject() {
+        Optional<String> result = PersonCardFormatter.formatSummaryAcademicInfo(
+                new SchoolLevel(SchoolLevel.DEFAULT_VALUE), new Subject("English"));
+
+        assertEquals(Optional.of("English"), result);
+    }
+
+    @Test
+    public void formatSummaryAcademicInfo_nothingSpecified_returnsEmpty() {
+        Optional<String> result = PersonCardFormatter.formatSummaryAcademicInfo(
+                new SchoolLevel(SchoolLevel.DEFAULT_VALUE), new Subject(Subject.DEFAULT_VALUE));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void formatNextLessonSummary_scheduledLesson_returnsPrefixedSummary() {
+        NextLesson nextLesson = new NextLesson(
+                LocalDate.of(2099, 10, 16), LocalTime.of(16, 0), "Quadratic equations",
+                new LessonDuration("90"));
+
+        assertEquals(Optional.of("Next: 16 Oct 2099, 4:00 PM (90 min)"),
+                PersonCardFormatter.formatNextLessonSummary(Optional.of(nextLesson)));
+    }
+
+    @Test
+    public void formatNextLessonSummary_noLesson_returnsEmpty() {
+        assertTrue(PersonCardFormatter.formatNextLessonSummary(Optional.empty()).isEmpty());
+    }
+
+    @Test
+    public void formatRecurringLessonSummary_scheduledLesson_returnsPrefixedSummary() {
+        RecurringLesson recurringLesson =
+                new RecurringLesson(DayOfWeek.MONDAY, LocalTime.of(16, 30), "Algebra",
+                        new LessonDuration("60"));
+
+        assertEquals(Optional.of("Recurring: Every Monday at 4:30 PM (60 min)"),
+                PersonCardFormatter.formatRecurringLessonSummary(Optional.of(recurringLesson)));
+    }
+
+    @Test
+    public void formatRecurringLessonSummary_noLesson_returnsEmpty() {
+        assertTrue(PersonCardFormatter.formatRecurringLessonSummary(Optional.empty()).isEmpty());
+    }
+}
