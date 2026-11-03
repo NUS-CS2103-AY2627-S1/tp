@@ -1,59 +1,56 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
+
+# About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Tee Ming Shun
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/mingshun2005.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/mingshun2005)]
 
 * Role: Project Advisor
+* Responsibilities: Code quality
 
-### Jane Doe
+### Hoong Ken
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/hhkennn.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/hhkennn)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Code Quality
 
-### Jean Doe
+### Twisha Mehta
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ahsiwt101.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ahsiwt101)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Data and Testing
 
-### James Doe
+### Chan Tze Yuon
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/tzeyuon.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/tzeyuon)]
+
+* Role: Integration
+* Responsibilities: In charge of versioning the code, maintaining the code repository, and integrating various parts
+  of the software to create a whole.
+
+### Kean Lai
+
+<img src="images/jameslee5182.png" width="200px">
+
+[[github](https://github.com/JamesLee5182)]
 
 * Role: Developer
 * Responsibilities: UI

@@ -1,13 +1,17 @@
 package seedu.address.logic;
 
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
+import seedu.address.logic.commands.CommandInputRequest;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
@@ -30,33 +34,87 @@ public class LogicManager implements Logic {
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+    private CommandInputRequest pendingInputRequest;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
      */
     public LogicManager(Model model, Storage storage) {
+        this(model, storage, new AddressBookParser());
+    }
+
+    /**
+     * Constructs a logic manager with the supplied parser, model, and storage.
+     * Allows command parsing dependencies to be controlled in integration tests.
+     */
+    public LogicManager(Model model, Storage storage, AddressBookParser addressBookParser) {
+        requireAllNonNull(model, storage, addressBookParser);
         this.model = model;
         this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        this.addressBookParser = addressBookParser;
     }
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
+        Model.ModelState modelState = model.createStateSnapshot();
 
-        CommandResult commandResult;
+        CommandResult commandResult = hasPendingInputRequest()
+                ? handleRequestedInput(commandText)
+                : executeParsedCommand(commandText);
+
+        if (commandResult.shouldSaveAddressBook()) {
+            saveAddressBook(modelState);
+        }
+
+        pendingInputRequest = commandResult.getInputRequest().orElse(null);
+        return commandResult;
+    }
+
+    @Override
+    public boolean isInputRequestPending() {
+        return hasPendingInputRequest();
+    }
+
+    /**
+     * Parses and executes a regular command.
+     */
+    private CommandResult executeParsedCommand(String commandText) throws CommandException, ParseException {
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        return command.execute(model);
+    }
 
+    /**
+     * Consumes input requested by the previous command without passing it to the command parser.
+     */
+    private CommandResult handleRequestedInput(String input) throws CommandException {
+        CommandInputRequest inputRequest = pendingInputRequest;
+        pendingInputRequest = null;
+        return inputRequest.respond(input, model);
+    }
+
+    /**
+     * Returns true when a command has requested another command-line input.
+     */
+    private boolean hasPendingInputRequest() {
+        return pendingInputRequest != null;
+    }
+
+    /**
+     * Saves the current address book state and restores the previous model state if storage fails.
+     */
+    private void saveAddressBook(Model.ModelState modelState) throws CommandException {
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
+            model.restoreStateSnapshot(modelState);
+            logger.log(Level.WARNING, "Patient data could not be saved: access denied", e);
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
+            model.restoreStateSnapshot(modelState);
+            logger.log(Level.WARNING, "Patient data could not be saved: I/O failure", ioe);
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
-
-        return commandResult;
     }
 
     @Override

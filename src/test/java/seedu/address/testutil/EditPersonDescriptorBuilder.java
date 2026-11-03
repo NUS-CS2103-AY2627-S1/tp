@@ -8,8 +8,10 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.VisitDate;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -19,16 +21,22 @@ public class EditPersonDescriptorBuilder {
 
     private EditPersonDescriptor descriptor;
 
+    /**
+     * Creates a builder with no replacement fields.
+     */
     public EditPersonDescriptorBuilder() {
         descriptor = new EditPersonDescriptor();
     }
 
+    /**
+     * Creates a builder containing a copy of the supplied descriptor.
+     */
     public EditPersonDescriptorBuilder(EditPersonDescriptor descriptor) {
         this.descriptor = new EditPersonDescriptor(descriptor);
     }
 
     /**
-     * Returns an {@code EditPersonDescriptor} with fields containing {@code person}'s details
+     * Creates a builder containing the editable fields of {@code person}.
      */
     public EditPersonDescriptorBuilder(Person person) {
         descriptor = new EditPersonDescriptor();
@@ -36,6 +44,8 @@ public class EditPersonDescriptorBuilder {
         descriptor.setPhone(person.getPhone());
         descriptor.setEmail(person.getEmail());
         descriptor.setAddress(person.getAddress());
+        descriptor.setVisitDate(person.getVisitDate());
+        descriptor.setNote(person.getNote());
         descriptor.setTags(person.getTags());
     }
 
@@ -72,6 +82,22 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
+     * Sets the visit date and time of the descriptor being built.
+     */
+    public EditPersonDescriptorBuilder withVisitDate(String visitDate) {
+        descriptor.setVisitDate(new VisitDate(visitDate));
+        return this;
+    }
+
+    /**
+     * Sets the replacement note, including an empty value to clear existing notes.
+     */
+    public EditPersonDescriptorBuilder withNote(String note) {
+        descriptor.setNote(new Note(note));
+        return this;
+    }
+
+    /**
      * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
      * that we are building.
      */
@@ -81,6 +107,9 @@ public class EditPersonDescriptorBuilder {
         return this;
     }
 
+    /**
+     * Returns the descriptor containing the configured replacement fields.
+     */
     public EditPersonDescriptor build() {
         return descriptor;
     }

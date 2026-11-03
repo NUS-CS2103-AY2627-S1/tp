@@ -9,14 +9,16 @@ import java.util.List;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.person.exceptions.DuplicateVisitDateException;
 import seedu.address.model.person.exceptions.PersonNotFoundException;
 
 /**
- * A list of persons that enforces uniqueness between its elements and does not allow nulls.
- * A person is considered unique by comparing using {@code Person#isSamePerson(Person)}. As such, adding and updating of
- * persons uses Person#isSamePerson(Person) for equality so as to ensure that the person being added or updated is
- * unique in terms of identity in the UniquePersonList. However, the removal of a person uses Person#equals(Object) so
- * as to ensure that the person with exactly the same fields will be removed.
+ * A list of persons that enforces unique identities and visit dates between its elements and does not allow nulls.
+ * A person is considered unique by comparing normalized names and phone numbers using
+ * {@code Person#isSamePerson(Person)}. Adding and updating persons uses Person#isSamePerson(Person) for equality so as
+ * to ensure that the person being added or updated is unique in terms of identity in the UniquePersonList. However,
+ * the removal of a person uses Person#equals(Object) so as to ensure that the person with exactly the same fields will
+ * be removed.
  *
  * Supports a minimal set of list operations.
  *
@@ -37,6 +39,44 @@ public class UniquePersonList implements Iterable<Person> {
     }
 
     /**
+     * Returns true if the list contains a person with the same normalized name as the given argument.
+     */
+    public boolean containsSameName(Person toCheck) {
+        requireNonNull(toCheck);
+        return internalList.stream().anyMatch(toCheck::hasSameName);
+    }
+
+    /**
+     * Returns true if any stored patient shares a current or previous datetime with {@code toCheck}.
+     */
+    public boolean containsSameVisitDate(Person toCheck) {
+        requireNonNull(toCheck);
+        return internalList.stream().anyMatch(toCheck::hasCommonVisitDate);
+    }
+
+    /**
+     * Returns true if a patient other than {@code excludedPerson} shares any visit datetime with {@code toCheck}.
+     *
+     * @throws NullPointerException If either argument is null.
+     */
+    public boolean containsSameVisitDate(Person toCheck, Person excludedPerson) {
+        requireAllNonNull(toCheck, excludedPerson);
+        return internalList.stream()
+                .filter(person -> !person.equals(excludedPerson))
+                .anyMatch(toCheck::hasCommonVisitDate);
+    }
+
+    /**
+     * Returns the number of persons in the list whose visit falls on the same day as the given argument's visit.
+     */
+    public int countSameVisitDay(Person toCheck) {
+        requireNonNull(toCheck);
+        return (int) internalList.stream()
+                .filter(person -> person.getVisitDate().isSameDay(toCheck.getVisitDate()))
+                .count();
+    }
+
+    /**
      * Adds a person to the list.
      * The person must not already exist in the list.
      */
@@ -44,6 +84,9 @@ public class UniquePersonList implements Iterable<Person> {
         requireNonNull(toAdd);
         if (contains(toAdd)) {
             throw new DuplicatePersonException();
+        }
+        if (containsSameVisitDate(toAdd)) {
+            throw new DuplicateVisitDateException();
         }
         internalList.add(toAdd);
     }
@@ -63,6 +106,9 @@ public class UniquePersonList implements Iterable<Person> {
 
         if (!target.isSamePerson(editedPerson) && contains(editedPerson)) {
             throw new DuplicatePersonException();
+        }
+        if (containsSameVisitDate(editedPerson, target)) {
+            throw new DuplicateVisitDateException();
         }
 
         internalList.set(index, editedPerson);
@@ -86,12 +132,15 @@ public class UniquePersonList implements Iterable<Person> {
 
     /**
      * Replaces the contents of this list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
+     * {@code persons} must not contain duplicate persons or visit dates.
      */
     public void setPersons(List<Person> persons) {
         requireAllNonNull(persons);
         if (!personsAreUnique(persons)) {
             throw new DuplicatePersonException();
+        }
+        if (!visitDatesAreUnique(persons)) {
+            throw new DuplicateVisitDateException();
         }
 
         internalList.setAll(persons);
@@ -140,6 +189,20 @@ public class UniquePersonList implements Iterable<Person> {
         for (int i = 0; i < persons.size() - 1; i++) {
             for (int j = i + 1; j < persons.size(); j++) {
                 if (persons.get(i).isSamePerson(persons.get(j))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns true if {@code persons} contains only unique visit dates and times.
+     */
+    private boolean visitDatesAreUnique(List<Person> persons) {
+        for (int i = 0; i < persons.size() - 1; i++) {
+            for (int j = i + 1; j < persons.size(); j++) {
+                if (persons.get(i).hasCommonVisitDate(persons.get(j))) {
                     return false;
                 }
             }

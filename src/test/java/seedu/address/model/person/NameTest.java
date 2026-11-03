@@ -1,5 +1,6 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -28,7 +29,11 @@ public class NameTest {
         assertFalse(Name.isValidName("")); // empty string
         assertFalse(Name.isValidName(" ")); // spaces only
         assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
-        assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("peter*")); // contains unsupported punctuation
+        assertFalse(Name.isValidName("p/Smith")); // conflicts with the phone prefix
+        assertFalse(Name.isValidName("Mary--Ann")); // repeated punctuation
+        assertFalse(Name.isValidName("/Smith")); // punctuation at the start
+        assertFalse(Name.isValidName("Smith/")); // punctuation at the end
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
@@ -36,6 +41,23 @@ public class NameTest {
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("s/o Rajan")); // slash in a name component
+        assertTrue(Name.isValidName("d/o Priya")); // slash in a name component
+        assertTrue(Name.isValidName("O'Brien")); // apostrophe in a name component
+        assertTrue(Name.isValidName("José")); // accented character
+        assertTrue(Name.isValidName("Mary-Ann")); // hyphen in a name component
+        assertTrue(Name.isValidName("Mr. Smith")); // title abbreviation
+    }
+
+    @Test
+    public void isSameName() {
+        Name name = new Name("Valid Name");
+
+        assertTrue(name.isSameName(new Name("valid name")));
+        assertTrue(name.isSameName(new Name("Valid   Name")));
+        assertTrue(name.isSameName(new Name("Valid Name   ")));
+        assertFalse(name.isSameName(new Name("Other Valid Name")));
+        assertFalse(name.isSameName(null));
     }
 
     @Test
@@ -56,5 +78,28 @@ public class NameTest {
 
         // different values -> returns false
         assertFalse(name.equals(new Name("Other Valid Name")));
+
+        // normalized match with different stored value -> returns false
+        assertFalse(name.equals(new Name("valid  name")));
+    }
+
+    @Test
+    public void getConstraintMessage_mentionsPhonePrefixOnlyWhenPresent() {
+        // mistakes unrelated to the phone prefix get the general message, without p/
+        for (String invalidName : new String[] {"!!!", "''", "James&", "Tan  .", "^"}) {
+            assertEquals(Name.MESSAGE_CONSTRAINTS, Name.getConstraintMessage(invalidName));
+        }
+        assertFalse(Name.MESSAGE_CONSTRAINTS.contains("p/"));
+
+        // a name that swallowed the phone prefix gets the specific message
+        assertEquals(Name.MESSAGE_CONTAINS_PHONE_PREFIX, Name.getConstraintMessage("John Tanp/91234567"));
+
+        assertThrows(NullPointerException.class, () -> Name.getConstraintMessage(null));
+    }
+
+    @Test
+    public void constructor_invalidName_throwsMatchingMessage() {
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONSTRAINTS, () -> new Name("!!!"));
+        assertThrows(IllegalArgumentException.class, Name.MESSAGE_CONTAINS_PHONE_PREFIX, () -> new Name("Ap/B"));
     }
 }

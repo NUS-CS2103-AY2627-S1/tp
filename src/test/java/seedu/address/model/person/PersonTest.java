@@ -2,6 +2,7 @@ package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
@@ -12,11 +13,312 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.testutil.PersonBuilder;
 
 public class PersonTest {
+
+    private static final VisitDate CURRENT_VISIT_DATE = new VisitDate("10/10/2026 1000");
+    private static final VisitDate EARLIER_VISIT_DATE = new VisitDate("1/10/2026 1000");
+    private static final VisitDate LATER_VISIT_DATE = new VisitDate("1/10/2026 1100");
+
+    @Test
+    public void equals_differentAllergies_preservesPatientIdentity() {
+        Person recorded = new PersonBuilder(ALICE).withAllergies("No known allergies").build();
+        assertNotEquals(ALICE, recorded);
+        assertTrue(ALICE.isSamePerson(recorded));
+        Person copy = new PersonBuilder(recorded).build();
+        assertEquals(recorded, copy);
+        assertEquals(recorded.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void constructor_nullAllergies_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getDateOfBirth(),
+                ALICE.getBloodType(), null, ALICE.getAlcoholHistory(), ALICE.getSmokingStatus(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), ALICE.getVisitDate(), ALICE.getPreviousVisitDates(),
+                ALICE.getNote(), ALICE.getEmergencyContact(), ALICE.getTags()));
+    }
+
+    @Test
+    public void equals_differentSmokingStatus_preservesPatientIdentity() {
+        Person recorded = new PersonBuilder(ALICE).withSmokingStatus("unknown").build();
+        assertNotEquals(ALICE, recorded);
+        assertTrue(ALICE.isSamePerson(recorded));
+        Person copy = new PersonBuilder(recorded).build();
+        assertEquals(recorded, copy);
+        assertEquals(recorded.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void constructor_nullSmokingStatus_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getDateOfBirth(),
+                ALICE.getBloodType(), ALICE.getAlcoholHistory(), null, ALICE.getPhone(), ALICE.getEmail(),
+                ALICE.getAddress(), ALICE.getVisitDate(), ALICE.getPreviousVisitDates(), ALICE.getNote(),
+                ALICE.getEmergencyContact(), ALICE.getTags()));
+    }
+
+    @Test
+    public void equals_differentAlcoholHistory_preservesPatientIdentity() {
+        Person recorded = new PersonBuilder(ALICE).withAlcoholHistory("Does not drink").build();
+        assertNotEquals(ALICE, recorded);
+        assertTrue(ALICE.isSamePerson(recorded));
+        Person copy = new PersonBuilder(recorded).build();
+        assertEquals(recorded, copy);
+        assertEquals(recorded.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void constructor_nullAlcoholHistory_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getDateOfBirth(),
+                ALICE.getBloodType(), null, ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getVisitDate(), ALICE.getPreviousVisitDates(), ALICE.getNote(), ALICE.getEmergencyContact(),
+                ALICE.getTags()));
+    }
+
+    @Test
+    public void hasCommonVisitDate_currentAndPreviousDates_comparesParsedDatetimes() {
+        // EPs: Current/current, current/history, history/current, history/history, and no overlap.
+        // Representation: Equivalent datetime spellings compare as the same visit date.
+        Person original = createPerson(CURRENT_VISIT_DATE, List.of(EARLIER_VISIT_DATE));
+        Person sameCurrent = createPerson(CURRENT_VISIT_DATE, List.of());
+        Person currentInHistory = createPerson(new VisitDate("01/10/2026 1000"), List.of());
+        Person historyContainsCurrent = createPerson(new VisitDate("11/10/2026 1000"), List.of(CURRENT_VISIT_DATE));
+        Person sameHistory = createPerson(new VisitDate("12/10/2026 1000"), List.of(EARLIER_VISIT_DATE));
+        Person differentTimes = createPerson(LATER_VISIT_DATE, List.of());
+
+        for (Person conflicting : List.of(original, sameCurrent, currentInHistory, historyContainsCurrent,
+                sameHistory)) {
+            assertTrue(original.hasCommonVisitDate(conflicting));
+            assertTrue(conflicting.hasCommonVisitDate(original));
+        }
+        assertFalse(original.hasCommonVisitDate(differentTimes));
+        assertFalse(differentTimes.hasCommonVisitDate(original));
+        // API precondition: null is not a CLI input partition.
+        assertThrows(NullPointerException.class, () -> original.hasCommonVisitDate(null));
+    }
+
+    @Test
+    public void hasCommonVisitDate_currentMatchesLaterHistory_returnsTrueSymmetrically() {
+        // EP: A current date can match a later historical entry in the other record.
+        Person first = createPerson(new VisitDate("9/10/2026 0900"), List.of(
+                new VisitDate("1/10/2026 0900"), new VisitDate("3/10/2026 0900")));
+        Person second = createPerson(new VisitDate("3/10/2026 0900"), List.of());
+
+        assertTrue(first.hasCommonVisitDate(second));
+        assertTrue(second.hasCommonVisitDate(first));
+    }
+
+    @Test
+    public void hasCommonVisitDate_historyOverlapAfterInitialMiss_returnsTrueSymmetrically() {
+        // EP: A nonmatching first history entry must not stop scanning unequal-length histories.
+        Person first = createPerson(new VisitDate("9/10/2026 0900"), List.of(
+                new VisitDate("1/10/2026 0900"), new VisitDate("3/10/2026 0900")));
+        Person second = createPerson(new VisitDate("10/10/2026 0900"), List.of(
+                new VisitDate("2/10/2026 0900"), new VisitDate("3/10/2026 0900"),
+                new VisitDate("4/10/2026 0900")));
+
+        assertTrue(first.hasCommonVisitDate(second));
+        assertTrue(second.hasCommonVisitDate(first));
+    }
+
+    @Test
+    public void hasCommonVisitDate_interleavedHistoriesAreDisjoint_returnsFalseSymmetrically() {
+        // EP: Nonempty interleaved histories can be disjoint; adjacent dates do not imply a conflict.
+        Person first = createPerson(new VisitDate("9/10/2026 0900"), List.of(
+                new VisitDate("1/10/2026 0900"), new VisitDate("3/10/2026 0900")));
+        Person second = createPerson(new VisitDate("10/10/2026 0900"), List.of(
+                new VisitDate("2/10/2026 0900"), new VisitDate("4/10/2026 0900"),
+                new VisitDate("5/10/2026 0900")));
+
+        assertFalse(first.hasCommonVisitDate(second));
+        assertFalse(second.hasCommonVisitDate(first));
+    }
+
+    @Test
+    public void constructor_emptyPreviousVisitDates_success() {
+        assertEquals(List.of(), new PersonBuilder().build().getPreviousVisitDates());
+        Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getVisitDate(), ALICE.getNote(), ALICE.getTags());
+        assertEquals(List.of(), person.getPreviousVisitDates());
+    }
+
+    @Test
+    public void constructor_orderedPreviousVisitDates_preservesOrderAndOtherFields() {
+        List<VisitDate> previousVisitDates = List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE);
+        Person person = createPerson(CURRENT_VISIT_DATE, previousVisitDates);
+
+        assertEquals(previousVisitDates, person.getPreviousVisitDates());
+        assertEquals(CURRENT_VISIT_DATE, person.getVisitDate());
+        assertEquals(ALICE.getName(), person.getName());
+        assertEquals(ALICE.getPhone(), person.getPhone());
+        assertEquals(ALICE.getEmail(), person.getEmail());
+        assertEquals(ALICE.getAddress(), person.getAddress());
+        assertEquals(ALICE.getNote(), person.getNote());
+        assertEquals(ALICE.getTags(), person.getTags());
+    }
+
+    @Test
+    public void constructor_nullVisitRecord_throwsNullPointerException() {
+        // API preconditions: Reject a null current date, history collection, or history entry.
+        assertThrows(NullPointerException.class, () -> createPerson(CURRENT_VISIT_DATE, null));
+        assertThrows(NullPointerException.class, () -> createPerson(CURRENT_VISIT_DATE,
+                Arrays.asList(EARLIER_VISIT_DATE, null)));
+        assertThrows(NullPointerException.class, () -> createPerson(null, List.of()));
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), null, ALICE.getNote(), ALICE.getTags()));
+    }
+
+    @Test
+    public void constructor_unorderedOrDuplicatePreviousVisitDates_throwsIllegalArgumentException() {
+        // EP: Descending dates and equal parsed datetimes violate strictly increasing history.
+        for (List<VisitDate> previousVisitDates : List.of(
+                List.of(LATER_VISIT_DATE, EARLIER_VISIT_DATE),
+                List.of(EARLIER_VISIT_DATE, new VisitDate("01/10/2026 1000")))) {
+            assertThrows(IllegalArgumentException.class, Person.MESSAGE_PREVIOUS_VISIT_DATES_CONSTRAINTS, () ->
+                    createPerson(CURRENT_VISIT_DATE, previousVisitDates));
+        }
+    }
+
+    @Test
+    public void constructor_previousDateAtOrAfterCurrent_throwsIllegalArgumentException() {
+        // Boundary: Equality and one minute after the current visit are invalid.
+        for (VisitDate previousVisitDate : List.of(new VisitDate("10/10/2026 1001"),
+                new VisitDate("10/10/2026 1000"))) {
+            assertThrows(IllegalArgumentException.class, Person.MESSAGE_PREVIOUS_VISIT_DATES_CONSTRAINTS, () ->
+                    createPerson(CURRENT_VISIT_DATE, List.of(previousVisitDate)));
+        }
+    }
+
+    @Test
+    public void constructor_sameDayDifferentTimes_success() {
+        Person person = createPerson(LATER_VISIT_DATE, List.of(EARLIER_VISIT_DATE));
+        assertEquals(List.of(EARLIER_VISIT_DATE), person.getPreviousVisitDates());
+        assertEquals(LATER_VISIT_DATE, person.getVisitDate());
+    }
+
+    @Test
+    public void constructor_mutablePreviousVisitDates_defensivelyCopiesList() {
+        // EP: Mutating the caller-owned list must not change the constructed record.
+        List<VisitDate> previousVisitDates = new ArrayList<>(List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE));
+        Person person = createPerson(CURRENT_VISIT_DATE, previousVisitDates);
+        previousVisitDates.clear();
+        previousVisitDates.add(CURRENT_VISIT_DATE);
+
+        assertEquals(List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE), person.getPreviousVisitDates());
+    }
+
+    @Test
+    public void copyWithVisitDates_populatedOptionalFields_preservesOtherFieldsAndCopiesHistory() {
+        Person original = new PersonBuilder().withDateOfBirth("15/6/1990").withBloodType("A+")
+                .withAllergies("Penicillin; latex").withAlcoholHistory("Does not drink")
+                .withSmokingStatus("former").withEmergencyContact("Mary Tan, 91234567")
+                .withNote("Review medication").withTags("priority", "friend").build();
+        List<VisitDate> replacementHistory = new ArrayList<>(List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE));
+
+        Person copy = original.copyWithVisitDates(CURRENT_VISIT_DATE, replacementHistory);
+
+        assertEquals(original.getName(), copy.getName());
+        assertEquals(original.getDateOfBirth(), copy.getDateOfBirth());
+        assertEquals(original.getBloodType(), copy.getBloodType());
+        assertEquals(original.getAllergies(), copy.getAllergies());
+        assertEquals(original.getAlcoholHistory(), copy.getAlcoholHistory());
+        assertEquals(original.getSmokingStatus(), copy.getSmokingStatus());
+        assertEquals(original.getPhone(), copy.getPhone());
+        assertEquals(original.getEmail(), copy.getEmail());
+        assertEquals(original.getAddress(), copy.getAddress());
+        assertEquals(CURRENT_VISIT_DATE, copy.getVisitDate());
+        assertEquals(replacementHistory, copy.getPreviousVisitDates());
+        assertEquals(original.getNote(), copy.getNote());
+        assertEquals(original.getEmergencyContact(), copy.getEmergencyContact());
+        assertEquals(original.getTags(), copy.getTags());
+
+        replacementHistory.clear();
+        assertEquals(List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE), copy.getPreviousVisitDates());
+        assertEquals(new VisitDate(PersonBuilder.DEFAULT_VISIT_DATE), original.getVisitDate());
+    }
+
+    @Test
+    public void copyWithVisitDates_emptyOptionalFields_preservesEmptyHistory() {
+        Person original = new PersonBuilder().withEmail("").build();
+
+        Person copy = original.copyWithVisitDates(CURRENT_VISIT_DATE, List.of());
+
+        assertTrue(copy.getDateOfBirth().isEmpty());
+        assertTrue(copy.getBloodType().isEmpty());
+        assertTrue(copy.getAllergies().isEmpty());
+        assertTrue(copy.getAlcoholHistory().isEmpty());
+        assertTrue(copy.getSmokingStatus().isEmpty());
+        assertTrue(copy.getEmail().value.isEmpty());
+        assertTrue(copy.getEmergencyContact().isEmpty());
+        assertTrue(copy.getPreviousVisitDates().isEmpty());
+        assertEquals(CURRENT_VISIT_DATE, copy.getVisitDate());
+    }
+
+    @Test
+    public void copyWithVisitDates_invalidReplacementHistory_throwsException() {
+        Person original = createPerson(CURRENT_VISIT_DATE, List.of());
+
+        assertThrows(IllegalArgumentException.class, Person.MESSAGE_PREVIOUS_VISIT_DATES_CONSTRAINTS, () ->
+                original.copyWithVisitDates(CURRENT_VISIT_DATE,
+                        List.of(new VisitDate("10/10/2026 1001"))));
+        assertThrows(NullPointerException.class, () -> original.copyWithVisitDates(null, List.of()));
+    }
+
+    @Test
+    public void getPreviousVisitDates_modifyList_throwsUnsupportedOperationException() {
+        Person person = createPerson(CURRENT_VISIT_DATE, List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE));
+        List<VisitDate> previousVisitDates = person.getPreviousVisitDates();
+        assertThrows(UnsupportedOperationException.class, () -> previousVisitDates.add(CURRENT_VISIT_DATE));
+        assertThrows(UnsupportedOperationException.class, () -> previousVisitDates.remove(0));
+        assertThrows(UnsupportedOperationException.class, () -> previousVisitDates.set(0, CURRENT_VISIT_DATE));
+        assertThrows(UnsupportedOperationException.class, previousVisitDates::clear);
+        assertEquals(List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE), person.getPreviousVisitDates());
+    }
+
+    @Test
+    public void equalsAndHashCode_previousVisitDates_comparesVisitRecord() {
+        Person person = createPerson(CURRENT_VISIT_DATE, List.of(EARLIER_VISIT_DATE, LATER_VISIT_DATE));
+        Person equivalent = createPerson(new VisitDate("10/10/2026 1000"),
+                List.of(new VisitDate("01/10/2026 1000"), new VisitDate("01/10/2026 1100")));
+        Person differentHistory = createPerson(CURRENT_VISIT_DATE, List.of(EARLIER_VISIT_DATE));
+
+        assertEquals(person, equivalent);
+        assertEquals(person.hashCode(), equivalent.hashCode());
+        assertNotEquals(person, differentHistory);
+        assertTrue(person.isSamePerson(differentHistory));
+        assertTrue(person.hasSameName(differentHistory));
+    }
+
+    @Test
+    public void constructor_withoutEmergencyContact_preservesOtherFields() {
+        Person expectedPerson = new PersonBuilder(ALICE)
+                .withNote("Monitor blood pressure")
+                .withTags("family", "priority")
+                .build();
+
+        Person person = new Person(expectedPerson.getName(), expectedPerson.getPhone(), expectedPerson.getEmail(),
+                expectedPerson.getAddress(), expectedPerson.getVisitDate(), expectedPerson.getNote(),
+                expectedPerson.getTags());
+
+        assertTrue(person.getEmergencyContact().isEmpty());
+        assertEquals(expectedPerson, person);
+    }
+
+    @Test
+    public void constructor_withoutBloodType_preservesExistingPatientDetails() {
+        Person patient = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getVisitDate(), ALICE.getNote(), ALICE.getTags());
+
+        assertTrue(patient.getBloodType().isEmpty());
+        assertEquals(ALICE, patient);
+    }
 
     @Test
     public void asObservableList_modifyList_throwsUnsupportedOperationException() {
@@ -32,23 +334,53 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
+        // same name and phone, all data fields different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB)
                 .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
+
+        // same name, different phone -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same name, same phone digits written with a space or a dash -> returns true
+        assertTrue(ALICE.isSamePerson(new PersonBuilder(ALICE).withPhone("9435 1253").build()));
+        assertTrue(ALICE.isSamePerson(new PersonBuilder(ALICE).withPhone("9435-1253").build()));
 
         // different name, all other attributes same -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
-        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        // name differs in case, all other attributes same -> returns true
+        Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase(Locale.ROOT)).build();
+        assertTrue(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has trailing spaces, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        // name has repeated spaces, all other attributes same -> returns true
+        String nameWithRepeatedSpaces = VALID_NAME_BOB.replace(" ", "   ");
+        editedBob = new PersonBuilder(BOB).withName(nameWithRepeatedSpaces).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+    }
+
+    @Test
+    public void hasSameName() {
+        assertTrue(ALICE.hasSameName(ALICE));
+        assertFalse(ALICE.hasSameName(null));
+
+        Person sameNameDifferentPhone = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertTrue(ALICE.hasSameName(sameNameDifferentPhone));
+
+        Person normalizedNameDifferentPhone = new PersonBuilder(ALICE)
+                .withName(ALICE.getName().fullName.toLowerCase(Locale.ROOT).replace(" ", "   ") + " ")
+                .withPhone(VALID_PHONE_BOB).build();
+        assertTrue(ALICE.hasSameName(normalizedNameDifferentPhone));
+
+        Person differentName = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
+        assertFalse(ALICE.hasSameName(differentName));
     }
 
     @Test
@@ -73,6 +405,18 @@ public class PersonTest {
         Person editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different date of birth changes data equality but preserves patient identity
+        editedAlice = new PersonBuilder(ALICE).withDateOfBirth("15/6/1990").build();
+        assertFalse(ALICE.equals(editedAlice));
+        assertTrue(ALICE.isSamePerson(editedAlice));
+
+        // different blood type changes data equality but preserves patient identity
+        editedAlice = new PersonBuilder(ALICE).withBloodType("A+").build();
+        assertFalse(ALICE.equals(editedAlice));
+        assertTrue(ALICE.isSamePerson(editedAlice));
+        assertEquals(editedAlice, new PersonBuilder(editedAlice).build());
+        assertEquals(editedAlice.hashCode(), new PersonBuilder(editedAlice).build().hashCode());
+
         // different phone -> returns false
         editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
@@ -92,8 +436,22 @@ public class PersonTest {
 
     @Test
     public void toStringMethod() {
-        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName()
+                + ", dateOfBirth=" + ALICE.getDateOfBirth()
+                + ", bloodType=" + ALICE.getBloodType()
+                + ", allergies=" + ALICE.getAllergies()
+                + ", alcoholHistory=" + ALICE.getAlcoholHistory()
+                + ", smokingStatus=" + ALICE.getSmokingStatus()
+                + ", phone=" + ALICE.getPhone()
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress()
+                + ", visitDate=" + ALICE.getVisitDate() + ", previousVisitDates=" + ALICE.getPreviousVisitDates()
+                + ", note=" + ALICE.getNote()
+                + ", emergencyContact=" + ALICE.getEmergencyContact() + ", tags=" + ALICE.getTags() + "}";
         assertEquals(expected, ALICE.toString());
+    }
+
+    private static Person createPerson(VisitDate visitDate, List<VisitDate> previousVisitDates) {
+        return new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                visitDate, previousVisitDates, ALICE.getNote(), ALICE.getTags());
     }
 }

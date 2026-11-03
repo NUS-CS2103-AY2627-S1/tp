@@ -4,8 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 
 import org.junit.jupiter.api.Test;
+
+import seedu.address.model.ModelManager;
 
 public class CommandResultTest {
     @Test
@@ -33,6 +37,25 @@ public class CommandResultTest {
 
         // different exit value -> returns false
         assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+
+        // different saveAddressBook value -> returns false
+        assertFalse(commandResult.equals(CommandResult.withoutSaving("feedback")));
+
+        // different input-request state -> returns false
+        CommandInputRequest inputRequest = new CommandInputRequest(
+                "feedback", (input, model) -> CommandResult.withoutSaving(input));
+        assertFalse(CommandResult.withoutSaving("feedback").equals(CommandResult.requestInput(inputRequest)));
+
+        // different person-to-view state -> returns false
+        assertFalse(CommandResult.withoutSaving("feedback").equals(CommandResult.viewPerson("feedback", ALICE)));
+        assertFalse(CommandResult.viewPerson("feedback", ALICE)
+                .equals(CommandResult.viewPerson("feedback", BENSON)));
+
+        // different details-panel action -> returns false
+        assertFalse(CommandResult.showUpdatedPerson("feedback", ALICE)
+                .equals(CommandResult.clearPersonIfShowing("feedback", ALICE)));
+        assertFalse(CommandResult.clearDetailsPanel("feedback")
+                .equals(CommandResult.clearPersonIfShowing("feedback", ALICE)));
     }
 
     @Test
@@ -50,6 +73,106 @@ public class CommandResultTest {
 
         // different exit value -> returns different hashcode
         assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+
+        // different saveAddressBook value -> returns different hashcode
+        assertNotEquals(commandResult.hashCode(), CommandResult.withoutSaving("feedback").hashCode());
+
+        // different input-request state -> returns different hashcode
+        CommandInputRequest inputRequest = new CommandInputRequest(
+                "feedback", (input, model) -> CommandResult.withoutSaving(input));
+        assertNotEquals(CommandResult.withoutSaving("feedback").hashCode(),
+                CommandResult.requestInput(inputRequest).hashCode());
+
+        // different person-to-view state -> returns different hashcode
+        assertNotEquals(CommandResult.withoutSaving("feedback").hashCode(),
+                CommandResult.viewPerson("feedback", ALICE).hashCode());
+    }
+
+    @Test
+    public void requestInput_validRequest_returnsNonSavingResultWithRequest() {
+        CommandInputRequest inputRequest = new CommandInputRequest(
+                "Enter value", (input, model) -> CommandResult.withoutSaving(input));
+
+        CommandResult result = CommandResult.requestInput(inputRequest);
+
+        assertEquals("Enter value", result.getFeedbackToUser());
+        assertFalse(result.shouldSaveAddressBook());
+        assertEquals(inputRequest, result.getInputRequest().orElseThrow());
+    }
+
+    @Test
+    public void requestInput_validRequestAndPerson_returnsNonSavingResultWithBoth() {
+        CommandInputRequest inputRequest = new CommandInputRequest(
+                "Enter value", (input, model) -> CommandResult.withoutSaving(input));
+
+        CommandResult result = CommandResult.requestInput(inputRequest, ALICE);
+
+        assertEquals("Enter value", result.getFeedbackToUser());
+        assertFalse(result.shouldSaveAddressBook());
+        assertEquals(inputRequest, result.getInputRequest().orElseThrow());
+        assertEquals(ALICE, result.getPersonToView().orElseThrow());
+    }
+
+    @Test
+    public void withoutSaving_validFeedback_returnsNonSavingResultWithoutRequest() {
+        CommandResult result = CommandResult.withoutSaving("feedback");
+
+        assertFalse(result.shouldSaveAddressBook());
+        assertTrue(result.getInputRequest().isEmpty());
+        assertTrue(result.getPersonToView().isEmpty());
+    }
+
+    @Test
+    public void viewPerson_validPerson_returnsNonSavingResultWithPerson() {
+        CommandResult result = CommandResult.viewPerson("feedback", ALICE);
+
+        assertFalse(result.shouldSaveAddressBook());
+        assertTrue(result.getInputRequest().isEmpty());
+        assertEquals(ALICE, result.getPersonToView().orElseThrow());
+    }
+
+    @Test
+    public void showUpdatedPerson_validPerson_returnsSavingResultWithPerson() {
+        CommandResult result = CommandResult.showUpdatedPerson("feedback", ALICE);
+
+        assertTrue(result.shouldSaveAddressBook());
+        assertEquals(CommandResult.DetailsPanelAction.SHOW, result.getDetailsPanelAction());
+        assertEquals(ALICE, result.getPersonToView().orElseThrow());
+    }
+
+    @Test
+    public void clearPersonIfShowing_validPerson_returnsConditionalClearResult() {
+        CommandResult result = CommandResult.clearPersonIfShowing("feedback", ALICE);
+
+        assertTrue(result.shouldSaveAddressBook());
+        assertEquals(CommandResult.DetailsPanelAction.CLEAR_IF_SHOWING, result.getDetailsPanelAction());
+        assertEquals(ALICE, result.getPersonToClearFromView().orElseThrow());
+        assertTrue(result.getPersonToView().isEmpty());
+    }
+
+    @Test
+    public void clearDetailsPanel_validFeedback_returnsClearResult() {
+        CommandResult result = CommandResult.clearDetailsPanel("feedback");
+
+        assertTrue(result.shouldSaveAddressBook());
+        assertEquals(CommandResult.DetailsPanelAction.CLEAR, result.getDetailsPanelAction());
+        assertTrue(result.getPersonToView().isEmpty());
+        assertTrue(result.getPersonToClearFromView().isEmpty());
+    }
+
+    @Test
+    public void inputRequest_respondsWithArbitraryInputAndCanContinue() throws Exception {
+        CommandInputRequest secondRequest = new CommandInputRequest(
+                "Second value", (input, model) -> CommandResult.withoutSaving(input));
+        CommandInputRequest firstRequest = new CommandInputRequest(
+                "First value", (input, model) -> CommandResult.requestInput(secondRequest));
+
+        CommandResult firstResult = firstRequest.respond("arbitrary input", new ModelManager());
+        CommandResult secondResult = firstResult.getInputRequest().orElseThrow()
+                .respond("another value", new ModelManager());
+
+        assertEquals("Second value", firstResult.getFeedbackToUser());
+        assertEquals("another value", secondResult.getFeedbackToUser());
     }
 
     @Test
@@ -57,7 +180,9 @@ public class CommandResultTest {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", saveAddressBook="
+                + commandResult.shouldSaveAddressBook()
+                + ", inputRequested=false, detailsPanelAction=KEEP, detailsPerson=null}";
         assertEquals(expected, commandResult.toString());
     }
 }

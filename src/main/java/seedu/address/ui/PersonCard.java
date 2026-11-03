@@ -1,5 +1,6 @@
 package seedu.address.ui;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 
 import javafx.fxml.FXML;
@@ -15,6 +16,7 @@ import seedu.address.model.person.Person;
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    private static final String PAST_VISIT_STYLE_CLASS = "past-visit-card";
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -31,6 +33,10 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label name;
     @FXML
+    private Label dateOfBirth;
+    @FXML
+    private Label bloodType;
+    @FXML
     private Label id;
     @FXML
     private Label phone;
@@ -39,21 +45,52 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private Label visitDate;
+    @FXML
+    private Label note;
+    @FXML
     private FlowPane tags;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
      */
     public PersonCard(Person person, int displayedIndex) {
+        this(person, displayedIndex, LocalDate.now());
+    }
+
+    /**
+     * Creates a {@code PersonCard} using {@code currentDate} to determine whether the visit is in the past.
+     */
+    PersonCard(Person person, int displayedIndex, LocalDate currentDate) {
         super(FXML);
         this.person = person;
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
+        boolean hasDateOfBirth = !person.getDateOfBirth().isEmpty();
+        dateOfBirth.setText(hasDateOfBirth ? "Date of birth: " + person.getDateOfBirth().toDisplayString() : "");
+        dateOfBirth.setVisible(hasDateOfBirth);
+        dateOfBirth.setManaged(hasDateOfBirth);
+        boolean hasBloodType = !person.getBloodType().isEmpty();
+        bloodType.setText(hasBloodType ? "Blood type: " + person.getBloodType().toString() : "");
+        bloodType.setVisible(hasBloodType);
+        bloodType.setManaged(hasBloodType);
         phone.setText(person.getPhone().value);
         address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+        boolean hasEmail = !person.getEmail().value.isEmpty();
+        email.setText(hasEmail ? person.getEmail().value : "");
+        email.setVisible(hasEmail);
+        email.setManaged(hasEmail);
+        visitDate.setText(person.getVisitDate().toString());
+        boolean hasNote = !person.getNote().value.isEmpty();
+        note.setText(hasNote ? person.getNote().value : "");
+        note.setVisible(hasNote);
+        note.setManaged(hasNote);
         person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
+                .sorted(Comparator.comparing(tag -> tag.tagName, String.CASE_INSENSITIVE_ORDER))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+
+        if (person.getVisitDate().value.toLocalDate().isBefore(currentDate)) {
+            cardPane.getStyleClass().add(PAST_VISIT_STYLE_CLASS);
+        }
     }
 }

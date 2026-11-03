@@ -1,0 +1,22 @@
+package seedu.address.logic.parser;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.ViewCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses input arguments and creates a {@code ViewCommand}.
+ */
+public class ViewCommandParser implements Parser<ViewCommand> {
+
+    /**
+     * Parses the given arguments and returns a {@code ViewCommand}.
+     *
+     * @throws ParseException If the user input does not contain exactly one valid index.
+     */
+    @Override
+    public ViewCommand parse(String args) throws ParseException {
+        Index index = ParserUtil.parseIndex(args, ViewCommand.MESSAGE_USAGE);
+        return new ViewCommand(index);
+    }
+}

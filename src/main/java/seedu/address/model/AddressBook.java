@@ -11,7 +11,7 @@ import seedu.address.model.person.UniquePersonList;
 
 /**
  * Wraps all data at the address-book level.
- * Duplicates are not allowed (by .isSamePerson comparison).
+ * True duplicates and duplicate visit dates are not allowed.
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
@@ -31,7 +31,7 @@ public class AddressBook implements ReadOnlyAddressBook {
 
     /**
      * Replaces the contents of the person list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
+     * {@code persons} must not contain duplicate persons or visit dates.
      */
     public void setPersons(List<Person> persons) {
         this.persons.setPersons(persons);
@@ -57,8 +57,41 @@ public class AddressBook implements ReadOnlyAddressBook {
     }
 
     /**
+     * Returns true if a person with the same normalized name as {@code person} exists in the address book.
+     */
+    public boolean hasPersonWithSameName(Person person) {
+        requireNonNull(person);
+        return persons.containsSameName(person);
+    }
+
+    /**
+     * Returns true if any stored patient shares a current or previous datetime with {@code person}.
+     */
+    public boolean hasPersonWithSameVisitDate(Person person) {
+        requireNonNull(person);
+        return persons.containsSameVisitDate(person);
+    }
+
+    /**
+     * Returns true if any patient other than {@code excludedPerson} shares a visit datetime with {@code person}.
+     *
+     * @throws NullPointerException If either argument is null.
+     */
+    public boolean hasPersonWithSameVisitDate(Person person, Person excludedPerson) {
+        return persons.containsSameVisitDate(person, excludedPerson);
+    }
+
+    /**
+     * Returns the number of persons whose visit falls on the same day as {@code person}'s visit.
+     */
+    public int countPersonsWithSameVisitDay(Person person) {
+        requireNonNull(person);
+        return persons.countSameVisitDay(person);
+    }
+
+    /**
      * Adds a person to the address book.
-     * The person must not already exist in the address book.
+     * The person and visit date must not already exist in the address book.
      */
     public void addPerson(Person p) {
         persons.add(p);
@@ -67,7 +100,7 @@ public class AddressBook implements ReadOnlyAddressBook {
     /**
      * Replaces the given person {@code target} in the list with {@code editedPerson}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The identity and visit date of {@code editedPerson} must not match another existing person in the address book.
      */
     public void setPerson(Person target, Person editedPerson) {
         requireNonNull(editedPerson);

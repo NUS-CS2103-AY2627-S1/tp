@@ -1,8 +1,12 @@
 package seedu.address.ui;
 
+import java.util.function.BooleanSupplier;
+
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -17,6 +21,10 @@ public class CommandBox extends UiPart<Region> {
     private static final String FXML = "CommandBox.fxml";
 
     private final CommandExecutor commandExecutor;
+    private final BooleanSupplier isInputRequestPending;
+    private final CommandHistory commandHistory = new CommandHistory();
+    private int lastAnchor;
+    private int lastCaretPosition;
 
     @FXML
     private TextField commandTextField;
@@ -25,10 +33,54 @@ public class CommandBox extends UiPart<Region> {
      * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
      */
     public CommandBox(CommandExecutor commandExecutor) {
+        this(commandExecutor, () -> false);
+    }
+
+    /**
+     * Creates a {@code CommandBox} that can submit empty text while follow-up input is pending.
+     *
+     * @param commandExecutor Executor for submitted text.
+     * @param isInputRequestPending Supplies whether the next submission answers a pending input request.
+     */
+    public CommandBox(CommandExecutor commandExecutor, BooleanSupplier isInputRequestPending) {
         super(FXML);
         this.commandExecutor = commandExecutor;
+        this.isInputRequestPending = isInputRequestPending;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
         commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        // Save the edit position before JavaFX resets the selection when focus leaves the text field.
+        commandTextField.focusedProperty().addListener((observable, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                lastAnchor = commandTextField.getAnchor();
+                lastCaretPosition = commandTextField.getCaretPosition();
+            }
+        });
+    }
+
+    /**
+     * Focuses command entry and restores its edit position without submitting unfinished input.
+     */
+    void focus() {
+        commandTextField.requestFocus();
+        commandTextField.selectRange(lastAnchor, lastCaretPosition);
+    }
+
+    /**
+     * Saves the current edit position when command entry is focused.
+     *
+     * <p>This is needed before another window is shown because some window managers do not deliver
+     * a focus-loss event when a JavaFX event opens a separate window.</p>
+     */
+    void saveSelection() {
+        if (commandTextField.isFocused()) {
+            lastAnchor = commandTextField.getAnchor();
+            lastCaretPosition = commandTextField.getCaretPosition();
+        }
+    }
+
+    /** Returns the text field used as the command-box focus stop. */
+    Node getFocusTarget() {
+        return commandTextField;
     }
 
     /**
@@ -37,16 +89,52 @@ public class CommandBox extends UiPart<Region> {
     @FXML
     private void handleCommandEntered() {
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        boolean isFollowUpInput = isInputRequestPending.getAsBoolean();
+        if (!shouldSubmit(commandText, isFollowUpInput)) {
             return;
         }
 
+        commandHistory.recordSubmission(commandText, isFollowUpInput);
         try {
             commandExecutor.execute(commandText);
             commandTextField.setText("");
         } catch (CommandException | ParseException e) {
             setStyleToIndicateCommandFailure();
         }
+    }
+
+    /**
+     * Replaces the command text with older or newer command history when an arrow key is pressed.
+     */
+    @FXML
+    private void handleKeyPressed(KeyEvent keyEvent) {
+        switch (keyEvent.getCode()) {
+            case UP:
+                replaceCommandText(commandHistory.getPrevious(commandTextField.getText()));
+                keyEvent.consume();
+                break;
+            case DOWN:
+                replaceCommandText(commandHistory.getNext(commandTextField.getText()));
+                keyEvent.consume();
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Replaces the command box content and positions the caret after the recalled text.
+     */
+    private void replaceCommandText(String commandText) {
+        commandTextField.setText(commandText);
+        commandTextField.positionCaret(commandText.length());
+    }
+
+    /**
+     * Returns true when the supplied text is a command or a response to a pending input request.
+     */
+    static boolean shouldSubmit(String commandText, boolean isInputRequestPending) {
+        return !commandText.isEmpty() || isInputRequestPending;
     }
 
     /**

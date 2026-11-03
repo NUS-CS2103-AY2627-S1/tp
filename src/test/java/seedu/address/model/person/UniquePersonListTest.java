@@ -4,9 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_VISIT_DATE_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
 import java.util.List;
@@ -14,12 +18,116 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.person.exceptions.DuplicateVisitDateException;
 import seedu.address.model.person.exceptions.PersonNotFoundException;
 import seedu.address.testutil.PersonBuilder;
 
 public class UniquePersonListTest {
 
     private final UniquePersonList uniquePersonList = new UniquePersonList();
+
+    @Test
+    public void add_conflictingVisitRecords_rejectsWithoutChangingList() {
+        // EP: Conflicts can match the candidate's current date or any previous date.
+        // EP: All four current/history pairings are checked while the stored list remains unchanged.
+        Person existing = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000").build();
+        uniquePersonList.add(existing);
+        for (Person conflicting : createConflictingVisitRecords()) {
+            assertTrue(uniquePersonList.containsSameVisitDate(conflicting));
+            assertThrows(DuplicateVisitDateException.class, () -> uniquePersonList.add(conflicting));
+            assertEquals(List.of(existing), uniquePersonList.asUnmodifiableObservableList());
+        }
+    }
+
+    @Test
+    public void setPerson_conflictingVisitRecords_rejectsCompleteCandidateWithoutChangingList() {
+        // EP: Replacements must be checked against every retained current and historical date.
+        Person existing = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000").build();
+        uniquePersonList.setPersons(List.of(existing, BOB));
+        for (Person conflicting : createConflictingVisitRecords()) {
+            assertTrue(uniquePersonList.containsSameVisitDate(conflicting, BOB));
+            assertThrows(DuplicateVisitDateException.class, () -> uniquePersonList.setPerson(BOB, conflicting));
+            assertEquals(List.of(existing, BOB), uniquePersonList.asUnmodifiableObservableList());
+        }
+    }
+
+    @Test
+    public void setPerson_unchangedCurrentWithConflictingHistory_rejectsWithoutChangingList() {
+        Person existing = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000").build();
+        Person target = new PersonBuilder(BOB).withVisitDate("20/10/2026 1000").build();
+        uniquePersonList.setPersons(List.of(existing, target));
+        Person unchangedCurrentWithConflictingHistory = new PersonBuilder(target)
+                .withPreviousVisitDates("1/10/2026 1000").build();
+
+        assertThrows(DuplicateVisitDateException.class, () ->
+                uniquePersonList.setPerson(target, unchangedCurrentWithConflictingHistory));
+        assertEquals(List.of(existing, target), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setPersons_conflictingVisitRecords_preservesOriginalList() {
+        uniquePersonList.add(ALICE);
+        Person existing = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000").build();
+        for (Person conflicting : createConflictingVisitRecords()) {
+            assertThrows(DuplicateVisitDateException.class, () ->
+                    uniquePersonList.setPersons(List.of(existing, conflicting)));
+            assertEquals(List.of(ALICE), uniquePersonList.asUnmodifiableObservableList());
+        }
+    }
+
+    @Test
+    public void setPerson_ownDatesMovedToHistory_excludesOriginalTarget() {
+        // EP: A replacement may retain the target's own old dates without self-conflicting.
+        Person original = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000").build();
+        uniquePersonList.add(original);
+        Person replacement = new PersonBuilder(original).withVisitDate("20/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000", "10/10/2026 1000").build();
+
+        assertFalse(uniquePersonList.containsSameVisitDate(replacement, original));
+        uniquePersonList.setPerson(original, replacement);
+        uniquePersonList.setPerson(replacement, replacement);
+
+        assertEquals(List.of(replacement), uniquePersonList.asUnmodifiableObservableList());
+        // API preconditions: Both the candidate and excluded target must be non-null.
+        assertThrows(NullPointerException.class, () -> uniquePersonList.containsSameVisitDate(null, original));
+        assertThrows(NullPointerException.class, () -> uniquePersonList.containsSameVisitDate(replacement, null));
+    }
+
+    @Test
+    public void countSameVisitDay_previousDates_doNotCountTowardsCapacity() {
+        // EP: Capacity counts current visits only; historical visits on the same day are excluded.
+        Person existing = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000", "1/10/2026 1100").build();
+        uniquePersonList.add(existing);
+        Person sameDayDifferentTime = new PersonBuilder(BOB).withVisitDate("1/10/2026 1200").build();
+
+        assertFalse(uniquePersonList.containsSameVisitDate(sameDayDifferentTime));
+        assertEquals(0, uniquePersonList.countSameVisitDay(sameDayDifferentTime));
+        uniquePersonList.add(sameDayDifferentTime);
+        assertEquals(1, uniquePersonList.countSameVisitDay(sameDayDifferentTime));
+    }
+
+    /**
+     * Returns distinct patients exercising all current/previous datetime conflict combinations.
+     */
+    private List<Person> createConflictingVisitRecords() {
+        return List.of(
+                // Candidate current matches stored history, including normalized datetime text.
+                new PersonBuilder(BOB).withVisitDate("01/10/2026 1000").build(),
+                // Candidate current matches stored current.
+                new PersonBuilder(BOB).withVisitDate("10/10/2026 1000").build(),
+                // Candidate history matches stored current.
+                new PersonBuilder(BOB).withVisitDate("20/10/2026 1000")
+                        .withPreviousVisitDates("10/10/2026 1000").build(),
+                // Candidate history matches stored history.
+                new PersonBuilder(BOB).withVisitDate("20/10/2026 1000")
+                        .withPreviousVisitDates("01/10/2026 1000").build());
+    }
 
     @Test
     public void contains_nullPerson_throwsNullPointerException() {
@@ -46,6 +154,42 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void contains_personWithSameNameAndDifferentPhone_returnsFalse() {
+        uniquePersonList.add(ALICE);
+        Person sameNameDifferentPhone = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB)
+                .withVisitDate(VALID_VISIT_DATE_BOB).build();
+
+        assertFalse(uniquePersonList.contains(sameNameDifferentPhone));
+        assertTrue(uniquePersonList.containsSameName(sameNameDifferentPhone));
+    }
+
+    @Test
+    public void containsSameVisitDate() {
+        uniquePersonList.add(ALICE);
+        Person personWithSameVisitDate = new PersonBuilder(ALICE).withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).build();
+        Person personWithDifferentVisitDate = new PersonBuilder(personWithSameVisitDate)
+                .withVisitDate(VALID_VISIT_DATE_BOB).build();
+
+        assertTrue(uniquePersonList.containsSameVisitDate(personWithSameVisitDate));
+        assertFalse(uniquePersonList.containsSameVisitDate(personWithDifferentVisitDate));
+        assertThrows(NullPointerException.class, () -> uniquePersonList.containsSameVisitDate(null));
+    }
+
+    @Test
+    public void countSameVisitDay() {
+        // ALICE and BENSON visit on the same day at different times
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BENSON);
+        Person personLaterOnSameDay = new PersonBuilder().withVisitDate("1/1/2026 1500").build();
+        Person personOnDifferentDay = new PersonBuilder().withVisitDate(VALID_VISIT_DATE_BOB).build();
+
+        assertEquals(2, uniquePersonList.countSameVisitDay(personLaterOnSameDay));
+        assertEquals(0, uniquePersonList.countSameVisitDay(personOnDifferentDay));
+        assertThrows(NullPointerException.class, () -> uniquePersonList.countSameVisitDay(null));
+    }
+
+    @Test
     public void add_nullPerson_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> uniquePersonList.add(null));
     }
@@ -54,6 +198,38 @@ public class UniquePersonListTest {
     public void add_duplicatePerson_throwsDuplicatePersonException() {
         uniquePersonList.add(ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.add(ALICE));
+    }
+
+    @Test
+    public void add_sameNameAndDifferentPhone_addsPerson() {
+        Person sameNameDifferentPhone = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB)
+                .withVisitDate(VALID_VISIT_DATE_BOB).build();
+
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(sameNameDifferentPhone);
+
+        assertEquals(List.of(ALICE, sameNameDifferentPhone), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_differentNameAndSamePhone_addsPerson() {
+        Person samePhoneDifferentName = new PersonBuilder(ALICE).withName(VALID_NAME_BOB)
+                .withVisitDate(VALID_VISIT_DATE_BOB).build();
+
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(samePhoneDifferentName);
+
+        assertEquals(List.of(ALICE, samePhoneDifferentName), uniquePersonList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void add_duplicateVisitDate_throwsDuplicateVisitDateException() {
+        Person personWithSameVisitDate = new PersonBuilder(ALICE).withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).build();
+
+        uniquePersonList.add(ALICE);
+
+        assertThrows(DuplicateVisitDateException.class, () -> uniquePersonList.add(personWithSameVisitDate));
     }
 
     @Test
@@ -105,6 +281,15 @@ public class UniquePersonListTest {
         uniquePersonList.add(ALICE);
         uniquePersonList.add(BOB);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPerson(ALICE, BOB));
+    }
+
+    @Test
+    public void setPerson_editedPersonHasNonUniqueVisitDate_throwsDuplicateVisitDateException() {
+        uniquePersonList.add(ALICE);
+        uniquePersonList.add(BOB);
+        Person editedAlice = new PersonBuilder(ALICE).withVisitDate(BOB.getVisitDate().toString()).build();
+
+        assertThrows(DuplicateVisitDateException.class, () -> uniquePersonList.setPerson(ALICE, editedAlice));
     }
 
     @Test
@@ -161,9 +346,19 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void setPersons_listWithDuplicateVisitDates_throwsDuplicateVisitDateException() {
+        Person personWithSameVisitDate = new PersonBuilder(ALICE).withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).build();
+        List<Person> personsWithDuplicateVisitDates = List.of(ALICE, personWithSameVisitDate);
+
+        assertThrows(DuplicateVisitDateException.class, () ->
+                uniquePersonList.setPersons(personsWithDuplicateVisitDates));
+    }
+
+    @Test
     public void asUnmodifiableObservableList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, ()
-            -> uniquePersonList.asUnmodifiableObservableList().remove(0));
+        assertThrows(UnsupportedOperationException.class, () ->
+                uniquePersonList.asUnmodifiableObservableList().remove(0));
     }
 
     @Test

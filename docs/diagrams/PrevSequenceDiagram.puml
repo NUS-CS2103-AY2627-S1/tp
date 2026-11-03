@@ -1,0 +1,97 @@
+@startuml
+!include style.puml
+skinparam style strictuml
+skinparam ArrowFontStyle plain
+
+skinparam ParticipantPadding 6
+skinparam Participant {
+  FontSize 15
+  Padding 8
+}
+skinparam Sequence {
+  ArrowFontSize 14
+  ParticipantFontSize 15
+}
+skinparam Note {
+  FontSize 14
+}
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "p:PrevCommand" as PrevCommand LOGIC_COLOR
+participant "request:\nCommandInputRequest" as InputRequest LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute("prev 1")
+activate LogicManager
+
+LogicManager -> PrevCommand : execute(m)
+activate PrevCommand
+PrevCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> PrevCommand : displayedPersons
+deactivate Model
+
+create InputRequest
+PrevCommand -> InputRequest : createConfirmation(prompt,\ncancellation, restore)
+activate InputRequest
+InputRequest --> PrevCommand : request
+deactivate InputRequest
+
+note right of PrevCommand
+  restore captures the displayed
+  patient. Return a result
+  containing request.
+  No mutation or saving.
+end note
+
+PrevCommand --> LogicManager : promptResult
+deactivate PrevCommand
+[<--LogicManager : promptResult
+deactivate LogicManager
+
+[-> LogicManager : execute("y")
+activate LogicManager
+LogicManager -> InputRequest : respond("y", m)
+activate InputRequest
+InputRequest -> PrevCommand : restorePreviousVisit(m,\ncapturedPatient)
+activate PrevCommand
+
+note right of PrevCommand
+  Require captured record unchanged.
+  Restore latest previous datetime.
+  Remove it from history; discard current datetime.
+end note
+PrevCommand -> Model : setPerson(capturedPatient,\nupdatedPerson)
+activate Model
+Model --> PrevCommand
+deactivate Model
+PrevCommand --> InputRequest : result
+deactivate PrevCommand
+InputRequest --> LogicManager : result
+deactivate InputRequest
+
+LogicManager -> LogicManager : saveAddressBook(modelState)
+activate LogicManager
+LogicManager -> Model : getAddressBook()
+activate Model
+Model --> LogicManager : addressBook
+deactivate Model
+LogicManager -> Storage : saveAddressBook(addressBook)
+activate Storage
+Storage --> LogicManager
+deactivate Storage
+LogicManager --> LogicManager
+deactivate LogicManager
+
+[<--LogicManager : result
+deactivate LogicManager
+@enduml

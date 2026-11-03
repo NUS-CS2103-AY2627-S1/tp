@@ -1,7 +1,9 @@
 package seedu.address.storage;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,21 +11,119 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void readAndSaveAddressBook_previousDates_roundTripsFullRecord() throws Exception {
+        Path filePath = testFolder.resolve("visit-record.json");
+        Person patient = new PersonBuilder(ALICE).withVisitDate("10/10/2026 1000")
+                .withPreviousVisitDates("1/10/2026 1000", "1/10/2026 1100").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(patient);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        storage.saveAddressBook(addressBook);
+
+        assertTrue(Files.readString(filePath).contains("\"previousVisitDates\""));
+        assertEquals(addressBook, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void readAddressBook_missingNullOrEmptyPreviousDates_loadsEmptyHistory() throws Exception {
+        // EP: Legacy files may omit the field or encode it as null/empty without losing compatibility.
+        Path filePath = testFolder.resolve("legacy.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        for (String property : List.of("", "\"previousVisitDates\": null,", "\"previousVisitDates\": [],")) {
+            Files.writeString(filePath, "{\"persons\":[" + createPatientJson(property) + "]}");
+            Person loaded = storage.readAddressBook().orElseThrow().getPersonList().getFirst();
+            assertEquals(List.of(), loaded.getPreviousVisitDates());
+            assertEquals("10/10/2026 1000", loaded.getVisitDate().toString());
+            storage.saveAddressBook(storage.readAddressBook().orElseThrow());
+            assertTrue(Files.readString(filePath).contains("\"previousVisitDates\" : [ ]"));
+        }
+    }
+
+    @Test
+    public void readAddressBook_invalidPreviousDates_rejectsWithoutRepairingFile() throws Exception {
+        Path filePath = testFolder.resolve("invalid-history.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        String[] invalidHistories = {
+            // EP: The history container must be an array, rather than a scalar or object.
+            "\"1/10/2026 1000\"", "{}", "1", "true",
+            // EP: Array entries must be non-null, syntactically valid datetime strings.
+            "[null]", "[\"31/2/2026 1000\"]", "[\"\"]", "[{}]", "[[]]", "[false]", "[1]",
+            // EP: Valid datetimes still fail if descending or equal after normalization.
+            "[\"2/10/2026 1000\",\"1/10/2026 1000\"]", "[\"1/10/2026 1000\",\"01/10/2026 1000\"]",
+            // EP: History at or after the current visit is invalid; equality is the boundary case.
+            "[\"10/10/2026 1000\"]", "[\"11/10/2026 1000\"]"
+        };
+        for (String previousDates : invalidHistories) {
+            String json = "{\"persons\":["
+                    + createPatientJson("\"previousVisitDates\":" + previousDates + ",") + "]}";
+            Files.writeString(filePath, json);
+            byte[] savedBytes = Files.readAllBytes(filePath);
+
+            assertThrows(DataLoadingException.class, () -> storage.readAddressBook());
+            assertArrayEquals(savedBytes, Files.readAllBytes(filePath));
+        }
+    }
+
+    @Test
+    public void readAddressBook_missingOrNullCurrentWithHistory_stillRejectsRequiredField() throws Exception {
+        Path filePath = testFolder.resolve("missing-current.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        String patient = createPatientJson("\"previousVisitDates\":[\"1/10/2026 1000\"],");
+        for (String replacement : List.of("", "\"visitDate\":null,")) {
+            String json = "{\"persons\":[" + patient.replace("\"visitDate\":\"10/10/2026 1000\",", replacement)
+                    + "]}";
+            Files.writeString(filePath, json);
+
+            assertThrows(DataLoadingException.class, () -> storage.readAddressBook());
+        }
+    }
+
+    @Test
+    public void readAddressBook_crossPatientHistoryConflict_throwsDataLoadingException() throws Exception {
+        // EP: Cross-patient conflicts include historical dates, not only current appointments.
+        Path filePath = testFolder.resolve("duplicate-history.json");
+        String firstPatient = createPatientJson("\"previousVisitDates\":[\"1/10/2026 1000\"],");
+        String secondPatient = createPatientJson("").replace("Test Patient", "Other Patient")
+                .replace("10/10/2026 1000", "01/10/2026 1000");
+        String json = "{\"persons\":[" + firstPatient + "," + secondPatient + "]}";
+        Files.writeString(filePath, json);
+        byte[] savedBytes = Files.readAllBytes(filePath);
+
+        assertThrows(DataLoadingException.class, () -> new JsonAddressBookStorage(filePath).readAddressBook());
+        assertArrayEquals(savedBytes, Files.readAllBytes(filePath));
+    }
+
+    /**
+     * Returns an otherwise valid patient JSON object with the supplied previous-date property.
+     */
+    private String createPatientJson(String previousDatesProperty) {
+        return "{\"name\":\"Test Patient\",\"phone\":\"91234567\",\"email\":\"\",\"address\":\"Test Road\","
+                + "\"visitDate\":\"10/10/2026 1000\"," + previousDatesProperty + "\"note\":\"\",\"tags\":[]}";
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -58,6 +158,48 @@ public class JsonAddressBookStorageTest {
     @Test
     public void readAddressBook_invalidAndValidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_nullPatient_throwsDataLoadingExceptionWithoutChangingFile() throws Exception {
+        assertInvalidEntryRejected("nullPatientAddressBook.json", "Patient list contains a null patient entry.");
+    }
+
+    @Test
+    public void readAddressBook_nullTag_throwsDataLoadingExceptionWithoutChangingFile() throws Exception {
+        assertInvalidEntryRejected("nullTagAddressBook.json", "Patient's tags contain a null tag entry.");
+    }
+
+    @Test
+    public void readAddressBook_emptyTags_loadsPatientWithoutTags() throws Exception {
+        Path filePath = testFolder.resolve("empty-tags.json");
+        Files.writeString(filePath, "{\"persons\":[" + createPatientJson("") + "]}");
+        byte[] originalBytes = Files.readAllBytes(filePath);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        ReadOnlyAddressBook loaded = storage.readAddressBook().orElseThrow();
+
+        assertEquals(1, loaded.getPersonList().size());
+        Person patient = loaded.getPersonList().getFirst();
+        assertEquals("Test Patient", patient.getName().fullName);
+        assertTrue(patient.getTags().isEmpty());
+        assertArrayEquals(originalBytes, Files.readAllBytes(filePath));
+    }
+
+    /**
+     * Checks that invalid entries produce a recoverable loading error without modifying the saved file.
+     */
+    private void assertInvalidEntryRejected(String fixtureName, String expectedReason) throws Exception {
+        Path filePath = testFolder.resolve("doc.json");
+        Files.copy(TEST_DATA_FOLDER.resolve(fixtureName), filePath);
+        byte[] originalBytes = Files.readAllBytes(filePath);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        DataLoadingException exception = assertThrows(DataLoadingException.class, storage::readAddressBook);
+
+        assertTrue(exception.getCause() instanceof IllegalValueException);
+        assertEquals(expectedReason, exception.getCause().getMessage());
+        assertArrayEquals(originalBytes, Files.readAllBytes(filePath));
     }
 
     @Test
@@ -106,5 +248,51 @@ public class JsonAddressBookStorageTest {
     @Test
     public void saveAddressBook_nullFilePath_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> saveAddressBook(new AddressBook(), null));
+    }
+
+    @Test
+    public void backupAddressBook_existingFile_copiesToTimestampedFile() throws Exception {
+        Path dataFile = testFolder.resolve("addressbook.json");
+        Files.copy(TEST_DATA_FOLDER.resolve("invalidPersonAddressBook.json"), dataFile);
+        byte[] originalBytes = Files.readAllBytes(dataFile);
+
+        Path backupPath = new JsonAddressBookStorage(dataFile)
+                .backupAddressBook(LocalDateTime.of(2026, 10, 29, 15, 30, 5));
+
+        assertEquals(testFolder.resolve("addressbook-invalid-20261029-153005.json"), backupPath);
+        assertArrayEquals(originalBytes, Files.readAllBytes(backupPath));
+        assertArrayEquals(originalBytes, Files.readAllBytes(dataFile));
+    }
+
+    @Test
+    public void backupAddressBook_fileWithoutJsonExtension_appendsJsonExtension() throws Exception {
+        Path dataFile = testFolder.resolve("patients");
+        Files.writeString(dataFile, "{}");
+
+        Path backupPath = new JsonAddressBookStorage(dataFile)
+                .backupAddressBook(LocalDateTime.of(2026, 1, 2, 3, 4, 5));
+
+        assertEquals(testFolder.resolve("patients-invalid-20260102-030405.json"), backupPath);
+    }
+
+    @Test
+    public void backupAddressBook_backupAlreadyExists_keepsExistingBackup() throws Exception {
+        Path dataFile = testFolder.resolve("addressbook.json");
+        Files.writeString(dataFile, "first");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataFile);
+        LocalDateTime backupTime = LocalDateTime.of(2026, 10, 29, 15, 30, 5);
+        Path backupPath = storage.backupAddressBook(backupTime);
+        Files.writeString(dataFile, "second");
+
+        assertThrows(IOException.class, () -> storage.backupAddressBook(backupTime));
+        assertEquals("first", Files.readString(backupPath));
+    }
+
+    @Test
+    public void backupAddressBook_missingFile_throwsIoException() {
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("missing.json"));
+
+        assertThrows(IOException.class, () -> storage.backupAddressBook(LocalDateTime.of(2026, 10, 29, 15, 30)));
+        assertThrows(NullPointerException.class, () -> storage.backupAddressBook(null));
     }
 }

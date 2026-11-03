@@ -3,11 +3,14 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.model.person.Person;
@@ -18,9 +21,15 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
+    /** Snapshot used to restore patient data together with the active filter and sort. */
+    private record ModelManagerState(List<Person> persons, Predicate<? super Person> predicate,
+            Comparator<? super Person> comparator) implements ModelState {
+    }
+
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
     private final FilteredList<Person> filteredPersons;
+    private final SortedList<Person> sortedPersons;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -33,6 +42,7 @@ public class ModelManager implements Model {
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        sortedPersons = new SortedList<>(filteredPersons);
     }
 
     public ModelManager() {
@@ -57,6 +67,24 @@ public class ModelManager implements Model {
         userPrefs.setGuiSettings(guiSettings);
     }
 
+    @Override
+    public ModelState createStateSnapshot() {
+        return new ModelManagerState(List.copyOf(addressBook.getPersonList()), filteredPersons.getPredicate(),
+                sortedPersons.getComparator());
+    }
+
+    @Override
+    public void restoreStateSnapshot(ModelState modelState) {
+        requireNonNull(modelState);
+        if (!(modelState instanceof ModelManagerState modelManagerState)) {
+            throw new IllegalArgumentException("Snapshot was created by an incompatible model implementation");
+        }
+
+        addressBook.setPersons(modelManagerState.persons());
+        filteredPersons.setPredicate(modelManagerState.predicate());
+        sortedPersons.setComparator(modelManagerState.comparator());
+    }
+
     //=========== AddressBook ================================================================================
 
     @Override
@@ -73,6 +101,30 @@ public class ModelManager implements Model {
     public boolean hasPerson(Person person) {
         requireNonNull(person);
         return addressBook.hasPerson(person);
+    }
+
+    @Override
+    public boolean hasPersonWithSameName(Person person) {
+        requireNonNull(person);
+        return addressBook.hasPersonWithSameName(person);
+    }
+
+    @Override
+    public boolean hasPersonWithSameVisitDate(Person person) {
+        requireNonNull(person);
+        return addressBook.hasPersonWithSameVisitDate(person);
+    }
+
+    @Override
+    public boolean hasPersonWithSameVisitDate(Person person, Person excludedPerson) {
+        requireAllNonNull(person, excludedPerson);
+        return addressBook.hasPersonWithSameVisitDate(person, excludedPerson);
+    }
+
+    @Override
+    public int countPersonsWithSameVisitDay(Person person) {
+        requireNonNull(person);
+        return addressBook.countPersonsWithSameVisitDay(person);
     }
 
     @Override
@@ -101,13 +153,20 @@ public class ModelManager implements Model {
      */
     @Override
     public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+        return sortedPersons;
     }
 
     @Override
     public void updateFilteredPersonList(Predicate<Person> predicate) {
         requireNonNull(predicate);
+        sortedPersons.setComparator(null);
         filteredPersons.setPredicate(predicate);
+    }
+
+    @Override
+    public void sortFilteredPersonList(Comparator<Person> comparator) {
+        requireNonNull(comparator);
+        sortedPersons.setComparator(comparator);
     }
 
     @Override
@@ -123,7 +182,7 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && sortedPersons.equals(otherModelManager.sortedPersons);
     }
 
 }

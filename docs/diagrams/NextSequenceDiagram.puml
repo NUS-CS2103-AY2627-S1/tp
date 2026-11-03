@@ -1,0 +1,75 @@
+@startuml
+!include style.puml
+skinparam style strictuml
+skinparam ArrowFontStyle plain
+
+skinparam ParticipantPadding 6
+skinparam Participant {
+  FontSize 15
+  Padding 8
+}
+skinparam Sequence {
+  ArrowFontSize 14
+  ParticipantFontSize 15
+}
+skinparam Note {
+  FontSize 14
+}
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant "n:NextCommand" as NextCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+box Storage STORAGE_COLOR_T1
+participant ":Storage" as Storage STORAGE_COLOR
+end box
+
+[-> LogicManager : execute(commandText)
+activate LogicManager
+
+LogicManager -> NextCommand : execute(m)
+activate NextCommand
+
+NextCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> NextCommand : displayedPersons
+deactivate Model
+
+note right of NextCommand
+  Build updatedPerson; model is unchanged.
+  Append current datetime to history.
+  Set requested datetime as current.
+  Preserve all other patient fields.
+end note
+
+NextCommand -> Model : setPerson(personToUpdate,\nupdatedPerson)
+activate Model
+Model --> NextCommand
+deactivate Model
+
+NextCommand --> LogicManager : result
+deactivate NextCommand
+
+LogicManager -> LogicManager : saveAddressBook(modelState)
+activate LogicManager
+LogicManager -> Model : getAddressBook()
+activate Model
+Model --> LogicManager : addressBook
+deactivate Model
+
+LogicManager -> Storage : saveAddressBook(addressBook)
+activate Storage
+Storage --> LogicManager
+deactivate Storage
+
+LogicManager --> LogicManager
+deactivate LogicManager
+
+[<--LogicManager : result
+deactivate LogicManager
+@enduml
