@@ -3,6 +3,8 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.text.Normalizer;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
@@ -10,13 +12,14 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 public class Name {
 
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names must start with a letter or number and contain only letters, numbers, spaces, "
+            + "apostrophes (' or ’), hyphens (-), or slashes (/).";
 
     /*
      * The first character of the name must not be a whitespace,
      * otherwise " " (a blank string) becomes a valid input.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX = "[\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} '’/-]*";
 
     public final String fullName;
 
@@ -28,7 +31,7 @@ public class Name {
     public Name(String name) {
         requireNonNull(name);
         checkArgument(isValidName(name), MESSAGE_CONSTRAINTS);
-        fullName = name;
+        fullName = Normalizer.normalize(name, Normalizer.Form.NFC);
     }
 
     /**
@@ -38,6 +41,23 @@ public class Name {
         return test.matches(VALIDATION_REGEX);
     }
 
+
+    /**
+     * Returns {@code name} without leading or trailing spaces, and with each run of spaces inside it replaced by
+     * one space.
+     */
+    public static String collapseSpaces(String name) {
+        requireNonNull(name);
+        return name.trim().replaceAll(" {2,}", " ");
+    }
+
+    /**
+     * Returns true if both names are the same, ignoring case and extra spaces.
+     * Extra spaces are ignored, so "Bob  Lee" and "Bob Lee" are the same name.
+     */
+    public boolean isSameName(Name otherName) {
+        return otherName != null && collapseSpaces(fullName).equalsIgnoreCase(collapseSpaces(otherName.fullName));
+    }
 
     @Override
     public String toString() {

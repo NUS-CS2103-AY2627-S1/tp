@@ -1,0 +1,50 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "c:RoleCommand" as Command LOGIC_COLOR
+participant "m:Model" as Model MODEL_COLOR
+
+note over Logic, Command
+Input has been parsed as role 1 buyer.
+The client remains visible after the update.
+end note
+
+Logic -> Command : execute(m)
+activate Command
+Command -> Model : getFilteredPersonList()
+activate Model
+Model --> Command : lastShownList
+deactivate Model
+
+note over Command
+Validate the displayed index.
+Copy the client with the new role;
+preserve all other fields.
+end note
+
+Command -> Model : setPerson(clientToEdit, editedClient)
+activate Model
+Model --> Command
+deactivate Model
+
+Command -> Model : getFilteredPersonList()
+activate Model
+Model --> Command : updated displayed clients
+deactivate Model
+
+note over Command
+Find the replacement client's displayed index.
+If hidden, return feedback without a view index.
+end note
+
+Command --> Logic : result:CommandResult
+deactivate Command
+
+note over Logic
+Persistence and history recording follow
+the command result and are omitted here.
+end note
+@enduml

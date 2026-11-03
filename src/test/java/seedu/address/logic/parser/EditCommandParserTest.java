@@ -1,18 +1,29 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_PREFIX;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.AREA_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.ASKING_PRICE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.BUDGET_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.HOUSING_TYPE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_AREA_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_BUDGET_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_BUDGET_MONEY_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_HOUSING_TYPE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_PRICE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.SINGLE_AMOUNT_BUDGET_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
@@ -23,6 +34,8 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ASKING_PRICE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_BUDGET;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
@@ -32,6 +45,8 @@ import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
@@ -39,9 +54,13 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.Budget;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.HousingType;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Price;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
@@ -53,6 +72,14 @@ public class EditCommandParserTest {
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
 
     private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_mistypedRequirementPrefix_failure() {
+        String expected = String.format(Messages.MESSAGE_UNKNOWN_PREFIX, "bb/") + "\n"
+                + EditCommand.MESSAGE_USAGE;
+
+        assertParseFailure(parser, "1 a/1 Road bb/400000-600000", expected);
+    }
 
     @Test
     public void parse_missingParts_failure() {
@@ -69,10 +96,16 @@ public class EditCommandParserTest {
     @Test
     public void parse_invalidPreamble_failure() {
         // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "-5" + NAME_DESC_AMY,
+                Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
 
         // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "0" + NAME_DESC_AMY,
+                Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+
+        // index exceeds the supported integer range
+        assertParseFailure(parser, "2147483648" + NAME_DESC_AMY,
+                Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
 
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
@@ -91,12 +124,6 @@ public class EditCommandParserTest {
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
-
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
-        // parsing it together with a valid tag results in error
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
-        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
 
         // multiple invalid values, but only the first invalid value is captured
         assertParseFailure(parser, "1" + INVALID_NAME_DESC + INVALID_EMAIL_DESC + VALID_ADDRESS_AMY + VALID_PHONE_AMY,
@@ -156,11 +183,23 @@ public class EditCommandParserTest {
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
 
+        // address containing a word that starts like a prefix
+        userInput = targetIndex.getOneBased() + " a/9 Grove Road s/o Ramasamy";
+        descriptor = new EditPersonDescriptorBuilder().withAddress("9 Grove Road s/o Ramasamy").build();
+        expectedCommand = new EditCommand(targetIndex, descriptor);
+        assertParseSuccess(parser, userInput, expectedCommand);
+
         // tags
         userInput = targetIndex.getOneBased() + TAG_DESC_FRIEND;
         descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_shortWordAfterAddress_failure() {
+        assertParseFailure(parser, "1 a/9 Grove Road s/ab", Price.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 a/9 Grove Road b/xx", Price.MESSAGE_CONSTRAINTS);
     }
 
     @Test
@@ -196,6 +235,15 @@ public class EditCommandParserTest {
     }
 
     @Test
+    public void parse_emptyTagWithOtherTags_failure() {
+        String expectedMessage = EditCommandParser.MESSAGE_EMPTY_TAG_WITH_OTHER_TAGS;
+        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_DESC_FRIEND, expectedMessage);
+        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY, expectedMessage);
+        assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, expectedMessage);
+        assertParseFailure(parser, "1" + TAG_EMPTY + TAG_EMPTY, expectedMessage);
+    }
+
+    @Test
     public void parse_resetTags_success() {
         Index targetIndex = INDEX_THIRD_PERSON;
         String userInput = targetIndex.getOneBased() + TAG_EMPTY;
@@ -204,5 +252,152 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_requirementFieldsSpecified_success() {
+        Index targetIndex = INDEX_SECOND_PERSON;
+        String userInput = targetIndex.getOneBased() + BUDGET_DESC_AMY + ASKING_PRICE_DESC_AMY
+                + AREA_DESC_AMY + HOUSING_TYPE_DESC_AMY;
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withBudget(new Budget(new Price("1000"), new Price("2000")))
+                .withAskingPrice(new Price("1500"))
+                .withAreas(Set.of(new Area("Bukit Timah")))
+                .withHousingTypes(Set.of(HousingType.HDB))
+                .build();
+        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
+
+        assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_repeatedAreaAndHousingType_success() {
+        Index targetIndex = INDEX_THIRD_PERSON;
+        String userInput = targetIndex.getOneBased() + " l/Orchard l/orchard h/Condo h/condo";
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withAreas(Set.of(new Area("Orchard")))
+                .withHousingTypes(Set.of(HousingType.CONDO))
+                .build();
+        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
+
+        assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_clearRequirements_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+        String userInput = targetIndex.getOneBased() + " b/ s/ l/ h/";
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withBudget(null)
+                .withAskingPrice(null)
+                .withAreas(Set.of())
+                .withHousingTypes(Set.of())
+                .build();
+        EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
+
+        assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_setEachRequirement_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor budgetDescriptor = new EditPersonDescriptorBuilder()
+                .withBudget(new Budget(new Price("1000"), new Price("2000")))
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + BUDGET_DESC_AMY,
+                new EditCommand(targetIndex, budgetDescriptor));
+
+        EditPersonDescriptor priceDescriptor = new EditPersonDescriptorBuilder()
+                .withAskingPrice(new Price("1500"))
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + ASKING_PRICE_DESC_AMY,
+                new EditCommand(targetIndex, priceDescriptor));
+
+        EditPersonDescriptor areaDescriptor = new EditPersonDescriptorBuilder()
+                .withAreas(Set.of(new Area("Bukit Timah")))
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + AREA_DESC_AMY,
+                new EditCommand(targetIndex, areaDescriptor));
+
+        EditPersonDescriptor housingDescriptor = new EditPersonDescriptorBuilder()
+                .withHousingTypes(Set.of(HousingType.HDB))
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + HOUSING_TYPE_DESC_AMY,
+                new EditCommand(targetIndex, housingDescriptor));
+    }
+
+    @Test
+    public void parse_clearEachRequirement_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor budgetDescriptor = new EditPersonDescriptorBuilder()
+                .withBudget(null)
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " b/",
+                new EditCommand(targetIndex, budgetDescriptor));
+
+        EditPersonDescriptor priceDescriptor = new EditPersonDescriptorBuilder()
+                .withAskingPrice(null)
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " s/",
+                new EditCommand(targetIndex, priceDescriptor));
+
+        EditPersonDescriptor areaDescriptor = new EditPersonDescriptorBuilder()
+                .withAreas(Set.of())
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " l/",
+                new EditCommand(targetIndex, areaDescriptor));
+
+        EditPersonDescriptor housingDescriptor = new EditPersonDescriptorBuilder()
+                .withHousingTypes(Set.of())
+                .build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " h/",
+                new EditCommand(targetIndex, housingDescriptor));
+    }
+
+    @Test
+    public void parse_invalidRequirement_failure() {
+        assertParseFailure(parser, "1" + INVALID_BUDGET_MONEY_DESC, Price.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_BUDGET_DESC, Budget.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + SINGLE_AMOUNT_BUDGET_DESC, Budget.MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1" + INVALID_PRICE_DESC, Price.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_AREA_DESC, Area.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_HOUSING_TYPE_DESC, HousingType.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_emptyAreaWithOtherAreas_failure() {
+        String expectedMessage = EditCommandParser.MESSAGE_EMPTY_AREA_WITH_OTHER_AREAS;
+        assertParseFailure(parser, "1 l/ l/Bedok", expectedMessage);
+        assertParseFailure(parser, "1 l/Bedok l/", expectedMessage);
+        assertParseFailure(parser, "1 l/Bedok l/ l/Tampines", expectedMessage);
+        assertParseFailure(parser, "1 l/ l/", expectedMessage);
+    }
+
+    @Test
+    public void parse_emptyHousingTypeWithOtherTypes_failure() {
+        String expectedMessage = EditCommandParser.MESSAGE_EMPTY_HOUSING_TYPE_WITH_OTHER_TYPES;
+        assertParseFailure(parser, "1 h/ h/HDB", expectedMessage);
+        assertParseFailure(parser, "1 h/HDB h/", expectedMessage);
+        assertParseFailure(parser, "1 h/HDB h/ h/Condo", expectedMessage);
+        assertParseFailure(parser, "1 h/ h/", expectedMessage);
+    }
+
+    @Test
+    public void parse_repeatedBudgetOrPrice_failure() {
+        assertParseFailure(parser, "1" + BUDGET_DESC_AMY + BUDGET_DESC_AMY,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_BUDGET));
+        assertParseFailure(parser, "1" + ASKING_PRICE_DESC_AMY + ASKING_PRICE_DESC_AMY,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ASKING_PRICE));
+    }
+
+    @Test
+    public void parse_uppercaseKnownPrefix_failure() {
+        assertParseFailure(parser, "1 a/1 Test Road B/400000-600000",
+                String.format(MESSAGE_UNKNOWN_PREFIX, "B/") + "\n" + EditCommand.MESSAGE_USAGE);
     }
 }

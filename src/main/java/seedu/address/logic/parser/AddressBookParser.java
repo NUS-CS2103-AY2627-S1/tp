@@ -3,6 +3,7 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,9 +15,16 @@ import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.HistoryCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.RoleCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -29,6 +37,34 @@ public class AddressBookParser {
      */
     private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
+
+    /**
+     * The command words this parser accepts, so callers can tell a command from text that is not one.
+     */
+    private static final Set<String> COMMAND_WORDS = Set.of(
+            AddCommand.COMMAND_WORD,
+            ClearCommand.COMMAND_WORD,
+            DeleteCommand.COMMAND_WORD,
+            EditCommand.COMMAND_WORD,
+            ExitCommand.COMMAND_WORD,
+            FilterCommand.COMMAND_WORD,
+            FindCommand.COMMAND_WORD,
+            HelpCommand.COMMAND_WORD,
+            HistoryCommand.COMMAND_WORD,
+            ListCommand.COMMAND_WORD,
+            NoteCommand.COMMAND_WORD,
+            RedoCommand.COMMAND_WORD,
+            RoleCommand.COMMAND_WORD,
+            UndoCommand.COMMAND_WORD,
+            ViewCommand.COMMAND_WORD);
+
+    /**
+     * Returns true if {@code word} is one of the command words this parser accepts.
+     * Keep this list in step with the switch in {@link #parseCommand}.
+     */
+    public static boolean isCommandWord(String word) {
+        return COMMAND_WORDS.contains(word);
+    }
 
     /**
      * Parses user input into command for execution.
@@ -49,22 +85,43 @@ public class AddressBookParser {
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
         // log messages such as the one below.
         // Lower level log messages are used sparingly to minimize noise in the code.
-        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
+        logger.fine("Command word: " + commandWord);
 
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ClearCommand.COMMAND_WORD -> new ClearCommandParser().parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> parseNoArguments(arguments, new ListCommand(),
+                    ListCommand.MESSAGE_INVALID_FORMAT);
+            case ExitCommand.COMMAND_WORD -> parseNoArguments(arguments, new ExitCommand(),
+                    ExitCommand.MESSAGE_INVALID_FORMAT);
+            case HelpCommand.COMMAND_WORD -> parseNoArguments(arguments, new HelpCommand(),
+                    HelpCommand.MESSAGE_INVALID_FORMAT);
+            case NoteCommand.COMMAND_WORD -> new NoteCommandParser().parse(arguments);
+            case RoleCommand.COMMAND_WORD -> new RoleCommandParser().parse(arguments);
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
+            case UndoCommand.COMMAND_WORD -> parseNoArguments(arguments, new UndoCommand(),
+                    UndoCommand.MESSAGE_INVALID_FORMAT);
+            case RedoCommand.COMMAND_WORD -> parseNoArguments(arguments, new RedoCommand(),
+                    RedoCommand.MESSAGE_INVALID_FORMAT);
+            case HistoryCommand.COMMAND_WORD -> parseNoArguments(arguments, new HistoryCommand(),
+                    HistoryCommand.MESSAGE_INVALID_FORMAT);
             default -> {
-                logger.finer("This user input caused a ParseException: " + userInput);
+                logger.finer("The user input does not start with a known command word.");
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };
+    }
+
+    private Command parseNoArguments(String arguments, Command command, String invalidFormatMessage)
+            throws ParseException {
+        if (!arguments.isBlank()) {
+            throw new ParseException(invalidFormatMessage);
+        }
+        return command;
     }
 
 }

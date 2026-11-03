@@ -3,6 +3,7 @@ package seedu.address.commons.util;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -10,8 +11,10 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -37,7 +40,26 @@ public class JsonUtil {
 
     static <T> T deserializeObjectFromJsonFile(Path jsonFile, Class<T> classOfObjectToDeserialize)
             throws IOException {
-        return fromJsonString(FileUtil.readFromFile(jsonFile), classOfObjectToDeserialize);
+        try (InputStream inputStream = Files.newInputStream(jsonFile);
+                JsonParser parser = objectMapper.getFactory().createParser(inputStream)) {
+            T result = objectMapper.readValue(parser, classOfObjectToDeserialize);
+            if (parser.nextToken() != null) {
+                throw new IOException("Unexpected content after JSON value in " + jsonFile);
+            }
+            return result;
+        }
+    }
+
+    /**
+     * Returns the JSON tree of {@code instance}, using the same mapper and field visibility as
+     * {@link #toJsonString(Object)}, so a caller can compare two instances without writing to a file.
+     * Unlike {@link #toJsonString(Object)}, this declares no checked exception.
+     *
+     * @param instance cannot be null.
+     */
+    public static <T> JsonNode toJsonTree(T instance) {
+        requireNonNull(instance);
+        return objectMapper.valueToTree(instance);
     }
 
     /**
@@ -61,6 +83,9 @@ public class JsonUtil {
 
         try {
             jsonFile = deserializeObjectFromJsonFile(filePath, classOfObjectToDeserialize);
+            if (jsonFile == null) {
+                throw new IOException("Expected a JSON object, but found null in " + filePath);
+            }
         } catch (IOException e) {
             logger.warning("Error reading from jsonFile file " + filePath + ": " + e);
             throw new DataLoadingException(e);

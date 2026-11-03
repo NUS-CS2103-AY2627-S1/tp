@@ -1,19 +1,39 @@
 ---
 layout: page
-title: AddressBook Level 3
+title: EstateBookUltraProMax
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+## Keep your client book in view
 
-![Ui](images/Ui.png)
+EstateBookUltraProMax is a desktop client book for property agents who manage
+many buyers and sellers at once. Find contact details during a call, record
+property requirements, and keep follow-up notes in one place. Type short commands
+to work quickly while the app shows your client list and selected client's full
+profile side by side.
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+[Get started with the User Guide](UserGuide.html#quick-start) ·
+[Download a release](https://github.com/AY2627S1-CS2103T-W09-3/tp/releases)
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+![EstateBookUltraProMax showing five sample clients and an empty detail panel](images/Ui.png)
 
+### Built for an agent's daily workflow
 
-**Acknowledgements**
+* Find clients using part of a name, phone number, email address or address.
+* Record buyer and seller roles, budgets, asking prices, preferred areas,
+  housing types, tags and notes.
+* Filter the list to focus on clients who match the property you are working on.
+* Undo and redo changes when you need to correct a mistake.
 
-* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
+Your records are saved locally. The [User Guide](UserGuide.html) explains every
+command, including how to back up and restore your data.
+
+### For developers
+
+See the [Developer Guide](DeveloperGuide.html) for the architecture and setup
+instructions. EstateBookUltraProMax builds on
+[AddressBook-Level3](https://github.com/se-edu/addressbook-level3) by the
+[SE-EDU initiative](https://se-education.org).
+
+Libraries used: [JavaFX](https://openjfx.io/),
+[Jackson](https://github.com/FasterXML/jackson) and
+[JUnit 5](https://github.com/junit-team/junit5).

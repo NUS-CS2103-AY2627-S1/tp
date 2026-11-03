@@ -1,8 +1,11 @@
 package seedu.address.model.person;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +70,33 @@ public class EmailTest {
     }
 
     @Test
+    public void isValidEmail_internalDomainHyphens_returnsTrue() {
+        for (String email : List.of("client@foo--bar.com", "client@foo---bar.com", "client@xn--bcher-kva.de",
+                "client@example.xn--p1ai", "client@XN--BCHER-KVA.DE", "client@a--b", "client@a-b",
+                "client@a.b-c", "client@x.ab", "client@ab")) {
+            assertTrue(Email.isValidEmail(email), email);
+        }
+    }
+
+    @Test
+    public void isValidEmail_invalidDomainBoundaries_returnsFalse() {
+        for (String email : List.of("client@--example.com", "client@example--.com", "client@example.--com",
+                "client@example.com--", "client@-.com", "client@example.-", "client@example.c",
+                "client@a..com", "client@.example.com", "client@example.com.", "client@foo_bar.com")) {
+            assertFalse(Email.isValidEmail(email), email);
+        }
+    }
+
+    @Test
+    public void isValidEmail_invalidLocalPartWithDomainHyphens_returnsFalse() {
+        for (String email : List.of("client--name@foo--bar.com", "client..name@foo--bar.com",
+                "-client@foo--bar.com", "client-@foo--bar.com", "client__name@foo--bar.com",
+                "client+-name@foo--bar.com")) {
+            assertFalse(Email.isValidEmail(email), email);
+        }
+    }
+
+    @Test
     public void equals() {
         Email email = new Email("valid@email");
 
@@ -84,5 +114,45 @@ public class EmailTest {
 
         // different values -> returns false
         assertFalse(email.equals(new Email("other.valid@email")));
+    }
+
+    @Test
+    public void isSameEmail() {
+        Email email = new Email("alpha.tester@example.com");
+
+        // same value -> returns true
+        assertTrue(email.isSameEmail(new Email("alpha.tester@example.com")));
+
+        // same object -> returns true
+        assertTrue(email.isSameEmail(email));
+
+        // domain differs in case -> returns true
+        assertTrue(email.isSameEmail(new Email("alpha.tester@EXAMPLE.COM")));
+
+        // local part differs in case -> returns true
+        assertTrue(email.isSameEmail(new Email("Alpha.Tester@example.com")));
+
+        // both parts differ in case, and the other email is the one in upper case -> returns true
+        assertTrue(new Email("ALPHA.TESTER@EXAMPLE.COM").isSameEmail(email));
+
+        // null -> returns false
+        assertFalse(email.isSameEmail(null));
+
+        // different local part -> returns false
+        assertFalse(email.isSameEmail(new Email("alpha.tester2@example.com")));
+
+        // different domain -> returns false
+        assertFalse(email.isSameEmail(new Email("alpha.tester@example.org")));
+
+        // equals still tells emails that differ in case apart
+        assertFalse(email.equals(new Email("alpha.tester@EXAMPLE.COM")));
+    }
+
+    @Test
+    public void messageConstraints_hasExpectedWording() {
+        assertEquals("Emails should be of the format local-part@domain, where the local part uses letters, "
+                + "digits, and the special characters +_.- (not at the start or end, and never two in a row). "
+                + "Domain labels are separated by periods, and the last label is at least 2 characters long",
+                Email.MESSAGE_CONSTRAINTS);
     }
 }

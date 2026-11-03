@@ -9,10 +9,13 @@ import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
@@ -21,7 +24,14 @@ import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.history.AddressBookSnapshot;
+import seedu.address.model.history.HistoryEntry;
+import seedu.address.model.history.HistoryOperationException;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.Budget;
+import seedu.address.model.person.HousingType;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Price;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -44,12 +54,103 @@ public class AddCommandTest {
     }
 
     @Test
+    public void execute_personWithRequirementsAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person validPerson = new PersonBuilder()
+                .withBudget(new Budget(new Price("1000"), new Price("2000")))
+                .withAskingPrice(new Price("1500"))
+                .withAreas(Set.of(new Area("Orchard")))
+                .withHousingTypes(Set.of(HousingType.CONDO))
+                .build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+                commandResult.getFeedbackToUser());
+        assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_NAME, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_nameWithExtraSpaces_throwsCommandException() {
+        Person existingPerson = new PersonBuilder().withName("Alpha Tester").withPhone("90010001")
+                .withEmail("alpha.tester@example.com").build();
+        Person personWithExtraSpaces = new PersonBuilder().withName("Alpha  Tester").withPhone("90010301")
+                .withEmail("alpha.spaces@example.com").build();
+        AddCommand addCommand = new AddCommand(personWithExtraSpaces);
+        ModelStub modelStub = new ModelStubWithPerson(existingPerson);
+
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_NAME, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithSamePhone_throwsCommandException() {
+        Person personWithSamePhone = new PersonBuilder().withPhone(ALICE.getPhone().value).build();
+        AddCommand addCommand = new AddCommand(personWithSamePhone);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PHONE, ALICE.getName());
+
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithSameEmail_throwsCommandException() {
+        Person personWithSameEmail = new PersonBuilder().withEmail(ALICE.getEmail().value).build();
+        AddCommand addCommand = new AddCommand(personWithSameEmail);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_EMAIL, ALICE.getName());
+
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithEmailInDifferentCase_throwsCommandException() {
+        Person existingPerson = new PersonBuilder().withName("Alpha Tester").withPhone("90010001")
+                .withEmail("alpha.tester@example.com").build();
+        Person personWithEmailInUpperCase = new PersonBuilder().withName("Email Case Test").withPhone("90010302")
+                .withEmail("alpha.tester@EXAMPLE.COM").build();
+        AddCommand addCommand = new AddCommand(personWithEmailInUpperCase);
+        ModelStub modelStub = new ModelStubWithPerson(existingPerson);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_EMAIL, existingPerson.getName());
+
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithSameNameOnly_throwsCommandException() {
+        Person personWithSameName = new PersonBuilder().withName(ALICE.getName().fullName).build();
+        AddCommand addCommand = new AddCommand(personWithSameName);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_NAME, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithSameNameInDifferentCase_throwsCommandException() {
+        Person personWithSameName = new PersonBuilder().withName(ALICE.getName().fullName.toUpperCase()).build();
+        AddCommand addCommand = new AddCommand(personWithSameName);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+
+        assertThrows(CommandException.class, Messages.MESSAGE_DUPLICATE_NAME, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void execute_personWithSamePhoneAndEmail_throwsPhoneMessage() {
+        Person personWithSamePhoneAndEmail = new PersonBuilder().withPhone(ALICE.getPhone().value)
+                .withEmail(ALICE.getEmail().value).build();
+        AddCommand addCommand = new AddCommand(personWithSamePhoneAndEmail);
+        ModelStub modelStub = new ModelStubWithPerson(ALICE);
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_PHONE, ALICE.getName());
+
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -88,6 +189,63 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public AddressBookSnapshot captureSnapshot() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreSnapshot(AddressBookSnapshot snapshot) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean recordChange(AddressBookSnapshot before, AddressBookSnapshot after,
+                String commandWord, String actionDescription) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedo() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public HistoryEntry undo() throws HistoryOperationException {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public HistoryEntry redo() throws HistoryOperationException {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void rollbackUndo(HistoryEntry entry) throws HistoryOperationException {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void rollbackRedo(HistoryEntry entry) throws HistoryOperationException {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<HistoryEntry> getUndoHistory() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<HistoryEntry> getRedoHistory() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -123,6 +281,16 @@ public class AddCommandTest {
         }
 
         @Override
+        public Optional<Person> findPerson(Person candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Person> findPersonOtherThan(Person excludedPerson, Person candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void deletePerson(Person target) {
             throw new AssertionError("This method should not be called.");
         }
@@ -134,6 +302,11 @@ public class AddCommandTest {
 
         @Override
         public ObservableList<Person> getFilteredPersonList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableValue<Boolean> personListFilteredProperty() {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -159,6 +332,12 @@ public class AddCommandTest {
             requireNonNull(person);
             return this.person.isSamePerson(person);
         }
+
+        @Override
+        public Optional<Person> findPerson(Person candidate) {
+            requireNonNull(candidate);
+            return this.person.isSamePerson(candidate) ? Optional.of(this.person) : Optional.empty();
+        }
     }
 
     /**
@@ -171,6 +350,12 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return personsAdded.stream().anyMatch(person::isSamePerson);
+        }
+
+        @Override
+        public Optional<Person> findPerson(Person candidate) {
+            requireNonNull(candidate);
+            return personsAdded.stream().filter(candidate::isSamePerson).findFirst();
         }
 
         @Override

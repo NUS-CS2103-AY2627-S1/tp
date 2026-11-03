@@ -1,8 +1,12 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -15,9 +19,18 @@ import java.util.stream.Collectors;
  */
 public class ArgumentTokenizer {
 
+    private static final List<String> NAME_RELATIONSHIP_MARKERS = List.of("s/o", "d/o", "a/l", "a/p");
+
+    /**
+     * Abbreviations that legitimately appear inside an address value and must not be read as a numeric field.
+     * Only a numeric prefix, such as the budget {@code b/} or the asking price {@code s/}, consults this set.
+     */
+    private static final Set<String> FREE_TEXT_ABBREVIATIONS = Set.of("s/o", "b/c");
+
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
      * respective argument values. Only the given prefixes will be recognized in the arguments string.
+     * Whole relationship markers such as {@code s/o} and {@code a/l} within a {@code n/} field remain in the name.
      *
      * @param argsString Arguments string of the form: {@code preamble <prefix>value <prefix>value ...}
      * @param prefixes   Prefixes to tokenize the arguments string with
@@ -49,12 +62,52 @@ public class ArgumentTokenizer {
 
         int prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), 0);
         while (prefixPosition != -1) {
-            PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
-            positions.add(extendedPrefix);
+            if (startsField(argsString, prefixPosition, prefix)) {
+                PrefixPosition extendedPrefix = new PrefixPosition(prefix, prefixPosition);
+                positions.add(extendedPrefix);
+            }
             prefixPosition = findPrefixPosition(argsString, prefix.getPrefix(), prefixPosition);
         }
 
         return positions;
+    }
+
+    /**
+     * Returns true if the occurrence of {@code prefix} at {@code prefixPosition} starts a new argument.
+     * A prefix that introduces a numeric value is treated as free text when it is followed by one of the
+     * abbreviations in {@code FREE_TEXT_ABBREVIATIONS}, which is how {@code s/o} or {@code b/c} inside an
+     * address look. Everything else counts as a new argument, so a short mistyped value such as {@code s/ab}
+     * still reports the price or budget error, and an empty value still clears the field.
+     */
+    private static boolean startsField(String argsString, int prefixPosition, Prefix prefix) {
+        if (!prefix.hasNumericValue()) {
+            return true;
+        }
+
+        int valueIndex = prefixPosition + prefix.getPrefix().length();
+        while (valueIndex < argsString.length() && argsString.charAt(valueIndex) == ' ') {
+            valueIndex++;
+        }
+
+        if (valueIndex == argsString.length()) {
+            return true;
+        }
+
+        int wordEnd = valueIndex;
+        while (wordEnd < argsString.length() && Character.isLetter(argsString.charAt(wordEnd))) {
+            wordEnd++;
+        }
+
+        String token = argsString.substring(prefixPosition, wordEnd).toLowerCase(Locale.ROOT);
+        boolean tokenEnds = wordEnd == argsString.length() || argsString.charAt(wordEnd) == ' ';
+        return !(tokenEnds && isFreeTextAbbreviation(token));
+    }
+
+    /**
+     * Returns true if {@code word} is one of the abbreviations that stay free text, ignoring case.
+     */
+    static boolean isFreeTextAbbreviation(String word) {
+        return FREE_TEXT_ABBREVIATIONS.contains(word.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -88,6 +141,7 @@ public class ArgumentTokenizer {
 
         // Sort by start position
         prefixPositions.sort((prefix1, prefix2) -> prefix1.getStartPosition() - prefix2.getStartPosition());
+        prefixPositions = preserveNameMarkers(argsString, prefixPositions);
 
         // Insert a PrefixPosition to represent the preamble
         PrefixPosition preambleMarker = new PrefixPosition(new Prefix(""), 0);
@@ -107,6 +161,37 @@ public class ArgumentTokenizer {
         }
 
         return argMultimap;
+    }
+
+    /**
+     * Keeps relationship markers inside a name from being mistaken for asking-price or address prefixes.
+     */
+    private static List<PrefixPosition> preserveNameMarkers(String argsString, List<PrefixPosition> positions) {
+        List<PrefixPosition> fieldPositions = new ArrayList<>();
+        Prefix currentPrefix = null;
+        for (PrefixPosition position : positions) {
+            if (PREFIX_NAME.equals(currentPrefix)
+                    && isNameRelationshipMarker(argsString, position.getStartPosition())) {
+                continue;
+            }
+            fieldPositions.add(position);
+            currentPrefix = position.getPrefix();
+        }
+        return fieldPositions;
+    }
+
+    /**
+     * Returns true if a whole relationship marker begins at {@code start}, ignoring case.
+     */
+    static boolean isNameRelationshipMarker(String argsString, int start) {
+        for (String marker : NAME_RELATIONSHIP_MARKERS) {
+            int end = start + marker.length();
+            if (argsString.regionMatches(true, start, marker, 0, marker.length())
+                    && (end == argsString.length() || Character.isWhitespace(argsString.charAt(end)))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

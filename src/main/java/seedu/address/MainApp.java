@@ -1,9 +1,14 @@
 package seedu.address;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
@@ -19,9 +24,9 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.util.SampleDataUtil;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.SampleAddressBookLoader;
 import seedu.address.storage.Storage;
 import seedu.address.storage.StorageManager;
 import seedu.address.ui.Ui;
@@ -32,7 +37,7 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
@@ -43,47 +48,98 @@ public class MainApp extends Application {
     protected Storage storage;
     protected Model model;
 
+    private final Path userPrefsFilePath;
+    private final Path addressBookFilePath;
+    private Path unreadableDataBackupPath;
+
+    /**
+     * Creates an application using the standard storage locations.
+     */
+    public MainApp() {
+        this(USER_PREFS_FILE_PATH, ADDRESS_BOOK_FILE_PATH);
+    }
+
+    /**
+     * Creates an application using the specified storage files.
+     */
+    MainApp(Path userPrefsFilePath, Path addressBookFilePath) {
+        this.userPrefsFilePath = requireNonNull(userPrefsFilePath);
+        this.addressBookFilePath = requireNonNull(addressBookFilePath);
+    }
+
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("============================[ Initializing EstateBookUltraProMax ]==========================");
         super.init();
 
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
+        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(userPrefsFilePath);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(addressBookFilePath);
         storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
         model = initModelManager(storage, userPrefs);
 
         logic = new LogicManager(model, storage);
 
-        ui = new UiManager(logic, storage.getAddressBookFilePath());
+        ui = new UiManager(logic, storage.getAddressBookFilePath(), unreadableDataBackupPath);
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Loads existing client data, or loads and saves sample clients if the data file is missing.
+     * An unreadable existing file is backed up before starting with an empty client book.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) throws IOException {
         logger.info("Using data file : " + storage.getAddressBookFilePath());
 
         Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+
         try {
             addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
-            }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
         } catch (DataLoadingException e) {
+            try {
+                unreadableDataBackupPath = backUpUnreadableDataFile(storage.getAddressBookFilePath());
+            } catch (IOException backupFailure) {
+                String message = "Could not back up unreadable client data file at "
+                        + storage.getAddressBookFilePath().toAbsolutePath()
+                        + ". Startup has stopped without changing the original file."
+                        + " Check file permissions and available disk space before trying again.";
+                logger.log(Level.SEVERE, message, backupFailure);
+                throw new IOException(message, backupFailure);
+            }
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+                    + " A backup was saved at " + unreadableDataBackupPath
+                    + ". Will be starting with an empty client book.");
+            return new ModelManager(new AddressBook(), userPrefs);
+        }
+
+        if (addressBookOptional.isPresent()) {
+            return new ModelManager(addressBookOptional.get(), userPrefs);
+        }
+
+        ReadOnlyAddressBook initialData = SampleAddressBookLoader.load();
+
+        try {
+            storage.saveAddressBook(initialData);
+            logger.info("Created a new data file " + storage.getAddressBookFilePath()
+                    + " populated with sample client data.");
+        } catch (IOException e) {
+            logger.warning("Failed to save sample data to file: " + StringUtil.getDetails(e));
         }
 
         return new ModelManager(initialData, userPrefs);
+    }
+
+    /** Keeps an unreadable data file recoverable before any command can replace it. */
+    Path backUpUnreadableDataFile(Path dataFilePath) throws IOException {
+        Path source = dataFilePath.toAbsolutePath();
+        Path backup = Files.createTempFile(source.getParent(), source.getFileName() + ".unreadable-", ".bak");
+        try {
+            Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
+            return backup;
+        } catch (IOException e) {
+            Files.deleteIfExists(backup);
+            throw e;
+        }
     }
 
     /**
@@ -108,7 +164,7 @@ public class MainApp extends Application {
             initializedPrefs = new UserPrefs();
         }
 
-        //Update prefs file in case it was missing to begin with or there are new/unused fields
+        // Update prefs file in case it was missing to begin with or there are new/unused fields.
         try {
             storage.saveUserPrefs(initializedPrefs);
         } catch (IOException e) {
@@ -120,13 +176,13 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        logger.info("Starting EstateBookUltraProMax " + MainApp.VERSION);
         ui.start(primaryStage);
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("=========================== [ Stopping EstateBookUltraProMax ] ============================");
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {

@@ -34,3 +34,115 @@ This project has three types of tests:
    For example: `seedu.address.storage.StorageManagerTest`
 1. *Hybrid tests* combine unit and integration testing. These tests check both the individual units and how they work together.<br>
    For example: `seedu.address.logic.LogicManagerTest`
+
+--------------------------------------------------------------------------------------------------------------------
+
+## Main window layout checks
+
+### Automated logical viewport checks
+
+Run `./gradlew test --tests seedu.address.ui.MainWindowTest` (Windows: `gradlew test --tests seedu.address.ui.MainWindowTest`).
+
+The `layout_supportedLogicalViewports_keepsMainRegionsVisible` test resizes the JavaFX root to
+1920 × 1080, 1536 × 864, 853 × 480, and 820 × 440 logical pixels. It checks that the main regions remain
+inside the viewport and that the detail pane displays `Select a client to see details.`.
+
+This is a logical-size check, **not an operating-system display-scaling check**. Resizing the root does not
+change the display scale or font metrics. The manual checks below are still required.
+
+### Detail panel checks
+
+Run `./gradlew test --tests seedu.address.ui.DetailPaneTest --tests seedu.address.ui.MainWindowTest`.
+The panel tests use real client fields to check formatting, optional-row visibility, switching clients,
+clearing the panel, and wrapping and scrolling a 500-character note.
+The main-window tests check the embedded panel at 853 × 480 and 820 × 440 logical pixels.
+
+The main-window selection tests click a rendered row and execute commands through the command box.
+They check the selected border, `view` indices in a filtered list, refreshed details after `edit`, `note` and `role`,
+and the empty state after commands without a view index. Regression cases verify that a client moving into a
+removed client's old row is not selected. The note-removal case uses a test predicate; user-facing filters do not search notes.
+
+The Windows display-scaling results in
+[issue #123](https://github.com/AY2627S1-CS2103T-W09-3/tp/issues/123) apply to the original PR #112 build,
+commit `4c0c4e47`, before this detail panel was added. They do not verify the populated panel.
+Before completing [issue #96](https://github.com/AY2627S1-CS2103T-W09-3/tp/issues/96), check that a
+500-character note wraps and scrolls without clipping at an actual 1280 × 720 resolution with 150% display scaling.
+Record the tested commit and results separately from the earlier build's results.
+
+### Note marker checks
+
+Run `./gradlew test --tests seedu.address.ui.PersonCardTest --tests seedu.address.ui.MainWindowTest`.
+The tests check that a note produces an icon-only card marker with a `Has note` tooltip and accessibility text,
+that adding or clearing a note refreshes the marker, and that the marker fits beside a long name and role badge.
+The existing detail-panel tests also check a 500-character note containing two line breaks.
+
+Use a separate test-data folder for these manual checks:
+
+1. Run `note 1 Call next week`. Check that a small circular note icon appears beside the client's name.
+   Hover over it and check that the tooltip says `Has note`, without displaying the note's contents.
+1. Run `note 1 clear`. Check that the marker disappears and leaves no empty space in the name row.
+1. Add a 500-character note spanning three lines, using `\n` between lines in the command.
+   Select the client and check that the existing note row
+   preserves the line breaks, wraps, and scrolls to the end without clipping the following rows.
+1. Clear the note again and check that both the marker and the panel's note row disappear.
+
+### Manual selection checks
+
+Use a separate test-data folder with at least three clients.
+
+1. Click a client row. Check that its blue border appears and the detail panel shows that client's fields.
+1. Run `view 3`. Check that row 3 is selected and scrolled into view.
+1. Run `filter` or `find` with criteria matching some test clients. Check that the selection and panel clear,
+   then run `view 1` and confirm that it selects the first client in the filtered list.
+1. Edit the selected client's name, phone or email while keeping it within the active filter.
+   Check that the panel shows the updated client. Repeat with `note` and `role`.
+1. Give two test clients the buyer role, run `filter r/buyer`, then `view 1` and `role 1 seller`.
+   Check that the first client disappears and the panel clears, even though another client now occupies row 1.
+1. Select a client, then delete it. Check that the panel clears.
+1. Select a client and run `clear`. Check that the warning leaves the client selected and its details visible.
+   Without selecting another row, run `clear confirm` and check that the list and panel are empty.
+1. Select a client and run `help`. Close the help window and check that the same client is still selected
+   and its details remain visible.
+
+### Manual display-scaling checks
+
+Use a display and operating system that support each configuration below. Set the actual screen resolution
+and display scaling in the operating system; resizing the app window is not a substitute.
+If a configuration is unavailable on your computer, ask a teammate with a supporting display to check it.
+Leave unavailable or untested configurations unverified.
+
+For each configuration:
+
+1. Use a separate test-data folder so that your normal client data is not changed.
+1. Reopen the app and check both its opening layout and its maximised layout within the available desktop area.
+1. Check that the menu, command box, and result box are visible and usable.
+1. Check that the client list and detail pane appear side by side, with
+   `Select a client to see details.` visible before selecting a client.
+1. Ensure there are enough test clients to scroll, then check that the last client can be reached.
+1. Check that the footer's data path and client count are visible without overlapping.
+   Confirm that the count updates after `add`, `find`, `list` and `delete`.
+1. Enter `list` and check that its result is readable. Confirm that no controls overlap or are cut off.
+1. Open the Help window and confirm that it and its controls are reachable.
+1. Record the app commit, operating system, screen resolution, actual display scale, pass/fail result,
+   and a screenshot. Restore your usual display settings afterwards.
+
+### Recorded manual results
+
+* **Tested build:** Original PR #112 test JAR, commit
+  [`4c0c4e47`](https://github.com/AY2627S1-CS2103T-W09-3/tp/commit/4c0c4e4785240e8734aa758de43c8de1eb18a3cd).
+* **Operating system:** Windows 11.
+* **Results confirmed:** 20 October 2026; teammates reported that all manual checks above passed.
+
+| Screen resolution | Actual display scale | Result for the tested build |
+| ----------------- | -------------------- | --------------------------- |
+| 1920 × 1080 | 100% | Pass |
+| 1920 × 1080 | 125% | Pass |
+| 1280 × 720 | 150% | Pass |
+
+The configurations and interactive-check results are teammate-reported; no failures were reported.
+The [test report and three labelled app screenshots](https://github.com/AY2627S1-CS2103T-W09-3/tp/issues/123#issuecomment-6288082959)
+are attached to issue #123. Display-settings screenshots were not supplied.
+
+These results apply only to the tested commit, not to later card or detail-panel changes.
+Repeat affected checks after later UI changes, including the final styling in
+[issue #102](https://github.com/AY2627S1-CS2103T-W09-3/tp/issues/102), and record the new tested commit.

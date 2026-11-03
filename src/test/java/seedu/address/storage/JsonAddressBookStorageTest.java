@@ -2,15 +2,27 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static seedu.address.testutil.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BOB;
 import static seedu.address.testutil.TypicalPersons.HOON;
 import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +30,10 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.HousingType;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -61,6 +77,79 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_duplicatePersonAddressBook_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readAddressBook("duplicatePersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_nullPerson_throwDataLoadingException() throws Exception {
+        assertInvalidJsonStructureThrowsDataLoadingException("{\"persons\":[null]}");
+    }
+
+    @Test
+    public void readAddressBook_nullTag_throwDataLoadingException() throws Exception {
+        assertInvalidJsonStructureThrowsDataLoadingException("""
+                {
+                  "persons": [{
+                    "name": "Alice",
+                    "phone": "123",
+                    "email": "alice@example.com",
+                    "address": "1 Test Road",
+                    "tags": [null]
+                  }]
+                }
+                """);
+    }
+
+    private void assertInvalidJsonStructureThrowsDataLoadingException(String json) throws Exception {
+        Path filePath = testFolder.resolve("invalidStructureAddressBook.json");
+        Files.writeString(filePath, json);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+    }
+
+    @Test
+    public void readAddressBook_trailingContent_throwsDataLoadingException() throws Exception {
+        Path filePath = testFolder.resolve("trailingContentAddressBook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(getTypicalAddressBook());
+        String validJson = Files.readString(filePath);
+
+        for (String trailingContent : List.of("{}", "[]", "null", "true", "123", "\"extra\"", "invalid text")) {
+            Files.writeString(filePath, validJson + "\n" + trailingContent);
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook,
+                    "Trailing content should be rejected: " + trailingContent);
+        }
+    }
+
+    @Test
+    public void readAddressBook_trailingWhitespace_preservesClients() throws Exception {
+        Path filePath = testFolder.resolve("trailingWhitespaceAddressBook.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        AddressBook expected = getTypicalAddressBook();
+        storage.saveAddressBook(expected);
+        Files.writeString(filePath, Files.readString(filePath) + " \t\r\n");
+
+        assertEquals(expected, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void readAndSaveAddressBook_legacyFile_preservesPerson() throws Exception {
+        ReadOnlyAddressBook legacyAddressBook = readAddressBook("legacyAddressBook.json").get();
+        AddressBook expectedAddressBook = new AddressBook();
+        expectedAddressBook.addPerson(new PersonBuilder(ALICE).withRole(null)
+                .withBudget(null).withAskingPrice(null).withAreas(Set.of()).withHousingTypes(Set.of())
+                .build());
+        assertEquals(expectedAddressBook, legacyAddressBook);
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("migratedAddressBook.json"));
+        storage.saveAddressBook(legacyAddressBook);
+        assertEquals(expectedAddressBook, storage.readAddressBook().get());
+    }
+
+    @Test
     public void readAndSaveAddressBook_allInOrder_success() throws Exception {
         Path filePath = testFolder.resolve("TempAddressBook.json");
         AddressBook original = getTypicalAddressBook();
@@ -87,6 +176,145 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_utf8Bom_loadsClients() throws Exception {
+        Path filePath = testFolder.resolve("utf8Bom.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        Files.writeString(filePath, "\uFEFF" + Files.readString(filePath), StandardCharsets.UTF_8);
+
+        assertEquals(original, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void readAddressBook_utf16LittleEndianBom_loadsClients() throws Exception {
+        Path filePath = testFolder.resolve("utf16Bom.json");
+        AddressBook original = getTypicalAddressBook();
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        byte[] jsonBytes = Files.readString(filePath).getBytes(StandardCharsets.UTF_16LE);
+        byte[] withBom = new byte[jsonBytes.length + 2];
+        withBom[0] = (byte) 0xFF;
+        withBom[1] = (byte) 0xFE;
+        System.arraycopy(jsonBytes, 0, withBom, 2, jsonBytes.length);
+        Files.write(filePath, withBom);
+
+        assertEquals(original, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void saveAddressBook_replacementFails_preservesPreviousFile() throws Exception {
+        Path filePath = testFolder.resolve("addressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        new JsonAddressBookStorage(filePath).saveAddressBook(original);
+        String previousJson = Files.readString(filePath);
+
+        AddressBook updated = new AddressBook(original);
+        updated.addPerson(BOB);
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(filePath) {
+            @Override
+            void replaceDataFile(Path temporaryFile, Path destination) throws IOException {
+                throw new IOException("Simulated replacement failure");
+            }
+        };
+
+        assertThrows(IOException.class, () -> failingStorage.saveAddressBook(updated));
+        assertEquals(previousJson, Files.readString(filePath));
+        assertEquals(original, new AddressBook(failingStorage.readAddressBook().orElseThrow()));
+        try (var files = Files.list(testFolder)) {
+            assertEquals(1, files.count());
+        }
+    }
+
+    @Test
+    public void saveAddressBook_replacementAndCleanupFail_preservesOriginalFailure() throws Exception {
+        // Error-path combination: replacement and cleanup both fail; the original save failure must remain primary.
+        Path filePath = testFolder.resolve("addressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        new JsonAddressBookStorage(filePath).saveAddressBook(original);
+        String previousJson = Files.readString(filePath);
+
+        AddressBook updated = new AddressBook(original);
+        updated.addPerson(BOB);
+        IOException replacementFailure = new IOException("Simulated replacement failure");
+        IOException cleanupFailure = new IOException("Simulated cleanup failure");
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(filePath) {
+            @Override
+            void replaceDataFile(Path temporaryFile, Path destination) throws IOException {
+                throw replacementFailure;
+            }
+
+            @Override
+            void deleteTemporaryFile(Path temporaryFile) throws IOException {
+                throw cleanupFailure;
+            }
+        };
+
+        IOException thrown = assertThrows(
+                IOException.class, () -> failingStorage.saveAddressBook(updated));
+        assertSame(replacementFailure, thrown);
+        assertEquals(1, thrown.getSuppressed().length);
+        assertSame(cleanupFailure, thrown.getSuppressed()[0]);
+        assertEquals(previousJson, Files.readString(filePath));
+    }
+
+    @Test
+    public void saveAddressBook_runtimeReplacementAndCleanupFail_preservesOriginalFailure() throws Exception {
+        // A runtime save failure must remain primary even when temporary-file cleanup also fails.
+        Path filePath = testFolder.resolve("addressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        new JsonAddressBookStorage(filePath).saveAddressBook(original);
+        String previousJson = Files.readString(filePath);
+
+        AddressBook updated = new AddressBook(original);
+        updated.addPerson(BOB);
+        IllegalStateException replacementFailure = new IllegalStateException("Simulated replacement failure");
+        IOException cleanupFailure = new IOException("Simulated cleanup failure");
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(filePath) {
+            @Override
+            void replaceDataFile(Path temporaryFile, Path destination) {
+                throw replacementFailure;
+            }
+
+            @Override
+            void deleteTemporaryFile(Path temporaryFile) throws IOException {
+                throw cleanupFailure;
+            }
+        };
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> failingStorage.saveAddressBook(updated));
+        assertSame(replacementFailure, thrown);
+        assertEquals(1, thrown.getSuppressed().length);
+        assertSame(cleanupFailure, thrown.getSuppressed()[0]);
+        assertEquals(previousJson, Files.readString(filePath));
+    }
+
+    @Test
+    public void saveAddressBook_existingReadOnlyFile_throwsAccessDeniedException() throws Exception {
+        Path filePath = testFolder.resolve("readOnlyAddressBook.json");
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(original);
+        assumeTrue(Files.getFileAttributeView(filePath, PosixFileAttributeView.class) != null);
+        Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(filePath);
+        String previousJson = Files.readString(filePath);
+
+        try {
+            Files.setPosixFilePermissions(filePath, Set.of(PosixFilePermission.OWNER_READ));
+            assumeTrue(!Files.isWritable(filePath));
+            assertThrows(AccessDeniedException.class, () -> storage.saveAddressBook(original));
+            assertEquals(previousJson, Files.readString(filePath));
+        } finally {
+            Files.setPosixFilePermissions(filePath, originalPermissions);
+        }
+    }
+
+    @Test
     public void saveAddressBook_nullAddressBook_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> saveAddressBook(null, "SomeFile.json"));
     }
@@ -106,5 +334,56 @@ public class JsonAddressBookStorageTest {
     @Test
     public void saveAddressBook_nullFilePath_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> saveAddressBook(new AddressBook(), null));
+    }
+
+    @Test
+    public void toPersistedJson_clientsThatRenderTheSame_differWhenStoredValuesDiffer() {
+        Person withoutNote = new PersonBuilder().withName("Amy Bee").build();
+        Person withNoteText = new PersonBuilder().withName("Amy Bee").withNote("null").build();
+
+        assertNotEquals(JsonAddressBookStorage.toPersistedJson(withoutNote),
+                JsonAddressBookStorage.toPersistedJson(withNoteText));
+    }
+
+    @Test
+    public void toPersistedJson_sameStoredValues_returnsSameText() {
+        Person first = new PersonBuilder().withName("Amy Bee").build();
+        Person second = new PersonBuilder().withName("Amy Bee").build();
+
+        assertEquals(JsonAddressBookStorage.toPersistedJson(first),
+                JsonAddressBookStorage.toPersistedJson(second));
+    }
+
+    @Test
+    public void toPersistedJson_tagsAddedInDifferentOrder_returnsSameText() {
+        // "an" and "c0" share a hash code, so a set lists them in the order they were added.
+        Person anFirst = new PersonBuilder().withName("Amy Bee").withTags("an", "c0").build();
+        Person c0First = new PersonBuilder().withName("Amy Bee").withTags("c0", "an").build();
+
+        assertEquals(JsonAddressBookStorage.toPersistedJson(anFirst),
+                JsonAddressBookStorage.toPersistedJson(c0First));
+    }
+
+    @Test
+    public void toPersistedJson_tagsAreasAndHousingTypes_areWrittenInSortedOrder() {
+        Person person = new PersonBuilder().withTags("c0", "an")
+                .withAreas(Set.of(new Area("Tampines"), new Area("Bedok")))
+                .withHousingTypes(Set.of(HousingType.LANDED, HousingType.HDB, HousingType.EC, HousingType.CONDO))
+                .build();
+
+        String json = JsonAddressBookStorage.toPersistedJson(person);
+
+        assertTrue(json.contains("\"tags\":[\"an\",\"c0\"]"));
+        assertTrue(json.contains("\"areas\":[\"Bedok\",\"Tampines\"]"));
+        assertTrue(json.contains("\"housingTypes\":[\"Condo\",\"EC\",\"HDB\",\"Landed\"]"));
+    }
+
+    @Test
+    public void toPersistedJson_tagsDifferingOnlyInCase_returnsDifferentText() {
+        Person lowerCase = new PersonBuilder().withName("Amy Bee").withTags("urgent").build();
+        Person upperCase = new PersonBuilder().withName("Amy Bee").withTags("Urgent").build();
+
+        assertNotEquals(JsonAddressBookStorage.toPersistedJson(lowerCase),
+                JsonAddressBookStorage.toPersistedJson(upperCase));
     }
 }

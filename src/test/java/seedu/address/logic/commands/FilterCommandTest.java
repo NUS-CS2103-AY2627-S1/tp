@@ -1,0 +1,430 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.DANIEL;
+import static seedu.address.testutil.TypicalPersons.ELLE;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.Budget;
+import seedu.address.model.person.ClientRole;
+import seedu.address.model.person.HousingType;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesFilterPredicate;
+import seedu.address.model.person.PersonMatchesSearchTermsPredicate;
+import seedu.address.model.person.Price;
+import seedu.address.model.person.PriceRange;
+import seedu.address.model.tag.Tag;
+import seedu.address.testutil.PersonBuilder;
+
+/**
+ * Contains integration tests (interaction with the Model) for {@code FilterCommand}.
+ */
+public class FilterCommandTest {
+
+    private static final Person BUYER_URGENT = new PersonBuilder(ALICE).withRole(ClientRole.BUYER)
+            .withTags("urgent").withAreas(Set.of(new Area("Bishan"), new Area("Tampines")))
+            .withHousingTypes(Set.of(HousingType.HDB, HousingType.CONDO))
+            .withBudget(new Budget(new Price("800000"), new Price("1200000"))).build();
+    private static final Person SELLER_URGENT_FRIENDS = new PersonBuilder(BENSON).withRole(ClientRole.SELLER)
+            .withTags("urgent", "friends").withAreas(Set.of(new Area("Bishan")))
+            .withHousingTypes(Set.of(HousingType.HDB)).withAskingPrice(new Price("950000")).build();
+    private static final Person BOTH_FRIENDS = new PersonBuilder(CARL).withRole(ClientRole.BOTH)
+            .withTags("friends").withAreas(Set.of(new Area("Orchard")))
+            .withHousingTypes(Set.of(HousingType.LANDED))
+            .withBudget(new Budget(new Price("700000"), new Price("900000")))
+            .withAskingPrice(new Price("850000")).build();
+    private static final Person BUYER_NO_TAGS = new PersonBuilder(DANIEL).withRole(ClientRole.BUYER)
+            .withTags().withBudget(new Budget(new Price("1000000"), new Price("1500000"))).build();
+    private static final Person NO_ROLE_URGENT = new PersonBuilder(ELLE).withRole(null)
+            .withTags("urgent").withAreas(Set.of(new Area("Tampines")))
+            .withHousingTypes(Set.of(HousingType.EC)).build();
+
+    private Model model = new ModelManager(getClientBook(), new UserPrefs());
+    private Model expectedModel = new ModelManager(getClientBook(), new UserPrefs());
+
+    private static AddressBook getClientBook() {
+        AddressBook addressBook = new AddressBook();
+        for (Person person : List.of(BUYER_URGENT, SELLER_URGENT_FRIENDS, BOTH_FRIENDS, BUYER_NO_TAGS,
+                NO_ROLE_URGENT)) {
+            addressBook.addPerson(person);
+        }
+        return addressBook;
+    }
+
+    private static PersonMatchesFilterPredicate predicate(ClientRole role, String... tagNames) {
+        Set<Tag> tags = new HashSet<>();
+        for (String tagName : tagNames) {
+            tags.add(new Tag(tagName));
+        }
+        PersonMatchesFilterPredicate.Builder builder = new PersonMatchesFilterPredicate.Builder().withTags(tags);
+        if (role != null) {
+            builder.withRole(role);
+        }
+        return builder.build();
+    }
+
+    private static PersonMatchesFilterPredicate areaPredicate(ClientRole role, String... areaNames) {
+        Set<Area> areas = new HashSet<>();
+        for (String areaName : areaNames) {
+            areas.add(new Area(areaName));
+        }
+        PersonMatchesFilterPredicate.Builder builder = new PersonMatchesFilterPredicate.Builder().withAreas(areas);
+        if (role != null) {
+            builder.withRole(role);
+        }
+        return builder.build();
+    }
+
+    private static PersonMatchesFilterPredicate housingTypePredicate(ClientRole role, HousingType... housingTypes) {
+        PersonMatchesFilterPredicate.Builder builder = new PersonMatchesFilterPredicate.Builder()
+                .withHousingTypes(Set.of(housingTypes));
+        if (role != null) {
+            builder.withRole(role);
+        }
+        return builder.build();
+    }
+
+    private static PersonMatchesFilterPredicate budgetPredicate(ClientRole role, PriceRange priceRange) {
+        PersonMatchesFilterPredicate.Builder builder = new PersonMatchesFilterPredicate.Builder()
+                .withBudget(priceRange);
+        if (role != null) {
+            builder.withRole(role);
+        }
+        return builder.build();
+    }
+
+    private static PersonMatchesFilterPredicate askingPricePredicate(ClientRole role, PriceRange priceRange) {
+        PersonMatchesFilterPredicate.Builder builder = new PersonMatchesFilterPredicate.Builder()
+                .withAskingPrice(priceRange);
+        if (role != null) {
+            builder.withRole(role);
+        }
+        return builder.build();
+    }
+
+    @Test
+    public void equals() {
+        FilterCommand buyerCommand = new FilterCommand(predicate(ClientRole.BUYER));
+        FilterCommand sellerCommand = new FilterCommand(predicate(ClientRole.SELLER));
+
+        // same object -> returns true
+        assertTrue(buyerCommand.equals(buyerCommand));
+
+        // same values -> returns true, with the same hashcode
+        FilterCommand buyerCommandCopy = new FilterCommand(predicate(ClientRole.BUYER));
+        assertTrue(buyerCommand.equals(buyerCommandCopy));
+        assertEquals(buyerCommand.hashCode(), buyerCommandCopy.hashCode());
+
+        // different types -> returns false
+        assertFalse(buyerCommand.equals(1));
+
+        // null -> returns false
+        assertFalse(buyerCommand.equals(null));
+
+        // different predicate -> returns false
+        assertFalse(buyerCommand.equals(sellerCommand));
+    }
+
+    @Test
+    public void execute_buyerRole_showsBuyersAndBoth() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.BUYER);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 3 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, BOTH_FRIENDS, BUYER_NO_TAGS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_sellerRole_showsSellersAndBoth() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.SELLER);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(SELLER_URGENT_FRIENDS, BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_bothRole_showsOnlyBoth() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.BOTH);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_tagOnly_showsMatchingClientsIgnoringCase() {
+        PersonMatchesFilterPredicate predicate = predicate(null, "URGENT");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 3 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, SELLER_URGENT_FRIENDS, NO_ROLE_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_repeatedTags_combineWithOr() {
+        PersonMatchesFilterPredicate predicate = predicate(null, "urgent", "friends");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 4 of 5 clients.", expectedModel);
+    }
+
+    @Test
+    public void execute_roleAndTag_combineWithAnd() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.BUYER, "urgent");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_noMatch_showsZeroOfTotal() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.SELLER, "weekend");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 0 of 5 clients.", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_area_showsClientsWithThatArea() {
+        PersonMatchesFilterPredicate predicate = areaPredicate(null, "Bishan");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, SELLER_URGENT_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_severalAreas_showsClientsWithAnyOfThem() {
+        PersonMatchesFilterPredicate predicate = areaPredicate(null, "Orchard", "Tampines");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 3 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, BOTH_FRIENDS, NO_ROLE_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_areaAndRole_showsClientsMatchingBoth() {
+        PersonMatchesFilterPredicate predicate = areaPredicate(ClientRole.SELLER, "Bishan", "Orchard");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(SELLER_URGENT_FRIENDS, BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_areaNobodyHas_showsNoClients() {
+        PersonMatchesFilterPredicate predicate = areaPredicate(null, "Yishun");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 0 of 5 clients.", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_housingType_showsClientsWithThatHousingType() {
+        PersonMatchesFilterPredicate predicate = housingTypePredicate(null, HousingType.HDB);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, SELLER_URGENT_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_severalHousingTypes_showsClientsWithAnyOfThem() {
+        PersonMatchesFilterPredicate predicate = housingTypePredicate(null, HousingType.EC, HousingType.LANDED);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS, NO_ROLE_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_areaAndHousingType_showsClientsMatchingBoth() {
+        PersonMatchesFilterPredicate predicate = new PersonMatchesFilterPredicate.Builder()
+                .withAreas(Set.of(new Area("Tampines"))).withHousingTypes(Set.of(HousingType.HDB)).build();
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_housingTypeOnlyHeldByAnotherRole_showsNoClients() {
+        // The only client with an EC has no role, so no buyer matches.
+        PersonMatchesFilterPredicate predicate = housingTypePredicate(ClientRole.BUYER, HousingType.EC);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 0 of 5 clients.", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_budgetPrice_showsClientsWhoseBudgetIncludesIt() {
+        PersonMatchesFilterPredicate predicate = budgetPredicate(null, new PriceRange(new Price("850000")));
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_budgetRange_showsClientsWhoseBudgetOverlapsIt() {
+        PriceRange range = new PriceRange(new Price("1100000"), new Price("1300000"));
+        PersonMatchesFilterPredicate predicate = budgetPredicate(null, range);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(BUYER_URGENT, BUYER_NO_TAGS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_budgetAndRole_showsClientsMatchingBoth() {
+        PriceRange range = new PriceRange(new Price("600000"), new Price("1000000"));
+        PersonMatchesFilterPredicate predicate = budgetPredicate(ClientRole.SELLER, range);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        // The seller has no budget, and the two buyers are not sellers, so only the client who is both matches.
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_budgetNobodyHas_showsNoClients() {
+        PersonMatchesFilterPredicate predicate = budgetPredicate(null, new PriceRange(new Price("5000000")));
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 0 of 5 clients.", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_askingPrice_showsClientsWithExactlyThatPrice() {
+        PersonMatchesFilterPredicate predicate = askingPricePredicate(null, new PriceRange(new Price("850000")));
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_askingPriceRange_showsClientsWithAPriceInIt() {
+        PriceRange range = new PriceRange(new Price("800000"), new Price("1000000"));
+        PersonMatchesFilterPredicate predicate = askingPricePredicate(null, range);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+        assertEquals(List.of(SELLER_URGENT_FRIENDS, BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_askingPriceAndRole_showsClientsMatchingBoth() {
+        PriceRange range = new PriceRange(new Price("800000"), new Price("1000000"));
+        PersonMatchesFilterPredicate predicate = askingPricePredicate(ClientRole.BUYER, range);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        // The seller's asking price is in the range, but a seller is not a buyer.
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_budgetAndAskingPrice_showsClientsMatchingBoth() {
+        PersonMatchesFilterPredicate predicate = new PersonMatchesFilterPredicate.Builder()
+                .withBudget(new PriceRange(new Price("800000"))).withAskingPrice(new PriceRange(new Price("850000")))
+                .build();
+        expectedModel.updateFilteredPersonList(predicate);
+
+        // The buyer's budget also includes $800,000, but the buyer has no asking price.
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 1 of 5 clients.", expectedModel);
+        assertEquals(List.of(BOTH_FRIENDS), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_askingPriceNobodyHas_showsNoClients() {
+        PersonMatchesFilterPredicate predicate = askingPricePredicate(null, new PriceRange(new Price("5000000")));
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 0 of 5 clients.", expectedModel);
+        assertEquals(List.of(), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_noCriteria_showsEveryone() {
+        model.updateFilteredPersonList(predicate(ClientRole.BOTH));
+        PersonMatchesFilterPredicate predicate = predicate(null);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 5 of 5 clients.", expectedModel);
+        assertEquals(5, model.getFilteredPersonList().size());
+    }
+
+    @Test
+    public void execute_secondFilter_replacesTheFirst() {
+        new FilterCommand(predicate(ClientRole.BUYER)).execute(model);
+
+        // Stacking would show only the urgent buyer. Replacing shows every urgent client.
+        PersonMatchesFilterPredicate predicate = predicate(null, "urgent");
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 3 of 5 clients.", expectedModel);
+    }
+
+    @Test
+    public void execute_findAfterFilter_replacesTheFilter() {
+        new FilterCommand(predicate(ClientRole.SELLER)).execute(model);
+
+        // Alice is a buyer, so she is visible only if find replaced the seller filter.
+        PersonMatchesSearchTermsPredicate findPredicate = new PersonMatchesSearchTermsPredicate(List.of("Alice"));
+        expectedModel.updateFilteredPersonList(findPredicate);
+
+        new FindCommand(findPredicate).execute(model);
+
+        assertEquals(expectedModel.getFilteredPersonList(), model.getFilteredPersonList());
+        assertEquals(List.of(BUYER_URGENT), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_filterAfterFind_replacesTheSearch() {
+        new FindCommand(new PersonMatchesSearchTermsPredicate(List.of("Daniel"))).execute(model);
+
+        // Daniel is a buyer, so intersecting would leave nobody. Replacing shows the two sellers.
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.SELLER);
+        expectedModel.updateFilteredPersonList(predicate);
+
+        assertCommandSuccess(new FilterCommand(predicate), model, "Showing 2 of 5 clients.", expectedModel);
+    }
+
+    @Test
+    public void execute_listAfterFilter_showsEveryone() {
+        new FilterCommand(predicate(ClientRole.BOTH, "friends")).execute(model);
+
+        assertCommandSuccess(new ListCommand(), model, ListCommand.MESSAGE_SUCCESS, expectedModel);
+        assertEquals(5, model.getFilteredPersonList().size());
+    }
+
+    @Test
+    public void toStringMethod() {
+        PersonMatchesFilterPredicate predicate = predicate(ClientRole.BUYER);
+        FilterCommand filterCommand = new FilterCommand(predicate);
+        String expected = FilterCommand.class.getCanonicalName() + "{predicate=" + predicate + "}";
+        assertEquals(expected, filterCommand.toString());
+    }
+}

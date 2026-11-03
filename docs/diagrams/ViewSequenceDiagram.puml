@@ -1,0 +1,41 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant ":MainWindow" as Window UI_COLOR
+participant ":Logic" as Logic LOGIC_COLOR
+participant ":PersonListPanel" as List UI_COLOR
+participant ":DetailPane" as Detail UI_COLOR
+
+[-> Window : executeCommand("view 1")
+activate Window
+Window -> Logic : execute("view 1")
+activate Logic
+note over Logic
+Parse input and validate the displayed index.
+Return feedback and a view index.
+No client data is changed or saved.
+end note
+Logic --> Window : result:CommandResult
+deactivate Logic
+Window -> List : selectPerson(index)
+activate List
+List -> List : Select the displayed client
+List -> Window : selectedPersonProperty listener(...)
+activate Window
+Window -> Detail : setPerson(newPerson)
+activate Detail
+Detail --> Window
+deactivate Detail
+Window --> List
+deactivate Window
+List -> List : Scroll to the selected index
+List --> Window
+deactivate List
+note over Window
+Display result feedback (omitted).
+end note
+[<-- Window : result
+deactivate Window
+@enduml

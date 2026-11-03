@@ -1,10 +1,16 @@
 package seedu.address.logic;
 
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import seedu.address.logic.parser.Prefix;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.HousingType;
 import seedu.address.model.person.Person;
 
 /**
@@ -12,12 +18,30 @@ import seedu.address.model.person.Person;
  */
 public class Messages {
 
-    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
+    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command. Type help for the User Guide link.";
     public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
+    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The client index provided is invalid.";
+    public static final String MESSAGE_SHOWING = "Showing %1$d of %2$d clients.";
+    public static final String MESSAGE_UNKNOWN_PREFIX = "Unknown prefix: %1$s";
+    public static final String MESSAGE_NO_CLIENTS_FOUND = "No clients found";
     public static final String MESSAGE_DUPLICATE_FIELDS =
                 "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_DUPLICATE_NAME =
+            "A client with this name already exists in the client book.";
+    private static final String COBUYER_WORKAROUND_HINT =
+            "For co-buyers, use one household record tagged " + PREFIX_TAG + "couple.";
+    public static final String MESSAGE_DUPLICATE_PHONE =
+            "This phone number already belongs to another client: %1$s. " + COBUYER_WORKAROUND_HINT;
+    public static final String MESSAGE_DUPLICATE_EMAIL =
+            "This email address already belongs to another client: %1$s. " + COBUYER_WORKAROUND_HINT;
+
+    /**
+     * Returns the message that reports how many clients are displayed out of all clients in the address book.
+     * The word "clients" is used even when a count is 1.
+     */
+    public static String getShowingMessage(int shownCount, int totalCount) {
+        return String.format(MESSAGE_SHOWING, shownCount, totalCount);
+    }
 
     /**
      * Returns an error message indicating the duplicate prefixes.
@@ -32,6 +56,22 @@ public class Messages {
     }
 
     /**
+     * Returns an error message indicating which field of {@code candidate} clashes with {@code existing}.
+     * Fields are checked in the order name, phone, email.
+     */
+    public static String getErrorMessageForDuplicatePerson(Person candidate, Person existing) {
+        assert candidate.isSamePerson(existing);
+
+        if (candidate.getName().isSameName(existing.getName())) {
+            return MESSAGE_DUPLICATE_NAME;
+        }
+        if (candidate.getPhone().equals(existing.getPhone())) {
+            return String.format(MESSAGE_DUPLICATE_PHONE, existing.getName());
+        }
+        return String.format(MESSAGE_DUPLICATE_EMAIL, existing.getName());
+    }
+
+    /**
      * Formats the {@code person} for display to the user.
      */
     public static String format(Person person) {
@@ -42,10 +82,44 @@ public class Messages {
                 .append("; Email: ")
                 .append(person.getEmail())
                 .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
+                .append(person.getAddress());
+
+        List<String> requirements = describeRequirements(person);
+        if (!requirements.isEmpty()) {
+            builder.append("; Requirements: ").append(String.join(", ", requirements));
+        }
+
+        builder.append("; Tags: ");
         person.getTags().forEach(builder::append);
         return builder.toString();
+    }
+
+    /**
+     * Returns the requirement fields of {@code person} in display form, omitting absent ones.
+     */
+    private static List<String> describeRequirements(Person person) {
+        List<String> parts = new ArrayList<>();
+        if (person.getBudget() != null) {
+            parts.add("Budget " + person.getBudget());
+        }
+        if (person.getAskingPrice() != null) {
+            parts.add("Asking " + person.getAskingPrice().getDisplayValue());
+        }
+        String areas = person.getAreas().stream()
+                .map(Area::getValue)
+                .sorted()
+                .collect(Collectors.joining(", "));
+        if (!areas.isEmpty()) {
+            parts.add(areas);
+        }
+        String housingTypes = person.getHousingTypes().stream()
+                .map(HousingType::getDisplayValue)
+                .sorted()
+                .collect(Collectors.joining(", "));
+        if (!housingTypes.isEmpty()) {
+            parts.add(housingTypes);
+        }
+        return parts;
     }
 
 }

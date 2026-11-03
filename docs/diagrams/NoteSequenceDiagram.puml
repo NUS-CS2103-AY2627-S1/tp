@@ -1,0 +1,48 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam ParticipantFontColor #FFFFFF
+
+participant ":AddressBookParser" as Parser LOGIC_COLOR
+participant ":NoteCommandParser" as NoteParser LOGIC_COLOR
+participant "<<class>>\nParserUtil" as Util LOGIC_COLOR
+participant "c:NoteCommand" as Command LOGIC_COLOR
+
+Parser -> NoteParser : parse("1 Call at 6 PM\\non Monday")
+activate NoteParser
+NoteParser -> Util : parseIndex("1")
+activate Util
+Util --> NoteParser : index
+deactivate Util
+
+NoteParser -> Util : parseNote(rawText)
+activate Util
+note over Util
+Decode escapes once, left to right:
+backslash-n becomes a line break;
+two backslashes become one literal backslash.
+Preserve unknown and trailing backslashes.
+Trim and validate the decoded text (1-500 characters).
+end note
+Util --> NoteParser : note:Note
+deactivate Util
+
+note over NoteParser
+Check the decoded, trimmed value for clear.
+Only exact lowercase clear removes the note.
+end note
+
+create Command
+NoteParser -> Command : NoteCommand(index, note)
+activate Command
+Command --> NoteParser
+deactivate Command
+NoteParser --> Parser : c
+deactivate NoteParser
+
+note over Parser, Command
+Successful replacement-note parsing only.
+Note construction and error paths are omitted.
+Execution follows the indexed-client update pattern.
+end note
+@enduml

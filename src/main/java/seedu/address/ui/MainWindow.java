@@ -3,13 +3,17 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javafx.application.Platform;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -25,6 +29,9 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final PseudoClass COMPACT_LAYOUT = PseudoClass.getPseudoClass("compact");
+    // Use the content height, not the stage height which includes platform-dependent decorations.
+    private static final double COMPACT_CONTENT_HEIGHT = 500;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
@@ -34,8 +41,13 @@ public class MainWindow extends UiPart<Stage> {
 
     // Independent Ui parts residing in this Ui container
     private PersonListPanel personListPanel;
+    private DetailPane detailPane;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private CommandBox commandBox;
+
+    @FXML
+    private VBox mainContainer;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +56,19 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
+    private MenuItem undoMenuItem;
+
+    @FXML
+    private MenuItem redoMenuItem;
+
+    @FXML
+    private MenuItem historyMenuItem;
+
+    @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane detailPanePlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -66,7 +90,9 @@ public class MainWindow extends UiPart<Stage> {
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
+        configureResponsiveLayout();
 
+        refreshHistoryMenuItems();
         setAccelerators();
 
         helpWindow = new HelpWindow();
@@ -76,8 +102,50 @@ public class MainWindow extends UiPart<Stage> {
         return primaryStage;
     }
 
+    private void configureResponsiveLayout() {
+        mainContainer.heightProperty().addListener(observable -> updateLayoutDensity());
+        updateLayoutDensity();
+    }
+
+    private void updateLayoutDensity() {
+        mainContainer.pseudoClassStateChanged(COMPACT_LAYOUT, mainContainer.getHeight() < COMPACT_CONTENT_HEIGHT);
+    }
+
     private void setAccelerators() {
         setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
+        undoMenuItem.setAccelerator(KeyCombination.valueOf("Shortcut+Z"));
+        redoMenuItem.setAccelerator(redoAcceleratorFor(System.getProperty("os.name")));
+        getRoot().getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::handleHistoryShortcut);
+    }
+
+    /** Keeps the Edit menu in sync with the model's undo and redo stacks. */
+    private void refreshHistoryMenuItems() {
+        undoMenuItem.setDisable(!logic.canUndo());
+        redoMenuItem.setDisable(!logic.canRedo());
+    }
+
+    static KeyCombination redoAcceleratorFor(String osName) {
+        return KeyCombination.valueOf(osName.startsWith("Mac") ? "Meta+Shift+Z" : "Ctrl+Y");
+    }
+
+    private void handleHistoryShortcut(KeyEvent event) {
+        if (event.isAltDown()) {
+            return;
+        }
+        boolean isControlOnly = event.isControlDown() && !event.isMetaDown();
+        boolean isMetaOnly = event.isMetaDown() && !event.isControlDown();
+        boolean isUndo = event.getCode() == KeyCode.Z
+                && !event.isShiftDown() && (isControlOnly || isMetaOnly);
+        boolean isControlRedo = event.getCode() == KeyCode.Y && isControlOnly && !event.isShiftDown();
+        boolean isMetaRedo = event.getCode() == KeyCode.Z && isMetaOnly && event.isShiftDown();
+        if (isUndo) {
+            handleUndo();
+        } else if (isControlRedo || isMetaRedo) {
+            handleRedo();
+        } else {
+            return;
+        }
+        event.consume();
     }
 
     /**
@@ -117,14 +185,21 @@ public class MainWindow extends UiPart<Stage> {
         personListPanel = new PersonListPanel(logic.getFilteredPersonList());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
+        detailPane = new DetailPane();
+        detailPanePlaceholder.getChildren().add(detailPane.getRoot());
+        personListPanel.selectedPersonProperty().addListener((observable, oldPerson, newPerson) ->
+                detailPane.setPerson(newPerson));
+
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
 
-        StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
+        StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath, logic.getFilteredPersonList(),
+                logic.getPersonList(), logic.personListFilteredProperty());
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
-        CommandBox commandBox = new CommandBox(this::executeCommand);
+        commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        Platform.runLater(commandBox::requestFocus);
     }
 
     /**
@@ -151,6 +226,21 @@ public class MainWindow extends UiPart<Stage> {
         }
     }
 
+    @FXML
+    private void handleUndo() {
+        commandBox.executeCommand("undo");
+    }
+
+    @FXML
+    private void handleRedo() {
+        commandBox.executeCommand("redo");
+    }
+
+    @FXML
+    private void handleHistory() {
+        commandBox.executeCommand("history");
+    }
+
     void show() {
         primaryStage.show();
     }
@@ -171,6 +261,10 @@ public class MainWindow extends UiPart<Stage> {
         return personListPanel;
     }
 
+    public DetailPane getDetailPane() {
+        return detailPane;
+    }
+
     /**
      * Executes the command and returns the result.
      *
@@ -179,8 +273,17 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            if (!commandResult.isAwaitingConfirmation() && !commandResult.isShowHelp()
+                    && !commandResult.shouldPreserveSelection()) {
+                commandResult.getViewIndex().ifPresentOrElse(personListPanel::selectPerson,
+                        personListPanel::clearSelection);
+            }
+            logger.info("Command completed.");
+            if (commandResult.isAwaitingConfirmation()) {
+                resultDisplay.setPendingFeedbackToUser(commandResult.getFeedbackToUser());
+            } else {
+                resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -192,9 +295,11 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
-            resultDisplay.setFeedbackToUser(e.getMessage());
+            logger.info("An error occurred while executing a command: " + e.getClass().getSimpleName());
+            resultDisplay.setErrorFeedbackToUser(e.getMessage());
             throw e;
+        } finally {
+            refreshHistoryMenuItems();
         }
     }
 }

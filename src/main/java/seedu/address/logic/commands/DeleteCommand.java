@@ -9,6 +9,7 @@ import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
+import seedu.address.model.person.ClientRole;
 import seedu.address.model.person.Person;
 
 /**
@@ -19,11 +20,15 @@ public class DeleteCommand extends Command {
     public static final String COMMAND_WORD = "delete";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
+            + ": Deletes the client identified by the index number used in the displayed client list.\n"
             + "Parameters: INDEX (must be a positive integer)\n"
             + "Example: " + COMMAND_WORD + " 1";
 
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted client: %1$s (%2$s)";
+    public static final String MESSAGE_DELETE_PERSON_NO_ROLE_SUCCESS = "Deleted client: %1$s";
+    public static final String MESSAGE_INVALID_FORMAT = "Invalid command format. Use: delete INDEX.";
+
+    private String actionDescription = "";
 
     private final Index targetIndex;
 
@@ -33,6 +38,7 @@ public class DeleteCommand extends Command {
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
+        actionDescription = "";
         requireNonNull(model);
         List<Person> lastShownList = model.getFilteredPersonList();
 
@@ -41,8 +47,31 @@ public class DeleteCommand extends Command {
         }
 
         Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
+        ClientRole role = personToDelete.getRole();
+
         model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        actionDescription = "Deleted client " + personToDelete.getName();
+
+        // Leave the parenthetical out when there is no role, the same way the client card shows no badge.
+        String message = role == null
+                ? String.format(MESSAGE_DELETE_PERSON_NO_ROLE_SUCCESS, personToDelete.getName())
+                : String.format(MESSAGE_DELETE_PERSON_SUCCESS, personToDelete.getName(), role);
+        return new CommandResult(message);
+    }
+
+    @Override
+    public boolean isUndoable() {
+        return true;
+    }
+
+    @Override
+    public String getCommandWord() {
+        return COMMAND_WORD;
+    }
+
+    @Override
+    public String getActionDescription() {
+        return actionDescription;
     }
 
     @Override

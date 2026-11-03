@@ -1,5 +1,6 @@
 package seedu.address.storage;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,14 +8,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.Budget;
+import seedu.address.model.person.ClientRole;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.HousingType;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Price;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -23,12 +31,46 @@ import seedu.address.model.tag.Tag;
 class JsonAdaptedPerson {
 
     public static final String MISSING_FIELD_MESSAGE_FORMAT = "Person's %s field is missing!";
+    public static final String MESSAGE_NULL_TAG = "Person's tags field contains a null tag.";
+
+    private static final String NO_ROLE_VALUE = "none";
 
     private final String name;
     private final String phone;
     private final String email;
     private final String address;
+
+    /**
+     * Absent when the client has no role, in which case the key is left out of the data file.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String role;
+
+    /**
+     * Absent when the client has no note, in which case the key is left out of the data file.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String note;
+
     private final List<JsonAdaptedTag> tags = new ArrayList<>();
+
+    /**
+     * Absent when the client has no budget, in which case the key is left out of the data file.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final JsonAdaptedBudget budget;
+
+    /**
+     * Absent when the client has no asking price, in which case the key is left out of the data file.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final BigDecimal askingPrice;
+
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private final List<String> areas = new ArrayList<>();
+
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private final List<String> housingTypes = new ArrayList<>();
 
     /**
      * Constructs a {@code JsonAdaptedPerson} with the given person details.
@@ -36,26 +78,59 @@ class JsonAdaptedPerson {
     @JsonCreator
     public JsonAdaptedPerson(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
             @JsonProperty("email") String email, @JsonProperty("address") String address,
-            @JsonProperty("tags") List<JsonAdaptedTag> tags) {
+            @JsonProperty("role") String role,
+            @JsonProperty("note") String note,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags,
+            @JsonProperty("budget") JsonAdaptedBudget budget,
+            @JsonProperty("askingPrice") BigDecimal askingPrice,
+            @JsonProperty("areas") List<String> areas,
+            @JsonProperty("housingTypes") List<String> housingTypes) {
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.role = role;
+        this.note = note;
         if (tags != null) {
             this.tags.addAll(tags);
+        }
+        this.budget = budget;
+        this.askingPrice = askingPrice;
+        if (areas != null) {
+            this.areas.addAll(areas);
+        }
+        if (housingTypes != null) {
+            this.housingTypes.addAll(housingTypes);
         }
     }
 
     /**
      * Converts a given {@code Person} into this class for Jackson use.
+     * Tags, areas and housing types are written in sorted order, so two clients with the same values produce the
+     * same text however their sets happen to be ordered.
      */
     public JsonAdaptedPerson(Person source) {
         name = source.getName().fullName;
         phone = source.getPhone().value;
         email = source.getEmail().value;
         address = source.getAddress().value;
+        role = source.getRole() == null ? null : source.getRole().getValue();
+        note = source.getNote() == null ? null : source.getNote().value;
         tags.addAll(source.getTags().stream()
+                .map(tag -> tag.tagName)
+                .sorted()
                 .map(JsonAdaptedTag::new)
+                .collect(Collectors.toList()));
+        budget = source.getBudget() == null ? null : new JsonAdaptedBudget(source.getBudget());
+        askingPrice = source.getAskingPrice() == null ? null
+                : BigDecimal.valueOf(source.getAskingPrice().getValue());
+        areas.addAll(source.getAreas().stream()
+                .map(Area::toString)
+                .sorted()
+                .collect(Collectors.toList()));
+        housingTypes.addAll(source.getHousingTypes().stream()
+                .map(HousingType::toString)
+                .sorted()
                 .collect(Collectors.toList()));
     }
 
@@ -67,6 +142,9 @@ class JsonAdaptedPerson {
     public Person toModelType() throws IllegalValueException {
         final List<Tag> personTags = new ArrayList<>();
         for (JsonAdaptedTag tag : tags) {
+            if (tag == null) {
+                throw new IllegalValueException(MESSAGE_NULL_TAG);
+            }
             personTags.add(tag.toModelType());
         }
 
@@ -102,8 +180,105 @@ class JsonAdaptedPerson {
         }
         final Address modelAddress = new Address(address);
 
+        // Client books saved before roles were introduced do not have this field,
+        // and a client is allowed to have no role. A hand-edited file may write that as a blank value or "none".
+        final ClientRole modelRole;
+        if (role == null || role.isBlank() || role.equalsIgnoreCase(NO_ROLE_VALUE)) {
+            modelRole = null;
+        } else if (!ClientRole.isValidRole(role)) {
+            throw new IllegalValueException(ClientRole.MESSAGE_CONSTRAINTS);
+        } else {
+            modelRole = ClientRole.fromString(role);
+        }
+
+        // Client books saved before notes were introduced do not have this field,
+        // and a client is allowed to have no note.
+        final Note modelNote;
+        if (note == null) {
+            modelNote = null;
+        } else if (!Note.isValidNote(note)) {
+            throw new IllegalValueException(Note.MESSAGE_CONSTRAINTS);
+        } else {
+            modelNote = new Note(note);
+        }
+
+        final Budget modelBudget;
+        if (budget == null) {
+            modelBudget = null;
+        } else {
+            if (budget.min == null || budget.max == null) {
+                throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                        Budget.class.getSimpleName()));
+            }
+            try {
+                modelBudget = new Budget(toPrice(budget.min), toPrice(budget.max));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalValueException(e.getMessage());
+            }
+        }
+
+        final Price modelAskingPrice;
+        if (askingPrice == null) {
+            modelAskingPrice = null;
+        } else {
+            modelAskingPrice = toPrice(askingPrice);
+        }
+
+        final Set<Area> modelAreas = new HashSet<>();
+        for (String area : areas) {
+            if (!Area.isValidArea(area)) {
+                throw new IllegalValueException(Area.MESSAGE_CONSTRAINTS);
+            }
+            modelAreas.add(new Area(area));
+        }
+
+        final Set<HousingType> modelHousingTypes = new HashSet<>();
+        for (String housingType : housingTypes) {
+            if (!HousingType.isValidHousingType(housingType)) {
+                throw new IllegalValueException(HousingType.MESSAGE_CONSTRAINTS);
+            }
+            modelHousingTypes.add(HousingType.fromString(housingType));
+        }
+
         final Set<Tag> modelTags = new HashSet<>(personTags);
-        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelTags);
+        return new Person(modelName, modelPhone, modelEmail, modelAddress, modelRole, modelNote, modelTags,
+                modelBudget, modelAskingPrice, modelAreas, modelHousingTypes);
+    }
+
+    /**
+     * Converts a JSON price to a {@code Price}, rejecting fractional values.
+     *
+     * @throws IllegalValueException if the value is null, fractional or outside the price range.
+     */
+    private static Price toPrice(BigDecimal value) throws IllegalValueException {
+        if (value == null || value.stripTrailingZeros().scale() > 0) {
+            throw new IllegalValueException(Price.MESSAGE_CONSTRAINTS);
+        }
+        try {
+            return new Price(value.toBigIntegerExact().toString());
+        } catch (ArithmeticException | IllegalArgumentException e) {
+            throw new IllegalValueException(Price.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    /**
+     * Jackson-friendly version of a {@link Budget}.
+     */
+    static final class JsonAdaptedBudget {
+
+        private final BigDecimal min;
+        private final BigDecimal max;
+
+        @JsonCreator
+        JsonAdaptedBudget(@JsonProperty("min") BigDecimal min, @JsonProperty("max") BigDecimal max) {
+            this.min = min;
+            this.max = max;
+        }
+
+        JsonAdaptedBudget(Budget source) {
+            min = BigDecimal.valueOf(source.getMin().getValue());
+            max = BigDecimal.valueOf(source.getMax().getValue());
+        }
     }
 
 }

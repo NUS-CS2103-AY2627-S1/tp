@@ -2,11 +2,14 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_AREA;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ASKING_PRICE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_BUDGET;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_HOUSING_TYPE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -22,10 +25,14 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Area;
+import seedu.address.model.person.Budget;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.HousingType;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Price;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -35,22 +42,30 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the client identified "
+            + "by the index number used in the displayed client list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_BUDGET + "MIN-MAX] "
+            + "[" + PREFIX_ASKING_PRICE + "PRICE] "
+            + "[" + PREFIX_AREA + "AREA]... "
+            + "[" + PREFIX_HOUSING_TYPE + "TYPE]... "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + PREFIX_EMAIL + "johndoe@example.com "
+            + PREFIX_BUDGET + "100000-200000 "
+            + PREFIX_AREA + "Bukit Timah "
+            + PREFIX_HOUSING_TYPE + "Condo";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited client: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+
+    private String actionDescription = "";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -69,6 +84,7 @@ public class EditCommand extends Command {
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
+        actionDescription = "";
         requireNonNull(model);
         List<Person> lastShownList = model.getFilteredPersonList();
 
@@ -79,13 +95,17 @@ public class EditCommand extends Command {
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        Optional<Person> existingPerson = model.findPersonOtherThan(personToEdit, editedPerson);
+        if (existingPerson.isPresent()) {
+            throw new CommandException(Messages.getErrorMessageForDuplicatePerson(editedPerson, existingPerson.get()));
         }
 
         model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        actionDescription = "Edited client " + editedPerson.getName();
+        String feedback = String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        int updatedIndex = model.getFilteredPersonList().indexOf(editedPerson);
+        return updatedIndex < 0 ? new CommandResult(feedback)
+                : new CommandResult(feedback, Index.fromZeroBased(updatedIndex));
     }
 
     /**
@@ -93,15 +113,41 @@ public class EditCommand extends Command {
      * edited with {@code editPersonDescriptor}.
      */
     private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
-        assert personToEdit != null;
+        requireNonNull(personToEdit);
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Budget updatedBudget = editPersonDescriptor.isBudgetEdited()
+                ? editPersonDescriptor.getBudget().orElse(null)
+                : personToEdit.getBudget();
+        Price updatedAskingPrice = editPersonDescriptor.isAskingPriceEdited()
+                ? editPersonDescriptor.getAskingPrice().orElse(null)
+                : personToEdit.getAskingPrice();
+        Set<Area> updatedAreas = editPersonDescriptor.getAreas().orElse(personToEdit.getAreas());
+        Set<HousingType> updatedHousingTypes =
+                editPersonDescriptor.getHousingTypes().orElse(personToEdit.getHousingTypes());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress,
+                personToEdit.getRole(), personToEdit.getNote(), updatedTags, updatedBudget,
+                updatedAskingPrice, updatedAreas, updatedHousingTypes);
+    }
+
+    @Override
+    public boolean isUndoable() {
+        return true;
+    }
+
+    @Override
+    public String getCommandWord() {
+        return COMMAND_WORD;
+    }
+
+    @Override
+    public String getActionDescription() {
+        return actionDescription;
     }
 
     @Override
@@ -137,12 +183,18 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Budget budget;
+        private boolean budgetEdited;
+        private Price askingPrice;
+        private boolean askingPriceEdited;
+        private Set<Area> areas;
+        private Set<HousingType> housingTypes;
 
         public EditPersonDescriptor() {}
 
         /**
          * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
+         * A defensive copy of {@code tags}, {@code areas} and {@code housingTypes} is used internally.
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
@@ -150,13 +202,20 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setAreas(toCopy.areas);
+            setHousingTypes(toCopy.housingTypes);
+            this.budget = toCopy.budget;
+            this.budgetEdited = toCopy.budgetEdited;
+            this.askingPrice = toCopy.askingPrice;
+            this.askingPriceEdited = toCopy.askingPriceEdited;
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags, areas, housingTypes)
+                    || budgetEdited || askingPriceEdited;
         }
 
         public void setName(Name name) {
@@ -192,6 +251,38 @@ public class EditCommand extends Command {
         }
 
         /**
+         * Sets {@code budget} and marks the budget as edited. A null value clears the budget.
+         */
+        public void setBudget(Budget budget) {
+            this.budget = budget;
+            this.budgetEdited = true;
+        }
+
+        public Optional<Budget> getBudget() {
+            return Optional.ofNullable(budget);
+        }
+
+        public boolean isBudgetEdited() {
+            return budgetEdited;
+        }
+
+        /**
+         * Sets {@code askingPrice} and marks the asking price as edited. A null value clears it.
+         */
+        public void setAskingPrice(Price askingPrice) {
+            this.askingPrice = askingPrice;
+            this.askingPriceEdited = true;
+        }
+
+        public Optional<Price> getAskingPrice() {
+            return Optional.ofNullable(askingPrice);
+        }
+
+        public boolean isAskingPriceEdited() {
+            return askingPriceEdited;
+        }
+
+        /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
          */
@@ -206,6 +297,40 @@ public class EditCommand extends Command {
          */
         public Optional<Set<Tag>> getTags() {
             return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+        }
+
+        /**
+         * Sets {@code areas} to this object's {@code areas}.
+         * A defensive copy of {@code areas} is used internally.
+         */
+        public void setAreas(Set<Area> areas) {
+            this.areas = (areas != null) ? new HashSet<>(areas) : null;
+        }
+
+        /**
+         * Returns an unmodifiable area set, which throws {@code UnsupportedOperationException}
+         * if modification is attempted.
+         * Returns {@code Optional#empty()} if {@code areas} is null.
+         */
+        public Optional<Set<Area>> getAreas() {
+            return (areas != null) ? Optional.of(Collections.unmodifiableSet(areas)) : Optional.empty();
+        }
+
+        /**
+         * Sets {@code housingTypes} to this object's {@code housingTypes}.
+         * A defensive copy of {@code housingTypes} is used internally.
+         */
+        public void setHousingTypes(Set<HousingType> housingTypes) {
+            this.housingTypes = (housingTypes != null) ? new HashSet<>(housingTypes) : null;
+        }
+
+        /**
+         * Returns an unmodifiable housing type set, which throws {@code UnsupportedOperationException}
+         * if modification is attempted.
+         * Returns {@code Optional#empty()} if {@code housingTypes} is null.
+         */
+        public Optional<Set<HousingType>> getHousingTypes() {
+            return (housingTypes != null) ? Optional.of(Collections.unmodifiableSet(housingTypes)) : Optional.empty();
         }
 
         @Override
@@ -223,7 +348,13 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(budget, otherEditPersonDescriptor.budget)
+                    && budgetEdited == otherEditPersonDescriptor.budgetEdited
+                    && Objects.equals(askingPrice, otherEditPersonDescriptor.askingPrice)
+                    && askingPriceEdited == otherEditPersonDescriptor.askingPriceEdited
+                    && Objects.equals(areas, otherEditPersonDescriptor.areas)
+                    && Objects.equals(housingTypes, otherEditPersonDescriptor.housingTypes);
         }
 
         @Override
@@ -234,6 +365,12 @@ public class EditCommand extends Command {
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
+                    .add("budget", budget)
+                    .add("budgetEdited", budgetEdited)
+                    .add("askingPrice", askingPrice)
+                    .add("askingPriceEdited", askingPriceEdited)
+                    .add("areas", areas)
+                    .add("housingTypes", housingTypes)
                     .toString();
         }
     }

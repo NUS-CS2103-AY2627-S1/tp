@@ -6,13 +6,15 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
 
 /**
  * Represents a Person in the address book.
- * Guarantees: details are present and not null, field values are validated, immutable.
+ * Guarantees: details are present and not null, field values are validated, immutable,
+ * except for the role, note, budget and asking price, which may be absent.
  */
 public class Person {
 
@@ -23,18 +25,33 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final ClientRole role;
+    private final Note note;
     private final Set<Tag> tags = new HashSet<>();
+    private final Budget budget;
+    private final Price askingPrice;
+    private final Set<Area> areas = new HashSet<>();
+    private final Set<HousingType> housingTypes = new HashSet<>();
 
     /**
-     * Every field must be present and not null.
+     * Every field must be present and not null, except {@code role}, {@code note},
+     * {@code budget} and {@code askingPrice}, which are null when the client has not supplied them.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, ClientRole role,
+            Note note, Set<Tag> tags, Budget budget, Price askingPrice, Set<Area> areas,
+            Set<HousingType> housingTypes) {
+        requireAllNonNull(name, phone, email, address, tags, areas, housingTypes);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.role = role;
+        this.note = note;
         this.tags.addAll(tags);
+        this.budget = budget;
+        this.askingPrice = askingPrice;
+        this.areas.addAll(areas);
+        this.housingTypes.addAll(housingTypes);
     }
 
     public Name getName() {
@@ -54,6 +71,20 @@ public class Person {
     }
 
     /**
+     * Returns the client's role, or null if no role has been assigned yet.
+     */
+    public ClientRole getRole() {
+        return role;
+    }
+
+    /**
+     * Returns the client's note, or null if no note has been added yet.
+     */
+    public Note getNote() {
+        return note;
+    }
+
+    /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
      */
@@ -62,16 +93,54 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns the client's budget, or null if none has been supplied.
+     */
+    public Budget getBudget() {
+        return budget;
+    }
+
+    /**
+     * Returns the client's asking price, or null if none has been supplied.
+     */
+    public Price getAskingPrice() {
+        return askingPrice;
+    }
+
+    /**
+     * Returns an immutable set of areas, which throws {@code UnsupportedOperationException}
+     * if modification is attempted.
+     */
+    public Set<Area> getAreas() {
+        return Collections.unmodifiableSet(areas);
+    }
+
+    /**
+     * Returns an immutable set of housing types, which throws {@code UnsupportedOperationException}
+     * if modification is attempted.
+     */
+    public Set<HousingType> getHousingTypes() {
+        return Collections.unmodifiableSet(housingTypes);
+    }
+
+    /**
+     * Returns true if both persons have the same name (ignoring case), phone or email (ignoring case).
+     * If any of the 3 are identical, persons are duplicates of each other.
      */
     public boolean isSamePerson(Person otherPerson) {
         if (otherPerson == this) {
             return true;
         }
-
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+                && (otherPerson.getName().isSameName(this.name)
+                        || otherPerson.getPhone().equals(this.phone)
+                        || otherPerson.getEmail().isSameEmail(this.email));
+    }
+
+    /**
+     * Returns the tag names exactly as they are displayed, including letter case.
+     */
+    private Set<String> getTagNames() {
+        return tags.stream().map(tag -> tag.tagName).collect(Collectors.toSet());
     }
 
     /**
@@ -93,13 +162,20 @@ public class Person {
                 && phone.equals(otherPerson.phone)
                 && email.equals(otherPerson.email)
                 && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+                && Objects.equals(role, otherPerson.role)
+                && Objects.equals(note, otherPerson.note)
+                && getTagNames().equals(otherPerson.getTagNames())
+                && Objects.equals(budget, otherPerson.budget)
+                && Objects.equals(askingPrice, otherPerson.askingPrice)
+                && areas.equals(otherPerson.areas)
+                && housingTypes.equals(otherPerson.housingTypes);
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, role, note, getTagNames(), budget, askingPrice, areas,
+                housingTypes);
     }
 
     @Override
@@ -109,7 +185,13 @@ public class Person {
                 .add("phone", phone)
                 .add("email", email)
                 .add("address", address)
+                .add("role", role)
+                .add("note", note)
                 .add("tags", tags)
+                .add("budget", budget)
+                .add("askingPrice", askingPrice)
+                .add("areas", areas)
+                .add("housingTypes", housingTypes)
                 .toString();
     }
 
