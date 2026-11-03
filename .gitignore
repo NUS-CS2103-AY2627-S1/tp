@@ -2,6 +2,7 @@
 /.gradle/
 /build/
 src/main/resources/docs/
+/bin/
 
 # IDEA files
 /.idea/
@@ -23,9 +24,11 @@ docs/_site/
 
 # AI Agents
 AGENTS.md
+!/AGENTS.md
 CLAUDE.md
 /.claude/
-/.codex/
+/.cursor/
 
 # Temp files
 _temp/
+docs/_markbind/logs/

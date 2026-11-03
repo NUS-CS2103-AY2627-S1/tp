@@ -1,0 +1,43 @@
+@startuml
+!include style.puml
+skinparam classAttributeIconSize 0
+skinparam ArrowFontStyle plain
+skinparam classBackgroundColor MODEL_COLOR_T1
+skinparam classFontColor black
+skinparam classStereotypeFontColor black
+show members
+package Model {
+  interface "Model" as LoanModel <<interface>> {
+    + addLoans(loans: List<Loan>): void
+    + returnLoans(uuids: List<UUID>, date: LocalDate, condition: Condition): void
+  }
+  class ModelManager
+  class AddressBook {
+    + addLoans(loans: List<Loan>): void
+    + returnLoans(uuids: List<UUID>, date: LocalDate, condition: Condition): void
+  }
+  class UniqueLoanList {
+    + findOpenLoan(uuid: UUID): Optional<Loan>
+  }
+  class Loan {
+    + isOpen(): boolean
+    + withReturnedDate(date: LocalDate, condition: Condition): Loan
+  }
+}
+ModelManager .up.|> LoanModel
+ModelManager "0..*" --> "1" AddressBook : delegates to
+AddressBook "1" *--> "0..1" UniqueLoanList : loans
+UniqueLoanList "0..*" --> "0..*" Loan : retained values
+note bottom of Loan
+  Immutable loan values retain the equipment UUID,
+  member NUS ID, dates and condition observations.
+  Null returnedDate denotes an open loan.
+end note
+legend bottom
+  Loan-facing Model APIs only; unrelated members are omitted.
+  UniqueLoanList is created lazily; an absent list reads as empty.
+  Immutable Loan values may be shared across independent roots.
+  AddressBook validates references and batches before replacing records.
+  Command parsing, JSON conversion and UI filtering are separate views.
+endlegend
+@enduml

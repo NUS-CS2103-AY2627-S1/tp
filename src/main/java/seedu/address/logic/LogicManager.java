@@ -2,17 +2,21 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.util.LaplaceText;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.equipment.Availability;
 import seedu.address.model.person.Person;
 import seedu.address.storage.Storage;
 
@@ -42,26 +46,58 @@ public class LogicManager implements Logic {
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
+        logger.info("Received command input.");
 
-        CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        logger.fine("Parsed command type: " + command.getClass().getSimpleName());
+        Model executionModel = command.isTransactional() ? model.createTransactionSnapshot() : model;
+        CommandResult commandResult = command.execute(executionModel);
+
+        if (command.isReadOnly()) {
+            return commandResult;
+        }
+
+        if (command.recordsHistory()) {
+            executionModel.recordAddressBook(model.getAddressBook(), describeAction(commandText));
+        }
 
         try {
-            storage.saveAddressBook(model.getAddressBook());
+            storage.saveAddressBook(executionModel.getAddressBook());
         } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
+            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT,
+                    storage.getAddressBookFilePath()), e);
         } catch (IOException ioe) {
             throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
         }
 
+        if (command.isTransactional()) {
+            // Preserve the existing observable root; publish the validated snapshot only after its atomic save.
+            model.publishTransaction(executionModel);
+        }
         return commandResult;
+    }
+
+    /**
+     * Returns the command family and action without retaining parameter values in history descriptions.
+     */
+    static String describeAction(String commandText) {
+        String[] words = LaplaceText.normalize(commandText).split(" ", 3);
+        return words.length > 1 ? words[0] + " " + words[1] : words[0];
     }
 
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ReadOnlyAddressBook getAddressBook() {
+        return model.getAddressBook();
+    }
+
+    @Override
+    public Availability getAvailability(UUID uuid) {
+        return model.getAvailability(uuid);
     }
 
     @Override

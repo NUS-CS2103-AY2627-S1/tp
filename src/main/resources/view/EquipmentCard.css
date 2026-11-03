@@ -1,0 +1,11 @@
+.equipment-card {
+    -fx-background-color: transparent;
+}
+
+.equipment-card .label {
+    -fx-text-fill: -laplace-text;
+}
+
+.equipment-card .equipment-name {
+    -fx-padding: 0 2 0 0;
+}

@@ -1,0 +1,36 @@
+.member-card {
+    -fx-background-color: transparent;
+}
+
+.member-card .member-name {
+    -fx-padding: 0 2 0 0;
+    -fx-text-fill: -laplace-text;
+}
+
+.member-card .member-contact {
+    -fx-text-fill: -laplace-text;
+}
+
+.member-card .member-holdings {
+    -fx-text-fill: -laplace-muted;
+}
+
+.member-card.deleted-member {
+    -fx-background-color: -laplace-neutral;
+    -fx-border-color: -laplace-thumb;
+    -fx-border-width: 1;
+}
+
+.member-card.deleted-member .label {
+    -fx-text-fill: -laplace-muted;
+}
+
+.list-cell:selected .member-card.deleted-member {
+    -fx-background-color: -laplace-selection;
+    -fx-border-color: -laplace-focus;
+    -fx-border-width: 2;
+}
+
+.laplace-root .list-cell:filled:selected .member-card.deleted-member .label {
+    -fx-text-fill: -laplace-muted;
+}

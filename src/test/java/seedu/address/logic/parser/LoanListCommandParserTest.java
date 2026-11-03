@@ -1,0 +1,96 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DisplayRequest;
+import seedu.address.logic.commands.LoanListCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.ModelManager;
+import seedu.address.model.query.LoanQuery;
+
+/** Checks Loans navigation, identity filters and reset through leaf and complete command parsers. */
+public class LoanListCommandParserTest {
+    @Test
+    public void parse_whitespaceOnly_returnsLoansNavigation() throws Exception {
+        for (String args : List.of("", " ", "\t\n")) {
+            LoanListCommand command = new LoanListCommandParser().parse(args);
+            assertEquals(new CommandResult("Showing current loans.", DisplayRequest.loans()),
+                    command.execute(new ModelManager()));
+        }
+        assertInstanceOf(LoanListCommand.class, new LoansCommandParser().parse("list"));
+        assertInstanceOf(LoanListCommand.class, new AddressBookParser().parseCommand(" \tloans\tlist \t"));
+    }
+
+    @Test
+    public void parse_arguments_rejectsWithOriginalCauseAndUsage() {
+        for (String args : List.of("extra", "uuid/a uuid/b", "nus/A0123456X nus/A0234567R", "unknown/a unknown/b")) {
+            ParseException failure = assertThrows(ParseException.class, () ->
+                    new LoanListCommandParser().parse(args));
+            assertTrue(failure.getMessage().contains(LoanListCommand.MESSAGE_USAGE));
+            assertInstanceOf(ParseException.class, failure.getCause());
+        }
+    }
+
+    @Test
+    public void parse_filters_replacesBothCriteriaAndAllowsPartialOrBlankValues() throws Exception {
+        LoanListCommandParser parser = new LoanListCommandParser();
+        for (String args : List.of("nus/a012 uuid/ABCD", " uuid/ ABCD \t nus/ a012 ",
+                "nus/a012 uuid/ABCD \n")) {
+            LoanListCommand command = parser.parse(args);
+            assertTrue(command.isReadOnly());
+            assertEquals(DisplayRequest.loans(new LoanQuery("a012", "ABCD")),
+                    command.execute(new ModelManager()).getDisplayRequest());
+        }
+        assertEquals(DisplayRequest.loans(new LoanQuery("a012", "")),
+                parser.parse("nus/a012").execute(new ModelManager()).getDisplayRequest());
+        assertEquals(DisplayRequest.loans(LoanQuery.all()),
+                parser.parse("nus/ uuid/").execute(new ModelManager()).getDisplayRequest());
+        assertTrue(parser.parse("").isReadOnly());
+    }
+
+    @Test
+    public void parse_reset_clearsBothCriteriaAndRejectsArgumentsWithCanonicalUsage() throws Exception {
+        LoanResetCommandParser parser = new LoanResetCommandParser();
+        assertEquals(DisplayRequest.loans(LoanQuery.all()),
+                parser.parse(" \t").execute(new ModelManager()).getDisplayRequest());
+        assertTrue(parser.parse("").isReadOnly());
+        assertInstanceOf(LoanListCommand.class, new AddressBookParser().parseCommand("loans reset"));
+        for (String input : List.of("extra", "nus/A012", "uuid/")) {
+            ParseException failure = assertThrows(ParseException.class, () -> parser.parse(input));
+            assertTrue(failure.getMessage().endsWith(LoanListCommand.RESET_USAGE));
+            assertInstanceOf(ParseException.class, failure.getCause());
+        }
+        assertThrows(NullPointerException.class, () -> parser.parse(null));
+    }
+
+    @Test
+    public void parse_aliasesAndCase_preservesFilterTextAndReadOnlyReset() throws Exception {
+        AddressBookParser parser = new AddressBookParser();
+        for (String input : List.of("LOAN LIST", "LoAnS LiSt")) {
+            var command = parser.parseCommand(input + " nus/a012 uuid/ABCD");
+            assertTrue(command.isReadOnly());
+            assertEquals(DisplayRequest.loans(new LoanQuery("a012", "ABCD")),
+                    command.execute(new ModelManager()).getDisplayRequest());
+        }
+        for (String input : List.of("LOAN RESET", "LoAnS ReSeT")) {
+            var command = parser.parseCommand(input);
+            assertTrue(command.isReadOnly());
+            assertEquals(DisplayRequest.loans(LoanQuery.all()),
+                    command.execute(new ModelManager()).getDisplayRequest());
+        }
+    }
+
+    @Test
+    public void parse_nullArgumentsOrModel_rejectsNull() {
+        assertThrows(NullPointerException.class, () -> new LoanListCommandParser().parse(null));
+        assertThrows(NullPointerException.class, () -> new LoanListCommand().execute(null));
+    }
+}

@@ -1,12 +1,15 @@
 ---
-layout: page
-title: DevOps guide
+  layout: default.md
+  title: "DevOps guide"
+  pageNav: 3
 ---
 
-* Table of Contents
-{:toc}
+# DevOps guide
 
---------------------------------------------------------------------------------------------------------------------
+<!-- * Table of Contents -->
+<page-nav-print />
+
+<!-- -------------------------------------------------------------------------------------------------------------------- -->
 
 ## Build automation
 
@@ -19,7 +22,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/Laplace.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -73,7 +76,28 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-F15-2/tp/tree/master/src/main/java/seedu/address/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.
+
+## Single-JAR distribution
+
+Build with `./gradlew shadowJar verifyUniversalJar`. Publish only `build/libs/Laplace.jar`;
+the same file is used on Windows, Linux (including graphical WSL), Intel macOS and
+Apple Silicon macOS. Java 25 for the user's processor remains the only required installation.
+No architecture property or alternate JAR filename is needed.
+
+The build bundles JavaFX libraries for each supported platform. For macOS, it preserves both Intel and
+Apple Silicon libraries in the same JAR. `verifyUniversalJar` checks the bundled libraries and the
+100 MB limit. Packaging details are in `gradle/universal-javafx.gradle`.
+
+The configured CI matrix tests one shared candidate across the four OS/architecture combinations.
+The packaged probe uses that candidate's classes and libraries so installed JavaFX cannot hide missing
+files. Verify completed runs before publication.
+
+Before publication, inspect the four jobs and repeat the
+[initial-launch/normal-exit checks](DeveloperGuide.md#launch-and-shutdown) with the same candidate in
+separate empty writable folders. Record Java version, OS, processor, SHA-256, launch result and
+persistence/restart result. WSL needs its own graphical smoke test. A configured CI matrix is not
+evidence of completed platform runs; outstanding environments must remain explicit.

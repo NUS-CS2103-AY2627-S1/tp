@@ -1,54 +1,89 @@
 @startuml
 !include style.puml
+!pragma layout smetana
+skinparam classAttributeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
+hide empty members
 
-Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
-Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
-Class ModelManager
-Class UserPrefs
+title Model overview: root, collections and records
 
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
-
-Class I #FFFFFF
+package Model as ModelPackage {
+    class Model <<interface>> {
+        +setMember(target: Member, editedMember: Member): void
+        +deleteMember(member: Member): void
+        +restoreMember(member: Member): void
+        +publishTransaction(candidate: Model): void
+    }
+    class ReadOnlyAddressBook <<interface>>
+    class ReadOnlyUserPrefs <<interface>>
+    class ModelManager
+    class UserPrefs
+    class AddressBookHistory
+    class AddressBook {
+        +setMember(target: Member, editedMember: Member): void
+        +removeMember(member: Member): void
+        +restoreMember(member: Member): void
+    }
+    class UniquePersonList
+    class UniqueEquipmentList
+    class UniqueLoanList
+    class UniqueMemberList {
+        +setMember(target: Member, editedMember: Member): void
+        +setDeleted(nusId: NusId, isDeleted: boolean): void
+    }
+    class Person
+    class Equipment {
+        -uuid: UUID
+    }
+    class Loan {
+        -equipmentUuid: UUID
+        -memberNusId: NusId
+    }
+    class Member {
+        -isDeleted: boolean {readOnly}
+        +isDeleted(): boolean
+        +isSameMember(otherMember: Member): boolean
+    }
+    class NusId
+    class Name
+    class Phone
+    class Email
 }
+show Model methods
+show AddressBook methods
+show UniqueMemberList methods
+show Member members
+show Equipment members
+show Loan members
 
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Model
+ModelManager ..|> Model
+ModelManager "0..*" --> "1" AddressBook
+ModelManager --> "1" UserPrefs
+ModelManager --> "1" AddressBookHistory
+AddressBook ..|> ReadOnlyAddressBook
+UserPrefs ..|> ReadOnlyUserPrefs
+AddressBook "1" *--> "1" UniquePersonList
+AddressBook "1" *--> "0..1" UniqueMemberList
+AddressBook "1" *--> "0..1" UniqueEquipmentList
+AddressBook "1" *--> "0..1" UniqueLoanList
+UniquePersonList "0..*" --> "0..*" Person
+UniqueMemberList "0..*" --> "0..*" Member
+UniqueEquipmentList "0..*" --> "0..*" Equipment
+UniqueLoanList "0..*" --> "0..*" Loan
+Loan ..> Member : resolved by memberNusId
+Loan ..> Equipment : resolved by equipmentUuid
+Member --> "1" NusId
+Member --> "1" Name
+Member --> "1" Phone
+Member --> "1" Email
 
-AddressBook .up.|> ReadOnlyAddressBook
-
-ModelManager .up.|> Model
-Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
-ModelManager -right-> "1" UserPrefs
-UserPrefs .up.|> ReadOnlyUserPrefs
-
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
-
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
-
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
-ModelManager --> "~* filtered" Person
+legend bottom
+  Domain containers are lazy; immutable entities can be shared by independent roots.
+  The member collection retains active and deleted records.
+  Dashed loan arrows are identity lookups through the root, not stored objects.
+  Stable views, other entity details and history internals are omitted.
+endlegend
 @enduml

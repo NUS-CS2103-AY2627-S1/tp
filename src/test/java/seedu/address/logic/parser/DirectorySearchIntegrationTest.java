@@ -1,0 +1,296 @@
+package seedu.address.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.DirectorySearchCommand.EQUIPMENT_USAGE;
+import static seedu.address.logic.commands.DirectorySearchCommand.MEMBER_USAGE;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.logic.LogicManager;
+import seedu.address.logic.commands.DisplayRequest;
+import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.member.Member;
+import seedu.address.model.member.NusId;
+import seedu.address.model.person.Email;
+import seedu.address.model.person.Name;
+import seedu.address.model.person.Phone;
+import seedu.address.model.query.DirectoryQuery;
+import seedu.address.model.query.InventoryGroups;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.StorageManager;
+import seedu.address.testutil.SearchData;
+
+public class DirectorySearchIntegrationTest {
+    @TempDir
+    public Path directory;
+
+    @Test
+    public void search_canonicalNamesAfterReload_preservesNewAndLegacySpellingWithoutSaving() throws Exception {
+        CountingStorage storage = new CountingStorage(directory);
+        ModelManager original = new ModelManager();
+        LogicManager writer = new LogicManager(original, storage);
+        writer.execute("member add nus/A8400001X name/Jose\u0301 Tan phone/91234567 email/jose@example.com");
+        assertEquals("José Tan", original.getMemberList().getFirst().getName().fullName);
+        original.addMember(new Member(new NusId("A8400002X"), Name.fromStoredMember("Jose\u0301 Tan"),
+                Phone.forMember("91112222"), Email.forMember("legacy@example.com")));
+        storage.saveAddressBook(original.getAddressBook());
+        ModelManager reloaded = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        LogicManager reader = new LogicManager(reloaded, storage);
+        byte[] saved = Files.readAllBytes(storage.getAddressBookFilePath());
+        int saves = storage.saves;
+        storage.fail = true;
+        for (String query : List.of("José Tan", "Jose\u0301 Tan", "JOSÉ\u00a0TAN")) {
+            var result = reader.execute("member search q/" + query);
+            assertEquals("Found 2 members.", result.getFeedbackToUser());
+            assertEquals(Set.copyOf(reloaded.getMemberList()), Set.copyOf(result.getDisplayRequest().getQuery()
+                    .orElseThrow().members(reloaded.getAddressBook())));
+        }
+        assertEquals("Found 0 members.", reader.execute("member search q/Jose Tan").getFeedbackToUser());
+        assertEquals(original.getAddressBook(), reloaded.getAddressBook());
+        assertEquals("Jose\u0301 Tan", reloaded.getMemberList().get(1).getName().fullName);
+        assertEquals(saves, storage.saves);
+        assertTrue(java.util.Arrays.equals(saved, Files.readAllBytes(storage.getAddressBookFilePath())));
+    }
+
+    @Test
+    public void search_formattedPhoneAfterSaveReload_returnsTypedQueryWithoutSaving() throws Exception {
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager writer = new LogicManager(new ModelManager(), storage);
+        writer.execute("member add nus/A8400001X name/Anne-Marie Lim phone/+65 9123-4567"
+                + " email/anne-marie@example.com");
+        ModelManager model = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        LogicManager logic = new LogicManager(model, storage);
+        byte[] saved = Files.readAllBytes(storage.getAddressBookFilePath());
+        storage.fail = true;
+        for (String text : List.of("+6591234567", "+65 9123-4567", "9123\u20034567", "23-45")) {
+            var result = logic.execute("member search q/" + text);
+            assertEquals("Found 1 member.", result.getFeedbackToUser());
+            assertEquals(DisplayRequest.Type.MEMBERS, result.getDisplayRequest().getType());
+            assertEquals(model.getMemberList(), result.getDisplayRequest().getQuery().orElseThrow()
+                    .members(model.getAddressBook()));
+        }
+        assertEquals(1, storage.saves);
+        assertTrue(java.util.Arrays.equals(saved, Files.readAllBytes(storage.getAddressBookFilePath())));
+        assertEquals("+6591234567", model.getMemberList().getFirst().getPhone().value);
+    }
+
+    @Test
+    public void search_zeroOneAndManyResults_usesCorrectNounsWithoutSaving() throws Exception {
+        ModelManager model = SearchData.sample();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        String[][] cases = {
+            {"member search q/missing", "Found 0 members."},
+            {"member search q/alex1@", "Found 1 member."},
+            {"member search", "Found 2 members."},
+            {"equipment search q/missing", "Found 0 equipment items."},
+            {"equipment search condition/damaged", "Found 1 equipment item."},
+            {"equipment search", "Found 3 equipment items."}
+        };
+        for (String[] testCase : cases) {
+            assertEquals(testCase[1], logic.execute(testCase[0]).getFeedbackToUser());
+        }
+        assertEquals(0, storage.saves);
+        assertFalse(Files.exists(storage.getAddressBookFilePath()));
+    }
+
+    @Test
+    public void search_greekSigmaAfterSaveReload_preservesSpellingAndNeverSaves() throws Exception {
+        ModelManager model = new ModelManager();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        logic.execute("member add nus/A8400001X name/ΝΙΚΟΣ phone/91234567 email/nikos@example.com");
+        ModelManager reloaded = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        LogicManager reopened = new LogicManager(reloaded, storage);
+        byte[] saved = Files.readAllBytes(storage.getAddressBookFilePath());
+        for (String query : List.of("Σ", "σ", "ς", "νικοσ", "νικος")) {
+            assertEquals("Found 1 member.", reopened.execute("member search q/" + query).getFeedbackToUser());
+        }
+        assertEquals(1, storage.saves);
+        assertTrue(java.util.Arrays.equals(saved, Files.readAllBytes(storage.getAddressBookFilePath())));
+        assertEquals("ΝΙΚΟΣ", reloaded.getMemberList().getFirst().getName().fullName);
+    }
+
+    @Test
+    public void browse_sigmaVariantsAfterReload_keepsOneGroupAndDistinctUnitsWithoutSaving() throws Exception {
+        ModelManager model = new ModelManager();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        logic.execute("equipment add name/ΟΣ category/Audio condition/GOOD");
+        String firstUuid = model.getEquipmentList().getFirst().getUuid().toString();
+        String feedback = logic.execute("equipment add name/οσ category/Audio condition/DAMAGED").getFeedbackToUser();
+        assertTrue(feedback.contains("Possible duplicate(s): " + firstUuid));
+        ModelManager reopened = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        LogicManager reader = new LogicManager(reopened, storage);
+        AddressBook before = new AddressBook(reopened.getAddressBook());
+        byte[] saved = Files.readAllBytes(storage.getAddressBookFilePath());
+        storage.fail = true;
+        var units = reopened.getEquipmentList();
+        assertNotEquals(units.get(0).getUuid(), units.get(1).getUuid());
+        assertEquals(List.of("ΟΣ", "οσ"), units.stream().map(unit -> unit.getName()).toList());
+        for (String spelling : List.of("ΟΣ", "οσ", "ος")) {
+            var result = reader.execute("equipment view category/Audio name/" + spelling);
+            assertEquals(DisplayRequest.equipmentGroup(InventoryGroups.keyOf(units.getFirst())),
+                    result.getDisplayRequest());
+            DirectoryQuery query = reader.execute("equipment search category/Audio q/" + spelling)
+                    .getDisplayRequest().getQuery().orElseThrow();
+            var groups = InventoryGroups.group(reopened.getAddressBook(),
+                    query.equipment(reopened.getAddressBook(), reopened::getAvailability));
+            assertEquals(1, groups.size());
+            assertEquals(units, groups.getFirst().units());
+            assertEquals(2, groups.getFirst().matching().size());
+        }
+        assertEquals(new InventoryGroups.Key("ΟΣ", "ΟΣ"), new InventoryGroups.Key("οσ", "ος"));
+        assertEquals(1, InventoryGroups.summarize(reopened.getAddressBook(), reopened::getAvailability,
+                unit -> true).size());
+        assertEquals(2, storage.saves);
+        assertEquals(before, reopened.getAddressBook());
+        assertTrue(java.util.Arrays.equals(saved, Files.readAllBytes(storage.getAddressBookFilePath())));
+    }
+
+    @Test
+    public void search_realRoutes_neverSavesEvenWhenStorageIsUnwritable() throws Exception {
+        ModelManager model = SearchData.sample();
+        AddressBook before = new AddressBook(model.getAddressBook());
+        CountingStorage storage = new CountingStorage(directory);
+        storage.saveAddressBook(before);
+        byte[] bytes = Files.readAllBytes(storage.getAddressBookFilePath());
+        storage.fail = true;
+        LogicManager logic = new LogicManager(model, storage);
+        for (String text : List.of("member search", "member\tsearch q/ALEX holding/yes sort/held order/DESC",
+                "equipment search q/camera category/photo condition/good availability/available sort/name",
+                "equipment search sort/availability order/desc", "equipment search q/no matches")) {
+            var result = logic.execute(text);
+            DirectoryQuery query = result.getDisplayRequest().getQuery().orElseThrow();
+            assertEquals(text.startsWith("member") ? DisplayRequest.Type.MEMBERS : DisplayRequest.Type.EQUIPMENT,
+                    result.getDisplayRequest().getType());
+            assertTrue(result.getFeedbackToUser().startsWith("Found "));
+            assertEquals(before, model.getAddressBook());
+            assertEquals(1, storage.saves);
+            assertTrue(java.util.Arrays.equals(bytes, Files.readAllBytes(storage.getAddressBookFilePath())));
+            assertFalse(query.description().isEmpty());
+        }
+        ModelManager reloaded = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        assertEquals(before, reloaded.getAddressBook());
+    }
+
+    @Test
+    public void memberStatus_realDeleteSearchAndRestore_preservesRetainedIdentityAndReadOnlyQueries() throws Exception {
+        ModelManager model = SearchData.sample();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        logic.execute("member delete nus/A0000002X");
+        assertEquals(2, model.getMemberList().size());
+        byte[] saved = Files.readAllBytes(storage.getAddressBookFilePath());
+        assertEquals("Found 1 member.", logic.execute("member search").getFeedbackToUser());
+        assertEquals("Found 1 member.", logic.execute("member search status/DELETED").getFeedbackToUser());
+        assertEquals("Found 2 members.", logic.execute("member search status/all").getFeedbackToUser());
+        assertEquals(DirectoryQuery.Status.ACTIVE,
+                logic.execute("member search").getDisplayRequest().getQuery().orElseThrow().status());
+        assertEquals(1, storage.saves);
+        assertTrue(java.util.Arrays.equals(saved, Files.readAllBytes(storage.getAddressBookFilePath())));
+        assertTrue(storage.readAddressBook().orElseThrow().getMemberList().stream()
+                .anyMatch(member -> member.isDeleted() && member.getNusId().value.equals("A0000002X")));
+        logic.execute("member restore nus/A0000002X");
+        assertEquals(2, storage.saves);
+        assertEquals("Found 0 members.", logic.execute("member search status/deleted").getFeedbackToUser());
+        assertEquals("Found 2 members.", logic.execute("member search status/active").getFeedbackToUser());
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void suppliedFieldErrors_followInputOrderAndRetainUsage() {
+        AddressBookParser parser = new AddressBookParser();
+        assertThrows(ParseException.class, "Invalid Holding: maybe\n" + MEMBER_USAGE, () ->
+                parser.parseCommand("member search holding/maybe order/invalid"));
+        assertThrows(ParseException.class, "order/ must be asc or desc.\n" + MEMBER_USAGE, () ->
+                parser.parseCommand("member search order/invalid holding/maybe"));
+        assertThrows(ParseException.class, "Search parameter must not be blank: q/\n" + EQUIPMENT_USAGE, () ->
+                parser.parseCommand("equipment search q/ unknown/value"));
+        assertThrows(NullPointerException.class, () -> new DirectorySearchCommandParser(true).parse(null));
+    }
+
+    @Test
+    public void invalidSearch_rejectedAtTopLevel_withoutWritesOrStateChanges() throws Exception {
+        ModelManager model = SearchData.sample();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        AddressBook before = new AddressBook(model.getAddressBook());
+        for (String input : List.of("member search words", "member search q/", "member search q/a q/b",
+                "member search category/photo", "member search holding/maybe", "member search sort/condition",
+                "member search order/reverse", "equipment search holding/yes", "equipment search condition/broken",
+                "equipment search availability/free", "equipment search sort/held", "equipment search q/x unknown/y",
+                "equipment search category/", "equipment search sort/", "equipment search order/",
+                "member search status/archived", "member search status/", "member search status/all status/active",
+                "equipment search status/archived", "equipment search status/",
+                "equipment search status/all status/active")) {
+            assertThrows(ParseException.class, () -> logic.execute(input));
+            assertEquals(before, model.getAddressBook());
+            assertEquals(0, storage.saves);
+            assertFalse(Files.exists(storage.getAddressBookFilePath()));
+        }
+    }
+
+    @Test
+    public void successfulAdds_warnButRetainDistinctIdentitiesAndPersist() throws Exception {
+        ModelManager model = SearchData.sample();
+        CountingStorage storage = new CountingStorage(directory);
+        LogicManager logic = new LogicManager(model, storage);
+        String member = logic.execute("member add nus/A0000009X name/Alex Tan phone/91234567"
+                + " email/alex9@example.com").getFeedbackToUser();
+        assertTrue(member.contains("Possible duplicate(s): A0000001X, A0000002X"));
+        String equipment = logic.execute("equipment add name/Camera category/Photography condition/GOOD")
+                .getFeedbackToUser();
+        assertTrue(equipment.contains("Possible duplicate(s):"));
+        assertEquals(3, model.getMemberList().size());
+        assertEquals(4, model.getEquipmentList().size());
+        assertEquals(2, storage.saves);
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void displayRequest_queryIsImmutableAndPartOfValueIdentity() {
+        DirectoryQuery query = DirectoryQuery.all();
+        assertEquals(DisplayRequest.members(query), DisplayRequest.members(DirectoryQuery.all()));
+        assertEquals(DisplayRequest.members(query).hashCode(), DisplayRequest.members(query).hashCode());
+        assertNotEquals(DisplayRequest.members(), DisplayRequest.members(query));
+        assertNotEquals(DisplayRequest.members(query), DisplayRequest.equipment(query));
+        assertThrows(NullPointerException.class, () -> DisplayRequest.members(null));
+        assertThrows(NullPointerException.class, () -> DisplayRequest.equipment(null));
+    }
+
+    private static class CountingStorage extends StorageManager {
+        private int saves;
+        private boolean fail;
+
+        CountingStorage(Path path) {
+            super(new JsonAddressBookStorage(path.resolve("data.json")),
+                    new JsonUserPrefsStorage(path.resolve("preferences.json")));
+        }
+
+        @Override
+        public void saveAddressBook(ReadOnlyAddressBook data) throws IOException {
+            if (fail) {
+                throw new IOException("Read-only query must never save");
+            }
+            saves++;
+            super.saveAddressBook(data);
+        }
+    }
+}

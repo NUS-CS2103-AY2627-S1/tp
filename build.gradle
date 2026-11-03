@@ -8,6 +8,11 @@ plugins {
 
 application {
     mainClass = 'seedu.address.Main'
+    applicationDefaultJvmArgs = ['-ea']
+}
+
+tasks.withType(JavaExec).configureEach {
+    enableAssertions = true
 }
 
 java {
@@ -24,8 +29,30 @@ checkstyle {
     toolVersion = '14.1.0'
 }
 
+configurations {
+    javafxTestRuntime
+    javafxMacIntel
+    javafxMacArm
+}
+
+// Unit tests use one matching native platform; packaged tests must use the selected JAR's libraries.
+String javaFxVersion = '17.0.7'
+String operatingSystem = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+String architecture = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+boolean isArm = architecture in ['aarch64', 'arm64']
+// Development runs use matching macOS natives; the release wraps both architectures.
+String javaFxMacPlatform = isArm ? 'mac-aarch64' : 'mac'
+String javaFxTestPlatform = operatingSystem.contains('mac') ? (isArm ? 'mac-aarch64' : 'mac')
+        : operatingSystem.contains('win') ? 'win' : (isArm ? 'linux-aarch64' : 'linux')
+
 test {
     useJUnitPlatform()
+    enableAssertions = true
+    // A JDK with bundled JavaFX must not silently replace the declared test runtime.
+    jvmArgs '--limit-modules=java.se,jdk.unsupported', '--enable-native-access=ALL-UNNAMED'
+    classpath = configurations.javafxTestRuntime + sourceSets.test.runtimeClasspath.filter {
+        !it.name.startsWith('javafx-')
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -47,19 +74,29 @@ task coverage(type: JacocoReport) {
 
 dependencies {
     String jUnitVersion = '5.14.4'
-    String javaFxVersion = '17.0.7'
+
+    ['base', 'controls', 'fxml', 'graphics'].each { module ->
+        javafxTestRuntime("org.openjfx:javafx-${module}:${javaFxVersion}:${javaFxTestPlatform}") {
+            transitive = false
+        }
+    }
+
+    ['base', 'graphics'].each { module ->
+        javafxMacIntel("org.openjfx:javafx-${module}:${javaFxVersion}:mac") { transitive = false }
+        javafxMacArm("org.openjfx:javafx-${module}:${javaFxVersion}:mac-aarch64") { transitive = false }
+    }
 
     implementation "org.openjfx:javafx-base:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:mac"
+    implementation "org.openjfx:javafx-base:${javaFxVersion}:${javaFxMacPlatform}"
     implementation "org.openjfx:javafx-base:${javaFxVersion}:linux"
     implementation "org.openjfx:javafx-controls:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:mac"
+    implementation "org.openjfx:javafx-controls:${javaFxVersion}:${javaFxMacPlatform}"
     implementation "org.openjfx:javafx-controls:${javaFxVersion}:linux"
     implementation "org.openjfx:javafx-fxml:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:mac"
+    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:${javaFxMacPlatform}"
     implementation "org.openjfx:javafx-fxml:${javaFxVersion}:linux"
     implementation "org.openjfx:javafx-graphics:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:mac"
+    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:${javaFxMacPlatform}"
     implementation "org.openjfx:javafx-graphics:${javaFxVersion}:linux"
 
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.7.0'
@@ -72,7 +109,120 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'Laplace.jar'
 }
 
+apply from: 'gradle/universal-javafx.gradle'
+
 defaultTasks 'clean', 'test'
+
+// This feature must cover its UI wiring as well as the isolated completion engine.
+def autocompleteClasses = [
+    'seedu/address/logic/completion/Completion',
+    'seedu/address/logic/completion/CompletionService',
+    'seedu/address/ui/CompletionController',
+    'seedu/address/ui/CommandBox'
+]
+
+tasks.register('autocompleteCoverageVerification') {
+    dependsOn coverage
+    doLast {
+        File report = coverage.reports.xml.outputLocation.get().asFile
+        if (!report.isFile()) {
+            throw new GradleException('Missing autocomplete coverage report: ' + report)
+        }
+        def factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+        factory.setFeature('http://apache.org/xml/features/nonvalidating/load-external-dtd', false)
+        def document = factory.newDocumentBuilder().parse(report)
+        def classes = document.getElementsByTagName('class')
+        def required = autocompleteClasses.collectEntries { [(it): null] }
+        required['seedu/address/ui/MainWindow'] = ['fillInnerParts']
+        required['seedu/address/logic/parser/DirectorySearchCommandParser'] = ['<clinit>']
+        required.each { className, methodNames ->
+            def node = (0..<classes.length).collect { classes.item(it) }
+                    .find { it.getAttribute('name') == className }
+            if (node == null) {
+                throw new GradleException('Missing coverage class: ' + className)
+            }
+            def elements = methodNames == null ? [node] : methodNames.collect { methodName ->
+                def methods = node.getElementsByTagName('method')
+                def method = (0..<methods.length).collect { methods.item(it) }
+                        .find { it.getAttribute('name') == methodName }
+                if (method == null) {
+                    throw new GradleException('Missing coverage method: ' + className + '.' + methodName)
+                }
+                method
+            }
+            elements.each { element ->
+                def counters = element.childNodes
+                def directCounters = (0..<counters.length).collect { counters.item(it) }
+                        .findAll { it.nodeName == 'counter' }
+                ['INSTRUCTION', 'LINE', 'BRANCH'].each { counterType ->
+                    def counter = directCounters.find { it.getAttribute('type') == counterType }
+                    // JaCoCo omits BRANCH only for straight-line code; other counters are required.
+                    if (counter == null && counterType != 'BRANCH') {
+                        throw new GradleException('Missing ' + counterType + ' coverage: ' + className)
+                    }
+                    if (counter != null && counter.getAttribute('missed').toInteger() != 0) {
+                        throw new GradleException('Autocomplete requires 100% ' + counterType + ': '
+                                + className + '.' + element.getAttribute('name'))
+                    }
+                }
+            }
+        }
+        logger.lifecycle('Autocomplete coverage: 100% instructions, lines and branches, including UI wiring.')
+    }
+}
+
+check.dependsOn autocompleteCoverageVerification
+
+// Use only bundled production classes and natives so tests cannot hide distributable packaging failures.
+tasks.register('verifyPackagedAutocomplete', JavaExec) {
+    dependsOn testClasses
+    if (!providers.gradleProperty('packagedJar').isPresent()) {
+        dependsOn shadowJar
+    }
+    classpath = files(packagedJar) + sourceSets.test.output
+    mainClass = 'seedu.address.ui.PackagedAutocompleteProbe'
+    jvmArgs '--limit-modules=java.se,jdk.unsupported', '--enable-native-access=ALL-UNNAMED'
+    workingDir layout.buildDirectory.dir('packaged-autocomplete-sandbox')
+    doFirst {
+        workingDir.mkdirs()
+        File nativeCache = new File(workingDir, 'native-cache')
+        delete(nativeCache)
+        systemProperty 'javafx.cachedir', nativeCache.absolutePath
+        args layout.buildDirectory.file('reports/laplace/packaged-autocomplete-session.txt').get().asFile.absolutePath,
+                packagedJar.get().asFile.absolutePath
+    }
+}
+
+check.dependsOn verifyPackagedAutocomplete
+
+// Exercise the actual release classes, resources and natives at the required logical display sizes.
+tasks.register('verifyPackagedLayout', Test) {
+    dependsOn testClasses
+    inputs.property 'gtkScale', providers.gradleProperty('gtkScale').orElse('native')
+    if (!providers.gradleProperty('packagedJar').isPresent()) {
+        dependsOn shadowJar
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = files(packagedJar) + sourceSets.test.output + configurations.testRuntimeClasspath.filter {
+        !it.name.startsWith('javafx-')
+    }
+    useJUnitPlatform()
+    enableAssertions = true
+    jvmArgs '--limit-modules=java.se,jdk.unsupported', '--enable-native-access=ALL-UNNAMED'
+    filter {
+        includeTestsMatching 'seedu.address.ui.MainWindowShellTest.layout*'
+        includeTestsMatching 'seedu.address.ui.ResultDisplayTest'
+    }
+    if (providers.gradleProperty('gtkScale').isPresent()) {
+        systemProperty 'glass.gtk.uiScale', providers.gradleProperty('gtkScale').get()
+        systemProperty 'laplace.requiredScale', providers.gradleProperty('gtkScale').get()
+    }
+    doFirst {
+        systemProperty 'laplace.packagedLayoutJar', packagedJar.get().asFile.absolutePath
+    }
+}
+
+check.dependsOn verifyPackagedLayout

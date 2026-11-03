@@ -1,0 +1,35 @@
+@startuml
+!include style.puml
+skinparam activityBackgroundColor LOGIC_COLOR_T1
+skinparam activityBorderColor LOGIC_COLOR_T4
+skinparam ArrowFontStyle plain
+title Equipment add: input validation and bounded identity reservation
+
+start
+:Normalize the input and validate
+supplied fields in input order;
+note right
+  Missing required fields are checked after
+  supplied fields. Exact field rules are in
+  the User Guide.
+end note
+if () then ([input is invalid])
+  :Report the first problem with usage;
+  stop
+else ([else])
+endif
+:Create an isolated candidate;
+while () is ([more units to prepare])
+  :Reserve an unused UUID,
+  trying at most 100 values;
+  if () then ([no unused UUID])
+    :Report the failure and
+    discard the candidate;
+    stop
+  else ([else])
+  endif
+endwhile ([else])
+:Add all prepared units to the candidate;
+:Save atomically, then publish;
+stop
+@enduml

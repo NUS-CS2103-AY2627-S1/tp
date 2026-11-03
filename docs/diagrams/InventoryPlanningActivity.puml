@@ -1,0 +1,36 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+start
+:Select all units, including deleted units,
+with DirectoryQuery.all().equipment(...)
+in default category/name/UUID order;
+:Build InventoryGroups.group(...)
+using normalized category/name keys;
+note right
+Retain every physical unit per key.
+Emit groups in first-match order.
+end note
+while () is ([more groups])
+    :Read next group's full unit list;
+    :Initialize availability and deleted counts;
+    while () is ([more units in this group])
+        :Read next physical unit;
+        if () then ([unit is deleted])
+            :Increment deleted count;
+        else ([else])
+            :Look up availability by UUID;
+            :Increment that availability count;
+        endif
+    endwhile ([else])
+    :EquipmentPresentation.counts(...) formats
+    available, assigned, unavailable counts
+    (zero for absent states), plus deleted
+    count only when nonzero;
+    :Prefix counts with the first unit's
+    stored category and name;
+endwhile ([else])
+:Display group lines in the equipment summary;
+stop
+@enduml

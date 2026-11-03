@@ -1,59 +1,70 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us through the [team issue tracker](https://github.com/AY2627S1-CS2103T-F15-2/tp/issues).
 
 ## Project team
 
-### John Doe
+### Keegan Gan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/keegan4.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
-* Role: Project Advisor
+[[github](https://github.com/keegan4)]
 
-### Jane Doe
+* Role: CS2103T Team Member
+* Responsibilities: Testing
 
-<img src="images/johndoe.png" width="200px">
+### Keith Chia Wen Kai
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/wtvlol.png" width="200px">
 
-* Role: Team Lead
-* Responsibilities: UI
+[[github](https://github.com/wtvlol)]
 
-### Johnny Doe
+* Role: CS2103T Team Member
+* Responsibilities: Tab autocomplete, member and equipment deletion, Unicode command input, release packaging
 
-<img src="images/johndoe.png" width="200px">
+### Arjo
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+<img src="images/arjodas.png" width="200px">
 
-* Role: Developer
-* Responsibilities: Data
+[[github](https://github.com/ArjoDas)]
 
-### Jean Doe
+* Role: Code quality
+* Responsibilities: Coding standards and code reviews
 
-<img src="images/johndoe.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+### Nicholas Vun
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+<img src="images/kimjunkuno.png" width="200px">
 
-### James Doe
+[[github](http://github.com/kimjunkuno)]
+[[portfolio](team/kimjunkuno.md)]
 
-<img src="images/johndoe.png" width="200px">
+* Role: Team Member
+* Responsibilities: Testing
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
-* Role: Developer
-* Responsibilities: UI
+### Choong Jen Ern Isaac
+
+<img src="images/isaaaxe.png" width="200px">
+
+[[github](https://github.com/isaaaxe)]
+
+* Role: Integration, Fork CEO
+* In charge of: Undo and redo, loan assignment and returns, data-file validation
+
+### Nguyen Anh Duy
+
+<img src="images/duynguyen21007.png" width="200px">
+
+[[github](http://github.com/duynguyen21007)]
+
+* Role: Testing
+* In charge of: Directory search, filtering and sorting, command parsing, member name validation

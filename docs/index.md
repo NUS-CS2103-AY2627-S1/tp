@@ -1,19 +1,22 @@
 ---
-layout: page
-title: AddressBook Level 3
+  layout: default.md
+  title: ""
 ---
 
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
-[![codecov](https://codecov.io/gh/se-edu/addressbook-level3/branch/master/graph/badge.svg)](https://codecov.io/gh/se-edu/addressbook-level3)
+# Laplace
 
-![Ui](images/Ui.png)
+[![CI Status](https://github.com/AY2627S1-CS2103T-F15-2/tp/workflows/Java%20CI/badge.svg)](https://github.com/AY2627S1-CS2103T-F15-2/tp/actions)
+[![codecov](https://codecov.io/gh/AY2627S1-CS2103T-F15-2/tp/graph/badge.svg?token=YBWSCFRIVB)](https://codecov.io/gh/AY2627S1-CS2103T-F15-2/tp)
 
-**AddressBook is a desktop application for managing your contact details.** While it has a GUI, most of the user interactions happen using a CLI (Command Line Interface).
+![Laplace grouped equipment](images/Ui.png)
 
-* If you are interested in using AddressBook, head over to the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start).
-* If you are interested in developing AddressBook, the [**Developer Guide**](DeveloperGuide.html) is a good place to start.
+**Laplace helps CCA EXCO members manage members, equipment and equipment loans.** It is a local, single-user desktop application with a graphical interface and typed commands.
+
+* To register members and equipment, issue items and record returns, start with the [_Quick Start_ section of the **User Guide**](UserGuide.html#quick-start). The guide covers eighteen member, equipment and loan commands, plus undo, redo, appearance, help and exit, and the bundled first-launch examples.
+* To contribute to Laplace, start with the [**Developer Guide**](DeveloperGuide.html).
 
 
 **Acknowledgements**
 
+This project builds on open-source educational software from the [SE-EDU initiative](https://se-education.org).
 * Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)

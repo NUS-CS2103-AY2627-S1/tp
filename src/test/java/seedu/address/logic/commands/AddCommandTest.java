@@ -7,8 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -18,9 +21,16 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
+import seedu.address.model.AddressBookHistory;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.equipment.Availability;
+import seedu.address.model.equipment.Condition;
+import seedu.address.model.equipment.Equipment;
+import seedu.address.model.loan.Loan;
+import seedu.address.model.member.Member;
+import seedu.address.model.member.NusId;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
@@ -88,6 +98,41 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void publishTransaction(Model candidate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public AddressBookHistory getAddressBookHistory() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void recordAddressBook(ReadOnlyAddressBook previous, String description) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String undoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String redoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -139,6 +184,116 @@ public class AddCommandTest {
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasMember(NusId nusId) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Member> findMember(NusId nusId) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addMember(Member member) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setMember(Member target, Member editedMember) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteMember(Member member) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreMember(Member member) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Member> getMemberList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean hasEquipment(UUID uuid) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Equipment> findEquipment(UUID uuid) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addEquipment(Equipment equipment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteEquipment(Equipment equipment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setEquipment(Equipment target, Equipment edited) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreEquipment(Equipment equipment) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Equipment> getEquipmentList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addLoan(Loan loan) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addLoans(List<Loan> loans) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Loan> findOpenLoan(UUID equipmentUuid) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<Loan> findOpenLoansForMember(NusId nusId) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void closeLoan(UUID equipmentUuid, LocalDate returnedDate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void returnLoans(List<UUID> equipmentUuids, LocalDate returnedDate, Condition returnCondition) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Loan> getLoanList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Availability getAvailability(UUID uuid) {
             throw new AssertionError("This method should not be called.");
         }
     }

@@ -1,0 +1,30 @@
+.laplace-root .details-scroll,
+.laplace-root .details-scroll > .viewport {
+    -fx-background-color: -laplace-surface;
+}
+
+.details-scroll {
+    -fx-padding: 0;
+}
+
+.details-content {
+    -fx-padding: 12;
+}
+
+.details-name,
+.details-section-title,
+.details-caption {
+    -fx-padding: 0 2 0 0;
+}
+
+.details-holding {
+    -fx-padding: 12;
+    -fx-background-color: -laplace-inset;
+    -fx-border-color: -laplace-border;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.details-status {
+    -fx-padding: 12;
+}

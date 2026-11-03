@@ -1,39 +1,35 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+actor User as user USER_COLOR
+participant ":UI" as ui UI_COLOR
+participant ":Logic" as logic LOGIC_COLOR
+participant ":Model" as model MODEL_COLOR
+participant ":Storage" as storage STORAGE_COLOR
 
-Actor User as user USER_COLOR
-Participant ":UI" as ui UI_COLOR
-Participant ":Logic" as logic LOGIC_COLOR
-Participant ":Model" as model MODEL_COLOR
-Participant ":Storage" as storage STORAGE_COLOR
-
-user -[USER_COLOR]> ui : "delete 1"
-activate ui UI_COLOR
-
-ui -[UI_COLOR]> logic : execute("delete 1")
-activate logic LOGIC_COLOR
-
-logic -[LOGIC_COLOR]> model : deletePerson(p)
-activate model MODEL_COLOR
-
-model -[MODEL_COLOR]-> logic
+title Successful member deletion: component responsibilities
+user -> ui : member delete nus/A0123456X
+activate ui
+ui -> logic : execute("member delete nus/A0123456X")
+activate logic
+note over logic : Parse and dispatch the command.
+logic -> model : Prepare a validated member deletion
+activate model
+model --> logic : Pending state and result
 deactivate model
-
-logic -[LOGIC_COLOR]> storage : saveAddressBook(addressBook)
-activate storage STORAGE_COLOR
-
-storage -[STORAGE_COLOR]> storage : Save to file
-activate storage STORAGE_COLOR_T1
-storage --[STORAGE_COLOR]> storage
+logic -> storage : Save pending state
+activate storage
+storage --> logic : Saved atomically
 deactivate storage
-
-storage --[STORAGE_COLOR]> logic
-deactivate storage
-
-logic --[LOGIC_COLOR]> ui
+logic -> model : Publish the saved state
+logic --> ui : Feedback and navigation request
 deactivate logic
-
-ui--[UI_COLOR]> user
+ui --> user : Feedback and refreshed Members directory
 deactivate ui
+legend bottom
+  Messages summarize component responsibilities rather than literal method calls.
+  Model includes isolated pending state and the live observable records.
+  Parse, validation or save failure leaves live records unchanged.
+  The Logic component diagram expands parsing, commands and candidate creation.
+endlegend
 @enduml

@@ -1,0 +1,115 @@
+package seedu.address.storage;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.model.member.Member;
+import seedu.address.model.member.NusId;
+import seedu.address.model.person.Email;
+import seedu.address.model.person.Name;
+import seedu.address.model.person.Phone;
+
+/**
+ * Converts between stored JSON fields and a {@link Member}.
+ */
+class JsonAdaptedMember {
+
+    public static final String MISSING_FIELD_MESSAGE_FORMAT = "Member's %s field is missing!";
+
+    private final String nusId;
+    private final String name;
+    private final String phone;
+    private final String email;
+    @JsonProperty("deleted")
+    private boolean isDeleted;
+
+    /**
+     * Constructs an adapter from raw JSON fields, deferring validation until conversion.
+     */
+    @JsonCreator
+    public JsonAdaptedMember(@JsonProperty("nusId") String nusId,
+            @JsonProperty("name") String name, @JsonProperty("phone") String phone,
+            @JsonProperty("email") String email) {
+        this.nusId = nusId;
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
+    }
+
+    /**
+     * Constructs an adapter from a domain member, retaining their deletion state.
+     */
+    public JsonAdaptedMember(Member source) {
+        nusId = source.getNusId().value;
+        name = source.getName().fullName;
+        phone = source.getPhone().value;
+        email = source.getEmail().value;
+        isDeleted = source.isDeleted();
+    }
+
+    /**
+     * Validates an explicitly supplied flag; absent legacy fields retain the default false value.
+     */
+    @JsonSetter("deleted")
+    void setDeleted(JsonNode value) {
+        if (value == null || !value.isBoolean()) {
+            throw new IllegalArgumentException("Member deleted must be a boolean.");
+        }
+        isDeleted = value.booleanValue();
+    }
+
+    /**
+     * Returns stored identities for diagnostics even when value conversion fails.
+     */
+    String describeIdentity() {
+        return "NUS ID " + nusId;
+    }
+
+    /**
+     * Converts this adapter to a member, accepting valid legacy contact formats.
+     *
+     * @throws IllegalValueException If a required field is missing or invalid.
+     */
+    public Member toModelType() throws IllegalValueException {
+        if (nusId == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    NusId.class.getSimpleName()));
+        }
+        if (!NusId.isValidNusId(nusId)) {
+            throw new IllegalValueException(NusId.MESSAGE_CONSTRAINTS);
+        }
+        NusId modelNusId = new NusId(nusId);
+
+        if (name == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    Name.class.getSimpleName()));
+        }
+        if (!Name.isValidStoredMemberName(name)) {
+            throw new IllegalValueException(Name.MEMBER_MESSAGE_CONSTRAINTS);
+        }
+        Name modelName = Name.fromStoredMember(name);
+
+        if (phone == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    Phone.class.getSimpleName()));
+        }
+        if (!Phone.isValidPhone(phone) && !Phone.isValidMemberPhone(phone)) {
+            throw new IllegalValueException(Phone.MEMBER_MESSAGE_CONSTRAINTS);
+        }
+        Phone modelPhone = Phone.fromStoredMember(phone);
+
+        if (email == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT,
+                    Email.class.getSimpleName()));
+        }
+        if (!Email.isValidEmail(email) && !Email.isValidMemberEmail(email)) {
+            throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+        }
+        Email modelEmail = Email.fromStoredMember(email);
+
+        return new Member(modelNusId, modelName, modelPhone, modelEmail, isDeleted);
+    }
+}

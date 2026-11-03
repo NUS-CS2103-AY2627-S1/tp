@@ -1,13 +1,25 @@
 package seedu.address.model;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.equipment.Availability;
+import seedu.address.model.equipment.Condition;
+import seedu.address.model.equipment.Equipment;
+import seedu.address.model.loan.Loan;
+import seedu.address.model.member.Member;
+import seedu.address.model.member.NusId;
 import seedu.address.model.person.Person;
 
 /**
  * The API of the Model component.
+ * Member, equipment and loan operations reject null arguments and propagate root-model failures.
+ * Collection and cross-collection validation belong to the address book.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
@@ -29,9 +41,56 @@ public interface Model {
     void setGuiSettings(GuiSettings guiSettings);
 
     /**
-     * Replaces address book data with the data in {@code addressBook}.
+     * Replaces address book data with the data in {@code addressBook}, starting fresh session history.
+     * Record observers see the cleared history when notified of replacement records.
+     * Transaction publication uses {@link #publishTransaction(Model)} to preserve candidate history.
      */
     void setAddressBook(ReadOnlyAddressBook addressBook);
+
+    /**
+     * Returns an isolated snapshot for a transactional command, including its immutable session history.
+     * Mutable collections must not be shared.
+     * Implementations with additional validation behavior must preserve it in their snapshot implementation.
+     */
+    default Model createTransactionSnapshot() {
+        return new ModelManager(getAddressBook(), getUserPrefs(), getAddressBookHistory());
+    }
+
+    /**
+     * Publishes a successfully saved candidate's records and history, preserving the live root and preferences.
+     * Record observers see the candidate history when notified of replacement records.
+     */
+    void publishTransaction(Model candidate);
+
+    /**
+     * Returns immutable session history; its stored collections cannot be changed by callers.
+     */
+    AddressBookHistory getAddressBookHistory();
+
+    /**
+     * Records a changed candidate relative to the preceding live state, clearing redo only for a real change.
+     */
+    void recordAddressBook(ReadOnlyAddressBook previous, String description);
+
+    /**
+     * Returns whether a previous session state can be restored.
+     */
+    boolean canUndoAddressBook();
+
+    /**
+     * Returns whether an undone session state can be restored.
+     */
+    boolean canRedoAddressBook();
+
+    /**
+     * Restores the previous state and returns its action description. Requires an available undo.
+     */
+    String undoAddressBook();
+
+    /**
+     * Restores the next state and returns its action description. Requires an available redo.
+     */
+    String redoAddressBook();
 
     /** Returns the AddressBook */
     ReadOnlyAddressBook getAddressBook();
@@ -68,4 +127,125 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Returns whether a member with the normalized NUS ID exists.
+     */
+    boolean hasMember(NusId nusId);
+
+    /**
+     * Returns the member with this NUS ID, or an empty Optional if unknown.
+     */
+    Optional<Member> findMember(NusId nusId);
+
+    /**
+     * Adds a member. A duplicate identity throws DuplicateMemberException.
+     */
+    void addMember(Member member);
+
+    /**
+     * Replaces a stored member's details without changing their NUS ID or loan references.
+     * @throws seedu.address.model.member.exceptions.MemberNotFoundException if the identity is unknown.
+     * @throws IllegalArgumentException if the replacement changes the NUS ID or deletion state.
+     * @throws IllegalStateException if the stored member is deleted.
+     */
+    void setMember(Member target, Member editedMember);
+
+    /**
+     * Soft-deletes a member by identity while retaining their details and loan history.
+     * @throws seedu.address.model.member.exceptions.MemberNotFoundException if the identity is unknown.
+     * @throws IllegalStateException if the member is already deleted or has an open loan.
+     */
+    void deleteMember(Member member);
+
+    /**
+     * Restores a deleted member without a recovery deadline.
+     * @throws seedu.address.model.member.exceptions.MemberNotFoundException if the identity is unknown.
+     * @throws IllegalStateException if the member is already active.
+     */
+    void restoreMember(Member member);
+
+    /**
+     * Returns an unmodifiable live view of all members.
+     */
+    ObservableList<Member> getMemberList();
+
+    /**
+     * Returns whether equipment with this UUID exists.
+     */
+    boolean hasEquipment(UUID uuid);
+
+    /**
+     * Returns the equipment with this UUID, or an empty Optional if unknown.
+     */
+    Optional<Equipment> findEquipment(UUID uuid);
+
+    /**
+     * Adds equipment. A duplicate UUID throws DuplicateEquipmentException.
+     */
+    void addEquipment(Equipment equipment);
+
+    /**
+     * Soft-deletes equipment by UUID, retaining its details and closed loan history.
+     * @throws seedu.address.model.equipment.exceptions.EquipmentNotFoundException if the UUID is unknown.
+     * @throws IllegalStateException if the equipment is already deleted or has an open loan.
+     */
+    void deleteEquipment(Equipment equipment);
+
+    /**
+     * Edits active equipment, preserving UUID and lifecycle state.
+     */
+    void setEquipment(Equipment target, Equipment edited);
+
+    /**
+     * Restores deleted equipment, retaining UUID, details and history.
+     */
+    void restoreEquipment(Equipment equipment);
+
+    /**
+     * Returns an unmodifiable live view of all equipment.
+     */
+    ObservableList<Equipment> getEquipmentList();
+
+    /**
+     * Adds a loan referencing an existing member and equipment item.
+     * Unknown identities throw MemberNotFoundException or EquipmentNotFoundException.
+     * A second open loan for the same equipment throws DuplicateOpenLoanException.
+     */
+    void addLoan(Loan loan);
+
+    /** Adds all loans together, leaving the model unchanged if any loan is invalid. */
+    void addLoans(List<Loan> loans);
+
+    /**
+     * Returns the open loan for this equipment UUID, or an empty Optional if none exists.
+     */
+    Optional<Loan> findOpenLoan(UUID equipmentUuid);
+
+    /**
+     * Returns an unmodifiable snapshot of the member's open loans, empty for an unknown member.
+     */
+    List<Loan> findOpenLoansForMember(NusId nusId);
+
+    /**
+     * Replaces the equipment's open loan with a closed copy using the supplied return date.
+     * Same-day, early and late returns are valid; Loan validates the date against its assigned date.
+     * @throws seedu.address.model.loan.exceptions.OpenLoanNotFoundException if no open loan exists.
+     * @throws IllegalArgumentException if the returned date precedes the assigned date.
+     */
+    void closeLoan(UUID equipmentUuid, LocalDate returnedDate);
+
+    /** Closes the named loans together and applies the observed equipment condition when supplied. */
+    void returnLoans(List<UUID> equipmentUuids, LocalDate returnedDate, Condition returnCondition);
+
+    /**
+     * Returns an unmodifiable live view of all loans, including closed history.
+     */
+    ObservableList<Loan> getLoanList();
+
+    /**
+     * Returns UNAVAILABLE for deleted equipment; otherwise derives availability from condition and open loans.
+     * @throws seedu.address.model.equipment.exceptions.EquipmentNotFoundException if the UUID is unknown.
+     */
+    Availability getAvailability(UUID uuid);
 }
