@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.geometry.Insets?>
+
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<StackPane xmlns="http://javafx.com/javafx/17"
+           xmlns:fx="http://javafx.com/fxml/1"
+           maxWidth="Infinity"
+           maxHeight="Infinity"
+           styleClass="student-details-panel">
+
+    <VBox fx:id="emptyMessage"
+          alignment="CENTER"
+          fillWidth="true"
+          maxWidth="Infinity"
+          maxHeight="Infinity"
+          spacing="5"
+          VBox.vgrow="ALWAYS">
+
+        <Label text="No student selected."
+               textAlignment="CENTER"
+               styleClass="empty-details-message"/>
+
+        <Label text="Type view id/INDEX to open a profile."
+               textAlignment="CENTER"
+               styleClass="empty-details-message"/>
+    </VBox>
+
+    <ScrollPane fx:id="studentDetailsScrollPane"
+                visible="false"
+                managed="false"
+                fitToWidth="true"
+                fitToHeight="true"
+                hbarPolicy="NEVER"
+                vbarPolicy="AS_NEEDED"
+                maxWidth="Infinity"
+                maxHeight="Infinity"
+                styleClass="student-details-scroll-pane">
+        <content>
+            <VBox fx:id="studentDetails"
+                  visible="false"
+                  managed="false"
+                  alignment="TOP_LEFT"
+                  fillWidth="true"
+                  maxWidth="Infinity"
+                  spacing="12"
+                  styleClass="student-profile">
+
+                <Label fx:id="studentName"
+                       styleClass="student-details-name"/>
+
+                <Label fx:id="matricNumber"
+                       styleClass="field-value"/>
+
+                <Label fx:id="studioGroup"
+                       styleClass="field-value"/>
+
+                <Label fx:id="phone"
+                       styleClass="field-value"/>
+
+                <Label fx:id="email"
+                       styleClass="field-value"
+                       wrapText="true"/>
+
+                <Label fx:id="tags"
+                       styleClass="field-value"
+                       wrapText="true"/>
+
+                <Separator/>
+
+                <Label text="Notes"
+                       styleClass="section-heading"/>
+
+                <GridPane fx:id="notesGrid"
+                          hgap="0"
+                          vgap="0"
+                          styleClass="details-grid">
+
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="80"/>
+                    </columnConstraints>
+
+                    <padding>
+                        <Insets top="4"
+                                right="0"
+                                bottom="0"
+                                left="0"/>
+                    </padding>
+                </GridPane>
+
+                <Label text="Studio Record"
+                       styleClass="section-heading"/>
+
+                <GridPane fx:id="studioRecordGrid"
+                          hgap="0"
+                          vgap="0"
+                          styleClass="details-grid">
+
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="40"/>
+                        <ColumnConstraints percentWidth="40"/>
+                    </columnConstraints>
+                </GridPane>
+
+                <Label text="Mission Submissions"
+                       styleClass="section-heading"/>
+
+                <GridPane fx:id="missionSubmissionsGrid"
+                          hgap="0"
+                          vgap="0"
+                          styleClass="details-grid">
+
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="50"/>
+                        <ColumnConstraints percentWidth="50"/>
+                    </columnConstraints>
+
+                    <padding>
+                        <Insets top="4"
+                                right="0"
+                                bottom="0"
+                                left="0"/>
+                    </padding>
+                </GridPane>
+
+                <Label text="Mastery Checks"
+                       styleClass="section-heading"/>
+
+                <GridPane fx:id="masteryChecksGrid"
+                          hgap="0"
+                          vgap="0"
+                          styleClass="details-grid">
+
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="50"/>
+                        <ColumnConstraints percentWidth="30"/>
+                    </columnConstraints>
+
+                    <padding>
+                        <Insets top="4"
+                                right="0"
+                                bottom="0"
+                                left="0"/>
+                    </padding>
+                </GridPane>
+            </VBox>
+        </content>
+    </ScrollPane>
+</StackPane>

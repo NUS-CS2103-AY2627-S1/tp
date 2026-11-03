@@ -1,17 +1,21 @@
 package seedu.address.model;
 
+import java.time.LocalDate;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.mission.Mission;
+import seedu.address.model.mission.MissionId;
+import seedu.address.model.student.Student;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Student> PREDICATE_SHOW_ALL_STUDENTS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -37,35 +41,97 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a student with the same identity as {@code student} exists in the address book.
      */
-    boolean hasPerson(Person person);
+    boolean hasStudent(Student student);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Deletes the given student.
+     * The student must exist in the address book.
      */
-    void deletePerson(Person target);
+    void deleteStudent(Student target);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Adds the given student.
+     * {@code student} must not already exist in the address book.
      */
-    void addPerson(Person person);
+    void addStudent(Student student);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
+     * Replaces the given student {@code target} with {@code editedStudent}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The student identity of {@code editedStudent} must not be the same
+     * as another existing student in the address book.
      */
-    void setPerson(Person target, Person editedPerson);
+    void setStudent(Student target, Student editedStudent);
 
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered student list */
+    ObservableList<Student> getFilteredStudentList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the filter of the filtered student list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredStudentList(Predicate<Student> predicate);
+
+    /**
+     * Checks whether a mission has the supplied name, ignoring case and whitespace differences.
+     *
+     * @param name Mission name to compare without changing its display text.
+     * @return True if a matching name exists.
+     */
+    default boolean hasMissionName(String name) {
+        java.util.Objects.requireNonNull(name);
+        return getMissionList().stream()
+                .anyMatch(mission -> mission.hasSameName(name));
+    }
+
+    /**
+     * Creates a configured mission with the supplied stable ID.
+     *
+     * @param id Unique mission ID.
+     * @param name Nonblank mission name.
+     * @param deadline Submission deadline.
+     * @return Newly created mission.
+     * @throws NullPointerException If any argument is null.
+     * @throws IllegalArgumentException If the ID or name duplicates another mission, or the name is blank.
+     */
+    Mission addMission(MissionId id, String name, LocalDate deadline);
+
+    /**
+     * Removes a shared mission and all associated submission records.
+     *
+     * @param id Mission ID to remove.
+     * @return Deleted mission.
+     * @throws IllegalArgumentException If no such mission exists.
+     * @throws NullPointerException If the ID is null.
+     */
+    Mission deleteMission(MissionId id);
+
+    /**
+     * Finds a mission by its stable ID.
+     *
+     * @param id Mission identifier.
+     * @return Matching mission, if present.
+     * @throws NullPointerException If the ID is null.
+     */
+    Optional<Mission> findMission(MissionId id);
+
+    /**
+     * Returns the read-only mission catalogue.
+     *
+     * @return Configured missions.
+     */
+    ObservableList<Mission> getMissionList();
+
+    /**
+     * Replaces a configured mission without modifying student submissions.
+     *
+     * @param target Mission to replace.
+     * @param editedMission Replacement retaining the target's ID.
+     * @throws NullPointerException If either mission is null.
+     * @throws IllegalArgumentException If the target is absent, its ID changes,
+     *     or another mission already has the replacement's name.
+     */
+    void setMission(Mission target, Mission editedMission);
 }

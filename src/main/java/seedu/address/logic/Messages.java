@@ -1,51 +1,79 @@
 package seedu.address.logic;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import seedu.address.logic.parser.Prefix;
-import seedu.address.model.person.Person;
+import seedu.address.model.mission.Mission;
+import seedu.address.model.student.Student;
 
 /**
  * Container for user visible messages.
  */
 public class Messages {
 
+    public static final String MESSAGE_MISSION_NOT_FOUND = "Mission %1$s does not exist.";
+    public static final String MESSAGE_DUPLICATE_MISSION = "This mission already exists in the mission list.";
+    public static final String MESSAGE_MISSING_ARGUMENTS = "Prefix %1$s is missing its argument.";
+
     public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
-    public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n%1$s";
-    public static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid.";
-    public static final String MESSAGE_PERSONS_LISTED_OVERVIEW = "%1$d person(s) listed!";
-    public static final String MESSAGE_DUPLICATE_FIELDS =
-                "Multiple values specified for the following single-valued field(s): ";
+    public static final String MESSAGE_INVALID_COMMAND = "Invalid command format!";
+    public static final String MESSAGE_INVALID_COMMAND_FORMAT = "Invalid command format!\n\n%1$s";
+    public static final String MESSAGE_STUDENTS_LISTED_OVERVIEW = "%1$d student(s) listed!";
+    public static final String MESSAGE_ERROR_OUT_OF_BOUNDS_STUDENT_INDEX = "Index %1$s is out of bounds for "
+            + "currently displayed list of size %2$d";
 
     /**
-     * Returns an error message indicating the duplicate prefixes.
+     * Formats the {@code student} for display to the user.
      */
-    public static String getErrorMessageForDuplicatePrefixes(Prefix... duplicatePrefixes) {
-        assert duplicatePrefixes.length > 0;
-
-        Set<String> duplicateFields =
-                Stream.of(duplicatePrefixes).map(Prefix::toString).collect(Collectors.toSet());
-
-        return MESSAGE_DUPLICATE_FIELDS + String.join(" ", duplicateFields);
+    public static String format(Student student) {
+        final StringBuilder builder = new StringBuilder();
+        builder.append(student.getName())
+                .append("; Phone: ")
+                .append(student.getPhone())
+                .append("; Email: ")
+                .append(student.getEmail())
+                .append("; Tags: ");
+        student.getTags().forEach(builder::append);
+        return builder.toString();
     }
 
     /**
-     * Formats the {@code person} for display to the user.
+     * Formats mission details without a deadline-status label.
+     *
+     * @param mission Mission to format.
+     * @return Mission ID, name, and deadline.
      */
-    public static String format(Person person) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append(person.getName())
-                .append("; Phone: ")
-                .append(person.getPhone())
-                .append("; Email: ")
-                .append(person.getEmail())
-                .append("; Address: ")
-                .append(person.getAddress())
-                .append("; Tags: ");
-        person.getTags().forEach(builder::append);
-        return builder.toString();
+    public static String format(Mission mission) {
+        return format(mission, false);
+    }
+
+    /**
+     * Formats mission details with an optional deadline-status label.
+     *
+     * @param mission Mission to format.
+     * @param isPastDeadline Whether the mission's deadline has passed.
+     * @return Mission ID, name, and deadline with the requested status label.
+     */
+    public static String format(Mission mission, boolean isPastDeadline) {
+        String deadlineStatus = isPastDeadline ? " — Deadline passed" : "";
+
+        return mission.getId() + " · " + mission.getName()
+                + " (Due: " + mission.getDeadline() + deadlineStatus + ")";
+    }
+
+    /**
+     * Formats the details of the given {@code student} for display to the user.
+     *
+     * @param student the student whose details are to be formatted
+     * @return the formatted student details string
+     */
+    public static String formatStudentDetails(Student student) {
+        return String.format(
+                "Name: %s%n"
+                        + "Phone: %s%n"
+                        + "Email: %s%n"
+                        + "Studio Group: %s",
+                student.getName(),
+                student.getPhone(),
+                student.getEmail(),
+                student.getStudioGroup());
     }
 
 }

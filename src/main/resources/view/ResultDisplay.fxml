@@ -1,9 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<StackPane fx:id="placeHolder" styleClass="pane-with-border" xmlns="http://javafx.com/javafx/17"
-    xmlns:fx="http://javafx.com/fxml/1">
-  <TextArea fx:id="resultDisplay" editable="false" styleClass="result-display"/>
+<StackPane xmlns="http://javafx.com/javafx/17"
+           xmlns:fx="http://javafx.com/fxml/1"
+           minHeight="0"
+           maxWidth="Infinity"
+           styleClass="result-display-container">
+
+  <ScrollPane fx:id="resultScrollPane"
+              fitToWidth="true"
+              hbarPolicy="NEVER"
+              vbarPolicy="AS_NEEDED"
+              minHeight="0"
+              maxWidth="Infinity"
+              styleClass="result-scroll-pane">
+
+    <content>
+      <VBox fx:id="resultContent"
+            minHeight="-Infinity"
+            maxHeight="-Infinity"
+            maxWidth="Infinity"
+            styleClass="command-result">
+
+        <Label fx:id="resultDisplay"
+               wrapText="true"
+               textOverrun="CLIP"
+               maxWidth="Infinity"/>
+
+        <Label fx:id="warningDisplay"
+               managed="false"
+               visible="false"
+               wrapText="true"
+               textOverrun="CLIP"
+               maxWidth="Infinity"
+               styleClass="command-warning"/>
+      </VBox>
+    </content>
+  </ScrollPane>
+
 </StackPane>

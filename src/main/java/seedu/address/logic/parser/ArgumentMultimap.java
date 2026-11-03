@@ -1,5 +1,7 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.Messages.MESSAGE_MISSING_ARGUMENTS;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,7 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -44,6 +45,23 @@ public class ArgumentMultimap {
     }
 
     /**
+     * Returns the last value of a prefix, requiring it to contain non-whitespace text.
+     * Returns the stored text unchanged and does not check for repeated prefixes;
+     * callers must validate duplicate prefixes separately when repeats are forbidden.
+     *
+     * @param prefix Prefix whose value is required.
+     * @return The last stored, nonblank value.
+     * @throws ParseException If the prefix is absent or its last value is empty or whitespace-only.
+     */
+    public String getRequiredValue(Prefix prefix) throws ParseException {
+        List<String> values = getAllValues(prefix);
+        if (values.isEmpty() || values.getLast().isBlank()) {
+            throw new ParseException(String.format(MESSAGE_MISSING_ARGUMENTS, prefix));
+        }
+        return values.getLast();
+    }
+
+    /**
      * Returns all values of {@code prefix}.
      * If the prefix does not exist or has no values, this will return an empty list.
      * Modifying the returned list will not affect the underlying data structure of the ArgumentMultimap.
@@ -63,16 +81,41 @@ public class ArgumentMultimap {
     }
 
     /**
-     * Throws a {@code ParseException} if any of the prefixes given in {@code prefixes} appeared more than
-     * once among the arguments.
+     * Verifies that each supplied prefix appears at most once, checking in the supplied order.
+     *
+     * @param prefixes Prefixes that must not be repeated.
+     * @throws ParseException If a prefix is repeated, using the first repeated prefix's duplicate message.
      */
     public void verifyNoDuplicatePrefixesFor(Prefix... prefixes) throws ParseException {
-        Prefix[] duplicatedPrefixes = Stream.of(prefixes).distinct()
-                .filter(prefix -> argMultimap.containsKey(prefix) && argMultimap.get(prefix).size() > 1)
-                .toArray(Prefix[]::new);
-
-        if (duplicatedPrefixes.length > 0) {
-            throw new ParseException(Messages.getErrorMessageForDuplicatePrefixes(duplicatedPrefixes));
+        for (Prefix prefix : prefixes) {
+            if (argMultimap.containsKey(prefix) && argMultimap.get(prefix).size() > 1) {
+                throw new ParseException(prefix.getDuplicateMessage());
+            }
         }
+    }
+
+    /**
+     * Verifies that each supplied prefix is present, reporting each missing prefix once in the supplied order.
+     * A prefix with an empty value is still considered present.
+     *
+     * @param prefixes Prefixes that must be present.
+     * @throws ParseException If any prefixes are missing, combining their messages with line breaks.
+     */
+    public void verifyPrefixesPresentFor(Prefix... prefixes) throws ParseException {
+        List<String> missingMessages = Stream.of(prefixes).distinct()
+                .filter(prefix -> getValue(prefix).isEmpty())
+                .map(Prefix::getMissingMessage)
+                .toList();
+
+        if (!missingMessages.isEmpty()) {
+            throw new ParseException(String.join("\n", missingMessages));
+        }
+    }
+
+    /**
+     * Returns true if none of the prefixes contains empty {@code Optional} values.
+     */
+    public boolean arePrefixesPresent(Prefix... prefixes) {
+        return Stream.of(prefixes).allMatch(prefix -> getValue(prefix).isPresent());
     }
 }

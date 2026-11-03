@@ -1,59 +1,56 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us at the email `ay2627s1-cs2103t-f14a-1[at]nusu.onmicrosoft.com`
 
 ## Project team
 
-### John Doe
+### Benedict Chang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/nuggettowin.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/nuggettowin)]
 
 * Role: Team Lead
-* Responsibilities: UI
 
-### Johnny Doe
+### Lim Changshun, Brian
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/brianlim35.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/brianlim35)]
 
-* Role: Developer
+* Role: Milestone closure and PR integration
+* Responsibilities: Ensure milestones are closed on time; review and merge pull requests for integration.
+
+### Charis Tan
+
+<img src="images/plutonaruto.png" width="200px">
+
+[[github](http://github.com/plutonaruto)]
+
+* Role: Documentation
 * Responsibilities: Data
 
-### Jean Doe
+### Ethan Leong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/ethanjoshleong.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/Ethanjoshleong)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Deliverables and deadlines
+* Responsibilities: Ensures project deliverables are done on time and in the right format.
 
-### James Doe
+### Zhu Ruihan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zrayhhh.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/zRayhhh)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Developer, Code quality
+* Responsibilities: Coding, ensuring code adheres to course standards

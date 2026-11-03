@@ -1,0 +1,69 @@
+{
+  "_comment": "AddressBook save file which contains the same Student values as in TypicalStudents#getTypicalAddressBook()",
+  "students": [
+    {
+      "name": "Alice Pauline",
+    "matricNumber": "A0000001A",
+      "phone": "94351253",
+      "email": "alice@example.com",
+      "tags": [
+        "friends"
+      ],
+      "studio group": "1A"
+    },
+    {
+      "name": "Benson Meier",
+    "matricNumber": "A0000002A",
+      "phone": "98765432",
+      "email": "johnd@example.com",
+      "tags": [
+        "owesMoney",
+        "friends"
+      ],
+      "studio group": "1A"
+    },
+    {
+      "name": "Carl Kurz",
+    "matricNumber": "A0000003A",
+      "phone": "95352563",
+      "email": "heinz@example.com",
+      "tags": [],
+      "studio group": "1A"
+    },
+    {
+      "name": "Daniel Meier",
+    "matricNumber": "A0000004A",
+      "phone": "87652533",
+      "email": "cornelia@example.com",
+      "tags": [
+        "friends"
+      ],
+      "studio group": "1A"
+    },
+    {
+      "name": "Elle Meyer",
+    "matricNumber": "A0000005A",
+      "phone": "9482224",
+      "email": "werner@example.com",
+      "tags": [],
+      "studio group": "1A"
+    },
+    {
+      "name": "Fiona Kunz",
+    "matricNumber": "A0000006A",
+      "phone": "9482427",
+      "email": "lydia@example.com",
+      "tags": [],
+      "studio group": "1A"
+    },
+    {
+      "name": "George Best",
+    "matricNumber": "A0000007A",
+      "phone": "9482442",
+      "email": "anna@example.com",
+      "tags": [],
+      "studio group": "1A"
+    }
+  ],
+  "missions": []
+}

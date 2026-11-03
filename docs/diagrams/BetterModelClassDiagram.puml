@@ -1,21 +1,41 @@
 @startuml
 !include style.puml
+skinparam linetype polyline
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
 
-AddressBook *-right-> "1" UniquePersonList
+AddressBook *-right-> "1" UniqueStudentList
 AddressBook *-right-> "1" UniqueTagList
-UniqueTagList -[hidden]down- UniquePersonList
-UniqueTagList -[hidden]down- UniquePersonList
+UniqueTagList -[hidden]down- UniqueStudentList
 
 UniqueTagList -right-> "*" Tag
-UniquePersonList -right-> Person
+UniqueStudentList -right-> "*" Student
 
-Person -up-> "*" Tag
+Student -up-> "*" Tag
 
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
+Student *--> "1" Name
+Student *--> "1" MatriculationNumber
+Student *--> "1" Phone
+Student *--> "1" Email
+Student *--> "1" StudioGroup
+Student *--> "1" RegisteredStudioRecords
+RegisteredStudioRecords *--> "0..14" StudioRecord
+Student *--> "1" MissionSubmissions
+Student *--> "1" RegisteredMasteryChecks
+RegisteredMasteryChecks *-down-> "*" MasteryCheck
+Student *--> "1" RegisteredNotes
+RegisteredNotes *-down-> "0..100" Note
+
+Name -[hidden]right-> Phone
+Name -[hidden]right-> MatriculationNumber
+MatriculationNumber -[hidden]right-> Phone
+Phone -[hidden]right-> Email
+Email -[hidden]right-> StudioGroup
+StudioGroup -[hidden]right-> RegisteredStudioRecords
+RegisteredStudioRecords -[hidden]right-> RegisteredMasteryChecks
+RegisteredMasteryChecks -[hidden]right-> RegisteredNotes
+MissionSubmissions -[hidden]right-> Name
+StudioRecord -[hidden]right-> MasteryCheck
+MasteryCheck -[hidden]right-> Note
 @enduml

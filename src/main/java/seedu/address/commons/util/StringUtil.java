@@ -13,6 +13,18 @@ import java.util.Arrays;
 public class StringUtil {
 
     /**
+     * Removes all Unicode whitespace characters from {@code value}.
+     *
+     * @param value String whose whitespace should be removed.
+     * @return The string without whitespace.
+     * @throws NullPointerException If {@code value} is null.
+     */
+    public static String removeWhitespace(String value) {
+        requireNonNull(value);
+        return value.replaceAll("(?U)\\s+", "");
+    }
+
+    /**
      * Returns true if the {@code sentence} contains the {@code word}.
      *   Ignores case, but a full word match is required.
      *   <br>examples:<pre>
@@ -61,6 +73,24 @@ public class StringUtil {
         try {
             int value = Integer.parseInt(s);
             return value > 0 && !s.startsWith("+"); // "+1" is successfully parsed by Integer#parseInt(String)
+        } catch (NumberFormatException nfe) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if {@code s} represents a non-negative unsigned integer
+     * e.g. 1, 2, 3, ..., {@code Integer.MAX_VALUE} <br>
+     * Will return false for any other non-null string input
+     * e.g. empty string, "-1", "+1", and " 2 " (untrimmed), "3 0" (contains whitespace), "1 a" (contains letters)
+     * @throws NullPointerException if {@code s} is null.
+     */
+    public static boolean isNonNegativeUnsignedInteger(String s) {
+        requireNonNull(s);
+
+        try {
+            int value = Integer.parseInt(s);
+            return value >= 0 && !s.startsWith("+") && !s.startsWith("-");
         } catch (NumberFormatException nfe) {
             return false;
         }

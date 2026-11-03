@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+
+<HBox id="cardPane"
+      fx:id="cardPane"
+      xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      spacing="8"
+      styleClass="student-row">
+
+  <Label fx:id="id"
+         styleClass="student-index"/>
+
+  <Label fx:id="name"
+         maxWidth="150"
+         wrapText="true"
+         styleClass="student-name"
+         HBox.hgrow="ALWAYS"/>
+
+  <Label fx:id="studioGroup"
+         maxWidth="50"
+         styleClass="student-group"/>
+
+  <Label fx:id="registeredStudioRecords"
+         wrapText="true"
+         styleClass="student-studio-records"/>
+</HBox>

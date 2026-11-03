@@ -4,30 +4,38 @@ skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
 
-Package Model as ModelPackage <<Rectangle>>{
+Package Model as ModelPackage <<Rectangle>> {
+Class I #FFFFFF
 Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
 Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
 Class "<<interface>>\nModel" as Model
 Class AddressBook
 Class ModelManager
 Class UserPrefs
-
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
+Class UniqueStudentList
+Class Student
 Class Name
+Class MatriculationNumber
 Class Phone
+Class Email
 Class Tag
-
-Class I #FFFFFF
+Class StudioGroup
+Class RegisteredStudioRecords
+Class StudioRecord
+Class RegisteredMasteryChecks
+Class MasteryCheck
+Class RegisteredNotes
+Class Note
+Class MissionSubmissions
+Class MissionCatalogue
+Class Mission
+Class MissionId
 }
 
 Class HiddenOutside #FFFFFF
 HiddenOutside ..> Model
 
 AddressBook .up.|> ReadOnlyAddressBook
-
 ModelManager .up.|> Model
 Model .right.> ReadOnlyUserPrefs
 Model .left.> ReadOnlyAddressBook
@@ -35,20 +43,53 @@ ModelManager -left-> "1" AddressBook
 ModelManager -right-> "1" UserPrefs
 UserPrefs .up.|> ReadOnlyUserPrefs
 
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
+Student -[hidden]up--> I
+UniqueStudentList -[hidden]right-> I
 
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
+AddressBook *--> "1" UniqueStudentList
+AddressBook *--> "1" MissionCatalogue
+UniqueStudentList --> "~* all" Student
+ModelManager --> "~* filtered" Student
+MissionCatalogue *--> "*" Mission
+Mission *-down-> "1" MissionId
 
+Student *--> "1" Name
+Student *--> "1" MatriculationNumber
+Student *--> "1" Phone
+Student *--> "1" Email
+Student --> "*" Tag
+Student *--> "1" StudioGroup
+Student *--> "1" RegisteredStudioRecords
+Student *--> "1" MissionSubmissions
+Student *--> "1" RegisteredMasteryChecks
+Student *--> "1" RegisteredNotes
+
+RegisteredMasteryChecks *-down-> "*" MasteryCheck
+MissionSubmissions -down-> "*" MissionId
+RegisteredStudioRecords *--> "0..14" StudioRecord
+RegisteredNotes *-down-> "0..100" Note
+
+' Top-level layout
+ReadOnlyAddressBook -[hidden]right-> Model
+Model -[hidden]right-> ReadOnlyUserPrefs
+AddressBook -[hidden]right-> ModelManager
+ModelManager -[hidden]right-> UserPrefs
+
+' Student attributes ordering
+MissionSubmissions -[hidden]right-> Name
 Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
+Name -[hidden]right-> MatriculationNumber
+MatriculationNumber -[hidden]right-> Phone
+Phone -[hidden]right-> Email
+Email -[hidden]right-> Tag
+Tag -[hidden]right-> StudioGroup
+StudioGroup -[hidden]right-> RegisteredStudioRecords
+RegisteredStudioRecords -[hidden]right-> RegisteredMasteryChecks
+RegisteredMasteryChecks -[hidden]right-> RegisteredNotes
 
-ModelManager --> "~* filtered" Person
+' Bottom row ordering
+MissionId -[hidden]right-> StudioRecord
+StudioRecord -[hidden]right-> MasteryCheck
+MasteryCheck -[hidden]right-> Note
+
 @enduml

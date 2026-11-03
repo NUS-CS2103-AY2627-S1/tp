@@ -1,37 +1,55 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STUDIO_GROUP;
+
+import java.util.function.Predicate;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.student.Student;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds students using name alternatives and optional studio-group filters.
+ * Spaces require all name keywords to match; commas separate alternatives.
+ * When both names and groups are supplied, both filters must match.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
-            + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+    public static final String MESSAGE_USAGE = COMMAND_WORD
+            + ": Finds students by name and/or studio group.\n"
+            + "Name matching is case-insensitive and allows partial matches. "
+            + "Parameters: [NAME_WORDS [, MORE_NAME_WORDS]...] [g/STUDIO_GROUP]...\n"
+            + "Spaces mean AND; commas mean OR between name alternatives. "
+            + "Name keywords match student names. Studio groups are specified using g/.\n"
+            + "If both name keywords and studio groups are provided, students must match "
+            + "both criteria.\n"
+            + "If no name keyword is provided, only the studio group criterion is used.\n"
+            + "If no g/ studio group is provided, the search is performed using only "
+            + "the name keywords.\n"
+            + "Place name alternatives before group filters.\n"
+            + "Example: " + COMMAND_WORD + " david, alex " + PREFIX_STUDIO_GROUP + "1A";
 
-    private final NameContainsKeywordsPredicate predicate;
+    private final Predicate<Student> predicate;
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    /**
+     * Creates a FindCommand that filters students using the given predicate.
+     *
+     * @param predicate the predicate used to select matching students
+     */
+    public FindCommand(Predicate<Student> predicate) {
         this.predicate = predicate;
     }
 
     @Override
     public CommandResult execute(Model model) {
         requireNonNull(model);
-        model.updateFilteredPersonList(predicate);
+        model.updateFilteredStudentList(predicate);
         return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+                String.format(Messages.MESSAGE_STUDENTS_LISTED_OVERVIEW, model.getFilteredStudentList().size()));
     }
 
     @Override
