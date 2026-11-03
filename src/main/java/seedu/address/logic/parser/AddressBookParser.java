@@ -14,9 +14,14 @@ import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -55,9 +60,17 @@ public class AddressBookParser {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ClearCommand.COMMAND_WORD ->
+                requireNoArguments(arguments, new ClearCommand(), ClearCommand.MESSAGE_NO_PARAMETERS);
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case TagCommand.COMMAND_WORD -> new TagCommandParser().parse(arguments);
+            case UntagCommand.COMMAND_WORD -> new UntagCommandParser().parse(arguments);
+            case UndoCommand.COMMAND_WORD ->
+                requireNoArguments(arguments, new UndoCommand(), UndoCommand.MESSAGE_NO_PARAMETERS);
+            case RedoCommand.COMMAND_WORD ->
+                requireNoArguments(arguments, new RedoCommand(), RedoCommand.MESSAGE_NO_PARAMETERS);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {
@@ -65,6 +78,20 @@ public class AddressBookParser {
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };
+    }
+
+    /**
+     * Returns {@code command} if {@code arguments} is blank, or throws a {@code ParseException} with
+     * {@code errorMessage} otherwise.
+     * Used for commands where extra text is most likely a mistake, e.g. {@code undo 3} would otherwise undo only
+     * one change, and {@code clear 3} would delete every client instead of client 3.
+     */
+    private static Command requireNoArguments(String arguments, Command command, String errorMessage)
+            throws ParseException {
+        if (!arguments.isBlank()) {
+            throw new ParseException(errorMessage);
+        }
+        return command;
     }
 
 }

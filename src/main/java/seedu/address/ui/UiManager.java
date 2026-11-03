@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import seedu.address.MainApp;
 import seedu.address.commons.core.LogsCenter;
@@ -22,6 +23,10 @@ public class UiManager implements Ui {
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
     private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String CORRUPTION_ALERT_TITLE = "Data File Corruption Error";
+    private static final String CORRUPTION_ALERT_HEADER = "Local data file is corrupted.";
+    private static final String CORRUPTION_ALERT_CONTENT_FORMAT =
+        "%s Displaying empty list. Please fix or delete the data file at %s and restart.";
 
     private Logic logic;
     private Path dataFilePath;
@@ -48,10 +53,35 @@ public class UiManager implements Ui {
             mainWindow.show(); //This should be called before creating other UI parts
             mainWindow.fillInnerParts();
 
+            // Call the helper method to verify state
+            verifyStorageStateAndAlert();
+
         } catch (Throwable e) {
             logger.severe(StringUtil.getDetails(e));
             showFatalErrorDialogAndShutdown("Fatal error during initializing", e);
         }
+    }
+
+    /**
+     * Verifies the storage integration state and alerts the user if running in read-only mode.
+     */
+    void verifyStorageStateAndAlert() {
+        if (logic.isReadOnlyMode()) {
+            triggerCorruptionAlert(AlertType.WARNING);
+        }
+    }
+
+    /**
+     * Triggers the UI error alert dialog window layout.
+     */
+    void triggerCorruptionAlert(AlertType alertType) {
+        showAlertDialogAndWait(
+            alertType,
+            CORRUPTION_ALERT_TITLE,
+            CORRUPTION_ALERT_HEADER,
+            String.format(CORRUPTION_ALERT_CONTENT_FORMAT, logic.getDataCorruptionReason(),
+                dataFilePath.toAbsolutePath()).strip()
+        );
     }
 
     private Image getImage(String imagePath) {
@@ -69,12 +99,14 @@ public class UiManager implements Ui {
     private static void showAlertDialogAndWait(Stage owner, AlertType type, String title, String headerText,
                                                String contentText) {
         final Alert alert = new Alert(type);
-        alert.getDialogPane().getStylesheets().add("view/DarkTheme.css");
+        alert.getDialogPane().getStylesheets().add("view/LightTheme.css");
         alert.initOwner(owner);
         alert.setTitle(title);
         alert.setHeaderText(headerText);
         alert.setContentText(contentText);
         alert.getDialogPane().setId(ALERT_DIALOG_PANE_FIELD_ID);
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        alert.setResizable(true);
         alert.showAndWait();
     }
 

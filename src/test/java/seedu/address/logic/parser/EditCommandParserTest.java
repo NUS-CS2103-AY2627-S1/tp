@@ -1,12 +1,17 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_NOTE_NOT_LAST;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.DUE_DATE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.FEE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_DUE_DATE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_FEE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
@@ -16,14 +21,19 @@ import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_DUE_DATE;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_FEE;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DUE_DATE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FEE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -39,8 +49,11 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.DueDate;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Fee;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
@@ -52,12 +65,18 @@ public class EditCommandParserTest {
     private static final String MESSAGE_INVALID_FORMAT =
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
 
+    private static final String MESSAGE_INVALID_INDEX_FORMAT =
+            String.format(MESSAGE_INVALID_COMMAND_FORMAT, ParserUtil.MESSAGE_INVALID_INDEX);
+
     private EditCommandParser parser = new EditCommandParser();
 
     @Test
     public void parse_missingParts_failure() {
         // no index specified
-        assertParseFailure(parser, VALID_NAME_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+
+        // a name typed instead of the index
+        assertParseFailure(parser, VALID_NAME_AMY, MESSAGE_INVALID_INDEX_FORMAT);
 
         // no field specified
         assertParseFailure(parser, "1", EditCommand.MESSAGE_NOT_EDITED);
@@ -69,16 +88,26 @@ public class EditCommandParserTest {
     @Test
     public void parse_invalidPreamble_failure() {
         // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_INDEX_FORMAT);
 
         // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_INDEX_FORMAT);
 
         // invalid arguments being parsed as preamble
-        assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_INDEX_FORMAT);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        // unknown prefix being parsed as preamble, before or instead of a known prefix
+        assertParseFailure(parser, "1 i/ string", Messages.getErrorMessageForUnknownPrefix("i/"));
+        assertParseFailure(parser, "1 z/x" + NAME_DESC_AMY, Messages.getErrorMessageForUnknownPrefix("z/"));
+        assertParseFailure(parser, "1 N/Amy", Messages.getErrorMessageForUnknownPrefix("N/"));
+    }
+
+    @Test
+    public void parse_indexTooLargeForInt_parsedAsMaxIndex() {
+        // EditCommand then reports it as out of bounds, with the size of the list
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY).build();
+        assertParseSuccess(parser, "2147483648" + NAME_DESC_AMY,
+                new EditCommand(Index.fromOneBased(Integer.MAX_VALUE), descriptor));
     }
 
     @Test
@@ -193,6 +222,88 @@ public class EditCommandParserTest {
 
         assertParseFailure(parser, userInput,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS));
+    }
+
+    @Test
+    public void parse_noteSpecified_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withNote("Weak at algebra").build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " nt/Weak at algebra",
+                new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_unknownPrefix_failure() {
+        assertParseFailure(parser, "1 a/Blk 1 z/x", Messages.getErrorMessageForUnknownPrefix("z/"));
+    }
+
+    @Test
+    public void parse_noteWithSlash_success() {
+        // notes are free text, where "w/" (with) is normal
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withNote("Meet w/ parent").build();
+        assertParseSuccess(parser, "1 nt/Meet w/ parent", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_emptyNote_clearsNote() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withNote("").build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " nt/", new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_invalidOrRepeatedNote_failure() {
+        assertParseFailure(parser, "1 nt/" + "a".repeat(Note.MAX_LENGTH + 1),
+                Note.getErrorMessage("a".repeat(Note.MAX_LENGTH + 1)));
+        assertParseFailure(parser, "1 nt/one nt/two", Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NOTE));
+    }
+
+    @Test
+    public void parse_noteAfterOtherFields_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND)
+                .withNote("Exam soon").build();
+        assertParseSuccess(parser, "1" + TAG_DESC_FRIEND + " nt/Exam soon",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_prefixAfterNote_failure() {
+        // Add uses the same check, and AddCommandParserTest covers each prefix and kind of note after nt/.
+        // Here, a note containing a prefix, which would otherwise be cut short and replace all the tags
+        assertParseFailure(parser, "1 nt/Note with t/tag inside", MESSAGE_NOTE_NOT_LAST);
+
+        // an unknown prefix is reported first, as in add
+        assertParseFailure(parser, "1 a/Blk 1 z/x nt/hi t/y", Messages.getErrorMessageForUnknownPrefix("z/"));
+    }
+
+    @Test
+    public void parse_feeAndDueDateSpecified_success() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withFee(VALID_FEE)
+            .withDueDate(VALID_DUE_DATE).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + FEE_DESC + DUE_DATE_DESC,
+            new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_emptyFeeAndDueDate_clearsFields() {
+        Index targetIndex = INDEX_FIRST_PERSON;
+
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withFee("").withDueDate("").build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + " fee/ due/",
+            new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_invalidOrRepeatedFeeAndDueDate_failure() {
+        assertParseFailure(parser, "1" + INVALID_FEE_DESC, Fee.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1" + INVALID_DUE_DATE_DESC, DueDate.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 fee/1 fee/2", Messages.getErrorMessageForDuplicatePrefixes(PREFIX_FEE));
+        assertParseFailure(parser, "1 due/01-11-2099 due/02-11-2099",
+            Messages.getErrorMessageForDuplicatePrefixes(PREFIX_DUE_DATE));
     }
 
     @Test

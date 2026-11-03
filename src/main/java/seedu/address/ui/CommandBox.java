@@ -1,8 +1,16 @@
 package seedu.address.ui;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Optional;
+import java.util.function.Consumer;
+
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.VerticalDirection;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -16,19 +24,77 @@ public class CommandBox extends UiPart<Region> {
     public static final String ERROR_STYLE_CLASS = "error";
     private static final String FXML = "CommandBox.fxml";
 
+    private final CommandHistory commandHistory = new CommandHistory();
     private final CommandExecutor commandExecutor;
+    private final ResultScroller resultScroller;
+    private final Consumer<VerticalDirection> clientListScroller;
 
     @FXML
     private TextField commandTextField;
 
     /**
-     * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
+     * Creates a {@code CommandBox} that runs commands with {@code commandExecutor}, and scrolls the result of the
+     * last command with {@code resultScroller}, and the client list with {@code clientListScroller}.
      */
-    public CommandBox(CommandExecutor commandExecutor) {
+    public CommandBox(CommandExecutor commandExecutor, ResultScroller resultScroller,
+            Consumer<VerticalDirection> clientListScroller) {
         super(FXML);
-        this.commandExecutor = commandExecutor;
-        // calls #setStyleToDefault() whenever there is a change to the text of the command box.
+        this.commandExecutor = requireNonNull(commandExecutor);
+        this.resultScroller = requireNonNull(resultScroller);
+        this.clientListScroller = requireNonNull(clientListScroller);
+        // A failed command stays red only until the user edits it
         commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.setOnKeyPressed(this::handleKeyPressed);
+    }
+
+    /**
+     * Moves the keyboard focus to the command box, so that the user can keep typing.
+     */
+    public void requestFocus() {
+        commandTextField.requestFocus();
+    }
+
+    /**
+     * Shows the previous or next command in the history when the Up or Down keys are pressed, and scrolls the
+     * result of the last command when the Page Up or Page Down keys are pressed, or the client list if Shift is held.
+     * The focus stays in the command box, so the user can keep typing.
+     */
+    private void handleKeyPressed(KeyEvent event) {
+        KeyCode key = event.getCode();
+        // Up and Down with a modifier are left to the text field, e.g. Shift+Up selects text
+        if ((key == KeyCode.UP || key == KeyCode.DOWN) && hasModifierDown(event)) {
+            return;
+        }
+
+        Consumer<VerticalDirection> scroller = event.isShiftDown() ? clientListScroller : resultScroller::scrollPage;
+        switch (key) {
+            case PAGE_UP -> scroller.accept(VerticalDirection.UP);
+            case PAGE_DOWN -> scroller.accept(VerticalDirection.DOWN);
+            case UP -> showRecalledCommand(commandHistory.recallPreviousCommand(commandTextField.getText()));
+            case DOWN -> showRecalledCommand(commandHistory.recallNextCommand());
+            default -> {
+                return;
+            }
+        }
+        event.consume();
+    }
+
+    /**
+     * Returns true if Shift, Ctrl, Alt or Meta is held down during {@code event}.
+     */
+    private static boolean hasModifierDown(KeyEvent event) {
+        return event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown();
+    }
+
+    /**
+     * Shows {@code recalledCommand} in the command box, if there is one, and puts the cursor at the end either way,
+     * as the text field has already moved it for the Up or Down key by the time this runs.
+     */
+    private void showRecalledCommand(Optional<String> recalledCommand) {
+        recalledCommand.ifPresentOrElse(command -> {
+            commandTextField.setText(command);
+            commandTextField.end();
+        }, commandTextField::end);
     }
 
     /**
@@ -37,9 +103,11 @@ public class CommandBox extends UiPart<Region> {
     @FXML
     private void handleCommandEntered() {
         String commandText = commandTextField.getText();
-        if (commandText.equals("")) {
+        if (commandText.isBlank()) {
             return;
         }
+
+        commandHistory.add(commandText);
 
         try {
             commandExecutor.execute(commandText);
@@ -80,6 +148,19 @@ public class CommandBox extends UiPart<Region> {
          * @see seedu.address.logic.Logic#execute(String)
          */
         CommandResult execute(String commandText) throws CommandException, ParseException;
+    }
+
+    /**
+     * Represents a function that scrolls the result of the last command.
+     */
+    @FunctionalInterface
+    public interface ResultScroller {
+        /**
+         * Scrolls the result one page in {@code direction}.
+         *
+         * @see ResultDisplay#scrollPage(VerticalDirection)
+         */
+        void scrollPage(VerticalDirection direction);
     }
 
 }

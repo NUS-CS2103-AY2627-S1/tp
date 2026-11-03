@@ -1,5 +1,8 @@
 package seedu.address.model;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
@@ -37,9 +40,44 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
+     * Saves a copy of the current state to the undo history, and clears the redo history.
+     * Call this after each change that can be undone.
+     * Does nothing if the state has not changed since the last commit.
+     */
+    void commitAddressBook();
+
+    /** Returns true if there is an earlier state to undo to. */
+    boolean canUndoAddressBook();
+
+    /**
+     * Reverts to the state before the last change recorded by {@link #commitAddressBook()}.
+     * Check {@link #canUndoAddressBook()} before calling this.
+     */
+    void undoAddressBook();
+
+    /** Returns true if there is an undone state to redo. */
+    boolean canRedoAddressBook();
+
+    /**
+     * Reapplies the change reverted by the last {@link #undoAddressBook()}.
+     * Check {@link #canRedoAddressBook()} before calling this.
+     */
+    void redoAddressBook();
+
+    /**
      * Returns true if a person with the same identity as {@code person} exists in the address book.
      */
     boolean hasPerson(Person person);
+
+    /**
+     * Returns the person in the address book with the same name as {@code person}, ignoring case, if any.
+     */
+    default Optional<Person> findPersonWithSameName(Person person) {
+        requireNonNull(person);
+        return getAddressBook().getPersonList().stream()
+                .filter(person::hasSameName)
+                .findFirst();
+    }
 
     /**
      * Deletes the given person.

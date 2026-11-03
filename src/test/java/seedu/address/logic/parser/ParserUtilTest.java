@@ -6,19 +6,27 @@ import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.DueDate;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Fee;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-uuuu");
+
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
@@ -26,7 +34,7 @@ public class ParserUtilTest {
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "81234567";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
@@ -40,9 +48,18 @@ public class ParserUtilTest {
     }
 
     @Test
-    public void parseIndex_outOfRangeInput_throwsParseException() {
+    public void parseIndex_zerosOrNegativeOutOfRange_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndex("000"));
         assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, ()
-            -> ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1)));
+            -> ParserUtil.parseIndex(Long.toString(Integer.MIN_VALUE - 1L)));
+    }
+
+    @Test
+    public void parseIndex_positiveOutOfRange_returnsMaxIndex() throws Exception {
+        // too large for an int, but still a positive number, so the command reports it as out of bounds
+        Index maxIndex = Index.fromOneBased(Integer.MAX_VALUE);
+        assertEquals(maxIndex, ParserUtil.parseIndex(Long.toString(Integer.MAX_VALUE + 1L)));
+        assertEquals(maxIndex, ParserUtil.parseIndex("  99999999999999999999  "));
     }
 
     @Test
@@ -78,6 +95,38 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_curlyApostrophe_returnsNameWithStraightApostrophe() throws Exception {
+        assertEquals(new Name("Liam O'Brien"), ParserUtil.parseName("Liam O\u2019Brien"));
+    }
+
+    @Test
+    public void parseName_validValueWithInternalWhitespace_returnsCollapsedName() throws Exception {
+        Name expectedName = new Name("Liam O'Brien");
+        assertEquals(expectedName, ParserUtil.parseName("Liam   O'Brien"));
+    }
+
+    @Test
+    public void parseName_maxLengthAfterCollapsing_returnsName() throws Exception {
+        // 51 characters as typed, but 50 once the double space is collapsed
+        String typedName = "a".repeat(Name.MAX_LENGTH - 2) + "  b";
+        Name expectedName = new Name("a".repeat(Name.MAX_LENGTH - 2) + " b");
+        assertEquals(expectedName, ParserUtil.parseName(typedName));
+    }
+
+    @Test
+    public void parseName_accentedLetter_throwsParseException() {
+        assertThrows(ParseException.class, Name.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseName("José"));
+    }
+
+    @Test
+    public void parseName_tooLong_throwsParseException() {
+        String tooLongName = "a".repeat(Name.MAX_LENGTH + 1);
+        // The text the user reads. NameTest#getErrorMessage covers which invalid names get this message
+        String expectedMessage = "Invalid Name! Names cannot be more than 50 characters, but this one has 51.";
+        assertThrows(ParseException.class, expectedMessage, () -> ParserUtil.parseName(tooLongName));
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -101,6 +150,35 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parsePhone_validValueWithFormatting_returnsStrippedPhone() throws Exception {
+        Phone expectedPhone = new Phone("91234567");
+        assertEquals(expectedPhone, ParserUtil.parsePhone("9123 4567"));
+        assertEquals(expectedPhone, ParserUtil.parsePhone("9123-4567"));
+        assertEquals(expectedPhone, ParserUtil.parsePhone("(9123) 4567"));
+    }
+
+    @Test
+    public void parsePhone_countryCode_throwsParseExceptionWithCountryCodeMessage() {
+        // PhoneTest#hasCountryCode covers which numbers have a country code
+        assertThrows(ParseException.class, Phone.MESSAGE_COUNTRY_CODE, () -> ParserUtil.parsePhone("+6591234567"));
+        // checked after the formatting characters are removed
+        assertThrows(ParseException.class, Phone.MESSAGE_COUNTRY_CODE, () -> ParserUtil.parsePhone("(+65) 9123-4567"));
+    }
+
+    @Test
+    public void parsePhone_wrongDigitCount_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone("9123 456")); // 7 digits
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone("9123 45678")); // 9 digits
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone("- ( )")); // empty after stripping
+    }
+
+    @Test
+    public void parsePhone_disallowedCharacters_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone("9123.4567"));
+        assertThrows(ParseException.class, () -> ParserUtil.parsePhone("9123a4567"));
+    }
+
+    @Test
     public void parseAddress_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseAddress((String) null));
     }
@@ -121,6 +199,119 @@ public class ParserUtilTest {
         String addressWithWhitespace = WHITESPACE + VALID_ADDRESS + WHITESPACE;
         Address expectedAddress = new Address(VALID_ADDRESS);
         assertEquals(expectedAddress, ParserUtil.parseAddress(addressWithWhitespace));
+    }
+
+    @Test
+    public void parseAddress_validValueWithInternalWhitespace_returnsCollapsedAddress() throws Exception {
+        Address expectedAddress = new Address("Blk 123 Yishun Ave 5");
+        assertEquals(expectedAddress, ParserUtil.parseAddress("Blk 123   Yishun\tAve  5"));
+    }
+
+    @Test
+    public void parseAddress_maxLengthAfterCollapsing_returnsAddress() throws Exception {
+        // 151 characters as typed, but 150 once the double space is collapsed
+        String typedAddress = "a".repeat(Address.MAX_LENGTH - 2) + "  b";
+        Address expectedAddress = new Address("a".repeat(Address.MAX_LENGTH - 2) + " b");
+        assertEquals(expectedAddress, ParserUtil.parseAddress(typedAddress));
+    }
+
+    @Test
+    public void parseAddress_tooLong_throwsParseException() {
+        String tooLongAddress = "a".repeat(Address.MAX_LENGTH + 1);
+        assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAddress(tooLongAddress));
+    }
+
+    @Test
+    public void parseNote_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseNote((String) null));
+    }
+
+    @Test
+    public void parseNote_tooLong_throwsParseException() {
+        String tooLongNote = "a".repeat(Note.MAX_LENGTH + 1);
+        assertThrows(ParseException.class, Note.getErrorMessage(tooLongNote), () -> ParserUtil.parseNote(tooLongNote));
+    }
+
+    @Test
+    public void parseNote_emptyValue_returnsEmptyNote() throws Exception {
+        assertEquals(Note.EMPTY, ParserUtil.parseNote(""));
+        assertEquals(Note.EMPTY, ParserUtil.parseNote(WHITESPACE));
+    }
+
+    @Test
+    public void parseNote_validValueWithWhitespace_returnsTrimmedAndCollapsedNote() throws Exception {
+        assertEquals(new Note("Weak at algebra"), ParserUtil.parseNote(WHITESPACE + "Weak   at\talgebra" + WHITESPACE));
+    }
+
+    @Test
+    public void parseNote_maxLengthAfterCollapsing_returnsNote() throws Exception {
+        // 201 characters as typed, but 200 once the double space is collapsed
+        String typedNote = "a".repeat(Note.MAX_LENGTH - 2) + "  b";
+        assertEquals(new Note("a".repeat(Note.MAX_LENGTH - 2) + " b"), ParserUtil.parseNote(typedNote));
+    }
+
+    @Test
+    public void parseFee_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseFee((String) null));
+    }
+
+    @Test
+    public void parseFee_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Fee.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseFee("-5"));
+        assertThrows(ParseException.class, Fee.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseFee("abc"));
+    }
+
+    @Test
+    public void parseFee_emptyValue_returnsEmptyFee() throws Exception {
+        assertEquals(Fee.EMPTY, ParserUtil.parseFee(""));
+        assertEquals(Fee.EMPTY, ParserUtil.parseFee(WHITESPACE));
+    }
+
+    @Test
+    public void parseFee_validValueWithWhitespace_returnsTrimmedFee() throws Exception {
+        assertEquals(new Fee("250.50"), ParserUtil.parseFee(WHITESPACE + "250.50" + WHITESPACE));
+    }
+
+    @Test
+    public void parseDueDate_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseDueDate((String) null));
+    }
+
+    @Test
+    public void parseDueDate_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, DueDate.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseDueDate("30-02-2026"));
+        assertThrows(ParseException.class, DueDate.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseDueDate("tomorrow"));
+    }
+
+    @Test
+    public void parseDueDate_outOfRangeYear_throwsParseException() {
+        assertThrows(ParseException.class, DueDate.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseDueDate("01-01-0000"));
+        assertThrows(ParseException.class, DueDate.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseDueDate("31-12-1999"));
+    }
+
+    @Test
+    public void parseDueDate_todayAndTomorrow_returnsDueDate() throws Exception {
+        String today = LocalDate.now().format(DATE_FORMAT);
+        String tomorrow = LocalDate.now().plusDays(1).format(DATE_FORMAT);
+        assertEquals(new DueDate(today), ParserUtil.parseDueDate(today));
+        assertEquals(new DueDate(tomorrow), ParserUtil.parseDueDate(tomorrow));
+    }
+
+    @Test
+    public void parseDueDate_yesterday_throwsParseException() {
+        String yesterday = LocalDate.now().minusDays(1).format(DATE_FORMAT);
+        assertThrows(ParseException.class, DueDate.MESSAGE_PAST_DATE, () -> ParserUtil.parseDueDate(yesterday));
+    }
+
+    @Test
+    public void parseDueDate_emptyValue_returnsEmptyDueDate() throws Exception {
+        assertEquals(DueDate.EMPTY, ParserUtil.parseDueDate(""));
+        assertEquals(DueDate.EMPTY, ParserUtil.parseDueDate(WHITESPACE));
+    }
+
+    @Test
+    public void parseDueDate_validValueWithWhitespace_returnsTrimmedDueDate() throws Exception {
+        assertEquals(new DueDate("01-11-2099"), ParserUtil.parseDueDate(WHITESPACE + "01-11-2099" + WHITESPACE));
     }
 
     @Test
@@ -167,6 +358,13 @@ public class ParserUtilTest {
         String tagWithWhitespace = WHITESPACE + VALID_TAG_1 + WHITESPACE;
         Tag expectedTag = new Tag(VALID_TAG_1);
         assertEquals(expectedTag, ParserUtil.parseTag(tagWithWhitespace));
+    }
+
+    @Test
+    public void parseTag_validValueWithRepeatedWhitespace_returnsNormalizedTag() throws Exception {
+        assertEquals(new Tag("Secondary 4"), ParserUtil.parseTag(" Secondary  4 "));
+        assertEquals("Sec 4", ParserUtil.parseTag("Sec  4").tagName);
+        assertEquals("Sec 4", ParserUtil.parseTag(" Sec \t 4 ").tagName);
     }
 
     @Test

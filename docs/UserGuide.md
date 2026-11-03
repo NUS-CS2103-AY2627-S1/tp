@@ -1,12 +1,15 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# Sieve User Guide
 
-* Table of Contents
-{:toc}
+Sieve is a **desktop app that helps self-employed private tuition teachers in Singapore keep track of their clients**. Sieve is optimised for use through a Command Line Interface (CLI), where you type commands, and shows your clients and the results in a Graphical User Interface (GUI). If you can type fast, Sieve lets you find and update any client's details quicker than hunting through chats, notes apps and spreadsheets, so you spend less time on admin and more time teaching.
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,136 +18,402 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-T08-4/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for Sieve.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar sieve.jar`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
    ![Ui](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all clients.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add n/Jason Quek p/91234567 e/jasonquek@gmail.com a/Blk 123 Yishun Ave 5 #04-12` : Adds a client named `Jason Quek` to the bottom of the list.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `delete 3` : Deletes the 3rd client shown in the current list.
 
-   * `clear` : Deletes all contacts.
+   * `clear` : Deletes all clients.
 
    * `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
 
+Sieve opens in the light theme each time it is launched. Click **Dark theme** at the top of the window to use the dark
+colour scheme; the button then changes to **Light theme**, which switches back. The selected theme is not saved between
+launches.
+
 --------------------------------------------------------------------------------------------------------------------
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
+
+* Command words are in lower case.<br>
+  For example, `list` works, but `LIST` does not.
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `add n/NAME`, replace `NAME` with a value such as `Amirah Tan`.
+
+* A prefix is the short marker in front of a detail, such as `n/` for the name and `p/` for the phone number.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `n/NAME [t/TAG]` can be used as `n/Amirah Tan t/Math` or as `n/Amirah Tan`.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Items followed by `...` can appear zero or more times.<br>
+  For example, `[t/TAG]... ` may be omitted, or written as `t/Math` or `t/Math t/Sec4`.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+* Parameters can be in any order, except the note (`nt/NOTE`), which must come last.<br>
+  For example, if the command specifies `n/NAME p/PHONE`, `p/PHONE n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
+* In `add` and `edit`, a word that looks like a prefix but is not one, such as `z/` in `a/Blk 1 z/x`, is rejected as an unknown prefix, so that a mistyped prefix is not saved as part of a detail. Any word of letters followed by `/` counts, so write `Block A/B` as `Block A-B`.<br>
+  This applies to every parameter except the note, so a note such as `nt/Meet w/ parent` is fine. In an address, write `c/o` as `care of`.
+
+* Extraneous parameters for `help`, `list` and `exit` are ignored.<br>
   For example, `help 123` is interpreted as `help`.
 
+* `clear`, `undo` and `redo` take no parameters, and show an error if you add any. This stops `undo 3` from undoing only one change, and `clear 3` from deleting every client.
+
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
+
+<box type="info" seamless>
+
+**Reading the result:** after each command, the line below the command box shows the result:
+* Green **✔**: the command ran. It may still say that nothing changed, e.g. `No change: Amirah Tan already has these details.` or `There are no clients to clear.`
+* Red **✖**, with red text: the command could not be completed. The message says why.
+* Grey **ⓘ**: a search (`find` or `filter`) found no clients.
+</box>
+
+### Viewing a client's details
+
+Click anywhere on a client's row to open their detailed information panel on the right. The client list becomes more
+compact to make room for the panel, and the selected client remains highlighted.
+
+![Client details panel](images/clientDetailPanel.png)
+
+The panel can only be opened by clicking a client; there is no command or keyboard shortcut that opens it. The
+full-width client list shows the same details, while the panel presents one client's details separately for easier
+reading.
+
+The panel shows the client's name, tags, phone number, email address and address. It also shows their note, fee and due
+date when those optional details have been recorded.
+
+* Click another client to update the open panel without leaving the current screen.
+* Click the **X** button at the top-right of the panel, or press **Esc**, to close it and restore the full-width list.
+* If the selected client is edited, tagged or untagged, the open panel updates to show the latest details.
+* If the selected client is deleted or no longer appears after a search or filter, the panel closes automatically.
+* Opening and closing the panel does not change or save any client data. Use the [`edit`](#editing-a-client-edit),
+  [`tag`](#tagging-a-client-tag) and [`untag`](#removing-tags-from-a-client-untag) commands to make changes.
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens a help window that lists every command and its format, with a link to this user guide that you can copy with **Copy URL**. You can also open it from the **Help** menu or by pressing **F1**. On a Mac laptop, you may need to hold **Fn** as well.
 
 ![help message](images/helpMessage.png)
 
 Format: `help`
 
 
-### Adding a person: `add`
+### Adding a client: `add`
 
-Adds a person to the address book.
+Adds a client to Sieve, then shows the full client list, so that the new client is not hidden by an earlier `find` or `filter`. You may need to scroll to see the new client, e.g. with [**Shift+Page Down**](#keyboard-shortcuts).
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
-
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+Format: `add n/NAME p/PHONE e/EMAIL a/ADDRESS [fee/FEE] [due/DUE_DATE] [t/TAG]... [nt/NOTE]`
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+* `add n/Jason Quek p/91234567 e/jasonquek@gmail.com a/Blk 123 Yishun Ave 5 #04-12`
+* `add n/Olivia Ng p/93338888 e/olivia@example.com a/Blk 8 Clementi Rd nt/Parent prefers WhatsApp after 6pm` adds a client with a note.
+* `add n/Matthias Tan t/Physics e/matthias.tan@gmail.com a/10 Queenstown Rd p/8123 4567 t/Sec4` adds a client with two tags. Fields can be given in any order, and spaces in the phone number are ignored.
+* `add n/Lena Ong p/91230000 e/lena@example.com a/Blk 3 Clementi Rd fee/250 due/01-11-2030` adds a client with a fee and a due date.
 
-### Listing all persons: `list`
+<box type="tip" seamless>
 
-Shows a list of all persons in the address book.
+**Tip:** A client can have any number of tags, including zero. Each tag follows the same rules as in [`tag`](#tagging-a-client-tag).
+
+* A note is free text of up to 200 characters, for anything you want to remember about the client, e.g. `nt/Weak at algebra, prelims in March`. Leave it out if you have nothing to record.
+* A fee is the amount you charge the client, e.g. `fee/250` or `fee/180.50`. It is a number that is up to 7 digits and up to 2 decimal places, with no currency symbol. Sieve shows it with 2 decimal places (`250.00`).
+* A due date is the date the next payment is due, in the format `DD-MM-YYYY`, e.g. `due/01-11-2030`. It must be a real date, and cannot be before today. Once a due date has passed, it stays on the client until you change or clear it. Sieve only stores these two values and shows them on the client's card. It does not track payments or send reminders. Leave them out if you do not need them.
+* You cannot search or sort by fee or due date. To chase payments, tag clients `t/Unpaid`, then use `filter t/Unpaid`.
+</box>
+
+<box type="warning" seamless>
+
+**Caution:** The note must be the last parameter. Sieve reads each detail up to the next prefix, so a prefix after `nt/` would cut the note short and quietly change another detail. For example, `nt/Revise t/tests` would save the note `Revise` and give the client the tag `tests`. To stop this, Sieve rejects the command instead.
+
+* A note cannot contain ` n/`, ` p/`, ` e/`, ` a/`, ` t/`, ` fee/` or ` due/`, so `nt/Revise t/tests` and `nt/Allergies n/a` are rejected. Write such text another way, e.g. `N/A` instead of `n/a`.
+* Other text with a slash, such as `nt/Meet w/ parent`, is fine.
+</box>
+
+<box type="info" seamless>
+
+**Names:**
+* A name must start with a letter, and can only contain letters, digits, spaces, hyphens (`-`), apostrophes (`'`), full stops (`.`) and parentheses (`()`), up to 50 characters. If a name is longer, the error says how many characters it has.
+* For example, `John Tan (NHHS)` and `Nur-Aisyah O'Brien` are accepted, but `Ravi s/o Kumar` is not, because of the `/`. Avoid `Kumar a/l Ravi` too: Sieve reads `a/` as the start of the address, so it would save the name `Kumar` with the address `l Ravi`.
+* A curly apostrophe (`’`), which phones and chat apps often type or paste instead of `'`, is saved as `'`. For example, `O’Brien` is saved as `O'Brien`.
+* Letters means `A` to `Z`, so names with accented letters (e.g. `José`) or Chinese characters are not supported.
+* Other symbols are not supported either, such as the `@` in `Tan Ah Kow @ Michael` or the comma in `Tan, Wei Ming`.
+* Write such names without these characters, e.g. `Ravi s.o. Kumar`, `Kumar a.l. Ravi`, `Jose`, `Tan Ah Kow (Michael)` or `Tan Wei Ming`.
+</box>
+
+<box type="info" seamless>
+
+**Duplicate clients:**
+* Sieve does not allow two clients with the same name. Names are compared ignoring case, so `John Tan` and `john tan` count as the same name.
+* If the phone number also matches, Sieve tells you that the client already exists.
+* If the phone number is different, Sieve asks you to check the name and phone number. If it really is a different client, add a detail to the name to tell them apart, e.g. `John Tan (NHHS)`.
+* Different clients may share a phone number (e.g. siblings using a parent's number), as long as their names are different.
+* The same rules apply when you change a client's name with `edit`.
+</box>
+
+<box type="info" seamless>
+
+**Phone numbers, emails and addresses:**
+* A phone number must be an 8-digit Singapore number starting with `3`, `6`, `8` or `9`, e.g. `91234567`. Spaces, hyphens and parentheses are ignored, so `9123 4567` is also accepted.
+* Leave out the country code. Sieve is made for tutors in Singapore and only stores Singapore numbers, so every number would start with `+65`, which adds nothing. If you copy a number such as `+65 9123 4567`, enter it as `91234567`. Sieve shows a reminder if you include a country code. Numbers from other countries are not supported.
+* An email address can be up to 254 characters long. Before the `@`, it can contain letters, digits and `+`, `_`, `.` or `-`, but these symbols cannot come first, last or two in a row. After the `@`, it must be a domain name with a full stop, e.g. `amirah@gmail.com`. Addresses such as `amirah@localhost`, `o'brien@gmail.com` and `a__b@gmail.com` are not supported.
+* An email is required. If a client has none, enter a placeholder such as `e/none@example.com`.
+* An address is required. It can be up to 150 characters long and must contain at least one letter or digit. If the client has no address, for example because you teach them online, enter `a/Online` or similar.
+* If your data file is from an earlier version of Sieve and contains a phone number or email address that breaks these rules, Sieve opens in read-only mode. Correct it in the [data file](#editing-the-data-file) to continue.
+</box>
+
+### Listing all clients: `list`
+
+Shows a list of all clients in Sieve.
 
 Format: `list`
 
-### Editing a person: `edit`
+### Editing a client: `edit`
 
-Edits an existing person in the address book.
+Edits an existing client in Sieve.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [fee/FEE] [due/DUE_DATE] [t/TAG]... [nt/NOTE]`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
+* Edits the client at the specified `INDEX`. The index refers to the index number shown in the displayed client list. The index **must be a positive integer** 1, 2, 3, ...
 * At least one of the optional fields must be provided.
 * Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* A new name must follow the same [rules as in `add`](#adding-a-client-add).
+* When editing tags, all of the client's existing tags are removed; adding tags is not cumulative.
+* To remove all of a client's tags, enter `t/` without a tag after it.
+* Editing the note replaces the whole note; it does not add to the existing one. To remove a client's note, enter `nt/` without any text after it.
+* Editing the fee or due date replaces the existing value. To remove a client's fee, enter `fee/` without a value after it. To remove a client's due date, enter `due/` without a value after it.
+* A new due date must follow the same rules as in `add`. Editing other fields of a client whose due date has passed leaves that due date as it is, and `due/` with no value clears it.
+* The note must be the last parameter, and cannot contain any of the prefixes listed in [`add`](#adding-a-client-add). For example, `edit 1 nt/Revise t/tests` is rejected instead of replacing the client's tags.
+* After an edit, the full client list is shown, so that the edited client is not hidden by an earlier `find` or `filter`. You may need to scroll to see the client, e.g. with [**Shift+Page Down**](#keyboard-shortcuts).
+* If the new values are the same as the client's current ones, Sieve shows `No change: NAME already has these details.` and keeps the displayed list as it is.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+*  `edit 1 p/81112222 e/amirah.tan01@gmail.com` Edits the phone number and email address of the 1st client to be `81112222` and `amirah.tan01@gmail.com` respectively.
+*  `edit 2 n/Brandon Tan t/` Edits the name of the 2nd client to be `Brandon Tan` and clears all existing tags.
+*  `edit 3 nt/Exam in March` Sets the note of the 3rd client to `Exam in March`.
+*  `edit 3 nt/` Clears the note of the 3rd client.
+*  `edit 1 fee/300 due/01-12-2030` Sets the fee of the 1st client to `300.00` and their due date to `01-12-2030`.
+*  `edit 1 fee/ due/` Clears the fee and due date of the 1st client.
 
-### Locating persons by name: `find`
+### Locating clients by name: `find`
 
-Finds persons whose names contain any of the given keywords.
+Finds clients by name keywords.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Format: `find KEYWORD [MORE_KEYWORDS]...`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* At least one keyword must be given.
+* Keywords can contain the same characters as names: letters, digits, hyphens (`-`), apostrophes (`'`), full stops (`.`) and parentheses (`()`). Each keyword must contain at least one letter or digit.
+* The search is case-insensitive; for example, `amirah` matches `Amirah`.
+* Keyword order does not matter; for example, `Tan Amirah` matches `Amirah Tan`.
+* A keyword matches the **start** of a word of a name, or the start of a part of a word separated by punctuation; for example, `Ami` matches `Amirah`, `Bri` matches `O'Brien`, `Ais` matches `Nur-Aisyah`, and `NHHS` matches `John Tan (NHHS)`.
+* Punctuation is ignored; for example, `obrien`, `O'Brien` and `O’Brien` (with a curly apostrophe) all match `O'Brien`.
+* A keyword does not match the middle or end of a word; for example, `rien` does not match `O'Brien`, and `rah` does not match `Amirah`.
+* Clients matching at least one keyword are returned (an `OR` search); for example, `Amirah Farhan` returns `Amirah Tan` and `Farhan Ali`.
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+If no client matches, Sieve shows `0 clients found` with tips for searching again. Use `list` to see all clients again. If Sieve has no clients to search, it says so instead.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `find amirah` returns `Amirah Tan`
+* `find amirah farhan` returns `Amirah Tan` and `Farhan Ali`
+* `find ami` returns `Amirah Tan`
+* `find Brien` returns `Liam O'Brien` (if you have added that client)<br>
+  ![result for 'find Brien'](images/findBrienResult.png)
 
-### Clearing all entries: `clear`
+<box type="info" seamless>
 
-Clears all entries from the address book.
+**Limitations:**
+* `find` searches names only, so keywords take no prefix: use `find Amy`, not `find n/Amy`. A keyword starting with a prefix such as `n/` or `t/` is rejected with a reminder. To search by phone number or tag, use [`filter`](#filtering-clients-by-phone-number-or-tags-filter).
+* A keyword is matched against one word of a name at a time, so a keyword that joins two words does not match. For example, `Aisyah-Tan` does not match `Nur-Aisyah Tan`; use `find Aisyah Tan` instead.
+* A short keyword can match many clients; for example, `find a` returns every client with a name part starting with `a`. Type more letters to narrow the results.
+</box>
+
+### Filtering clients by phone number or tags: `filter`
+
+Shows only the clients who match the specified phone numbers and tags.
+
+Format: `filter [p/PHONE]... [t/TAG]...`
+
+* At least one phone number or tag must be given.
+* `p/PHONE` must be a complete phone number, following the same [rules as in `add`](#adding-a-client-add). Spaces, hyphens and parentheses are ignored.
+* If several phone numbers are supplied, clients matching any of them are returned.
+* Tag matching is case-insensitive and repeated spaces are collapsed; for example, `t/physics` matches `Physics`, and `t/Sec  4` matches `Sec 4`.
+* Tag order does not matter.
+* A client must have every specified tag.
+* When phone numbers and tags are combined, a client must match both fields.
+* `filter` only takes `p/` and `t/`. Any other prefix, such as `n/`, is rejected with a reminder to use [`find`](#locating-clients-by-name-find) to search by name.
+* If no client matches, Sieve shows `0 clients found` with tips for filtering again. Use `list` to see all clients again. If Sieve has no clients to search, it says so instead.
+
+Examples:
+* `filter p/9123 4567` returns the client with phone number `91234567`.
+* `filter p/91234567 p/92345678` returns the clients with either phone number.
+* `filter t/Physics` returns every client tagged `Physics`.
+* `filter t/Physics t/Sec4` returns clients tagged with both `Physics` and `Sec4`.
+* `filter p/92345678 t/Sec4` returns the client matching that phone number who is also tagged `Sec4`.
+
+### Tagging a client: `tag`
+
+Adds one or more tags to an existing client.
+
+Format: `tag INDEX t/TAG [t/MORE_TAGS]...`
+
+* The index refers to the index number shown in the displayed client list and must be a positive integer.
+* Tagging several clients in one command is not supported.
+* Tags must be 1-20 characters long and contain only letters, numbers, and spaces.
+* Extra spaces inside a tag are treated as one, so `t/Sec  4` is stored as and considered the same tag as `t/Sec 4`.
+* New tags are added alongside the client's existing tags.
+* Adding a tag the client already has does not create a duplicate.
+* The result lists newly added tags and any tags already attached to the client. If every requested tag is already attached, Sieve reports that no tags were added and lists the tags already present.
+* After a tag is added, the same clients remain displayed with the updated tag.
+
+Examples:
+* `tag 1 t/physics t/sec4`
+* `tag 2 t/thursday`
+
+### Removing tags from a client: `untag`
+
+Removes one or more tags from an existing client.
+
+Format: `untag INDEX t/TAG [t/MORE_TAGS]...`
+
+* The index refers to the index number shown in the displayed client list and must be a positive integer.
+* Removing tags from several clients in one command is not supported.
+* Tag matching is case-insensitive; for example, `t/math` removes an existing `Math` tag.
+* Tags not currently attached to the client are ignored.
+* Other tags remain unchanged.
+* The result lists removed tags and any tags not attached to the client. If none of the specified tags exist, Sieve reports that no tags were removed and lists the tags not found. Tag names in the result use the spelling stored on the client card when a matching tag exists.
+* After a tag is removed, the same clients remain displayed with the updated tag.
+
+Examples:
+* `untag 1 t/Math`
+* `untag 2 t/Physics t/Sec4`
+
+### Deleting clients: `delete`
+
+Deletes one or more specified clients from Sieve.
+
+Format: `delete INDEX [, INDEX]...`
+
+* Deletes the clients at the specified indices.
+* Each index refers to the index number shown in the displayed client list and **must be a positive integer** 1, 2, 3, ...
+* To delete multiple clients, provide at least two comma-separated indices. Spaces around the commas are optional.
+* Ranges such as `1-3` are not supported.
+* Duplicate indices are not allowed.
+* All indices are checked before any client is deleted. If any index is invalid, no clients will be deleted.
+* If the displayed client list is empty, no client will be deleted and the following error will be shown:
+    `Error: Cannot delete from an empty client list.`
+* If any `INDEX` exceeds the size of the displayed client list, no client will be deleted and the following error will be shown:
+  `Error: The index provided is out of bounds! Current list only contains X clients.`
+  Here, `X` is the number of clients in the displayed list (`1 client` when only one client is displayed).
+* If `INDEX` is not provided, the following error will be shown:<br>
+  `Invalid command format!`<br>
+  `Error: Index not provided!`<br>
+  `Expected format: delete INDEX [, INDEX]...`
+
+Examples:
+* `list` followed by `delete 2` deletes the 2nd client in Sieve.
+* `find Amirah` followed by `delete 1` deletes the 1st client in the results of the `find` command.
+* `list` followed by `delete 1, 3, 5` deletes the 1st, 3rd and 5th clients in Sieve.
+* `filter t/Sec4` followed by `delete 1,2` deletes the 1st and 2nd clients in the filtered results.
+
+### Clearing all clients: `clear`
+
+Deletes all clients from Sieve.
 
 Format: `clear`
+
+* `clear` takes no parameters, so `clear 3` shows an error instead of deleting every client. To delete some clients, use [`delete`](#deleting-clients-delete).
+* If you have no clients, `clear` shows `There are no clients to clear.` and changes nothing. An `undo` after it reverts your previous change instead.
+
+### Undoing a change: `undo`
+
+Reverts the last change to your client list.
+
+Format: `undo`
+
+* Changes can be undone one at a time, back to how your client list was when you opened Sieve. To undo several changes, run `undo` once for each; `undo 3` shows an error.
+* Only commands that change your client list can be undone: `add`, `edit`, `delete`, `tag`, `untag` and `clear`.
+* Commands that do not change anything, such as `list`, `find` and `help`, are skipped. Commands that fail are also skipped.
+* An `edit`, `tag`, or `untag` that leaves the client exactly as before is also skipped, and its result says that nothing changed. For example, this happens when the edited value is unchanged, every requested tag already exists, or none of the requested tags exist. An `undo` after it reverts the preceding change instead.
+* An `edit` that only changes the letter case of a tag, e.g. from `Math` to `MATH`, counts as a change and can be undone.
+* After an undo, the full client list is shown, so that the restored client is not hidden by an earlier `find`. You may need to scroll to see the client, e.g. with [**Shift+Page Down**](#keyboard-shortcuts).
+* The result, `Undid the last change.`, does not say which change was undone. Showing what was undone is not supported, so check the client list if you are unsure.
+* The undone change is saved to the data file straight away, like any other change.
+* If there is nothing left to undo, the following error is shown: `Error: There is nothing to undo.`
+* An undo can be reversed with [`redo`](#redoing-an-undone-change-redo).
+
+<box type="warning" seamless>
+
+**Caution:** Undo and redo history are not kept after you close Sieve. Once you reopen it, earlier changes cannot be undone or redone.
+</box>
+
+Examples:
+* `delete 2` followed by `undo` brings back the client you just deleted.
+* `clear` followed by `undo` brings back all your clients.
+* `delete 1`, then `find Jason`, then `undo` brings back the deleted client and shows the full list again.
+
+### Redoing an undone change: `redo`
+
+Reapplies the last change you reverted with `undo`.
+
+Format: `redo`
+
+* Undone changes can be redone one at a time, starting from the most recently undone. To redo several changes, run `redo` once for each; `redo 3` shows an error.
+* Once you make a new change after an `undo`, such as `add` or `delete`, the undone changes can no longer be redone.
+* Commands that do not change anything, such as `list`, `find` and `help`, are skipped and do not affect what can be redone.
+* After a redo, the full client list is shown.
+* As with `undo`, the result (`Redid the last undone change.`) does not say which change was redone.
+* The redone change is saved to the data file straight away, like any other change.
+* If there is nothing to redo, the following error is shown: `Error: There is nothing to redo.`
+
+Examples:
+* `delete 2`, then `undo`, then `redo` deletes the same client again.
+* `delete 1`, then `undo`, then `delete 3`, then `redo` shows an error, because `delete 3` is a new change made after the `undo`.
+
+### Recalling previous commands: Up and Down keys
+
+Brings back commands you entered earlier, so you can run them again or fix a typo without retyping the whole command.
+
+* Press **Up** in the command box to show your previous command. Press it again to go further back. It stops at your oldest command.
+* Press **Down** to go forward again. Going past your newest command brings back what you were typing before you pressed Up, or an empty command box if you were not typing anything.
+* Every command you enter is remembered, including commands that failed and repeats of the same command.
+* A recalled command only runs when you press Enter, so you can edit it first. The cursor is placed at the end of the command.
+* Pressing Down while typing a new command keeps what you typed.
+* Up and Down only recall commands when pressed on their own. With Shift, Ctrl, Alt or Cmd held, they work as usual in a text box; for example, Shift+Up selects text.
+* Your command history is cleared when you close Sieve.
+
+Examples:
+* `edit 1 p/9111 222` fails because the phone number has only 7 digits. The command stays in the command box, so add the missing digit and press Enter. You do not need Up for this.
+* You are halfway through typing `add n/Amirah Tan p/91234567` and want to check your last command. Press Up to see it, then press Down to get back what you were typing.
+* After `find Amirah`, `delete 1` and `list`, press Up three times to bring back `find Amirah`.
+
+### Scrolling a long result or the client list: Page Up and Page Down keys
+
+When the result of a command is too long to show in full, such as after deleting many clients, it gets a scroll bar. The client list does too when it has more clients than fit in the window.
+
+* Press **Page Down** in the command box to see the next lines of the result, and **Page Up** to go back.
+* Press **Shift+Page Down** in the command box to see the next clients in the list, and **Shift+Page Up** to go back. This does not select a client.
+* On a Mac laptop, which has no Page Up or Page Down keys, hold **Fn** and press **Up** or **Down** instead. For example, press **Fn+Down** for Page Down, and **Fn+Shift+Down** for Shift+Page Down.
+* Whatever you have typed in the command box is kept, so you can keep typing.
+* You can also scroll the result and the client list with the mouse.
 
 ### Exiting the program: `exit`
 
@@ -154,45 +423,74 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+Sieve automatically saves data after every command that changes data. You do not need to save manually.
+
+If the data file is read-only (for example, Read-only is ticked in its Properties on Windows), Sieve rejects every command that would change data, such as `add`, `delete` or `undo`, with a message saying so, and changes nothing. `list`, `find`, `filter` and `help` still work. Make the file writable again to carry on.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+Sieve data is saved automatically as a JSON file `data/sieve.json`, inside the folder you launch Sieve from. This is not always the folder that contains the JAR file, so we recommend running `cd` to the JAR file's folder before you launch Sieve, to keep your data in one place.
+<box type="warning" seamless>
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
+**Caution:**
+If your changes make the data file invalid, Sieve opens in read-only mode: it shows an empty list and a warning popup that says what is wrong with the file. Sieve then rejects every command that would change data, so your file stays exactly as it is and you can fix it. Still, we recommend backing up the file before editing it.<br>
+Files saved as "UTF-8 with BOM", which some Windows editors do, are also accepted.<br>
+Edit the data file only if you are confident that you can update it correctly.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Copy the JAR file to a folder on the other computer (this becomes Sieve's home folder), create a folder named `data` inside it, and copy `data/sieve.json` from your previous Sieve home folder into that `data` folder. Then launch Sieve from the home folder, as in the [Quick start](#quick-start). Do not wait for Sieve to create the file first: it only creates `data/sieve.json` when you first change something.
+
+**Q**: How do I remove the sample clients and start with my own?<br>
+**A**: Run [`clear`](#clearing-all-clients-clear), which deletes every client, then add your own with [`add`](#adding-a-client-add). If you clear by mistake, run `undo` straight away to bring the clients back.
+
+**Q**: Can I undo a change after closing and reopening Sieve?<br>
+**A**: No. Sieve only keeps the undo history while it is open, so check your changes before you exit. See [`undo`](#undoing-a-change-undo).
+
+**Q**: Can I import many clients at once?<br>
+**A**: No, importing is not supported. Add clients one at a time with `add`, or add them to `data/sieve.json` directly if you are comfortable editing the file.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+Action     | Format, Examples
+-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Add**    | `add n/NAME p/PHONE e/EMAIL a/ADDRESS [fee/FEE] [due/DUE_DATE] [t/TAG]... [nt/NOTE]` <br> e.g., `add n/Immanuel Lim p/98765432 e/immanuel.lim@gmail.com a/Blk 456 Bishan St 21 #11-22 t/Chemistry t/JC1`
+**Clear**  | `clear`
+**Delete** | `delete INDEX [, INDEX]...`<br> e.g., `delete 3`, `delete 1, 3, 5`
+**Edit**   | `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [fee/FEE] [due/DUE_DATE] [t/TAG]... [nt/NOTE]`<br> e.g., `edit 1 p/81112222 e/amirah.tan01@gmail.com`, `edit 2 nt/Exam in March`
+**Exit**   | `exit`
+**Filter** | `filter [p/PHONE]... [t/TAG]...`<br> e.g., `filter t/physics t/sec4`, `filter p/91234567`
+**Find**   | `find KEYWORD [MORE_KEYWORDS]...`<br> e.g., `find Amirah`, `find Amirah O'Brien`
+**Help**   | `help`
+**List**   | `list`
+**Redo**   | `redo`
+**Tag**    | `tag INDEX t/TAG [t/MORE_TAGS]...`<br> e.g., `tag 1 t/physics t/sec4`
+**Undo**   | `undo`
+**Untag**  | `untag INDEX t/TAG [t/MORE_TAGS]...`<br> e.g., `untag 1 t/Math`
+
+--------------------------------------------------------------------------------------------------------------------
+
+## Keyboard shortcuts
+
+These keys all work with the cursor in the command box.
+
+Action | Key | On a Mac laptop
+-------|-----|----------------
+**Run the command** | **Enter** | **Return**
+**Recall an earlier or later command** | **Up** or **Down** | **Up** or **Down**
+**Scroll the result** | **Page Up** or **Page Down** | **Fn+Up** or **Fn+Down**
+**Scroll the client list** | **Shift+Page Up** or **Shift+Page Down** | **Fn+Shift+Up** or **Fn+Shift+Down**
+**Open the help window** | **F1** | **F1**, or **Fn+F1** if F1 changes the screen brightness
+**Close the client's details panel** | **Esc** | **Esc**

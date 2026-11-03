@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,80 @@ public class NameContainsKeywordsPredicateTest {
     }
 
     @Test
+    public void test_keywordMatchesNamePart_returnsTrue() {
+        Person liam = new PersonBuilder().withName("Liam O'Brien").build();
+        Person nurAisyah = new PersonBuilder().withName("Nur-Aisyah Tan").build();
+
+        // whole word with punctuation
+        assertTrue(new NameContainsKeywordsPredicate(List.of("O'Brien")).test(liam));
+
+        // part of a word after an apostrophe
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Brien")).test(liam));
+
+        // punctuation left out of the keyword
+        assertTrue(new NameContainsKeywordsPredicate(List.of("obrien")).test(liam));
+
+        // parts of a hyphenated word
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Nur")).test(nurAisyah));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Aisyah")).test(nurAisyah));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("NurAisyah")).test(nurAisyah));
+
+        // punctuation in the keyword but not in the name
+        assertTrue(new NameContainsKeywordsPredicate(List.of("O'Brien"))
+                .test(new PersonBuilder().withName("Liam OBrien").build()));
+
+        // full stop
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Jr"))
+                .test(new PersonBuilder().withName("David Ray Jr.").build()));
+
+        // parentheses
+        Person johnTan = new PersonBuilder().withName("John Tan (NHHS)").build();
+        assertTrue(new NameContainsKeywordsPredicate(List.of("NHHS")).test(johnTan));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("(NHHS)")).test(johnTan));
+    }
+
+    @Test
+    public void test_keywordIsPrefixOfNamePart_returnsTrue() {
+        Person liam = new PersonBuilder().withName("Liam O'Brien").build();
+        Person nurAisyah = new PersonBuilder().withName("Nur-Aisyah Tan").build();
+
+        // start of a word
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Li")).test(liam));
+
+        // start of a part after an apostrophe
+        assertTrue(new NameContainsKeywordsPredicate(List.of("Bri")).test(liam));
+
+        // start of a word with punctuation removed
+        assertTrue(new NameContainsKeywordsPredicate(List.of("obr")).test(liam));
+        assertTrue(new NameContainsKeywordsPredicate(List.of("O'Br")).test(liam));
+
+        // start of a part after a hyphen
+        assertTrue(new NameContainsKeywordsPredicate(List.of("ais")).test(nurAisyah));
+
+        // single letter
+        assertTrue(new NameContainsKeywordsPredicate(List.of("t")).test(nurAisyah));
+    }
+
+    @Test
+    public void test_keywordDoesNotMatchNamePart_returnsFalse() {
+        Person liam = new PersonBuilder().withName("Liam O'Brien").build();
+
+        // middle or end of a name part
+        assertFalse(new NameContainsKeywordsPredicate(List.of("rien")).test(liam));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("iam")).test(liam));
+
+        // keyword longer than the name part
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Liams")).test(liam));
+
+        // punctuation-only keyword
+        assertFalse(new NameContainsKeywordsPredicate(List.of("'")).test(liam));
+
+        // keyword spanning two words
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Aisyah-Tan"))
+                .test(new PersonBuilder().withName("Nur-Aisyah Tan").build()));
+    }
+
+    @Test
     public void test_nameDoesNotContainKeywords_returnsFalse() {
         // Zero keywords
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of());
@@ -67,9 +142,25 @@ public class NameContainsKeywordsPredicateTest {
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
         // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
-        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
+        predicate = new NameContainsKeywordsPredicate(List.of("91234567", "alice@email.com", "Main", "Street"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("91234567")
                 .withEmail("alice@email.com").withAddress("Main Street").build()));
+    }
+
+    @Test
+    public void hashCode_equalKeywords_sameHashCode() {
+        assertEquals(new NameContainsKeywordsPredicate(List.of("Alice", "Bob")).hashCode(),
+                new NameContainsKeywordsPredicate(List.of("Alice", "Bob")).hashCode());
+    }
+
+    @Test
+    public void constructor_keywordsChangedAfterCreation_predicateUnchanged() {
+        List<String> keywords = new ArrayList<>(List.of("Alice"));
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(keywords);
+        keywords.set(0, "Bob");
+
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Pauline").build()));
+        assertFalse(predicate.test(new PersonBuilder().withName("Bob Choo").build()));
     }
 
     @Test

@@ -6,16 +6,24 @@ skinparam ClassBackgroundColor #FFFFAA
 
 title After command "undo"
 
-package States <<rectangle>> {
-    class State1 as "<u>ab0:AddressBook</u>"
-    class State2 as "<u>ab1:AddressBook</u>"
-    class State3 as "<u>ab2:AddressBook</u>"
+package "undoHistory" <<rectangle>> {
+    class U1 as "<u>ab0:AddressBook</u>"
 }
 
-State1 -[hidden]right-> State2
-State2 -[hidden]right-> State3
+package "current" <<rectangle>> {
+    class Current as "<u>ab1:AddressBook</u>"
+}
 
-class Pointer as "Current State" #FFFFFF
+package "redoHistory" <<rectangle>> {
+    class R1 as "<u>ab2:AddressBook</u>"
+}
 
-Pointer -up-> State2
-@end
+U1 -[hidden]right-> Current
+Current -[hidden]right-> R1
+
+class UndoTop as "Top of undoHistory" #FFFFFF
+UndoTop -up-> U1
+
+class RedoTop as "Top of redoHistory" #FFFFFF
+RedoTop -up-> R1
+@enduml

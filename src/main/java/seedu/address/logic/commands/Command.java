@@ -17,4 +17,12 @@ public abstract class Command {
      */
     public abstract CommandResult execute(Model model) throws CommandException;
 
+    /**
+     * Returns true if this command changes client data, so it is blocked when the data file is corrupted
+     * (read-only mode). Commands that change data must override this to return true.
+     */
+    public boolean isMutating() {
+        return false;
+    }
+
 }

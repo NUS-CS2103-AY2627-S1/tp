@@ -1,6 +1,7 @@
 package seedu.address.ui;
 
 import java.util.Comparator;
+import java.util.Set;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -8,6 +9,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 
 /**
  * A UI component that displays information of a {@code Person}.
@@ -39,21 +41,67 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label email;
     @FXML
+    private HBox billing;
+    @FXML
+    private Label fee;
+    @FXML
+    private Label dueDate;
+    @FXML
+    private Label note;
+    @FXML
     private FlowPane tags;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
      */
     public PersonCard(Person person, int displayedIndex) {
+        this(person, displayedIndex, false);
+    }
+
+    /**
+     * Creates a {@code PersonCard}, optionally showing only the summary fields.
+     */
+    public PersonCard(Person person, int displayedIndex, boolean isCompact) {
         super(FXML);
         this.person = person;
-        id.setText(displayedIndex + ". ");
+        id.setText(String.valueOf(displayedIndex));
         name.setText(person.getName().fullName);
         phone.setText(person.getPhone().value);
         address.setText(person.getAddress().value);
         email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        fee.setText("Fee: " + person.getFee().value);
+        dueDate.setText("Due: " + person.getDueDate().value);
+        note.setText(person.getNote().value);
+        addTagLabels(tags, person.getTags());
+
+        // Empty optional details take up no space on the card, e.g. a client without tags gets no empty row
+        boolean hasFee = !person.getFee().isEmpty();
+        boolean hasDueDate = !person.getDueDate().isEmpty();
+        setShown(fee, hasFee);
+        setShown(dueDate, hasDueDate);
+        setShown(email, !isCompact);
+        setShown(address, !isCompact);
+        setShown(billing, !isCompact && (hasFee || hasDueDate));
+        setShown(note, !isCompact && !person.getNote().isEmpty());
+        setShown(tags, !person.getTags().isEmpty());
+    }
+
+    /**
+     * Adds a pill for each tag in {@code personTags} to {@code tagContainer}.
+     */
+    static void addTagLabels(FlowPane tagContainer, Set<Tag> personTags) {
+        // Tags are case-insensitive, so they are sorted that way too (Math, physics, Sec4)
+        personTags.stream()
+                .sorted(Comparator.comparing(tag -> tag.tagName, String.CASE_INSENSITIVE_ORDER))
+                .forEach(tag -> tagContainer.getChildren().add(createTagLabel(tag.tagName)));
+    }
+
+    /**
+     * Returns a pill-shaped label for the tag called {@code tagName}, colored by {@link TagColor}.
+     */
+    private static Label createTagLabel(String tagName) {
+        Label tagLabel = new Label(tagName);
+        tagLabel.getStyleClass().add(TagColor.getStyleClass(tagName));
+        return tagLabel;
     }
 }

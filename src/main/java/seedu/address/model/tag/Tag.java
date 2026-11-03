@@ -3,14 +3,21 @@ package seedu.address.model.tag;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
+import seedu.address.commons.util.StringUtil;
+
 /**
  * Represents a Tag in the address book.
  * Guarantees: immutable; name is valid as declared in {@link #isValidTagName(String)}
  */
 public class Tag {
 
-    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric";
-    public static final String VALIDATION_REGEX = "\\p{Alnum}+";
+    public static final int MAX_LENGTH = 20;
+    public static final String MESSAGE_CONSTRAINTS =
+            "Invalid Tag! Tags must be 1-20 characters long and contain only letters, numbers, and spaces.";
+    public static final String VALIDATION_REGEX =
+            "[\\p{Alnum}](?:[\\p{Alnum} ]{0," + (MAX_LENGTH - 2) + "}[\\p{Alnum}])?";
 
     public final String tagName;
 
@@ -21,8 +28,19 @@ public class Tag {
      */
     public Tag(String tagName) {
         requireNonNull(tagName);
-        checkArgument(isValidTagName(tagName), MESSAGE_CONSTRAINTS);
-        this.tagName = tagName;
+        String normalizedTagName = normalizeTagName(tagName);
+        checkArgument(isValidTagName(normalizedTagName), MESSAGE_CONSTRAINTS);
+        this.tagName = normalizedTagName;
+    }
+
+    /**
+     * Returns {@code tagName} trimmed, with consecutive whitespaces collapsed into a single space,
+     * so that tags such as "Sec 4" and "Sec  4" are the same. The result may still be an invalid tag name.
+     *
+     * @param tagName A tag name as typed by the user or read from the data file.
+     */
+    public static String normalizeTagName(String tagName) {
+        return StringUtil.normalizeWhitespace(tagName);
     }
 
     /**
@@ -43,12 +61,12 @@ public class Tag {
             return false;
         }
 
-        return tagName.equals(otherTag.tagName);
+        return tagName.equalsIgnoreCase(otherTag.tagName);
     }
 
     @Override
     public int hashCode() {
-        return tagName.hashCode();
+        return tagName.toLowerCase(Locale.ROOT).hashCode();
     }
 
     /**

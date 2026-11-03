@@ -2,27 +2,49 @@ package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.function.Predicate;
+import java.util.logging.Logger;
+
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.model.Model;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 
 /**
- * Finds and lists all persons in the address book whose name contains any of the argument keywords.
- * Keyword matching is case insensitive.
+ * Finds and lists all persons in the address book whose name matches any of the given keywords.
+ * Name keywords match the start of a name part, and are not case-sensitive.
  */
 public class FindCommand extends Command {
 
     public static final String COMMAND_WORD = "find";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all persons whose names contain any of "
-            + "the specified keywords (case-insensitive) and displays them as a list with index numbers.\n"
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Finds all clients with a name part that starts with "
+            + "any of the specified keywords (case-insensitive, ignoring punctuation) "
+            + "and displays them as a list with index numbers.\n"
             + "Parameters: KEYWORD [MORE_KEYWORDS]...\n"
-            + "Example: " + COMMAND_WORD + " alice bob charlie";
+            + "Example: " + COMMAND_WORD + " immanuel krishna";
 
-    private final NameContainsKeywordsPredicate predicate;
+    public static final String MESSAGE_INVALID_KEYWORDS =
+            "Search keywords can only contain letters, digits, hyphens, apostrophes, full stops "
+                    + "and parentheses, and must include at least one letter or digit.";
 
-    public FindCommand(NameContainsKeywordsPredicate predicate) {
+    public static final String MESSAGE_PREFIX_IN_KEYWORDS = "find only searches names, so keywords do not need "
+            + "a prefix such as n/, e.g. find Amy. To search by phone or tag, use filter, e.g. filter t/Math.";
+
+    public static final String MESSAGE_NO_CLIENTS_FOUND = Messages.getPersonsListedOverviewMessage(0)
+            + " Keywords must match the start of a name part (e.g. Bri, not rien). "
+            + "Check the spelling, or use list to see all clients.";
+
+    private static final Logger logger = LogsCenter.getLogger(FindCommand.class);
+
+    private final Predicate<Person> predicate;
+
+    /**
+     * Creates a {@code FindCommand} that shows the persons matching {@code predicate}.
+     */
+    public FindCommand(Predicate<Person> predicate) {
+        requireNonNull(predicate);
         this.predicate = predicate;
     }
 
@@ -30,8 +52,15 @@ public class FindCommand extends Command {
     public CommandResult execute(Model model) {
         requireNonNull(model);
         model.updateFilteredPersonList(predicate);
-        return new CommandResult(
-                String.format(Messages.MESSAGE_PERSONS_LISTED_OVERVIEW, model.getFilteredPersonList().size()));
+        int matchCount = model.getFilteredPersonList().size();
+        logger.fine("Find matched " + matchCount + " client(s) for " + predicate);
+        if (matchCount == 0) {
+            // With no clients at all, the tips to check the spelling or use list cannot help
+            boolean isAddressBookEmpty = model.getAddressBook().getPersonList().isEmpty();
+            return CommandResult.forEmptySearch(isAddressBookEmpty
+                    ? Messages.MESSAGE_NO_CLIENTS_TO_SEARCH : MESSAGE_NO_CLIENTS_FOUND);
+        }
+        return new CommandResult(Messages.getPersonsListedOverviewMessage(matchCount));
     }
 
     @Override

@@ -11,10 +11,10 @@ end box
 box Model MODEL_COLOR_T1
 participant ":Model" as Model MODEL_COLOR
 end box
-[-> LogicManager : execute(undo)
+[-> LogicManager : execute("undo")
 activate LogicManager
 
-LogicManager -> AddressBookParser : parseCommand(undo)
+LogicManager -> AddressBookParser : parseCommand("undo")
 activate AddressBookParser
 
 create UndoCommand
@@ -27,10 +27,22 @@ deactivate UndoCommand
 AddressBookParser --> LogicManager : u
 deactivate AddressBookParser
 
-LogicManager -> UndoCommand : execute()
+LogicManager -> UndoCommand : execute(m)
 activate UndoCommand
 
+UndoCommand -> Model : canUndoAddressBook()
+activate Model
+
+Model --> UndoCommand : true
+deactivate Model
+
 UndoCommand -> Model : undoAddressBook()
+activate Model
+
+Model --> UndoCommand
+deactivate Model
+
+UndoCommand -> Model : updateFilteredPersonList(...)
 activate Model
 
 Model --> UndoCommand
@@ -40,6 +52,14 @@ UndoCommand --> LogicManager : result
 deactivate UndoCommand
 UndoCommand -[hidden]-> LogicManager : result
 destroy UndoCommand
+
+LogicManager -> Model : commitAddressBook()
+activate Model
+
+note left of Model : Does nothing, as the client list\nalready matches the saved state
+
+Model --> LogicManager
+deactivate Model
 
 [<--LogicManager
 deactivate LogicManager

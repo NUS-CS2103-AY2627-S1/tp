@@ -1,5 +1,8 @@
 package seedu.address.model.tag;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +24,43 @@ public class TagTest {
     public void isValidTagName() {
         // null tag name
         assertThrows(NullPointerException.class, () -> Tag.isValidTagName(null));
+
+        // invalid tag names
+        assertFalse(Tag.isValidTagName(""));
+        assertFalse(Tag.isValidTagName(" "));
+        assertFalse(Tag.isValidTagName("physics!"));
+        assertFalse(Tag.isValidTagName("a".repeat(Tag.MAX_LENGTH + 1)));
+
+        // valid tag names
+        assertTrue(Tag.isValidTagName("physics"));
+        assertTrue(Tag.isValidTagName("Secondary 4"));
+        assertTrue(Tag.isValidTagName("a".repeat(Tag.MAX_LENGTH)));
+    }
+
+    @Test
+    public void normalizeTagName() {
+        assertThrows(NullPointerException.class, () -> Tag.normalizeTagName(null));
+        assertEquals("Sec 4", Tag.normalizeTagName("Sec  4"));
+        assertEquals("Sec 4", Tag.normalizeTagName("  Sec \t 4  "));
+        assertEquals("Math", Tag.normalizeTagName("Math"));
+    }
+
+    @Test
+    public void equals_tagsDifferOnlyInCase_returnsTrue() {
+        Tag lowercaseTag = new Tag("physics");
+        Tag uppercaseTag = new Tag("PHYSICS");
+
+        assertEquals(lowercaseTag, uppercaseTag);
+        assertEquals(lowercaseTag.hashCode(), uppercaseTag.hashCode());
+    }
+
+    @Test
+    public void constructor_repeatedWhitespace_normalizesTagName() {
+        Tag tag = new Tag("  Secondary  4  ");
+
+        assertEquals("Secondary 4", tag.tagName);
+        assertEquals(new Tag("Secondary 4"), tag);
+        assertEquals(new Tag("Secondary 4").hashCode(), tag.hashCode());
     }
 
 }

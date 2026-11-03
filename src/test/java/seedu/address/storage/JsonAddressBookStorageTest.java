@@ -2,6 +2,7 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,6 +10,7 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -16,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 
@@ -24,6 +28,27 @@ public class JsonAddressBookStorageTest {
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void toModelType_invalidPhone_messageNamesClient() throws Exception {
+        JsonSerializableAddressBook data = JsonUtil
+            .readJsonFile(
+            TEST_DATA_FOLDER.resolve("invalidPhonePersonAddressBook.json"),
+            JsonSerializableAddressBook.class).get();
+        IllegalValueException e = org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalValueException.class, data::toModelType);
+        assertTrue(e.getMessage().startsWith("Client 'Amirah Tan': "));
+    }
+
+    @Test
+    public void toModelType_blankName_messageUsesPosition() throws Exception {
+        JsonSerializableAddressBook data = JsonUtil.readJsonFile(
+            TEST_DATA_FOLDER.resolve("blankNamePersonAddressBook.json"),
+            JsonSerializableAddressBook.class).get();
+        IllegalValueException e = org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalValueException.class, data::toModelType);
+        assertTrue(e.getMessage().startsWith("Client '#2': "));
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -58,6 +83,15 @@ public class JsonAddressBookStorageTest {
     @Test
     public void readAddressBook_invalidAndValidPersonAddressBook_throwDataLoadingException() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
+    }
+
+    @Test
+    public void readAddressBook_nullPersonList_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("nullPersonList.json");
+        Files.writeString(filePath, "{\"persons\":null}");
+
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
     }
 
     @Test

@@ -9,12 +9,15 @@ import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
@@ -69,8 +72,50 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void findPersonWithSameName_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.findPersonWithSameName(null));
+    }
+
+    @Test
+    public void findPersonWithSameName_sameNameDifferentCase_returnsExistingPerson() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+        Person lowerCaseBenson = new PersonBuilder(BENSON).withName(BENSON.getName().fullName.toLowerCase()).build();
+        assertEquals(Optional.of(BENSON), modelManager.findPersonWithSameName(lowerCaseBenson));
+    }
+
+    @Test
+    public void findPersonWithSameName_noSamePerson_returnsEmpty() {
+        modelManager.addPerson(ALICE);
+        assertEquals(Optional.empty(), modelManager.findPersonWithSameName(BENSON));
+    }
+
+    @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void undoAddressBook_afterCommittedChange_restoresPreviousState() {
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook();
+        assertTrue(modelManager.canUndoAddressBook());
+
+        modelManager.undoAddressBook();
+        assertFalse(modelManager.hasPerson(ALICE));
+        assertFalse(modelManager.canUndoAddressBook());
+    }
+
+    @Test
+    public void redoAddressBook_afterUndo_restoresUndoneState() {
+        modelManager.addPerson(ALICE);
+        modelManager.commitAddressBook();
+        modelManager.undoAddressBook();
+        assertTrue(modelManager.canRedoAddressBook());
+
+        modelManager.redoAddressBook();
+        assertTrue(modelManager.hasPerson(ALICE));
+        assertFalse(modelManager.canRedoAddressBook());
     }
 
     @Test

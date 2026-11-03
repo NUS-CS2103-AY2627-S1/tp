@@ -12,16 +12,31 @@ import seedu.address.model.person.Person;
  */
 public interface Logic {
     /**
+     * Returns the reason the data file could not be loaded, or an empty string if it loaded fine.
+     */
+    default String getDataCorruptionReason() {
+        return "";
+    }
+
+    /**
      * Executes the command and returns the result.
+     *
      * @param commandText The command as entered by the user.
      * @return the result of the command execution.
      * @throws CommandException If an error occurs during command execution.
-     * @throws ParseException If an error occurs during parsing.
+     * @throws ParseException   If an error occurs during parsing.
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
+    /**
+     * Returns an unmodifiable view of the filtered list of persons
+     */
     ObservableList<Person> getFilteredPersonList();
+
+    /**
+     * Returns an unmodifiable view of every person, including those the filtered list hides.
+     */
+    ObservableList<Person> getAllPersonList();
 
     /**
      * Returns the user prefs' GUI settings.
@@ -32,4 +47,10 @@ public interface Logic {
      * Set the user prefs' GUI settings.
      */
     void setGuiSettings(GuiSettings guiSettings);
+
+    /**
+     * Returns true if the application is running in read-only mode due to storage corruption.
+     */
+    boolean isReadOnlyMode();
+
 }

@@ -6,6 +6,8 @@ import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,12 +20,19 @@ import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonMatchesSearchPredicate;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -40,9 +49,39 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_addWithBilling() throws Exception {
+        Person person = new PersonBuilder().withFee("250").withDueDate("01-11-2030").build();
+        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
+        assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_usageExamples_parseSuccessfully() throws Exception {
+        // the example in each usage message is shown to users, so it must be a valid command
+        String examplePrefix = "Example: ";
+        for (String usage : List.of(
+                AddCommand.MESSAGE_USAGE,
+                EditCommand.MESSAGE_USAGE,
+                DeleteCommand.MESSAGE_USAGE,
+                FilterCommand.MESSAGE_USAGE,
+                FindCommand.MESSAGE_USAGE)) {
+            String example = usage.substring(
+                    usage.indexOf(examplePrefix) + examplePrefix.length());
+            parser.parseCommand(example);
+        }
+    }
+
+    @Test
     public void parseCommand_clear() throws Exception {
         assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertTrue(parser.parseCommand("  " + ClearCommand.COMMAND_WORD + "  ") instanceof ClearCommand);
+    }
+
+    @Test
+    public void parseCommand_clearWithParameters_throwsParseException() {
+        // clear 3 must not delete every client when client 3 was meant
+        assertThrows(ParseException.class, ClearCommand.MESSAGE_NO_PARAMETERS, ()
+            -> parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
     }
 
     @Test
@@ -50,6 +89,23 @@ public class AddressBookParserTest {
         DeleteCommand command = (DeleteCommand) parser.parseCommand(
                 DeleteCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
         assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_bulkDelete() throws Exception {
+        DeleteCommand command =
+                (DeleteCommand) parser.parseCommand(
+                        DeleteCommand.COMMAND_WORD + " "
+                                + INDEX_FIRST_PERSON.getOneBased() + ", "
+                                + INDEX_SECOND_PERSON.getOneBased() + ", "
+                                + INDEX_THIRD_PERSON.getOneBased());
+
+        DeleteCommand expectedCommand = new DeleteCommand(
+                INDEX_FIRST_PERSON,
+                INDEX_SECOND_PERSON,
+                INDEX_THIRD_PERSON);
+
+        assertEquals(expectedCommand, command);
     }
 
     @Test
@@ -76,6 +132,15 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_filter() throws Exception {
+        List<Tag> tags = List.of(new Tag("Physics"), new Tag("Secondary 4"));
+        FilterCommand command = (FilterCommand) parser.parseCommand(
+                FilterCommand.COMMAND_WORD + " t/Physics t/Secondary 4");
+
+        assertEquals(new FilterCommand(new PersonMatchesSearchPredicate(List.of(), tags)), command);
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
@@ -88,6 +153,45 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_tag() throws Exception {
+        TagCommand command = (TagCommand) parser.parseCommand(
+                TagCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " t/physics");
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, List.of(new Tag("physics"))), command);
+    }
+
+    @Test
+    public void parseCommand_untag() throws Exception {
+        UntagCommand command = (UntagCommand) parser.parseCommand(
+                UntagCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " t/physics");
+        assertEquals(new UntagCommand(INDEX_FIRST_PERSON, List.of(new Tag("physics"))), command);
+    }
+
+    @Test
+    public void parseCommand_undo() throws Exception {
+        assertTrue(parser.parseCommand(UndoCommand.COMMAND_WORD) instanceof UndoCommand);
+    }
+
+    @Test
+    public void parseCommand_undoWithParameters_throwsParseException() {
+        // undo 3 must not silently undo only one change
+        assertThrows(ParseException.class, UndoCommand.MESSAGE_NO_PARAMETERS, ()
+            -> parser.parseCommand(UndoCommand.COMMAND_WORD + " 3"));
+        assertThrows(ParseException.class, UndoCommand.MESSAGE_NO_PARAMETERS, ()
+            -> parser.parseCommand(UndoCommand.COMMAND_WORD + " all"));
+    }
+
+    @Test
+    public void parseCommand_redo() throws Exception {
+        assertTrue(parser.parseCommand(RedoCommand.COMMAND_WORD) instanceof RedoCommand);
+    }
+
+    @Test
+    public void parseCommand_redoWithParameters_throwsParseException() {
+        assertThrows(ParseException.class, RedoCommand.MESSAGE_NO_PARAMETERS, ()
+            -> parser.parseCommand(RedoCommand.COMMAND_WORD + " 3"));
+    }
+
+    @Test
     public void parseCommand_unrecognisedInput_throwsParseException() {
         assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
             -> parser.parseCommand(""));
@@ -96,5 +200,10 @@ public class AddressBookParserTest {
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+    }
+
+    @Test
+    public void parseCommand_upperCaseCommandWord_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("LIST"));
     }
 }

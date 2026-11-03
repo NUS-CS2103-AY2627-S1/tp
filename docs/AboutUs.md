@@ -1,59 +1,55 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 ## Project team
 
-### John Doe
 
-<img src="images/johndoe.png" width="200px">
+### Ng Xu Xian
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/ngxuxian.png" width="200px">
 
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/NgXuXian)]
 
 * Role: Developer
-* Responsibilities: Data
+* Responsibilities: Read-only mode, storage, fee and due date
 
-### Jean Doe
+### Xu Haocheng
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/haocheeks.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Haocheeks)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Undo and redo, command history, UI, input validation, releases
+
+### Feng Yi
+<img src="images/jigusheng.png" width="200px">
+
+[[github](https://github.com/Jigusheng)]
+
+* Role: Developer
+* Responsibilities: Filter, tag, untag
+
+### Jovan Lim
+
+<img src="images/matcha1atte1.png" width="200px">
+
+[[github](http://github.com/Matcha1atte1)]
+
+* Role: Developer
+* Responsibilities: Find, notes
+
+### Jonathan Neo
+
+<img src="images/neo-jonathann.png" width="200px">
+
+[[github](http://github.com/neo-jonathann)]
+
+* Role: Developer
+* Responsibilities: Delete, help, dark theme, client detail panel

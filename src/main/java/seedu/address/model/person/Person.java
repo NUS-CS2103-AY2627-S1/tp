@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.tag.Tag;
@@ -23,17 +24,24 @@ public class Person {
 
     // Data fields
     private final Address address;
+    private final Note note;
+    private final Fee fee;
+    private final DueDate dueDate;
     private final Set<Tag> tags = new HashSet<>();
 
     /**
      * Every field must be present and not null.
      */
-    public Person(Name name, Phone phone, Email email, Address address, Set<Tag> tags) {
-        requireAllNonNull(name, phone, email, address, tags);
+    public Person(Name name, Phone phone, Email email, Address address, Note note, Fee fee, DueDate dueDate,
+                  Set<Tag> tags) {
+        requireAllNonNull(name, phone, email, address, note, fee, dueDate, tags);
         this.name = name;
         this.phone = phone;
         this.email = email;
         this.address = address;
+        this.note = note;
+        this.fee = fee;
+        this.dueDate = dueDate;
         this.tags.addAll(tags);
     }
 
@@ -53,6 +61,18 @@ public class Person {
         return address;
     }
 
+    public Note getNote() {
+        return note;
+    }
+
+    public Fee getFee() {
+        return fee;
+    }
+
+    public DueDate getDueDate() {
+        return dueDate;
+    }
+
     /**
      * Returns an immutable tag set, which throws {@code UnsupportedOperationException}
      * if modification is attempted.
@@ -62,21 +82,36 @@ public class Person {
     }
 
     /**
-     * Returns true if both persons have the same name.
-     * This defines a weaker notion of equality between two persons.
+     * Returns true if both persons have the same name, ignoring case.
+     * Sieve does not allow two clients with the same name, so this is the weaker notion of
+     * equality used to detect duplicates.
      */
-    public boolean isSamePerson(Person otherPerson) {
+    public boolean hasSameName(Person otherPerson) {
         if (otherPerson == this) {
             return true;
         }
 
         return otherPerson != null
-                && otherPerson.getName().equals(getName());
+            && otherPerson
+            .getName()
+            .isSameName(getName());
+    }
+
+    /**
+     * Returns true if both persons have the same phone number.
+     */
+    public boolean hasSamePhone(Person otherPerson) {
+        return otherPerson != null
+            && otherPerson
+            .getPhone()
+            .equals(getPhone());
     }
 
     /**
      * Returns true if both persons have the same identity and data fields.
      * This defines a stronger notion of equality between two persons.
+     * Tag names are compared exactly, so a change from {@code Math} to {@code MATH} makes the persons different,
+     * even though {@link Tag#equals(Object)} treats the two tags as duplicates.
      */
     @Override
     public boolean equals(Object other) {
@@ -90,27 +125,39 @@ public class Person {
         }
 
         return name.equals(otherPerson.name)
-                && phone.equals(otherPerson.phone)
-                && email.equals(otherPerson.email)
-                && address.equals(otherPerson.address)
-                && tags.equals(otherPerson.tags);
+            && phone.equals(otherPerson.phone)
+            && email.equals(otherPerson.email)
+            && address.equals(otherPerson.address)
+            && note.equals(otherPerson.note)
+            && fee.equals(otherPerson.fee)
+            && dueDate.equals(otherPerson.dueDate)
+            && getTagNames().equals(otherPerson.getTagNames());
+    }
+
+    private Set<String> getTagNames() {
+        return tags.stream()
+                .map(tag -> tag.tagName)
+                .collect(Collectors.toSet());
     }
 
     @Override
     public int hashCode() {
         // use this method for custom fields hashing instead of implementing your own
-        return Objects.hash(name, phone, email, address, tags);
+        return Objects.hash(name, phone, email, address, note, fee, dueDate, tags);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("name", name)
-                .add("phone", phone)
-                .add("email", email)
-                .add("address", address)
-                .add("tags", tags)
-                .toString();
+            .add("name", name)
+            .add("phone", phone)
+            .add("email", email)
+            .add("address", address)
+            .add("note", note)
+            .add("fee", fee)
+            .add("dueDate", dueDate)
+            .add("tags", tags)
+            .toString();
     }
 
 }

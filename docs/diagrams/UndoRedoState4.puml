@@ -4,18 +4,25 @@ skinparam ClassFontColor #000000
 skinparam ClassBorderColor #000000
 skinparam ClassBackgroundColor #FFFFAA
 
-title After command "list"
+title After command "redo"
 
-package States <<rectangle>> {
-    class State1 as "<u>ab0:AddressBook</u>"
-    class State2 as "<u>ab1:AddressBook</u>"
-    class State3 as "<u>ab2:AddressBook</u>"
+package "undoHistory" <<rectangle>> {
+    class U1 as "<u>ab0:AddressBook</u>"
+    class U2 as "<u>ab1:AddressBook</u>"
 }
 
-State1 -[hidden]right-> State2
-State2 -[hidden]right-> State3
+package "current" <<rectangle>> {
+    class Current as "<u>ab2:AddressBook</u>"
+}
 
-class Pointer as "Current State" #FFFFFF
+package "redoHistory" <<rectangle>> {
+    class R0 as "(empty)" #FFFFFF
+}
 
-Pointer -up-> State2
-@end
+U1 -[hidden]right-> U2
+U2 -[hidden]right-> Current
+Current -[hidden]right-> R0
+
+class UndoTop as "Top of undoHistory" #FFFFFF
+UndoTop -up-> U2
+@enduml
