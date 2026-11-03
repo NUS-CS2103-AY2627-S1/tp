@@ -1,0 +1,30 @@
+@startuml
+skinparam ActivityFontSize 15
+skinparam ArrowFontSize 12
+start
+:User enters add command;
+
+while () is ([more /tag values])
+    :Collapse extra whitespace;
+    if () then ([invalid value])
+        :Show the matching error;
+        stop
+    else ([else])
+    endif
+    :Create Tag in title case;
+    if () then ([repeated tag])
+        :Show the repeated tag error;
+        stop
+    else ([else])
+    endif
+endwhile ([else])
+
+if () then ([more than 5 tags])
+    :Show the tag limit error;
+    stop
+else ([else])
+    :Add contact with the tags
+    in the order typed;
+endif
+stop
+@enduml

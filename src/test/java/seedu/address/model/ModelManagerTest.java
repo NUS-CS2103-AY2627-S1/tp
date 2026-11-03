@@ -7,18 +7,42 @@ import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.DANIEL;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.NameEqualsPredicate;
+import seedu.address.model.person.Person;
 import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class ModelManagerTest {
 
+    /** Orders persons by the length of their full name, shortest first. */
+    private static final Comparator<Person> NAME_LENGTH_ORDER =
+            Comparator.comparingInt(person -> person.getName().fullName.length());
+    /** Persons in the order they are added to the address book, which NAME_LENGTH_ORDER changes. */
+    private static final List<Person> ORIGINAL_ORDER = List.of(ALICE, BENSON, CARL, DANIEL);
+    /** Treats all persons as equal, as a ranking does for persons who match equally well. */
+    private static final Comparator<Person> ALL_TIED = (first, second) -> 0;
+
     private ModelManager modelManager = new ModelManager();
+
+    @Test
+    public void equals_differentDisplayOrder_returnsFalse() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        ModelManager copy = new ModelManager(modelManager.getAddressBook(), new UserPrefs());
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS,
+                Comparator.comparing(person -> person.getName().fullName));
+        assertFalse(modelManager.equals(copy));
+        assertEquals(modelManager.getAddressBook(), copy.getAddressBook());
+    }
 
     @Test
     public void constructor() {
@@ -74,6 +98,65 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void updateFilteredPersonList_nullArguments_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateFilteredPersonList(null));
+        assertThrows(NullPointerException.class, () ->
+                modelManager.updateFilteredPersonList(null, NAME_LENGTH_ORDER));
+        assertThrows(NullPointerException.class, () ->
+                modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, null));
+    }
+
+    @Test
+    public void updateFilteredPersonList_withComparator_sortsKeepingTiesInOrder() {
+        modelManager = getModelOf(ORIGINAL_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, NAME_LENGTH_ORDER);
+
+        // Benson Meier and Daniel Meier have names of the same length
+        assertEquals(List.of(CARL, BENSON, DANIEL, ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_tiedPersons_keepsOriginalOrder() {
+        modelManager = getModelOf(ORIGINAL_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, ALL_TIED);
+        Person editedAlice = new PersonBuilder(ALICE).withRoom("C-101").build();
+
+        modelManager.setPerson(ALICE, editedAlice);
+
+        assertEquals(List.of(editedAlice, BENSON, CARL, DANIEL), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void setPerson_tiedPersonAmongDifferentRanks_keepsDisplayOrder() {
+        modelManager = getModelOf(ORIGINAL_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, NAME_LENGTH_ORDER);
+        Person editedBenson = new PersonBuilder(BENSON).withRoom("C-101").build();
+
+        modelManager.setPerson(BENSON, editedBenson);
+
+        assertEquals(List.of(CARL, editedBenson, DANIEL, ALICE), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_tiesAfterAnotherOrder_restoresOriginalOrder() {
+        modelManager = getModelOf(ORIGINAL_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, NAME_LENGTH_ORDER);
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, ALL_TIED);
+
+        assertEquals(ORIGINAL_ORDER, modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_withoutComparator_restoresOriginalOrder() {
+        modelManager = getModelOf(ORIGINAL_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, NAME_LENGTH_ORDER);
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+
+        assertEquals(ORIGINAL_ORDER, modelManager.getFilteredPersonList());
+    }
+
+    @Test
     public void equals() {
         AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
@@ -97,8 +180,11 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(new NameEqualsPredicate(ALICE.getName().fullName));
+        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
+
+        // same persons in a different order -> returns false
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, NAME_LENGTH_ORDER);
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
@@ -108,5 +194,14 @@ public class ModelManagerTest {
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
         assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+    }
+
+    /**
+     * Returns a model whose address book holds {@code persons}, in order, with default user prefs.
+     */
+    private static ModelManager getModelOf(List<Person> persons) {
+        AddressBookBuilder builder = new AddressBookBuilder();
+        persons.forEach(builder::withPerson);
+        return new ModelManager(builder.build(), new UserPrefs());
     }
 }

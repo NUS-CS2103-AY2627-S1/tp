@@ -1,14 +1,8 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Person;
@@ -21,22 +15,14 @@ public class AddCommand extends Command {
     public static final String COMMAND_WORD = "add";
 
     public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
-            + "Parameters: "
-            + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
-            + "Example: " + COMMAND_WORD + " "
-            + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
-            + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + "Parameters: NAME /phone PHONE [/room ROOM] [/tag TAG]... [/note NOTE]\n"
+            + "Example: " + COMMAND_WORD + " Sarah Tan /phone 9123 4567 /room B-204 /tag Resident /tag Floor 3";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "Contact %1$s added successfully.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "Contact already exists.";
+
+    public static final String MESSAGE_ARCHIVED_DUPLICATE =
+            "Contact already exists in the archive. Use list archived and unarchive INDEX to restore it.";
 
     private final Person toAdd;
 
@@ -53,11 +39,16 @@ public class AddCommand extends Command {
         requireNonNull(model);
 
         if (model.hasPerson(toAdd)) {
+            boolean archivedDuplicate = model.getAddressBook().getPersonList().stream()
+                    .anyMatch(person -> person.isArchived() && person.isSamePerson(toAdd));
+            if (archivedDuplicate) {
+                throw new CommandException(MESSAGE_ARCHIVED_DUPLICATE);
+            }
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
         model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        return new CommandResult(String.format(MESSAGE_SUCCESS, toAdd.getName()));
     }
 
     @Override

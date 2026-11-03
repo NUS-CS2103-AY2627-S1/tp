@@ -9,51 +9,48 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Tan Hougen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/itscoldhere22.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://www.linkedin.com/in/hougen-tan-b36232275/)]
+[[github](https://github.com/Itscoldhere22)]
 
-* Role: Project Advisor
+* Role: Non-contributing stakeholder
+* Responsibilities: A connoisseur of communal goodwill
 
-### Jane Doe
+### Disha
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/d1sha1.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/d1sha1)]
 
-* Role: Team Lead
+* Role: Developer
 * Responsibilities: UI
 
-### Johnny Doe
+### Kelven
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kelvenn11.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/KelvenN11)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Matthew Allan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/metalpower26.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/MetalPower26)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Data + Testing
 
-### James Doe
+### Guo Jie
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/topinmys.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/topinmys)]
 
 * Role: Developer
 * Responsibilities: UI

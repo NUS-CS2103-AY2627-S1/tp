@@ -18,7 +18,13 @@ Class Address
 Class Email
 Class Name
 Class Phone
+Class Room
+Class Note
 Class Tag
+Class EmergencyContact {
+  relation: String
+}
+show EmergencyContact fields
 
 Class I #FFFFFF
 }
@@ -36,12 +42,17 @@ ModelManager -right-> "1" UserPrefs
 UserPrefs .up.|> ReadOnlyUserPrefs
 
 AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
+UniquePersonList --> "*" Person : all
 Person *--> Name
 Person *--> Phone
 Person *--> Email
 Person *--> Address
+Person *--> Room
+Person *--> Note
 Person *--> "*" Tag
+Person --> "0..1" EmergencyContact : emergencyContact
+EmergencyContact --> "1" Name
+EmergencyContact --> "1" Phone
 
 Person -[hidden]up--> I
 UniquePersonList -[hidden]right-> I
@@ -49,6 +60,8 @@ UniquePersonList -[hidden]right-> I
 Name -[hidden]right-> Phone
 Phone -[hidden]right-> Address
 Address -[hidden]right-> Email
+Email -[hidden]right-> Room
+Room -[hidden]right-> Note
 
-ModelManager --> "~* filtered" Person
+ModelManager --> "*" Person : filtered
 @enduml

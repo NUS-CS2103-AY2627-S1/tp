@@ -1,5 +1,6 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -9,6 +10,30 @@ import java.io.FileNotFoundException;
 import org.junit.jupiter.api.Test;
 
 public class StringUtilTest {
+
+    @Test
+    public void isBlank_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.isBlank(null));
+    }
+
+    @Test
+    public void isBlank_whitespaceOnly_returnsTrue() {
+        assertTrue(StringUtil.isBlank(""));
+        assertTrue(StringUtil.isBlank(" \t\r\n"));
+        assertTrue(StringUtil.isBlank("\u2003"));
+        assertTrue(StringUtil.isBlank("\u00A0"));
+        assertTrue(StringUtil.isBlank("\u2007"));
+        assertTrue(StringUtil.isBlank("\u202F"));
+        assertTrue(StringUtil.isBlank(" \t\u00A0\u2007\u202F\u2003 "));
+    }
+
+    @Test
+    public void isBlank_nonWhitespace_returnsFalse() {
+        assertFalse(StringUtil.isBlank("list"));
+        assertFalse(StringUtil.isBlank("\u00A0find /tag Resident\u202F"));
+        assertFalse(StringUtil.isBlank("\u200B"));
+        assertFalse(StringUtil.isBlank("\uD83D\uDE00"));
+    }
 
     //---------------- Tests for isNonZeroUnsignedInteger --------------------------------------
 
@@ -138,6 +163,73 @@ public class StringUtilTest {
     @Test
     public void getDetails_nullGiven_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> StringUtil.getDetails(null));
+    }
+
+    //---------------- Tests for collapseWhitespace --------------------------------------
+
+    @Test
+    public void collapseWhitespace_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.collapseWhitespace(null));
+    }
+
+    @Test
+    public void collapseWhitespace() {
+        assertEquals("", StringUtil.collapseWhitespace("")); // empty string
+        assertEquals("", StringUtil.collapseWhitespace(" \t\n ")); // whitespace only
+        assertEquals("RA", StringUtil.collapseWhitespace("RA")); // nothing to collapse
+        assertEquals("Resident Fellow", StringUtil.collapseWhitespace("  Resident \t  Fellow \n"));
+
+        // Unicode spaces: non-breaking, narrow non-breaking, ideographic, line separator
+        assertEquals("Alex Yeoh", StringUtil.collapseWhitespace("Alex Yeoh"));
+        assertEquals("Alex Yeoh", StringUtil.collapseWhitespace(" Alex  　Yeoh "));
+        assertEquals("", StringUtil.collapseWhitespace("  ")); // Unicode spaces only
+    }
+
+    //---------------- Tests for typoDistance --------------------------------------
+
+    @Test
+    public void typoDistance_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.typoDistance(null, "abc"));
+        assertThrows(NullPointerException.class, () -> StringUtil.typoDistance("abc", null));
+    }
+
+    @Test
+    public void typoDistance() {
+        // EP: empty strings
+        assertEquals(0, StringUtil.typoDistance("", ""));
+        assertEquals(3, StringUtil.typoDistance("", "abc"));
+        assertEquals(3, StringUtil.typoDistance("abc", ""));
+
+        // EP: identical strings
+        assertEquals(0, StringUtil.typoDistance("alex", "alex"));
+
+        // EP: one edit of each kind
+        assertEquals(1, StringUtil.typoDistance("alx", "alex")); // insertion
+        assertEquals(1, StringUtil.typoDistance("alexx", "alex")); // deletion
+        assertEquals(1, StringUtil.typoDistance("alax", "alex")); // substitution
+        assertEquals(1, StringUtil.typoDistance("yoeh", "yeoh")); // swap in the middle
+
+        // EP: swaps at the boundaries
+        assertEquals(1, StringUtil.typoDistance("ab", "ba")); // whole string
+        assertEquals(1, StringUtil.typoDistance("aelx", "alex")); // near the start
+        assertEquals(1, StringUtil.typoDistance("alxe", "alex")); // at the end
+        assertEquals(2, StringUtil.typoDistance("yoeh alxe", "yeoh alex")); // two separate swaps
+
+        // EP: swapped characters cannot be edited again
+        assertEquals(3, StringUtil.typoDistance("ca", "abc"));
+
+        // EP: several edits, symmetric
+        assertEquals(3, StringUtil.typoDistance("kitten", "sitting"));
+        assertEquals(3, StringUtil.typoDistance("sitting", "kitten"));
+
+        // EP: completely different strings
+        assertEquals(4, StringUtil.typoDistance("abcd", "wxyz"));
+
+        // EP: case differences count as edits
+        assertEquals(1, StringUtil.typoDistance("Alex", "alex"));
+
+        // EP: special characters
+        assertEquals(1, StringUtil.typoDistance("o'brien", "obrien"));
     }
 
 }

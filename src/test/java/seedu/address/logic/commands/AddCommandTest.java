@@ -8,6 +8,7 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
@@ -38,7 +38,8 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS,
+                validPerson.getName()),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
@@ -141,6 +142,11 @@ public class AddCommandTest {
         public void updateFilteredPersonList(Predicate<Person> predicate) {
             throw new AssertionError("This method should not be called.");
         }
+
+        @Override
+        public void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
     }
 
     /**
@@ -158,6 +164,13 @@ public class AddCommandTest {
         public boolean hasPerson(Person person) {
             requireNonNull(person);
             return this.person.isSamePerson(person);
+        }
+
+        @Override
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook book = new AddressBook();
+            book.addPerson(person);
+            return book;
         }
     }
 
@@ -181,7 +194,9 @@ public class AddCommandTest {
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+            AddressBook book = new AddressBook();
+            personsAdded.forEach(book::addPerson);
+            return book;
         }
     }
 

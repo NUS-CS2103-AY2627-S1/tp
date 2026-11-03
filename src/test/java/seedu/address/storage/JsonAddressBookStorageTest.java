@@ -2,6 +2,8 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_GREEK_UPPER_CASE;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_LENGTHENED_TO_MAX_LENGTH;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,21 +11,57 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void saveAndReload_mixedArchiveStates_preservesAllContacts() throws Exception {
+        AddressBook original = new AddressBook();
+        original.addPerson(ALICE.withArchive(true));
+        original.addPerson(HOON);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("archive.json"));
+        storage.saveAddressBook(original);
+        assertEquals(original, new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void saveAndReload_tagsChangedByTitleCase_preservesTags() throws Exception {
+        Person person = new PersonBuilder(ALICE)
+                .withTags(VALID_TAG_LENGTHENED_TO_MAX_LENGTH, VALID_TAG_GREEK_UPPER_CASE).build();
+        AddressBook original = new AddressBook();
+        original.addPerson(person);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("unicodeTags.json"));
+
+        storage.saveAddressBook(original);
+        ReadOnlyAddressBook loaded = storage.readAddressBook().orElseThrow();
+
+        assertEquals(original, new AddressBook(loaded));
+        assertEquals(List.copyOf(person.getTags()), List.copyOf(loaded.getPersonList().getFirst().getTags()));
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -48,6 +86,37 @@ public class JsonAddressBookStorageTest {
     @Test
     public void read_notJsonFormat_exceptionThrown() {
         assertThrows(DataLoadingException.class, () -> readAddressBook("notJsonFormatAddressBook.json"));
+    }
+
+    @Test
+    public void read_nullRootPersonsListOrEntry_throwsDataLoadingException() throws Exception {
+        Path filePath = testFolder.resolve("nullContacts.json");
+        for (String json : List.of("null", "{\"persons\":null}", "{}", "{\"persons\":[null]}")) {
+            Files.writeString(filePath, json);
+            assertThrows(DataLoadingException.class, () -> new JsonAddressBookStorage(filePath).readAddressBook());
+            assertEquals(json, Files.readString(filePath));
+        }
+    }
+
+    @Test
+    public void read_emptyPersonsList_returnsEmptyAddressBook() throws Exception {
+        Path filePath = testFolder.resolve("emptyContacts.json");
+        Files.writeString(filePath, "{\"persons\":[]}");
+        assertEquals(new AddressBook(), new JsonAddressBookStorage(filePath).readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void read_nullTag_throwsDataLoadingException() throws Exception {
+        Path filePath = testFolder.resolve("nullTag.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(getTypicalAddressBook());
+        JsonNode json = JsonUtil.fromJsonString(Files.readString(filePath), JsonNode.class);
+        ArrayNode tags = (ArrayNode) json.get("persons").get(0).get("tags");
+        tags.addNull();
+        Files.writeString(filePath, json.toString());
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertEquals(json.toString(), Files.readString(filePath));
     }
 
     @Test
@@ -87,6 +156,62 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAndSave_favouriteContacts_preservesDetailsAndStatusChanges() throws Exception {
+        Person favourite = new PersonBuilder(ALICE).withFavourite(true).withRoom("B-204")
+                .withNote("Call after 6 pm").withTags("Resident", "Floor 3").build();
+        Person ordinary = new PersonBuilder(HOON).withNote("Prefers WhatsApp").build();
+        AddressBook original = new AddressBook();
+        original.addPerson(favourite);
+        original.addPerson(ordinary);
+        Path path = testFolder.resolve("favourites.json");
+
+        new JsonAddressBookStorage(path).saveAddressBook(original);
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(path).readAddressBook().orElseThrow();
+
+        assertEquals(original, new AddressBook(loaded));
+        assertEquals(List.copyOf(favourite.getTags()), List.copyOf(loaded.getPersonList().getFirst().getTags()));
+
+        AddressBook changed = new AddressBook(loaded);
+        Person restored = loaded.getPersonList().getFirst();
+        changed.setPerson(restored, restored.withFavourite(false));
+        new JsonAddressBookStorage(path).saveAddressBook(changed);
+
+        Model restarted = new ModelManager(new JsonAddressBookStorage(path).readAddressBook().orElseThrow(),
+                new UserPrefs());
+        assertEquals(List.of(favourite.withFavourite(false), ordinary), restarted.getFilteredPersonList());
+        assertFalse(restarted.getFilteredPersonList().getFirst().isFavourite());
+    }
+
+    @Test
+    public void readAndSave_missingFavouriteStatus_defaultsToFalseAndPreservesDetails() throws Exception {
+        Path path = testFolder.resolve("legacyContacts.json");
+        Files.writeString(path, """
+                {
+                  "persons": [{
+                    "name": "Legacy Contact",
+                    "phone": "91234567",
+                    "email": "legacy@example.com",
+                    "address": "123 Legacy Road",
+                    "room": "B-204",
+                    "note": "Call after 6 pm",
+                    "tags": ["Resident", "Floor 3"]
+                  }]
+                }
+                """);
+        Person expected = new PersonBuilder().withName("Legacy Contact").withPhone("91234567")
+                .withEmail("legacy@example.com").withAddress("123 Legacy Road").withRoom("B-204")
+                .withNote("Call after 6 pm").withTags("Resident", "Floor 3").build();
+
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(path).readAddressBook().orElseThrow();
+        assertEquals(List.of(expected), loaded.getPersonList());
+        assertFalse(loaded.getPersonList().getFirst().isFavourite());
+
+        new JsonAddressBookStorage(path).saveAddressBook(loaded);
+        ReadOnlyAddressBook reloaded = new JsonAddressBookStorage(path).readAddressBook().orElseThrow();
+        assertEquals(loaded, reloaded);
+    }
+
+    @Test
     public void saveAddressBook_nullAddressBook_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> saveAddressBook(null, "SomeFile.json"));
     }
@@ -107,4 +232,20 @@ public class JsonAddressBookStorageTest {
     public void saveAddressBook_nullFilePath_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> saveAddressBook(new AddressBook(), null));
     }
+    @Test
+    public void readAndSave_sameNameContactsWithRoomAndTags_success() throws Exception {
+        seedu.address.logic.parser.AddCommandParser parser = new seedu.address.logic.parser.AddCommandParser();
+        seedu.address.model.Model model = new seedu.address.model.ModelManager();
+        parser.parse("Sarah Tan /phone 91234567 /room B-204 /tag Resident").execute(model);
+        parser.parse("Daniel Lim /phone 81234567").execute(model);
+        Path filePath = testFolder.resolve("contactsWithRooms.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+        storage.saveAddressBook(model.getAddressBook());
+        ReadOnlyAddressBook loaded = storage.readAddressBook().orElseThrow();
+        assertEquals(model.getAddressBook(), new AddressBook(loaded));
+        assertEquals("B-204", loaded.getPersonList().getFirst().getRoom().value);
+        assertEquals(2, loaded.getPersonList().size());
+        assertEquals("", loaded.getPersonList().get(1).getRoom().value);
+    }
+
 }

@@ -1,9 +1,12 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.JANE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,14 +15,20 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.EmergencyContact;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
+import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Room;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "+65#1234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
@@ -33,9 +42,43 @@ public class JsonAdaptedPersonTest {
             .collect(Collectors.toList());
 
     @Test
+    public void jsonRoundTrip_preservesArchiveState() throws Exception {
+        for (boolean archive : new boolean[] {false, true}) {
+            Person original = new PersonBuilder(BENSON).withNote("Call after six").build()
+                    .withEmergencyContact(new EmergencyContact(new Name("Jane Tan"),
+                            new Phone("91234567"), "Sister")).withArchive(archive);
+            String json = JsonUtil.toJsonString(new JsonAdaptedPerson(original));
+            assertTrue(json.contains("\"archive\" : " + archive));
+            assertEquals(original, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+        }
+    }
+
+    @Test
+    public void fromJson_missingArchive_defaultsToFalse() throws Exception {
+        String legacyJson = "{\"name\":\"Benson\",\"phone\":\"91234567\","
+                + "\"email\":\"benson@example.com\",\"address\":\"Block 1\",\"tags\":[]}";
+        Person person = JsonUtil.fromJsonString(legacyJson, JsonAdaptedPerson.class).toModelType();
+        assertFalse(person.isArchived());
+    }
+
+    @Test
     public void toModelType_validPersonDetails_returnsPerson() throws Exception {
         JsonAdaptedPerson person = new JsonAdaptedPerson(BENSON);
         assertEquals(BENSON, person.toModelType());
+    }
+
+    @Test
+    public void toModelType_favouritePerson_preservesAllDetails() throws Exception {
+        Person favourite = new PersonBuilder(BENSON).withFavourite(true).withRoom("B-204")
+                .withNote("Allergic to peanuts").build();
+
+        assertEquals(favourite, new JsonAdaptedPerson(favourite).toModelType());
+    }
+
+    @Test
+    public void toModelType_nameWithSymbols_returnsPerson() throws Exception {
+        Person person = new PersonBuilder(BENSON).withName("Kumar s/o Rajan").build();
+        assertEquals(person, new JsonAdaptedPerson(person).toModelType());
     }
 
     @Test
@@ -44,6 +87,20 @@ public class JsonAdaptedPersonTest {
                 new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
         String expectedMessage = Name.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nameTooLong_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson("A".repeat(Name.MAX_LENGTH + 1), VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_TAGS);
+        assertThrows(IllegalValueException.class, Name.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nameWithExtraSpaces_collapsesSpaces() throws Exception {
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson("Sarah   Tan", VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        assertEquals(new Name("Sarah Tan"), person.toModelType().getName());
     }
 
     @Test
@@ -59,6 +116,13 @@ public class JsonAdaptedPersonTest {
                 new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
         String expectedMessage = Phone.MESSAGE_CONSTRAINTS;
         assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_legacyPhoneWithoutDigits_remainsReadable() throws Exception {
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, "---", VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+        assertEquals("---", person.toModelType().getPhone().value);
     }
 
     @Test
@@ -107,4 +171,69 @@ public class JsonAdaptedPersonTest {
         assertThrows(IllegalValueException.class, person::toModelType);
     }
 
+    @Test
+    public void toModelType_atTagLimit_returnsPerson() throws Exception {
+        assertEquals(JANE, new JsonAdaptedPerson(JANE).toModelType());
+    }
+
+    @Test
+    public void toModelType_overTagLimit_throwsIllegalValueException() {
+        List<JsonAdaptedTag> tagsOverLimit = JANE.getTags().stream()
+                .map(JsonAdaptedTag::new)
+                .collect(Collectors.toCollection(ArrayList::new));
+        tagsOverLimit.add(new JsonAdaptedTag("Staff"));
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, tagsOverLimit);
+        assertThrows(IllegalValueException.class, Person.MESSAGE_TAG_LIMIT_REACHED, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_duplicateTagsDifferingInCase_mergedIntoOne() throws Exception {
+        List<JsonAdaptedTag> duplicateTags = List.of(new JsonAdaptedTag("RA"), new JsonAdaptedTag("ra"));
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, duplicateTags);
+        assertEquals(1, person.toModelType().getTags().size());
+    }
+
+    @Test
+    public void toModelType_invalidRoom_throwsIllegalValueException() {
+        JsonAdaptedPerson person = withRoomAndNote("B_204", null);
+        assertThrows(IllegalValueException.class, Room.MESSAGE_INVALID_CHARACTERS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_personWithNote_returnsPerson() throws Exception {
+        Person bensonWithNote = new PersonBuilder(BENSON).withNote("Allergic to peanuts").build();
+        assertEquals(bensonWithNote, new JsonAdaptedPerson(bensonWithNote).toModelType());
+    }
+
+    @Test
+    public void toModelType_missingNote_returnsPersonWithoutNote() throws Exception {
+        assertEquals(new Note(""), withRoomAndNote(null, null).toModelType().getNote());
+    }
+
+    @Test
+    public void toModelType_noteWithExtraWhitespace_returnsCollapsedNote() throws Exception {
+        assertEquals(new Note("Prefers WhatsApp"), withRoomAndNote(null, "  Prefers   WhatsApp ").toModelType()
+                .getNote());
+    }
+
+    @Test
+    public void toModelType_invalidNote_throwsIllegalValueException() {
+        String noteTooLong = "a".repeat(Note.MAX_LENGTH + 1);
+        assertThrows(IllegalValueException.class, Note.MESSAGE_CONSTRAINTS,
+                withRoomAndNote(null, noteTooLong)::toModelType);
+        assertThrows(IllegalValueException.class, Note.MESSAGE_CONSTRAINTS,
+                withRoomAndNote(null, "see /docs")::toModelType);
+    }
+
+    @Test
+    public void toModelType_noteWithSlashInsideWord_returnsPerson() throws Exception {
+        String link = "See https://nus.edu.sg 24/7";
+        assertEquals(new Note(link), withRoomAndNote(null, link).toModelType().getNote());
+    }
+
+    private static JsonAdaptedPerson withRoomAndNote(String room, String note) {
+        return new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS, room, note);
+    }
 }

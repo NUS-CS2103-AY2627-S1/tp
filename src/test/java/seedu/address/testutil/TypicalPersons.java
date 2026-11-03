@@ -30,7 +30,7 @@ public class TypicalPersons {
     public static final Person BENSON = new PersonBuilder().withName("Benson Meier")
             .withAddress("311, Clementi Ave 2, #02-25")
             .withEmail("johnd@example.com").withPhone("98765432")
-            .withTags("owesMoney", "friends").build();
+            .withTags("owesMoney", "friends").withNote("Prefers WhatsApp over calls").build();
     public static final Person CARL = new PersonBuilder().withName("Carl Kurz").withPhone("95352563")
             .withEmail("heinz@example.com").withAddress("wall street").build();
     public static final Person DANIEL = new PersonBuilder().withName("Daniel Meier").withPhone("87652533")
@@ -47,6 +47,9 @@ public class TypicalPersons {
             .withEmail("stefan@example.com").withAddress("little india").build();
     public static final Person IDA = new PersonBuilder().withName("Ida Mueller").withPhone("8482131")
             .withEmail("hans@example.com").withAddress("chicago ave").build();
+    public static final Person JANE = new PersonBuilder().withName("Jane Tan").withPhone("8482999")
+            .withEmail("jane@example.com").withAddress("block 4")
+            .withTags("RA", "Resident", "Block4", "Resident Fellow", "Hall-Staff").build(); // at the tag limit
 
     // Manually added - Person's details found in {@code CommandTestUtil}
     public static final Person AMY = new PersonBuilder().withName(VALID_NAME_AMY).withPhone(VALID_PHONE_AMY)

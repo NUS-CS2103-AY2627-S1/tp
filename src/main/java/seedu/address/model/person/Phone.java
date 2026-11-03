@@ -9,10 +9,15 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Phone {
 
-
-    public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+    public static final int MAX_LENGTH = 20;
+    public static final String MESSAGE_EMPTY = "Phone number cannot be empty.";
+    public static final String MESSAGE_TOO_LONG = "Phone number too long, please shorten it and try again.";
+    public static final String MESSAGE_INVALID_CHARACTERS =
+            "Phone numbers should only contain digits, spaces, '+', '-' or parentheses.";
+    public static final String MESSAGE_NO_DIGITS = "Phone number must contain at least one digit.";
+    public static final String MESSAGE_CONSTRAINTS = "Phone number must be " + MAX_LENGTH
+            + " characters or fewer and contain only digits, spaces, '+', '-', or parentheses";
+    public static final String VALIDATION_REGEX = "[0-9+()\\- ]{1," + MAX_LENGTH + "}";
     public final String value;
 
     /**
@@ -23,14 +28,14 @@ public class Phone {
     public Phone(String phone) {
         requireNonNull(phone);
         checkArgument(isValidPhone(phone), MESSAGE_CONSTRAINTS);
-        value = phone;
+        value = phone.trim().replaceAll("\\s+", " ");
     }
 
     /**
      * Returns true if a given string is a valid phone number.
      */
     public static boolean isValidPhone(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test != null && test.trim().matches(VALIDATION_REGEX);
     }
 
     @Override

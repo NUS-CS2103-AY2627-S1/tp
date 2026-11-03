@@ -9,7 +9,24 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* RAcontact is adapted from [AddressBook-Level3 (AB3)](https://github.com/se-edu/addressbook-level3),
+  created by the [SE-EDU initiative](https://se-education.org). We reused and extended its application structure,
+  contact-management code and test utilities, and adapted its [User Guide](https://se-education.org/addressbook-level3/UserGuide.html),
+  [Developer Guide](https://se-education.org/addressbook-level3/DeveloperGuide.html) and UML diagrams for RAcontact.
+* The typo tolerance of `find /name` uses the well-known
+  [optimal string alignment distance](https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance#Optimal_string_alignment_distance),
+  a variant of the [Levenshtein distance](https://en.wikipedia.org/wiki/Levenshtein_distance) that also counts
+  swapping two adjacent letters as one typo. Our implementation in `StringUtil` is written from the algorithm's
+  description.
+* AI use: Disha ([@d1sha1](https://github.com/d1sha1)) used [Claude Code](https://www.anthropic.com/claude-code),
+  an AI coding assistant, to help write and review code, tests and documentation for their contributions,
+  such as fuzzy name search, the note field, tag and name validation, and UI fixes.
+* AI use: Guo Jie ([@topinmys](https://github.com/topinmys)) used OpenAI Codex to assist with implementation,
+  debugging, testing and documentation for contact listing, emergency-tag listing, favourite contacts and command recall.
+  It also supported preliminary pull request reviews and refinement of the User Guide, Developer Guide and UML diagrams.
+* Libraries used: [JavaFX](https://openjfx.io/) for the user interface,
+  [Jackson](https://github.com/FasterXML/jackson) for JSON storage, and
+  [JUnit 5](https://github.com/junit-team/junit5) for automated tests.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -119,7 +136,6 @@ How the parsing works:
 
 <img src="images/ModelClassDiagram.png" width="450" />
 
-
 The `Model` component,
 
 * stores the address book data i.e., all `Person` objects (which are contained in a `UniquePersonList` object).
@@ -132,7 +148,6 @@ The `Model` component,
 <img src="images/BetterModelClassDiagram.png" width="450" />
 
 </div>
-
 
 ### Storage component
 
@@ -155,94 +170,566 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Archive contacts
 
-#### Proposed Implementation
+#### Implementation
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+`ArchiveCommandParser` and `UnarchiveCommandParser` accept either a displayed index or one non-empty
+`/tag` selector. They reject repeated tag prefixes, a preamble before a tag selector, and unknown prefixes.
+`AddressBookParser` routes `list` through `ListCommandParser`, which creates `ListArchivedCommand`
+for `list archived`.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+`Person` stores an immutable `archive` boolean. Both active and archived contacts remain in the same
+address book. `withArchive(true)` or `withArchive(false)` creates a copy preserving the other details,
+and `Model#setPerson` replaces the original. New contacts start active.
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
+<img src="images/ArchiveStateDiagram.png" alt="Active and archived contact states" width="650" />
 
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
+For index-based commands, the target is resolved from `getFilteredPersonList()` before replacement.
+An out-of-range index throws `CommandException`; a contact already in the requested state produces a
+no-change result. The current filter is preserved, so a replaced contact disappears from a view it no
+longer matches. The following sequence shows successful archiving after parsing.
 
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
+<img src="images/ArchiveSequenceDiagram.png" alt="Archiving by displayed index" width="900" />
 
-![UndoRedoState0](images/UndoRedoState0.png)
+Tag-based commands use `PersonHasTagPredicate` to search the whole address book, ignoring case and
+extra whitespace in tag names. Archive selects active matches; unarchive selects archived matches.
+Targets and replacements are collected before updating the model. An empty selection returns a
+no-matches result; otherwise the result reports the number changed.
 
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
+<img src="images/ArchiveByTagActivityDiagram.png" alt="Bulk archive by tag" width="650" />
 
-![UndoRedoState1](images/UndoRedoState1.png)
+`ModelManager` initially shows active contacts. `ListArchivedCommand` sets the predicate to
+`Person::isArchived`, while `list` restores the active-contact predicate. Listing changes visibility,
+not the stored archive state. After a command returns, `LogicManager` saves the address book through
+`Storage`. `JsonAdaptedPerson` serializes and restores the `archive` field; a missing field defaults to
+`false` for older files. Save failures are reported as `CommandException` without rolling back the
+in-memory change.
 
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
+#### Design considerations
 
-![UndoRedoState2](images/UndoRedoState2.png)
+* **Flag in the existing model rather than a separate archive:** retains contact details and uses the
+  existing storage pipeline, but commands must explicitly select active or archived contacts.
+* **Copy and replace rather than mutate a contact:** preserves the immutable archive state and lets the
+  observable list update its filtered view.
+* **Snapshot bulk targets before replacement:** avoids iterating over a view that changes as contacts
+  are archived, at the cost of temporary lists proportional to the number of matches.
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
+### Delete by name
 
-</div>
+#### Implementation
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
+`DeleteCommandParser` retains signed integer input as an index attempt, so invalid indices are rejected
+rather than interpreted as names. As with every index, `ParserUtil#parseIndex()` treats a positive integer too
+large for an `int` as the largest index, so `delete 2147483648` reports an invalid index rather than an invalid
+format. Other input must contain a single non-empty `/name`
+selector without preamble text. The parser constructs `DeleteCommand` with `NameEqualsPredicate`, which
+compares the supplied name with the stored full name exactly and case-sensitively; it does not collapse
+internal whitespace.
 
-![UndoRedoState3](images/UndoRedoState3.png)
+<img src="images/DeleteByNameActivityDiagram.png" alt="Delete by name match-count decisions" width="650" />
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
+The command first replaces the displayed filter with the active-contact predicate combined with the name
+predicate. With exactly one match, it delegates to the index-based `DeleteCommand` at displayed index 1,
+which resolves the `Person` and calls `Model#deletePerson`. With zero or multiple matches, it returns an
+explanatory result without deleting contacts. The filtered view remains in place in all three cases.
+After the command returns, `LogicManager` saves the address book through the existing storage pipeline.
 
-</div>
+#### Design considerations
 
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
+* **Delete only an unambiguous exact match:** avoids deleting a similarly named person through fuzzy
+  matching or deleting several people at once, but requires the user to enter the full name and casing.
+* **Filter before delegating to index deletion:** reuses target resolution and deletion logic and exposes
+  ambiguous matches for a subsequent `delete INDEX`. The trade-off is that an unsuccessful name deletion
+  also changes the displayed list.
+* **Restrict name matching to active contacts:** excludes archived contacts from ordinary name deletion.
+  Index deletion remains available for a contact explicitly displayed in the archive view.
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
+### Name validation
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
+`Name.VALIDATION_REGEX` accepts letters and digits in any language, using `\p{L}` and `\p{N}` rather than `\p{Alnum}`, which in Java only matches ASCII, so an RA can save a resident's real name. `\p{M}` allows accent marks, and `'`, `-`, `.` and `/` allow names such as `O'Brien`, `Mary-Jane`, `Tan Jr.` and `Kumar s/o Rajan`. Each word must start with a letter or digit, so no word of a name starts with `/`, which `ArgumentTokenizer` and `ParserUtil#hasUnknownPrefix()` treat as a field. `add`, `edit`, `emergency` and the data file all use this rule.
 
-</div>
+`Name` also collapses extra whitespace and checks `Name.MAX_LENGTH` itself, as `Tag` and `Room` do. `JsonAdaptedPerson` and `JsonAdaptedEmergencyContact` both build a `Name`, so a name in an edited data file follows the same rules as a typed one, and the existing duplicate check catches `Sarah Tan` and `Sarah  Tan`.
 
-Similarly, how an undo operation goes through the `Model` component is shown below:
+### Tag feature
 
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
+Tags are added to a contact when it is created, with `add NAME /phone PHONE [/room ROOM] [/tag TAG]... [/note NOTE]`.
 
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
+#### Implementation
 
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
+`AddCommandParser` uses `ArgumentTokenizer` with the `/phone`, `/room`, `/tag` and `/note` keywords, so they can be given in any order. The text before the first keyword is the name. `/phone` must be given exactly once, and `/room` and `/note` at most once; a word starting with `/` that is not one of these keywords is rejected. `/tag` is optional and may be repeated, once per tag.
 
-</div>
+For each `/tag` value, `ParserUtil#parseTag()` collapses extra whitespace and reports the first problem it finds, in this order: empty, longer than `Tag.MAX_LENGTH`, invalid characters, longer than `Tag.MAX_LENGTH` in title case. So `/tag` with no value is reported as an empty tag, and `/tag RA, Staff` as invalid characters. The diagram below groups these as an invalid value. `ParserUtil#parseTags()` then creates the `Tag` and collects the tags into a `LinkedHashSet`, rejects a tag already given (`Repeated tag: TAG. Each tag can only be given once.`), and then rejects more than `Person.MAX_TAGS` tags.
 
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
+The activity diagram below shows the order in which these checks run for an `add` command.
 
-![UndoRedoState4](images/UndoRedoState4.png)
+<img src="images/TagValidationActivityDiagram.png" alt="Order of the tag checks in the add command" width="400" />
 
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
+`Tag.VALIDATION_REGEX` uses `\p{L}`, `\p{M}` and `\p{N}` rather than `\p{Alnum}`, which in Java only matches ASCII, so letters and digits in any language are accepted. `\p{M}` allows accent marks, for letters typed as a base letter followed by a combining mark.
 
-![UndoRedoState5](images/UndoRedoState5.png)
+`Tag` compares tag names ignoring case and stores them in title case: the first letter of each word in upper case and the rest in lower case. As `JsonAdaptedTag` also builds a `Tag`, tags in an edited data file are normalized the same way when loaded.
 
-The following activity diagram summarizes what happens when a user executes a new command:
+Three Unicode details keep the stored form consistent with loading and comparing:
 
-<img src="images/CommitActivityDiagram.png" width="250" />
+* `Tag#toComparisonKey()` normalizes names to NFC, because `é` can be typed as one character or as `e` and a combining mark. Otherwise they would look the same on the card but count as two tags, and `find /tag` would match only the form typed.
+* Each word is lowercased as a whole before its first letter is title-cased. Some letters lowercase differently depending on their neighbors: the Greek `Σ` becomes `ς` at the end of a word and `σ` elsewhere. Lowercasing letters one at a time would store `ΟΣ` as `Οσ`, while `Tag#toComparisonKey()` lowercases the whole name to `ος`, so `find /tag ΟΣ` would match nothing and `/tag ΟΣ /tag ος` would be two different tags.
+* `Tag#toComparisonKey()` lowercases, uppercases, then lowercases again, because title-casing can turn a letter into one that lowercases differently. The dotless `ı` is stored as `I`, which lowercases to `i`, and `ẞ` is stored as `ß`, which uppercases to `SS`. The round trip gives a typed name and its stored form the same key, so `find /tag ı` and `find /tag ẞ` find the tags they created.
+* `Tag#isValidTagName()` also checks the length of the title-case form, because a few letters, such as `İ`, become two characters in lower case. Otherwise a tag within the limit as typed could be saved longer than `Tag.MAX_LENGTH` and make the data file fail to load. `ParserUtil#parseTag()` reports such a tag as too long.
+ `Person` keeps its tags in a `LinkedHashSet`, so they appear on the contact card in the order they were typed. `Person` also checks `Person.MAX_TAGS` in its constructor, and `JsonAdaptedPerson` rejects a data file that breaks this limit.
 
-#### Design considerations:
+#### Design considerations
 
-**Aspect: How undo & redo execute:**
+**Aspect: how tags are given**
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+* **Alternative 1 (current choice):** as part of `add`, with one `/tag` keyword per tag.
+  * Pros: every command starts with a command word, and a new contact can be fully set up in one command.
+  * Cons: tags on an existing contact need a separate command, which is `toggle` (see [Toggle tags feature](#toggle-tags-feature)).
+* **Alternative 2:** a separate command, typed as `CONTACT_NAME /tag TAG`, with no command word.
+  * Pros: tags can be added to an existing contact.
+  * Cons: it is the only command without a command word, so `AddressBookParser` needs a special case to recognize it, and it adds only one tag per command.
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+**Aspect: how several tags are separated**
 
-_{more aspects and alternatives to be added}_
+* **Alternative 1 (current choice):** repeating the keyword, as in `/tag RA /tag Floor 3`.
+  * Pros: it matches how AB3 repeats `t/`, and each tag's value is exactly what follows its keyword, so there is no separator to get wrong.
+  * Cons: it takes more typing for each extra tag.
+* **Alternative 2:** commas, as in `/tag RA, Floor 3`.
+  * Pros: it is short to type, and commas cannot appear in a tag name.
+  * Cons: stray commas (`/tag RA,,Staff`, `/tag RA,`) create empty tags that need their own error handling.
 
-### \[Proposed\] Data archiving
+**Aspect: how the same tag typed in different cases is displayed**
 
-_{Explain here how the data archiving feature will be implemented}_
+* **Alternative 1 (current choice):** title case, as in `Ra` for `RA`, `ra` or `rA`.
+  * Pros: the same tag always looks the same on every contact card, so one category never looks like several when scanning the list.
+  * Cons: acronyms lose their capitals, so `RA` is displayed as `Ra`.
+* **Alternative 2:** reuse the spelling of the same tag already in the address book.
+  * Pros: acronyms such as `RA` keep their capitals.
+  * Cons: the display depends on which contact was tagged first, the case of a tag cannot be changed while another contact uses it, and `Model` must look up existing tags whenever a contact is added or edited.
 
+**Aspect: how a data file with more than 5 tags on a contact is handled**
+
+* **Alternative 1 (current choice):** treat the file as invalid, as for any other invalid field.
+  * Pros: it is consistent with the other fields, and every `Person` is guaranteed to have at most 5 tags.
+  * Cons: one bad edit makes the app start with an empty address book.
+* **Alternative 2:** load the extra tags and only enforce the limit when adding tags.
+  * Pros: no data is lost.
+  * Cons: the limit is no longer guaranteed, and contact cards can grow beyond 5 tags.
+
+### Edit feature
+
+`edit INDEX [/name NAME] [/phone PHONE] [/room ROOM] [/note NOTE]` replaces only the fields that are given. It does not change tags, which are changed with `toggle`.
+
+#### Implementation
+
+`add` and `edit` share one definition of each field, so they cannot disagree about it. A `PersonField` holds a field's prefix, how its value is parsed and validated, how it is read from a `Person`, and the value `add` uses when the field is left out. `PersonField.values()` lists every field accepted by `add`, and `PersonField.editableValues()` lists those accepted by `edit`, which is every field except tags.
+
+* `AddCommandParser` builds its prefixes, duplicate checks and parsing from `PersonField.values()`, and `EditCommandParser` from `PersonField.editableValues()`. As `/tag` is not one of its prefixes, `edit` rejects it as an unknown prefix with the usual invalid command format message. `add` reads the name from the text before the first prefix, and every other field with its prefix.
+* `PersonFieldValues` stores a value per editable field. `EditPersonDescriptor` wraps one to hold the edited fields, and `EditCommand` copies the contact's current values, overwrites them with the edited ones and builds the new `Person`. It explicitly reapplies the original favourite status, which is not an editable field.
+* Any optional field given with no value, such as `/room` or `/note`, is reset to the value `add` uses when it is left out, which removes it. Required fields given with no value are rejected.
+* The contact's tags are copied from its current values and never overwritten, since `EditPersonDescriptor` is built only from the editable fields.
+
+The following sequence diagram shows a successful `edit 1 /phone 91234567`, assuming the first displayed contact is active.
+
+<img src="images/EditSequenceDiagram.png" width="650" />
+
+1. `EditCommandParser` asks an empty `EditPersonDescriptor` to `setIfGiven()` each field in `PersonField.editableValues()`. The descriptor passes each field to its `PersonFieldValues#setIfGiven(field, args, true)`, which calls `PersonField#parseFrom(args, true)`. That returns an `Optional`, empty for a field that was not given, so only `/phone` is stored. The `true` allows an optional field given with no value, such as `/room`, to be cleared.
+2. `EditCommand` takes the contact at the index from `Model#getFilteredPersonList()`.
+3. `PersonFieldValues.of()` copies the contact's name, phone, room, note and tags, and `putAll()` overwrites only the phone.
+4. The email, address, emergency contact and favourite status are not fields, so `EditCommand` passes them from the original contact to `toPerson()`.
+5. `Model#setPerson()` replaces the contact. The current filter and sorting stay applied, so the edited contact may disappear from the list or move, for example when its new name no longer matches the `find` that is showing.
+
+The diagram omits error paths (invalid input, an out-of-range index, an archived contact and a duplicate contact), the `AddressBookParser` routing, and saving by `LogicManager`.
+
+To add a new field supported by `add` and `edit`, add it to `Person`, add a constant to `PersonField` and list it in both `PersonField.values()` and `PersonField.editableValues()`, and add its `ParserUtil#parseXyz` method. `add` and `edit` then accept it without further changes. `PersonFieldTest` fails if such a field is not registered or has no sample value. Properties managed separately, such as `isFavourite`, are explicitly excluded in `NON_EDITABLE_PERSON_FIELDS` and must be preserved when editing. `PersonFieldTest` also checks that tags are the only registered field that `edit` does not accept.
+
+#### Design considerations
+
+**Aspect: how tags of an existing contact are changed**
+
+* **Alternative 1 (current choice):** only with `toggle`; `edit` does not accept `/tag`.
+  * Pros: there is one way to change tags, so the two commands cannot disagree about the 5-tag limit or about whether `/tag` adds or replaces. It also removes the risk that `edit 1 /tag` silently wipes every tag.
+  * Cons: replacing all tags takes a `toggle` that names every tag to remove, and clearing all tags needs the contact's current tags to be typed out.
+* **Alternative 2:** keep `/tag` in `edit` as a replace-all, alongside `toggle`.
+  * Pros: one command can set an exact tag list.
+  * Cons: two commands change the same field with opposite meanings, which is easy to mix up.
+
+### Note field
+
+`/note NOTE` gives a contact a short free-text note, such as an allergy or how they prefer to be reached, so an RA on duty sees it on the contact card without looking elsewhere.
+
+#### Implementation
+
+`Note` is an immutable value class like `Room`, where an empty value means the contact has no note. It is added as the `PersonField.NOTE` field, so `add` and `edit` support `/note` through the mechanism above with no changes to either parser. `ParserUtil#parseNote` collapses whitespace and rejects an empty note, a note longer than 200 characters and a note with a word starting with `/`. `JsonAdaptedPerson` stores the note as an optional `note` property, so data files saved before this feature still load. `PersonCard` shows the note as a wrapped label that is hidden when the note is empty.
+
+#### Design considerations
+
+* **Alternative 1 (current choice):** a field set through `add` and `edit`.
+  * Pros: one way to set every field, and `edit 1 /note` clears it like any other optional field.
+  * Cons: a note is slightly longer to type than with a dedicated command.
+* **Alternative 2:** a dedicated `note INDEX TEXT` command.
+  * Pros: shorter to type.
+  * Cons: a second way to change the same field, with its own parser and validation to keep in step with `edit`.
+
+A word in a note cannot start with `/`, because the parser treats such a word as a field prefix. `ParserUtil#verifyNoUnknownPrefix` reports an unknown prefix inside the note (e.g., `/note see /docs`) with the note's own error instead of the general usage message, as it is more likely part of the note than a misspelt prefix. A known prefix inside the note (e.g., `/note talk to /room officer`) cannot be told apart from a field given after the note, so it starts that field; the UG warns about this. A `/` inside a word (`24/7`, `and/or`, links) is allowed: `ArgumentTokenizer` only recognizes a prefix that follows a space, so it is never ambiguous, and RAs often need it in notes. Rejecting every `/` would be simpler to state, but it blocked common notes such as `Call 24/7`.
+
+### Emergency contact assignment
+
+`emergency INDEX /name NAME /phone PHONE [/relation RELATION]` assigns one independent, immutable
+`EmergencyContact` to a person in the displayed list. Name and phone are required; relation is optional.
+Each assignment atomically replaces any existing emergency details; omitted relation defaults to empty.
+`emergency INDEX /clear` removes those details. The parser accepts `/clear` only on its own, with no value.
+If no emergency details are assigned, the command reports that no changes were made without replacing the person.
+`EmergencyCommandParser` creates an `EmergencyCommand` for assignment or an `EmergencyClearCommand` for removal.
+`EmergencyClearCommand` calls `Person#withoutEmergencyContact()` to preserve all other fields.
+The filter is unchanged and normal JSON saving persists the empty emergency field.
+Both commands reject archived contacts before changing any details. Restore the contact with `unarchive`
+before assigning an emergency contact; rejection preserves both stored data and the current view.
+The success message and contact card reuse `EmergencyContact#toString()` to display the assigned details consistently.
+Emergency details are independent of tags and of the general `list emerg` feature, including when cleared.
+
+`EmergencyCommandParser` and `EditCommandParser` share `ParserUtil#parseIndexedArguments()` for whitespace,
+prefix and index handling. Emergency name and phone reuse `ParserUtil#parseName()` and `parsePhone()`.
+Emergency details are kept outside the add/edit field registry. `PersonFieldValues#toPerson()` accepts them
+separately so ordinary edits preserve them while constructing the replacement person once.
+`Person#equals()` and `hashCode()` include the emergency details; `isSamePerson()` still compares names only.
+`JsonAdaptedEmergencyContact` stores the nested details, and older files without this field remain valid.
+
+### Sorting the contact list
+
+`list sorted` selects all active contacts and compares full names ignoring case, with case-sensitive tie-breaking.
+It reuses `Model#updateFilteredPersonList(predicate, comparator)` to set the filter and sort order together.
+`ModelManager` exposes one live `SortedList` over its `FilteredList`, so the GUI and index-based commands see
+the same ordering. Sorting does not modify the backing address book or its saved order.
+`updateFilteredPersonList()` clears the comparator when another command resets the view.
+
+### Toggle tags feature
+
+`toggle INDEX /tag TAG [/tag TAG]…` adds each given tag the contact does not have and removes each one it has.
+
+#### Implementation
+
+`AddressBookParser` routes `toggle` to `ToggleCommandParser`, which works in the same steps as `EditCommandParser`:
+
+1. Collapse whitespace, then reject any word starting with `/` other than `/tag` as an invalid format.
+2. Parse the text before the first keyword as the `INDEX`; an invalid index is reported as an invalid format.
+3. Require at least one `/tag`; otherwise report an invalid format.
+4. Parse each value with `ParserUtil#parseTag()`, as `add` does, so an empty or invalid tag is reported the same way. A tag given twice is reported as `Repeated tag: TAG. Each tag can only be given once.`, as in `add`. The tag limit is not checked here, because it applies to the tags left after the toggle.
+
+`ToggleCommand` holds the `Index` and a `LinkedHashSet<Tag>` of tags to toggle. In `execute()` it:
+
+1. Rejects an index outside `Model#getFilteredPersonList()` with `Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX`, and an archived contact with `ToggleCommand.MESSAGE_ARCHIVED_PERSON`, as `edit` does.
+2. Builds the new tag set: the contact's tags that are not being toggled, in their existing order, followed by the toggled tags the contact does not have, in the order typed. `Tag#equals()` ignores case and extra spaces, so `/tag FRIENDS` removes `Friends`.
+3. Rejects the command with `Person.MESSAGE_TAG_LIMIT_REACHED` if the new set has more than `Person.MAX_TAGS` tags. The limit applies to the result, so removing one tag and adding another is allowed at 5 tags, and so is removing all 5 and adding 1 (6 tags typed). `emergency` is a normal tag and counts towards the limit.
+4. Copies the contact's other values with `PersonFieldValues`, replaces the tags, and calls `Model#setPerson()`. The contact's emergency details and favourite status are passed to `PersonFieldValues#toPerson()` so they are kept, as in `edit`. Like `edit`, it keeps the current filter and sorting applied.
+
+The name does not change, so `toggle` never creates a duplicate contact and does not call `Model#hasPerson()`.
+
+#### Design considerations
+
+**Aspect: whether the tag limit is checked against the tags given or the resulting tags**
+
+* **Alternative 1 (current choice):** check only the resulting tags, in `execute()`.
+  * Pros: the limit is checked in one place, a contact at the limit can still swap tags, and the guarantee in `Person` is unchanged. A command that types many tags is still rejected, since six tags the contact lacks always leave it over the limit.
+  * Cons: a command with too many tags is reported when it runs, not when it is parsed.
+* **Alternative 2:** also reject more than `Person.MAX_TAGS` typed tags in the parser.
+  * Pros: obviously invalid commands are rejected early.
+  * Cons: the limit is checked in two places, and a valid command such as removing all 5 tags and adding 1 is rejected because it types 6.
+* **Alternative 3:** check only the tags typed.
+  * Pros: simpler.
+  * Cons: a contact could be pushed past the limit, which `Person`'s constructor then reports as an uncaught `IllegalArgumentException`.
+
+**Aspect: what a tag that is already present means**
+
+* **Alternative 1 (current choice):** remove it, so one command can both add and remove tags.
+  * Pros: one short command covers both, and `toggle 1 /tag emergency` flips the emergency flag.
+  * Cons: running the same command twice undoes it. To make a mistake easy to notice, the result message lists the tags that were added and removed (`Added: C. Removed: A.`), using the form stored on the contact card.
+* **Alternative 2:** separate `tag` and `untag` commands.
+  * Pros: each command always does what its name says.
+  * Cons: two commands to learn, and a tag already present (or absent) becomes an error that needs its own message.
+
+### Filter by tag feature
+
+`find /tag TAG` shows only contacts with the given tag. `FindCommandParser` creates a `PersonHasTagPredicate` from the value after `/tag`, and `FindCommand` applies it with `Model#updateFilteredPersonList()`. `PersonHasTagPredicate` uses `Tag#matchesName()`, so any non-empty value is accepted and a value that is not a valid tag simply matches nobody.
+
+### Find by phone
+
+#### Implementation
+
+`FindCommandParser` tokenizes `/name`, `/tag`, `/phone` and `/room`, requires exactly one non-empty selector,
+and rejects repeated selectors and preamble text. For `/phone`, it creates a `FindCommand` containing
+a `PhoneEqualsPredicate`. Its shared `removeWhitespace()` helper uses `StringUtil.collapseWhitespace()`
+and removes the resulting ordinary spaces from both the query and stored number before comparison.
+This includes Unicode spaces such as U+00A0: `91234567`, `9123 4567` and a query with a non-breaking
+space all match. Stored phone formatting is unchanged.
+
+<img src="images/FindByPhoneActivityDiagram.png" alt="Find by phone parsing and filtering" width="650" />
+
+`FindCommand` combines the phone predicate with `PREDICATE_SHOW_ACTIVE_PERSONS` and replaces the current
+filter through `Model#updateFilteredPersonList`. This searches all active contacts, including those hidden
+by an earlier search. It returns either the match count or the no-results message. No contact data changes;
+the normal `LogicManager` save still runs after the command returns.
+
+#### Design considerations
+
+* **Reuse the predicate-based find command:** keeps filtering and result messages shared with other
+  searches, while phone-specific matching remains in one predicate.
+* **Whole-number matching ignoring whitespace:** accepts numbers pasted with different spacing while
+  preserving stored formatting. Other characters (`+`, hyphens and parentheses) remain significant;
+  partial numbers do not match.
+
+### Room search
+
+Room search is implemented separately by `RoomEqualsPredicate`, selected by `find /room ROOM`.
+It compares the complete stored room with the whitespace-normalized query, ignoring case.
+`FindCommand` applies its existing active-contact predicate, so archived contacts are excluded.
+
+### Fuzzy name search
+
+`find /name NAME` lists contacts whose name is close to `NAME`, so an RA on duty can find a resident despite a typo or
+only half-remembering their name. Fuzzy matching applies only to `find /name`; `delete /name` still uses the exact,
+case-sensitive `NameEqualsPredicate`, so a typo cannot delete a different contact.
+`DeleteCommandParser` collapses extra whitespace in the name with `StringUtil#collapseWhitespace()` before matching.
+
+#### Implementation
+
+The sequence diagram below shows the parts of `find /name alx yeo` specific to this feature. It leaves out how
+`AddressBookParser` creates `FindCommandParser` and the `CommandResult`, which the general logic diagram already covers.
+
+<img src="images/FindNameSequenceDiagram.png" alt="Interactions for the find /name alx yeo command" width="740" />
+
+1. `FindCommandParser` creates a `NameFuzzyMatchesPredicate` `p` from the value after `/name`, gets its ranking
+   comparator `c` with `NameFuzzyMatchesPredicate#getRankingComparator()`, and creates a `FindCommand` with both.
+   `/tag`, `/phone` and `/room` searches create a `FindCommand` without a comparator, so their results keep their usual
+   order.
+2. The predicate's constructor collapses whitespace (including Unicode spaces such as U+00A0), converts the text
+   to lowercase and splits it into the search words `alx` and `yeo`. Blank text is rejected, although the parser
+   already prevents this.
+3. `FindCommand` calls `Model#updateFilteredPersonList(predicate, comparator)`. `ModelManager` shows its
+   `FilteredList` through a `SortedList`, so the list on screen and the list that `edit INDEX` and `delete INDEX`
+   read stay the same. The one-argument `updateFilteredPersonList(predicate)` used by other commands resets the
+   comparator, restoring the address book order.
+4. For each contact, `NameFuzzyMatchesPredicate#test()` normalizes the name the same way and checks that **every**
+   search word matches **some** name word. A search word matches a name word if it:
+   * is the same word,
+   * is the start of the name word, typed exactly and at least 3 letters long, or
+   * is within the allowed number of typos. Typos are counted by `StringUtil#typoDistance()`, the minimum number of
+     single-character insertions, deletions, substitutions or swaps of two adjacent characters between the words
+     (the optimal string alignment distance). The **shorter** of the two words decides the typos allowed, so a
+     1–2 letter name word such as `ng` is only matched exactly:
+
+     | Length of the shorter word | Typos allowed |
+     |----------------------------|---------------|
+     | 1–2                        | 0             |
+     | 3–5                        | 1             |
+     | 6–9                        | 2             |
+     | 10 or more                 | 3             |
+
+     The tiers are kept in the private `TypoTolerance` enum, which `NameFuzzyMatchesPredicate#getAllowedTypos()` reads.
+5. `alx` is 1 typo from `alex` and `yeo` is the start of `yeoh`, so `Alex Yeoh` is listed.
+6. The `SortedList` orders the matches with `c`. Each search word costs 0 for a whole word, 1 for the start of a
+   word, and 1 plus its typos otherwise, using its cheapest name word; a contact's cost is the sum over the search
+   words. Cheaper contacts are listed first. `ModelManager` breaks ties by position in the `FilteredList`, so contacts of
+   equal cost keep their address book order, even after `fav` replaces one of them or an earlier `list sorted`.
+   `test()` and the comparator share the same cost calculation, so they cannot disagree.
+
+#### Design considerations
+
+**Aspect: what is compared**
+
+* **Alternative 1 (current choice):** each search word against each word of the name.
+  * Pros: partial names (`find /name Yeoh`) and words in any order work, which suits an RA who remembers only part of
+    a name.
+  * Cons: a short surname such as `Tan` also matches similar names such as `Tay`.
+* **Alternative 2:** the whole search text against the whole name.
+  * Pros: fewer unexpected matches.
+  * Cons: `find /name Alex` does not find `Alex Yeoh`, as the distance is too large.
+
+**Aspect: how many typos are allowed**
+
+* **Alternative 1 (current choice):** more typos for longer words, decided by the shorter of the two words.
+  * Pros: long, hard-to-spell names tolerate several typos, while 1–2 letter words, on either side, cannot match
+    unrelated names (`find /name Ong` does not list `Ng Kai`).
+  * Cons: the tiers are a judgement call that may need tuning from user feedback.
+* **Alternative 2:** tiers decided by the search word only.
+  * Cons: a 3-letter search word matches any 2-letter name word 1 typo away, so short surnames such as `Ng` and
+    `Li` are loosely matched although the UG says they must be typed exactly.
+* **Alternative 3:** a fixed number of typos for every word.
+  * Pros: simpler to explain.
+  * Cons: short words match too many names, or long words tolerate too few typos.
+
+**Aspect: how typos are counted**
+
+* **Alternative 1 (current choice):** our own `StringUtil#typoDistance()`, the optimal string alignment distance.
+  * Pros: two swapped letters, a very common typing slip, count as 1 typo (`Yoeh` finds `Yeoh`). No new dependency,
+    and it is short and fully unit-tested.
+  * Cons: a swapped pair cannot be edited again, so `ca` is 3 typos from `abc` rather than 2. This rarely matters for
+    names.
+* **Alternative 2:** the Levenshtein distance.
+  * Cons: a swap counts as 2 typos, so it is only forgiven in words of 6 or more letters.
+* **Alternative 3:** Apache Commons Text's distance classes.
+  * Cons: it adds a library for one method.
+
+**Aspect: partial words**
+
+* **Alternative 1 (current choice):** a search word of at least 3 letters also matches the start of a name word,
+  typed exactly.
+  * Pros: an RA who half-remembers a long name can type its start (`Bala` finds `Roy Balakrishnan`).
+  * Cons: a typo in the start of a word is not forgiven (`Blaa` does not find `Balakrishnan`).
+* **Alternative 2:** allow typos in the start of a word too.
+  * Cons: a 3-letter start with 1 typo matches a large share of all names.
+
+**Aspect: order of results**
+
+* **Alternative 1 (current choice):** rank the results by match cost through a `SortedList` in `ModelManager`.
+  * Pros: the closest match is listed first, so `edit 1` after `find /name Lim` changes `Lim Jun Jie`, not a
+    contact listed first only because it was added earlier. The stored data keeps its order.
+  * Cons: `Model` gains an overload of `updateFilteredPersonList()`.
+* **Alternative 2:** sort the `AddressBook` itself.
+  * Cons: a search would reorder the saved data file, and `list` would no longer show contacts in the order added.
+* **Alternative 3:** keep the address book order.
+  * Cons: a near match can be listed above the exact match, so an RA acting on the first result may change the
+    wrong contact.
+
+**Aspect: scalability**
+
+Each search compares every search word with every word of every contact's name, so its cost grows linearly with the
+number of contacts (and with the square of the word length). A hall has at most a few hundred residents plus staff,
+vendors and emergency services, so a search takes milliseconds, which fits the expected needs of the target user.
+Ranking recomputes a contact's match cost in each comparison, adding a factor of `log n` for `n` matches, which is
+negligible at this size.
+
+If the number of contacts became very large (for example, tens of thousands or more), a different approach to fuzzy
+search would have to be supported, such as:
+
+* indexing the words of all names, for example in a BK-tree or a trigram index, kept up to date as contacts are
+  added and deleted, so that only likely candidates are compared, and
+* stopping each distance calculation early once it exceeds the number of typos allowed.
+
+### Emergency contact listing
+
+`list emerg` is a shortcut to display contacts with the whole tag `Emergency`, ignoring the tag's case.
+The command words `list` and `emerg` must be lowercase. `AddressBookParser` routes `list` to
+`ListCommandParser`, which returns `ListCommand` for blank arguments and `ListEmergencyCommand` for `emerg`.
+`ListCommandParser` also accepts `fav` for favourite contacts. Unsupported arguments are rejected;
+additional arguments after `emerg` use the emergency command's usage message.
+
+`ListEmergencyCommand` combines the active-contact filter with `EmergencyTagPredicate` through
+`Model#updateFilteredPersonList()`. The predicate uses `Tag#matchesName()` to share the general tag search's
+matching rules. It searches all active contacts, preserves their order, and leaves stored data unchanged.
+The GUI reuses the normal contact list. If there are no matches, the result message is `No emergency contacts found.`;
+otherwise it is `Listed all emergency contacts.`. `find /tag Emergency` produces the same contact list
+through the general tag search, while `list` restores all contacts.
+
+### Favourite contacts
+
+`fav INDEX` and `unfav INDEX` set an active contact's favourite status. `list fav` displays active favourite contacts
+using the existing observable contact list.
+
+#### Implementation
+
+* **Model:** `Person` stores an immutable `isFavourite` boolean, defaulting to `false` in the existing constructors.
+  `withFavourite(boolean)` returns a copy that preserves every other field, including notes, emergency details,
+  archive status and tag order. All constructors delegate to one constructor accepting the complete contact state.
+  Favourite status participates in `equals()` and `hashCode()`, but not `isSamePerson()`, so marking a contact
+  does not change its identity or allow duplicates. `EditCommand` preserves the flag when rebuilding a contact.
+* **Parsing:** `AddressBookParser` routes `fav` and `unfav` to `FavCommandParser` and `UnfavCommandParser`.
+  Both reuse `ParserUtil#parseIndex()` and wrap parsing failures in the respective command's usage message.
+  `ListCommandParser` returns `ListFavouriteCommand` for the exact `fav` argument and rejects extra arguments.
+* **Commands:** `FavCommand` and `UnfavCommand` resolve the target from `Model#getFilteredPersonList()` before
+  replacing it through `Model#setPerson()`. An out-of-range displayed index or an archived target raises a
+  `CommandException`. Archived targets must be restored before changing favourite status, as with ordinary edits.
+  Requests for an already-set status return explanatory feedback without replacing the contact.
+  Neither command resets the current filter.
+* **Listing:** `ListFavouriteCommand` combines `PREDICATE_SHOW_ACTIVE_PERSONS` with `Person::isFavourite` through
+  `Model#updateFilteredPersonList()`. This replaces the previous filter and searches active contacts.
+  Their relative stored order is retained,
+  while displayed indices start at 1. Unfavouriting a displayed contact removes it from this view immediately.
+* **Storage:** `JsonAdaptedPerson` reads and writes the JSON boolean `isFavourite`. Missing properties default to
+  `false`, so older files remain readable. `LogicManager` saves changes through the existing storage path.
+* **UI:** `PersonCard` shows the `favourite` label as `★ Favourite`, styled in `DarkTheme.css`.
+  For other contacts, both `visible` and `managed` are false, so no badge space is reserved.
+  Replacing a model entry refreshes its list cell with a new card and the updated status.
+
+The following sequence diagram shows a successful `fav 1` execution, assuming the first displayed contact is active and is not already a favourite.
+
+<img src="images/FavExecutionSequenceDiagram.png" width="700" />
+
+`withFavourite(true)` creates a copy with the favourite flag enabled and all other details preserved. `setPerson()` replaces the original contact without resetting the current filter. The diagram focuses on command execution; parsing and saving are omitted.
+
+#### Design considerations
+
+* A dedicated flag keeps favourite status independent of category tags and their replacement semantics.
+  A tag named `favourite` has no special meaning.
+* Separate set and unset commands make repeated submissions predictable: recalling `fav 1` cannot toggle
+  the current contact off. As with other index commands, resubmission uses the list displayed at that time.
+* Reusing the observable filtered list avoids a second collection of favourite contacts or a second index system.
+
+#### Integration considerations
+
+`withFavourite()`, `withArchive()` and `withEmergencyContact()` preserve each other's fields and notes.
+`EditCommand` preserves favourite status and emergency details while rebuilding an active contact.
+Archiving retains favourite status and hides the contact from `list fav`; restoration makes it visible again.
+`fav` and `unfav` reject archived contacts even if they already have the requested status.
+JSON storage preserves both status flags and emergency details. Missing status fields default independently
+to `false`, allowing files from before either feature to load with their other details intact.
+
+#### Testing
+
+`PersonTest` and `EditCommandTest` cover default values, immutable copies, identity, and preservation during edits.
+`FavouriteCommandsTest`, `FavouriteCommandParsersTest`, `ListFavouriteCommandTest` and the shared parser tests
+cover indices, invalid arguments, repeated commands, filtering and result order. Storage tests and
+`LogicManagerTest` check saving, reloading and compatibility with missing flags. `PersonCardTest` checks badge
+visibility, emergency details and refreshes using real JavaFX controls. `FavouriteArchiveIntegrationTest`
+checks archive/restore across restarts, preserved details, archived-command rejection and older data files.
+See the [testing guide](Testing.md#favourite-contact-tests)
+and the [manual checks](#managing-favourite-contacts).
+
+### Command recall
+
+Users browse submitted command text with Up/Down in the command box and press Enter to submit it again.
+Recall does not restore contact data or undo previous commands.
+
+#### Implementation
+
+Each `CommandBox` owns a `CommandHistory` instance. `CommandHistory` stores the latest 100 non-blank
+submissions in an `ArrayList`, from oldest to newest, preserving the submitted text and duplicates.
+It holds no contact data and is not serialized, so a new app session starts with empty history.
+
+* `add(commandText)` ignores blank input. Otherwise, it appends the text, evicts the oldest entry if needed,
+  resets `historyPosition` to `commands.size()`, and clears the saved draft.
+* `historyPosition == commands.size()` means the user is not browsing history. The first
+  `navigatePrevious(currentInput)` saves `currentInput` as the draft, then moves towards older entries.
+  At the oldest entry it returns that entry again; with empty history it returns the input unchanged.
+* `navigateNext(currentInput)` moves towards newer entries. Passing the newest entry restores the saved
+  draft. When not browsing, it returns the input unchanged.
+* Editing recalled text does not update a stored entry or the draft. Only a new submission records it.
+  `getCommands()` returns an unmodifiable snapshot for inspecting the history without changing it.
+
+`CommandBox` installs a `KEY_PRESSED` filter on its text field, before JavaFX's normal key handling.
+Unmodified Up/Down events call the corresponding navigation method, display the returned text, move the
+caret to the end, and consume the event. Other keys and modified arrows retain their normal behavior.
+Because the filter belongs to the command field, arrow events in other controls do not navigate history.
+
+On Enter, `CommandBox` records non-blank input before calling `CommandExecutor#execute()`, so both parse
+failures and execution failures remain recallable. Successful execution clears the field; failures retain
+the submitted text and existing error styling. Navigation itself never calls the executor.
+
+#### Design considerations
+
+* **Session-only text history:** keeps recall independent of contact storage and avoids saving command
+  parameters to a history file. Earlier sessions cannot be recalled.
+* **A separate history helper:** lets storage, bounds, and draft handling be tested without JavaFX.
+  The command box remains responsible for key events, display, submission, and error styling.
+* **One saved draft:** preserves the unfinished input present before browsing. Edits to recalled entries
+  are discarded when navigating rather than maintained as additional drafts.
+
+#### Testing
+
+`CommandHistoryTest` covers storage, the 100-entry limit, navigation boundaries, drafts, and resets.
+`CommandBoxTest` uses real JavaFX controls and dispatched key events to cover their integration with
+submission and error handling, including index-based commands using the current contact list.
+See the [testing guide](Testing.md) for JavaFX display requirements and the
+[manual checks](#recalling-previous-commands) for keyboard behavior in the running app.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -261,66 +748,212 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
+* is a residential assistant at NUS hostels who manages contacts for residents, hall staff, vendors, and emergency services
+* handles incidents and welfare cases during duty shifts, where knowing who to contact next is critical and a resident's details need to be at hand immediately
 * has a need to manage a significant number of contacts
 * prefers desktop apps over other types of applications
 * can type fast
 * prefers typing to mouse interactions
 * is reasonably comfortable using CLI apps
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
-
+**Value proposition**: Residential assistants keep track of contacts for residents, hall staff, vendors, and emergency services, currently scattered across chats and documents. This app brings them together in one organised place, optimised for typing so the right person or resident's details can be retrieved in seconds during an emergency.
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …​ | I want to …​ | So that I…​ |
+| -------- | ------- | ------------ | --------------- |
+| `* * *` | new user | add a contact with a name and a phone number | can start building up my contact list |
+| `* * *` | new user | close the app with a command | do not have to reach for the mouse to quit |
+| `* * *` | user on duty | search for a contact by name | can find the person I need while the resident is still at my door |
+| `* * *` | user on duty | see a contact's phone number in the search result itself | can read out the number without opening anything further |
+| `* * *` | user with contacts of several kinds | tag a contact by role, such as resident, staff, vendor or emergency | can tell at a glance who each contact is |
+| `* * *` | user with contacts of several kinds | list only the contacts carrying a given tag | can look through one type of contacts |
+| `* * *` | user with contacts of several kinds | add more than one tag to a contact | can record someone who is both a resident and a fellow RA |
+| `* * *` | user | record a room number against a resident | can look up where a resident lives |
+| `* * *` | user | list all my contacts | can see everything I have stored |
+| `* * *` | user | delete a contact | can only keep needed contacts |
+| `* * *` | user searching for a contact | search by tag as well as by name | can find the right vendor when I cannot recall the company name |
+| `* * *` | user handling an emergency | list every contact tagged as emergency | can reach the on-call number without remembering a name |
+| `* * *` | user on duty | search for a contact by phone number | can tell who a missed call or message came from |
+| `* *` | user exploring the app for the first time | see the app preloaded with sample contacts | can see how the app will look once it holds my own data |
+| `* *` | user exploring the app for the first time | list every command the app supports | can find out what the app does without reading a manual |
+| `* *` | user ready to start using the app for personal use | delete all the sample data in one command | can quickly clear out the sample data before entering my own |
+| `* *` | new user | see a confirmation message showing the contact I just added | can check the app recorded what I typed |
+| `* *` | new user | be told what is wrong when I type a command incorrectly | can correct myself instead of guessing |
+| `* *` | user who has forgotten a command | view the usage format of one specific command | can type it correctly on the first try |
+| `* *` | user searching for a contact | search using only part of a name | can find someone without typing their full name |
+| `* *` | user searching for a contact | have my search ignore capitalisation | do not have to remember how the name was typed in |
+| `* *` | user | record an email address against a contact | can reach them through a more formal channel if needed |
+| `* *` | user whose contact details have changed | edit a single field of an existing contact | do not have to retype the whole entry to fix one thing |
+| `* *` | user whose residents' situations change | add or remove tags on an existing contact without retyping its other tags | can keep tags such as `emergency` up to date quickly |
+| `* *` | user | be warned when I add a contact whose name is already in use | do not end up with duplicate entries for one person |
+| `* *` | user searching for a contact | search by room number | can identify a resident when all I know is where the problem is |
+| `* *` | user | undo my last command | can recover from a deletion or edit I did not intend |
+| `* *` | user | record an emergency contact against a resident | do not have to look for their family's number elsewhere |
+| `* *` | user handling an emergency | look up a resident's emergency contact in one command | can notify their family within seconds |
+| `* *` | user with new residents | archive a contact | can keep an old entry out of my list and searches without losing it |
+| `* *` | user with archived contacts | list my archived contacts | can still look someone up when a query about last year comes in |
+| `* *` | user with archived contacts | restore an archived contact to my main list | can bring a resident back if they return to the block |
+| `* *` | user | hide private contact details | can minimize the chance of someone else seeing them by accident |
+| `* *` | user | record a short note against a contact, such as an allergy or a preferred way to reach them | have important context at hand when I reach out |
+| `* *` | user | delete a contact by typing their full name | do not have to look up the contact's index first |
+| `* *` | user whose residents' situations change | replace or clear a resident's emergency contact | can rely on the emergency details being current |
+| `* *` | user with archived contacts | restore every archived contact carrying a given tag at once | can bring back a whole group, such as residents returning next semester |
+| `* *` | user | bring back my previous command with a keypress | can repeat or amend a lookup without typing it again |
+| `* *` | user with a long contact list | sort my contact list by name | can find my way around a list too long to scan |
+| `* *` | user handling an emergency | mark a contact as a favourite | can keep the numbers I need most within easy reach |
+| `* *` | user handling an emergency | list my favourite contacts | can reach my most-used numbers first |
+| `* *` | user with new residents | archive every contact carrying a given tag at once | can clear out last year's residents quickly |
+| `* *` | user handling an emergency | remove a contact from my favourites | can keep my favourite list short |
+| `*` | user | use a short form of a long command | can enter commands with fewer keystrokes |
+| `*` | user | redo a command I have undone | can get back a change I undid by accident |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `RAcontact` and the **Actor** is a residential assistant, unless specified otherwise.)
 
-**Use case: Delete a person**
+**Use case: Restore an archived contact**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1.  User requests to view archived contacts.
+2.  RAcontact shows the archived contacts.
+3.  User requests to restore a specific archived contact.
+4.  RAcontact returns the contact to the main contact list and confirms the restoration.
 
     Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 2a. There are no archived contacts.
 
-  Use case ends.
+    * 2a1. RAcontact shows an empty archive.
 
-* 3a. The given index is invalid.
+      Use case ends.
 
-    * 3a1. AddressBook shows an error message.
+* 3a. The specified contact is not in the archive.
 
-      Use case resumes at step 2.
+    * 3a1. RAcontact shows an error message.
 
-*{More to be added}*
+      Use case resumes at step 3.
+
+**Use case: Start using RAcontact with real contacts**
+
+**MSS**
+
+1.  User requests to remove all sample contacts.
+2.  RAcontact removes the sample contacts and confirms the removal.
+3.  User requests to add a real contact with a name and phone number.
+4.  RAcontact adds the contact, shows its details, and confirms the addition.
+
+    Use case ends.
+
+**Extensions**
+
+* 3a. The name or phone number is invalid.
+
+    * 3a1. RAcontact shows an error message and does not add the contact.
+
+      Use case resumes at step 3.
+
+**Use case: Find a contact by name**
+
+**MSS**
+
+1.  User requests to find a contact by entering `find /name` followed by all or part of the contact's name.
+2.  RAcontact lists the contacts whose name is close to the entered name, ignoring case and small typos, and shows the number of contacts listed.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The `/name` prefix is missing, the name is empty, or there is text before `/name`.
+
+    * 1a1. RAcontact shows an invalid command format error with the usage of `find`.
+
+      Use case resumes at step 1.
+
+* 1b. The `/name` prefix is given more than once.
+
+    * 1b1. RAcontact shows a message naming the repeated prefix.
+
+      Use case resumes at step 1.
+
+* 2a. No contact has a name close to the entered name.
+
+    * 2a1. RAcontact shows the message `No contacts found` and an empty list.
+
+      Use case ends.
+
+**Use case: Find contacts by tag**
+
+**MSS**
+
+1.  User requests to find contacts by entering `find /tag` followed by a tag.
+2.  RAcontact lists the contacts who have exactly that tag (case-insensitive) and shows the number of contacts listed.
+
+    Use case ends.
+
+**Extensions**
+
+* 1a. The `/tag` prefix is missing, the tag is empty, there is text before `/tag`, the prefix is directly followed by text (such as `/tagfriends`), or `/name` is also given.
+
+    * 1a1. RAcontact shows an invalid command format error with the usage of `find`.
+
+      Use case resumes at step 1.
+
+* 1b. The `/tag` prefix is given more than once.
+
+    * 1b1. RAcontact shows a message naming the repeated prefix.
+
+      Use case resumes at step 1.
+
+* 2a. No contact has the entered tag.
+
+    * 2a1. RAcontact shows the message `No contacts found` and an empty list.
+
+      Use case ends.
+
+**Use case: Find contacts during an emergency**
+
+**MSS**
+
+1.  User requests to find a resident by full name.
+2.  RAcontact shows the resident's details.
+3.  User requests to view the resident's emergency contact.
+4.  RAcontact shows the emergency contact's details.
+5.  User requests to view contacts tagged as emergency.
+6.  RAcontact shows the emergency contacts, including the hall's on-call contact.
+
+    Use case ends.
+
+**Extensions**
+
+* 2a. The resident cannot be found.
+
+    * 2a1. RAcontact shows the message `No contacts found`.
+
+      Use case resumes at step 1.
+
+* 4a. No emergency contact is recorded for the resident.
+
+    * 4a1. RAcontact informs the user.
+
+      Use case resumes at step 5.
+
+* 6a. No contacts are tagged as emergency.
+
+    * 6a1. RAcontact shows an empty list.
+
+      Use case ends.
 
 ### Non-Functional Requirements
 
 1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
 2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
 3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
 
 ### Glossary
 
@@ -354,7 +987,51 @@ testers are expected to do more *exploratory* testing.
    1. Relaunch the app by double-clicking the JAR file.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+1. Window title
+
+   1. Launch the app.<br>
+      Expected: The title bar of the main window shows `RAcontact`.
+
+### Reading long result messages
+
+1. Wrapping a long error message
+
+   1. Test case: `add`<br>
+      Expected: The usage message wraps onto new lines within the result display, with no horizontal scroll bar.
+      If it is taller than the result display, a vertical scroll bar appears.
+
+   1. Test case: Resize the window to its smallest width, then enter `add` again.<br>
+      Expected: Same as above.
+
+### Viewing help
+
+1. Closing the help window with the keyboard
+
+   1. Test case: `help`, then press Esc, then type `list` and press Enter.<br>
+      Expected: The help window closes, the command box has focus again, and `list` runs without using the mouse.
+
+   1. Test case: Press F1, then press Esc.<br>
+      Expected: Same as above.
+
+1. Reopening a minimized help window
+
+   1. Test case: `help`, minimize the help window, then click the main window and run `help` again.<br>
+      Expected: The help window is restored and brought to the front.
+
+### Recalling previous commands
+
+Start each test below in a newly launched app so that command history is empty. Click the command box before
+pressing keys, and use Up/Down without Shift, Ctrl, Alt or Command. These tests do not add, edit or delete contacts.
+For the user-facing explanation, see [Recalling previous commands in the UG](UserGuide.html#recalling-previous-commands).
+
+Test | Steps | Expected
+-----|-------|---------
+Empty history | Type `unfinished draft` without submitting it. Press Up, then Down. | The text stays unchanged and no command executes.
+Browsing and boundaries | Submit `list`, then `list fav`. Type `unfinished draft` without submitting it. Press Up three times, then Down three times. | Up shows `list fav`, `list`, then `list` again. Down shows `list fav`, restores `unfinished draft`, then leaves it unchanged. Browsing does not change the contact list or result message.
+Editing recalled text | Submit `list`, then `list fav`. Type `unfinished draft` and press Up. Replace the recalled text with `list sorted` without submitting it. Press Up, then Down twice. | The text becomes `list`, then the original `list fav`, then `unfinished draft`. Unsubmitted edits do not replace a stored command or the saved draft.
+Failed submissions and resubmission | Submit `list`, then `find /name`. Clear the command box and press Up. Replace the recalled text with `list fav` and press Enter. Press Up, then Down. | The incomplete search reports an error and can be recalled as `find /name`. Submitting the corrected command executes it and clears the field. Up recalls `list fav`; Down restores an empty field.
+Blank submission while browsing | Submit `list`, then `list fav`. Type `unfinished draft` and press Up twice. Replace the recalled text with three ordinary spaces and press Enter. Press Down twice. | The blank submission does not execute or enter history. Down shows `list fav`, then restores `unfinished draft`; the browsing position and draft were preserved.
+Restart | Submit `list`, close the app and reopen it. Type `unfinished draft` and press Up, then Down. | The text stays unchanged because commands from the previous session are not retained.
 
 ### Deleting a person
 
@@ -371,12 +1048,481 @@ testers are expected to do more *exploratory* testing.
    1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
       Expected: Similar to previous.
 
-1. _{ more test cases …​ }_
+### Listing all contacts
+
+1. Restoring a filtered list
+
+   1. Prerequisites: Start with sample contacts and run `find /name Alex Yeoh`.
+
+   1. Test case: `  list  `<br>
+      Expected: All contacts appear in numbered order with their details. The message is `Listed all persons.`.
+
+   1. Test case: Run `find /name Alex Yeoh`, then `list abc`.<br>
+      Expected: `Invalid command format. Usage: list`.
+      The filtered list and stored contacts stay unchanged.
+
+1. Listing an empty address book
+
+   1. Prerequisites: Use a disposable copy of the address book with no stored contacts.
+
+   1. Test case: `list`<br>
+      Expected: An empty list and `No contacts found.`.
+
+### Adding a contact with a real name
+
+1. Prerequisites: Start with the sample data.
+
+1. Test case: `add Kumar s/o Rajan /phone 91234561`, then `add O'Brien /phone 91234563`, then `add 李小明 /phone 91234566`<br>
+   Expected: All three contacts are added.
+
+1. Test case: `find /name s/o`<br>
+   Expected: `Kumar s/o Rajan` is listed.
+
+1. Test case: `list`, then `delete /name O'Brien`<br>
+   Expected: `O'Brien` is deleted.
+
+1. Other incorrect commands to try: `add -Lee /phone 91234567`, `add R@chel /phone 91234567`<br>
+   Expected: No contact is added. The error lists the characters allowed in a name.
+
+1. Test case: `add /x /phone 91234567`<br>
+   Expected: No contact is added. Error: `Invalid command format!` followed by the `add` usage.
+
+1. Test case: Add a contact named `Wei Ming Tan` repeated seven times, then shrink the window to its minimum width.<br>
+   Expected: The whole name wraps onto several lines on the card and does not end in `...`.
+
+### Adding a contact with tags
+
+1. Adding a contact with tags
+
+   1. Prerequisites: Start with the sample data.
+
+   1. Test case: `add Sarah Tan /phone 9123 4567 /tag Resident Fellow /tag Floor 3`<br>
+      Expected: Sarah Tan is added with the tags `Resident Fellow` and `Floor 3`, in that order.
+
+   1. Test case: `add Daniel Lim /tag ra /room B-204 /tag  STAFF  /phone 8123 4567`<br>
+      Expected: Daniel Lim is added with room `B-204` and the tags `Ra` and `Staff`.
+
+   1. Test case: `add Tan Wei Ming /phone 81000032 /tag RESIDENT`, then `add Lim Jun Jie /phone 81000033 /tag resident`<br>
+      Expected: Both contacts are added, and both cards show the tag as `Resident`.
+
+   1. Test case: `add Ann Lee /phone 81000025 /tag Café Vendor /tag 宿舍`<br>
+      Expected: Ann Lee is added with the tags `Café Vendor` and `宿舍`.
+
+   1. Test case: `add Eleni Pappas /phone 81000026 /tag ΟΣ`, then `find /tag ΟΣ` and `find /tag ος`<br>
+      Expected: Eleni Pappas is added with the tag `Ος`, and both searches list her.
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag T1 /tag T2 /tag T3 /tag T4 /tag T5`<br>
+      Expected: Ben Ong is added with 5 tags.
+
+1. Adding a contact with invalid tags
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag T1 /tag T2 /tag T3 /tag T4 /tag T5 /tag T6`<br>
+      Expected: No contact is added. Error: `Tag limit reached (max 5)`
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag RA /tag ra`<br>
+      Expected: No contact is added. Error: `Repeated tag: Ra. Each tag can only be given once.`
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag RA /tag`<br>
+      Expected: No contact is added. Error: `Tag cannot be empty.`
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag ΟΣ /tag ος`<br>
+      Expected: No contact is added. Error: `Repeated tag: Ος. Each tag can only be given once.`
+
+   1. Test case: `add Ben Ong /phone 9876 5432 /tag A` followed by 25 copies of `İ` (26 characters as typed, 51 in title case)<br>
+      Expected: No contact is added. Error: `Tag too long, please shorten it and try again.`
+
+   1. Other incorrect commands to try: `add Ben Ong /phone 9876 5432 /tag RA, Staff`, `add Ben Ong /phone 9876 5432 /tag RA/Staff`, `add Ben Ong /phone 9876 5432 /tag Café!`, `add Ben Ong /phone 9876 5432 /tag` followed by 51 letters<br>
+      Expected: No contact is added. The status message shows the matching error.
+
+1. Typing the old tag command
+
+   1. Test case: `Alex Yeoh /tag RA`<br>
+      Expected: No change. Error: `Unknown command.`
+
+### Toggling tags
+
+1. Toggling tags on a contact
+
+   1. Prerequisites: Start with an empty, disposable address book. Run `add Zed Lim /phone 9000 0000 /tag A /tag B`, then `list`. Zed must be the only contact, so their displayed index stays 1 throughout these tests.
+
+   1. Test case: `toggle 1 /tag a /tag c`<br>
+      Expected: Zed Lim now has the tags `B` and `C`, in that order. The full list is shown again. The message ends with `Added: C. Removed: A.`
+
+   1. Test case: `toggle 1 /tag emergency`, then `list emerg`<br>
+      Expected: Zed Lim is listed with the tags `B`, `C` and `Emergency`.
+
+   1. Test case: `toggle 1 /tag emergency`<br>
+      Expected: Zed Lim has only `B` and `C` again. The active list is shown even though the previous view was `list emerg`.
+
+   1. Test case: `toggle 1 /tag T1 /tag T2 /tag T3 /tag T4`<br>
+      Expected: No change. Error: `Tag limit reached (max 5)`, since Zed Lim would have more than 5 tags.
+
+1. Invalid toggles
+
+   1. Test case: `toggle 1 /tag A /tag a`<br>
+      Expected: No change. Error: `Repeated tag: A. Each tag can only be given once.`
+
+   1. Test case: `toggle 1 /tag`<br>
+      Expected: No change. Error: `Tag cannot be empty.`
+
+   1. Other incorrect commands to try: `toggle`, `toggle 1`, `toggle /tag A`, `toggle 0 /tag A`, `toggle 1 /phone 9123 4567`, `toggle 9999 /tag A`<br>
+      Expected: No change. The status message shows the matching error.
+
+### Filtering by tag
+
+1. Prerequisites: Start with the sample data.
+
+1. Test case: `find /tag resident`<br>
+   Expected: Only `Alex Yeoh`, `Bernice Yu`, `Charlotte Oliveiro` and `Roy Balakrishnan` are shown. `David Li` is not
+   shown, because `Resident Fellow` is a different tag. The status message shows `4 person(s) listed!`.
+
+1. Test case: `find   /tag   RESIDENT  `<br>
+   Expected: Same as above.
+
+1. Test case: `find /tag Nobody`<br>
+   Expected: An empty list. The status message shows `No contacts found`.
+
+1. Test case: `find /tag`<br>
+   Expected: The list is unchanged. Error: `Invalid command format!` followed by the `find` usage.
+
+1. Other incorrect commands to try: `find resident`, `find /tag resident /name Alex`<br>
+   Expected: The list is unchanged. Error: `Invalid command format!` followed by the `find` usage.
+
+1. Test case: `find /tag resident /tag staff`<br>
+   Expected: The list is unchanged. Error: `Multiple values specified for the following single-valued field(s): /tag`
+
+1. Test case: `list /filter friends`<br>
+   Expected: The list is unchanged. Error: `Invalid command format. Usage: list`
+
+1. Test case: `add Unicode Tester /phone 91234567 /tag ı` (Turkish dotless i), then `find /tag ı`, then `find /tag I`<br>
+   Expected: The tag is shown as `I`. Both searches list Unicode Tester.
+
+1. Test case: `add Sharp Tester /phone 91234568 /tag ẞ` (capital sharp s), then `find /tag ẞ`, then `find /tag ß`<br>
+   Expected: The tag is shown as `ß`. Both searches list Sharp Tester.
+
+### Finding contacts by name
+
+1. Prerequisites: Start with the sample data.
+
+1. Test case: `find /name Alex Yeoh`<br>
+   Expected: Only `Alex Yeoh` is shown. The status message shows `1 person(s) listed!`.
+
+1. Test case: `find /name   alex   YEOH  `<br>
+   Expected: Same as above; case and extra spaces are ignored.
+
+1. Test case: `find /name alx yeo`<br>
+   Expected: Same as above; each word has one typo.
+
+1. Test case: `find /name Yeoh`<br>
+   Expected: Same as above; part of the name is enough.
+
+1. Test case: `find /name Charlote Oliviero`<br>
+   Expected: Only `Charlotte Oliveiro` is shown; 8-letter words allow 2 typos.
+
+1. Test case: `find /name Bolakrisnen`<br>
+   Expected: Only `Roy Balakrishnan` is shown; a word of 10 or more letters allows 3 typos.
+
+1. Test case: `find /name Li`<br>
+   Expected: Only `David Li` is shown. `find /name Ly` shows an empty list and `No contacts found`, because
+   2-letter words must be typed exactly.
+
+1. Test case: `find /name Yoeh`, then `find /name Aelx`<br>
+   Expected: Only `Alex Yeoh` is shown each time; two swapped letters count as 1 typo.
+
+1. Test case: `find /name Bala`<br>
+   Expected: Only `Roy Balakrishnan` is shown; the exact start of a name word is enough.
+   `find /name Ba` and `find /name Blaa` show an empty list, because a start must be at least 3 letters and typed exactly.
+
+1. Test case: `find /name Alex Yeoh`, with a non-breaking space (U+00A0) between the words, as when pasting from a
+   chat app<br>
+   Expected: Only `Alex Yeoh` is shown.
+
+1. Test case: `add Lin Xiao /phone 91110005`, `add Limah Tan /phone 91110006`, `add Lim Jun Jie /phone 91110004`,
+   `add Ng Kai /phone 91110007`, then `find /name Lim`<br>
+   Expected: `Lim Jun Jie`, `Limah Tan` and `Lin Xiao` are listed in that order (whole word, start of word, typo).
+   Then `edit 1 /room C-101` changes `Lim Jun Jie`, and `list` shows all contacts in their original order again.
+
+1. Test case: `find /name Ong` (with `Ng Kai` from the previous test case)<br>
+   Expected: An empty list, because the 2-letter name word `Ng` must be typed exactly.
+
+1. Test case: `find /name Alex Tan`<br>
+   Expected: An empty list. The status message shows `No contacts found`, because no word in any name is close to `Tan`.
+
+1. Test case: In a disposable address book, `clear`, then `add Tan Ah /phone 91110001`, `add Tan Bo /phone 91110002`,
+   `add Tan Cy /phone 91110003`, `add Tan Di /phone 91110004`, `find /name Tan`, `fav 1` and `fav 1` again<br>
+   Expected: The list stays in the order added. The second `fav 1` reports that `Tan Ah` is already a favourite.
+
+1. Test case: In a disposable address book, `clear`, then `add Tan Cy /phone 91110003`, `add Tan Ah /phone 91110001`,
+   `find /name Tan`, `list sorted` and `find /name Tan` again<br>
+   Expected: Both searches list `Tan Cy` before `Tan Ah`, the order added.
+
+1. Test case: `find /name`<br>
+   Expected: The list is unchanged. Error: `Invalid command format!` followed by the `find` usage.
+
+1. Test case: `find /name Alex /name Bernice`<br>
+   Expected: The list is unchanged. An error names the repeated `/name` prefix.
+
+1. Test case: `find /name Alex /rom B-204`<br>
+   Expected: The list is unchanged. Error: `Invalid command format!` followed by the `find` usage.
+
+1. Test case: `find /name Alex /rom B-204` and `find /name Alex /room B-204`, each with a non-breaking space (U+00A0)
+   instead of the space after `Alex`<br>
+   Expected: The list is unchanged. Error: `Invalid command format!` followed by the `find` usage.
+
+1. Test case: `delete /name alex yeoh`<br>
+   Expected: Nothing is deleted. The status message shows `No contacts found matching that search. No contacts deleted.`,
+   because `delete /name` still needs the exact full name.
+
+### Listing emergency contacts
+
+1. Filtering all stored contacts
+
+   1. Prerequisites: In a disposable address book, add at least one contact with `/tag emergency`,
+      another with `/tag EMERGENCY`, and contacts with no tags or with `/tag emergencyservice`.
+
+   1. Test case: `list emerg`<br>
+      Expected: Only the contacts with a whole emergency tag appear, in stored order with their details.
+      The message is `Listed all emergency contacts.`. Stored contacts are unchanged.
+
+   1. Test case: Search for a non-emergency contact, then enter `  list   emerg  `.<br>
+      Expected: The same emergency contacts appear, including contacts hidden by the search.
+
+   1. Test case: `LIST emerg`, `List emerg`, or `LIST`<br>
+      Expected: `Unknown command.`. The displayed list and stored contacts stay unchanged.
+
+   1. Test case: `list EMERG` or `list EmErG`<br>
+      Expected: `Invalid command format. Usage: list`.
+      The displayed list and stored contacts stay unchanged.
+
+   1. Test case: `list emerg friend`<br>
+      Expected: `Invalid command format. Usage: list emerg`. The displayed list and stored contacts stay unchanged.
+
+   1. Test case: `list`<br>
+      Expected: All contacts appear again in numbered order.
+
+1. Handling no matches
+
+   1. Prerequisites: Use a disposable address book with no emergency tags, then repeat with no contacts.
+
+   1. Test case: `list emerg`<br>
+      Expected: An empty list and `No emergency contacts found.` in both cases.
+
+### Adding, editing and removing notes
+
+1. Adding a contact with a note
+
+   1. Prerequisites: Start with the sample data.
+
+   1. Test case: `add Wei Ming /phone 9876 5432 /note Allergic to peanuts,   carries an EpiPen`<br>
+      Expected: Wei Ming is added. The contact card shows `Note: Allergic to peanuts, carries an EpiPen`
+      below the phone number, with the extra spaces removed.
+
+   1. Test case: `add Wei Ling /phone 9876 5433`<br>
+      Expected: Wei Ling is added. The contact card shows no note line.
+
+   1. Test case: `add Wei Ling /phone 9876 5433 /note`<br>
+      Expected: No contact is added. Error: `Note cannot be empty.`
+
+   1. Test case: `add Wei Hao /phone 9876 5434 /note Call w/ parent 24/7, see https://nus.edu.sg`<br>
+      Expected: Wei Hao is added. The note is shown in full, including each `/`.
+
+   1. Test case: `add Wei Ling /phone 9876 5433 /note see /docs`<br>
+      Expected: No contact is added. Error: `No word in a note can start with "/", as that starts a new field.`
+
+   1. Test case: `add Wei Ling /phone 9876 5433 /note ends with /`<br>
+      Expected: Same error as above.
+
+   1. Test case: `add Wei Jie /phone 9876 5435 /note talk to /room officer`<br>
+      Expected: Wei Jie is added with the note `talk to` and the room `officer`, as described in the UG.
+
+   1. Test case: `add Wei Ling /phone 9876 5433 /note a /note b`<br>
+      Expected: No contact is added. The error names `/note` as a repeated field.
+
+   1. Test case: `add Wei Ling /phone 9876 5433 /note ` followed by 201 letters<br>
+      Expected: No contact is added. Error: `Note too long, please shorten it and try again.`
+
+   1. Test case: `add Wei Min /phone 9876 5436 /note ` followed by 200 letters<br>
+      Expected: Wei Min is added and the note wraps onto several lines on the card.
+
+1. Editing and removing a note
+
+   1. Prerequisites: Start with the sample data. The 1st contact, Alex Yeoh, has a note.
+
+   1. Test case: `edit 1 /note Prefers WhatsApp over calls`<br>
+      Expected: The 1st contact's note is replaced. The status message ends with `Note: Prefers WhatsApp over calls`.
+
+   1. Test case: `edit 1 /note`<br>
+      Expected: The 1st contact's note is removed and the card no longer shows a note line.
+
+   1. Test case: `edit 2 /room B-204`, then `edit 2 /room`<br>
+      Expected: The 2nd contact's card shows `Room: B-204`, then the room line is removed.
+
+   1. Test case: `edit 2 /room` again, after the test case above<br>
+      Expected: Nothing changes. The status message is `Bernice Yu already has these details. No changes made.`
+
+   1. Test case: `edit 2 /note same` twice<br>
+      Expected: The first command sets the note. The second shows the same `No changes made.` message as above.
+
+   1. Test case: `edit 2147483648 /room`, then `edit 99999999999999999999 /room`<br>
+      Expected: No contact is changed. Both show `The person index provided is invalid.`, like `edit 2147483647 /room`.
+
+   1. Test case: `edit 1 /note see /docs`<br>
+      Expected: No contact is changed. Error: `No word in a note can start with "/", as that starts a new field.`
+
+   1. Test case: `edit 3 /note ask /name Bob Lee`<br>
+      Expected: The 3rd contact is renamed to `Bob Lee` and its note becomes `ask`, as described in the UG.
+
+   1. Test case: `edit 2 /room B-204`, then `edit 2 /note keep /room`<br>
+      Expected: The 2nd contact's room is removed and its note becomes `keep`, as described in the UG.
+
+   1. Test case: `edit 4 /note ask /tag Staff`<br>
+      Expected: No contact is changed. Error: `No word in a note can start with "/", as that starts a new field.`
+
+   1. Test case: Close the app and reopen it.<br>
+      Expected: Notes added or edited above are still shown.
+
+### Managing favourite contacts
+
+Use an empty, disposable address book for these checks. Add the following contacts in this order:
+
+```text
+add Favourite Test One /phone 91234567 /room B-204 /tag Resident /note Call after 6 pm
+add Favourite Test Two /phone 91234568 /tag favourite
+add Favourite Test Three /phone 91234569
+```
+
+Test | Commands or actions | Expected result
+-----|---------------------|----------------
+Initial status | `list` | All three contacts appear without a favourite badge, including Test Two with its `favourite` tag.
+Marking | `fav 3`, then `fav 1` | Test Three and Test One gain the badge; their other details stay unchanged.
+Listing and numbering | `list fav` | Test One is #1 and Test Three is #2, in stored order despite being marked in the reverse order. Message: `Listed all favourite contacts.`.
+Repeated marking | `fav 1` | Message starts with `Contact is already a favourite:`. Data and the favourite view stay unchanged.
+Removing from favourites | `unfav 2` | Test Three disappears from this view; Test One remains as #1. Test Three still exists in the address book.
+Current displayed index | Repeat `unfav 2` | Error: `The person index provided is invalid.`. No contact is changed.
+Ignoring previous filters | `find /phone 91234568`, then `list fav` | Test One is shown even though the previous search displayed only Test Two.
+Changing tags | `find /phone 91234567`, `toggle 1 /tag Staff`, `find /phone 91234567`, `toggle 1 /tag Staff`, then `list fav` | Test One stays a favourite, with its room and note intact. The first toggle adds `Staff` and the second removes it again. Search again before each toggle because toggling restores the active list.
+Saving and restarting | Close and reopen the app, then `list fav` | Only Test One is a favourite. Its room, note and tags remain as saved.
+Repeated removal | `find /phone 91234567`, then `unfav 1` twice | The first command removes the badge. The second message starts with `Contact is not a favourite:`. Test One's other details remain intact.
+No favourites | `list fav`, then `list` | The favourite view is empty with `No favourite contacts found.`. `list` restores all three contacts.
+Invalid formats | `fav`, `fav 0`, `fav -1`, `unfav 1 extra` | Invalid command format and the respective usage message; data and the displayed list stay unchanged.
+Out-of-range index | `fav 999999`, `fav 2147483648`, `unfav 99999999999999999999` | Error: `The person index provided is invalid.`; data and the displayed list stay unchanged.
+Invalid listing | `list fav 1` | Error: `Invalid command format. Usage: list fav`; the displayed list stays unchanged.
+Case sensitivity | `FAV 1`, `UNFAV 1`, `LIST fav`, `list FAV` | The first three report `Unknown command.`. The last reports `Invalid command format. Usage: list`. No data changes.
+
+Repeat `list fav` in an empty disposable address book; it should show the same no-favourites message.
+
+For backward compatibility, close the app and use a copy of a valid data file saved before this feature,
+with no `isFavourite` properties. Reopen the app: every contact should be unfavourited, with its existing
+details intact. Mark one contact, restart, and verify that the new status and existing details are retained.
+
+For archive integration, run `find /phone 91234567`, then `fav 1` to mark Test One as a favourite.
+Assign emergency details with `emergency 1 /name Jane Tan /phone 91234567 /relation Sister`.
+Run `archive 1`, restart, and enter `list fav`: Test One is hidden. Run `list archived`, then try `fav 1`
+and `unfav 1`: both must report that the contact needs to be unarchived, with no data changes.
+Run `unarchive 1`, restart, and enter `list fav`: Test One is shown with its favourite badge, note and
+emergency details preserved.
+
+### Assigning, replacing and clearing a person's emergency contact
+
+Use a disposable address book with just `Amy Bee`, created using
+`add Amy Bee /phone 85355255 /note Call after 6pm`. Run `list` so Amy is displayed as contact 1.
+
+| Test command or action | Expected result |
+|---|---|
+| `emergency 1 /name Bob Choo /phone 91234567 /relation Brother` | The card shows `emergency: Bob Choo(Brother) 91234567`; Amy's phone and note are unchanged. |
+| `emergency 1 /name Alex Yeoh /phone 87654321` | The previous details are replaced by `emergency: Alex Yeoh 87654321`, with no relation. |
+| `emergency 1 /name Bob Choo /phone abc` | Invalid-phone error; Alex's details remain unchanged. |
+| `emergency 1 /name Bob Choo` | Usage error; existing details remain unchanged. |
+| `emergency 2 /name Bob Choo /phone 91234567` | Invalid-index error; no contact is changed. |
+| `emergency 1 /name Bob Choo /phone 91234567 /phone 87654321` | Duplicate-prefix error; existing details remain unchanged. |
+| `edit 1 /note Changed note /room B-204` | Note and room change, tags are unchanged, and Alex's emergency details remain. |
+| `edit 1 /tag Staff` | Invalid-command-format error showing the `edit` usage, which has no `/tag`; nothing changes. |
+| `edit 1 /note` | The note is cleared; emergency details remain. |
+| `list emerg`, then `list` | The general emergency list is empty; `list` restores Amy with her emergency details intact. |
+| Close and reopen the app | Amy's replacement emergency details and room are still present. |
+| `emergency 1 /clear /name Bob Choo` | Usage error; Alex's emergency details remain unchanged. |
+| `archive 1`, then `list archived` | Amy is displayed as archived contact 1 with Alex's emergency details intact. |
+| `emergency 1 /name Bob Choo /phone 91234567`, then `emergency 1 /clear` | Both commands report `Cannot change emergency details of an archived contact. Unarchive it first.`; Amy's details and the archived view remain unchanged. |
+| `unarchive 1`, then `list` | Amy returns as active contact 1 with Alex's emergency details intact. |
+| `emergency 1 /clear` | Shows `Emergency contact cleared for Amy Bee.`; the emergency field disappears without leaving blank space. Amy's room, phone and other details remain unchanged. |
+| `emergency 1 /clear` again | Shows `No emergency contact assigned to Amy Bee. No changes made.`; Amy remains unchanged. |
+| Close and reopen the app | Amy's emergency details remain absent; her room, phone and other details are preserved. |
+
+For filtered-list indexing, add a second person, use `find /name` to display only that person, and run
+`emergency 1 /name Bob Choo /phone 91234567`. Only the displayed person receives the details.
+Then run `emergency 1 /clear`: only that person's emergency details are removed and the search remains in place.
+
+### Listing contacts sorted by name
+
+Use a disposable address book with active contacts `Zara Tan`, `Amy Bee` and `amy Bee` added in that order,
+plus an archived contact `Aaron Tan`.
+
+* Run `list sorted`: only `Amy Bee`, `amy Bee` and `Zara Tan` appear, in that order.
+* Run `list`: stored order returns, with `Zara Tan` first.
+* Run `list archived`, then `list sorted`: all active contacts appear sorted; `Aaron Tan` stays archived.
+* Run `list sorted extra`: the command is rejected with `Invalid command format. Usage: list sorted`.
+  The sorted view stays unchanged.
+* Run `delete 1`: `Amy Bee` is deleted, and the remaining contacts are reindexed.
+* Close and reopen the app: the remaining active contacts appear in their original stored order.
+
+### Searching by room number
+
+Start with two active contacts sharing room `B-204`, one contact in `B-205`, and one archived contact in `B-204`.
+
+* Run `find /room b-204`: only the two active contacts in `B-204` appear.
+* Run `list archived`, then `find /room B-204`: the same two active contacts appear.
+* Run `find /room B-20`: no contacts are found; matching is exact.
+* Run `find /room`, `find /room B-204 /tag Resident`, or `find /roomB-204`: a usage error is shown.
+* Run `find /room B-204 /room B-205`: a repeated-prefix error is shown.
+* Run `list`: all active contacts are still present; searching has changed no stored data.
 
 ### Saving data
 
-1. Dealing with missing/corrupted data files
+1. Dealing with missing and corrupted data files
 
-   1. _{Explain how to simulate missing or corrupted data files and state the expected behavior.}_
+   1. Prerequisites: Copy the JAR file into an empty folder and use that folder for every test case below,
+      so that your real data is never touched. Close the app before changing any file.
 
-1. _{ more test cases …​ }_
+   1. Test case: Delete `data/addressbook.json` (or launch the app for the first time), then launch the app.<br>
+      Expected: The sample contacts are shown. `data/addressbook.json` is not created until a command is run.
+      Run `list`, and the file is created containing the sample contacts.
+
+   1. Test case: Replace the contents of `data/addressbook.json` with `{ not json`, then launch the app.<br>
+      Expected: The app starts with an empty contact list. The file still contains `{ not json`.
+
+   1. Test case: After the test case above, close the app without running a command, then relaunch it.<br>
+      Expected: Same as above. The corrupted file is kept until a command is run.
+
+   1. Test case: After the test case above, run `list`.<br>
+      Expected: `data/addressbook.json` is overwritten with an empty contact list, and the corrupted contents are lost.
+
+   1. Test case: Restore a valid data file, then edit one contact's `name` to a value longer than 100 characters, or
+      give one contact more than 5 different tags. Launch the app.<br>
+      Expected: The app starts with an empty contact list, the same as for a corrupted file.
+
+1. Commands when saving fails
+
+   1. Prerequisites: Launch the app in a disposable folder. While it is open, move `data/addressbook.json`
+      elsewhere and create a folder named `addressbook.json` inside `data`, so that saving fails.
+
+   1. Test case: `help`<br>
+      Expected: The help window opens. No save error is shown.
+
+   1. Test case: `exit`<br>
+      Expected: The app stays open and shows `Could not save data due to the following error: ...`.
+
+   1. Test case: Close the main window.<br>
+      Expected: The app quits.
+
+
+### Finding contacts by phone
+
+Use an empty, disposable address book. Add `add Phone Test /phone 9123 4567`.
+
+1. Run `find /phone 91234567`: Phone Test is listed.
+2. Run `find /phone 9123 4567`: the same contact is listed.
+3. Copy `find /phone 9123 4567` (the internal space is U+00A0): the same contact is listed.
+4. Run `edit 1 /phone 91234567`, then repeat steps 2 and 3: the same contact is listed.
+5. Run `find /phone 9123`: no contacts are found, because partial numbers do not match.
+
+Searching must not change the stored phone number or its displayed formatting.

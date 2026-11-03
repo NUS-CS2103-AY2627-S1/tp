@@ -1,10 +1,13 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_COMMAND;
 
 import seedu.address.commons.core.index.Index;
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.NameEqualsPredicate;
 
 /**
  * Parses input arguments and creates a new DeleteCommand object
@@ -18,12 +21,34 @@ public class DeleteCommandParser implements Parser<DeleteCommand> {
      */
     public DeleteCommand parse(String args) throws ParseException {
         try {
+            String trimmedArgs = args.trim();
+            // Signed integers must remain index inputs even when they are invalid or overflow.
+            if (!trimmedArgs.isEmpty() && !trimmedArgs.matches("[+-]?[0-9]+")) {
+                return new DeleteCommand(parseName(trimmedArgs));
+            }
             Index index = ParserUtil.parseIndex(args);
             return new DeleteCommand(index);
         } catch (ParseException pe) {
             throw new ParseException(
                     String.format(MESSAGE_INVALID_COMMAND_FORMAT, DeleteCommand.MESSAGE_USAGE), pe);
         }
+    }
+
+    /**
+     * Parses {@code args} of the form {@code /name NAME} into a {@code NameEqualsPredicate}.
+     *
+     * @throws ParseException if the {@code /name} prefix is missing or repeated, the name is empty
+     *                        or there is text before it.
+     */
+    private static NameEqualsPredicate parseName(String args) throws ParseException {
+        // The tokenizer only recognises a prefix that follows whitespace, so restore the leading space.
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(" " + args, PREFIX_NAME_COMMAND);
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME_COMMAND);
+        String name = StringUtil.collapseWhitespace(argMultimap.getValue(PREFIX_NAME_COMMAND).orElse(""));
+        if (!argMultimap.getPreamble().isEmpty() || name.isEmpty()) {
+            throw new ParseException(MESSAGE_INVALID_COMMAND_FORMAT);
+        }
+        return new NameEqualsPredicate(name);
     }
 
 }

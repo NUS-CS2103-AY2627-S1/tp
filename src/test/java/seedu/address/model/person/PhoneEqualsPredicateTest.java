@@ -1,0 +1,68 @@
+package seedu.address.model.person;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.testutil.PersonBuilder;
+
+public class PhoneEqualsPredicateTest {
+    @Test
+    public void test_exactNumber_matchesOnlyPhone() {
+        Person person = new PersonBuilder().withName("12345").withPhone("+65 9123 4567").build();
+        assertTrue(new PhoneEqualsPredicate(" +65  9123 4567 ").test(person));
+        assertFalse(new PhoneEqualsPredicate("9123").test(person));
+        assertTrue(new PhoneEqualsPredicate("+6591234567").test(person));
+        assertFalse(new PhoneEqualsPredicate("12345").test(person));
+        assertFalse(new PhoneEqualsPredicate("unknown").test(person));
+    }
+
+    @Test
+    public void test_spacingDifferences_matchesInBothDirections() {
+        Person spaced = new PersonBuilder().withPhone("9123 4567").build();
+        Person compact = new PersonBuilder().withPhone("91234567").build();
+        assertTrue(new PhoneEqualsPredicate("91234567").test(spaced));
+        assertTrue(new PhoneEqualsPredicate(" 9123  4567 ").test(compact));
+        assertTrue(new PhoneEqualsPredicate("9123\t4567").test(compact));
+    }
+
+    @Test
+    public void test_otherFormatting_remainsSignificant() {
+        Person person = new PersonBuilder().withPhone("+65-(9123)-4567").build();
+        assertTrue(new PhoneEqualsPredicate(" +65 - (9123) - 4567 ").test(person));
+        assertFalse(new PhoneEqualsPredicate("65-(9123)-4567").test(person));
+        assertFalse(new PhoneEqualsPredicate("+65(9123)4567").test(person));
+        assertFalse(new PhoneEqualsPredicate("+65-9123-4567").test(person));
+    }
+
+    @Test
+    public void test_unicodeSpaces_matchesNormalizedPhone() {
+        Person spaced = new PersonBuilder().withPhone("9123 4567").build();
+        Person compact = new PersonBuilder().withPhone("91234567").build();
+        for (String space : new String[]{"\u00a0", "\u2003", "\u202f"}) {
+            PhoneEqualsPredicate predicate = new PhoneEqualsPredicate(space + "9123" + space + "4567" + space);
+            assertTrue(predicate.test(spaced));
+            assertTrue(predicate.test(compact));
+            assertEquals(new PhoneEqualsPredicate("91234567"), predicate);
+        }
+    }
+
+    @Test
+    public void equals() {
+        PhoneEqualsPredicate predicate = new PhoneEqualsPredicate("9123 4567");
+        assertTrue(predicate.equals(predicate));
+        assertEquals(predicate, new PhoneEqualsPredicate(" 9123  4567 "));
+        assertEquals(predicate, new PhoneEqualsPredicate("91234567"));
+        assertFalse(predicate.equals(new PhoneEqualsPredicate("12345")));
+        assertFalse(predicate.equals(null));
+        assertFalse(predicate.equals("9123 4567"));
+    }
+
+    @Test
+    public void toStringMethod() {
+        assertEquals(PhoneEqualsPredicate.class.getCanonicalName() + "{phone=91234567}",
+                new PhoneEqualsPredicate("91234567").toString());
+    }
+}

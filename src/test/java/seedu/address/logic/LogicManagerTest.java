@@ -1,18 +1,18 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListEmergencyCommand;
+import seedu.address.logic.commands.ListFavouriteCommand;
+import seedu.address.logic.commands.ListSortedCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
@@ -28,6 +33,7 @@ import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Phone;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
@@ -65,9 +71,278 @@ public class LogicManagerTest {
     }
 
     @Test
+    public void execute_phoneWithoutDigits_rejectedWithoutChangingDataViewOrFile() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("emergency 1 /name Bob Choo /phone 91234567");
+        List<Person> stored = List.copyOf(model.getAddressBook().getPersonList());
+        List<Person> displayed = List.copyOf(logic.getFilteredPersonList());
+        Path dataPath = temporaryFolder.resolve("addressBook.json");
+        String saved = Files.readString(dataPath);
+
+        for (String phone : List.of("++++", "---", "( )", "+()-")) {
+            for (String command : List.of("add Sarah Tan /phone ", "edit 1 /phone ",
+                    "emergency 1 /name Bob Choo /phone ")) {
+                assertThrows(ParseException.class, Phone.MESSAGE_NO_DIGITS, () -> logic.execute(command + phone));
+                assertEquals(stored, model.getAddressBook().getPersonList());
+                assertEquals(displayed, logic.getFilteredPersonList());
+                assertEquals(saved, Files.readString(dataPath));
+            }
+        }
+    }
+
+    @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_EMPTY, model);
+    }
+
+    @Test
+    public void execute_listSorted_displaysSortedNamesButSavesOriginalOrder() throws Exception {
+        Person zara = new PersonBuilder().withName("Zara Tan").build();
+        model.addPerson(zara);
+        model.addPerson(AMY);
+        CommandResult result = logic.execute("list sorted");
+        assertEquals(ListSortedCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertEquals(List.of(AMY, zara), logic.getFilteredPersonList());
+        ReadOnlyAddressBook saved = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(List.of(zara, AMY), saved.getPersonList());
+        assertEquals(List.of(zara, AMY), new ModelManager(saved, new UserPrefs()).getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_listSortedWithExtraArguments_keepsSortedView() throws Exception {
+        Person zara = new PersonBuilder().withName("Zara Tan").build();
+        model.addPerson(zara);
+        model.addPerson(AMY);
+        logic.execute("list sorted");
+
+        assertThrows(ParseException.class, ListSortedCommand.MESSAGE_INVALID_FORMAT, () ->
+                logic.execute("list sorted extra"));
+        assertEquals(List.of(AMY, zara), logic.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_favAndUnfav_persistsDisplayedTargetAndPreservesDetails() throws Exception {
+        Person otherContact = new PersonBuilder().withName("Other Contact").withRoom("B-204")
+                .withNote("Call after 6 pm").withTags("Resident", "Floor 3").build();
+        model.addPerson(AMY);
+        model.addPerson(otherContact);
+        logic.execute("find /name Other Contact");
+
+        logic.execute("fav 1");
+
+        assertEquals(List.of(otherContact.withFavourite(true)), logic.getFilteredPersonList());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook saved = storage.readAddressBook().orElseThrow();
+        assertEquals(List.of(AMY, otherContact.withFavourite(true)), saved.getPersonList());
+
+        Model restartedModel = new ModelManager(saved, new UserPrefs());
+        Logic restartedLogic = new LogicManager(restartedModel, new StorageManager(storage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"))));
+        restartedLogic.execute("unfav 2");
+
+        assertEquals(List.of(AMY, otherContact), restartedLogic.getFilteredPersonList());
+        assertEquals(List.of(AMY, otherContact), storage.readAddressBook().orElseThrow().getPersonList());
+    }
+
+    @Test
+    public void execute_emergencyReplacement_savesNewDetailsAndKeepsGeneralEmergencyListSeparate() throws Exception {
+        model.addPerson(new PersonBuilder(AMY).withNote("Allergic to peanuts").build());
+        logic.execute("emergency 1 /name Bob Choo /phone 91234567 /relation Brother");
+        logic.execute("edit 1 /name Amy Tan /room B-204 /note Call after 6pm");
+        logic.execute("emergency 1 /name Alex Yeoh /phone 87654321");
+
+        Person stored = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow().getPersonList().getFirst();
+        assertEquals(model.getAddressBook().getPersonList().getFirst(), stored);
+        assertEquals("Amy Tan", stored.getName().fullName);
+        assertEquals("B-204", stored.getRoom().value);
+        assertEquals("Call after 6pm", stored.getNote().value);
+        assertEquals("Alex Yeoh", stored.getEmergencyContact().orElseThrow().getName().fullName);
+        assertEquals("87654321", stored.getEmergencyContact().orElseThrow().getPhone().value);
+        assertEquals("", stored.getEmergencyContact().orElseThrow().getRelation());
+
+        logic.execute("list emerg");
+        assertEquals(List.of(), logic.getFilteredPersonList());
+        assertEquals(List.of(stored), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_invalidEmergencyReplacement_preservesMemoryAndSavedDetails() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("emergency 1 /name Bob Choo /phone 91234567 /relation Brother");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook savedBefore = storage.readAddressBook().orElseThrow();
+
+        assertParseException("emergency 1 /name Alex Yeoh /phone abc", Phone.MESSAGE_INVALID_CHARACTERS);
+        assertEquals(savedBefore, model.getAddressBook());
+        assertEquals(savedBefore, storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void execute_listAfterFind_restoresAllContacts() throws Exception {
+        Person otherPerson = new PersonBuilder().withName("Other Contact").build();
+        model.addPerson(AMY);
+        model.addPerson(otherPerson);
+        logic.execute("find /name " + AMY.getName().fullName);
+
+        CommandResult result = logic.execute("  list  ");
+
+        assertEquals(ListCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertEquals(List.of(AMY, otherPerson), logic.getFilteredPersonList());
+        assertEquals(List.of(AMY, otherPerson), model.getAddressBook().getPersonList());
+        assertFalse(result.isShowHelp());
+        assertFalse(result.isExit());
+    }
+
+    @Test
+    public void execute_listFavAfterFind_usesAllContactsAndPersistsUnfav() throws Exception {
+        Person firstFavourite = new PersonBuilder(AMY).withFavourite(true).withRoom("B-204")
+                .withNote("Call after 6 pm").build();
+        Person otherContact = new PersonBuilder().withName("Other Contact").build();
+        Person secondFavourite = new PersonBuilder().withName("Second Favourite").withFavourite(true).build();
+        model.addPerson(firstFavourite);
+        model.addPerson(otherContact);
+        model.addPerson(secondFavourite);
+        logic.execute("find /name Other Contact");
+
+        CommandResult result = logic.execute("list fav");
+
+        assertEquals(ListFavouriteCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertEquals(List.of(firstFavourite, secondFavourite), logic.getFilteredPersonList());
+        assertEquals(List.of(firstFavourite, otherContact, secondFavourite), model.getAddressBook().getPersonList());
+
+        logic.execute("unfav 1");
+        assertEquals(List.of(secondFavourite), logic.getFilteredPersonList());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        ReadOnlyAddressBook saved = storage.readAddressBook().orElseThrow();
+        assertEquals(List.of(firstFavourite.withFavourite(false), otherContact, secondFavourite),
+                saved.getPersonList());
+        Model restartedModel = new ModelManager(saved, new UserPrefs());
+        Logic restartedLogic = new LogicManager(restartedModel, new StorageManager(storage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"))));
+
+        restartedLogic.execute("list fav");
+        assertEquals(List.of(secondFavourite), restartedLogic.getFilteredPersonList());
+        restartedLogic.execute("list");
+        assertEquals(saved.getPersonList(), restartedLogic.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_invalidListFav_preservesFavouriteViewAndData() throws Exception {
+        model.addPerson(AMY.withFavourite(true));
+        model.addPerson(new PersonBuilder().withName("Other Contact").build());
+        logic.execute("list fav");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(Person::isFavourite);
+
+        for (String input : List.of("list fav 1", "list fav fav", "list fav emerg", "list fav /tag friend")) {
+            assertCommandFailure(input, ParseException.class, ListFavouriteCommand.MESSAGE_INVALID_FORMAT,
+                    expectedModel);
+        }
+        assertCommandFailure("list FAV", ParseException.class, ListCommand.MESSAGE_INVALID_FORMAT, expectedModel);
+        assertCommandFailure("LIST fav", ParseException.class, MESSAGE_UNKNOWN_COMMAND, expectedModel);
+    }
+
+    @Test
+    public void execute_invalidList_preservesFilteredList() throws Exception {
+        model.addPerson(AMY);
+        logic.execute("find /name Nobody");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> false);
+
+        assertCommandFailure("list abc", ParseException.class, ListCommand.MESSAGE_INVALID_FORMAT, expectedModel);
+    }
+
+    @Test
+    public void execute_listEmergencyAfterFind_filtersAllStoredContacts() throws Exception {
+        Person emergencyContact = new PersonBuilder(AMY).withTags("Emergency", "staff").build();
+        Person otherContact = new PersonBuilder().withName("Other Contact").build();
+        model.addPerson(emergencyContact);
+        model.addPerson(otherContact);
+        logic.execute("find /name Other Contact");
+
+        CommandResult result = logic.execute("  list   emerg  ");
+
+        assertEquals(ListEmergencyCommand.MESSAGE_SUCCESS, result.getFeedbackToUser());
+        assertEquals(List.of(emergencyContact), logic.getFilteredPersonList());
+        assertEquals(List.of(emergencyContact, otherContact), model.getAddressBook().getPersonList());
+        ReadOnlyAddressBook savedAddressBook = new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"))
+                .readAddressBook().orElseThrow();
+        assertEquals(model.getAddressBook(), savedAddressBook);
+        assertFalse(result.isShowHelp());
+        assertFalse(result.isExit());
+
+        logic.execute("list");
+        assertEquals(List.of(emergencyContact, otherContact), logic.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_invalidEmergencyList_preservesFilteredList() throws Exception {
+        Person emergencyContact = new PersonBuilder(AMY).withTags("emergency").build();
+        model.addPerson(emergencyContact);
+        model.addPerson(new PersonBuilder().withName("Other Contact").build());
+        logic.execute("list emerg");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.equals(emergencyContact));
+
+        assertCommandFailure("list emerg friend", ParseException.class,
+                ListEmergencyCommand.MESSAGE_INVALID_FORMAT, expectedModel);
+    }
+
+    @Test
+    public void execute_wrongCaseEmergencyList_preservesFilteredList() throws Exception {
+        Person emergencyContact = new PersonBuilder(AMY).withTags("Emergency").build();
+        model.addPerson(emergencyContact);
+        model.addPerson(new PersonBuilder().withName("Other Contact").build());
+        logic.execute("list emerg");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.equals(emergencyContact));
+
+        assertCommandFailure("LIST emerg", ParseException.class, MESSAGE_UNKNOWN_COMMAND, expectedModel);
+        assertCommandFailure("list EMERG", ParseException.class,
+                ListCommand.MESSAGE_INVALID_FORMAT, expectedModel);
+    }
+
+    @Test
+    public void execute_listEmergencyWithoutMatches_showsEmptyMessage() throws Exception {
+        model.addPerson(AMY);
+
+        CommandResult result = logic.execute("list emerg");
+
+        assertEquals(ListEmergencyCommand.MESSAGE_EMPTY, result.getFeedbackToUser());
+        assertEquals(List.of(), logic.getFilteredPersonList());
+        assertEquals(List.of(AMY), model.getAddressBook().getPersonList());
+    }
+
+    @Test
+    public void execute_findTagAndEmergencyList_showSameContacts() throws Exception {
+        Person firstEmergency = new PersonBuilder(AMY).withTags("Emergency", "staff").build();
+        Person secondEmergency = new PersonBuilder().withName("Security").withTags("EMERGENCY").build();
+        model.addPerson(firstEmergency);
+        model.addPerson(new PersonBuilder().withName("Other Contact").withTags("staff").build());
+        model.addPerson(secondEmergency);
+
+        logic.execute("find /tag emergency");
+        List<Person> tagMatches = List.copyOf(logic.getFilteredPersonList());
+        assertEquals(List.of(firstEmergency, secondEmergency), tagMatches);
+
+        logic.execute("list emerg");
+        assertEquals(tagMatches, logic.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_removedListFilter_preservesFilteredList() throws Exception {
+        Person emergencyContact = new PersonBuilder(AMY).withTags("Emergency").build();
+        model.addPerson(emergencyContact);
+        model.addPerson(new PersonBuilder().withName("Other Contact").build());
+        logic.execute("find /tag Emergency");
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.equals(emergencyContact));
+
+        assertCommandFailure("list /filter Emergency", ParseException.class,
+                ListCommand.MESSAGE_INVALID_FORMAT, expectedModel);
     }
 
     @Test
@@ -80,6 +355,21 @@ public class LogicManagerTest {
     public void execute_storageThrowsAdException_throwsCommandException() {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
+    }
+
+    @Test
+    public void execute_helpWhenSaveFails_showsHelp() throws Exception {
+        useStorageThatFailsToSave(DUMMY_IO_EXCEPTION);
+        CommandResult result = logic.execute(HelpCommand.COMMAND_WORD);
+        assertTrue(result.isShowHelp());
+        assertEquals(HelpCommand.SHOWING_HELP_MESSAGE, result.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_exitWhenSaveFails_throwsCommandException() {
+        useStorageThatFailsToSave(DUMMY_IO_EXCEPTION);
+        assertCommandException(ExitCommand.COMMAND_WORD,
+                String.format(LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
     }
 
     @Test
@@ -147,6 +437,21 @@ public class LogicManagerTest {
      * @param expectedMessage the message expected inside exception thrown by the Logic component
      */
     private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
+        useStorageThatFailsToSave(e);
+
+        // Triggers the saveAddressBook method by executing an add command
+        String addCommand = AddCommand.COMMAND_WORD + " Amy Bee /phone 11111111";
+        Person expectedPerson = new PersonBuilder(AMY).withPhone("11111111").withEmail("").withAddress("")
+                .withTags().build();
+        ModelManager expectedModel = new ModelManager();
+        expectedModel.addPerson(expectedPerson);
+        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+    }
+
+    /**
+     * Replaces {@code logic} with one whose storage throws {@code e} whenever the address book is saved.
+     */
+    private void useStorageThatFailsToSave(IOException e) {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
         // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
@@ -162,13 +467,5 @@ public class LogicManagerTest {
         StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
         logic = new LogicManager(model, storage);
-
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

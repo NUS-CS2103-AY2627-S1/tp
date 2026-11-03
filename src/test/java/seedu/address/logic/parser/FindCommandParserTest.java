@@ -1,19 +1,84 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.getErrorMessageForDuplicatePrefixes;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ROOM_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG_COMMAND;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.FindCommand;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.NameFuzzyMatchesPredicate;
+import seedu.address.model.person.PersonHasTagPredicate;
+import seedu.address.model.person.PhoneEqualsPredicate;
+import seedu.address.model.person.RoomEqualsPredicate;
 
 public class FindCommandParserTest {
 
     private FindCommandParser parser = new FindCommandParser();
+
+    @Test
+    public void parse_room_returnsFindCommand() {
+        assertParseSuccess(parser, " /room B-204", new FindCommand(new RoomEqualsPredicate("B-204")));
+        assertParseSuccess(parser, " /room  b   204  ", new FindCommand(new RoomEqualsPredicate("B 204")));
+        assertParseSuccess(parser, " /room unknown", new FindCommand(new RoomEqualsPredicate("unknown")));
+    }
+
+    @Test
+    public void parse_invalidRoomPrefixes_throwsParseException() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+        for (String input : new String[]{" /room", " /room   ", " /roomB-204", " /ROOM B-204",
+            " text /room B-204", " /room B-204 /name Alice", " /name Alice /room B-204",
+            " /room B-204 /tag friends", " /tag friends /room B-204",
+            " /room B-204 /phone 91234567", " /phone 91234567 /room B-204"}) {
+            assertParseFailure(parser, input, message);
+        }
+        assertParseFailure(parser, " /room B-204 /room C-101",
+                getErrorMessageForDuplicatePrefixes(PREFIX_ROOM_COMMAND));
+    }
+
+    @Test
+    public void parse_unknownPrefix_throwsParseException() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+        for (String input : new String[]{" /name Amy /rom B-204", " /tag friends /foo", " /room B-204 /x",
+            " /phone 91234567 /x", " /name /Amy", " /name Amy /", " /name Amy /NAME Bob",
+            " /name Amy /rom B-204", " /name Amy /rom B-204"}) {
+            assertParseFailure(parser, input, message);
+        }
+    }
+
+    @Test
+    public void parse_secondPrefixAfterUnicodeSpace_throwsParseException() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+        for (String blank : new String[]{" ", " ", " "}) {
+            assertParseFailure(parser, " /name Amy" + blank + "/room B-204", message);
+        }
+    }
+
+    @Test
+    public void parse_unicodeSpaceBeforePrefix_returnsFindCommand() {
+        NameFuzzyMatchesPredicate predicate = new NameFuzzyMatchesPredicate("Amy");
+        assertParseSuccess(parser, " /name Amy", new FindCommand(predicate, predicate.getRankingComparator()));
+    }
+
+    @Test
+    public void parse_slashInsideWord_returnsFindCommand() {
+        NameFuzzyMatchesPredicate predicate = new NameFuzzyMatchesPredicate("Kumar s/o");
+        assertParseSuccess(parser, " /name Kumar s/o", new FindCommand(predicate, predicate.getRankingComparator()));
+    }
+
+    @Test
+    public void parse_unicodeOnlyValue_throwsParseException() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+        for (String prefix : new String[]{"/name", "/tag", "/phone", "/room"}) {
+            for (String blank : new String[]{"\u00a0", "\u2003", "\u202f"}) {
+                assertParseFailure(parser, " " + prefix + " " + blank, message);
+            }
+        }
+    }
 
     @Test
     public void parse_emptyArg_throwsParseException() {
@@ -21,14 +86,97 @@ public class FindCommandParserTest {
     }
 
     @Test
-    public void parse_validArgs_returnsFindCommand() {
-        // no leading and trailing whitespaces
-        FindCommand expectedFindCommand =
-                new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice", "Bob")));
-        assertParseSuccess(parser, "Alice Bob", expectedFindCommand);
+    public void parse_missingPrefixOrName_throwsParseException() {
+        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
 
-        // multiple whitespaces between keywords
-        assertParseSuccess(parser, " \n Alice \n \t Bob  \t", expectedFindCommand);
+        // no prefix
+        assertParseFailure(parser, "Alice Bob", expectedMessage);
+
+        // prefix with no name
+        assertParseFailure(parser, " /name", expectedMessage);
+        assertParseFailure(parser, " /name   ", expectedMessage);
+
+        // text before prefix
+        assertParseFailure(parser, " Alice /name Bob", expectedMessage);
+
+        // prefix /tag with no tag
+        assertParseFailure(parser, " /tag", expectedMessage);
+        assertParseFailure(parser, " /tag   ", expectedMessage);
+
+        // text before /tag
+        assertParseFailure(parser, " Alice /tag friends", expectedMessage);
+
+        // prefix directly followed by the value
+        assertParseFailure(parser, " /tagfriends", expectedMessage);
+        assertParseFailure(parser, " /tags friends", expectedMessage);
+        assertParseFailure(parser, " /nameAlice", expectedMessage);
+
+        // more than one name
+        String duplicateNameMessage = getErrorMessageForDuplicatePrefixes(PREFIX_NAME_COMMAND);
+        assertParseFailure(parser, " /name Alice /name Bob", duplicateNameMessage);
+        assertParseFailure(parser, " /name Alice /name Alice", duplicateNameMessage);
+
+        // more than one tag
+        String duplicateTagMessage = getErrorMessageForDuplicatePrefixes(PREFIX_TAG_COMMAND);
+        assertParseFailure(parser, " /tag friends /tag family", duplicateTagMessage);
+        assertParseFailure(parser, " /tag friends /tag friends", duplicateTagMessage);
+
+        // both prefixes
+        assertParseFailure(parser, " /name Alice /tag friends", expectedMessage);
+        assertParseFailure(parser, " /tag friends /name Alice", expectedMessage);
+    }
+
+    @Test
+    public void parse_validTag_returnsFindCommand() {
+        FindCommand expectedFindCommand = new FindCommand(new PersonHasTagPredicate("friends"));
+        assertParseSuccess(parser, " /tag friends", expectedFindCommand);
+
+        // leading and trailing whitespaces around the tag are trimmed
+        assertParseSuccess(parser, " /tag   friends  \t", expectedFindCommand);
+
+        // multi-word tag
+        assertParseSuccess(parser, " /tag best   friends",
+                new FindCommand(new PersonHasTagPredicate("best friends")));
+
+        // a value that is not a valid tag is accepted and simply matches nobody
+        assertParseSuccess(parser, " /tag fr!ends", new FindCommand(new PersonHasTagPredicate("fr!ends")));
+
+        // case is ignored when comparing tags
+        assertParseSuccess(parser, " /tag Friends", new FindCommand(new PersonHasTagPredicate("Friends")));
+    }
+
+    @Test
+    public void parse_validArgs_returnsFindCommand() {
+        // name results are ranked by how closely they match
+        NameFuzzyMatchesPredicate predicate = new NameFuzzyMatchesPredicate("Alice Bob");
+        FindCommand expectedFindCommand = new FindCommand(predicate, predicate.getRankingComparator());
+        assertParseSuccess(parser, " /name Alice Bob", expectedFindCommand);
+
+        // extra whitespace around and between words is ignored
+        assertParseSuccess(parser, " /name   Alice    Bob  \t", expectedFindCommand);
+
+        // case is ignored
+        assertParseSuccess(parser, " /name alice bob", expectedFindCommand);
+    }
+
+    @Test
+    public void parse_phone_returnsFindCommand() {
+        assertParseSuccess(parser, " /phone 91234567", new FindCommand(new PhoneEqualsPredicate("91234567")));
+        assertParseSuccess(parser, " /phone  +65  9123 4567  ",
+                new FindCommand(new PhoneEqualsPredicate("+65 9123 4567")));
+        assertParseSuccess(parser, " /phone unknown", new FindCommand(new PhoneEqualsPredicate("unknown")));
+    }
+
+    @Test
+    public void parse_invalidPhonePrefixes_throwsParseException() {
+        String message = String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE);
+        for (String input : new String[]{" /phone", " /phone   ", " /phone91234567", " text /phone 91234567",
+            " /phone 91234567 /name Alice", " /tag friends /phone 91234567",
+            " /name Alice /phone 91234567 /tag friends"}) {
+            assertParseFailure(parser, input, message);
+        }
+        assertParseFailure(parser, " /phone 123 /phone 456",
+                getErrorMessageForDuplicatePrefixes(CliSyntax.PREFIX_PHONE_COMMAND));
     }
 
 }

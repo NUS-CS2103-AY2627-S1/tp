@@ -1,196 +1,291 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_NON_EMPTY;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_LENGTHENED_PAST_MAX_LENGTH;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_GREEK_LOWER_CASE;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_GREEK_UPPER_CASE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ROOM_COMMAND;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalPersons.AMY;
-import static seedu.address.testutil.TypicalPersons.BOB;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Room;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
-    private AddCommandParser parser = new AddCommandParser();
+    private static final String VALID_NAME = "Sarah Tan";
+    private static final String VALID_PHONE = "9123 4567";
+    private static final String VALID_NAME_AND_PHONE = VALID_NAME + " /phone " + VALID_PHONE;
+    private static final String MESSAGE_INVALID_FORMAT =
+            String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
+
+    private final AddCommandParser parser = new AddCommandParser();
 
     @Test
-    public void parse_allFieldsPresent_success() {
-        Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
-
-        // whitespace only preamble
-        assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
-
-
-        // multiple tags - all accepted
-        Person expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
-                .build();
-        assertParseSuccess(parser,
-                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
-                new AddCommand(expectedPersonMultipleTags));
+    public void parse_validCommand_success() {
+        assertParseSuccess(parser, " " + VALID_NAME_AND_PHONE, addCommandWithTags());
     }
 
     @Test
-    public void parse_repeatedNonTagValue_failure() {
-        String validExpectedPersonString = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND;
-
-        // multiple names
-        assertParseFailure(parser, NAME_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // multiple phones
-        assertParseFailure(parser, PHONE_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple emails
-        assertParseFailure(parser, EMAIL_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // multiple addresses
-        assertParseFailure(parser, ADDRESS_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // multiple fields repeated
-        assertParseFailure(parser,
-                validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
-                        + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
-
-        // invalid value followed by valid value
-
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, INVALID_EMAIL_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, INVALID_PHONE_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, INVALID_ADDRESS_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // valid value followed by invalid value
-
-        // invalid name
-        assertParseFailure(parser, validExpectedPersonString + INVALID_NAME_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, validExpectedPersonString + INVALID_EMAIL_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, validExpectedPersonString + INVALID_PHONE_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, validExpectedPersonString + INVALID_ADDRESS_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
+    public void parse_extraWhitespace_collapsed() {
+        assertParseSuccess(parser, "  Sarah   Tan  /phone 9123   4567 ", addCommandWithTags());
     }
 
     @Test
-    public void parse_optionalFieldsMissing_success() {
-        // zero tags
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
-                new AddCommand(expectedPerson));
+    public void parse_phoneCharacters_success() {
+        assertParseSuccess(parser, "Daniel Lim /phone +65 (8123)-4567",
+                new AddCommand(new PersonBuilder().withName("Daniel Lim")
+                        .withPhone("+65 (8123)-4567").withEmail("").withAddress("").build()));
     }
 
     @Test
-    public void parse_compulsoryFieldMissing_failure() {
-        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
-
-        // missing name prefix
-        assertParseFailure(parser, VALID_NAME_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing phone prefix
-        assertParseFailure(parser, NAME_DESC_BOB + VALID_PHONE_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing email prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
-
-        // all prefixes missing
-        assertParseFailure(parser, VALID_NAME_BOB + VALID_PHONE_BOB + VALID_EMAIL_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
+    public void parse_emptyArgs_failure() {
+        assertParseFailure(parser, "", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "   ", MESSAGE_INVALID_FORMAT);
     }
 
     @Test
-    public void parse_invalidValue_failure() {
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Name.MESSAGE_CONSTRAINTS);
+    public void parse_missingNameOrPhone_failure() {
+        assertParseFailure(parser, "/phone 91234567", Name.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, VALID_NAME + " /phone", Phone.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME + " /tag RA", MESSAGE_INVALID_FORMAT);
+    }
 
-        // invalid phone
-        assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Phone.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_nameLength() {
+        String longestName = "A".repeat(Name.MAX_LENGTH);
+        assertParseSuccess(parser, longestName + " /phone " + VALID_PHONE, new AddCommand(new PersonBuilder()
+                .withName(longestName).withPhone(VALID_PHONE).withEmail("").withAddress("").build()));
+        assertParseFailure(parser, longestName + "A /phone " + VALID_PHONE, Name.MESSAGE_TOO_LONG);
+    }
 
-        // invalid email
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Email.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_nameWithSymbolsOrOtherLanguage_success() {
+        for (String name : new String[]{"Kumar s/o Rajan", "O'Brien", "Mary-Jane Lee", "José García", "李小明"}) {
+            assertParseSuccess(parser, name + " /phone " + VALID_PHONE,
+                    new AddCommand(validPersonBuilder().withName(name).build()));
+        }
+    }
 
-        // invalid address
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Address.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_invalidName_failure() {
+        assertParseFailure(parser, "Sarah& Tan /phone 91234567", Name.MESSAGE_CONSTRAINTS);
+    }
 
-        // invalid tag
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + INVALID_TAG_DESC + VALID_TAG_FRIEND, Tag.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_phoneAtMaxLength_success() {
+        String longestPhone = "1".repeat(Phone.MAX_LENGTH);
+        assertParseSuccess(parser, VALID_NAME + " /phone " + longestPhone, new AddCommand(new PersonBuilder()
+                .withName(VALID_NAME).withPhone(longestPhone).withEmail("").withAddress("").build()));
+    }
 
-        // two invalid values, only first invalid value reported
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC,
-                Name.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_invalidPhone_failure() {
+        assertParseFailure(parser, VALID_NAME + " /phone 912a4567", Phone.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME + " /phone " + "1".repeat(Phone.MAX_LENGTH + 1),
+                Phone.MESSAGE_TOO_LONG);
+    }
 
-        // non-empty preamble
-        assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
-                String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    @Test
+    public void parse_wrongPrefix_failure() {
+        assertParseFailure(parser, "Sarah Tan p/91234567", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " t/Resident", Phone.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /unknown value", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_keywordInWrongCase_failure() {
+        assertParseFailure(parser, VALID_NAME + " /PHONE " + VALID_PHONE, MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /Tag RA", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_repeatedPhoneOrRoom_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /phone 87654321",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE_COMMAND));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /room B1 /room B2",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ROOM_COMMAND));
+
+        // the values are not checked, so an invalid one does not change the message
+        assertParseFailure(parser, VALID_NAME + " /phone 911a /phone 87654321",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE_COMMAND));
+    }
+
+    @Test
+    public void parse_room_success() {
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /room B-204", addCommandWithRoomAndTags("B-204"));
+        String longestRoom = "B".repeat(Room.MAX_LENGTH);
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /room " + longestRoom,
+                addCommandWithRoomAndTags(longestRoom));
+    }
+
+    @Test
+    public void parse_invalidRoom_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /room", Room.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /room " + "B".repeat(Room.MAX_LENGTH + 1),
+                Room.MESSAGE_TOO_LONG);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /room B_204", Room.MESSAGE_INVALID_CHARACTERS);
+    }
+
+    @Test
+    public void parse_note_success() {
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note Allergic to peanuts",
+                addCommandWithNote("Allergic to peanuts"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note  Allergic   to peanuts ",
+                addCommandWithNote("Allergic to peanuts"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note Call mum: +65 9123-4567 (after 6pm)!",
+                addCommandWithNote("Call mum: +65 9123-4567 (after 6pm)!"));
+        assertParseSuccess(parser, " " + VALID_NAME + " /note Allergic to peanuts /phone " + VALID_PHONE,
+                addCommandWithNote("Allergic to peanuts"));
+    }
+
+    @Test
+    public void parse_noteWithSlashInsideWord_success() {
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note call w/ parent 24/7",
+                addCommandWithNote("call w/ parent 24/7"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note see https://nus.edu.sg",
+                addCommandWithNote("see https://nus.edu.sg"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note ends with/", addCommandWithNote("ends with/"));
+    }
+
+    @Test
+    public void parse_noteLength() {
+        String longestNote = "a".repeat(Note.MAX_LENGTH);
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note " + longestNote, addCommandWithNote(longestNote));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /note a", addCommandWithNote("a"));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /note " + longestNote + "a", Note.MESSAGE_TOO_LONG);
+    }
+
+    @Test
+    public void parse_invalidNote_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /note", Note.MESSAGE_EMPTY);
+    }
+
+    @Test
+    public void parse_noteWithWordStartingWithSlash_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /note see /docs", Note.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /note ends with /", Note.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, " " + VALID_NAME + " /note see /docs /phone " + VALID_PHONE,
+                Note.MESSAGE_INVALID_CHARACTERS);
+
+        // an unknown prefix outside the note is still a format error
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /docs /note hi", MESSAGE_INVALID_FORMAT);
+    }
+
+    @Test
+    public void parse_repeatedNote_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /note a /note b",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NOTE_COMMAND));
+    }
+
+    @Test
+    public void parse_tags_success() {
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag RA", addCommandWithTags("RA"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag RA /tag Resident Fellow",
+                addCommandWithTags("RA", "Resident Fellow"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag   RA   /tag   Resident   Fellow  ",
+                addCommandWithTags("RA", "Resident Fellow"));
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag Hall-Staff /tag Block4",
+                addCommandWithTags("Hall-Staff", "Block4"));
+    }
+
+    @Test
+    public void parse_tagAtMaxLength_success() {
+        String longestTag = "a".repeat(Tag.MAX_LENGTH);
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag " + longestTag, addCommandWithTags(longestTag));
+    }
+
+    @Test
+    public void parse_fieldsInAnyOrder_success() {
+        AddCommand expected = addCommandWithRoomAndTags("B-204", "RA", "Staff");
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /room B-204 /tag RA /tag Staff", expected);
+        assertParseSuccess(parser, VALID_NAME + " /tag RA /room B-204 /tag Staff /phone " + VALID_PHONE, expected);
+        assertParseSuccess(parser, VALID_NAME + " /room B-204 /phone " + VALID_PHONE + " /tag RA /tag Staff",
+                expected);
+    }
+
+    @Test
+    public void parse_repeatedTag_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA /tag RA", repeatedTagMessage("RA"));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA /tag ra", repeatedTagMessage("ra"));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag Resident Fellow /tag resident  fellow",
+                repeatedTagMessage("Resident Fellow"));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag " + VALID_TAG_GREEK_UPPER_CASE
+                + " /tag " + VALID_TAG_GREEK_LOWER_CASE, repeatedTagMessage(VALID_TAG_GREEK_LOWER_CASE));
+    }
+
+    @Test
+    public void parse_repeatedTagAtLimit_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag T1 /tag T2 /tag T3 /tag T4 /tag T5 /tag t1",
+                repeatedTagMessage("t1"));
+    }
+
+    @Test
+    public void parse_tagLimit() {
+        assertParseSuccess(parser, VALID_NAME_AND_PHONE + " /tag T1 /tag T2 /tag T3 /tag T4 /tag T5",
+                addCommandWithTags("T1", "T2", "T3", "T4", "T5"));
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag T1 /tag T2 /tag T3 /tag T4 /tag T5 /tag T6",
+                Person.MESSAGE_TAG_LIMIT_REACHED);
+    }
+
+    @Test
+    public void parse_emptyTag_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag", Tag.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag   ", Tag.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA /tag", Tag.MESSAGE_EMPTY);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag /tag RA", Tag.MESSAGE_EMPTY);
+    }
+
+    @Test
+    public void parse_invalidTag_failure() {
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA/Staff", Tag.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA, Staff", Tag.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag RA /tag St@ff", Tag.MESSAGE_INVALID_CHARACTERS);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag " + "a".repeat(Tag.MAX_LENGTH + 1),
+                Tag.MESSAGE_TOO_LONG);
+        assertParseFailure(parser, VALID_NAME_AND_PHONE + " /tag " + INVALID_TAG_LENGTHENED_PAST_MAX_LENGTH,
+                Tag.MESSAGE_TOO_LONG);
+    }
+
+    /** Returns the error for a tag named {@code tagName} that was already given. */
+    private static String repeatedTagMessage(String tagName) {
+        return String.format(Tag.MESSAGE_REPEATED, new Tag(tagName).tagName);
+    }
+
+    /** Returns the {@code AddCommand} expected for {@link #VALID_NAME_AND_PHONE} with only the given {@code note}. */
+    private static AddCommand addCommandWithNote(String note) {
+        return new AddCommand(validPersonBuilder().withNote(note).build());
+    }
+
+    /**
+     * Returns the {@code AddCommand} expected for {@link #VALID_NAME_AND_PHONE} with no room and the given
+     * {@code tags}.
+     */
+    private static AddCommand addCommandWithTags(String... tags) {
+        return addCommandWithRoomAndTags("", tags);
+    }
+
+    /**
+     * Returns the {@code AddCommand} expected for {@link #VALID_NAME_AND_PHONE} with the given {@code room}
+     * and {@code tags}.
+     */
+    private static AddCommand addCommandWithRoomAndTags(String room, String... tags) {
+        return new AddCommand(validPersonBuilder().withRoom(room).withTags(tags).build());
+    }
+
+    /** Returns a builder for the person {@code add} creates from {@link #VALID_NAME_AND_PHONE} alone. */
+    private static PersonBuilder validPersonBuilder() {
+        return new PersonBuilder().withName(VALID_NAME).withPhone(VALID_PHONE).withEmail("").withAddress("");
     }
 }

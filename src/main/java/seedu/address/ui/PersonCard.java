@@ -1,7 +1,5 @@
 package seedu.address.ui;
 
-import java.util.Comparator;
-
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
@@ -15,6 +13,9 @@ import seedu.address.model.person.Person;
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    private static final String ROOM_LABEL_PREFIX = "Room: ";
+    private static final String NOTE_LABEL_PREFIX = "Note: ";
+    private static final String FAVOURITE_LABEL_TEXT = "★ Favourite";
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -35,11 +36,15 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label phone;
     @FXML
-    private Label address;
-    @FXML
-    private Label email;
-    @FXML
     private FlowPane tags;
+    @FXML
+    private Label room;
+    @FXML
+    private Label note;
+    @FXML
+    private Label favourite;
+    @FXML
+    private Label emergencyContact;
 
     /**
      * Creates a {@code PersonCard} with the given {@code Person} and index to display.
@@ -50,10 +55,20 @@ public class PersonCard extends UiPart<Region> {
         id.setText(displayedIndex + ". ");
         name.setText(person.getName().fullName);
         phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
-        person.getTags().stream()
-                .sorted(Comparator.comparing(tag -> tag.tagName))
-                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        showIfPresent(favourite, "", person.isFavourite() ? FAVOURITE_LABEL_TEXT : "");
+        showIfPresent(room, ROOM_LABEL_PREFIX, person.getRoom().value);
+        showIfPresent(note, NOTE_LABEL_PREFIX, person.getNote().value);
+        showIfPresent(emergencyContact, "emergency: ",
+                person.getEmergencyContact().map(Object::toString).orElse(""));
+        person.getTags().forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+    }
+
+    /** Shows {@code value} after {@code prefix} in {@code label}, or hides the label if there is no value. */
+    private static void showIfPresent(Label label, String prefix, String value) {
+        assert label != null && prefix != null && value != null : "every card label and value is set";
+        boolean isPresent = !value.isEmpty();
+        label.setText(prefix + value);
+        label.setVisible(isPresent);
+        label.setManaged(isPresent);
     }
 }

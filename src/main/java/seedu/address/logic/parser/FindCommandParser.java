@@ -1,33 +1,71 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_ROOM_COMMAND;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG_COMMAND;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.NameFuzzyMatchesPredicate;
+import seedu.address.model.person.PersonHasTagPredicate;
+import seedu.address.model.person.PhoneEqualsPredicate;
+import seedu.address.model.person.RoomEqualsPredicate;
 
 /**
  * Parses input arguments and creates a new FindCommand object
  */
 public class FindCommandParser implements Parser<FindCommand> {
 
+    private static final Prefix[] SEARCH_PREFIXES = {
+        PREFIX_NAME_COMMAND, PREFIX_TAG_COMMAND, PREFIX_PHONE_COMMAND, PREFIX_ROOM_COMMAND};
+
     /**
      * Parses the given {@code String} of arguments in the context of the FindCommand
      * and returns a FindCommand object for execution.
+     * Exactly one of {@code /name}, {@code /tag}, {@code /phone} and {@code /room} must be given.
+     * Only one search value is allowed; repeated prefixes are rejected.
+     * Any non-empty search value is accepted; a value no contact has matches nobody. A word starting with {@code /}
+     * that is not one of these prefixes is rejected, as it is more likely a mistyped prefix than search text.
+     *
      * @throws ParseException if the user input does not conform to the expected format
      */
     public FindCommand parse(String args) throws ParseException {
-        String trimmedArgs = args.trim();
-        if (trimmedArgs.isEmpty()) {
+        String normalized = " " + StringUtil.collapseWhitespace(args);
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(normalized, SEARCH_PREFIXES);
+
+        argMultimap.verifyNoDuplicatePrefixesFor(SEARCH_PREFIXES);
+
+        Optional<String> name = argMultimap.getValue(PREFIX_NAME_COMMAND);
+        Optional<String> tag = argMultimap.getValue(PREFIX_TAG_COMMAND);
+
+        Optional<String> phone = argMultimap.getValue(PREFIX_PHONE_COMMAND);
+        Optional<String> room = argMultimap.getValue(PREFIX_ROOM_COMMAND);
+        boolean hasExactlyOnePrefix = Stream.of(name, tag, phone, room).filter(Optional::isPresent).count() == 1;
+        boolean isSearchValueEmpty = Stream.of(name, tag, phone, room)
+                .flatMap(Optional::stream).findFirst().map(StringUtil::collapseWhitespace).orElse("").isEmpty();
+        boolean hasUnknownPrefix = ParserUtil.hasUnknownPrefix(normalized, SEARCH_PREFIXES);
+        if (!argMultimap.getPreamble().isEmpty() || !hasExactlyOnePrefix || isSearchValueEmpty || hasUnknownPrefix) {
             throw new ParseException(
                     String.format(MESSAGE_INVALID_COMMAND_FORMAT, FindCommand.MESSAGE_USAGE));
         }
 
-        String[] nameKeywords = trimmedArgs.split("\\s+");
-
-        return new FindCommand(new NameContainsKeywordsPredicate(List.of(nameKeywords)));
+        if (name.isPresent()) {
+            NameFuzzyMatchesPredicate namePredicate = new NameFuzzyMatchesPredicate(name.get());
+            return new FindCommand(namePredicate, namePredicate.getRankingComparator());
+        }
+        if (phone.isPresent()) {
+            return new FindCommand(new PhoneEqualsPredicate(phone.get()));
+        }
+        if (room.isPresent()) {
+            return new FindCommand(new RoomEqualsPredicate(room.get()));
+        }
+        return new FindCommand(new PersonHasTagPredicate(tag.get()));
     }
 
 }

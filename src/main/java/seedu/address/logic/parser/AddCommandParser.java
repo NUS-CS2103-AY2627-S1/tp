@@ -1,61 +1,69 @@
 package seedu.address.logic.parser;
 
+import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
-import java.util.Set;
-import java.util.stream.Stream;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
 
-/**
- * Parses input arguments and creates a new AddCommand object
- */
+/** Parses the add command: the name, followed by every other {@link PersonField} in any order. */
 public class AddCommandParser implements Parser<AddCommand> {
+    private static final String WORD_SEPARATOR = " ";
+
+    /** The name is the text before the first prefix, so every other field is given with a prefix. */
+    private static final List<PersonField<?>> PREFIXED_FIELDS = PersonField.values().stream()
+            .filter(field -> field != PersonField.NAME)
+            .collect(Collectors.toUnmodifiableList());
+    private static final Prefix[] PREFIXES = PREFIXED_FIELDS.stream()
+            .map(PersonField::getPrefix)
+            .toArray(Prefix[]::new);
+    private static final Prefix[] SINGLE_VALUED_PREFIXES = PREFIXED_FIELDS.stream()
+            .filter(field -> !field.isRepeatable())
+            .map(PersonField::getPrefix)
+            .toArray(Prefix[]::new);
 
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
      * and returns an AddCommand object for execution.
-     * @throws ParseException if the user input does not conform to the expected format
+     * The fields other than the name may follow the name in any order.
+     *
+     * @throws ParseException if the user input does not conform to the expected format.
      */
+    @Override
     public AddCommand parse(String args) throws ParseException {
-        ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+        requireNonNull(args);
+        String normalized = WORD_SEPARATOR + StringUtil.collapseWhitespace(args);
+        ArgumentMultimap argMultimap = ArgumentTokenizer.tokenize(normalized, PREFIXES);
+        verifyFormat(normalized, argMultimap);
+        argMultimap.verifyNoDuplicatePrefixesFor(SINGLE_VALUED_PREFIXES);
 
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
-                || !argMultimap.getPreamble().isEmpty()) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+        PersonFieldValues details = new PersonFieldValues();
+        details.set(PersonField.NAME, PersonField.NAME.parse(List.of(argMultimap.getPreamble())));
+        for (PersonField<?> field : PREFIXED_FIELDS) {
+            details.setIfGiven(field, argMultimap, false);
+            details.setDefaultIfAbsent(field);
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-        Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
-
-        Person person = new Person(name, phone, email, address, tagList);
-
-        return new AddCommand(person);
+        // Email and address remain legacy model fields until the edit workflow is redesigned.
+        return new AddCommand(details.toPerson(new Email(""), new Address("")));
     }
 
     /**
-     * Returns true if none of the prefixes contains empty {@code Optional} values in the given
-     * {@code ArgumentMultimap}.
+     * Checks that each required field is given and no unknown prefix is used.
+     * Fields that are given more than once are checked afterwards.
      */
-    private static boolean arePrefixesPresent(ArgumentMultimap argumentMultimap, Prefix... prefixes) {
-        return Stream.of(prefixes).allMatch(prefix -> argumentMultimap.getValue(prefix).isPresent());
+    private static void verifyFormat(String normalized, ArgumentMultimap argMultimap) throws ParseException {
+        boolean isRequiredFieldMissing = PREFIXED_FIELDS.stream().anyMatch(field ->
+                field.isRequired() && argMultimap.getAllValues(field.getPrefix()).isEmpty());
+        if (isRequiredFieldMissing) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+        }
+        ParserUtil.verifyNoUnknownPrefix(normalized, argMultimap, AddCommand.MESSAGE_USAGE, PREFIXES);
     }
-
 }
