@@ -1,70 +1,66 @@
 @startuml
 !include style.puml
 skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 16
+skinparam ParticipantPadding 4
+skinparam Participant {
+    Padding 0
+    FontSize 16
+}
 
-box Logic LOGIC_COLOR_T1
-participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
-participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
-participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
-participant "r:CommandResult" as CommandResult LOGIC_COLOR
-end box
-
-box Model MODEL_COLOR_T1
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "d:DeleteCommand" as Command LOGIC_COLOR
+participant "s:PersonSelector" as Selector LOGIC_COLOR
 participant "m:Model" as Model MODEL_COLOR
-end box
 
-[-> LogicManager : execute("delete 1")
-activate LogicManager
-
-LogicManager -> AddressBookParser : parseCommand("delete 1")
-activate AddressBookParser
-
-create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
-activate DeleteCommandParser
-
-DeleteCommandParser --> AddressBookParser
-deactivate DeleteCommandParser
-
-AddressBookParser -> DeleteCommandParser : parse("1")
-activate DeleteCommandParser
-
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
-activate DeleteCommand
-
-DeleteCommand --> DeleteCommandParser :
-deactivate DeleteCommand
-
-DeleteCommandParser --> AddressBookParser : d
-deactivate DeleteCommandParser
-'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
-destroy DeleteCommandParser
-
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
-
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
-
-DeleteCommand -> Model : deletePerson(1)
+[-> Logic : execute(commandText)
+activate Logic
+ref over Logic, Command
+    Parse command into d holding s
+    (Delete parsing diagram)
+end ref
+Logic -> Command : execute(m)
+activate Command
+Command -> Model : get all clients
 activate Model
-
-Model --> DeleteCommand
+Model --> Command : clients
 deactivate Model
+note right of Model
+    getAddressBook()
+    .getPersonList()
+end note
+Command -> Selector : findMatches(clients)
+activate Selector
+Selector --> Command : matches
+deactivate Selector
 
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
+alt exactly one client p matches
+    Command -> Command : executeOn(p, m)
+    activate Command
+    Command -> Model : deletePerson(p)
+    activate Model
+    Model --> Command
+    deactivate Model
+    Command --> Command : r
+    deactivate Command
+else several clients match (name selector)
+    Command -> Model : updateFilteredPersonList(...)
+    activate Model
+    Model --> Command
+    deactivate Model
+    note over Command, Model
+        No client is deleted.
+        r lists matches and asks for an ID.
+    end note
+end
 
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
-
-[<--LogicManager
-deactivate LogicManager
+note over Command
+    r is a new CommandResult
+    (creation omitted).
+end note
+Command --> Logic : r
+deactivate Command
+Logic -> Logic : saveAddressBook()
+[<-- Logic : r
+deactivate Logic
 @enduml

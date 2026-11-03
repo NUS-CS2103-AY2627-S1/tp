@@ -1,0 +1,75 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam DefaultFontSize 16
+skinparam ParticipantPadding 4
+skinparam Participant {
+    Padding 0
+    FontSize 16
+}
+
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant "c:RescheduleAppointmentCommand" as Command LOGIC_COLOR
+participant "p:Person" as Person MODEL_COLOR
+participant "m:Model" as Model MODEL_COLOR
+participant "a:Appointment" as Appointment MODEL_COLOR
+
+[-> Logic : execute(commandText)
+activate Logic
+ref over Logic, Command
+    Parse command into c holding a selector
+    (Logic component section)
+end ref
+Logic -> Command : execute(m)
+activate Command
+ref over Command, Model
+    Select one client p from all clients
+    (Delete execution diagram)
+end ref
+
+Command -> Command : executeOn(p, m)
+activate Command
+note over Command
+    Check the index and new date.
+    Failures are omitted.
+end note
+create Appointment
+Command -> Appointment : Appointment(date, time)
+activate Appointment
+Appointment --> Command : a
+deactivate Appointment
+note over Command
+    Check a against the client's
+    other appointments.
+    Clash failure is omitted.
+end note
+
+Command -> Person : withAppointments(list with a)
+activate Person
+Person --> Command : updated client u
+deactivate Person
+note over Person, Model
+    withAppointments creates a new Person.
+    p and its old appointments are unchanged.
+end note
+Command -> Model : setPerson(p, u)
+activate Model
+Model --> Command
+deactivate Model
+Command -> Model : updateFilteredPersonList(all clients)
+activate Model
+Model --> Command
+deactivate Model
+
+note over Command
+    Create CommandResult r
+    with feedback and u.
+end note
+Command --> Command : r
+deactivate Command
+Command --> Logic : r
+deactivate Command
+Logic -> Logic : saveAddressBook()
+[<-- Logic : r
+deactivate Logic
+@enduml

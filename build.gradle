@@ -24,9 +24,27 @@ checkstyle {
     toolVersion = '14.1.0'
 }
 
+def startupTest = tasks.register('startupTest', Test) {
+    description = 'Checks failed startup and JavaFX shutdown in an isolated process.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/MainAppStartupTest.class'
+    useJUnitPlatform()
+    workingDir = layout.buildDirectory.dir('startup-test-home').get().asFile
+    doFirst {
+        workingDir.mkdirs()
+    }
+}
+
 test {
+    dependsOn startupTest
+    exclude '**/MainAppStartupTest.class'
     useJUnitPlatform()
     finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    executionData startupTest.get()
 }
 
 task coverage(type: JacocoReport) {
@@ -71,8 +89,12 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.14.4'
 }
 
+run {
+    enableAssertions = true
+}
+
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'cindy.jar'
 }
 
 defaultTasks 'clean', 'test'

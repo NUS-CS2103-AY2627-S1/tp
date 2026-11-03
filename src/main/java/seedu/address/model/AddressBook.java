@@ -2,20 +2,32 @@ package seedu.address.model;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.person.Phone;
 import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.tag.Tag;
 
 /**
  * Wraps all data at the address-book level.
  * Duplicates are not allowed (by .isSamePerson comparison).
+ * Every custom tag a person has is also one of the address book's groups.
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
+    private static final PersonId FIRST_PERSON_ID = new PersonId(1);
+
     private final UniquePersonList persons = new UniquePersonList();
+    private PersonId nextPersonId = FIRST_PERSON_ID;
+    private final Set<Tag> groups = new LinkedHashSet<>();
 
     public AddressBook() {}
 
@@ -35,6 +47,33 @@ public class AddressBook implements ReadOnlyAddressBook {
      */
     public void setPersons(List<Person> persons) {
         this.persons.setPersons(persons);
+        nextPersonId = FIRST_PERSON_ID;
+        persons.forEach(this::reserveIdOf);
+        persons.forEach(this::addGroupsOf);
+    }
+
+    /**
+     * Replaces the groups with {@code groups}, keeping the custom tags of every person as groups.
+     * {@code groups} must not contain a client type.
+     */
+    public void setGroups(Collection<Tag> groups) {
+        requireNonNull(groups);
+        this.groups.clear();
+        groups.forEach(this::addGroup);
+        persons.forEach(this::addGroupsOf);
+    }
+
+    /**
+     * Sets the ID to give the next person added to the address book.
+     * {@code nextPersonId} must be greater than the ID of every person in the address book.
+     */
+    public void setNextPersonId(PersonId nextPersonId) {
+        requireNonNull(nextPersonId);
+        if (persons.asUnmodifiableObservableList().stream()
+                .anyMatch(person -> person.getId().compareTo(nextPersonId) >= 0)) {
+            throw new IllegalArgumentException("The next person ID must be greater than every existing person ID.");
+        }
+        this.nextPersonId = nextPersonId;
     }
 
     /**
@@ -44,6 +83,8 @@ public class AddressBook implements ReadOnlyAddressBook {
         requireNonNull(newData);
 
         setPersons(newData.getPersonList());
+        setNextPersonId(newData.getNextPersonId());
+        setGroups(newData.getGroupList());
     }
 
     //// person-level operations
@@ -57,11 +98,44 @@ public class AddressBook implements ReadOnlyAddressBook {
     }
 
     /**
+     * Returns true if a person with the given {@code id} exists in the address book.
+     */
+    public boolean hasPersonWithId(PersonId id) {
+        requireNonNull(id);
+        return persons.asUnmodifiableObservableList().stream()
+                .anyMatch(person -> person.getId().equals(id));
+    }
+
+    /**
+     * Returns true if a person with {@code phone} exists in the address book.
+     */
+    public boolean hasPersonWithPhone(Phone phone) {
+        requireNonNull(phone);
+        return persons.asUnmodifiableObservableList().stream()
+                .anyMatch(person -> person.getPhone().equals(phone));
+    }
+
+    /**
      * Adds a person to the address book.
-     * The person must not already exist in the address book.
+     * The person must not already exist in the address book, and no other person may have the same ID.
      */
     public void addPerson(Person p) {
+        requireNonNull(p);
+        if (hasPersonWithId(p.getId())) {
+            throw new IllegalArgumentException("Another person already has the ID " + p.getId() + ".");
+        }
         persons.add(p);
+        reserveIdOf(p);
+        addGroupsOf(p);
+    }
+
+    /**
+     * Ensures that the ID of {@code person} will not be given to any person added later.
+     */
+    private void reserveIdOf(Person person) {
+        if (person.getId().compareTo(nextPersonId) >= 0) {
+            nextPersonId = person.getId().next();
+        }
     }
 
     /**
@@ -71,8 +145,10 @@ public class AddressBook implements ReadOnlyAddressBook {
      */
     public void setPerson(Person target, Person editedPerson) {
         requireNonNull(editedPerson);
+        assert target.getId().equals(editedPerson.getId()) : "Editing a person should not change their ID";
 
         persons.setPerson(target, editedPerson);
+        addGroupsOf(editedPerson);
     }
 
     /**
@@ -83,18 +159,77 @@ public class AddressBook implements ReadOnlyAddressBook {
         persons.remove(key);
     }
 
+    //// group-level operations
+
+    /**
+     * Returns true if {@code group} is one of the groups in the address book.
+     */
+    public boolean hasGroup(Tag group) {
+        requireNonNull(group);
+        return groups.contains(group);
+    }
+
+    /**
+     * Adds {@code group} to the groups in the address book, if it is not already one of them.
+     * {@code group} must not be a client type.
+     */
+    public void addGroup(Tag group) {
+        requireNonNull(group);
+        assert !Tag.CLIENT_TYPES.contains(group) : "Client types are built in and cannot be groups";
+        groups.add(group);
+    }
+
+    /**
+     * Removes {@code group} from the groups, and from every person in it.
+     * {@code group} must be one of the groups in the address book.
+     */
+    public void removeGroup(Tag group) {
+        requireNonNull(group);
+        assert groups.contains(group) : "Only an existing group can be removed";
+        List<Person> personsInGroup = persons.asUnmodifiableObservableList().stream()
+                .filter(person -> person.getTags().contains(group))
+                .toList();
+        for (Person person : personsInGroup) {
+            Set<Tag> remainingTags = new LinkedHashSet<>(person.getTags());
+            remainingTags.remove(group);
+            persons.setPerson(person, person.withTags(remainingTags));
+        }
+        groups.remove(group);
+    }
+
+    /**
+     * Adds the custom tags of {@code person}, i.e. the tags that are not client types, to the groups.
+     */
+    private void addGroupsOf(Person person) {
+        person.getTags().stream()
+                .filter(tag -> !Tag.CLIENT_TYPES.contains(tag))
+                .forEach(groups::add);
+    }
+
     //// util methods
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .add("persons", persons)
+                .add("nextPersonId", nextPersonId)
+                .add("groups", groups)
                 .toString();
     }
 
     @Override
     public ObservableList<Person> getPersonList() {
         return persons.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public PersonId getNextPersonId() {
+        return nextPersonId;
+    }
+
+    @Override
+    public List<Tag> getGroupList() {
+        return List.copyOf(groups);
     }
 
     @Override
@@ -108,11 +243,13 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons)
+                && nextPersonId.equals(otherAddressBook.nextPersonId)
+                && groups.equals(otherAddressBook.groups);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(persons, nextPersonId, groups);
     }
 }

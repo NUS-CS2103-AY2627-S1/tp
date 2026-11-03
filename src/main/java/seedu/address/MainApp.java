@@ -2,24 +2,26 @@ package seedu.address;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.AppPaths;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.Logic;
 import seedu.address.logic.LogicManager;
-import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.DataFileLock;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.Storage;
@@ -32,28 +34,50 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
-    private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
-    private static final Path ADDRESS_BOOK_FILE_PATH = Paths.get("data", "addressbook.json");
+    private static final Path USER_PREFS_FILE_PATH = AppPaths.getHomeDirectory().resolve("preferences.json");
+    private static final Path ADDRESS_BOOK_FILE_PATH = AppPaths.getHomeDirectory().resolve("data/cindy.json");
+    private static final String MESSAGE_ALREADY_OPEN = "Cindy is already open";
+    private static final String MESSAGE_ALREADY_OPEN_DETAILS = "Another Cindy window is using the data file %1$s.\n"
+            + "Use that window, or close it and open Cindy again.";
 
     protected Ui ui;
     protected Logic logic;
     protected Storage storage;
     protected Model model;
 
+    private final DataFileLock dataFileLock = new DataFileLock(ADDRESS_BOOK_FILE_PATH);
+    private boolean isAlreadyOpen;
+    private boolean initialDataSaveFailed;
+
     @Override
     public void init() throws Exception {
-        logger.info("=============================[ Initializing AddressBook ]===========================");
+        logger.info("=============================[ Initializing Cindy ]===========================");
         super.init();
+
+        if (!canUseDataFile(dataFileLock)) {
+            // Load and save nothing, so that the copy already open keeps its data
+            isAlreadyOpen = true;
+            return;
+        }
 
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(USER_PREFS_FILE_PATH);
         UserPrefs userPrefs = initPrefs(userPrefsStorage);
         JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(ADDRESS_BOOK_FILE_PATH);
         storage = new StorageManager(addressBookStorage, userPrefsStorage);
 
-        model = initModelManager(storage, userPrefs);
+        try {
+            model = initModelManager(storage, userPrefs);
+        } catch (DataLoadingException e) {
+            logger.severe("Could not load client data: " + StringUtil.getDetails(e));
+            ui = primaryStage -> {
+                UiManager.showDataLoadingError(storage.getAddressBookFilePath());
+                Platform.exit();
+            };
+            return;
+        }
 
         logic = new LogicManager(model, storage);
 
@@ -61,26 +85,50 @@ public class MainApp extends Application {
     }
 
     /**
-     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
-     * The data from the sample address book will be used instead if {@code storage}'s address book is not found,
-     * or an empty address book will be used instead if errors occur when reading {@code storage}'s address book.
+     * Returns true if this copy of Cindy may use the data file, taking {@code lock} if it can.
+     * Returns false if another copy of Cindy holds the lock. If the lock cannot be taken for another reason,
+     * such as a folder that cannot be written to, Cindy starts without it rather than not starting at all.
      */
-    private Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
-        logger.info("Using data file : " + storage.getAddressBookFilePath());
-
-        Optional<ReadOnlyAddressBook> addressBookOptional;
-        ReadOnlyAddressBook initialData;
+    protected boolean canUseDataFile(DataFileLock lock) {
         try {
-            addressBookOptional = storage.readAddressBook();
-            if (addressBookOptional.isEmpty()) {
-                logger.info("Creating a new data file " + storage.getAddressBookFilePath()
-                        + " populated with a sample AddressBook.");
+            if (lock.tryAcquire()) {
+                return true;
             }
-            initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
-        } catch (DataLoadingException e) {
-            logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
-            initialData = new AddressBook();
+            logger.warning("Another copy of Cindy is using the data file, as " + lock.getLockFilePath()
+                    + " is locked. Cindy will close.");
+            return false;
+        } catch (IOException e) {
+            logger.warning("Could not lock " + lock.getLockFilePath() + ". Starting without the lock : "
+                    + StringUtil.getDetails(e));
+            return true;
+        }
+    }
+
+    /**
+     * Returns a {@code ModelManager} with the data from {@code storage}'s address book and {@code userPrefs}. <br>
+     * The data from the sample address book will be used and saved if {@code storage}'s address book is not found.
+     * If saving fails, the sample data will still be used.
+     *
+     * @throws DataLoadingException if existing client data cannot be read; no replacement model is created.
+     */
+    protected Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) throws DataLoadingException {
+        logger.info("Using data file : " + storage.getAddressBookFilePath());
+        initialDataSaveFailed = false;
+
+        Optional<ReadOnlyAddressBook> addressBookOptional = storage.readAddressBook();
+        ReadOnlyAddressBook initialData;
+        if (addressBookOptional.isEmpty()) {
+            logger.info("Creating a new data file " + storage.getAddressBookFilePath()
+                    + " populated with sample Cindy data.");
+            initialData = SampleDataUtil.getSampleAddressBook();
+            try {
+                storage.saveAddressBook(initialData);
+            } catch (IOException e) {
+                initialDataSaveFailed = true;
+                logger.warning("Failed to save data file : " + StringUtil.getDetails(e));
+            }
+        } else {
+            initialData = addressBookOptional.get();
         }
 
         return new ModelManager(initialData, userPrefs);
@@ -120,17 +168,47 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        logger.info("Starting AddressBook " + MainApp.VERSION);
+        if (isAlreadyOpen) {
+            showAlreadyOpenAndExit();
+            return;
+        }
+        logger.info("Starting Cindy " + MainApp.VERSION);
+        if (initialDataSaveFailed) {
+            UiManager.showInitialSaveWarning(storage.getAddressBookFilePath());
+        }
         ui.start(primaryStage);
+    }
+
+    private void showAlreadyOpenAndExit() {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(MESSAGE_ALREADY_OPEN);
+        alert.setHeaderText(MESSAGE_ALREADY_OPEN);
+        alert.setContentText(String.format(MESSAGE_ALREADY_OPEN_DETAILS, ADDRESS_BOOK_FILE_PATH));
+        alert.showAndWait();
+        Platform.exit();
     }
 
     @Override
     public void stop() {
-        logger.info("============================ [ Stopping AddressBook ] =============================");
+        logger.info("============================ [ Stopping Cindy ] =============================");
+        if (model == null) {
+            // Nothing was loaded: Cindy is already open, or the data file could not be read
+            releaseDataFileLock();
+            return;
+        }
         try {
             storage.saveUserPrefs(model.getUserPrefs());
         } catch (IOException e) {
             logger.severe("Failed to save preferences " + StringUtil.getDetails(e));
+        }
+        releaseDataFileLock();
+    }
+
+    private void releaseDataFileLock() {
+        try {
+            dataFileLock.release();
+        } catch (IOException e) {
+            logger.warning("Failed to release " + dataFileLock.getLockFilePath() + " : " + StringUtil.getDetails(e));
         }
     }
 }

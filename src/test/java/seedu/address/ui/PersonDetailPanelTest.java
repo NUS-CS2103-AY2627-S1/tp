@@ -1,0 +1,367 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+
+import javafx.application.Platform;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.input.Clipboard;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import seedu.address.model.LongFormText;
+import seedu.address.model.appointment.Appointment;
+import seedu.address.model.person.Person;
+import seedu.address.model.session.Session;
+import seedu.address.testutil.PersonBuilder;
+
+public class PersonDetailPanelTest {
+
+    @TestFactory
+    public List<DynamicTest> showPerson_sessionCountPartitions_displaysNewestFourWithoutDiscardingHistory() {
+        List<DynamicTest> tests = new ArrayList<>();
+        for (int count : List.of(0, 1, 3, 4, 5, 20)) {
+            tests.add(dynamicTest("session count " + count, () -> runOnFxThread(() -> {
+                LocalDate newest = LocalDate.of(2026, 10, 29);
+                List<Session> sessions = new ArrayList<>();
+                for (int i = count - 1; i >= 0; i--) {
+                    sessions.add(new Session(newest.minusDays(i), new LongFormText("Note " + i)));
+                }
+                Person person = new PersonBuilder(ALICE).withSessions(sessions.toArray(Session[]::new)).build();
+                PersonDetailPanel panel = new PersonDetailPanel();
+                // First populate another client, to detect stale rows when switching to an empty history.
+                panel.showPerson(new PersonBuilder(BENSON)
+                        .withSessions(new Session(newest, new LongFormText("Stale note"))).build());
+                panel.showPerson(person);
+                VBox rows = (VBox) ((ScrollPane) panel.getRoot()).getContent().lookup("#sessionList");
+                if (count == 0) {
+                    assertEquals(1, rows.getChildren().size());
+                    assertEquals("No sessions recorded", ((Label) rows.getChildren().getFirst()).getText());
+                } else {
+                    assertEquals(Math.min(count, 4), rows.getChildren().size());
+                    for (int i = 0; i < Math.min(count, 4); i++) {
+                        VBox row = (VBox) rows.getChildren().get(i);
+                        assertEquals(newest.minusDays(i).toString(), ((Label) row.getChildren().get(0)).getText());
+                        assertEquals("Note " + i, ((Label) row.getChildren().get(1)).getText());
+                    }
+                }
+                assertEquals(sessions, person.getSessions());
+            })));
+        }
+        return tests;
+    }
+
+    @TestFactory
+    public List<DynamicTest> showPerson_sessionNotePartitions_displaysBlankPlaceholderOrExactContents() {
+        List<DynamicTest> tests = new ArrayList<>();
+        List<String> notes = List.of("", "   ", "\t\n", "  Squats\nRest\n\nWalk  ", "训练 💪 café",
+                "Legacy literal \\n", "Long note. ".repeat(500));
+        for (int i = 0; i < notes.size(); i++) {
+            String note = notes.get(i);
+            tests.add(dynamicTest("session display note partition " + i, () -> runOnFxThread(() -> {
+                PersonDetailPanel panel = new PersonDetailPanel();
+                Person person = new PersonBuilder(ALICE)
+                        .withSessions(new Session(LocalDate.of(2026, 10, 21), new LongFormText(note))).build();
+                panel.showPerson(person);
+                ScrollPane scroll = (ScrollPane) panel.getRoot();
+                new Scene(scroll, 360, 300);
+                scroll.resize(360, 300);
+                scroll.applyCss();
+                scroll.layout();
+                Label label = (Label) scroll.getContent().lookup(".session-note");
+                assertEquals(note.isBlank() ? "No note" : note, label.getText());
+                assertTrue(label.isWrapText());
+                assertTrue(label.getWidth() <= scroll.getViewportBounds().getWidth());
+                assertEquals(note, person.getSessions().getFirst().getNote().value);
+            })));
+        }
+        return tests;
+    }
+
+    @BeforeAll
+    public static void initializeJavaFx() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        Runnable initialize = () -> {
+            Platform.setImplicitExit(false);
+            started.countDown();
+        };
+        try {
+            Platform.startup(initialize);
+        } catch (IllegalStateException e) {
+            // Another UI test may have already started the toolkit.
+            Platform.runLater(initialize);
+        }
+        assertTrue(started.await(10, TimeUnit.SECONDS), "JavaFX startup timed out");
+    }
+
+    @Test
+    public void showPerson_withPlan_displaysCardAndContactDetails() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("Squats: 3 sets of 12").build());
+
+            Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+            Region card = (Region) content.lookup("#workoutPlanCard");
+            assertTrue(card.isVisible());
+            assertTrue(card.isManaged());
+            assertEquals("Squats: 3 sets of 12", getPlanLabel(panel).getText());
+            assertEquals("Alice Pauline", ((Label) content.lookup("#name")).getText());
+            assertEquals(ALICE.getPhone().value, ((Label) content.lookup("#phone")).getText());
+        });
+    }
+
+    @Test
+    public void showPerson_switchOrClearPlan_hidesCardWithoutLeavingStaleText() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            for (String emptyPlan : new String[] {"", "   "}) {
+                panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("Existing plan").build());
+                panel.showPerson(new PersonBuilder(BENSON).withWorkoutPlan(emptyPlan).build());
+
+                Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+                Region card = (Region) content.lookup("#workoutPlanCard");
+                assertFalse(card.isVisible());
+                assertFalse(card.isManaged());
+                assertEquals("", getPlanLabel(panel).getText());
+                assertEquals("Benson Meier", ((Label) content.lookup("#name")).getText());
+            }
+        });
+    }
+
+    @Test
+    public void showPerson_replacedPlan_displaysNewText() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("Old plan").build());
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("New plan").build());
+            assertEquals("New plan", getPlanLabel(panel).getText());
+        });
+    }
+
+    @Test
+    public void showPerson_longPlan_wrapsAndScrollsInNarrowWindow() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("Squats: 3 sets of 12. ".repeat(100)).build());
+            ScrollPane scroll = (ScrollPane) panel.getRoot();
+            new Scene(scroll, 360, 300);
+            scroll.resize(360, 300);
+            scroll.applyCss();
+            scroll.layout();
+
+            Label text = getPlanLabel(panel);
+            assertTrue(text.isWrapText());
+            assertTrue(text.getWidth() <= scroll.getViewportBounds().getWidth());
+            assertTrue(text.getHeight() > scroll.getViewportBounds().getHeight());
+            assertTrue(scroll.getContent().getBoundsInLocal().getHeight() > scroll.getViewportBounds().getHeight());
+        });
+    }
+
+    @Test
+    public void showPerson_differentClient_resetsScrollToTop() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            String plan = "Squats: 3 sets of 12. ".repeat(100);
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan(plan).build());
+            ScrollPane scroll = (ScrollPane) panel.getRoot();
+            new Scene(scroll, 360, 300);
+            scroll.resize(360, 300);
+            scroll.applyCss();
+            scroll.layout();
+            scroll.setVvalue(1);
+            scroll.layout();
+
+            panel.showPerson(new PersonBuilder(BENSON).withWorkoutPlan(plan).build());
+            scroll.layout();
+
+            assertEquals(0, scroll.getVvalue());
+            Label name = (Label) scroll.getContent().lookup("#name");
+            Node viewport = scroll.lookup(".viewport");
+            assertTrue(name.localToScene(name.getBoundsInLocal()).getMinY()
+                    >= viewport.localToScene(viewport.getBoundsInLocal()).getMinY());
+        });
+    }
+
+    @Test
+    public void showPerson_updatedClient_preservesScrollPosition() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            String plan = "Squats: 3 sets of 12. ".repeat(100);
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan(plan).build());
+            ScrollPane scroll = (ScrollPane) panel.getRoot();
+            new Scene(scroll, 360, 300);
+            scroll.resize(360, 300);
+            scroll.applyCss();
+            scroll.layout();
+            scroll.setVvalue(0.75);
+
+            panel.showPerson(new PersonBuilder(ALICE).withName("Alice Updated").withWorkoutPlan(plan).build());
+            scroll.applyCss();
+            scroll.layout();
+
+            assertTrue(scroll.getVvalue() > scroll.getVmin(), "Updating this client must not jump to the top");
+            assertEquals("Alice Updated", ((Label) scroll.getContent().lookup("#name")).getText());
+        });
+    }
+
+    @Test
+    public void showPerson_nullPerson_throwsNullPointerException() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            assertThrows(NullPointerException.class, () -> panel.showPerson(null));
+        });
+    }
+
+    @Test
+    public void showPerson_blankNote_hidesSectionWhilePreservingWorkoutPlan() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            for (String text : new String[] {"", " \t\n"}) {
+                panel.showPerson(new PersonBuilder(ALICE).withNote("Previous note").build());
+                panel.showPerson(new PersonBuilder(ALICE).withNote(text).withWorkoutPlan("Squats").build());
+                Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+                assertFalse(content.lookup("#noteSection").isVisible());
+                assertFalse(content.lookup("#noteSection").isManaged());
+                assertTrue(content.lookup("#workoutPlanCard").isVisible());
+                assertEquals("Squats", getPlanLabel(panel).getText());
+            }
+        });
+    }
+
+    @Test
+    public void showPerson_longMultilineNote_wrapsAndScrolls() throws Exception {
+        runOnFxThread(() -> {
+            String text = "Training preferences. ".repeat(100) + "\nRest";
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withNote(text).build());
+            ScrollPane scroll = (ScrollPane) panel.getRoot();
+            new Scene(scroll, 360, 300);
+            scroll.resize(360, 300);
+            scroll.applyCss();
+            scroll.layout();
+
+            Label label = (Label) scroll.getContent().lookup("#note");
+            assertEquals(text, label.getText());
+            assertTrue(label.isWrapText());
+            assertTrue(label.getWidth() <= scroll.getViewportBounds().getWidth());
+            assertTrue(label.getHeight() > scroll.getViewportBounds().getHeight());
+        });
+    }
+
+    @Test
+    public void copyNote_noteWithLineBreak_copiesNoteAsTyped() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withNote("Knee injury\nAvoid lunges").build());
+
+            Label note = (Label) ((ScrollPane) panel.getRoot()).getContent().lookup("#note");
+            MenuItem copyNoteItem = note.getContextMenu().getItems().get(0);
+            assertEquals(PersonDetailPanel.COPY_NOTE_TEXT, copyNoteItem.getText());
+
+            copyNoteItem.fire();
+            assertEquals("Knee injury\\nAvoid lunges", Clipboard.getSystemClipboard().getString());
+        });
+    }
+
+    @Test
+    public void copyNote_afterSwitchingClient_copiesNoteOfClientShown() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withNote("Alice's note").build());
+            panel.showPerson(new PersonBuilder(BENSON).withNote("Benson's note").build());
+
+            panel.copyNote();
+            assertEquals("Benson's note", Clipboard.getSystemClipboard().getString());
+        });
+    }
+
+    @Test
+    public void showPerson_allDetails_displaysNoteTagsStatusAndPlan() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(new PersonBuilder(ALICE).withNote("Knee injury").withActive(false).withTags("gym")
+                    .withWorkoutPlan("Squats\nRest").build());
+            Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+            assertTrue(content.lookup("#noteSection").isVisible());
+            assertEquals("Knee injury", ((Label) content.lookup("#note")).getText());
+            assertTrue(content.lookup("#inactiveStatus").isVisible());
+            FlowPane tags = (FlowPane) content.lookup("#tags");
+            assertEquals("gym", ((Label) tags.getChildren().get(0)).getText());
+            assertEquals("Squats\nRest", getPlanLabel(panel).getText());
+
+            panel.showPerson(new PersonBuilder(ALICE).withNote("Note only").build());
+            assertTrue(content.lookup("#noteSection").isVisible());
+            assertFalse(content.lookup("#workoutPlanCard").isManaged());
+
+            panel.showPerson(new PersonBuilder(ALICE).withWorkoutPlan("Plan only").build());
+            assertFalse(content.lookup("#noteSection").isManaged());
+            assertEquals("", ((Label) content.lookup("#note")).getText());
+            assertTrue(content.lookup("#workoutPlanCard").isVisible());
+        });
+    }
+
+    @Test
+    public void showPerson_withAppointments_listsThemNumbered() throws Exception {
+        runOnFxThread(() -> {
+            List<Appointment> series = new ArrayList<>(
+                    Appointment.weeklySeries(LocalDate.of(2026, 10, 26), LocalTime.of(9, 0)).subList(0, 2));
+            series.set(1, series.get(1).cancel());
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(ALICE.withAppointments(series));
+
+            Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+            assertTrue(content.lookup("#appointmentsCard").isVisible());
+            assertTrue(content.lookup("#appointmentsCard").isManaged());
+            Label appointmentsText = (Label) content.lookup("#appointmentsText");
+            assertEquals("1. Mon 2026-10-26 09:00\n2. Mon 2026-11-02 09:00 (Cancelled)",
+                    appointmentsText.getText());
+        });
+    }
+
+    @Test
+    public void showPerson_noAppointments_hidesCardWithoutStaleText() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailPanel panel = new PersonDetailPanel();
+            panel.showPerson(ALICE.withAppointments(
+                    Appointment.weeklySeries(LocalDate.of(2026, 10, 26), LocalTime.of(9, 0))));
+            panel.showPerson(BENSON);
+
+            Region content = (Region) ((ScrollPane) panel.getRoot()).getContent();
+            assertFalse(content.lookup("#appointmentsCard").isVisible());
+            assertFalse(content.lookup("#appointmentsCard").isManaged());
+            assertEquals("", ((Label) content.lookup("#appointmentsText")).getText());
+        });
+    }
+
+    private Label getPlanLabel(PersonDetailPanel panel) {
+        return (Label) ((ScrollPane) panel.getRoot()).getContent().lookup("#workoutPlanText");
+    }
+
+    private void runOnFxThread(Runnable action) throws Exception {
+        FutureTask<Void> task = new FutureTask<>(action, null);
+        Platform.runLater(task);
+        task.get(10, TimeUnit.SECONDS);
+    }
+}

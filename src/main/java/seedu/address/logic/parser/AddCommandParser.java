@@ -1,28 +1,27 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_LONG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE_LONG;
+import static seedu.address.logic.parser.ParserUtil.removeOptionalQuotes;
 
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
 
 /**
  * Parses input arguments and creates a new AddCommand object
  */
 public class AddCommandParser implements Parser<AddCommand> {
+
+    public static final String MESSAGE_UNKNOWN_PARAMETER = "Unknown parameter for add: %1$s.";
+    public static final String MESSAGE_UNEXPECTED_TEXT = "Unexpected text after %1$s: %2$s.";
+    private static final Pattern PHONE_WITH_EXTRA_TEXT = Pattern.compile("^([+0-9 ()-]+)\\s+([^+0-9 ()-].*)$");
 
     /**
      * Parses the given {@code String} of arguments in the context of the AddCommand
@@ -30,24 +29,45 @@ public class AddCommandParser implements Parser<AddCommand> {
      * @throws ParseException if the user input does not conform to the expected format
      */
     public AddCommand parse(String args) throws ParseException {
+        ParserUtil.verifyKnownParameters(args, MESSAGE_UNKNOWN_PARAMETER, AddCommand.MESSAGE_USAGE,
+                PREFIX_NAME_LONG, PREFIX_PHONE_LONG);
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenize(args, PREFIX_NAME_LONG, PREFIX_PHONE_LONG);
 
-        if (!arePrefixesPresent(argMultimap, PREFIX_NAME, PREFIX_ADDRESS, PREFIX_PHONE, PREFIX_EMAIL)
+        if (!arePrefixesPresent(argMultimap, PREFIX_NAME_LONG, PREFIX_PHONE_LONG)
                 || !argMultimap.getPreamble().isEmpty()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
         }
 
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
-        Name name = ParserUtil.parseName(argMultimap.getValue(PREFIX_NAME).get());
-        Phone phone = ParserUtil.parsePhone(argMultimap.getValue(PREFIX_PHONE).get());
-        Email email = ParserUtil.parseEmail(argMultimap.getValue(PREFIX_EMAIL).get());
-        Address address = ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get());
-        Set<Tag> tagList = ParserUtil.parseTags(argMultimap.getAllValues(PREFIX_TAG));
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME_LONG, PREFIX_PHONE_LONG);
+        String nameValue = argMultimap.getValue(PREFIX_NAME_LONG).get();
+        String phoneValue = argMultimap.getValue(PREFIX_PHONE_LONG).get();
+        verifyNoTextAfterQuotes(nameValue, PREFIX_NAME_LONG);
+        verifyNoTextAfterQuotes(phoneValue, PREFIX_PHONE_LONG);
+        Name name = ParserUtil.parseName(removeOptionalQuotes(nameValue));
+        Matcher extraPhoneText = PHONE_WITH_EXTRA_TEXT.matcher(phoneValue);
+        if (!Phone.isValidPhone(phoneValue) && extraPhoneText.matches()
+                && Phone.isValidPhone(extraPhoneText.group(1))) {
+            throw unexpectedText(PREFIX_PHONE_LONG, extraPhoneText.group(2));
+        }
+        Phone phone = ParserUtil.parsePhone(removeOptionalQuotes(phoneValue));
 
-        Person person = new Person(name, phone, email, address, tagList);
+        return new AddCommand(name, phone);
+    }
 
-        return new AddCommand(person);
+    /** A closing quote ends a value; any following text is an extra argument. */
+    private static void verifyNoTextAfterQuotes(String value, Prefix prefix) throws ParseException {
+        if (value.startsWith("\"")) {
+            int closingQuote = value.indexOf('"', 1);
+            if (closingQuote >= 0 && !value.substring(closingQuote + 1).isBlank()) {
+                throw unexpectedText(prefix, value.substring(closingQuote + 1).trim());
+            }
+        }
+    }
+
+    private static ParseException unexpectedText(Prefix prefix, String text) {
+        return new ParseException(ParserUtil.withUsage(
+                String.format(MESSAGE_UNEXPECTED_TEXT, prefix, text), AddCommand.MESSAGE_USAGE));
     }
 
     /**

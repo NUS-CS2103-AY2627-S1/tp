@@ -1,10 +1,14 @@
 package seedu.address.model;
 
+import java.util.Comparator;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.person.Phone;
+import seedu.address.model.tag.Tag;
 
 /**
  * The API of the Model component.
@@ -42,6 +46,16 @@ public interface Model {
     boolean hasPerson(Person person);
 
     /**
+     * Returns true if a person with {@code phone} exists in the address book.
+     */
+    boolean hasPersonWithPhone(Phone phone);
+
+    /**
+     * Returns the ID to give the next person added to the address book.
+     */
+    PersonId getNextPersonId();
+
+    /**
      * Deletes the given person.
      * The person must exist in the address book.
      */
@@ -60,12 +74,40 @@ public interface Model {
      */
     void setPerson(Person target, Person editedPerson);
 
-    /** Returns an unmodifiable view of the filtered person list */
+    /**
+     * Returns true if {@code group} is one of the groups in the address book.
+     */
+    boolean hasGroup(Tag group);
+
+    /**
+     * Adds the given group.
+     * {@code group} must not already be a group, and must not be a client type.
+     */
+    void addGroup(Tag group);
+
+    /**
+     * Deletes the given group, and removes it from every client in it.
+     * {@code group} must be one of the groups in the address book.
+     */
+    void deleteGroup(Tag group);
+
+    /**
+     * Returns an unmodifiable view of the filtered person list, sorted alphabetically by name
+     * unless another order was given with {@link #updateFilteredPersonList(Predicate, Comparator)}.
+     */
     ObservableList<Person> getFilteredPersonList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the filter of the filtered person list to filter by the given {@code predicate},
+     * and sorts the list alphabetically by name.
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Updates the filter of the filtered person list to filter by the given {@code predicate},
+     * and sorts the list by the given {@code comparator}.
+     * @throws NullPointerException if {@code predicate} or {@code comparator} is null.
+     */
+    void updateFilteredPersonList(Predicate<Person> predicate, Comparator<Person> comparator);
 }

@@ -2,7 +2,9 @@ package seedu.address.ui;
 
 import java.util.logging.Logger;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -27,21 +29,37 @@ public class PersonListPanel extends UiPart<Region> {
         super(FXML);
         personListView.setItems(personList);
         personListView.setCellFactory(listView -> new PersonListViewCell());
+        // Refresh the end cards when the list changes so their outer corners stay rounded.
+        personList.addListener((ListChangeListener<Person>) change -> personListView.refresh());
     }
 
     /**
      * Custom {@code ListCell} that displays the graphics of a {@code Person} using a {@code PersonCard}.
      */
     class PersonListViewCell extends ListCell<Person> {
+        PersonListViewCell() {
+            // Size rows to the viewport so long names wrap instead of widening the list.
+            setPrefWidth(0);
+        }
+
+        @Override
+        protected double computePrefHeight(double width) {
+            // The virtual list must reserve at least the card's minimum height.
+            return Math.max(super.computePrefHeight(width), super.computeMinHeight(width));
+        }
+
         @Override
         protected void updateItem(Person person, boolean empty) {
             super.updateItem(person, empty);
+            pseudoClassStateChanged(PseudoClass.getPseudoClass("first-contact"), !empty && getIndex() == 0);
+            pseudoClassStateChanged(PseudoClass.getPseudoClass("last-contact"),
+                    !empty && getIndex() == personListView.getItems().size() - 1);
 
             if (empty || person == null) {
                 setGraphic(null);
                 setText(null);
             } else {
-                setGraphic(new PersonCard(person, getIndex() + 1).getRoot());
+                setGraphic(new PersonCard(person).getRoot());
             }
         }
     }

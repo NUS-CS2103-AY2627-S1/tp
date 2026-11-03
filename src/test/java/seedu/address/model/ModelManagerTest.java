@@ -8,12 +8,15 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.logic.commands.PersonSelector;
+import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -69,8 +72,71 @@ public class ModelManagerTest {
     }
 
     @Test
+    public void hasPersonWithPhone_nullPhone_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasPersonWithPhone(null));
+    }
+
+    @Test
+    public void hasPersonWithPhone_phoneNotInAddressBook_returnsFalse() {
+        assertFalse(modelManager.hasPersonWithPhone(ALICE.getPhone()));
+    }
+
+    @Test
+    public void hasPersonWithPhone_phoneInAddressBook_returnsTrue() {
+        modelManager.addPerson(ALICE);
+        assertTrue(modelManager.hasPersonWithPhone(ALICE.getPhone()));
+    }
+
+    @Test
     public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    }
+
+    @Test
+    public void getFilteredPersonList_personsAddedOutOfOrder_sortedByName() {
+        modelManager.addPerson(BENSON);
+        modelManager.addPerson(ALICE);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_withComparator_sortsUntilNextUpdateWithoutComparator() {
+        modelManager.addPerson(ALICE);
+        modelManager.addPerson(BENSON);
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS,
+                Comparator.comparing((Person person) -> person.getName().fullName).reversed());
+        assertEquals(List.of(BENSON, ALICE), modelManager.getFilteredPersonList());
+
+        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredPersonList());
+    }
+
+    @Test
+    public void updateFilteredPersonList_nullComparator_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS, null));
+    }
+
+    @Test
+    public void hasGroup_nullGroup_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasGroup(null));
+    }
+
+    @Test
+    public void addGroup_newGroup_hasGroup() {
+        Tag morning = new Tag("morning");
+        assertFalse(modelManager.hasGroup(morning));
+        modelManager.addGroup(morning);
+        assertTrue(modelManager.hasGroup(morning));
+    }
+
+    @Test
+    public void deleteGroup_existingGroup_groupRemoved() {
+        Tag morning = new Tag("morning");
+        modelManager.addGroup(morning);
+        modelManager.deleteGroup(morning);
+        assertFalse(modelManager.hasGroup(morning));
     }
 
     @Test
@@ -97,8 +163,7 @@ public class ModelManagerTest {
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
         // different filteredList -> returns false
-        String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredPersonList(PersonSelector.byName(ALICE.getName().fullName)::matches);
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests

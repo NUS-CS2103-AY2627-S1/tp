@@ -1,17 +1,17 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME_LONG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE_LONG;
 
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
+import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.person.Phone;
 
 /**
  * Adds a person to the address book.
@@ -20,44 +20,53 @@ public class AddCommand extends Command {
 
     public static final String COMMAND_WORD = "add";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a person to the address book. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a client. "
             + "Parameters: "
-            + PREFIX_NAME + "NAME "
-            + PREFIX_PHONE + "PHONE "
-            + PREFIX_EMAIL + "EMAIL "
-            + PREFIX_ADDRESS + "ADDRESS "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + PREFIX_NAME_LONG + " \"NAME\" "
+            + PREFIX_PHONE_LONG + " \"PHONE\"\n"
             + "Example: " + COMMAND_WORD + " "
-            + PREFIX_NAME + "John Doe "
-            + PREFIX_PHONE + "98765432 "
-            + PREFIX_EMAIL + "johnd@example.com "
-            + PREFIX_ADDRESS + "311, Clementi Ave 2, #02-25 "
-            + PREFIX_TAG + "friends "
-            + PREFIX_TAG + "owesMoney";
+            + PREFIX_NAME_LONG + " \"John Doe\" "
+            + PREFIX_PHONE_LONG + " \"+65 9123 4567\"";
 
-    public static final String MESSAGE_SUCCESS = "New person added: %1$s";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_SUCCESS = "New client added: %1$s";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This client already exists in Cindy.";
+    public static final String MESSAGE_NO_IDS_LEFT = "Cannot add the client: every client ID up to "
+            + PersonId.MAX_CLIENT_ID + " has been used. Run clear --confirm to start the numbering again from 1.";
 
-    private final Person toAdd;
+    private final Name name;
+    private final Phone phone;
 
     /**
-     * Creates an AddCommand to add the specified {@code Person}
+     * Creates an AddCommand to add a client with the specified {@code name} and {@code phone}.
+     * The client is given the next available ID when the command is executed.
      */
-    public AddCommand(Person person) {
-        requireNonNull(person);
-        toAdd = person;
+    public AddCommand(Name name, Phone phone) {
+        requireNonNull(name);
+        requireNonNull(phone);
+        this.name = name;
+        this.phone = phone;
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
 
+        PersonId id = model.getNextPersonId();
+        if (!id.isClientId()) {
+            throw new CommandException(MESSAGE_NO_IDS_LEFT);
+        }
+        Person toAdd = new Person(id, name, phone);
         if (model.hasPerson(toAdd)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
+        boolean isPhoneInUse = model.hasPersonWithPhone(toAdd.getPhone());
         model.addPerson(toAdd);
-        return new CommandResult(String.format(MESSAGE_SUCCESS, Messages.format(toAdd)));
+        String successMessage = String.format(MESSAGE_SUCCESS, Messages.format(toAdd));
+        if (isPhoneInUse) {
+            successMessage += "\n" + Messages.MESSAGE_PHONE_IN_USE_WARNING;
+        }
+        return new CommandResult(successMessage);
     }
 
     @Override
@@ -71,13 +80,15 @@ public class AddCommand extends Command {
             return false;
         }
 
-        return toAdd.equals(otherAddCommand.toAdd);
+        return name.equals(otherAddCommand.name)
+                && phone.equals(otherAddCommand.phone);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("toAdd", toAdd)
+                .add("name", name)
+                .add("phone", phone)
                 .toString();
     }
 }

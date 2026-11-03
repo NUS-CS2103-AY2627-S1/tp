@@ -1,17 +1,23 @@
 package seedu.address.storage;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRootName;
 
+import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.IllegalValueException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.PersonId;
+import seedu.address.model.tag.Tag;
 
 /**
  * An Immutable AddressBook that is serializable to JSON format.
@@ -20,15 +26,42 @@ import seedu.address.model.person.Person;
 class JsonSerializableAddressBook {
 
     public static final String MESSAGE_DUPLICATE_PERSON = "Persons list contains duplicate person(s).";
+    public static final String MESSAGE_DUPLICATE_ID = "Persons list contains more than one person with the same ID.";
+    public static final String MESSAGE_INVALID_NEXT_ID = "The next person ID is not a positive whole number.";
+    public static final String MESSAGE_MISSING_PERSON = "Persons list contains an empty entry.";
+    public static final String MESSAGE_MISSING_GROUP = "Groups list contains an empty entry.";
+    public static final String MESSAGE_DUPLICATE_GROUP = "Groups list contains duplicate group(s).";
+    public static final String MESSAGE_CLIENT_TYPE_GROUP = "Groups list contains a client type (gym or personal).";
+
+    private static final Logger logger = LogsCenter.getLogger(JsonSerializableAddressBook.class);
 
     private final List<JsonAdaptedPerson> persons = new ArrayList<>();
+    private final Integer nextPersonId;
+    private final List<JsonAdaptedTag> groups = new ArrayList<>();
 
     /**
-     * Constructs a {@code JsonSerializableAddressBook} with the given persons.
+     * Constructs a {@code JsonSerializableAddressBook} with the given persons and next person ID, and no groups.
+     */
+    public JsonSerializableAddressBook(List<JsonAdaptedPerson> persons, Integer nextPersonId) {
+        this(persons, nextPersonId, null);
+    }
+
+    /**
+     * Constructs a {@code JsonSerializableAddressBook} with the given persons, next person ID and groups.
+     * {@code nextPersonId} can be null for data files saved before clients had IDs, and
+     * {@code groups} can be null for data files saved before groups were added.
      */
     @JsonCreator
-    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons) {
-        this.persons.addAll(persons);
+    public JsonSerializableAddressBook(@JsonProperty("persons") List<JsonAdaptedPerson> persons,
+            @JsonProperty("nextPersonId") Integer nextPersonId,
+            @JsonProperty("groups") List<JsonAdaptedTag> groups) {
+        if (persons != null) {
+            this.persons.addAll(persons);
+        }
+        this.nextPersonId = nextPersonId;
+        if (groups != null) {
+            this.groups.addAll(groups);
+        }
     }
 
     /**
@@ -38,23 +71,90 @@ class JsonSerializableAddressBook {
      */
     public JsonSerializableAddressBook(ReadOnlyAddressBook source) {
         persons.addAll(source.getPersonList().stream().map(JsonAdaptedPerson::new).collect(Collectors.toList()));
+        nextPersonId = source.getNextPersonId().value;
+        groups.addAll(source.getGroupList().stream().map(JsonAdaptedTag::new).collect(Collectors.toList()));
     }
 
     /**
      * Converts this address book into the model's {@code AddressBook} object.
+     * Persons saved without an ID are given new IDs that follow the largest saved ID.
      *
      * @throws IllegalValueException if there were any data constraints violated.
      */
     public AddressBook toModelType() throws IllegalValueException {
+        if (persons.contains(null)) {
+            throw new IllegalValueException(MESSAGE_MISSING_PERSON);
+        }
+
         AddressBook addressBook = new AddressBook();
+        int firstNewId = getLargestSavedId() + 1;
+        int nextFreeId = firstNewId;
+        Set<Integer> usedIds = new HashSet<>();
         for (JsonAdaptedPerson jsonAdaptedPerson : persons) {
-            Person person = jsonAdaptedPerson.toModelType();
+            JsonAdaptedPerson personWithId = jsonAdaptedPerson.hasId()
+                    ? jsonAdaptedPerson
+                    : jsonAdaptedPerson.withId(nextFreeId++);
+            Person person = personWithId.toModelType();
             if (addressBook.hasPerson(person)) {
                 throw new IllegalValueException(MESSAGE_DUPLICATE_PERSON);
             }
+            if (!usedIds.add(person.getId().value)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_ID);
+            }
             addressBook.addPerson(person);
         }
+        if (nextFreeId > firstNewId) {
+            logger.info("Gave new IDs to " + (nextFreeId - firstNewId) + " client(s) saved without an ID");
+        }
+
+        if (nextPersonId != null) {
+            if (!PersonId.isValidId(nextPersonId)) {
+                throw new IllegalValueException(MESSAGE_INVALID_NEXT_ID);
+            }
+            PersonId savedNextId = new PersonId(nextPersonId);
+            if (savedNextId.compareTo(addressBook.getNextPersonId()) > 0) {
+                // keeps IDs of deleted persons from being reused
+                addressBook.setNextPersonId(savedNextId);
+            }
+        }
+
+        addressBook.setGroups(toModelGroups());
         return addressBook;
+    }
+
+    /**
+     * Converts the saved groups into the model's {@code Tag} objects, keeping their saved order.
+     *
+     * @throws IllegalValueException if a group is empty, invalid, repeated or a client type.
+     */
+    private List<Tag> toModelGroups() throws IllegalValueException {
+        if (groups.contains(null)) {
+            throw new IllegalValueException(MESSAGE_MISSING_GROUP);
+        }
+
+        List<Tag> modelGroups = new ArrayList<>();
+        for (JsonAdaptedTag jsonAdaptedTag : groups) {
+            Tag group = jsonAdaptedTag.toModelType();
+            if (Tag.CLIENT_TYPES.contains(group)) {
+                throw new IllegalValueException(MESSAGE_CLIENT_TYPE_GROUP);
+            }
+            if (modelGroups.contains(group)) {
+                throw new IllegalValueException(MESSAGE_DUPLICATE_GROUP);
+            }
+            modelGroups.add(group);
+        }
+        return modelGroups;
+    }
+
+    /**
+     * Returns the largest ID among the persons saved with an ID, or 0 if there are none.
+     */
+    private int getLargestSavedId() {
+        return persons.stream()
+                .filter(JsonAdaptedPerson::hasId)
+                .mapToInt(JsonAdaptedPerson::getId)
+                .max()
+                .orElse(0);
     }
 
 }

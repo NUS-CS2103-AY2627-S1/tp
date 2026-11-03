@@ -15,6 +15,7 @@ import seedu.address.model.person.Person;
 public class PersonCard extends UiPart<Region> {
 
     private static final String FXML = "PersonListCard.fxml";
+    private static final String INACTIVE_STYLE_CLASS = "inactive-contact";
 
     /**
      * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
@@ -35,25 +36,37 @@ public class PersonCard extends UiPart<Region> {
     @FXML
     private Label phone;
     @FXML
-    private Label address;
-    @FXML
-    private Label email;
+    private Label inactiveStatus;
     @FXML
     private FlowPane tags;
 
     /**
-     * Creates a {@code PersonCard} with the given {@code Person} and index to display.
+     * Creates a {@code PersonCard} that displays the given {@code Person}, including their ID,
+     * their tags and whether they are inactive.
      */
-    public PersonCard(Person person, int displayedIndex) {
+    public PersonCard(Person person) {
         super(FXML);
         this.person = person;
-        id.setText(displayedIndex + ". ");
+        id.setText("#" + person.getId());
         name.setText(person.getName().fullName);
         phone.setText(person.getPhone().value);
-        address.setText(person.getAddress().value);
-        email.setText(person.getEmail().value);
+
         person.getTags().stream()
                 .sorted(Comparator.comparing(tag -> tag.tagName))
                 .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+        setShown(tags, !person.getTags().isEmpty());
+
+        setShown(inactiveStatus, !person.isActive());
+        if (!person.isActive()) {
+            cardPane.getStyleClass().add(INACTIVE_STYLE_CLASS);
+        }
+    }
+
+    /**
+     * Shows or hides {@code region}, and removes it from the layout while it is hidden.
+     */
+    private static void setShown(Region region, boolean isShown) {
+        region.setVisible(isShown);
+        region.setManaged(isShown);
     }
 }
