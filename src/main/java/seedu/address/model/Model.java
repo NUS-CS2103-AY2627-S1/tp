@@ -2,16 +2,20 @@ package seedu.address.model;
 
 import java.util.function.Predicate;
 
+import io.vavr.control.Option;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.friend.Friend;
+import seedu.address.model.friend.FriendSortCriterion;
+import seedu.address.model.friend.FriendTarget;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Friend> PREDICATE_SHOW_ALL_FRIENDS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -29,43 +33,89 @@ public interface Model {
     void setGuiSettings(GuiSettings guiSettings);
 
     /**
-     * Replaces address book data with the data in {@code addressBook}.
+     * Replaces GameMates data with the data in {@code gameMates}.
      */
-    void setAddressBook(ReadOnlyAddressBook addressBook);
+    void setGameMates(ReadOnlyGameMates gameMates);
 
-    /** Returns the AddressBook */
-    ReadOnlyAddressBook getAddressBook();
+    /** Replaces the user profile independently of the friend list. */
+    void setMyself(Friend myself);
+
+    /** Returns the GameMates */
+    ReadOnlyGameMates getGameMates();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Resolves the given displayed index to a friend target, or selects the separately stored Myself
+     * profile when {@code index} is {@link Index#myself()}. The target retains the selected friend
+     * and storage location even if the displayed list changes afterward.
+     *
+     * @throws IndexOutOfBoundsException if a numeric index is outside the filtered friend list.
+     * @throws NullPointerException if {@code index} is null.
      */
-    boolean hasPerson(Person person);
+    FriendTarget resolveFriend(Index index);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Returns true if a friend with the same identity as {@code friend} exists in GameMates.
      */
-    void deletePerson(Person target);
+    boolean hasFriend(Friend friend);
+
+    /** Returns the stored active or archived friend with the same identity, regardless of display filters. */
+    Option<Friend> findFriend(Friend friend);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Deletes the given friend.
+     * The friend must exist in GameMates.
      */
-    void addPerson(Person person);
+    void deleteFriend(Friend target);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Adds the given friend.
+     * {@code friend} must not already exist in GameMates.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    void addFriend(Friend friend);
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Replaces the given friend {@code target} with {@code editedFriend}.
+     * {@code target} must exist in GameMates.
+     * The friend identity of {@code editedFriend} must not be the same as another existing friend
+     * in GameMates.
+     */
+    void setFriend(Friend target, Friend editedFriend);
+
+    /**
+     * Replaces the profile or friend selected by a previously resolved {@code target}.
+     * Does not resolve a displayed index again, so filter changes cannot redirect the update.
+     * The same requirements as
+     * {@link #setFriend(Friend, Friend)} apply when updating a friend.
+     *
+     * @throws NullPointerException if any argument is null.
+     */
+    void setFriend(FriendTarget target, Friend editedFriend);
+
+    /** Returns an unmodifiable view of the filtered friend list */
+    ObservableList<Friend> getFilteredFriendList();
+
+    /**
+     * Shows active friends matching the given {@code predicate}, leaving the archive view.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredFriendList(Predicate<Friend> predicate);
+
+    /** Shows archived friends matching the given predicate. */
+    void updateArchivedFriendList(Predicate<Friend> predicate);
+
+    /** Shows matching friends from both active and archived lists as search results. */
+    void updateSearchFriendList(Predicate<Friend> predicate);
+
+    /** Returns the scope of the displayed list, including when it is empty. */
+    FriendListScope getFriendListScope();
+
+    /**
+     * Sorts the currently displayed friend list by the given criterion and direction.
+     *
+     * @throws NullPointerException if {@code sortCriterion} is null.
+     */
+    void sortFilteredFriendList(FriendSortCriterion sortCriterion, boolean isDescending);
+
+    /** Clears the ordering applied to the currently displayed friend list. */
+    void clearFriendListSort();
 }

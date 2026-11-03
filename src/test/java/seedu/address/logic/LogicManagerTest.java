@@ -1,18 +1,19 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalFriends.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,18 +21,24 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.FriendListScope;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ReadOnlyGameMates;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
-import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.model.friend.Friend;
+import seedu.address.model.friend.GameNameMatchesPredicate;
+import seedu.address.model.game.GameName;
+import seedu.address.model.util.SampleDataUtil;
+import seedu.address.storage.JsonGameMatesStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.testutil.FriendBuilder;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -45,10 +52,10 @@ public class LogicManagerTest {
 
     @BeforeEach
     public void setUp() {
-        JsonAddressBookStorage addressBookStorage =
-                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
+        JsonGameMatesStorage gameMatesStorage =
+                new JsonGameMatesStorage(temporaryFolder.resolve("gameMates.json"));
         JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        StorageManager storage = new StorageManager(gameMatesStorage, userPrefsStorage);
         logic = new LogicManager(model, storage);
     }
 
@@ -61,13 +68,88 @@ public class LogicManagerTest {
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
         String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandException(deleteCommand, EditCommand.MESSAGE_EMPTY_LIST);
     }
 
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
         assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+    }
+
+    @Test
+    public void execute_deleteFriend_persistsDeletion() throws Exception {
+        model.addFriend(AMY);
+        CommandResult result = logic.execute("delete 1");
+        assertEquals("Successfully deleted " + AMY.getName() + ".", result.getFeedbackToUser());
+        assertEquals(0, model.getFilteredFriendList().size());
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(temporaryFolder.resolve("gameMates.json"));
+        assertEquals(model.getGameMates(), storage.readGameMates().get());
+    }
+
+    @Test
+    public void execute_nameWithFormatSpecifiers_showsNameLiterally() throws Exception {
+        String name = "%s %d %n";
+        logic.execute("edit myself n/Owner");
+        logic.execute("gameadd myself g/Valorant");
+        for (String command : List.of("add n/" + name, "gameadd 1 g/Valorant", "gamelist 1", "gamelist 1 g/Valorant",
+                "gamelist 1 g/Unknown", "gameedit 1 g/Valorant u/player", "squad g/Valorant n/2", "edit 1 t/duo",
+                "gamedel 1 g/Valorant", "pin 1", "unpin 1", "archive 1", "archivelist", "unarchive 1", "list",
+                "delete 1")) {
+            String feedback = logic.execute(command).getFeedbackToUser();
+            assertTrue(command.equals("archivelist") || command.equals("list") || feedback.contains(name), command);
+        }
+    }
+
+    @Test
+    public void execute_archiveLifecycle_exposesViewAndPersistsStatus() throws Exception {
+        model.addFriend(AMY);
+        Friend profile = logic.getMyself();
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(temporaryFolder.resolve("gameMates.json"));
+        assertEquals(FriendListScope.ACTIVE, logic.getFriendListScope());
+
+        logic.execute("archive 1");
+        assertEquals(List.of(AMY.withArchived(true)), storage.readGameMates().get().getFriendList());
+        logic.execute("archivelist");
+        assertEquals(FriendListScope.ARCHIVED, logic.getFriendListScope());
+        assertEquals(List.of(AMY.withArchived(true)), logic.getFilteredFriendList());
+        logic.execute("find " + AMY.getName().fullName);
+        assertEquals(FriendListScope.SEARCH, logic.getFriendListScope());
+        logic.execute("unarchive 1");
+        assertEquals(FriendListScope.SEARCH, logic.getFriendListScope());
+        assertEquals(List.of(AMY), logic.getFilteredFriendList());
+        assertEquals(List.of(AMY), storage.readGameMates().get().getFriendList());
+        logic.execute("list");
+        assertEquals(FriendListScope.ACTIVE, logic.getFriendListScope());
+        assertEquals(profile, logic.getMyself());
+        assertEquals(profile, storage.readGameMates().get().getMyself());
+    }
+
+    @Test
+    public void execute_listByGame_success() throws Exception {
+        model.setGameMates(SampleDataUtil.getSampleGameMates());
+        GameNameMatchesPredicate predicate = new GameNameMatchesPredicate(new GameName("Valorant"));
+        Model expectedModel = new ModelManager(model.getGameMates(), new UserPrefs());
+        expectedModel.updateFilteredFriendList(predicate);
+
+        String expectedMessage = String.format(Messages.MESSAGE_FRIENDS_LISTED_OVERVIEW, 2);
+        assertCommandSuccess("list g/Valorant", expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_listByGameThenDelete_usesDisplayedFilteredIndex() throws Exception {
+        Friend[] sampleFriends = SampleDataUtil.getSampleFriends();
+        Friend firstValorantFriend = sampleFriends[0];
+        Friend secondValorantFriend = sampleFriends[3];
+        model.setGameMates(SampleDataUtil.getSampleGameMates());
+
+        logic.execute("list g/Valorant");
+        CommandResult result = logic.execute("delete 2");
+
+        assertEquals(String.format(DeleteCommand.MESSAGE_DELETE_FRIEND_SUCCESS,
+                secondValorantFriend.getName()), result.getFeedbackToUser());
+        assertFalse(model.hasFriend(secondValorantFriend));
+        assertEquals(List.of(firstValorantFriend), model.getFilteredFriendList());
     }
 
     @Test
@@ -83,8 +165,8 @@ public class LogicManagerTest {
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    public void getFilteredFriendList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredFriendList().remove(0));
     }
 
     /**
@@ -123,7 +205,7 @@ public class LogicManagerTest {
      */
     private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
             String expectedMessage) {
-        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        Model expectedModel = new ModelManager(model.getGameMates(), new UserPrefs());
         assertCommandFailure(inputCommand, expectedException, expectedMessage, expectedModel);
     }
 
@@ -149,26 +231,26 @@ public class LogicManagerTest {
     private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
-        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
+        // Inject LogicManager with a JsonGameMatesStorage that throws the IOException e when saving
+        JsonGameMatesStorage gameMatesStorage = new JsonGameMatesStorage(prefPath) {
             @Override
-            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+            public void saveGameMates(ReadOnlyGameMates gameMates) throws IOException {
                 throw e;
             }
         };
 
         JsonUserPrefsStorage userPrefsStorage =
                 new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        StorageManager storage = new StorageManager(gameMatesStorage, userPrefsStorage);
 
         logic = new LogicManager(model, storage);
 
-        // Triggers the saveAddressBook method by executing an add command
+        // Triggers the saveGameMates method by executing an add command
         String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+                + EMAIL_DESC_AMY;
+        Friend expectedFriend = new FriendBuilder(AMY).withTags().build();
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
+        expectedModel.addFriend(expectedFriend);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

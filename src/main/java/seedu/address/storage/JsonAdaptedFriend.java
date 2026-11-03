@@ -1,0 +1,139 @@
+package seedu.address.storage;
+
+import static io.vavr.API.unchecked;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.vavr.control.Option;
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.model.friend.Email;
+import seedu.address.model.friend.Friend;
+import seedu.address.model.friend.Name;
+import seedu.address.model.friend.Phone;
+import seedu.address.model.game.Game;
+import seedu.address.model.game.GameName;
+import seedu.address.model.tag.Tag;
+
+/**
+ * Jackson-friendly version of {@link Friend}.
+ */
+class JsonAdaptedFriend {
+
+    public static final String MISSING_FIELD_MESSAGE_FORMAT = "Friend's %s field is missing!";
+    public static final String MESSAGE_DUPLICATE_GAME_FORMAT = "%s's games contain duplicate name: %s";
+
+    private final String name;
+    private final String phone;
+    private final String email;
+    private final boolean archived;
+    private final boolean pinned;
+    private final List<JsonAdaptedGame> games = new ArrayList<>();
+    private final List<JsonAdaptedTag> tags = new ArrayList<>();
+
+    /**
+     * Constructs a {@code JsonAdaptedFriend} with the given friend details.
+     */
+    public JsonAdaptedFriend(String name, String phone, String email, List<JsonAdaptedGame> games,
+            List<JsonAdaptedTag> tags) {
+        this(name, phone, email, games, tags, false, null);
+    }
+
+    /** Missing archive and pin statuses in older save files default to false. */
+    @JsonCreator
+    public JsonAdaptedFriend(@JsonProperty("name") String name, @JsonProperty("phone") String phone,
+            @JsonProperty("email") String email, @JsonProperty("games") List<JsonAdaptedGame> games,
+            @JsonProperty("tags") List<JsonAdaptedTag> tags, @JsonProperty("archived") boolean archived,
+            @JsonProperty("pinned") Boolean pinned) {
+        this.archived = archived;
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
+        this.pinned = Boolean.TRUE.equals(pinned);
+        if (games != null) {
+            this.games.addAll(games);
+        }
+        if (tags != null) {
+            this.tags.addAll(tags);
+        }
+    }
+
+    /**
+     * Converts a given {@code Friend} into this class for Jackson use.
+     */
+    public JsonAdaptedFriend(Friend source) {
+        archived = source.isArchived();
+        name = source.getName().fullName;
+        phone = source.getPhone().value;
+        email = source.getEmail().value;
+        pinned = source.isPinned();
+        games.addAll(source.getGames().stream().map(JsonAdaptedGame::new).toList());
+        tags.addAll(source.getTags().stream()
+                .map(JsonAdaptedTag::new)
+                .toList());
+    }
+
+    /**
+     * Returns true if no field was given, as in an empty JSON object.
+     */
+    boolean isEmpty() {
+        return name == null && phone == null && email == null && games.isEmpty() && tags.isEmpty()
+                && !archived && !pinned;
+    }
+
+    /**
+     * Converts this Jackson-friendly adapted friend object into the model's {@code Friend} object.
+     *
+     * @throws IllegalValueException if there were any data constraints violated in the adapted friend.
+     */
+    public Friend toModelType() throws IllegalValueException {
+        final Set<Game> modelGames = new HashSet<>();
+        final Set<GameName> gameNames = new HashSet<>();
+        for (JsonAdaptedGame game : games) {
+            Game modelGame = game.toModelType();
+            if (!gameNames.add(modelGame.getGameName())) {
+                throw new IllegalValueException(String.format(MESSAGE_DUPLICATE_GAME_FORMAT,
+                        name, modelGame.getGameName()));
+            }
+            modelGames.add(modelGame);
+        }
+        final List<Tag> friendTags = new ArrayList<>();
+        for (JsonAdaptedTag tag : tags) {
+            friendTags.add(tag.toModelType());
+        }
+
+        if (name == null) {
+            throw new IllegalValueException(String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName()));
+        }
+        if (!Name.isValidName(name)) {
+            throw new IllegalValueException(Name.MESSAGE_CONSTRAINTS);
+        }
+        final Name modelName = new Name(name);
+
+        final Phone modelPhone = Option.of(phone).filter(value -> !value.isEmpty()).map(unchecked(value -> {
+            if (!Phone.isValidPhone(value)) {
+                throw new IllegalValueException(Phone.MESSAGE_CONSTRAINTS);
+            }
+            return new Phone(value);
+        })).getOrElse(Phone.EMPTY);
+
+        final Email modelEmail = Option.of(email).filter(value -> !value.isEmpty()).map(unchecked(value -> {
+            if (!Email.isValidEmail(value)) {
+                throw new IllegalValueException(Email.MESSAGE_CONSTRAINTS);
+            }
+            return new Email(value);
+        })).getOrElse(Email.EMPTY);
+
+        final Set<Tag> modelTags = new HashSet<>(friendTags);
+        if (archived && pinned) {
+            throw new IllegalValueException(Friend.MESSAGE_ARCHIVED_PINNED);
+        }
+        return new Friend(modelName, modelPhone, modelEmail, modelGames, modelTags, archived, pinned);
+    }
+
+}

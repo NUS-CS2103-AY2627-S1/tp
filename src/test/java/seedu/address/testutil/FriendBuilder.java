@@ -1,0 +1,113 @@
+package seedu.address.testutil;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import seedu.address.model.friend.Email;
+import seedu.address.model.friend.Friend;
+import seedu.address.model.friend.Name;
+import seedu.address.model.friend.Phone;
+import seedu.address.model.game.Game;
+import seedu.address.model.tag.Tag;
+import seedu.address.model.util.SampleDataUtil;
+
+/**
+ * A utility class to help with building Friend objects.
+ */
+public class FriendBuilder {
+
+    public static final String DEFAULT_NAME = "Amy Bee";
+    public static final String DEFAULT_PHONE = "85355255";
+    public static final String DEFAULT_EMAIL = "amy@gmail.com";
+
+    private Name name;
+    private Phone phone;
+    private Email email;
+    private Set<Game> games;
+    private Set<Tag> tags;
+    private boolean archived;
+    private boolean pinned;
+
+    /**
+     * Creates a {@code FriendBuilder} with the default details.
+     */
+    public FriendBuilder() {
+        name = new Name(DEFAULT_NAME);
+        phone = new Phone(DEFAULT_PHONE);
+        email = new Email(DEFAULT_EMAIL);
+        games = new HashSet<>();
+        tags = new HashSet<>();
+        archived = false;
+        pinned = false;
+    }
+
+    /**
+     * Initializes the FriendBuilder with the data of {@code friendToCopy}.
+     */
+    public FriendBuilder(Friend friendToCopy) {
+        name = friendToCopy.getName();
+        phone = friendToCopy.getPhone();
+        email = friendToCopy.getEmail();
+        games = new HashSet<>(friendToCopy.getGames());
+        tags = new HashSet<>(friendToCopy.getTags());
+        archived = friendToCopy.isArchived();
+        pinned = friendToCopy.isPinned();
+    }
+
+    /**
+     * Sets the {@code Name} of the {@code Friend} that we are building.
+     */
+    public FriendBuilder withName(String name) {
+        this.name = new Name(name);
+        return this;
+    }
+
+    /**
+     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Friend} that we are building.
+     */
+    public FriendBuilder withTags(String ... tags) {
+        this.tags = SampleDataUtil.getTagSet(tags);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Phone} of the {@code Friend} that we are building.
+     */
+    public FriendBuilder withPhone(String phone) {
+        this.phone = new Phone(phone);
+        return this;
+    }
+
+    /**
+     * Sets the {@code Email} of the {@code Friend} that we are building.
+     */
+    public FriendBuilder withEmail(String email) {
+        this.email = new Email(email);
+        return this;
+    }
+
+    /**
+     * Sets the games of the friend being built.
+     */
+    public FriendBuilder withGames(Game... games) {
+        this.games = SampleDataUtil.getGameSet(games);
+        return this;
+    }
+
+    /** Sets whether the friend being built is pinned. */
+    public FriendBuilder withPinned(boolean pinned) {
+        this.pinned = pinned;
+        return this;
+    }
+
+    /** Sets whether the friend being built is archived. */
+    public FriendBuilder withArchived(boolean archived) {
+        this.archived = archived;
+        return this;
+    }
+
+    public Friend build() {
+        return new Friend(name, phone, email, games, tags, archived, pinned);
+    }
+
+}

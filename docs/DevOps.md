@@ -19,7 +19,7 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/gamemates.jar`.<br>
   For example: `./gradlew shadowJar`
 
 * **`run`**: Builds and runs the application.<br>
@@ -36,7 +36,22 @@ The following commands perform common Gradle tasks.
 
 ## Continuous integration (CI)
 
-This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`. No further setup is required.
+This project uses GitHub Actions for CI. The necessary workflow configuration files are in `.github/workflows`.
+
+### Documentation deployment and PR previews
+
+`Deploy docs` builds the Jekyll site in `docs/` on pushes to `master` and publishes to `gh-pages`, preserving active previews.
+
+After merging the workflows into `master`:
+
+1. Run `Deploy docs` if `gh-pages` does not exist.
+1. Set **Settings > Pages** to **Deploy from a branch > gh-pages > / (root)**.
+1. Allow workflow writes to Contents, Pull requests, and Pages, including pushes to `gh-pages`.
+
+Label an open PR `type.Docs` to create a preview using [pr-preview-action](https://github.com/rossjrw/pr-preview-action).
+The preview link appears in a PR comment and becomes available after Pages finishes deploying.
+New commits and reopened PRs refresh it; removing the label or closing the PR removes it.
+Fork PRs are supported, but first-time contributors may need workflow approval. Resolve merge conflicts before building.
 
 ### Code coverage
 
@@ -73,7 +88,7 @@ Any warnings or errors will be printed out to the console.
 
 Here are the steps to create a new release.
 
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
+1. Update the version number in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-W14-3/tp/tree/master/src/main/java/seedu/address/MainApp.java).
 1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
 1. Tag the repo with the version number. e.g. `v0.1`
 1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.

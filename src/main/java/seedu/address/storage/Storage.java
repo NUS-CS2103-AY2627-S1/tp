@@ -2,10 +2,10 @@ package seedu.address.storage;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Optional;
 
+import io.vavr.control.Option;
 import seedu.address.commons.exceptions.DataLoadingException;
-import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.ReadOnlyGameMates;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.UserPrefs;
 
@@ -21,11 +21,11 @@ public interface Storage {
 
     /**
      * Returns UserPrefs data from storage.
-     * Returns {@code Optional.empty()} if storage file is not found.
+     * Returns {@code Option.none()} if storage file is not found.
      *
      * @throws DataLoadingException if the loading of data from preference file failed.
      */
-    Optional<UserPrefs> readUserPrefs() throws DataLoadingException;
+    Option<UserPrefs> readUserPrefs() throws DataLoadingException;
 
     /**
      * Saves the given {@link seedu.address.model.ReadOnlyUserPrefs} to the storage.
@@ -35,23 +35,23 @@ public interface Storage {
     void saveUserPrefs(ReadOnlyUserPrefs userPrefs) throws IOException;
 
     /**
-     * Returns the file path of the AddressBook data file.
+     * Returns the file path of the GameMates data file.
      */
-    Path getAddressBookFilePath();
+    Path getGameMatesFilePath();
 
     /**
-     * Returns AddressBook data as a {@link ReadOnlyAddressBook}.
-     * Returns {@code Optional.empty()} if storage file is not found.
+     * Returns GameMates data as a {@link ReadOnlyGameMates}.
+     * Returns {@code Option.none()} if storage file is not found.
      *
      * @throws DataLoadingException if loading the data from storage failed.
      */
-    Optional<ReadOnlyAddressBook> readAddressBook() throws DataLoadingException;
+    Option<ReadOnlyGameMates> readGameMates() throws DataLoadingException;
 
     /**
-     * Saves the given {@link ReadOnlyAddressBook} to the storage.
-     * @param addressBook cannot be null.
+     * Saves the given {@link ReadOnlyGameMates} to the storage.
+     * @param gameMates cannot be null.
      * @throws IOException if there was any problem writing to the file.
      */
-    void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException;
+    void saveGameMates(ReadOnlyGameMates gameMates) throws IOException;
 
 }

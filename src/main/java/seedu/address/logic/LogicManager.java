@@ -10,26 +10,33 @@ import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
-import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.logic.parser.GameMatesParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.FriendListScope;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.friend.Friend;
 import seedu.address.storage.Storage;
 
 /**
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    public static final String FILE_OPS_UNSAVED_CHANGES_NOTE =
+            "\nThe command action was applied but any changes are not saved, and will be lost on exit. "
+            + "Fix the issue, then run any command (e.g. `list`) to save again.";
+
+    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s"
+            + FILE_OPS_UNSAVED_CHANGES_NOTE;
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
-            "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
+            "Could not save data to file %s due to insufficient permissions to write to the file or the folder."
+            + FILE_OPS_UNSAVED_CHANGES_NOTE;
 
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
     private final Model model;
     private final Storage storage;
-    private final AddressBookParser addressBookParser;
+    private final GameMatesParser gameMatesParser;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -37,7 +44,7 @@ public class LogicManager implements Logic {
     public LogicManager(Model model, Storage storage) {
         this.model = model;
         this.storage = storage;
-        addressBookParser = new AddressBookParser();
+        gameMatesParser = new GameMatesParser();
     }
 
     @Override
@@ -45,11 +52,11 @@ public class LogicManager implements Logic {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
         CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
+        Command command = gameMatesParser.parseCommand(commandText);
         commandResult = command.execute(model);
 
         try {
-            storage.saveAddressBook(model.getAddressBook());
+            storage.saveGameMates(model.getGameMates());
         } catch (AccessDeniedException e) {
             throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
         } catch (IOException ioe) {
@@ -60,8 +67,18 @@ public class LogicManager implements Logic {
     }
 
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return model.getFilteredPersonList();
+    public Friend getMyself() {
+        return model.getGameMates().getMyself();
+    }
+
+    @Override
+    public ObservableList<Friend> getFilteredFriendList() {
+        return model.getFilteredFriendList();
+    }
+
+    @Override
+    public FriendListScope getFriendListScope() {
+        return model.getFriendListScope();
     }
 
     @Override

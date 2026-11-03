@@ -6,11 +6,55 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /**
  * Helper functions for handling strings.
  */
 public class StringUtil {
+
+    // Unicode Other categories (C), plus line and paragraph separators, are non-printable.
+    // Hangul fillers, the blank Braille pattern and the combining grapheme joiner render blank
+    // despite being letters, symbols or marks. No-break spaces look like regular spaces but do not match them.
+    private static final Pattern NON_PRINTABLE_PATTERN = Pattern.compile(
+            "[\\p{C}\\p{Zl}\\p{Zp}\\u115F\\u1160\\u3164\\uFFA0\\u2800\\u034F\\u00A0\\u2007\\u202F]");
+
+    /**
+     * Returns whether a text field is non-empty after stripping whitespace, within {@code maxLength},
+     * contains at least one letter or digit, and contains only printable Unicode characters.
+     * Controls, format characters, unpaired surrogates, private-use/unassigned characters,
+     * line/paragraph separators, blank-rendering fillers and no-break spaces are rejected after stripping.
+     * Length uses {@link String#length()}.
+     * Null input and non-positive length limits return false.
+     */
+    public static boolean isValidTextField(String text, int maxLength) {
+        if (text == null) {
+            return false;
+        }
+        String trimmedText = text.strip();
+        return !trimmedText.isEmpty()
+                && trimmedText.length() <= maxLength
+                && trimmedText.codePoints().anyMatch(Character::isLetterOrDigit)
+                && !NON_PRINTABLE_PATTERN.matcher(trimmedText).find();
+    }
+
+    /**
+     * Splits the string at its first colon, preserving whitespace, empty fields and subsequent colons.
+     * Returns a single-element array containing the original string if no colon is present.
+     *
+     * @throws NullPointerException if {@code text} is null.
+     */
+    public static String[] splitAtFirstColon(String text) {
+        requireNonNull(text);
+        return text.split(":", 2);
+    }
+
+    /**
+     * Returns true if the string is null or empty. Whitespace-only strings are not empty.
+     */
+    public static boolean isNullOrEmpty(String value) {
+        return value == null || value.isEmpty();
+    }
 
     /**
      * Returns true if the {@code sentence} contains the {@code word}.

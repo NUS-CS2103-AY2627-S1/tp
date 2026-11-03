@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
@@ -17,6 +18,7 @@ import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.friend.Friend;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -28,28 +30,38 @@ public class MainWindow extends UiPart<Stage> {
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
-    private Stage primaryStage;
-    private Logic logic;
-    private Path dataFilePath;
+    private final Stage primaryStage;
+    private final Logic logic;
+    private final Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private FriendDetailsPanel friendDetailsPanel;
+    private FriendListPanel friendListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
+    private final HelpWindow helpWindow;
 
     @FXML
+    @SuppressWarnings("unused")
     private StackPane commandBoxPlaceholder;
 
     @FXML
+    @SuppressWarnings("unused")
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    @SuppressWarnings("unused")
+    private StackPane friendListPanelPlaceholder;
 
     @FXML
+    @SuppressWarnings("unused")
+    private StackPane friendDetailsPanelPlaceholder;
+
+    @FXML
+    @SuppressWarnings("unused")
     private StackPane resultDisplayPlaceholder;
 
     @FXML
+    @SuppressWarnings("unused")
     private StackPane statusbarPlaceholder;
 
     /**
@@ -114,8 +126,17 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        friendDetailsPanel = new FriendDetailsPanel(logic.getMyself(), true);
+        ScrollPane detailsScrollPane = new ScrollPane(friendDetailsPanel.getRoot());
+        detailsScrollPane.setFitToWidth(true);
+        detailsScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        detailsScrollPane.getStyleClass().add("friend-details-scroll-pane");
+        friendDetailsPanelPlaceholder.getChildren().add(detailsScrollPane);
+
+        friendListPanel = new FriendListPanel(logic.getFilteredFriendList(),
+                this::showFriendDetails);
+        friendListPanel.setFriendListScope(logic.getFriendListScope());
+        friendListPanelPlaceholder.getChildren().add(friendListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -125,6 +146,39 @@ public class MainWindow extends UiPart<Stage> {
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+    }
+
+    /**
+     * Displays feedback in the result display after the inner parts have been initialized.
+     */
+    void showFeedbackToUser(String feedback) {
+        resultDisplay.setFeedbackToUser(feedback);
+    }
+
+    private void refreshFriendDetails(CommandResult commandResult) {
+        if (commandResult.isPreserveDetails()) {
+            return;
+        }
+        if (commandResult.getFriendToShow().isPresent()) {
+            Friend friend = commandResult.getFriendToShow().get();
+            friendListPanel.selectFriend(commandResult.isShowMyself() ? null : friend);
+            friendDetailsPanel.setFriend(friend, commandResult.isShowMyself(),
+                    commandResult.getGameFilter().orElse(null));
+        } else {
+            friendListPanel.selectFriend(null);
+            showFriendDetails(null);
+        }
+    }
+
+    /**
+     * Shows a selected friend, or the user profile when no friend is selected.
+     */
+    private void showFriendDetails(Friend friend) {
+        if (friend == null) {
+            friendDetailsPanel.setFriend(logic.getMyself(), true);
+        } else {
+            friendDetailsPanel.setFriend(friend, false);
+        }
     }
 
     /**
@@ -167,10 +221,6 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
-    }
-
     /**
      * Executes the command and returns the result.
      *
@@ -181,6 +231,7 @@ public class MainWindow extends UiPart<Stage> {
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            refreshFriendDetails(commandResult);
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -195,6 +246,8 @@ public class MainWindow extends UiPart<Stage> {
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
+        } finally {
+            friendListPanel.setFriendListScope(logic.getFriendListScope());
         }
     }
 }

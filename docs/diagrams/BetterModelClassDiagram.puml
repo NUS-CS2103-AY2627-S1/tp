@@ -1,21 +1,23 @@
 @startuml
+!pragma layout smetana
 !include style.puml
 skinparam arrowThickness 1.1
 skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
 
-AddressBook *-right-> "1" UniquePersonList
-AddressBook *-right-> "1" UniqueTagList
-UniqueTagList -[hidden]down- UniquePersonList
-UniqueTagList -[hidden]down- UniquePersonList
+' Smetana ignores nodesep and ranksep, so top-down edges keep the arrows long enough to read.
+' A small spacer keeps endpoint multiplicities close to, but clear of, arrowheads in Smetana.
+GameMates *--> "1\n<size:6> </size>" UniqueFriendList
+GameMates *--> "1\n<size:6> </size>" UniqueTagList
 
-UniqueTagList -right-> "*" Tag
-UniquePersonList -right-> Person
+UniqueFriendList --> "*\n<size:6> </size>" Friend
+UniqueTagList ---> "*\n<size:6> </size>" Tag
 
-Person -up-> "*" Tag
+Friend --> "*\n<size:6> </size>" Tag
 
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
+' The alternative shares immutable field objects just as the current model does.
+Friend --> "1\n<size:6> </size>" Name
+Friend --> "1\n<size:6> </size>" Phone
+Friend --> "1\n<size:6> </size>" Email
+Friend --> "*\n<size:6> </size>" Game
 @enduml

@@ -3,18 +3,23 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_FRIENDS;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalFriends.ALICE;
+import static seedu.address.testutil.TypicalFriends.BENSON;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
-import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.friend.Friend;
+import seedu.address.model.friend.FriendSortCriterion;
+import seedu.address.model.friend.FriendTarget;
+import seedu.address.model.friend.NameContainsKeywordsPredicate;
+import seedu.address.testutil.FriendBuilder;
+import seedu.address.testutil.GameMatesBuilder;
 
 public class ModelManagerTest {
 
@@ -24,14 +29,14 @@ public class ModelManagerTest {
     public void constructor() {
         assertEquals(new UserPrefs(), modelManager.getUserPrefs());
         assertEquals(new GuiSettings(), modelManager.getGuiSettings());
-        assertEquals(new AddressBook(), new AddressBook(modelManager.getAddressBook()));
+        assertEquals(new GameMates(), new GameMates(modelManager.getGameMates()));
     }
 
     @Test
     public void constructor_validUserPrefs_copiesUserPrefs() {
         UserPrefs userPrefs = new UserPrefs();
         userPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
-        modelManager = new ModelManager(new AddressBook(), userPrefs);
+        modelManager = new ModelManager(new GameMates(), userPrefs);
         assertEquals(userPrefs, modelManager.getUserPrefs());
 
         // Modifying userPrefs should not modify modelManager's userPrefs
@@ -53,35 +58,181 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    public void hasFriend_nullFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasFriend(null));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
+    public void hasFriend_friendNotInGameMates_returnsFalse() {
+        assertFalse(modelManager.hasFriend(ALICE));
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
+    public void hasFriend_friendInGameMates_returnsTrue() {
+        modelManager.addFriend(ALICE);
+        assertTrue(modelManager.hasFriend(ALICE));
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void findFriend_ignoresDisplayFiltersAndPreservesScope() {
+        Friend archived = ALICE.withArchived(true);
+        Friend candidate = new FriendBuilder(ALICE).withPhone("91234567").build();
+        assertTrue(modelManager.findFriend(candidate).isEmpty());
+        modelManager.addFriend(archived);
+        modelManager.addFriend(BENSON);
+        modelManager.updateSearchFriendList(friend -> false);
+        assertEquals(archived, modelManager.findFriend(candidate).get());
+        assertEquals(BENSON, modelManager.findFriend(BENSON).get());
+        assertTrue(modelManager.getFilteredFriendList().isEmpty());
+        assertEquals(FriendListScope.SEARCH, modelManager.getFriendListScope());
+        assertThrows(NullPointerException.class, () -> modelManager.findFriend(null));
+    }
+
+    @Test
+    public void resolveFriend_numericIndex_usesDisplayedList() {
+        assertThrows(IndexOutOfBoundsException.class, () -> modelManager.resolveFriend(Index.fromOneBased(1)));
+        modelManager.addFriend(ALICE);
+        modelManager.addFriend(BENSON);
+        modelManager.updateFilteredFriendList(friend -> friend.equals(BENSON));
+
+        FriendTarget target = modelManager.resolveFriend(Index.fromOneBased(1));
+        assertEquals(BENSON, target.friend());
+        assertFalse(target.isMyself());
+        assertThrows(IndexOutOfBoundsException.class, () -> modelManager.resolveFriend(Index.fromOneBased(2)));
+    }
+
+    @Test
+    public void setFriend_targetAfterFilterChanges_updatesOriginallyResolvedFriend() {
+        modelManager.addFriend(ALICE);
+        modelManager.addFriend(BENSON);
+        Index index = Index.fromOneBased(1);
+        FriendTarget target = modelManager.resolveFriend(index);
+        Friend edited = new FriendBuilder(target.friend()).withPhone("91234567").build();
+        FriendTarget myself = modelManager.resolveFriend(Index.myself());
+        modelManager.updateFilteredFriendList(friend -> friend.equals(BENSON));
+
+        modelManager.setFriend(target, edited);
+
+        assertEquals(List.of(edited, BENSON), modelManager.getGameMates().getFriendList());
+        assertEquals(List.of(BENSON), modelManager.getFilteredFriendList());
+        assertEquals(myself, modelManager.resolveFriend(Index.myself()));
+    }
+
+    @Test
+    public void setFriend_myself_preservesSameNamedFriendAndFilter() {
+        modelManager.setFriend(modelManager.resolveFriend(Index.myself()), ALICE);
+        modelManager.addFriend(ALICE);
+        FriendTarget target = modelManager.resolveFriend(Index.myself());
+        assertTrue(target.isMyself());
+        modelManager.updateFilteredFriendList(friend -> false);
+        Friend edited = new FriendBuilder(ALICE).withPhone("91234567").build();
+
+        modelManager.setFriend(target, edited);
+
+        assertEquals(edited, modelManager.resolveFriend(Index.myself()).friend());
+        assertEquals(List.of(ALICE), modelManager.getGameMates().getFriendList());
+        assertTrue(modelManager.getFilteredFriendList().isEmpty());
+    }
+
+    @Test
+    public void friendTarget_nullArguments_rejected() {
+        assertThrows(NullPointerException.class, () -> modelManager.resolveFriend(null));
+        assertThrows(NullPointerException.class, () -> modelManager.setFriend((FriendTarget) null, BENSON));
+        FriendTarget target = modelManager.resolveFriend(Index.myself());
+        assertThrows(NullPointerException.class, () -> modelManager.setFriend(target, null));
+    }
+
+    @Test
+    public void getFilteredFriendList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredFriendList().remove(0));
+    }
+
+    @Test
+    public void equals_emptyListsWithDifferentScopes_distinguishesUserVisibleState() {
+        ModelManager active = new ModelManager();
+        ModelManager archived = new ModelManager();
+        ModelManager search = new ModelManager();
+        archived.updateArchivedFriendList(PREDICATE_SHOW_ALL_FRIENDS);
+        search.updateSearchFriendList(PREDICATE_SHOW_ALL_FRIENDS);
+        assertEquals(active.getFilteredFriendList(), archived.getFilteredFriendList());
+        assertEquals(active.getFilteredFriendList(), search.getFilteredFriendList());
+        assertFalse(active.equals(archived));
+        assertFalse(archived.equals(search));
+        assertFalse(search.equals(active));
+        active.updateSearchFriendList(PREDICATE_SHOW_ALL_FRIENDS);
+        assertEquals(active, search);
+    }
+
+    @Test
+    public void friendListSort_ordersDisplayedFriendsAndCanBeCleared() {
+        modelManager.addFriend(BENSON);
+        modelManager.addFriend(ALICE);
+
+        modelManager.sortFilteredFriendList(FriendSortCriterion.NAME, false);
+        assertEquals(List.of(ALICE, BENSON), modelManager.getFilteredFriendList());
+
+        modelManager.clearFriendListSort();
+        assertEquals(List.of(BENSON, ALICE), modelManager.getFilteredFriendList());
+    }
+
+    @Test
+    public void sortFilteredFriendList_nullSortCriterion_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.sortFilteredFriendList(null, false));
+    }
+
+    @Test
+    public void friendListDescendingSort_ordersDisplayedFriendsInReverse() {
+        modelManager.addFriend(ALICE);
+        modelManager.addFriend(BENSON);
+
+        modelManager.sortFilteredFriendList(FriendSortCriterion.NAME, true);
+
+        assertEquals(List.of(BENSON, ALICE), modelManager.getFilteredFriendList());
+    }
+
+    @Test
+    public void friendListSort_keepsPinnedFriendsBeforeUnpinnedFriends() {
+        Friend pinnedZoe = new FriendBuilder().withName("Pinned Zoe").withPinned(true).build();
+        Friend unpinnedAlex = new FriendBuilder().withName("Unpinned Alex").build();
+        Friend pinnedAlex = new FriendBuilder().withName("Pinned Alex").withPinned(true).build();
+        Friend unpinnedZoe = new FriendBuilder().withName("Unpinned Zoe").build();
+        modelManager.addFriend(pinnedZoe);
+        modelManager.addFriend(unpinnedAlex);
+        modelManager.addFriend(pinnedAlex);
+        modelManager.addFriend(unpinnedZoe);
+
+        modelManager.sortFilteredFriendList(FriendSortCriterion.NAME, false);
+
+        assertEquals(List.of(pinnedAlex, pinnedZoe, unpinnedAlex, unpinnedZoe),
+                modelManager.getFilteredFriendList());
+    }
+
+    @Test
+    public void friendListDescendingSort_keepsPinnedFriendsBeforeUnpinnedFriends() {
+        Friend pinnedZoe = new FriendBuilder().withName("Pinned Zoe").withPinned(true).build();
+        Friend unpinnedAlex = new FriendBuilder().withName("Unpinned Alex").build();
+        Friend pinnedAlex = new FriendBuilder().withName("Pinned Alex").withPinned(true).build();
+        Friend unpinnedZoe = new FriendBuilder().withName("Unpinned Zoe").build();
+        modelManager.addFriend(pinnedZoe);
+        modelManager.addFriend(unpinnedAlex);
+        modelManager.addFriend(pinnedAlex);
+        modelManager.addFriend(unpinnedZoe);
+
+        modelManager.sortFilteredFriendList(FriendSortCriterion.NAME, true);
+
+        assertEquals(List.of(pinnedZoe, pinnedAlex, unpinnedZoe, unpinnedAlex),
+                modelManager.getFilteredFriendList());
     }
 
     @Test
     public void equals() {
-        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
-        AddressBook differentAddressBook = new AddressBook();
+        GameMates gameMates = new GameMatesBuilder().withFriend(ALICE).withFriend(BENSON).build();
+        GameMates differentGameMates = new GameMates();
         UserPrefs userPrefs = new UserPrefs();
 
         // same values -> returns true
-        modelManager = new ModelManager(addressBook, userPrefs);
-        ModelManager modelManagerCopy = new ModelManager(addressBook, userPrefs);
+        modelManager = new ModelManager(gameMates, userPrefs);
+        ModelManager modelManagerCopy = new ModelManager(gameMates, userPrefs);
         assertTrue(modelManager.equals(modelManagerCopy));
 
         // same object -> returns true
@@ -93,20 +244,20 @@ public class ModelManagerTest {
         // different types -> returns false
         assertFalse(modelManager.equals(5));
 
-        // different addressBook -> returns false
-        assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
+        // different gameMates -> returns false
+        assertFalse(modelManager.equals(new ModelManager(differentGameMates, userPrefs)));
 
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
-        assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
+        modelManager.updateFilteredFriendList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        assertFalse(modelManager.equals(new ModelManager(gameMates, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredFriendList(PREDICATE_SHOW_ALL_FRIENDS);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();
         differentUserPrefs.setGuiSettings(new GuiSettings(1, 2, 3, 4));
-        assertFalse(modelManager.equals(new ModelManager(addressBook, differentUserPrefs)));
+        assertFalse(modelManager.equals(new ModelManager(gameMates, differentUserPrefs)));
     }
 }

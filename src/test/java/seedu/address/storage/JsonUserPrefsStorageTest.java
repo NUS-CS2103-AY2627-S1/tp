@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.vavr.control.Option;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.UserPrefs;
@@ -28,19 +29,48 @@ public class JsonUserPrefsStorageTest {
         assertThrows(NullPointerException.class, () -> readUserPrefs(null));
     }
 
-    private Optional<UserPrefs> readUserPrefs(String userPrefsFileInTestDataFolder) throws DataLoadingException {
+    private Option<UserPrefs> readUserPrefs(String userPrefsFileInTestDataFolder) throws DataLoadingException {
         Path prefsFilePath = addToTestDataPathIfNotNull(userPrefsFileInTestDataFolder);
         return new JsonUserPrefsStorage(prefsFilePath).readUserPrefs(prefsFilePath);
     }
 
     @Test
     public void readUserPrefs_missingFile_emptyResult() throws DataLoadingException {
-        assertFalse(readUserPrefs("NonExistentFile.json").isPresent());
+        assertFalse(readUserPrefs("NonExistentFile.json").isDefined());
     }
 
     @Test
     public void readUserPrefs_notJsonFormat_exceptionThrown() {
         assertThrows(DataLoadingException.class, () -> readUserPrefs("NotJsonFormatUserPrefs.json"));
+    }
+
+    @Test
+    public void readUserPrefs_nullGuiSettings_exceptionThrown() throws IOException {
+        Path prefsFilePath = testFolder.resolve("NullGuiSettings.json");
+        Files.writeString(prefsFilePath, "{\"guiSettings\":null}");
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(prefsFilePath);
+
+        assertThrows(DataLoadingException.class, storage::readUserPrefs);
+    }
+
+    @Test
+    public void readUserPrefs_nullRoot_exceptionThrown() throws IOException {
+        Path prefsFilePath = testFolder.resolve("NullUserPrefs.json");
+        Files.writeString(prefsFilePath, "null");
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(prefsFilePath);
+
+        assertThrows(DataLoadingException.class, storage::readUserPrefs);
+    }
+
+    @Test
+    public void saveUserPrefs_defaultPrefs_success() throws IOException, DataLoadingException {
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(testFolder.resolve("DefaultPrefs.json"));
+        UserPrefs expected = new UserPrefs();
+
+        storage.saveUserPrefs(expected);
+
+        // Null window coordinates are valid and must survive a round trip.
+        assertEquals(expected, storage.readUserPrefs().get());
     }
 
     private Path addToTestDataPathIfNotNull(String userPrefsFileInTestDataFolder) {

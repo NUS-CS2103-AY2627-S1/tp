@@ -21,10 +21,11 @@ public class UiManager implements Ui {
     public static final String ALERT_DIALOG_PANE_FIELD_ID = "alertDialogPane";
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
-    private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String ICON_APPLICATION = "/images/game_mates_32.png";
 
     private Logic logic;
     private Path dataFilePath;
+    private final String startupMessage;
     private MainWindow mainWindow;
 
     /**
@@ -32,8 +33,16 @@ public class UiManager implements Ui {
      * to show in the status bar.
      */
     public UiManager(Logic logic, Path dataFilePath) {
+        this(logic, dataFilePath, "");
+    }
+
+    /**
+     * Creates a {@code UiManager} with a message to display after the main window is initialized.
+     */
+    public UiManager(Logic logic, Path dataFilePath, String startupMessage) {
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.startupMessage = startupMessage;
     }
 
     @Override
@@ -47,6 +56,7 @@ public class UiManager implements Ui {
             mainWindow = new MainWindow(primaryStage, logic, dataFilePath);
             mainWindow.show(); //This should be called before creating other UI parts
             mainWindow.fillInnerParts();
+            mainWindow.showFeedbackToUser(startupMessage);
 
         } catch (Throwable e) {
             logger.severe(StringUtil.getDetails(e));

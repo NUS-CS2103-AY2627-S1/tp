@@ -1,0 +1,195 @@
+package seedu.address.storage;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static seedu.address.storage.JsonAdaptedFriend.MESSAGE_DUPLICATE_GAME_FORMAT;
+import static seedu.address.testutil.TypicalFriends.ALICE;
+import static seedu.address.testutil.TypicalFriends.HOON;
+import static seedu.address.testutil.TypicalFriends.IDA;
+import static seedu.address.testutil.TypicalFriends.getTypicalGameMates;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.vavr.control.Option;
+import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.logic.parser.GameMatesParser;
+import seedu.address.model.GameMates;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyGameMates;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.util.SampleDataUtil;
+
+public class JsonGameMatesStorageTest {
+    private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonGameMatesStorageTest");
+
+    @TempDir
+    public Path testFolder;
+
+    @Test
+    public void readAndSaveGameMates_sampleGames_preserved() throws Exception {
+        Path filePath = testFolder.resolve("games.json");
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(filePath);
+        ReadOnlyGameMates original = SampleDataUtil.getSampleGameMates();
+        storage.saveGameMates(original);
+        assertEquals(original, storage.readGameMates().get());
+    }
+
+    @Test
+    public void readGameMates_nullFilePath_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> readGameMates(null));
+    }
+
+    private Option<ReadOnlyGameMates> readGameMates(String filePath) throws Exception {
+        return new JsonGameMatesStorage(Paths.get(filePath))
+                .readGameMates(addToTestDataPathIfNotNull(filePath));
+    }
+
+    private Path addToTestDataPathIfNotNull(String prefsFileInTestDataFolder) {
+        return prefsFileInTestDataFolder != null
+                ? TEST_DATA_FOLDER.resolve(prefsFileInTestDataFolder)
+                : null;
+    }
+
+    @Test
+    public void read_missingFile_emptyResult() throws Exception {
+        assertFalse(readGameMates("NonExistentFile.json").isDefined());
+    }
+
+    @Test
+    public void read_notJsonFormat_exceptionThrown() {
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> readGameMates("notJsonFormatGameMates.json"));
+        assertInstanceOf(IOException.class, exception.getCause());
+    }
+
+    @Test
+    public void readGameMates_nullJson_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("gamemates.json");
+        Files.writeString(filePath, " \n null \n ");
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(filePath);
+
+        assertThrows(DataLoadingException.class, storage::readGameMates);
+    }
+
+    @Test
+    public void readGameMates_invalidFriendGameMates_throwDataLoadingException() {
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> readGameMates("invalidFriendGameMates.json"));
+        assertInstanceOf(IllegalValueException.class, exception.getCause());
+    }
+
+    @Test
+    public void readGameMates_invalidAndValidFriendGameMates_throwDataLoadingException() {
+        assertThrows(DataLoadingException.class, () -> readGameMates("invalidAndValidFriendGameMates.json"));
+    }
+
+    @Test
+    public void readGameMates_duplicateGameNames_throwDataLoadingException() {
+        for (String fileName : List.of("duplicateFriendGameNamesGameMates.json",
+                "duplicateMyselfGameNamesGameMates.json")) {
+            DataLoadingException exception = assertThrows(DataLoadingException.class, () -> readGameMates(fileName));
+            assertInstanceOf(IllegalValueException.class, exception.getCause());
+            assertEquals(String.format(MESSAGE_DUPLICATE_GAME_FORMAT, "Alice", "VALORANT"),
+                    exception.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void readGameMates_friendNameConflictsWithMyself_throwDataLoadingException() {
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> readGameMates("duplicateCustomMyselfGameMates.json"));
+        assertInstanceOf(IllegalValueException.class, exception.getCause());
+        assertEquals(JsonSerializableGameMates.MESSAGE_DUPLICATE_MYSELF, exception.getCause().getMessage());
+    }
+
+    @Test
+    public void readAndSaveGameMates_unnamedProfile_allowsFriendNamedMyself() throws Exception {
+        Model model = new ModelManager(readGameMates("friendNamedMyselfGameMates.json").get(), new UserPrefs());
+        Path filePath = testFolder.resolve("unnamed-profile.json");
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(filePath);
+        storage.saveGameMates(model.getGameMates());
+        assertFalse(Files.readString(filePath).contains("\"myself\""));
+
+        GameMatesParser parser = new GameMatesParser();
+        parser.parseCommand("edit 1 p/123").execute(model);
+        assertEquals("123", model.getFilteredFriendList().getFirst().getPhone().value);
+
+        storage.saveGameMates(model.getGameMates());
+        assertEquals(model.getGameMates(), storage.readGameMates().get());
+    }
+
+    @Test
+    public void readAndSaveGameMates_allInOrder_success() throws Exception {
+        Path filePath = testFolder.resolve("TempGameMates.json");
+        GameMates original = getTypicalGameMates();
+        JsonGameMatesStorage jsonGameMatesStorage = new JsonGameMatesStorage(filePath);
+
+        // Save in new file and read back
+        jsonGameMatesStorage.saveGameMates(original, filePath);
+        ReadOnlyGameMates readBack = jsonGameMatesStorage.readGameMates(filePath).get();
+        assertEquals(original, new GameMates(readBack));
+
+        // Modify data, overwrite existing file, and read back
+        original.addFriend(HOON);
+        original.removeFriend(ALICE);
+        jsonGameMatesStorage.saveGameMates(original, filePath);
+        readBack = jsonGameMatesStorage.readGameMates(filePath).get();
+        assertEquals(original, new GameMates(readBack));
+
+        // Save and read without specifying file path
+        original.addFriend(IDA);
+        jsonGameMatesStorage.saveGameMates(original); // file path not specified
+        readBack = jsonGameMatesStorage.readGameMates().get(); // file path not specified
+        assertEquals(original, new GameMates(readBack));
+
+    }
+
+    @Test
+    public void readAndSaveGameMates_optionalContacts_surviveReloadAndEdit() throws Exception {
+        Model model = new ModelManager(new GameMates(), new UserPrefs());
+        GameMatesParser parser = new GameMatesParser();
+        parser.parseCommand("add n/Melody").execute(model);
+        parser.parseCommand("add n/Joash p/91234567").execute(model);
+        parser.parseCommand("add n/Felicia e/felicia@example.com").execute(model);
+        Path filePath = testFolder.resolve("optional-contacts.json");
+        JsonGameMatesStorage storage = new JsonGameMatesStorage(filePath);
+        storage.saveGameMates(model.getGameMates());
+        assertEquals(model.getGameMates(), new GameMates(storage.readGameMates().get()));
+        parser.parseCommand("edit 1 p/98765432").execute(model);
+        storage.saveGameMates(model.getGameMates());
+        assertEquals(model.getGameMates(), new GameMates(storage.readGameMates().get()));
+    }
+
+    @Test
+    public void saveGameMates_nullGameMates_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> saveGameMates(null, "SomeFile.json"));
+    }
+
+    /**
+     * Saves {@code gameMates} at the specified {@code filePath}.
+     */
+    private void saveGameMates(ReadOnlyGameMates gameMates, String filePath) {
+        try {
+            new JsonGameMatesStorage(Paths.get(filePath))
+                    .saveGameMates(gameMates, addToTestDataPathIfNotNull(filePath));
+        } catch (IOException ioe) {
+            throw new AssertionError("There should not be an error writing to the file.", ioe);
+        }
+    }
+
+    @Test
+    public void saveGameMates_nullFilePath_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> saveGameMates(new GameMates(), null));
+    }
+}

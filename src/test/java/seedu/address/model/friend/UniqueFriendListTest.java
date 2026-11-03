@@ -1,0 +1,267 @@
+package seedu.address.model.friend;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalFriends.ALICE;
+import static seedu.address.testutil.TypicalFriends.BOB;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.friend.exceptions.DuplicateFriendException;
+import seedu.address.model.friend.exceptions.FriendNotFoundException;
+import seedu.address.model.friend.exceptions.PinnedFriendLimitExceededException;
+import seedu.address.testutil.FriendBuilder;
+
+public class UniqueFriendListTest {
+
+    private final UniqueFriendList uniqueFriendList = new UniqueFriendList();
+
+    @Test
+    public void contains_nullFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.contains(null));
+    }
+
+    @Test
+    public void contains_friendNotInList_returnsFalse() {
+        assertFalse(uniqueFriendList.contains(ALICE));
+    }
+
+    @Test
+    public void contains_friendInList_returnsTrue() {
+        uniqueFriendList.add(ALICE);
+        assertTrue(uniqueFriendList.contains(ALICE));
+    }
+
+    @Test
+    public void contains_friendWithSameIdentityFieldsInList_returnsTrue() {
+        uniqueFriendList.add(ALICE);
+        Friend editedAlice = new FriendBuilder(ALICE).withTags(VALID_TAG_HUSBAND)
+                .build();
+        assertTrue(uniqueFriendList.contains(editedAlice));
+    }
+
+    @Test
+    public void findFriend_matchesIdentityAndReturnsStoredDetails() {
+        Friend archived = ALICE.withArchived(true);
+        Friend candidate = new FriendBuilder(ALICE).withPhone("91234567").build();
+        assertTrue(uniqueFriendList.findFriend(candidate).isEmpty());
+        uniqueFriendList.add(archived);
+        assertEquals(archived, uniqueFriendList.findFriend(candidate).get());
+        assertTrue(uniqueFriendList.findFriend(candidate).get().isArchived());
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.findFriend(null));
+    }
+
+    @Test
+    public void add_nullFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.add(null));
+    }
+
+    @Test
+    public void add_duplicateFriend_throwsDuplicateFriendException() {
+        uniqueFriendList.add(ALICE);
+        assertThrows(DuplicateFriendException.class, () -> uniqueFriendList.add(ALICE));
+    }
+
+    @Test
+    public void add_sixthPinnedFriend_throwsPinnedFriendLimitExceededException() {
+        for (int i = 1; i <= UniqueFriendList.MAX_PINNED_FRIENDS; i++) {
+            uniqueFriendList.add(createPinnedFriend(i));
+        }
+
+        assertThrows(PinnedFriendLimitExceededException.class, () -> uniqueFriendList.add(createPinnedFriend(6)));
+        assertEquals(UniqueFriendList.MAX_PINNED_FRIENDS, uniqueFriendList.asUnmodifiableObservableList().size());
+    }
+
+    @Test
+    public void setFriend_nullTargetFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.setFriend(null, ALICE));
+    }
+
+    @Test
+    public void setFriend_nullEditedFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.setFriend(ALICE, null));
+    }
+
+    @Test
+    public void setFriend_targetFriendNotInList_throwsFriendNotFoundException() {
+        assertThrows(FriendNotFoundException.class, () -> uniqueFriendList.setFriend(ALICE, ALICE));
+    }
+
+    @Test
+    public void setFriend_editedFriendIsSameFriend_success() {
+        uniqueFriendList.add(ALICE);
+        uniqueFriendList.setFriend(ALICE, ALICE);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        expectedUniqueFriendList.add(ALICE);
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriend_editedFriendHasSameIdentity_success() {
+        uniqueFriendList.add(ALICE);
+        Friend editedAlice = new FriendBuilder(ALICE).withTags(VALID_TAG_HUSBAND)
+                .build();
+        uniqueFriendList.setFriend(ALICE, editedAlice);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        expectedUniqueFriendList.add(editedAlice);
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriend_editedFriendHasDifferentIdentity_success() {
+        uniqueFriendList.add(ALICE);
+        uniqueFriendList.setFriend(ALICE, BOB);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        expectedUniqueFriendList.add(BOB);
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriend_pinnedFriend_preservesInsertionOrder() {
+        uniqueFriendList.add(ALICE);
+        uniqueFriendList.add(BOB);
+        Friend pinnedBob = new FriendBuilder(BOB).withPinned(true).build();
+        uniqueFriendList.setFriend(BOB, pinnedBob);
+
+        assertEquals(List.of(ALICE, pinnedBob), uniqueFriendList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setFriend_sixthPinnedFriend_throwsPinnedFriendLimitExceededException() {
+        for (int i = 1; i <= UniqueFriendList.MAX_PINNED_FRIENDS; i++) {
+            uniqueFriendList.add(createPinnedFriend(i));
+        }
+        Friend unpinnedFriend = new FriendBuilder().withName("Unpinned Friend").build();
+        Friend sixthPinnedFriend = unpinnedFriend.withPinned(true);
+        uniqueFriendList.add(unpinnedFriend);
+
+        assertThrows(PinnedFriendLimitExceededException.class, () -> uniqueFriendList.setFriend(unpinnedFriend,
+                sixthPinnedFriend));
+        assertFalse(uniqueFriendList.asUnmodifiableObservableList().getLast().isPinned());
+    }
+
+    @Test
+    public void setFriend_unpinsFriend_success() {
+        Friend pinnedFriend = createPinnedFriend(1);
+        uniqueFriendList.add(pinnedFriend);
+
+        uniqueFriendList.setFriend(pinnedFriend, pinnedFriend.withPinned(false));
+
+        assertFalse(uniqueFriendList.asUnmodifiableObservableList().getFirst().isPinned());
+    }
+
+    @Test
+    public void setFriends_pinnedFriend_preservesStoredInsertionOrder() {
+        Friend pinnedBob = new FriendBuilder(BOB).withPinned(true).build();
+        uniqueFriendList.setFriends(List.of(ALICE, pinnedBob));
+
+        assertEquals(List.of(ALICE, pinnedBob), uniqueFriendList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setFriends_multiplePinnedFriends_preservesStoredInsertionOrder() {
+        Friend firstUnpinnedFriend = new FriendBuilder().withName("First Unpinned").build();
+        Friend firstPinnedFriend = new FriendBuilder().withName("First Pinned").withPinned(true).build();
+        Friend secondUnpinnedFriend = new FriendBuilder().withName("Second Unpinned").build();
+        Friend secondPinnedFriend = new FriendBuilder().withName("Second Pinned").withPinned(true).build();
+        uniqueFriendList.setFriends(List.of(firstUnpinnedFriend, firstPinnedFriend,
+                secondUnpinnedFriend, secondPinnedFriend));
+
+        assertEquals(List.of(firstUnpinnedFriend, firstPinnedFriend, secondUnpinnedFriend, secondPinnedFriend),
+                uniqueFriendList.asUnmodifiableObservableList());
+    }
+
+    @Test
+    public void setFriends_moreThanMaximumPinnedFriends_throwsPinnedFriendLimitExceededException() {
+        List<Friend> pinnedFriends = List.of(
+                new FriendBuilder().withName("Pinned Friend 1").withPinned(true).build(),
+                new FriendBuilder().withName("Pinned Friend 2").withPinned(true).build(),
+                new FriendBuilder().withName("Pinned Friend 3").withPinned(true).build(),
+                new FriendBuilder().withName("Pinned Friend 4").withPinned(true).build(),
+                new FriendBuilder().withName("Pinned Friend 5").withPinned(true).build(),
+                new FriendBuilder().withName("Pinned Friend 6").withPinned(true).build());
+
+        assertThrows(PinnedFriendLimitExceededException.class, () -> uniqueFriendList.setFriends(pinnedFriends));
+        assertTrue(uniqueFriendList.asUnmodifiableObservableList().isEmpty());
+    }
+
+    @Test
+    public void setFriend_editedFriendHasNonUniqueIdentity_throwsDuplicateFriendException() {
+        uniqueFriendList.add(ALICE);
+        uniqueFriendList.add(BOB);
+        assertThrows(DuplicateFriendException.class, () -> uniqueFriendList.setFriend(ALICE, BOB));
+    }
+
+    @Test
+    public void remove_nullFriend_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.remove(null));
+    }
+
+    @Test
+    public void remove_friendDoesNotExist_throwsFriendNotFoundException() {
+        assertThrows(FriendNotFoundException.class, () -> uniqueFriendList.remove(ALICE));
+    }
+
+    @Test
+    public void remove_existingFriend_removesFriend() {
+        uniqueFriendList.add(ALICE);
+        uniqueFriendList.remove(ALICE);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriends_nullUniqueFriendList_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.setFriends((UniqueFriendList) null));
+    }
+
+    @Test
+    public void setFriends_uniqueFriendList_replacesOwnListWithProvidedUniqueFriendList() {
+        uniqueFriendList.add(ALICE);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        expectedUniqueFriendList.add(BOB);
+        uniqueFriendList.setFriends(expectedUniqueFriendList);
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriends_nullList_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniqueFriendList.setFriends((List<Friend>) null));
+    }
+
+    @Test
+    public void setFriends_list_replacesOwnListWithProvidedList() {
+        uniqueFriendList.add(ALICE);
+        List<Friend> friendList = List.of(BOB);
+        uniqueFriendList.setFriends(friendList);
+        UniqueFriendList expectedUniqueFriendList = new UniqueFriendList();
+        expectedUniqueFriendList.add(BOB);
+        assertEquals(expectedUniqueFriendList, uniqueFriendList);
+    }
+
+    @Test
+    public void setFriends_listWithDuplicateFriends_throwsDuplicateFriendException() {
+        List<Friend> listWithDuplicateFriends = List.of(ALICE, ALICE);
+        assertThrows(DuplicateFriendException.class, () -> uniqueFriendList.setFriends(listWithDuplicateFriends));
+    }
+
+    @Test
+    public void asUnmodifiableObservableList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, ()
+            -> uniqueFriendList.asUnmodifiableObservableList().remove(0));
+    }
+
+    @Test
+    public void toStringMethod() {
+        assertEquals(uniqueFriendList.asUnmodifiableObservableList().toString(), uniqueFriendList.toString());
+    }
+
+    private static Friend createPinnedFriend(int index) {
+        return new FriendBuilder().withName("Pinned Friend " + index).withPinned(true).build();
+    }
+}

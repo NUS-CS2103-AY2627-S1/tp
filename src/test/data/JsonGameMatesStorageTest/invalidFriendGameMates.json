@@ -1,0 +1,7 @@
+{
+  "friends": [ {
+    "name": "Friend with invalid name field: Ha!ns Mu@ster",
+    "phone": "948asdf2424",
+    "email": "hans@example.com"
+  } ]
+}

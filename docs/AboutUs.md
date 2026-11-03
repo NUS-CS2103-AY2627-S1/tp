@@ -9,51 +9,43 @@ You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Benedict Woo
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/benwoo1110.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://benthecat.com)]
+[[github](https://github.com/benwoo1110)]
 
 * Role: Team Lead
-* Responsibilities: UI
 
-### Johnny Doe
+### Melody
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/melogens.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/melogens)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Joash Chen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/joash-chen.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/joash-chen)]
 
 * Role: Developer
-* Responsibilities: UI
+
+### Felicia Duwana
+
+<img src="images/felicia-duwana.png" width="200px">
+
+[[github](http://github.com/felicia-duwana)]
+
+* Role: Developer
+
+### Aarav Malani
+
+<img src="images/aaravmalani.png" width="200px">
+
+[[github](http://github.com/AaravMalani)]
+
+* Role: Developer
