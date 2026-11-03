@@ -4,8 +4,11 @@ import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 
 import java.util.Collection;
@@ -32,17 +35,13 @@ public class EditCommandParser implements Parser<EditCommand> {
     public EditCommand parse(String args) throws ParseException {
         requireNonNull(args);
         ArgumentMultimap argMultimap =
-                ArgumentTokenizer.tokenize(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS, PREFIX_TAG);
+                ArgumentTokenizer.tokenizeForCommand(args, PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL,
+                        PREFIX_ADDRESS, PREFIX_SUBJECT, PREFIX_LEVEL, PREFIX_NOTE, PREFIX_TAG);
 
-        Index index;
+        Index index = parseTargetIndex(argMultimap.getPreamble());
 
-        try {
-            index = ParserUtil.parseIndex(argMultimap.getPreamble());
-        } catch (ParseException pe) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE), pe);
-        }
-
-        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS);
+        argMultimap.verifyNoDuplicatePrefixesFor(PREFIX_NAME, PREFIX_PHONE, PREFIX_EMAIL, PREFIX_ADDRESS,
+                PREFIX_SUBJECT, PREFIX_LEVEL, PREFIX_NOTE);
 
         EditPersonDescriptor editPersonDescriptor = new EditPersonDescriptor();
 
@@ -58,6 +57,25 @@ public class EditCommandParser implements Parser<EditCommand> {
         if (argMultimap.getValue(PREFIX_ADDRESS).isPresent()) {
             editPersonDescriptor.setAddress(ParserUtil.parseAddress(argMultimap.getValue(PREFIX_ADDRESS).get()));
         }
+        if (argMultimap.getValue(PREFIX_SUBJECT).isPresent()) {
+            String subject = argMultimap.getValue(PREFIX_SUBJECT).get();
+            if (subject.isBlank()) {
+                editPersonDescriptor.setEmptySubject();
+            } else {
+                editPersonDescriptor.setSubject(ParserUtil.parseSubject(subject));
+            }
+        }
+        if (argMultimap.getValue(PREFIX_LEVEL).isPresent()) {
+            String level = argMultimap.getValue(PREFIX_LEVEL).get();
+            if (level.isBlank()) {
+                editPersonDescriptor.setEmptyLevel();
+            } else {
+                editPersonDescriptor.setLevel(ParserUtil.parseLevel(level));
+            }
+        }
+        if (argMultimap.getValue(PREFIX_NOTE).isPresent()) {
+            editPersonDescriptor.setNote(ParserUtil.parseNote(argMultimap.getValue(PREFIX_NOTE).get()));
+        }
         parseTagsForEdit(argMultimap.getAllValues(PREFIX_TAG)).ifPresent(editPersonDescriptor::setTags);
 
         if (!editPersonDescriptor.isAnyFieldEdited()) {
@@ -65,6 +83,23 @@ public class EditCommandParser implements Parser<EditCommand> {
         }
 
         return new EditCommand(index, editPersonDescriptor);
+    }
+
+    /**
+     * Parses the text before the first prefix as the index of the contact to edit.
+     * A single value follows the same index rules as {@code view}, {@code delete}, and {@code link}, so an invalid
+     * index gets the same feedback in every command.
+     *
+     * @param preamble Text before the first prefix.
+     * @return The index of the contact to edit.
+     * @throws ParseException If the preamble is not exactly one value, or that value is not a valid index.
+     */
+    private static Index parseTargetIndex(String preamble) throws ParseException {
+        String trimmedPreamble = preamble.trim();
+        if (trimmedPreamble.isEmpty() || trimmedPreamble.split("\\s+").length != 1) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE));
+        }
+        return ParserUtil.parseDisplayedIndex(trimmedPreamble);
     }
 
     /**

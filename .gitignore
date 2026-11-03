@@ -22,10 +22,14 @@ src/test/data/sandbox/
 docs/_site/
 
 # AI Agents
-AGENTS.md
-CLAUDE.md
-/.claude/
-/.codex/
+# AGENTS.md
+# CLAUDE.md
+# /.claude/
+# /.codex/
+/.codex/skills/present-changes-visually/
 
 # Temp files
 _temp/
+
+# Binary Files
+bin/

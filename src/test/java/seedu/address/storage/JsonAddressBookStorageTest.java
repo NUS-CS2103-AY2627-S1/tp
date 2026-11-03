@@ -2,13 +2,17 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.GEORGE;
 import static seedu.address.testutil.TypicalPersons.HOON;
 import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,7 +22,11 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.ParentStudentLink;
 
+/**
+ * Tests loading and saving of contact data through JSON storage.
+ */
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
@@ -60,6 +68,51 @@ public class JsonAddressBookStorageTest {
         assertThrows(DataLoadingException.class, () -> readAddressBook("invalidAndValidPersonAddressBook.json"));
     }
 
+    /**
+     * Checks that a null contact fails loading without changing the saved file.
+     */
+    @Test
+    public void readAddressBook_nullPerson_throwsDataLoadingExceptionWithoutChangingFile() throws Exception {
+        Path dataPath = testFolder.resolve("tutorcontacts.json");
+        String invalidData = "{\"persons\":[null]}";
+        Files.writeString(dataPath, invalidData);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataPath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertEquals(invalidData, Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that invalid roots and extra JSON content cannot load or alter the saved address book.
+     */
+    @Test
+    public void readAddressBook_invalidDocument_throwsDataLoadingExceptionWithoutChangingFile()
+            throws IOException {
+        Path dataPath = testFolder.resolve("tutorcontacts.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataPath);
+        for (String json : new String[]{"null", "{} trailing text", "{} {}", "{} null"}) {
+            Files.writeString(dataPath, json);
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook);
+            assertEquals(json, Files.readString(dataPath));
+        }
+    }
+
+    /**
+     * Checks that a null tag fails loading without changing the saved file.
+     */
+    @Test
+    public void readAddressBook_nullTag_throwsDataLoadingExceptionWithoutChangingFile() throws Exception {
+        Path dataPath = testFolder.resolve("tutorcontacts.json");
+        String invalidData = "{\"persons\":[{\"role\":\"student\",\"name\":\"Alex Tan\",\"phone\":\"91234567\","
+                + "\"email\":\"alex@example.com\",\"address\":\"1 Road\",\"tags\":[null]}]}";
+        Files.writeString(dataPath, invalidData);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataPath);
+
+        assertThrows(DataLoadingException.class, storage::readAddressBook);
+        assertEquals(invalidData, Files.readString(dataPath));
+    }
+
     @Test
     public void readAndSaveAddressBook_allInOrder_success() throws Exception {
         Path filePath = testFolder.resolve("TempAddressBook.json");
@@ -84,6 +137,29 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+        // Save and read a parent-student link
+        original.addLink(ParentStudentLink.between(GEORGE, BENSON));
+        jsonAddressBookStorage.saveAddressBook(original);
+        readBack = jsonAddressBookStorage.readAddressBook().get();
+        assertEquals(original, new AddressBook(readBack));
+
+    }
+
+    /**
+     * Checks that a failed atomic replacement preserves existing data.
+     */
+    @Test
+    public void saveAddressBook_replacementFails_preservesExistingData() throws Exception {
+        Path dataPath = testFolder.resolve("tutorcontacts.json");
+        Files.createDirectory(dataPath);
+        Path existingData = dataPath.resolve("existing-data.txt");
+        Files.writeString(existingData, "keep this data");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(dataPath);
+
+        assertThrows(IOException.class, () -> storage.saveAddressBook(new AddressBook()));
+
+        assertTrue(Files.isDirectory(dataPath));
+        assertEquals("keep this data", Files.readString(existingData));
     }
 
     @Test

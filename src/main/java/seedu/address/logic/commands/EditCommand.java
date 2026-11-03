@@ -3,8 +3,11 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
@@ -23,9 +26,13 @@ import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -43,14 +50,18 @@ public class EditCommand extends Command {
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_SUBJECT + "SUBJECT] "
+            + "[" + PREFIX_LEVEL + "LEVEL] "
+            + "[" + PREFIX_NOTE + "NOTE] "
             + "[" + PREFIX_TAG + "TAG]...\n"
+            + "Subject and level apply only to student contacts; an empty o/ clears the note.\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited %1$s.";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This contact duplicates an existing %1$s: %2$s (%3$s).";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -73,19 +84,38 @@ public class EditCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            throw new CommandException(
+                    String.format(Messages.MESSAGE_DISPLAYED_INDEX_OUT_OF_RANGE, index.getOneBased()));
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
+        if (personToEdit.getRole() == Role.PARENT
+                && (editPersonDescriptor.isSubjectEdited() || editPersonDescriptor.isLevelEdited())) {
+            throw new CommandException(AddCommand.MESSAGE_PARENT_FIELDS);
+        }
+        if (editPersonDescriptor.isSubjectEdited() && editPersonDescriptor.getSubject().isEmpty()) {
+            throw new CommandException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        if (editPersonDescriptor.isLevelEdited() && editPersonDescriptor.getLevel().isEmpty()) {
+            throw new CommandException(Level.MESSAGE_CONSTRAINTS);
+        }
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+        // Name the clashing contact with its phone, since contacts with the same name can coexist.
+        Optional<Person> duplicatePerson = model.getAddressBook().getPersonList().stream()
+                .filter(person -> !person.equals(personToEdit))
+                .filter(editedPerson::isSamePerson)
+                .findFirst();
+        if (duplicatePerson.isPresent()) {
+            Person existingPerson = duplicatePerson.get();
+            throw new CommandException(String.format(MESSAGE_DUPLICATE_PERSON,
+                    existingPerson.getRole(), existingPerson.getName(), existingPerson.getPhone()));
         }
 
         model.setPerson(personToEdit, editedPerson);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        return CommandResult.selectContact(
+                String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)), editedPerson);
     }
 
     /**
@@ -99,9 +129,13 @@ public class EditCommand extends Command {
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Optional<Subject> updatedSubject = editPersonDescriptor.getSubject().or(personToEdit::getSubject);
+        Optional<Level> updatedLevel = editPersonDescriptor.getLevel().or(personToEdit::getLevel);
+        Optional<Note> updatedNote = editPersonDescriptor.getNote().orElse(personToEdit.getNote());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(personToEdit.getRole(), updatedName, updatedPhone, updatedEmail, updatedAddress,
+                updatedSubject, updatedLevel, updatedNote, updatedTags);
     }
 
     @Override
@@ -128,14 +162,19 @@ public class EditCommand extends Command {
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the details to edit a contact with. Specified fields replace the corresponding existing values.
+     * A specified empty note removes the existing note.
      */
     public static class EditPersonDescriptor {
         private Name name;
         private Phone phone;
         private Email email;
         private Address address;
+        private Subject subject;
+        private Level level;
+        private boolean isSubjectEdited;
+        private boolean isLevelEdited;
+        private Optional<Note> note;
         private Set<Tag> tags;
 
         public EditPersonDescriptor() {}
@@ -149,6 +188,23 @@ public class EditCommand extends Command {
             setPhone(toCopy.phone);
             setEmail(toCopy.email);
             setAddress(toCopy.address);
+            if (toCopy.isSubjectEdited) {
+                if (toCopy.subject == null) {
+                    setEmptySubject();
+                } else {
+                    setSubject(toCopy.subject);
+                }
+            }
+            if (toCopy.isLevelEdited) {
+                if (toCopy.level == null) {
+                    setEmptyLevel();
+                } else {
+                    setLevel(toCopy.level);
+                }
+            }
+            if (toCopy.note != null) {
+                setNote(toCopy.note);
+            }
             setTags(toCopy.tags);
         }
 
@@ -156,7 +212,8 @@ public class EditCommand extends Command {
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return isSubjectEdited || isLevelEdited
+                    || CollectionUtil.isAnyNonNull(name, phone, email, address, note, tags);
         }
 
         public void setName(Name name) {
@@ -192,6 +249,96 @@ public class EditCommand extends Command {
         }
 
         /**
+         * Sets the student's subject to use for this edit.
+         *
+         * @param subject Subject to use when editing a student contact.
+         */
+        public void setSubject(Subject subject) {
+            this.subject = requireNonNull(subject);
+            isSubjectEdited = true;
+        }
+
+        /**
+         * Records that an empty subject was supplied so role validation can occur before value validation.
+         */
+        public void setEmptySubject() {
+            subject = null;
+            isSubjectEdited = true;
+        }
+
+        /**
+         * Returns the subject supplied for this edit, if any.
+         *
+         * @return The supplied subject, or empty if no subject prefix was supplied or its value was empty.
+         */
+        public Optional<Subject> getSubject() {
+            return Optional.ofNullable(subject);
+        }
+
+        /**
+         * Returns whether a subject prefix was supplied for this edit.
+         *
+         * @return True if a subject prefix was supplied, including an empty one.
+         */
+        public boolean isSubjectEdited() {
+            return isSubjectEdited;
+        }
+
+        /**
+         * Sets the student's academic level to use for this edit.
+         *
+         * @param level Academic level to use when editing a student contact.
+         */
+        public void setLevel(Level level) {
+            this.level = requireNonNull(level);
+            isLevelEdited = true;
+        }
+
+        /**
+         * Records that an empty level was supplied so role validation can occur before value validation.
+         */
+        public void setEmptyLevel() {
+            level = null;
+            isLevelEdited = true;
+        }
+
+        /**
+         * Returns the academic level supplied for this edit, if any.
+         *
+         * @return The supplied level, or empty if no level prefix was supplied or its value was empty.
+         */
+        public Optional<Level> getLevel() {
+            return Optional.ofNullable(level);
+        }
+
+        /**
+         * Returns whether a level prefix was supplied for this edit.
+         *
+         * @return True if a level prefix was supplied, including an empty one.
+         */
+        public boolean isLevelEdited() {
+            return isLevelEdited;
+        }
+
+        /**
+         * Sets the note to replace the existing note, or an empty value to clear it.
+         *
+         * @param note Note to use for the edit, or empty to clear the existing note.
+         */
+        public void setNote(Optional<Note> note) {
+            this.note = requireNonNull(note);
+        }
+
+        /**
+         * Returns the specified note change, if any. An inner empty value means the note should be cleared.
+         *
+         * @return An outer empty value if no note edit was specified; an inner empty value if it should be cleared.
+         */
+        public Optional<Optional<Note>> getNote() {
+            return Optional.ofNullable(note);
+        }
+
+        /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
          */
@@ -223,6 +370,11 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
+                    && isSubjectEdited == otherEditPersonDescriptor.isSubjectEdited
+                    && isLevelEdited == otherEditPersonDescriptor.isLevelEdited
+                    && Objects.equals(subject, otherEditPersonDescriptor.subject)
+                    && Objects.equals(level, otherEditPersonDescriptor.level)
+                    && Objects.equals(note, otherEditPersonDescriptor.note)
                     && Objects.equals(tags, otherEditPersonDescriptor.tags);
         }
 
@@ -233,6 +385,11 @@ public class EditCommand extends Command {
                     .add("phone", phone)
                     .add("email", email)
                     .add("address", address)
+                    .add("isSubjectEdited", isSubjectEdited)
+                    .add("isLevelEdited", isLevelEdited)
+                    .add("subject", subject)
+                    .add("level", level)
+                    .add("note", note)
                     .add("tags", tags)
                     .toString();
         }

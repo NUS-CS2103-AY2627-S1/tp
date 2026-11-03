@@ -40,19 +40,42 @@ import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
+/**
+ * Tests edit-command syntax and compatibility with the shared prefix tokenizer.
+ */
 public class EditCommandParserTest {
 
     private static final String TAG_EMPTY = " " + PREFIX_TAG;
 
     private static final String MESSAGE_INVALID_FORMAT =
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
+    private static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer shown in the current list.";
 
     private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_unknownPrefix_failure() {
+        assertParseFailure(parser, "1 a/Block x/12", "Unknown prefix: x/.");
+    }
+
+    @Test
+    public void parse_mixedCaseDuplicate_failure() {
+        assertParseFailure(parser, "1 p/81234567 P/91234567", "Prefix p/ may be specified only once.");
+    }
+
+    @Test
+    public void parse_escapedPrefixInAddress_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress("Block x/12").build();
+        assertParseSuccess(parser, "1 A/Block \\x/12", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
 
     @Test
     public void parse_missingParts_failure() {
@@ -68,17 +91,20 @@ public class EditCommandParserTest {
 
     @Test
     public void parse_invalidPreamble_failure() {
-        // negative index
-        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        // A single invalid index gets the same feedback as view, delete, and link
+        assertParseFailure(parser, "-5" + NAME_DESC_AMY, MESSAGE_INVALID_INDEX);
+        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_INDEX);
+        assertParseFailure(parser, "abc" + NAME_DESC_AMY, MESSAGE_INVALID_INDEX);
 
-        // zero index
-        assertParseFailure(parser, "0" + NAME_DESC_AMY, MESSAGE_INVALID_FORMAT);
+        // An index too large for an int cannot exist in the displayed list
+        assertParseFailure(parser, "2147483648" + NAME_DESC_AMY,
+                "No contact exists at index 2147483648 in the current list.");
 
         // invalid arguments being parsed as preamble
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
-        // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        // Unknown prefixes are rejected before the index and remaining fields are validated.
+        assertParseFailure(parser, "1 i/ string", "Unknown prefix: i/.");
     }
 
     @Test
@@ -88,6 +114,8 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
         assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+        assertParseFailure(parser, "1 t/Café", Tag.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 t/数学", Tag.MESSAGE_CONSTRAINTS);
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
@@ -204,5 +232,83 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    /**
+     * Checks that student subject, academic level, and note prefixes produce the expected edit descriptor.
+     */
+    @Test
+    public void parse_roleSpecificFields_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withSubject("A-Math").withLevel("Secondary 4").withNote("Prefers examples").build();
+        assertParseSuccess(parser, "1 S/A-Math L/Secondary 4 O/Prefers examples",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        descriptor = new EditPersonDescriptorBuilder().withSubject("Biology/Chemistry").build();
+        assertParseSuccess(parser, "1 s/Biology/Chemistry", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        descriptor = new EditPersonDescriptorBuilder().withLevel("JC 1").build();
+        assertParseSuccess(parser, "1 l/JC 1", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    /**
+     * Checks that a note can be edited together with an existing contact field.
+     */
+    @Test
+    public void parse_noteAndExistingField_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder()
+                .withPhone(VALID_PHONE_AMY).withNote("Call after class").build();
+        assertParseSuccess(parser, "1 p/" + VALID_PHONE_AMY + " o/Call after class",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    /**
+     * Checks that an empty note prefix requests removal of the existing note.
+     */
+    @Test
+    public void parse_emptyNote_clearsNote() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withoutNote().build();
+        assertParseSuccess(parser, "1 o/", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 o/   ", new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    /**
+     * Checks that invalid student fields and oversized notes fail validation.
+     */
+    @Test
+    public void parse_invalidRoleSpecificValues_failure() {
+        assertParseFailure(parser, "1 s/Math*", Subject.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 l/Secondary.3", Level.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 o/" + "n".repeat(201), Note.MESSAGE_CONSTRAINTS);
+    }
+
+    /**
+     * Checks that empty student fields are retained for role-aware validation during command execution.
+     */
+    @Test
+    public void parse_emptyRoleSpecificValues_success() {
+        EditPersonDescriptor subject = new EditPersonDescriptorBuilder().withEmptySubject().build();
+        EditPersonDescriptor level = new EditPersonDescriptorBuilder().withEmptyLevel().build();
+
+        assertParseSuccess(parser, "1 s/", new EditCommand(INDEX_FIRST_PERSON, subject));
+        assertParseSuccess(parser, "1 l/", new EditCommand(INDEX_FIRST_PERSON, level));
+    }
+
+    /**
+     * Checks that a role-specific field cannot be specified more than once.
+     */
+    @Test
+    public void parse_repeatedRoleSpecificPrefixes_failure() {
+        assertParseFailure(parser, "1 s/Math S/English", "Prefix s/ may be specified only once.");
+        assertParseFailure(parser, "1 l/JC 1 L/JC 2", "Prefix l/ may be specified only once.");
+        assertParseFailure(parser, "1 o/First O/Second", "Prefix o/ may be specified only once.");
+    }
+
+    /**
+     * Checks that editing a contact cannot change its student or parent role.
+     */
+    @Test
+    public void parse_roleChange_failure() {
+        assertParseFailure(parser, "1 r/parent", "Unknown prefix: r/.");
     }
 }

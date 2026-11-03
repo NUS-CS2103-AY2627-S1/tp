@@ -3,14 +3,15 @@ package seedu.address.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.commons.exceptions.IllegalValueException;
-import seedu.address.commons.util.FileUtil;
 import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.ReadOnlyAddressBook;
 
@@ -65,9 +66,11 @@ public class JsonAddressBookStorage {
     }
 
     /**
-     * Saves the given {@link ReadOnlyAddressBook} to the storage.
-     * @param addressBook cannot be null.
-     * @throws IOException if there was any problem writing to the file.
+     * Saves the given {@link ReadOnlyAddressBook} by atomically replacing the existing data file.
+     *
+     * @param addressBook Address book to save; cannot be {@code null}.
+     * @throws IOException If the directory or temporary file cannot be created, the data cannot be written or
+     *     replaced atomically, or temporary-file cleanup fails.
      */
     public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
         saveAddressBook(addressBook, filePath);
@@ -82,8 +85,18 @@ public class JsonAddressBookStorage {
         requireNonNull(addressBook);
         requireNonNull(filePath);
 
-        FileUtil.createIfMissing(filePath);
-        JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), filePath);
+        Path absolutePath = filePath.toAbsolutePath();
+        Path parentDirectory = absolutePath.getParent();
+        Files.createDirectories(parentDirectory);
+        Path temporaryFile = Files.createTempFile(parentDirectory, ".tutorcontacts-", ".tmp");
+
+        try {
+            JsonUtil.saveJsonFile(new JsonSerializableAddressBook(addressBook), temporaryFile);
+            Files.move(temporaryFile, absolutePath,
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporaryFile);
+        }
     }
 
 }

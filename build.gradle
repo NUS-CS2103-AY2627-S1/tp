@@ -10,6 +10,11 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+// Enables Java assertions when the app is launched with `gradlew run`, so assertion failures surface during testing.
+run {
+    enableAssertions = true
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -26,6 +31,9 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    testLogging {
+        exceptionFormat = 'full'
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +80,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'tutorcontacts.jar'
 }
 
 defaultTasks 'clean', 'test'

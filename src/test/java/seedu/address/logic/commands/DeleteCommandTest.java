@@ -8,16 +8,21 @@ import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
 import static seedu.address.logic.commands.CommandTestUtil.showPersonAtIndex;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.GEORGE;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.index.Index;
-import seedu.address.logic.Messages;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.person.ParentStudentLink;
 import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) and unit tests for
@@ -28,12 +33,22 @@ public class DeleteCommandTest {
     private Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
 
     @Test
+    public void execute_linkedStudent_removesLinksAndReportsCount() {
+        model.addLink(ParentStudentLink.between(GEORGE, ALICE));
+        ModelManager expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deletePerson(ALICE);
+
+        assertCommandSuccess(new DeleteCommand(INDEX_FIRST_PERSON), model,
+                "Deleted contact: student Alice Pauline (94351253). Removed 1 link(s).", expectedModel);
+        assertEquals(List.of(), model.getLinkedPersons(GEORGE));
+    }
+
+    @Test
     public void execute_validIndexUnfilteredList_success() {
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+        String expectedMessage = "Deleted contact: student Alice Pauline (94351253).";
 
         ModelManager expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
         expectedModel.deletePerson(personToDelete);
@@ -46,18 +61,18 @@ public class DeleteCommandTest {
         Index outOfBoundIndex = Index.fromOneBased(model.getFilteredPersonList().size() + 1);
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model,
+                "No contact exists at index " + outOfBoundIndex.getOneBased() + " in the current list.");
     }
 
     @Test
     public void execute_validIndexFilteredList_success() {
-        showPersonAtIndex(model, INDEX_FIRST_PERSON);
+        showPersonAtIndex(model, INDEX_SECOND_PERSON);
 
         Person personToDelete = model.getFilteredPersonList().get(INDEX_FIRST_PERSON.getZeroBased());
         DeleteCommand deleteCommand = new DeleteCommand(INDEX_FIRST_PERSON);
 
-        String expectedMessage = String.format(DeleteCommand.MESSAGE_DELETE_PERSON_SUCCESS,
-                Messages.format(personToDelete));
+        String expectedMessage = "Deleted contact: student Benson Meier (98765432).";
 
         Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
         expectedModel.deletePerson(personToDelete);
@@ -76,7 +91,66 @@ public class DeleteCommandTest {
 
         DeleteCommand deleteCommand = new DeleteCommand(outOfBoundIndex);
 
-        assertCommandFailure(deleteCommand, model, Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        assertCommandFailure(deleteCommand, model,
+                "No contact exists at index " + outOfBoundIndex.getOneBased() + " in the current list.");
+    }
+
+    @Test
+    public void execute_emptyList_throwsCommandException() {
+        model = new ModelManager();
+
+        assertCommandFailure(new DeleteCommand(INDEX_FIRST_PERSON), model,
+                "No contact exists at index 1 in the current list.");
+    }
+
+    @Test
+    public void execute_lastContact_success() {
+        Index lastIndex = Index.fromOneBased(model.getFilteredPersonList().size());
+        Person contactToDelete = model.getFilteredPersonList().get(lastIndex.getZeroBased());
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deletePerson(contactToDelete);
+
+        assertCommandSuccess(new DeleteCommand(lastIndex), model,
+                "Deleted contact: parent George Best (9482442).", expectedModel);
+    }
+
+    /**
+     * Checks that delete feedback distinguishes contacts with the same name and phone by role.
+     */
+    @Test
+    public void execute_sameNameAndPhoneAcrossRoles_identifiesDeletedRole() {
+        Person student = new PersonBuilder(ALICE)
+                .withName("Alex Tan").withPhone("91234567").withEmail("alex.student@example.com").build();
+        Person parent = new PersonBuilder(GEORGE)
+                .withName("Alex Tan").withPhone("91234567").withEmail("alex.parent@example.com").build();
+        model = new ModelManager();
+        model.addPerson(student);
+        model.addPerson(parent);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deletePerson(parent);
+
+        assertCommandSuccess(new DeleteCommand(INDEX_SECOND_PERSON), model,
+                "Deleted contact: parent Alex Tan (91234567).", expectedModel);
+    }
+
+    /**
+     * Checks that delete feedback identifies the phone of the removed contact.
+     */
+    @Test
+    public void execute_sameNameDifferentPhones_identifiesDeletedPhone() {
+        Person firstStudent = new PersonBuilder(ALICE)
+                .withName("Alex Tan").withPhone("93333333").withEmail("alex.first@example.com").build();
+        Person secondStudent = new PersonBuilder(ALICE)
+                .withName("Alex Tan").withPhone("92222222").withEmail("alex.second@example.com").build();
+        model = new ModelManager();
+        model.addPerson(firstStudent);
+        model.addPerson(secondStudent);
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deletePerson(firstStudent);
+
+        assertCommandSuccess(new DeleteCommand(INDEX_FIRST_PERSON), model,
+                "Deleted contact: student Alex Tan (93333333).", expectedModel);
+        assertEquals(List.of(secondStudent), model.getFilteredPersonList());
     }
 
     @Test

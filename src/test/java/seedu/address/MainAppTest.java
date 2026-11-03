@@ -1,0 +1,496 @@
+package seedu.address;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import seedu.address.commons.core.GuiSettings;
+import seedu.address.commons.util.AppPaths;
+import seedu.address.logic.LogicManager;
+import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
+import seedu.address.storage.JsonAddressBookStorage;
+import seedu.address.storage.JsonUserPrefsStorage;
+import seedu.address.storage.Storage;
+import seedu.address.storage.StorageManager;
+
+/**
+ * Tests application configuration that can be checked without starting JavaFX.
+ */
+public class MainAppTest {
+
+    @TempDir
+    private Path temporaryFolder;
+
+    /**
+     * Checks that contact storage is resolved beneath the shared application home directory.
+     */
+    @Test
+    public void addressBookFilePath_usesTutorContactsJson() throws ReflectiveOperationException {
+        Field filePathField = MainApp.class.getDeclaredField("ADDRESS_BOOK_FILE_PATH");
+        filePathField.setAccessible(true);
+
+        Path expectedPath = AppPaths.getHomeDirectory().resolve("data").resolve("tutorcontacts.json");
+        assertEquals(expectedPath, filePathField.get(null));
+    }
+
+    /**
+     * Checks that preferences use the same application home directory as contact data.
+     */
+    @Test
+    public void userPrefsFilePath_usesApplicationHome() throws ReflectiveOperationException {
+        Field filePathField = MainApp.class.getDeclaredField("USER_PREFS_FILE_PATH");
+        filePathField.setAccessible(true);
+
+        assertEquals(AppPaths.getHomeDirectory().resolve("preferences.json"), filePathField.get(null));
+    }
+
+    /**
+     * Checks that instance coordination uses the same application home directory as contact data.
+     */
+    @Test
+    public void applicationLockFilePath_usesApplicationHome() throws ReflectiveOperationException {
+        Field filePathField = MainApp.class.getDeclaredField("APPLICATION_LOCK_FILE_PATH");
+        filePathField.setAccessible(true);
+
+        assertEquals(AppPaths.getHomeDirectory().resolve(".tutorcontacts.lock"), filePathField.get(null));
+    }
+
+    @Test
+    public void init_availableApplicationHome_wiresApplicationComponents() throws Exception {
+        MainApp app = new MainApp(temporaryFolder.resolve(".tutorcontacts.lock")) {
+            @Override
+            protected UserPrefs initPrefs(JsonUserPrefsStorage storage) {
+                return new UserPrefs();
+            }
+
+            @Override
+            Model initModelManager(Storage storage, ReadOnlyUserPrefs userPrefs) {
+                return new ModelManager(new AddressBook(), userPrefs);
+            }
+        };
+
+        app.init();
+
+        assertNotNull(app.storage);
+        assertNotNull(app.model);
+        assertNotNull(app.logic);
+        assertNotNull(app.ui);
+        assertNull(app.getStartupWarning());
+        app.stop();
+    }
+
+    @Test
+    public void init_secondInstance_blocksBeforeSharedStateAccessAndReleaseAllowsRestart() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        MainApp firstApp = createApp(dataPath);
+        MainApp secondApp = createApp(dataPath);
+
+        firstApp.init();
+        secondApp.init();
+
+        assertNull(firstApp.getStartupBlockMessage());
+        assertEquals(MainApp.ALREADY_RUNNING_MESSAGE, secondApp.getStartupBlockMessage());
+        assertNull(secondApp.storage);
+        assertNull(secondApp.model);
+        assertNull(secondApp.logic);
+        assertNull(secondApp.ui);
+
+        secondApp.stop();
+        firstApp.stop();
+
+        MainApp restartedApp = createApp(dataPath);
+        restartedApp.init();
+        assertNull(restartedApp.getStartupBlockMessage());
+        assertNotNull(restartedApp.storage);
+        restartedApp.stop();
+    }
+
+    @Test
+    public void init_unusableLockPath_blocksBeforeSharedStateAccess() throws Exception {
+        Path lockPath = temporaryFolder.resolve("lock-directory");
+        Files.createDirectory(lockPath);
+        MainApp app = createApp(temporaryFolder.resolve("tutorcontacts.json"), lockPath);
+
+        app.init();
+
+        assertEquals(MainApp.LOCK_FAILURE_MESSAGE, app.getStartupBlockMessage());
+        assertNull(app.storage);
+        assertNull(app.model);
+        app.stop();
+    }
+
+    @Test
+    public void init_componentInitializationFails_releasesApplicationLock() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        Path lockPath = temporaryFolder.resolve(".tutorcontacts.lock");
+        MainApp failingApp = new MainApp(lockPath) {
+            @Override
+            protected UserPrefs initPrefs(JsonUserPrefsStorage storage) {
+                throw new IllegalStateException("Test initialization failure");
+            }
+        };
+
+        assertThrows(IllegalStateException.class, failingApp::init);
+
+        MainApp restartedApp = createApp(dataPath, lockPath);
+        restartedApp.init();
+        assertNull(restartedApp.getStartupBlockMessage());
+        restartedApp.stop();
+    }
+
+    /**
+     * Checks that a missing contact file starts with an empty model and no warning.
+     */
+    @Test
+    public void initModelManager_missingFile_startsEmptyWithoutWarning() {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertNull(app.getStartupWarning());
+        assertFalse(Files.exists(dataPath));
+    }
+
+    /**
+     * Checks that invalid contact data triggers a warning without rewriting the file.
+     */
+    @Test
+    public void initModelManager_invalidFile_warnsAndPreservesFile() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        String invalidData = "not valid JSON";
+        Files.writeString(dataPath, invalidData);
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertEquals(invalidData, Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that newly invalid saved addresses trigger recovery without partially loading or rewriting contacts.
+     */
+    @Test
+    public void initModelManager_addressWithoutContent_warnsAndPreservesEntireFile() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        for (String address : new String[]{"\\u200B", "\\u200D\\uFEFF", "\\u00A0\\u0301"}) {
+            String invalidData = "{\"persons\":[{\"role\":\"parent\",\"name\":\"Alpha Parent\",\"phone\":\"91000001\","
+                    + "\"email\":\"alpha@example.com\",\"address\":\"1 Road\"},"
+                    + "{\"role\":\"parent\",\"name\":\"Other Parent\",\"phone\":\"91000002\","
+                    + "\"email\":\"other@example.com\",\"address\":\"" + address + "\"}]}";
+            Files.writeString(dataPath, invalidData);
+            byte[] originalData = Files.readAllBytes(dataPath);
+            MainApp app = new MainApp();
+
+            Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+            assertEquals(new AddressBook(), model.getAddressBook());
+            assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+            assertArrayEquals(originalData, Files.readAllBytes(dataPath));
+        }
+    }
+
+    /**
+     * Checks startup recovery, write protection, and successful loading after repair and restart.
+     */
+    @Test
+    public void init_invalidJson_warnsBlocksChangesAndRecoversAfterRestart() throws Exception {
+        String validData = "{\"persons\":[{\"role\":\"parent\",\"name\":\"Alpha Parent\",\"phone\":\"91000001\","
+                + "\"email\":\"alpha@example.com\",\"address\":\"1 Test Road\"}]}";
+        String[] invalidDocuments = {"null", validData + " unexpected trailing content",
+            validData + " {}", validData + " null"};
+        for (String json : invalidDocuments) {
+            assertInvalidDocumentRecovery(json);
+        }
+    }
+
+    /**
+     * Checks the complete recovery workflow for one invalid contact document.
+     */
+    private void assertInvalidDocumentRecovery(String json) throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        Files.writeString(dataPath, json);
+        byte[] originalData = Files.readAllBytes(dataPath);
+        MainApp app = createApp(dataPath);
+
+        app.init();
+
+        assertEquals(new AddressBook(), app.model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertEquals(ListCommand.MESSAGE_EMPTY_LIST, app.logic.execute("list").getFeedbackToUser());
+        String addCommand = "add r/parent n/Alpha Parent p/91000001 e/alpha@example.com a/1 Test Road";
+        assertThrows(CommandException.class,
+                LogicManager.MESSAGE_DATA_FILE_NOT_LOADED, () -> app.logic.execute(addCommand));
+        assertEquals(new AddressBook(), app.model.getAddressBook());
+        assertArrayEquals(originalData, Files.readAllBytes(dataPath));
+
+        // Repairing the file does not remove protection until the app is restarted.
+        Files.writeString(dataPath, "{\"persons\":[]}");
+        byte[] repairedData = Files.readAllBytes(dataPath);
+        assertThrows(CommandException.class, () -> app.logic.execute(addCommand));
+        assertArrayEquals(repairedData, Files.readAllBytes(dataPath));
+
+        app.stop();
+
+        MainApp restartedApp = createApp(dataPath);
+        restartedApp.init();
+
+        assertNull(restartedApp.getStartupWarning());
+        restartedApp.logic.execute(addCommand);
+        assertEquals(1, restartedApp.model.getAddressBook().getPersonList().size());
+        assertEquals(restartedApp.model.getAddressBook(), createStorage(dataPath).readAddressBook().orElseThrow());
+        restartedApp.stop();
+    }
+
+    /**
+     * Checks that malformed preferences use defaults and remain unchanged at startup and exit.
+     */
+    @Test
+    public void initPrefs_invalidJson_warnsAndPreservesFileOnStartupAndExit() throws Exception {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        for (String json : new String[]{"null", "{} trailing text", "{} {}"}) {
+            Files.writeString(prefsPath, json);
+            byte[] originalPrefs = Files.readAllBytes(prefsPath);
+            MainApp app = new MainApp();
+
+            UserPrefs prefs = app.initPrefs(new JsonUserPrefsStorage(prefsPath));
+
+            assertEquals(new UserPrefs(), prefs);
+            assertEquals(MainApp.PREFS_FILE_WARNING, app.getStartupWarning());
+            assertArrayEquals(originalPrefs, Files.readAllBytes(prefsPath));
+
+            app.model = new ModelManager(new AddressBook(), prefs);
+            app.storage = createStorage(temporaryFolder.resolve("tutorcontacts.json"));
+            app.stop();
+
+            assertArrayEquals(originalPrefs, Files.readAllBytes(prefsPath));
+        }
+    }
+
+    /**
+     * Checks that a null contact triggers recovery without changing the saved data.
+     */
+    @Test
+    public void initModelManager_nullContact_warnsAndPreservesFile() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        String invalidData = "{\"persons\":[null]}";
+        Files.writeString(dataPath, invalidData);
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertEquals(invalidData, Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that a null tag triggers recovery without changing the saved data.
+     */
+    @Test
+    public void initModelManager_nullTag_warnsAndPreservesFile() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        String invalidData = "{\"persons\":[{\"role\":\"student\",\"name\":\"Alex Tan\",\"phone\":\"91234567\","
+                + "\"email\":\"alex@example.com\",\"address\":\"1 Road\",\"tags\":[null]}]}";
+        Files.writeString(dataPath, invalidData);
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertEquals(invalidData, Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that missing preferences are created with defaults and no warning.
+     */
+    @Test
+    public void initPrefs_missingFile_createsDefaultPreferencesWithoutWarning() throws Exception {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        MainApp app = new MainApp();
+
+        UserPrefs prefs = app.initPrefs(new JsonUserPrefsStorage(prefsPath));
+
+        assertEquals(new UserPrefs(), prefs);
+        assertNull(app.getStartupWarning());
+        assertEquals(prefs, new JsonUserPrefsStorage(prefsPath).readUserPrefs().orElseThrow());
+    }
+
+    /**
+     * Checks that a failed preferences save leaves the app using defaults.
+     */
+    @Test
+    public void initPrefs_saveFails_usesDefaultPreferences() {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        JsonUserPrefsStorage prefsStorage = new JsonUserPrefsStorage(prefsPath) {
+            @Override
+            public void saveUserPrefs(ReadOnlyUserPrefs userPrefs) throws IOException {
+                throw new IOException("Test save failure");
+            }
+        };
+        MainApp app = new MainApp();
+
+        assertEquals(new UserPrefs(), app.initPrefs(prefsStorage));
+        assertNull(app.getStartupWarning());
+        assertFalse(Files.exists(prefsPath));
+    }
+
+    /**
+     * Checks that invalid preferences trigger a warning and remain unchanged through exit.
+     */
+    @Test
+    public void initPrefs_invalidFile_warnsAndPreservesFileOnStartupAndExit() throws Exception {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        String invalidPrefs = "{invalid-json";
+        Files.writeString(prefsPath, invalidPrefs);
+        MainApp app = new MainApp();
+
+        UserPrefs prefs = app.initPrefs(new JsonUserPrefsStorage(prefsPath));
+
+        assertEquals(new UserPrefs(), prefs);
+        assertEquals(MainApp.PREFS_FILE_WARNING, app.getStartupWarning());
+        assertEquals(invalidPrefs, Files.readString(prefsPath));
+
+        app.model = new ModelManager(new AddressBook(), prefs);
+        app.storage = createStorage(temporaryFolder.resolve("tutorcontacts.json"));
+        app.stop();
+        assertEquals(invalidPrefs, Files.readString(prefsPath));
+    }
+
+    /**
+     * Checks that valid preferences reflect updated GUI settings after exit.
+     */
+    @Test
+    public void initPrefs_validFile_savesUpdatedSettingsOnExit() throws Exception {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        JsonUserPrefsStorage prefsStorage = new JsonUserPrefsStorage(prefsPath);
+        prefsStorage.saveUserPrefs(new UserPrefs());
+        MainApp app = new MainApp();
+
+        UserPrefs prefs = app.initPrefs(prefsStorage);
+        app.model = new ModelManager(new AddressBook(), prefs);
+        app.storage = createStorage(temporaryFolder.resolve("tutorcontacts.json"));
+        GuiSettings updatedSettings = new GuiSettings(1000, 600, 20, 30);
+        app.model.setGuiSettings(updatedSettings);
+        app.stop();
+
+        assertNull(app.getStartupWarning());
+        assertEquals(updatedSettings, prefsStorage.readUserPrefs().orElseThrow().getGuiSettings());
+    }
+
+    /**
+     * Checks that invalid contact and preference files produce both startup warnings.
+     */
+    @Test
+    public void initPrefsAndModelManager_bothFilesInvalid_displaysBothWarnings() throws Exception {
+        Path prefsPath = temporaryFolder.resolve("preferences.json");
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        Files.writeString(prefsPath, "{invalid-json");
+        Files.writeString(dataPath, "{invalid-json");
+        MainApp app = new MainApp();
+
+        UserPrefs prefs = app.initPrefs(new JsonUserPrefsStorage(prefsPath));
+        app.initModelManager(createStorage(dataPath), prefs);
+
+        assertEquals(MainApp.DATA_FILE_WARNING + "\n" + MainApp.PREFS_FILE_WARNING, app.getStartupWarning());
+        assertEquals("{invalid-json", Files.readString(prefsPath));
+        assertEquals("{invalid-json", Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that duplicate contacts trigger a warning without changing the saved file.
+     */
+    @Test
+    public void initModelManager_duplicateContact_warnsAndPreservesFile() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        Path duplicateData = Paths.get("src", "test", "data", "JsonSerializableAddressBookTest",
+                "duplicatePersonAddressBook.json");
+        Files.copy(duplicateData, dataPath);
+        String savedData = Files.readString(dataPath);
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertEquals(savedData, Files.readString(dataPath));
+    }
+
+    /**
+     * Checks that an unreadable contact path remains untouched and triggers a warning.
+     */
+    @Test
+    public void initModelManager_unreadableDataPath_warnsAndPreservesDirectory() throws Exception {
+        Path dataPath = temporaryFolder.resolve("tutorcontacts.json");
+        Files.createDirectory(dataPath);
+        MainApp app = new MainApp();
+
+        Model model = app.initModelManager(createStorage(dataPath), new UserPrefs());
+
+        assertEquals(new AddressBook(), model.getAddressBook());
+        assertEquals(MainApp.DATA_FILE_WARNING, app.getStartupWarning());
+        assertTrue(Files.isDirectory(dataPath));
+    }
+
+    /**
+     * Creates storage backed by a temporary contact file for startup tests.
+     *
+     * @param dataPath Location of the temporary contact file.
+     * @return Storage backed by the contact file and a temporary preferences file.
+     */
+    private StorageManager createStorage(Path dataPath) {
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(dataPath);
+        JsonUserPrefsStorage userPrefsStorage =
+                new JsonUserPrefsStorage(temporaryFolder.resolve("preferences.json"));
+        return new StorageManager(addressBookStorage, userPrefsStorage);
+    }
+
+    /**
+     * Creates an application that uses temporary contact storage without writing real preferences.
+     */
+    private MainApp createApp(Path dataPath) {
+        return createApp(dataPath, temporaryFolder.resolve(".tutorcontacts.lock"));
+    }
+
+    /**
+     * Creates an application using temporary contact storage and the specified lock path.
+     */
+    private MainApp createApp(Path dataPath, Path lockPath) {
+        Storage testStorage = createStorage(dataPath);
+        return new MainApp(lockPath) {
+            @Override
+            protected UserPrefs initPrefs(JsonUserPrefsStorage prefsStorage) {
+                return new UserPrefs();
+            }
+
+            @Override
+            Model initModelManager(Storage initialStorage, ReadOnlyUserPrefs userPrefs) {
+                storage = testStorage;
+                return super.initModelManager(testStorage, userPrefs);
+            }
+        };
+    }
+}

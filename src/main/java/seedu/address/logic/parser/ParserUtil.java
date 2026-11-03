@@ -1,18 +1,27 @@
 package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Level;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Note;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Role;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -33,6 +42,71 @@ public class ParserUtil {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+    }
+
+    /**
+     * Parses {@code indexValue} as a positive index in the displayed contact list.
+     * Only digits are accepted, so signs, decimals, and spaces are rejected, while leading zeros are allowed.
+     * The value is parsed without integer overflow, so an index too large for an {@code int} is reported as absent
+     * from the list rather than as malformed.
+     *
+     * @param indexValue Decimal index supplied by the user, without surrounding whitespace.
+     * @return The corresponding one-based index.
+     * @throws ParseException If the value is not a positive integer, or exceeds the largest supported index.
+     */
+    public static Index parseDisplayedIndex(String indexValue) throws ParseException {
+        requireNonNull(indexValue);
+        if (!indexValue.matches("[0-9]+")) {
+            throw new ParseException(Messages.MESSAGE_INVALID_DISPLAYED_INDEX);
+        }
+
+        BigInteger numericIndex = new BigInteger(indexValue);
+        if (numericIndex.signum() == 0) {
+            throw new ParseException(Messages.MESSAGE_INVALID_DISPLAYED_INDEX);
+        }
+
+        // An index too large for an int cannot exist in the displayed list.
+        if (numericIndex.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
+            throw new ParseException(String.format(Messages.MESSAGE_DISPLAYED_INDEX_OUT_OF_RANGE, numericIndex));
+        }
+
+        return Index.fromOneBased(numericIndex.intValueExact());
+    }
+
+    /**
+     * Parses {@code args} as exactly two displayed-list indices separated by whitespace, such as {@code " 2 1 "}.
+     *
+     * @param args Arguments following the command word.
+     * @param invalidFormatMessage Feedback to give if there are not exactly two arguments.
+     * @return The two indices, in the order given.
+     * @throws ParseException If there are not exactly two arguments, or either is not a valid displayed index.
+     */
+    public static List<Index> parseTwoDisplayedIndices(String args, String invalidFormatMessage)
+            throws ParseException {
+        requireAllNonNull(args, invalidFormatMessage);
+        String trimmedArgs = args.trim();
+        String[] arguments = trimmedArgs.split("\\s+");
+
+        if (trimmedArgs.isEmpty() || arguments.length != 2) {
+            throw new ParseException(invalidFormatMessage);
+        }
+
+        return List.of(parseDisplayedIndex(arguments[0]), parseDisplayedIndex(arguments[1]));
+    }
+
+    /**
+     * Parses {@code role} into a {@code Role}.
+     * Leading and trailing whitespaces are trimmed.
+     *
+     * @throws ParseException If the specified role is not supported.
+     */
+    public static Role parseRole(String role) throws ParseException {
+        requireNonNull(role);
+        String trimmedRole = role.trim();
+        if (!Role.isValidRole(trimmedRole)) {
+            throw new ParseException(Role.MESSAGE_CONSTRAINTS);
+        }
+        return Role.fromString(trimmedRole);
     }
 
     /**
@@ -67,17 +141,67 @@ public class ParserUtil {
 
     /**
      * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Uses the shared content constraints and removes surrounding characters at or below U+0020.
      *
-     * @throws ParseException if the given {@code address} is invalid.
+     * @param address Address text supplied by the user.
+     * @return The validated address normalized with {@link String#trim()}.
+     * @throws ParseException If the address violates the shared length, line, or content constraints.
      */
     public static Address parseAddress(String address) throws ParseException {
         requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
+        if (!Address.isValidAddress(address)) {
             throw new ParseException(Address.MESSAGE_CONSTRAINTS);
         }
-        return new Address(trimmedAddress);
+        return new Address(address);
+    }
+
+    /**
+     * Parses and normalizes a student's subject.
+     *
+     * @param subject Subject supplied by the user.
+     * @return The validated subject.
+     * @throws ParseException If the subject violates its field constraints.
+     */
+    public static Subject parseSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        if (!Subject.isValidSubject(subject)) {
+            throw new ParseException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        return new Subject(subject);
+    }
+
+    /**
+     * Parses and normalizes a student's academic level.
+     *
+     * @param level Academic level supplied by the user.
+     * @return The validated academic level.
+     * @throws ParseException If the level violates its field constraints.
+     */
+    public static Level parseLevel(String level) throws ParseException {
+        requireNonNull(level);
+        if (!Level.isValidLevel(level)) {
+            throw new ParseException(Level.MESSAGE_CONSTRAINTS);
+        }
+        return new Level(level);
+    }
+
+    /**
+     * Parses an optional note, omitting an empty value or one containing only Java whitespace.
+     * Nonblank notes use the normalization defined by {@link Note}.
+     *
+     * @param note Note supplied by the user, or an empty string if omitted.
+     * @return The validated note, if present.
+     * @throws ParseException If a nonempty note violates its field constraints.
+     */
+    public static Optional<Note> parseNote(String note) throws ParseException {
+        requireNonNull(note);
+        if (note.isBlank()) {
+            return Optional.empty();
+        }
+        if (!Note.isValidNote(note)) {
+            throw new ParseException(Note.MESSAGE_CONSTRAINTS);
+        }
+        return Optional.of(new Note(note));
     }
 
     /**

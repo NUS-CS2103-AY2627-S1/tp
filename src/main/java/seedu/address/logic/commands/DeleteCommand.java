@@ -12,37 +12,50 @@ import seedu.address.model.Model;
 import seedu.address.model.person.Person;
 
 /**
- * Deletes a person identified using its displayed index from the address book.
+ * Deletes a contact identified by its index in the currently displayed list.
  */
 public class DeleteCommand extends Command {
 
     public static final String COMMAND_WORD = "delete";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD
-            + ": Deletes the person identified by the index number used in the displayed person list.\n"
-            + "Parameters: INDEX (must be a positive integer)\n"
-            + "Example: " + COMMAND_WORD + " 1";
-
-    public static final String MESSAGE_DELETE_PERSON_SUCCESS = "Deleted person: %1$s";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + " INDEX";
+    public static final String MESSAGE_DELETE_CONTACT_SUCCESS = "Deleted contact: %1$s %2$s (%3$s).";
+    public static final String MESSAGE_LINKS_REMOVED = " Removed %1$d link(s).";
+    public static final String MESSAGE_INVALID_FORMAT =
+            "Invalid command format. Expected: " + MESSAGE_USAGE;
+    public static final String MESSAGE_INVALID_INDEX = Messages.MESSAGE_INVALID_DISPLAYED_INDEX;
+    public static final String MESSAGE_INDEX_OUT_OF_RANGE = Messages.MESSAGE_DISPLAYED_INDEX_OUT_OF_RANGE;
 
     private final Index targetIndex;
 
+    /**
+     * Creates a command to delete the contact at the specified displayed index.
+     *
+     * @param targetIndex Index of the contact in the currently displayed list.
+     */
     public DeleteCommand(Index targetIndex) {
-        this.targetIndex = targetIndex;
+        this.targetIndex = requireNonNull(targetIndex);
     }
 
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
+        List<Person> displayedContacts = model.getFilteredPersonList();
 
-        if (targetIndex.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        if (targetIndex.getZeroBased() >= displayedContacts.size()) {
+            throw new CommandException(String.format(MESSAGE_INDEX_OUT_OF_RANGE, targetIndex.getOneBased()));
         }
 
-        Person personToDelete = lastShownList.get(targetIndex.getZeroBased());
-        model.deletePerson(personToDelete);
-        return new CommandResult(String.format(MESSAGE_DELETE_PERSON_SUCCESS, Messages.format(personToDelete)));
+        Person contactToDelete = displayedContacts.get(targetIndex.getZeroBased());
+        int removedLinkCount = model.getLinkedPersons(contactToDelete).size();
+        model.deletePerson(contactToDelete);
+
+        String message = String.format(MESSAGE_DELETE_CONTACT_SUCCESS, contactToDelete.getRole(),
+                contactToDelete.getName().fullName, contactToDelete.getPhone().value);
+        if (removedLinkCount > 0) {
+            message += String.format(MESSAGE_LINKS_REMOVED, removedLinkCount);
+        }
+        return new CommandResult(message);
     }
 
     @Override

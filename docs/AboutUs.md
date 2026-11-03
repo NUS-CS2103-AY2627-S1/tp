@@ -5,55 +5,49 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Lim Qi Zao
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zao05.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/zao05)]
 
-* Role: Project Advisor
+* Role: Developer; Documentation (v1.4), Release and deliverables (v1.5), Code quality (v1.6)
+* Responsibilities: Develops features across all components in every iteration, with a different main layer each time; leads the duty listed for each iteration.
 
-### Jane Doe
+### Jingyu Shi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jingyucodes.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/jingyucodes)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Developer; Testing (v1.4), Code quality (v1.5), Scheduling and tracking (v1.6)
+* Responsibilities: Develops features across all components in every iteration, with a different main layer each time; leads the duty listed for each iteration.
 
-### Johnny Doe
+### Khor Kai Shean
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/kks070206.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/kks070206)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Developer; Code quality (v1.4), Scheduling and tracking (v1.5), Testing (v1.6)
+* Responsibilities: Develops features across all components in every iteration, with a different main layer each time; leads the duty listed for each iteration.
 
-### Jean Doe
+### Joel Rhys
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/antelyuu.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Antelyuu)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Team lead; Developer; Release and deliverables (v1.4), Testing (v1.5), Documentation (v1.6)
+* Responsibilities: Coordinates the overall project; develops features across all components in every iteration, with a different main layer each time; leads the duty listed for each iteration.
 
-### James Doe
+### Toh Qi Zhang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/qztoh.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/qztoh)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Developer; Scheduling and tracking (v1.4), Documentation (v1.5), Release and deliverables (v1.6)
+* Responsibilities: Develops features across all components in every iteration, with a different main layer each time; leads the duty listed for each iteration.

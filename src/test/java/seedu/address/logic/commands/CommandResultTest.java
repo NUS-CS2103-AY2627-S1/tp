@@ -4,10 +4,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BOB;
 
 import org.junit.jupiter.api.Test;
 
+/**
+ * Tests command feedback, application flags, and contact-list presentation requests.
+ */
 public class CommandResultTest {
+    /**
+     * Checks that selection and edit replacement preserve distinct presentation contracts.
+     */
+    @Test
+    public void contactActions_distinctRequests_preserveTargetAndValueEquality() {
+        CommandResult selected = CommandResult.selectContact("feedback", BOB);
+        CommandResult replaced = CommandResult.replaceContact("feedback", ALICE, BOB);
+        assertEquals(CommandResult.ContactListAction.SELECT, selected.getContactListAction());
+        assertEquals(CommandResult.ContactListAction.REPLACE, replaced.getContactListAction());
+        assertEquals(BOB, replaced.getContact().orElseThrow());
+        assertEquals(ALICE, replaced.getPreviousContact().orElseThrow());
+        assertTrue(selected.getPreviousContact().isEmpty());
+        assertNotEquals(selected, replaced);
+        assertNotEquals(replaced, CommandResult.replaceContact("feedback", BOB, BOB));
+        assertEquals(replaced, CommandResult.replaceContact("feedback", ALICE, BOB));
+        assertEquals(replaced.hashCode(), CommandResult.replaceContact("feedback", ALICE, BOB).hashCode());
+    }
+
+    /**
+     * Checks that presentation targets cannot be null.
+     */
+    @Test
+    public void contactActions_nullTarget_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> CommandResult.selectContact("feedback", null));
+        assertThrows(NullPointerException.class, () -> CommandResult.replaceContact("feedback", null, BOB));
+        assertThrows(NullPointerException.class, () -> CommandResult.replaceContact("feedback", ALICE, null));
+    }
+
     @Test
     public void equals() {
         CommandResult commandResult = new CommandResult("feedback");
@@ -57,7 +91,9 @@ public class CommandResultTest {
         CommandResult commandResult = new CommandResult("feedback");
         String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
                 + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
+                + ", exit=" + commandResult.isExit() + ", contactListAction=" + commandResult.getContactListAction()
+                + ", contact=" + commandResult.getContact()
+                + ", previousContact=" + commandResult.getPreviousContact() + "}";
         assertEquals(expected, commandResult.toString());
     }
 }

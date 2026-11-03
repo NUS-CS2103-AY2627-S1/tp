@@ -6,8 +6,10 @@ import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,11 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.LinkCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.UnlinkCommand;
+import seedu.address.logic.commands.ViewCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
@@ -28,6 +34,9 @@ import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
 
+/**
+ * Tests command dispatch and argument validation through the application's main parser.
+ */
 public class AddressBookParserTest {
 
     private final AddressBookParser parser = new AddressBookParser();
@@ -37,6 +46,13 @@ public class AddressBookParserTest {
         Person person = new PersonBuilder().build();
         AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
         assertEquals(new AddCommand(person), command);
+    }
+
+    @Test
+    public void parseCommand_generatedAdd_preservesLiteralPrefixes() throws Exception {
+        Person person = new PersonBuilder().withAddress("Block x/12").withSubject("Biology/Chemistry")
+                .withNote("Discuss x/foo and n/bar").build();
+        assertEquals(new AddCommand(person), parser.parseCommand(PersonUtil.getAddCommand(person)));
     }
 
     @Test
@@ -61,10 +77,25 @@ public class AddressBookParserTest {
         assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), command);
     }
 
+    /**
+     * Checks that generated edit commands preserve notes and literal prefix-like text in field values.
+     */
+    @Test
+    public void parseCommand_generatedEdit_preservesNoteAndLiteralPrefixes() throws Exception {
+        Person person = new PersonBuilder().withSubject("Biology/Chemistry")
+                .withNote("Discuss x/foo and n/bar").build();
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder(person).build();
+        String input = EditCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " "
+                + PersonUtil.getEditPersonDescriptorDetails(descriptor);
+
+        assertEquals(new EditCommand(INDEX_FIRST_PERSON, descriptor), parser.parseCommand(input));
+    }
+
     @Test
     public void parseCommand_exit() throws Exception {
         assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD) instanceof ExitCommand);
-        assertTrue(parser.parseCommand(ExitCommand.COMMAND_WORD + " 3") instanceof ExitCommand);
+        assertTrue(parser.parseCommand(" ExIt  ") instanceof ExitCommand);
+        assertThrows(ParseException.class, ExitCommand.MESSAGE_INVALID_ARGUMENTS, () -> parser.parseCommand("exit 3"));
     }
 
     @Test
@@ -82,9 +113,88 @@ public class AddressBookParserTest {
     }
 
     @Test
-    public void parseCommand_list() throws Exception {
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
-        assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    public void parseCommand_list_returnsListCommand() throws Exception {
+        assertTrue(parser.parseCommand("list") instanceof ListCommand);
+        assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        assertTrue(parser.parseCommand("List") instanceof ListCommand);
+        assertTrue(parser.parseCommand("  list   ") instanceof ListCommand);
+    }
+
+    /**
+     * Checks that outer Java whitespace is removed before command dispatch and argument validation.
+     *
+     * @throws ParseException If a supported padded command unexpectedly fails to parse.
+     */
+    @Test
+    public void parseCommand_unicodeOuterPadding_preservesCommandAndArguments() throws ParseException {
+        assertTrue(parser.parseCommand("\u2003LIST\u3000") instanceof ListCommand);
+        assertTrue(parser.parseCommand("\u2002sort \u2003LEVEL\u3000") instanceof SortCommand);
+        assertTrue(parser.parseCommand("\u2003ExIt\u3000") instanceof ExitCommand);
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(List.of("Amy"))),
+                parser.parseCommand("\u2003find Amy\u3000"));
+        assertThrows(ParseException.class, ExitCommand.MESSAGE_INVALID_ARGUMENTS, () -> {
+            parser.parseCommand("\u2003exit 3\u3000");
+        });
+    }
+
+    @Test
+    public void parseCommand_listWithArguments_throwsParseException() {
+        assertThrows(ParseException.class, "Invalid command format. Expected: list", ()
+                -> parser.parseCommand("list 3"));
+    }
+
+    @Test
+    public void parseCommand_link() throws Exception {
+        LinkCommand command = (LinkCommand) parser.parseCommand(LinkCommand.COMMAND_WORD + " 1 2");
+        assertEquals(new LinkCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_unlink() throws Exception {
+        UnlinkCommand command = (UnlinkCommand) parser.parseCommand(UnlinkCommand.COMMAND_WORD + " 1 2");
+        assertEquals(new UnlinkCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_view() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand(
+                ViewCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_mixedCaseView_returnsViewCommand() throws Exception {
+        ViewCommand command = (ViewCommand) parser.parseCommand("ViEw 1");
+        assertEquals(new ViewCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_viewWithoutIndex_throwsParseException() {
+        assertThrows(ParseException.class, "Invalid command format. Expected: view INDEX", ()
+                -> parser.parseCommand("view"));
+    }
+
+    @Test
+    public void parseCommand_mixedCaseDelete_returnsDeleteCommand() throws Exception {
+        DeleteCommand command = (DeleteCommand) parser.parseCommand("DeLeTe 1");
+        assertEquals(new DeleteCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_mixedCaseFind_preservesKeywordCase() throws Exception {
+        FindCommand command = (FindCommand) parser.parseCommand("FiNd Alice");
+        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(List.of("Alice"))), command);
+    }
+
+    @Test
+    public void parseCommand_turkishLocale_returnsListCommand() throws Exception {
+        Locale defaultLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            assertTrue(parser.parseCommand("LIST") instanceof ListCommand);
+        } finally {
+            Locale.setDefault(defaultLocale);
+        }
     }
 
     @Test
