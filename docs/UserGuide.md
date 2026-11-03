@@ -1,12 +1,15 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# RecruitDex User Guide
 
-* Table of Contents
-{:toc}
+RecruitDex is a desktop application for managing applicant records through commands, with a graphical interface for reviewing applicants, comparisons, and rankings.
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,24 +18,33 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from the [RecruitDex releases page](https://github.com/AY2627S1-CS2103T-W12-4/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for RecruitDex.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar recruitdex.jar`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
    ![Ui](images/Ui.png)
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
+   <box type="warning" seamless>
+
+   **Notes about launching:**<br>
+   * Launch the JAR with `java -jar`. Double-clicking the JAR file might not work on your computer, because it can open with a different Java version.
+   * The home folder must be **writable**. RecruitDex saves records in `data/recruitdex.json` and window settings in `preferences.json`, relative to the terminal's current folder. Use `cd` as above so these files are kept beside the JAR.
+   </box>
+
+1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the Help window, which lists every command.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list` : Lists all applicants.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add -n John Doe -p 98765432 -e johnd@example.com -a John street, block 123, #01-01` : Adds an applicant named `John Doe`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `delete 3` : Deletes the 3rd applicant shown in the current list.
 
-   * `clear` : Deletes all contacts.
+   * `cadd 1` : Adds the 1st applicant to the comparison list. Add at least two applicants, then use `choose a` or `choose b` to pick the stronger one of the pair shown in the **Compare** tab.
+
+   * `clear` : Deletes all applicant records.
 
    * `exit` : Exits the app.
 
@@ -40,111 +52,277 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 --------------------------------------------------------------------------------------------------------------------
 
+## Using the window
+
+* **Command box (top):** type a command here and press Enter. Everything in RecruitDex is done with commands.
+* **Result box (below it):** shows what the last command did, or why it failed.
+* **Compare tab:** shows two applicants side by side, labelled **A** and **B**, with their details and interview notes. Next to them, the **RANKING** panel lists the applicants in the comparison list from highest to lowest. Each row labels the rank and the **Applicant index** separately. Use the applicant index for `cremove`, rather than the rank. Indices follow the current results in **Applicants**; if an applicant is hidden by a search, use `list` to show all applicants and restore their indices. Use `choose a` or `choose b` to pick the stronger applicant. See [Choosing the stronger applicant](#choosing-the-stronger-applicant-choose).
+* **Applicants tab:** shows the current applicant list, numbered. After a search, it shows only matching applicants. Commands such as `edit`, `delete`, `cadd` and `cremove` use these numbers as `INDEX`.
+* **Switching tabs:** type `sw` or press the up/down or left/right arrow keys when the command bar is not selected to jump between the **Compare** tab and the **Applicants** tab without using the mouse. See [Switching tabs](#switching-tabs-sw).
+* **Help:** click **Help** in the menu bar, press `F1`, or type `help` to see all commands. See [Viewing help](#viewing-help-help).
+
+--------------------------------------------------------------------------------------------------------------------
+
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `add -n NAME`, replace `NAME` with a value such as `John Doe`.
+
+* A space between a prefix and its value is optional.<br>
+  The command formats and examples in this guide consistently include a space for readability.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `-n NAME [-t SKILL]` can be used as `-n John Doe -t Java` or as `-n John Doe`.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Items followed by `...` can appear zero or more times.<br>
+  For example, `[-t SKILL]...` may be omitted, or written as `-t Java` or `-t Java -t Kafka`.
 
 * Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+  For example, if the command specifies `-n NAME -p PHONE_NUMBER`, `-p PHONE_NUMBER -n NAME` is also acceptable.
+
+* Command words and prefixes are case-sensitive. Use lowercase, for example `add -n Alex Tan`. The sides in `choose a` and `choose b` also accept uppercase `A` and `B`.
+
+* Put a space before each prefix. A value continues until the next recognised prefix, with leading and trailing spaces removed. Avoid including a space followed by a prefix such as `-n` inside free text, because it starts a new field.
+
+* Each prefix can appear only once, except `-t` in `add` and `edit`, where it supplies multiple skills. For `edit`, keep `INDEX` before the fields.
 
 * Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
   For example, `help 123` is interpreted as `help`.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
+
+### Navigating command history
+
+The command box keeps a history of commands you have submitted, including commands that were invalid.
+
+- Press the **Up Arrow** key to display the most recently submitted command. Press it again to move to older commands.
+- Press the **Down Arrow** key to move back toward newer commands.
+- Press **Down Arrow** past the most recent command to restore the text you had in the command box before browsing history.
+
+The recalled command appears in the command box and can be edited before you submit it. If you submit a command that fails, it remains in the command box so you can correct it.
+
+The command history does not persist between sessions, so it is cleared once you exit the application.
+
+### Ranking leaderboard
+
+The **RANKING** panel displays applicants in the active comparison list.
+
+* **Position:** Tied applicants share a position, for example `1, 1, 3`.
+* **Score:** Higher scores rank earlier. Scores are shown to six decimal places; an unavailable score appears as `—`.
+* **Comparisons:** The number of comparisons used for that applicant's ranking. Applicants with zero comparisons appear in a separate **Unassessed** group, without a rank or score. They join the ranking after their first relevant comparison.
+
+Searching filters the applicant list and leaves the leaderboard unchanged. Applicant names update after edits.
+Commands such as `edit` and `delete` use indices from the **Applicants** list.
+
+Each comparison card also shows the applicant's current position, for example **Rank 4 of 30**, so you can see
+their standing without searching the leaderboard. The total includes assessed applicants in the active comparison list,
+even when the applicant list is filtered. Ties share a rank, and applicants with no comparisons show
+**Unassessed** instead of a rank. These positions update with the leaderboard and are not the indices used by applicant commands.
+
+With the initial sample data, the leaderboard starts empty. Its heading shows `0 applicants in comparison list`.
+Use `cadd INDEX` to include an existing applicant in the leaderboard.
+Adding applicant records alone leaves the leaderboard empty. Use `choose a` or `choose b` to record a comparison.
+Comparison membership, decisions, and any unanswered pair are saved between sessions.
+
+If `cadd`, `cremove` or `delete` cannot update the ranking, RecruitDex reports an error and keeps your data, current pair, ranking and search unchanged. Other commands remain available.
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens the Help window, which lists every command in a table so you can look up a format without leaving RecruitDex.
 
-![help message](images/helpMessage.png)
+![help window](images/helpWindow.png)
 
 Format: `help`
 
+* The table has four columns: **Command**, **What it does**, **Parameters** and **Example**. The commands are grouped under **Applicants**, **Comparison** and **General**, and the window scrolls if your screen is small.
+* In the **Parameters** column, items in square brackets are optional, and `...` means you can repeat the item. A command that takes no parameters shows `-`.
+* You can also open the window by clicking **Help** in the menu bar, or by pressing `F1`.
+* Each example has a **Copy** button that copies the complete command to the clipboard.
+* Press `Esc` to close Help.
+* The window ends with a link to this user guide, and a **Copy URL** button to copy it.
 
-### Adding a person: `add`
 
-Adds a person to the address book.
+### Adding an applicant: `add`
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Adds an applicant record to RecruitDex.
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+Format: `add -n NAME [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL]...`
+
+* `INTERVIEW_NOTES` is free text, for example `Strong system design`.
+* `YEARS_OF_EXPERIENCE` is a whole number from 0 to 60.
+* `SOURCE` is free text saying where the applicant came from, for example `LinkedIn` or `Referral`.
+* `SKILL` is entered with the `-t` prefix. An applicant can have any number of skills, including zero. A skill must contain at least one letter or number and may also contain `+`, `#`, and `.`, for example `C++`, `C#`, or `node.js`.
+* Only the name is required. Phone number, email, address, interview notes, years of experience, source, and skills can all be omitted. Omitted fields are saved as empty values and can be filled in later with `edit`.
+* A name must contain only letters, numbers and spaces, and cannot be blank. An applicant with exactly the same name as an existing record is rejected, even if their other details differ. This duplicate check is case-sensitive.
+* A successful `add` shows all applicants, clearing any search filter. It does not add the new applicant to the comparison list.
+* Optional fields other than skills can also be given with nothing after the prefix (for example `-p` or `-i`), which leaves them empty. To add an applicant without skills, omit `-t`; a bare `-t` is not accepted by `add`.
+* A non-empty phone number must contain at least 3 digits and only digits, and a non-empty email must be a valid email address. Other validation rules still apply to supplied values.
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
 
-### Listing all persons: `list`
+* `add -n Alex Tan`
+* `add -n Sam Lee -e sam@example.com -t Java`
+* `add -n John Doe -p 98765432 -e johnd@example.com -a John street, block 123, #01-01`
+* `add -n Betsy Crowe -t Python -e betsycrowe@example.com -a Clementi Ave 2 -p 1234567 -t SQL`
+* `add -n Jane Doe -p 91234567 -e jane@example.com -a Blk 1 Clementi -y 6 -s LinkedIn -i Great system design -t Java -t Kafka`
 
-Shows a list of all persons in the address book.
+### Adding an applicant to the comparison list: `cadd`
+
+Adds an existing applicant to the active comparison list.
+
+Format: `cadd INDEX`
+
+* `INDEX` is a positive integer referring to the applicant's position in the displayed applicant list.
+* After `find`, the index refers to the filtered results.
+* The applicant must already have a record and must not already be in the comparison list.
+* This command keeps applicant records and the current search filter unchanged.
+
+Examples:
+
+* `list` followed by `cadd 2` selects the second applicant in the displayed list.
+* `find -n Betsy` followed by `cadd 1` selects the first applicant in the search results.
+
+Adding an applicant updates the ranking immediately. Membership and comparison decisions are saved
+with the applicant records and restored when the application reopens. Using `clear` also resets membership.
+Once two applicants are in the comparison list, a pair appears in the comparison panel.
+Adding more applicants keeps the current pair. Applicants can be compared repeatedly.
+
+### Removing an applicant from the comparison list: `cremove`
+
+Removes an existing applicant from the active comparison list while keeping their record and comparison history.
+
+Format: `cremove INDEX`
+
+* `INDEX` is a positive integer referring to the applicant's position in the displayed applicant list.
+* After `find`, the index refers to the filtered results.
+* The current search filter is kept unchanged.
+* Removing an applicant who is already outside the comparison list reports the error
+  `This applicant is not in the comparison list.` without changing membership.
+  The command stays in the command box so you can correct the index.
+* Decisions involving the removed applicant are retained but excluded from the current ranking.
+  Adding the applicant back makes those decisions eligible again when both participants are active.
+* An unanswered comparison involving the removed applicant is cleared or replaced.
+
+Examples:
+
+* `list` followed by `cremove 2` selects the second applicant in the displayed list.
+* `find -n Betsy` followed by `cremove 1` selects the first applicant in the search results.
+
+Removing an applicant updates the ranking immediately. Membership and comparison decisions are saved
+with the applicant records. If the applicant is in the unanswered pair, a replacement pair is selected.
+The pair is cleared when fewer than two comparison-list members remain.
+
+### Choosing the stronger applicant: `choose`
+
+Records your choice between the two applicants currently shown in the comparison panel.
+
+Format: `choose a` or `choose b`
+
+* `a` selects the applicant labelled **A**; `b` selects the applicant labelled **B**.
+  Uppercase `A` and `B` are also accepted.
+* These labels refer to the current comparison pair. Searching the applicant list does not change their meaning.
+* A pending pair is required. Add at least two applicants using `cadd INDEX` to start comparisons.
+* The decision is added to the history, the ranking updates immediately, and the next pair appears.
+  RecruitDex favours applicants with fewer comparisons and opponents with similar scores, while reducing repeated pairings. With more than two active applicants, it avoids immediately repeating the last compared pair. With only two, the same applicants appear again. Their A/B sides may change, so review each new pair before choosing.
+* Each repeated choice records a separate decision. Applicant records, membership, and the search filter are retained.
+* The decision history and the new pending pair are saved automatically after a successful command.
+* Missing or invalid sides, extra arguments, and choices without a valid pending pair are rejected.
+
+For example, run `list`, `cadd 1`, and `cadd 2`, review the pair in the comparison panel, then enter
+`choose a` to choose the applicant currently labelled **A**. Review the next pair before choosing again.
+
+### Switching tabs: `sw`
+
+Switches between the **Compare** tab and the **Applicants** tab.
+
+Format: `sw`
+
+* If the **Compare** tab is showing, `sw` shows the **Applicants** tab, and the other way round.
+* The result box tells you which tab is now showing, for example `Showing the Applicants tab.`
+* Only the display changes. Applicant records, the comparison list and the search filter stay the same.
+* Unlike `help` or `list`, `sw` does not accept extra text after it. Typing `sw 1` shows an error with the correct format.
+* Alternatively, pressing the up/down or right/left arrow keys when the command bar is not selected also allows you to switch tabs.
+
+### Listing all applicants: `list`
+
+Shows all applicant records.
 
 Format: `list`
 
-### Editing a person: `edit`
+### Editing an applicant: `edit`
 
-Edits an existing person in the address book.
+Edits an existing applicant record.
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Format: `edit INDEX [-n NAME] [-p PHONE] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL]...`
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
+* Edits the applicant at the specified `INDEX`. The index refers to the index number shown in the displayed applicant list. The index **must be a positive integer** 1, 2, 3, ...
 * At least one of the optional fields must be provided.
 * Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* The same field rules as `add` apply. Renaming an applicant to exactly match another applicant's name is rejected.
+* A successful edit shows all applicants, clearing any search filter. The applicant keeps their comparison membership and history.
+* When editing skills (`-t`), all of the applicant's existing skills are removed; adding skills is not cumulative.
+* To remove all of an applicant's skills, enter `-t` without a skill after it.
+* To clear the phone number, email, address, interview notes, years of experience or source, enter its prefix with nothing after it, for example `-p` or `-i`.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
 
-### Locating persons by name: `find`
+* `edit 1 -p 91234567 -e johndoe@example.com` edits the phone number and email address of the 1st applicant.
+* `edit 2 -n Betsy Crower -t` edits the name of the 2nd applicant and clears all existing skills.
+* `edit 1 -y 7 -s Referral` sets the years of experience of the 1st applicant to `7` and the source to `Referral`.
+* `edit 3 -i` clears the interview notes of the 3rd applicant.
 
-Finds persons whose names contain any of the given keywords.
+### Finding applicants: `find`
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Finds applicants whose details match every supplied condition. You can search by name, phone number, email, address, interview notes, years of experience, source, or skill tags. At least one condition is required.
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Format: `find [-n NAME] [-p PHONE] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL_TERMS]`
+
+* Include at least one attribute prefix. The brackets indicate optional attributes; omit the brackets when entering a command.
+* Attribute values may contain spaces and can appear in any order. Each prefix may be used at most once.
+* When you supply more than one attribute, an applicant must match **all** supplied conditions.
+* Name, email, address, interview notes, and source searches are case-insensitive partial matches. The search term does not need to be a complete value, so `-e example.com` matches `alice@example.com`.
+* Phone searches match part of the phone number and may contain only digits, e.g. `-p 12`.
+* `YEARS_OF_EXPERIENCE` must match the applicant’s value exactly, and must be a whole number from 0 to 60.
+* For `-t`, enter one or more space-separated search terms. Each term must partially match at least one skill tag on the applicant. Matching is case-insensitive; different terms may match different tags.
+* Every prefix you include must be followed by a search term. For example, `find -s` is rejected.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
 
-### Deleting a person: `delete`
+* `find -n Alice` finds applicants whose names contain `Alice`, ignoring case.
+* `find -e example.com` finds applicants whose emails contain `example.com`.
+* `find -t java kaf` finds applicants with a skill tag matching `java` and a skill tag matching `kaf`.
+* `find -n Alice -s LinkedIn -y 5` finds applicants whose name contains `Alice`, whose source contains `LinkedIn`, and whose years of experience is exactly `5`.
+* `find -a jurong west -n Alice Pauline` searches by both address and name. Attribute order does not matter.
 
-Deletes the specified person from the address book.
+### Deleting an applicant: `delete`
+
+Permanently deletes the specified applicant record, their comparison membership, and decisions involving them.
 
 Format: `delete INDEX`
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* Deletes the applicant at the specified `INDEX`.
+* The index refers to the index number shown in the displayed applicant list.
+* The index **must be a positive integer** 1, 2, 3, ...
+* The ranking updates immediately. An unanswered comparison involving the deleted applicant is replaced,
+  or cleared when fewer than two comparison-list members remain.
+* Use `cremove` to remove an applicant from the ranking while keeping their record and comparison history.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `list` followed by `delete 2` deletes the 2nd applicant in the displayed list.
+* `find -n Betsy` followed by `delete 1` deletes the 1st applicant in the results of the `find` command.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Deletes all applicant records, and resets the comparison list, the decision history, any unanswered pair and the ranking.
 
 Format: `clear`
+
+* This cannot be undone, so back up the data file first if you might need the data again.
 
 ### Exiting the program: `exit`
 
@@ -154,45 +332,60 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+RecruitDex automatically saves applicant records, comparison-list membership, decision history, and any unanswered
+comparison after successful changes. Reopening RecruitDex restores the saved data and rebuilds the ranking.
+You do not need to save manually. If there is no data file yet, RecruitDex creates one with the sample data when it starts.
+
+Commands that don't change your data, such as `list`, `find`, `help`, `sw` and `exit`, don't save, so they still work even if saving fails.
+
+RecruitDex writes the data to a temporary file first, then replaces the data file. Replacement is atomic where the file system supports it. If a save fails, for example because the folder is not writable, RecruitDex restores the applicant and comparison data and the previous search filter, and shows an error message. There is no user command to undo or redo successful changes.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+Applicant records and comparison data are saved automatically as a JSON file
+`data/recruitdex.json` under the folder from which you launch RecruitDex. Close the app and back up the file before editing it. Advanced users can update records directly by editing that
+data file. Comparison membership and decisions refer to applicant IDs; an unanswered pair must refer to two active
+comparison-list members. If the file has no unanswered pair but has at least two active comparison-list members,
+RecruitDex selects a pair on loading without adding a decision or changing the existing history.
+A saved valid pair keeps its original A/B sides. Existing files without comparison data load with an empty
+comparison list.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+<box type="warning" seamless>
 
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
+**Caution:**
+If your changes make the data file invalid, RecruitDex starts with an empty applicant list at the next run. It copies the invalid file to `data/recruitdex.invalid-DATE-TIME.json` (for example `recruitdex.invalid-20261029-190623.json`) and shows a message saying so. The invalid `recruitdex.json` stays on disk until you make a change, such as `add`, which replaces it. To recover your data, close RecruitDex, fix the copy, and rename it back to `recruitdex.json`. We still recommend backing up the file before editing it.<br>
+Certain edits can cause RecruitDex to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Edit the data file only if you are confident that you can update it correctly.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Close RecruitDex on both computers. Copy `data/recruitdex.json` from your old home folder into the same relative location in your new home folder, creating the `data` folder if needed. Launch the JAR from the new home folder. This transfers applicant records and comparison progress. Optionally copy `preferences.json` to retain window settings.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Known issues
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+2. **If you minimize the Help Window** and then run the `help` command (or click `Help` in the menu bar, or press `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
+Action     | Format, Examples
+-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Add**    | `add -n NAME [-p PHONE_NUMBER] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL]...` <br> e.g., `add -n James Ho` or `add -n James Ho -p 22224444 -e jamesho@example.com -a 123, Clementi Rd -y 5 -s LinkedIn -t Java -t Kafka`
+**Edit**   | `edit INDEX [-n NAME] [-p PHONE] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL]...`<br> e.g., `edit 2 -n James Lee -e jameslee@example.com`
 **Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+**List**   | `list`
+**Find**   | `find [-n NAME] [-p PHONE] [-e EMAIL] [-a ADDRESS] [-i INTERVIEW_NOTES] [-y YEARS_OF_EXPERIENCE] [-s SOURCE] [-t SKILL_TERMS]`<br> e.g., `find -n Alice -t java kaf`
+**Clear**  | `clear`
+**Add to comparison list** | `cadd INDEX`<br> e.g., `cadd 2`
+**Remove from comparison list** | `cremove INDEX`<br> e.g., `cremove 2`
+**Choose stronger applicant** | `choose a` or `choose b`
+**Switch tabs** | `sw`
+**Help**   | `help`
+**Exit**   | `exit`

@@ -1,0 +1,282 @@
+/* Comparison view: applicants A and B side by side, with the ranking alongside. */
+
+.comparison-scroll-pane,
+.comparison-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.comparison-scroll-pane {
+    -fx-padding: 0;
+}
+
+.comparison-card {
+    -fx-padding: 10 14 10 14;
+    -fx-border-color: #25324f;
+    -fx-border-width: 1;
+}
+
+.comparison-card-a {
+    -fx-background-color: #3f4fae;
+}
+
+.comparison-card-b {
+    -fx-background-color: #34435f;
+}
+
+.comparison-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.comparison-rank {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f5c26b;
+}
+
+.comparison-badge {
+    -fx-background-color: rgba(0, 0, 0, 0.35);
+    -fx-background-radius: 15;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-alignment: center;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.comparison-tag {
+    -fx-background-color: #1c2748;
+    -fx-background-radius: 3;
+    -fx-padding: 1 8 1 8;
+    -fx-font-size: 10.5px;
+    -fx-text-fill: white;
+}
+
+.comparison-contact {
+    -fx-font-size: 12px;
+    -fx-text-fill: #e8e8e8;
+}
+
+.comparison-details {
+    -fx-padding: 6 0 0 0;
+}
+
+.comparison-key {
+    -fx-font-size: 11px;
+    -fx-text-fill: rgba(255, 255, 255, 0.65);
+}
+
+.comparison-value {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: #f4f4f4;
+}
+
+.ranking-panel {
+    -fx-background-color: #16213a;
+    -fx-border-color: #25324f;
+    -fx-border-width: 1;
+    -fx-padding: 12 14 12 14;
+}
+
+.ranking-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.ranking-subtitle {
+    -fx-font-size: 11px;
+    -fx-text-fill: #bbbbbb;
+    -fx-padding: 0 0 6 0;
+}
+
+.ranking-list-view,
+.ranking-list-view .list-cell:filled:even,
+.ranking-list-view .list-cell:filled:odd,
+.ranking-list-view .list-cell:filled:selected {
+    -fx-background-color: transparent;
+}
+
+.ranking-list-view .list-cell {
+    -fx-padding: 0 0 5 0;
+}
+
+.ranking-row {
+    -fx-background-color: #1f2c4d;
+    -fx-background-radius: 3;
+    -fx-padding: 7 8 7 8;
+}
+
+.ranking-row-first {
+    -fx-background-color: #3f4fae;
+}
+
+.ranking-position {
+    -fx-font-size: 12.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f5c26b;
+    -fx-min-width: 26;
+}
+
+.ranking-name {
+    -fx-font-size: 12.5px;
+    -fx-text-fill: white;
+}
+
+.ranking-metadata,
+.ranking-note,
+.ranking-empty-message {
+    -fx-font-size: 11px;
+    -fx-text-fill: #cccccc;
+}
+
+.ranking-note {
+    -fx-padding: 0 0 6 0;
+}
+
+/* Tabs: switch between the comparison view and the full applicant list. */
+
+.tab-pane .tab-header-area {
+    -fx-padding: 0;
+    -fx-min-height: 30;
+    -fx-pref-height: 30;
+    -fx-max-height: 30;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: #0f1626;
+}
+
+.tab-pane .tab {
+    -fx-background-color: #16213a;
+    -fx-background-radius: 0;
+    -fx-padding: 4 16 4 16;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #3f4fae;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #dddddd;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+/* No focus ring on the tabs. */
+
+.tab-pane {
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab .focus-indicator {
+    -fx-border-color: transparent;
+}
+
+/* Colour scheme from the mockup: dark grey background, near-black bordered boxes. */
+
+.background,
+.stack-pane,
+.menu-bar {
+    -fx-background-color: #0f1626;
+}
+
+.pane-with-border {
+    -fx-background-color: #0f1626;
+    -fx-border-color: #25324f;
+}
+
+.menu-bar .label {
+    -fx-font-size: 12px;
+}
+
+#commandTextField {
+    -fx-background-color: #0a0f1c;
+    -fx-background-radius: 3;
+    -fx-border-color: #3a4a70;
+    -fx-border-radius: 3;
+    -fx-font-family: "Menlo", "Consolas", monospace;
+    -fx-font-size: 12.5px;
+}
+
+#resultDisplay .content {
+    -fx-background-color: #0a0f1c;
+    -fx-background-radius: 3;
+    -fx-border-color: #2a3a5c;
+    -fx-border-radius: 3;
+}
+
+.result-display {
+    -fx-font-family: "Menlo", "Consolas", monospace;
+    -fx-font-size: 12px;
+    -fx-text-fill: #e6e6e6;
+}
+
+.status-bar {
+    -fx-background-color: #0a0f1c;
+}
+
+.status-bar .label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #aaaaaa;
+    -fx-pref-height: 24px;
+}
+
+.list-view {
+    -fx-background-color: #0f1626;
+}
+
+.list-cell:empty {
+    -fx-background: #0f1626;
+}
+
+/* Accent colour: amber for what is selected or in focus. */
+
+.tab-pane .tab:selected {
+    -fx-background-color: #f5a623;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #1a1a1a;
+}
+
+#commandTextField:focused {
+    -fx-border-color: #f5a623;
+}
+
+.ranking-row-first {
+    -fx-border-color: #f5a623;
+    -fx-border-width: 0 0 0 4;
+}
+
+.comparison-tag {
+    -fx-text-fill: #f5c26b;
+}
+
+.list-cell:filled:even {
+    -fx-background-color: #16213a;
+}
+
+.list-cell:filled:odd {
+    -fx-background-color: #1c2848;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #2a3a6a;
+}
+
+.list-cell:filled:selected #cardPane {
+    -fx-border-color: #f5a623;
+}
+
+#tags .label {
+    -fx-background-color: #1c2748;
+    -fx-text-fill: #f5c26b;
+}

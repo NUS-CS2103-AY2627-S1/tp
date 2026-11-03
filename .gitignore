@@ -1,6 +1,7 @@
 # Gradle build files
 /.gradle/
 /build/
+/bin/
 src/main/resources/docs/
 
 # IDEA files
@@ -22,10 +23,10 @@ src/test/data/sandbox/
 docs/_site/
 
 # AI Agents
-AGENTS.md
-CLAUDE.md
+AGENTS.personal.md
 /.claude/
 /.codex/
 
 # Temp files
 _temp/
+docs/_markbind/logs/

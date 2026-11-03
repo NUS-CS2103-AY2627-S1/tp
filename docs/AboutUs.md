@@ -1,59 +1,55 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### alpacajc
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/alpacajc.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/alpacajc)]
 
-* Role: Project Advisor
+* Role: to be determined
 
-### Jane Doe
+### Shraddha
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/shrad1601.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/shrad1601)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Developer
+* Responsibilities: To be determined
 
-### Johnny Doe
+### He Yue
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/heyue474.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/HeYue474)]
 
 * Role: Developer
 * Responsibilities: Data
 
-### Jean Doe
+### Chen Yuzhen
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/soy046.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Yet to be determined
 
-### James Doe
+### Cha0yue
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/cha0yue.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Cha0yue)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: To be determined
