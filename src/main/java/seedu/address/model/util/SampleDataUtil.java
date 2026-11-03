@@ -1,60 +1,92 @@
 package seedu.address.model.util;
 
-import java.util.Arrays;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.link.StudentGuardianLink;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.Level;
+import seedu.address.model.student.PaymentMonth;
+import seedu.address.model.student.Remark;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.Subject;
 
 /**
  * Contains utility methods for populating {@code AddressBook} with sample data.
  */
 public class SampleDataUtil {
-    public static Person[] getSamplePersons() {
-        return new Person[] {
-            new Person(new Name("Alex Yeoh"), new Phone("87438807"), new Email("alexyeoh@example.com"),
-                new Address("Blk 30 Geylang Street 29, #06-40"),
-                getTagSet("friends")),
-            new Person(new Name("Bernice Yu"), new Phone("99272758"), new Email("berniceyu@example.com"),
-                new Address("Blk 30 Lorong 3 Serangoon Gardens, #07-18"),
-                getTagSet("colleagues", "friends")),
-            new Person(new Name("Charlotte Oliveiro"), new Phone("93210283"), new Email("charlotte@example.com"),
-                new Address("Blk 11 Ang Mo Kio Street 74, #11-04"),
-                getTagSet("neighbours")),
-            new Person(new Name("David Li"), new Phone("91031282"), new Email("lidavid@example.com"),
-                new Address("Blk 436 Serangoon Gardens Street 26, #16-43"),
-                getTagSet("family")),
-            new Person(new Name("Irfan Ibrahim"), new Phone("92492021"), new Email("irfan@example.com"),
-                new Address("Blk 47 Tampines Street 20, #17-35"),
-                getTagSet("classmates")),
-            new Person(new Name("Roy Balakrishnan"), new Phone("92624417"), new Email("royb@example.com"),
-                new Address("Blk 45 Aljunied Street 85, #11-31"),
-                getTagSet("colleagues"))
-        };
-    }
-
     public static ReadOnlyAddressBook getSampleAddressBook() {
-        AddressBook sampleAb = new AddressBook();
-        for (Person samplePerson : getSamplePersons()) {
-            sampleAb.addPerson(samplePerson);
-        }
-        return sampleAb;
+        AddressBook addressBook = new AddressBook();
+
+        Student alice = createStudent("Alice Tan", "91234568", "alice@example.com", "20 Hill Road",
+                "Secondary 3", Set.of("Mathematics", "Physics"),
+                "Bring the worksheet next lesson", Set.of("2026-07", "2026-08", "2026-09", "2026-10"));
+        Student henry = createStudent("Henry Tan", "98765432", "henry@example.com", "12 ABCD Ave 3",
+                "Secondary 3", Set.of("Mathematics"), "", Set.of());
+        Student lucy = createStudent("Lucy Lim", "98889999", "lucy@example.com", "21 Happy Road",
+                "JC 2", Set.of("Chemistry", "Mathematics", "Physics"), "", Set.of("2026-09", "2026-10"));
+        Student sam = createStudent("Sam Lee", "91234030", "sam@example.com", "6 River Road",
+                "JC 1", Set.of("Economics"), "Prefers weekend lessons", Set.of());
+
+        addressBook.addStudent(alice);
+        addressBook.addStudent(henry);
+        addressBook.addStudent(lucy);
+        addressBook.addStudent(sam);
+
+        Guardian billie = createGuardian("Billie O'Connor", "6598765432", "billie@example.com",
+                "30 River Valley Road");
+        Guardian john = createGuardian("John Tan", "91234567", "john@example.com", "10 Main Street");
+        Guardian mary = createGuardian("Mary Jane", "91234999", "mary@example.com", "25 Happy Road");
+        addressBook.addGuardian(billie);
+        addressBook.addGuardian(john);
+        addressBook.addGuardian(mary);
+
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(alice, billie));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(alice, john));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(henry, john));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(lucy, mary));
+
+        addressBook.addLesson(new Lesson(alice, LocalDate.of(2026, 11, 1), LocalTime.of(14, 0),
+                Duration.ofMinutes(60)));
+        addressBook.addLesson(new Lesson(henry, LocalDate.of(2026, 11, 2), LocalTime.of(16, 0),
+                Duration.ofMinutes(90)));
+        addressBook.addLesson(new Lesson(lucy, LocalDate.of(2026, 11, 3), LocalTime.of(10, 0),
+                Duration.ofMinutes(60)));
+        addressBook.addLesson(new Lesson(sam, LocalDate.of(2026, 11, 7), LocalTime.of(18, 0),
+                Duration.ofMinutes(120)));
+        addressBook.addLesson(new Lesson(alice, LocalDate.of(2026, 11, 8), LocalTime.of(14, 0),
+                Duration.ofMinutes(60)));
+        addressBook.addLesson(new Lesson(henry, LocalDate.of(2026, 11, 9), LocalTime.of(16, 0),
+                Duration.ofMinutes(90)));
+        addressBook.addLesson(new Lesson(lucy, LocalDate.of(2026, 11, 10), LocalTime.of(23, 30),
+                Duration.ofMinutes(120)));
+
+        return addressBook;
     }
 
-    /**
-     * Returns a tag set containing the list of strings given.
-     */
-    public static Set<Tag> getTagSet(String... strings) {
-        return Arrays.stream(strings)
-                .map(Tag::new)
-                .collect(Collectors.toSet());
+    private static Student createStudent(String name, String phone, String email, String address, String level,
+            Set<String> subjects, String remark, Set<String> paidMonths) {
+        Set<Subject> studentSubjects = subjects.stream().map(Subject::new).collect(Collectors.toSet());
+        Set<PaymentMonth> studentPaidMonths = paidMonths.stream()
+                .map(PaymentMonth::new).collect(Collectors.toSet());
+        return new Student(Name.fromStudentValue(name), Phone.fromStudentValue(phone), Email.fromStudentValue(email),
+                Address.fromStudentValue(address), new Level(level), studentSubjects, new Remark(remark),
+                studentPaidMonths);
+    }
+
+    private static Guardian createGuardian(String name, String phone, String email, String address) {
+        return new Guardian(Name.fromStudentValue(name), Phone.fromStudentValue(phone), Email.fromStudentValue(email),
+                Address.fromStudentValue(address));
     }
 
 }

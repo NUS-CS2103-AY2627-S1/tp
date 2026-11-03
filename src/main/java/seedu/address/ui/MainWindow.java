@@ -1,10 +1,14 @@
 package seedu.address.ui;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
@@ -15,8 +19,11 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.CommandResult.HighlightTarget;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.lesson.LessonMatchesDatePredicate;
+import seedu.address.model.student.Student;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -33,9 +40,12 @@ public class MainWindow extends UiPart<Stage> {
     private Path dataFilePath;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private StudentListPanel studentListPanel;
+    private GuardianListPanel guardianListPanel;
+    private LessonListPanel lessonListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+    private Student displayedLessonStudent;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -45,6 +55,15 @@ public class MainWindow extends UiPart<Stage> {
 
     @FXML
     private StackPane personListPanelPlaceholder;
+
+    @FXML
+    private StackPane guardianListPanelPlaceholder;
+
+    @FXML
+    private StackPane lessonListPanelPlaceholder;
+
+    @FXML
+    private Label lessonTitle;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -114,8 +133,14 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        studentListPanel = new StudentListPanel(logic.getFilteredStudentList(), logic::getGuardiansForStudent);
+        guardianListPanel = new GuardianListPanel(logic.getFilteredGuardianList());
+        lessonListPanel = new LessonListPanel(logic.getFilteredLessonList(),
+                date -> logic.updateFilteredLessonList(new LessonMatchesDatePredicate(date)));
+        lessonTitle.setText("Lessons for " + lessonListPanel.getDisplayedDate());
+        personListPanelPlaceholder.getChildren().add(studentListPanel.getRoot());
+        guardianListPanelPlaceholder.getChildren().add(guardianListPanel.getRoot());
+        lessonListPanelPlaceholder.getChildren().add(lessonListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -167,8 +192,23 @@ public class MainWindow extends UiPart<Stage> {
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public StudentListPanel getStudentListPanel() {
+        return studentListPanel;
+    }
+
+    public GuardianListPanel getGuardianListPanel() {
+        return guardianListPanel;
+    }
+
+    /** Returns the lesson list panel. */
+    public LessonListPanel getLessonListPanel() {
+        return lessonListPanel;
+    }
+
+    /** Updates the date shown by the lesson list for future date-view commands. */
+    public void setLessonListDate(LocalDate date) {
+        lessonListPanel.setDisplayedDate(date);
+        lessonTitle.setText("Lessons for " + date);
     }
 
     /**
@@ -178,9 +218,53 @@ public class MainWindow extends UiPart<Stage> {
      */
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
+            Student studentBeforeEdit = getStudentBeingEdited(commandText);
+            updateDisplayedLessonStudentForView(commandText);
             CommandResult commandResult = logic.execute(commandText);
             logger.info("Result: " + commandResult.getFeedbackToUser());
             resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+
+            updateStudentFilterDescription(commandResult);
+            updateGuardianSearchDescription(commandResult);
+
+            if (commandText.trim().toLowerCase(Locale.ROOT).startsWith("view-l")) {
+                String lessonSearch = commandResult.getFeedbackToUser().equals("Showing all lessons.")
+                        ? "all lessons"
+                        : commandResult.getFeedbackToUser()
+                                .replaceFirst("^Showing lessons (?:on |for )?", "")
+                                .replaceFirst("\\.$", "");
+                lessonListPanel.setSearchDescription(lessonSearch);
+                lessonTitle.setText(lessonSearch.equals("all lessons")
+                        ? "Lessons" : "Lessons for " + lessonSearch);
+            }
+
+            if (studentBeforeEdit != null && displayedLessonStudent != null
+                    && displayedLessonStudent.equals(studentBeforeEdit)
+                    && commandResult.getStudentToHighlight() != null) {
+                displayedLessonStudent = commandResult.getStudentToHighlight();
+                String studentName = displayedLessonStudent.getName().fullName;
+                lessonListPanel.setSearchDescription(studentName);
+                lessonTitle.setText("Lessons for " + studentName);
+            }
+
+            updateSearchHighlights(commandResult);
+
+            if (commandResult.shouldRefreshStudentList()) {
+                studentListPanel.refresh();
+            }
+            lessonListPanel.refresh();
+
+            if (commandResult.getStudentToHighlight() != null) {
+                studentListPanel.refresh();
+                studentListPanel.highlightStudent(commandResult.getStudentToHighlight());
+                guardianListPanel.clearSelection();
+            }
+
+            if (commandResult.getGuardianToHighlight() != null) {
+                guardianListPanel.refresh();
+                guardianListPanel.highlightGuardian(commandResult.getGuardianToHighlight());
+                studentListPanel.clearSelection();
+            }
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -195,6 +279,62 @@ public class MainWindow extends UiPart<Stage> {
             logger.info("An error occurred while executing command: " + commandText);
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
+        }
+    }
+
+    private Student getStudentBeingEdited(String commandText) {
+        String trimmedCommand = commandText.trim();
+        if (!trimmedCommand.regionMatches(true, 0, "edit-s ", 0, "edit-s ".length())) {
+            return null;
+        }
+        try {
+            int index = Integer.parseInt(trimmedCommand.substring(7).split("\\s+")[0]) - 1;
+            List<Student> students = logic.getFilteredStudentList();
+            return index >= 0 && index < students.size() ? students.get(index) : null;
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private void updateDisplayedLessonStudentForView(String commandText) {
+        String trimmedCommand = commandText.trim();
+        if (!trimmedCommand.startsWith("view-l")) {
+            return;
+        }
+        if (trimmedCommand.matches("view-l\\s+stu/\\d+")) {
+            int index = Integer.parseInt(trimmedCommand.replaceFirst("view-l\\s+stu/", "")) - 1;
+            List<Student> students = logic.getFilteredStudentList();
+            displayedLessonStudent = index >= 0 && index < students.size() ? students.get(index) : null;
+        } else {
+            displayedLessonStudent = null;
+        }
+    }
+
+    /** Updates the displayed search highlights based on the executed command. */
+    private void updateSearchHighlights(CommandResult commandResult) {
+        HighlightTarget target = commandResult.getHighlightTarget();
+        List<String> keywords = commandResult.getHighlightKeywords();
+        studentListPanel.setHighlightKeywords(target == HighlightTarget.STUDENTS
+                ? keywords : List.of());
+        guardianListPanel.setHighlightKeywords(target == HighlightTarget.GUARDIANS
+                ? keywords : List.of());
+    }
+
+    /** Updates the active student filter description based on the executed command. */
+    private void updateStudentFilterDescription(CommandResult commandResult) {
+        if (commandResult.getStudentFilterUpdate() == CommandResult.StudentFilterUpdate.SET) {
+            studentListPanel.setFilterDescription(commandResult.getStudentFilterDescription());
+        } else if (commandResult.getStudentFilterUpdate() == CommandResult.StudentFilterUpdate.CLEAR) {
+            studentListPanel.clearFilterDescription();
+        }
+    }
+
+    /** Updates the active guardian search description based on the executed command. */
+    private void updateGuardianSearchDescription(CommandResult commandResult) {
+        if (commandResult.getGuardianSearchUpdate() == CommandResult.GuardianSearchUpdate.SET) {
+            guardianListPanel.setSearchDescription(commandResult.getGuardianSearchDescription());
+        } else if (commandResult.getGuardianSearchUpdate() == CommandResult.GuardianSearchUpdate.CLEAR) {
+            guardianListPanel.clearSearchDescription();
         }
     }
 }

@@ -3,22 +3,23 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
-import java.util.Collection;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.exceptions.DuplicatePersonException;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.exceptions.DuplicateLessonException;
+import seedu.address.model.lesson.exceptions.LessonNotFoundException;
+import seedu.address.model.link.StudentGuardianLink;
+import seedu.address.model.student.Level;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.Subject;
 
 public class AddressBookTest {
 
@@ -26,7 +27,9 @@ public class AddressBookTest {
 
     @Test
     public void constructor() {
-        assertEquals(List.of(), addressBook.getPersonList());
+        assertEquals(List.of(), new AddressBookStub(List.of()).getStudentList());
+        assertEquals(List.of(), new AddressBookStub(List.of()).getGuardianList());
+        assertEquals(List.of(), new AddressBookStub(List.of()).getLessonList());
     }
 
     @Test
@@ -36,71 +39,394 @@ public class AddressBookTest {
 
     @Test
     public void resetData_withValidReadOnlyAddressBook_replacesData() {
-        AddressBook newData = getTypicalAddressBook();
+        AddressBook newData = new AddressBook();
+        newData.addStudent(student("Henry Tan", "91234567", "henry@example.com"));
+        newData.addGuardian(guardian("Ben Tan", "92345678", "ben@example.com"));
         addressBook.resetData(newData);
         assertEquals(newData, addressBook);
     }
 
     @Test
-    public void resetData_withDuplicatePersons_throwsDuplicatePersonException() {
-        // Two persons with the same identity fields
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
-        List<Person> newPersons = List.of(ALICE, editedAlice);
-        AddressBookStub newData = new AddressBookStub(newPersons);
+    public void studentOperations_addSetRemoveAndReset_success() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student editedStudent = student("Henry Tan", "91234567", "other@example.com");
 
-        assertThrows(DuplicatePersonException.class, () -> addressBook.resetData(newData));
+        assertFalse(addressBook.hasStudent(student));
+        addressBook.addStudent(student);
+        assertTrue(addressBook.hasStudent(student));
+        assertEquals(List.of(student), addressBook.getStudentList());
+
+        addressBook.setStudent(student, editedStudent);
+        assertEquals(List.of(editedStudent), addressBook.getStudentList());
+        addressBook.removeStudent(editedStudent);
+        assertTrue(addressBook.getStudentList().isEmpty());
+
+        addressBook.setStudents(List.of(student));
+        assertEquals(List.of(student), addressBook.getStudentList());
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> addressBook.hasPerson(null));
+    public void studentOperations_invalidInputs_throwExceptions() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        assertThrows(NullPointerException.class, () -> addressBook.hasStudent(null));
+        assertThrows(NullPointerException.class, () -> addressBook.setStudent(student, null));
+        assertThrows(UnsupportedOperationException.class, () -> addressBook.getStudentList().remove(0));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(addressBook.hasPerson(ALICE));
+    public void lessonOperations_addRemoveAndSet_success() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Lesson lesson = lesson(student, 14);
+
+        addressBook.addStudent(student);
+        addressBook.addLesson(lesson);
+
+        assertEquals(List.of(lesson), addressBook.getLessonList());
+
+        addressBook.removeLesson(lesson);
+        assertTrue(addressBook.getLessonList().isEmpty());
+
+        addressBook.setLessons(List.of(lesson));
+        assertEquals(List.of(lesson), addressBook.getLessonList());
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        addressBook.addPerson(ALICE);
-        assertTrue(addressBook.hasPerson(ALICE));
+    public void studentOperations_updateAndRemoveLessons_success() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student editedStudent = student("Henry Tan", "91234567", "other@example.com");
+        Lesson lesson = lesson(student, 14);
+
+        addressBook.addStudent(student);
+        addressBook.addLesson(lesson);
+        addressBook.setStudent(student, editedStudent);
+
+        assertEquals(List.of(lesson(editedStudent, 14)), addressBook.getLessonList());
+
+        addressBook.removeStudent(editedStudent);
+
+        assertTrue(addressBook.getLessonList().isEmpty());
     }
 
     @Test
-    public void hasPerson_personWithSameIdentityFieldsInAddressBook_returnsTrue() {
-        addressBook.addPerson(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
-                .build();
-        assertTrue(addressBook.hasPerson(editedAlice));
+    public void lessonOperations_invalidInputs_throwExceptions() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Lesson lesson = lesson(student, 14);
+
+        assertThrows(NullPointerException.class, () ->
+                addressBook.addLesson(null));
+        assertThrows(NullPointerException.class, () ->
+                addressBook.removeLesson(null));
+        assertThrows(NullPointerException.class, () ->
+                addressBook.setLessons(null));
+
+        addressBook.addLesson(lesson);
+        assertThrows(DuplicateLessonException.class, () ->
+                addressBook.addLesson(lesson));
+        assertThrows(LessonNotFoundException.class, () ->
+                addressBook.removeLesson(lesson(student, 16)));
+        assertThrows(UnsupportedOperationException.class, () ->
+                addressBook.getLessonList().remove(0));
     }
 
     @Test
-    public void getPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> addressBook.getPersonList().remove(0));
+    public void copyAndResetData_preservesLessons() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Lesson lesson = lesson(student, 14);
+        addressBook.addStudent(student);
+        addressBook.addLesson(lesson);
+
+        AddressBook copy = new AddressBook(addressBook);
+        AddressBook reset = new AddressBook();
+        reset.resetData(addressBook);
+
+        assertEquals(List.of(lesson), copy.getLessonList());
+        assertEquals(copy, reset);
+    }
+
+    @Test
+    public void resetData_fromReadOnlyAddressBookWithoutLessons_clearsLessons() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        addressBook.addStudent(student);
+        addressBook.addLesson(lesson(student, 14));
+
+        addressBook.resetData(new AddressBookStub(List.of()));
+
+        assertTrue(addressBook.getLessonList().isEmpty());
+    }
+
+    @Test
+    public void lessonOperations_duplicateReplacement_throwsDuplicateLessonException() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Lesson firstLesson = lesson(student, 14);
+        Lesson secondLesson = lesson(student, 16);
+        addressBook.addLesson(firstLesson);
+        addressBook.addLesson(secondLesson);
+
+        assertThrows(DuplicateLessonException.class, () ->
+                addressBook.setLessons(List.of(firstLesson, firstLesson)));
+    }
+
+    @Test
+    public void resetData_nullAddressBook_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                addressBook.resetData(null));
+    }
+
+    @Test
+    public void equals_differentLessonData_returnsFalse() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Lesson lesson = lesson(student, 14);
+        AddressBook copy = new AddressBook();
+        addressBook.addLesson(lesson);
+
+        assertFalse(addressBook.equals(copy));
+        assertFalse(copy.equals(addressBook));
+    }
+
+    @Test
+    public void equals_studentDataAndDifferentTypes_returnsExpectedResult() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        addressBook.addStudent(student);
+        AddressBook copy = new AddressBook();
+        copy.addStudent(student);
+
+        assertTrue(addressBook.equals(addressBook));
+        assertTrue(addressBook.equals(copy));
+        assertFalse(addressBook.equals(5));
+        assertEquals(addressBook.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void guardianOperations_addSetRemoveAndReset_success() {
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian editedGuardian = guardian("Ben Tan", "92345678", "other@example.com");
+
+        assertFalse(addressBook.hasGuardian(guardian));
+        addressBook.addGuardian(guardian);
+        assertTrue(addressBook.hasGuardian(guardian));
+        assertEquals(List.of(guardian), addressBook.getGuardianList());
+
+        addressBook.setGuardian(guardian, editedGuardian);
+        assertEquals(List.of(editedGuardian), addressBook.getGuardianList());
+        addressBook.removeGuardian(editedGuardian);
+        assertTrue(addressBook.getGuardianList().isEmpty());
+
+        addressBook.setGuardians(List.of(guardian));
+        assertEquals(List.of(guardian), addressBook.getGuardianList());
+    }
+
+    @Test
+    public void guardianOperations_invalidInputs_throwExceptions() {
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        assertThrows(NullPointerException.class, () -> addressBook.hasGuardian(null));
+        assertThrows(NullPointerException.class, () -> addressBook.setGuardian(guardian, null));
+        assertThrows(UnsupportedOperationException.class, () -> addressBook.getGuardianList().remove(0));
+    }
+
+    @Test
+    public void equals_guardianData_returnsExpectedResult() {
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        addressBook.addGuardian(guardian);
+        AddressBook copy = new AddressBook();
+        copy.addGuardian(guardian);
+
+        assertTrue(addressBook.equals(copy));
+        assertEquals(addressBook.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_addAndDetectLink_success() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        StudentGuardianLink link = new StudentGuardianLink(student, guardian);
+
+        assertFalse(addressBook.hasStudentGuardianLink(link));
+        addressBook.addStudentGuardianLink(link);
+        assertTrue(addressBook.hasStudentGuardianLink(link));
+        assertEquals(List.of(guardian), addressBook.getGuardiansForStudent(student));
+        addressBook.addStudentGuardianLink(link);
+        assertEquals(List.of(guardian), addressBook.getGuardiansForStudent(student));
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_removeLink_success() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian otherGuardian = guardian("Billie Ng", "94567890", "billie@example.com");
+        StudentGuardianLink link = new StudentGuardianLink(student, guardian);
+        StudentGuardianLink otherLink = new StudentGuardianLink(student, otherGuardian);
+        addressBook.addStudentGuardianLink(link);
+        addressBook.addStudentGuardianLink(otherLink);
+
+        addressBook.removeStudentGuardianLink(link);
+
+        assertFalse(addressBook.hasStudentGuardianLink(link));
+        assertTrue(addressBook.hasStudentGuardianLink(otherLink));
+        assertEquals(List.of(otherGuardian), addressBook.getGuardiansForStudent(student));
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_removeNullLink_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> addressBook.removeStudentGuardianLink(null));
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_editStudent_preservesUpdatedLink() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student editedStudent = student("Henry Tan", "99887766", "henry@example.com");
+        Student unrelatedStudent = student("Ivy Lim", "93456789", "ivy@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian unrelatedGuardian = guardian("Billie Ng", "94567890", "billie@example.com");
+        addressBook.addStudent(student);
+        addressBook.addStudent(unrelatedStudent);
+        addressBook.addGuardian(guardian);
+        addressBook.addGuardian(unrelatedGuardian);
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(unrelatedStudent, unrelatedGuardian));
+
+        addressBook.setStudent(student, editedStudent);
+
+        assertEquals(List.of(guardian), addressBook.getGuardiansForStudent(editedStudent));
+        assertFalse(addressBook.hasStudentGuardianLink(new StudentGuardianLink(student, guardian)));
+        assertTrue(addressBook.hasStudentGuardianLink(new StudentGuardianLink(editedStudent, guardian)));
+        assertTrue(addressBook.hasStudentGuardianLink(new StudentGuardianLink(unrelatedStudent, unrelatedGuardian)));
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_editGuardian_preservesUpdatedLink() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student unrelatedStudent = student("Ivy Lim", "93456789", "ivy@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian editedGuardian = guardian("Ben Tan", "99887766", "ben@example.com");
+        Guardian unrelatedGuardian = guardian("Billie Ng", "94567890", "billie@example.com");
+        addressBook.addStudent(student);
+        addressBook.addStudent(unrelatedStudent);
+        addressBook.addGuardian(guardian);
+        addressBook.addGuardian(unrelatedGuardian);
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(unrelatedStudent, unrelatedGuardian));
+
+        addressBook.setGuardian(guardian, editedGuardian);
+
+        assertEquals(List.of(editedGuardian), addressBook.getGuardiansForStudent(student));
+        assertFalse(addressBook.hasStudentGuardianLink(new StudentGuardianLink(student, guardian)));
+        assertTrue(addressBook.hasStudentGuardianLink(new StudentGuardianLink(student, editedGuardian)));
+        assertTrue(addressBook.hasStudentGuardianLink(new StudentGuardianLink(unrelatedStudent, unrelatedGuardian)));
+    }
+
+    @Test
+    public void removeStudent_removesAssociatedLinksButPreservesGuardians() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student unrelatedStudent = student("Ivy Lim", "93456789", "ivy@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian secondGuardian = guardian("Billie Ng", "94567890", "billie@example.com");
+
+        addressBook.addStudent(student);
+        addressBook.addStudent(unrelatedStudent);
+        addressBook.addGuardian(guardian);
+        addressBook.addGuardian(secondGuardian);
+
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, secondGuardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(unrelatedStudent, guardian));
+
+        addressBook.removeStudent(student);
+
+        assertFalse(addressBook.hasStudent(student));
+        assertTrue(addressBook.hasStudent(unrelatedStudent));
+        assertTrue(addressBook.hasGuardian(guardian));
+        assertTrue(addressBook.hasGuardian(secondGuardian));
+        assertTrue(addressBook.getGuardiansForStudent(student).isEmpty());
+        assertEquals(List.of(new StudentGuardianLink(unrelatedStudent, guardian)),
+                addressBook.getStudentGuardianLinkList());
+    }
+
+    @Test
+    public void removeGuardian_removesAssociatedLinksButPreservesStudents() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Student secondStudent = student("Ivy Lim", "93456789", "ivy@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        Guardian unrelatedGuardian = guardian("Billie Ng", "94567890", "billie@example.com");
+
+        addressBook.addStudent(student);
+        addressBook.addStudent(secondStudent);
+        addressBook.addGuardian(guardian);
+        addressBook.addGuardian(unrelatedGuardian);
+
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(secondStudent, guardian));
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, unrelatedGuardian));
+
+        addressBook.removeGuardian(guardian);
+
+        assertFalse(addressBook.hasGuardian(guardian));
+        assertTrue(addressBook.hasGuardian(unrelatedGuardian));
+        assertTrue(addressBook.hasStudent(student));
+        assertTrue(addressBook.hasStudent(secondStudent));
+        assertEquals(List.of(new StudentGuardianLink(student, unrelatedGuardian)),
+                addressBook.getStudentGuardianLinkList());
+    }
+
+    @Test
+    public void copyAndResetData_preservesStudentGuardianLinks() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        addressBook.addStudent(student);
+        addressBook.addGuardian(guardian);
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+
+        AddressBook copy = new AddressBook(addressBook);
+        AddressBook reset = new AddressBook();
+        reset.resetData(addressBook);
+
+        assertEquals(List.of(new StudentGuardianLink(student, guardian)), copy.getStudentGuardianLinkList());
+        assertEquals(copy, reset);
+    }
+
+    @Test
+    public void studentGuardianLinkOperations_nullLink_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> addressBook.hasStudentGuardianLink(null));
+        assertThrows(NullPointerException.class, () -> addressBook.addStudentGuardianLink(null));
+        assertThrows(NullPointerException.class, () -> addressBook.getGuardiansForStudent(null));
+    }
+
+    @Test
+    public void getGuardiansForStudent_returnsUnmodifiableList() {
+        Student student = student("Henry Tan", "91234567", "henry@example.com");
+        Guardian guardian = guardian("Ben Tan", "92345678", "ben@example.com");
+        addressBook.addStudentGuardianLink(new StudentGuardianLink(student, guardian));
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                addressBook.getGuardiansForStudent(student).clear());
     }
 
     @Test
     public void toStringMethod() {
-        String expected = AddressBook.class.getCanonicalName() + "{persons=" + addressBook.getPersonList() + "}";
+        String expected = AddressBook.class.getCanonicalName()
+                + "{students=[], guardians=[], lessons=[], studentGuardianLinks=[]}";
         assertEquals(expected, addressBook.toString());
     }
 
-    /**
-     * A stub ReadOnlyAddressBook whose persons list can violate interface constraints.
-     */
     private static class AddressBookStub implements ReadOnlyAddressBook {
-        private final ObservableList<Person> persons = FXCollections.observableArrayList();
+        AddressBookStub(List<?> ignored) { }
+    }
 
-        AddressBookStub(Collection<Person> persons) {
-            this.persons.setAll(persons);
-        }
+    private static Student student(String name, String phone, String email) {
+        return new Student(new seedu.address.model.person.Name(name), new seedu.address.model.person.Phone(phone),
+                new seedu.address.model.person.Email(email), new seedu.address.model.person.Address("12 Main Street"),
+                new Level("JC 1"), java.util.Set.of(new Subject("Mathematics")));
+    }
 
-        @Override
-        public ObservableList<Person> getPersonList() {
-            return persons;
-        }
+    private static Lesson lesson(Student student, int hour) {
+        return new Lesson(student, LocalDate.of(2026, 10, 25), LocalTime.of(hour, 0),
+                Duration.ofMinutes(60));
+    }
+
+    private static Guardian guardian(String name, String phone, String email) {
+        return new Guardian(seedu.address.model.person.Name.fromStudentValue(name),
+                seedu.address.model.person.Phone.fromStudentValue(phone),
+                seedu.address.model.person.Email.fromStudentValue(email),
+                seedu.address.model.person.Address.fromStudentValue("12 Main Street"));
     }
 
 }

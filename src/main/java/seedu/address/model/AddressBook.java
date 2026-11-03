@@ -3,11 +3,17 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.guardian.UniqueGuardianList;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.UniqueLessonList;
+import seedu.address.model.link.StudentGuardianLink;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.UniqueStudentList;
 
 /**
  * Wraps all data at the address-book level.
@@ -15,13 +21,14 @@ import seedu.address.model.person.UniquePersonList;
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
-    private final UniquePersonList persons = new UniquePersonList();
+    private final UniqueStudentList students = new UniqueStudentList();
+    private final UniqueGuardianList guardians = new UniqueGuardianList();
+    private final UniqueLessonList lessons = new UniqueLessonList();
+    private final List<StudentGuardianLink> studentGuardianLinks = new java.util.ArrayList<>();
 
     public AddressBook() {}
 
-    /**
-     * Creates an AddressBook using the Persons in the {@code toBeCopied}
-     */
+    /** Creates an AddressBook using the data in {@code toBeCopied}. */
     public AddressBook(ReadOnlyAddressBook toBeCopied) {
         this();
         resetData(toBeCopied);
@@ -30,57 +37,147 @@ public class AddressBook implements ReadOnlyAddressBook {
     //// list overwrite operations
 
     /**
-     * Replaces the contents of the person list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
-     */
-    public void setPersons(List<Person> persons) {
-        this.persons.setPersons(persons);
-    }
-
-    /**
      * Resets the existing data of this {@code AddressBook} with {@code newData}.
      */
     public void resetData(ReadOnlyAddressBook newData) {
         requireNonNull(newData);
 
-        setPersons(newData.getPersonList());
+        setStudents(newData.getStudentList());
+        setGuardians(newData.getGuardianList());
+        setLessons(newData.getLessonList());
+        studentGuardianLinks.clear();
+        studentGuardianLinks.addAll(newData.getStudentGuardianLinkList());
     }
 
-    //// person-level operations
+    //// student-level operations
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a student with the same identity as {@code student} exists in the address book.
      */
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return persons.contains(person);
-    }
-
-    /**
-     * Adds a person to the address book.
-     * The person must not already exist in the address book.
-     */
-    public void addPerson(Person p) {
-        persons.add(p);
+    public boolean hasStudent(Student student) {
+        requireNonNull(student);
+        return students.contains(student);
     }
 
     /**
-     * Replaces the given person {@code target} in the list with {@code editedPerson}.
-     * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * Adds a student to the address book.
+     * The student must not already exist in the address book.
      */
-    public void setPerson(Person target, Person editedPerson) {
-        requireNonNull(editedPerson);
-
-        persons.setPerson(target, editedPerson);
+    public void addStudent(Student student) {
+        students.add(student);
     }
 
     /**
-     * Removes {@code key} from this {@code AddressBook}.
-     * {@code key} must exist in the address book.
+     * Replaces the given student {@code target} with {@code editedStudent}.
      */
-    public void removePerson(Person key) {
-        persons.remove(key);
+    public void setStudent(Student target, Student editedStudent) {
+        requireNonNull(target);
+        requireNonNull(editedStudent);
+        students.setStudent(target, editedStudent);
+        lessons.setLessons(lessons.asUnmodifiableObservableList().stream()
+                .map(lesson -> lesson.getStudent().equals(target)
+                        ? new Lesson(editedStudent, lesson.getDate(), lesson.getStartTime(), lesson.getDuration())
+                        : lesson)
+                .toList());
+        studentGuardianLinks.replaceAll(link -> link.getStudent().equals(target)
+                ? new StudentGuardianLink(editedStudent, link.getGuardian())
+                : link);
+    }
+
+    /**
+     * Removes {@code student} and all associated student-guardian links from the address book
+     */
+    public void removeStudent(Student student) {
+        students.remove(student);
+        lessons.setLessons(lessons.asUnmodifiableObservableList().stream()
+                .filter(lesson -> !lesson.getStudent().equals(student))
+                .toList());
+        studentGuardianLinks.removeIf(link -> link.getStudent().equals(student));
+    }
+
+    /**
+     * Replaces the contents of the student list with {@code students}.
+     */
+    public void setStudents(List<Student> students) {
+        this.students.setStudents(students);
+    }
+
+    /** Adds a lesson to the address book. */
+    public void addLesson(Lesson lesson) {
+        lessons.add(lesson);
+    }
+
+    /** Removes a lesson from the address book. */
+    public void removeLesson(Lesson lesson) {
+        lessons.remove(lesson);
+    }
+
+    /** Replaces the contents of the lesson list. */
+    public void setLessons(List<Lesson> lessons) {
+        this.lessons.setLessons(lessons);
+    }
+
+    //// guardian-level operations
+
+    /** Returns true if a guardian with the same identity exists in the address book. */
+    public boolean hasGuardian(Guardian guardian) {
+        requireNonNull(guardian);
+        return guardians.contains(guardian);
+    }
+
+    /** Adds a guardian to the address book. */
+    public void addGuardian(Guardian guardian) {
+        guardians.add(guardian);
+    }
+
+    /** Replaces the given guardian with {@code editedGuardian}. */
+    public void setGuardian(Guardian target, Guardian editedGuardian) {
+        requireNonNull(target);
+        requireNonNull(editedGuardian);
+        guardians.setGuardian(target, editedGuardian);
+        studentGuardianLinks.replaceAll(link -> link.getGuardian().equals(target)
+                ? new StudentGuardianLink(link.getStudent(), editedGuardian)
+                : link);
+    }
+
+    /** Removes {@code guardian} and all associated student-guardian links from the address book. */
+    public void removeGuardian(Guardian guardian) {
+        guardians.remove(guardian);
+        studentGuardianLinks.removeIf(link -> link.getGuardian().equals(guardian));
+    }
+
+    /** Replaces the contents of the guardian list with {@code guardians}. */
+    public void setGuardians(List<Guardian> guardians) {
+        this.guardians.setGuardians(guardians);
+    }
+
+    /** Returns true if the given student-guardian link exists. */
+    public boolean hasStudentGuardianLink(StudentGuardianLink link) {
+        return studentGuardianLinks.contains(requireNonNull(link));
+    }
+
+    /**
+     * Returns the guardians linked to {@code student}, in link creation order.
+     */
+    public List<Guardian> getGuardiansForStudent(Student student) {
+        requireNonNull(student);
+        return studentGuardianLinks.stream()
+                .filter(link -> link.getStudent().equals(student))
+                .map(StudentGuardianLink::getGuardian)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /** Adds a student-guardian link. Duplicate links are ignored. */
+    public void addStudentGuardianLink(StudentGuardianLink link) {
+        StudentGuardianLink nonNullLink = requireNonNull(link);
+        if (!studentGuardianLinks.contains(nonNullLink)) {
+            studentGuardianLinks.add(nonNullLink);
+        }
+    }
+
+    /** Removes the given student-guardian link. */
+    public void removeStudentGuardianLink(StudentGuardianLink link) {
+        studentGuardianLinks.remove(requireNonNull(link));
     }
 
     //// util methods
@@ -88,13 +185,31 @@ public class AddressBook implements ReadOnlyAddressBook {
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("persons", persons)
+                .add("students", students)
+                .add("guardians", guardians)
+                .add("lessons", lessons)
+                .add("studentGuardianLinks", studentGuardianLinks)
                 .toString();
     }
 
     @Override
-    public ObservableList<Person> getPersonList() {
-        return persons.asUnmodifiableObservableList();
+    public ObservableList<Student> getStudentList() {
+        return students.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Guardian> getGuardianList() {
+        return guardians.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public List<StudentGuardianLink> getStudentGuardianLinkList() {
+        return List.copyOf(studentGuardianLinks);
+    }
+
+    @Override
+    public ObservableList<Lesson> getLessonList() {
+        return lessons.asUnmodifiableObservableList();
     }
 
     @Override
@@ -108,11 +223,14 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return students.equals(otherAddressBook.students)
+                && guardians.equals(otherAddressBook.guardians)
+                && lessons.equals(otherAddressBook.lessons)
+                && studentGuardianLinks.equals(otherAddressBook.studentGuardianLinks);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return java.util.Objects.hash(students, guardians, lessons, studentGuardianLinks);
     }
 }

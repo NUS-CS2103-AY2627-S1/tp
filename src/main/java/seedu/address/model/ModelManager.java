@@ -3,14 +3,22 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonMatchesStudentPredicate;
+import seedu.address.model.link.StudentGuardianLink;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentNameComparator;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -20,7 +28,12 @@ public class ModelManager implements Model {
 
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Student> filteredStudents;
+    private final SortedList<Student> sortedStudents;
+    private final FilteredList<Guardian> filteredGuardians;
+    private final FilteredList<Lesson> filteredLessons;
+    private final SortedList<Lesson> sortedLessons;
+    private Predicate<Lesson> lessonPredicate = Model.PREDICATE_SHOW_ALL_LESSONS;
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -32,7 +45,12 @@ public class ModelManager implements Model {
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredStudents = new FilteredList<>(this.addressBook.getStudentList());
+        sortedStudents = new SortedList<>(filteredStudents);
+        filteredGuardians = new FilteredList<>(this.addressBook.getGuardianList());
+        filteredLessons = new FilteredList<>(this.addressBook.getLessonList());
+        sortedLessons = new SortedList<>(filteredLessons,
+                Comparator.comparing(Lesson::getDate).thenComparing(Lesson::getStartTime));
     }
 
     public ModelManager() {
@@ -69,45 +87,141 @@ public class ModelManager implements Model {
         return addressBook;
     }
 
+    //=========== Student Operations ========================================================================
+
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public boolean hasStudent(Student student) {
+        requireNonNull(student);
+        return addressBook.hasStudent(student);
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void deleteStudent(Student target) {
+        requireNonNull(target);
+        addressBook.removeStudent(target);
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void addStudent(Student student) {
+        requireNonNull(student);
+        addressBook.addStudent(student);
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
-    }
-
-    //=========== Filtered Person List Accessors =============================================================
-
-    /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
-     */
-    @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public void setStudent(Student target, Student editedStudent) {
+        requireAllNonNull(target, editedStudent);
+        addressBook.setStudent(target, editedStudent);
+        if (lessonPredicate instanceof LessonMatchesStudentPredicate studentPredicate
+                && studentPredicate.matchesStudent(target)) {
+            updateFilteredLessonList(new LessonMatchesStudentPredicate(editedStudent));
+        }
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public ObservableList<Student> getFilteredStudentList() {
+        return sortedStudents;
+    }
+
+    @Override
+    public void updateFilteredStudentList(Predicate<Student> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredStudents.setPredicate(predicate);
+    }
+
+    @Override
+    public void sortStudentList() {
+        sortedStudents.setComparator(new StudentNameComparator());
+    }
+
+    //=========== Lesson Operations ========================================================================
+
+    @Override
+    public void addLesson(Lesson lesson) {
+        requireNonNull(lesson);
+        addressBook.addLesson(lesson);
+    }
+
+    @Override
+    public void deleteLesson(Lesson lesson) {
+        requireNonNull(lesson);
+        addressBook.removeLesson(lesson);
+    }
+
+    @Override
+    public ObservableList<Lesson> getLessonList() {
+        return addressBook.getLessonList();
+    }
+
+    @Override
+    public ObservableList<Lesson> getFilteredLessonList() {
+        return sortedLessons;
+    }
+
+    @Override
+    public void updateFilteredLessonList(Predicate<Lesson> predicate) {
+        requireNonNull(predicate);
+        lessonPredicate = predicate;
+        filteredLessons.setPredicate(predicate);
+    }
+
+    //=========== Guardian Operations ========================================================================
+
+    @Override
+    public boolean hasGuardian(Guardian guardian) {
+        requireNonNull(guardian);
+        return addressBook.hasGuardian(guardian);
+    }
+
+    @Override
+    public void deleteGuardian(Guardian target) {
+        requireNonNull(target);
+        addressBook.removeGuardian(target);
+    }
+
+    @Override
+    public void addGuardian(Guardian guardian) {
+        requireNonNull(guardian);
+        addressBook.addGuardian(guardian);
+    }
+
+    @Override
+    public void setGuardian(Guardian target, Guardian editedGuardian) {
+        requireAllNonNull(target, editedGuardian);
+        addressBook.setGuardian(target, editedGuardian);
+    }
+
+    @Override
+    public ObservableList<Guardian> getFilteredGuardianList() {
+        return filteredGuardians;
+    }
+
+    @Override
+    public void updateFilteredGuardianList(Predicate<Guardian> predicate) {
+        requireNonNull(predicate);
+        filteredGuardians.setPredicate(predicate);
+    }
+
+    @Override
+    public boolean hasStudentGuardianLink(StudentGuardianLink link) {
+        return addressBook.hasStudentGuardianLink(link);
+    }
+
+    @Override
+    public List<Guardian> getGuardiansForStudent(Student student) {
+        requireNonNull(student);
+        return addressBook.getGuardiansForStudent(student);
+    }
+
+    @Override
+    public void addStudentGuardianLink(StudentGuardianLink link) {
+        requireNonNull(link);
+        addressBook.addStudentGuardianLink(link);
+    }
+
+    @Override
+    public void removeStudentGuardianLink(StudentGuardianLink link) {
+        requireNonNull(link);
+        addressBook.removeStudentGuardianLink(link);
     }
 
     @Override
@@ -123,7 +237,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredStudents.equals(otherModelManager.filteredStudents)
+                && filteredGuardians.equals(otherModelManager.filteredGuardians);
     }
 
 }

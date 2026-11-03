@@ -1,0 +1,25 @@
+@startuml
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+
+package Model as ModelPackage <<Rectangle>> {
+class Student {
+  +getPaidMonths() : SortedSet<PaymentMonth>
+  +hasPaidFor(PaymentMonth) : boolean
+  +withPaymentFor(PaymentMonth) : Student
+}
+
+class PaymentMonth {
+  +value : YearMonth
+  +isValidPaymentMonth(String) : boolean
+  +toDisplayString() : String
+}
+}
+
+class "<<interface>>\nComparable<PaymentMonth>" as Comparable #FFFFFF
+
+Student *--> "*" PaymentMonth : paidMonths
+PaymentMonth .up.|> Comparable
+@enduml

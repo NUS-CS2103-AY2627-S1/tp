@@ -9,10 +9,12 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  */
 public class Phone {
 
-
     public static final String MESSAGE_CONSTRAINTS =
-            "Phone numbers should only contain digits, and should be at least 3 digits long";
-    public static final String VALIDATION_REGEX = "\\d{3,}";
+            "Phone numbers must contain 3-15 digits and may start with '+'.";
+
+    // Allows an optional leading '+' followed by 3-15 digits.
+    public static final String VALIDATION_REGEX = "\\+?\\d{3,15}";
+
     public final String value;
 
     /**
@@ -26,11 +28,30 @@ public class Phone {
         value = phone;
     }
 
+    private Phone(String phone, boolean alreadyValidated) {
+        requireNonNull(phone);
+        value = phone;
+    }
+
+    /**
+     * Creates a phone number that has already been validated by a student-specific validator.
+     */
+    public static Phone fromStudentValue(String phone) {
+        requireNonNull(phone);
+        return new Phone(phone, true);
+    }
+
     /**
      * Returns true if a given string is a valid phone number.
      */
     public static boolean isValidPhone(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return normalize(test).matches(VALIDATION_REGEX);
+    }
+
+    /** Normalizes a phone number by removing surrounding whitespace. */
+    public static String normalize(String test) {
+        requireNonNull(test);
+        return test.trim();
     }
 
     @Override

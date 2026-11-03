@@ -1,0 +1,81 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant ":UnlinkGuardianCommandParser" as UnlinkGuardianCommandParser LOGIC_COLOR
+participant "u:UnlinkGuardianCommand" as UnlinkGuardianCommand LOGIC_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+end box
+
+[-> LogicManager : execute("unlink-g 1 g/2")
+activate LogicManager
+
+LogicManager -> AddressBookParser : parseCommand("unlink-g 1 g/2")
+activate AddressBookParser
+
+create UnlinkGuardianCommandParser
+AddressBookParser -> UnlinkGuardianCommandParser
+activate UnlinkGuardianCommandParser
+
+UnlinkGuardianCommandParser --> AddressBookParser
+deactivate UnlinkGuardianCommandParser
+
+AddressBookParser -> UnlinkGuardianCommandParser : parse("1 g/2")
+activate UnlinkGuardianCommandParser
+
+create UnlinkGuardianCommand
+UnlinkGuardianCommandParser -> UnlinkGuardianCommand
+activate UnlinkGuardianCommand
+UnlinkGuardianCommand --> UnlinkGuardianCommandParser
+deactivate UnlinkGuardianCommand
+
+UnlinkGuardianCommandParser --> AddressBookParser : u
+deactivate UnlinkGuardianCommandParser
+UnlinkGuardianCommandParser -[hidden]-> AddressBookParser
+destroy UnlinkGuardianCommandParser
+
+AddressBookParser --> LogicManager : u
+deactivate AddressBookParser
+
+LogicManager -> UnlinkGuardianCommand : execute(m)
+activate UnlinkGuardianCommand
+
+UnlinkGuardianCommand -> Model : getFilteredStudentList()
+activate Model
+Model --> UnlinkGuardianCommand : students
+deactivate Model
+UnlinkGuardianCommand -> Model : getFilteredGuardianList()
+activate Model
+Model --> UnlinkGuardianCommand : guardians
+deactivate Model
+UnlinkGuardianCommand -> Model : hasStudentGuardianLink(link)
+activate Model
+Model --> UnlinkGuardianCommand
+deactivate Model
+
+alt link exists
+    UnlinkGuardianCommand -> Model : removeStudentGuardianLink(link)
+    activate Model
+    Model --> UnlinkGuardianCommand
+    deactivate Model
+    create CommandResult
+    UnlinkGuardianCommand -> CommandResult
+    activate CommandResult
+    CommandResult --> UnlinkGuardianCommand
+    deactivate CommandResult
+    UnlinkGuardianCommand --> LogicManager : r
+else link does not exist
+    UnlinkGuardianCommand --> LogicManager : CommandException
+end
+deactivate UnlinkGuardianCommand
+
+[<--LogicManager
+deactivate LogicManager
+@enduml

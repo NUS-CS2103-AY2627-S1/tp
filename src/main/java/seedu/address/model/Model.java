@@ -1,17 +1,27 @@
 package seedu.address.model;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.link.StudentGuardianLink;
+import seedu.address.model.student.Student;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
-    /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    /** Predicate that always evaluates to true for students. */
+    Predicate<Student> PREDICATE_SHOW_ALL_STUDENTS = unused -> true;
+
+    /** Predicate that always evaluates to true for guardians. */
+    Predicate<Guardian> PREDICATE_SHOW_ALL_GUARDIANS = unused -> true;
+
+    /** Predicate that always evaluates to true for lessons. */
+    Predicate<Lesson> PREDICATE_SHOW_ALL_LESSONS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -37,35 +47,119 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if a student with the same identity as {@code student} exists in the address book.
      */
-    boolean hasPerson(Person person);
+    boolean hasStudent(Student student);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Deletes the given student.
+     * The student must exist in the address book.
      */
-    void deletePerson(Person target);
+    void deleteStudent(Student target);
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Adds the given student.
+     * {@code student} must not already exist in the address book.
      */
-    void addPerson(Person person);
+    void addStudent(Student student);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
+     * Replaces the given student {@code target} with {@code editedStudent}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The student identity of {@code editedStudent} must not be the same as
+     * another existing student in the address book.
      */
-    void setPerson(Person target, Person editedPerson);
+    void setStudent(Student target, Student editedStudent);
 
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered student list */
+    ObservableList<Student> getFilteredStudentList();
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Updates the filter of the filtered student list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredStudentList(Predicate<Student> predicate);
+
+    /** Adds the given lesson. */
+    void addLesson(Lesson lesson);
+
+    /** Deletes the given lesson. */
+    void deleteLesson(Lesson lesson);
+
+    /** Returns the scheduled lessons. */
+    ObservableList<Lesson> getLessonList();
+
+    /** Returns the displayed lesson list, sorted by date and start time. */
+    ObservableList<Lesson> getFilteredLessonList();
+
+    /**
+     * Updates the filter of the displayed lesson list to filter by the given predicate.
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void updateFilteredLessonList(Predicate<Lesson> predicate);
+
+    /**
+     * Sorts the displayed student list by student name in ascending order.
+     * The underlying student list and its storage order are not changed.
+     */
+    void sortStudentList();
+
+    /**
+     * Returns true if a guardian with the same identity as {@code guardian} exists in the address book.
+     */
+    boolean hasGuardian(Guardian guardian);
+
+    /**
+     * Deletes the given guardian.
+     * The guardian must exist in the address book.
+     */
+    void deleteGuardian(Guardian target);
+
+    /**
+     * Adds the given guardian.
+     * {@code guardian} must not already exist in the address book.
+     */
+    void addGuardian(Guardian guardian);
+
+    /**
+     * Replaces the given guardian {@code target} with {@code editedGuardian}.
+     * {@code target} must exist in the address book.
+     * The guardian identity of {@code editedGuardian} must not be the same as
+     * another existing guardian in the address book.
+     */
+    void setGuardian(Guardian target, Guardian editedGuardian);
+
+    /** Returns an unmodifiable view of the filtered guardian list */
+    ObservableList<Guardian> getFilteredGuardianList();
+
+    /**
+     * Updates the filter of the filtered guardian list to filter by the given {@code predicate}.
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void updateFilteredGuardianList(Predicate<Guardian> predicate);
+
+    /** Returns true if the student-guardian link already exists. */
+    boolean hasStudentGuardianLink(StudentGuardianLink link);
+
+    /**
+     * Returns an unmodifiable list of guardians linked to {@code student}.
+     *
+     * @param student the student whose linked guardians are requested
+     * @return the guardians linked to the student, in link creation order
+     */
+    List<Guardian> getGuardiansForStudent(Student student);
+
+    /**
+     * Adds a student-guardian link. Re-adding an existing link has no effect.
+     *
+     * @param link the link to add
+     */
+    void addStudentGuardianLink(StudentGuardianLink link);
+
+    /**
+     * Removes a student-guardian link. If the link does not exist, no action is taken.
+     *
+     * @param link the link to remove
+     */
+    void removeStudentGuardianLink(StudentGuardianLink link);
 }

@@ -2,6 +2,7 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.List;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -13,7 +14,9 @@ import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.student.Student;
 import seedu.address.storage.Storage;
 
 /**
@@ -60,8 +63,34 @@ public class LogicManager implements Logic {
     }
 
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return model.getFilteredPersonList();
+    public ObservableList<Student> getFilteredStudentList() {
+        return model.getFilteredStudentList();
+    }
+
+    @Override
+    public ObservableList<Guardian> getFilteredGuardianList() {
+        return model.getFilteredGuardianList();
+    }
+
+    /** Returns the scheduled lessons. */
+    @Override
+    public ObservableList<Lesson> getLessonList() {
+        return model.getLessonList();
+    }
+
+    @Override
+    public ObservableList<Lesson> getFilteredLessonList() {
+        return model.getFilteredLessonList();
+    }
+
+    @Override
+    public void updateFilteredLessonList(java.util.function.Predicate<Lesson> predicate) {
+        model.updateFilteredLessonList(predicate);
+    }
+
+    @Override
+    public List<Guardian> getGuardiansForStudent(Student student) {
+        return model.getGuardiansForStudent(student);
     }
 
     @Override

@@ -1,59 +1,62 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
+
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Pratiksha Raghavan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/pratixksha.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/pratixksha)]
 
-* Role: Project Advisor
+* Role: Team Lead & Testing
+* Responsibilities: Ensures the testing of the project is done properly and on time.
 
-### Jane Doe
 
-<img src="images/johndoe.png" width="200px">
+### Fu Lingyu
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/tchgf.png" width="200px">
 
-* Role: Team Lead
-* Responsibilities: UI
+[[github](http://github.com/tchgf)]
 
-### Johnny Doe
+* Role: Deliverables and deadlines
+* Responsibilities: Ensures project deliverables are done on time and in the right format.
 
-<img src="images/johndoe.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+### Megan
 
-* Role: Developer
-* Responsibilities: Data
+<img src="images/megspq.png" width="200px">
 
-### Jean Doe
+[[github](https://github.com/megspq)]
 
-<img src="images/johndoe.png" width="200px">
+* Role: Documentation
+* Responsibilities: Responsible for the quality of various project documents
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
 
-### James Doe
+### Amritaa Varsni Ganapathi
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/amritaa66.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Amritaa66)] 
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Code quality
+* Responsibilities: Looks after code quality, ensures adherence to coding standards, etc.
+
+
+### Lucas Ngui
+
+<img src="images/lucasngui.png" width="200px">
+
+[[github](http://github.com/lucasngui)]
+
+* Role: Integration
+* Responsibilities: In charge of versioning the code, maintaining the code repository, and integrating various parts of the software to create a whole.

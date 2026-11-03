@@ -9,11 +9,15 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.guardian.GuardianFieldValidator;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
-import seedu.address.model.tag.Tag;
+import seedu.address.model.student.Level;
+import seedu.address.model.student.PaymentMonth;
+import seedu.address.model.student.StudentFieldValidator;
+import seedu.address.model.student.Subject;
 
 /**
  * Contains utility methods used for parsing strings in the various *Parser classes.
@@ -96,29 +100,154 @@ public class ParserUtil {
     }
 
     /**
-     * Parses a {@code String tag} into a {@code Tag}.
+     * Parses a {@code String level} into a {@code Level}.
      * Leading and trailing whitespaces will be trimmed.
      *
-     * @throws ParseException if the given {@code tag} is invalid.
+     * @throws ParseException if the given {@code level} is invalid.
      */
-    public static Tag parseTag(String tag) throws ParseException {
-        requireNonNull(tag);
-        String trimmedTag = tag.trim();
-        if (!Tag.isValidTagName(trimmedTag)) {
-            throw new ParseException(Tag.MESSAGE_CONSTRAINTS);
+    public static Level parseLevel(String level) throws ParseException {
+        requireNonNull(level);
+        String trimmedLevel = level.trim();
+        if (!Level.isValidLevel(trimmedLevel)) {
+            throw new ParseException(Level.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(trimmedTag);
+        return new Level(trimmedLevel);
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses a {@code String subject} into a {@code Subject}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code subject} is invalid.
      */
-    public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
-        requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
-        for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+    public static Subject parseSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        String trimmedSubject = subject.trim();
+        if (!Subject.isValidSubject(trimmedSubject)) {
+            throw new ParseException(Subject.MESSAGE_CONSTRAINTS);
         }
-        return tagSet;
+        return new Subject(trimmedSubject);
+    }
+
+    /**
+     * Parses {@code Collection<String> subjects} into a {@code Set<Subject>}.
+     */
+    public static Set<Subject> parseSubjects(Collection<String> subjects) throws ParseException {
+        requireNonNull(subjects);
+        final Set<Subject> subjectSet = new HashSet<>();
+        for (String subjectName : subjects) {
+            subjectSet.add(parseSubject(subjectName));
+        }
+        return subjectSet;
+    }
+
+    /** Parses a student name using the add-s validation rules. */
+    public static Name parseStudentName(String name) throws ParseException {
+        requireNonNull(name);
+        String normalizedName = StudentFieldValidator.normalizeName(name);
+        if (!StudentFieldValidator.isValidName(normalizedName)) {
+            throw new ParseException(StudentFieldValidator.NAME_MESSAGE);
+        }
+        return Name.fromStudentValue(normalizedName);
+    }
+
+    /** Parses a student phone number using the add-s validation rules. */
+    public static Phone parseStudentPhone(String phone) throws ParseException {
+        requireNonNull(phone);
+        String normalizedPhone = StudentFieldValidator.normalizePhone(phone);
+        if (!StudentFieldValidator.isValidPhone(normalizedPhone)) {
+            throw new ParseException(StudentFieldValidator.PHONE_MESSAGE);
+        }
+        return Phone.fromStudentValue(normalizedPhone);
+    }
+
+    /** Parses a student email using the add-s validation rules. */
+    public static Email parseStudentEmail(String email) throws ParseException {
+        requireNonNull(email);
+        String normalizedEmail = StudentFieldValidator.normalizeEmail(email);
+        if (!StudentFieldValidator.isValidEmail(normalizedEmail)) {
+            throw new ParseException(StudentFieldValidator.EMAIL_MESSAGE);
+        }
+        return Email.fromStudentValue(normalizedEmail);
+    }
+
+    /** Parses a student address using the add-s validation rules. */
+    public static Address parseStudentAddress(String address) throws ParseException {
+        requireNonNull(address);
+        String normalizedAddress = StudentFieldValidator.normalizeAddress(address);
+        if (!StudentFieldValidator.isValidAddress(normalizedAddress)) {
+            throw new ParseException(StudentFieldValidator.ADDRESS_MESSAGE);
+        }
+        return Address.fromStudentValue(normalizedAddress);
+    }
+
+    /** Parses a student academic level using the add-s validation rules. */
+    public static Level parseStudentLevel(String level) throws ParseException {
+        requireNonNull(level);
+        String normalizedLevel = Level.normalize(level);
+        if (!StudentFieldValidator.isValidLevel(normalizedLevel)) {
+            throw new ParseException(Level.MESSAGE_CONSTRAINTS);
+        }
+        return new Level(normalizedLevel);
+    }
+
+    /** Parses a payment month in the format YYYY-MM. */
+    public static PaymentMonth parsePaymentMonth(String paymentMonth) throws ParseException {
+        requireNonNull(paymentMonth);
+        String trimmedPaymentMonth = paymentMonth.trim();
+        if (!PaymentMonth.isValidPaymentMonth(trimmedPaymentMonth)) {
+            throw new ParseException(PaymentMonth.MESSAGE_CONSTRAINTS);
+        }
+        return new PaymentMonth(trimmedPaymentMonth);
+    }
+
+    /** Parses a student subject using the add-s validation rules. */
+    public static Subject parseStudentSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        String normalizedSubject = Subject.normalize(subject);
+        if (!StudentFieldValidator.isValidSubject(normalizedSubject)) {
+            throw new ParseException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        return new Subject(normalizedSubject);
+    }
+
+    /** Parses a guardian name using the add-g validation rules. */
+    public static Name parseGuardianName(String name) throws ParseException {
+        requireNonNull(name);
+        String normalizedName = GuardianFieldValidator.normalizeName(name);
+        if (!GuardianFieldValidator.isValidName(normalizedName)) {
+            throw new ParseException(GuardianFieldValidator.NAME_MESSAGE);
+        }
+        return Name.fromStudentValue(normalizedName);
+    }
+
+    /** Parses a guardian phone number using the add-g validation rules. */
+    public static Phone parseGuardianPhone(String phone) throws ParseException {
+        requireNonNull(phone);
+        String normalizedPhone = GuardianFieldValidator.normalizePhone(phone);
+        if (!GuardianFieldValidator.isValidPhone(normalizedPhone)) {
+            throw new ParseException(GuardianFieldValidator.PHONE_MESSAGE);
+        }
+        return Phone.fromStudentValue(normalizedPhone);
+    }
+
+    /** Parses a guardian email using the add-g validation rules. */
+    public static Email parseGuardianEmail(String email) throws ParseException {
+        requireNonNull(email);
+        String normalizedEmail = GuardianFieldValidator.normalizeEmail(email);
+        if (!GuardianFieldValidator.isValidEmail(normalizedEmail)) {
+            throw new ParseException(GuardianFieldValidator.EMAIL_MESSAGE);
+        }
+        return Email.fromStudentValue(normalizedEmail);
+    }
+
+    /** Parses a guardian address using the add-g validation rules. */
+    public static Address parseGuardianAddress(String address) throws ParseException {
+        requireNonNull(address);
+        String normalizedAddress = GuardianFieldValidator.normalizeAddress(address);
+        if (!GuardianFieldValidator.isValidAddress(normalizedAddress)) {
+            throw new ParseException(GuardianFieldValidator.ADDRESS_MESSAGE);
+        }
+        return Address.fromStudentValue(normalizedAddress);
     }
 }

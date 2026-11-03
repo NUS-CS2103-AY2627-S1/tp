@@ -32,7 +32,7 @@ import seedu.address.ui.UiManager;
  */
 public class MainApp extends Application {
 
-    public static final String VERSION = "V0.5.1";
+    public static final String VERSION = "V1.6";
 
     private static final Logger logger = LogsCenter.getLogger(MainApp.class);
     private static final Path USER_PREFS_FILE_PATH = Paths.get("preferences.json");
@@ -79,7 +79,13 @@ public class MainApp extends Application {
             initialData = addressBookOptional.orElseGet(SampleDataUtil::getSampleAddressBook);
         } catch (DataLoadingException e) {
             logger.warning("Data file at " + storage.getAddressBookFilePath() + " could not be loaded."
-                    + " Will be starting with an empty AddressBook.");
+                    + " Deleting the invalid data file and starting with an empty AddressBook.");
+            try {
+                java.nio.file.Files.deleteIfExists(storage.getAddressBookFilePath());
+            } catch (IOException deleteException) {
+                logger.warning("Could not delete invalid data file at "
+                        + storage.getAddressBookFilePath() + ": " + StringUtil.getDetails(deleteException));
+            }
             initialData = new AddressBook();
         }
 

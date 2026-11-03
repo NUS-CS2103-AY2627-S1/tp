@@ -1,12 +1,15 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# TutorTrack User Guide
 
-* Table of Contents
-{:toc}
+TutorTrack is a **desktop application for private tutors to manage students, guardians, lessons, and monthly payments**, optimized for use through a Command Line Interface (CLI) while retaining the benefits of a Graphical User Interface (GUI). It helps tutors keep each student's contact details, academic information, guardians, weekly lessons, payments, and notes in one place.
+
+<!-- * Table of Contents -->
+<page-nav-print />
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -15,166 +18,523 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest TutorTrack `.jar` file from the [TutorTrack releases page](https://github.com/AY2627S1-CS2103T-T15-3/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to a writable folder that you want to use as TutorTrack's home folder. TutorTrack needs write access to this folder to save its data and preferences.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
+1. On some systems, double-clicking the JAR file may not launch TutorTrack. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+   TutorTrack's graphical interface should appear in a few seconds.<br>
    ![Ui](images/Ui.png)
+
+   The window has the following parts:
+   * **Command box** (top): type commands here and press Enter.
+   * **Result display** (below the command box): shows the outcome of each command, or an error message.
+   * **Students panel** (left): each student card shows contact details, academic level, subjects, linked guardians,
+     the remark (if any) and the months paid for.
+   * **Guardians panel** (middle): each guardian card shows contact details.
+   * **Lessons panel** (right): shows scheduled lessons. On launch, it shows today's lessons; use `view-l` to change
+     which lessons are shown. The panel title shows the active lesson filter, e.g. `Lessons for 2026-11-01`.
+   * **Status bar** (bottom): shows where the data file is saved.
+
+   On the first launch, TutorTrack displays representative sample students, guardians,
+   links, payments, remarks, and lessons. Run `clear` if you want to remove the sample
+   data before entering your own data.
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `list-s` : Lists all students.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `list-g` : Lists all guardians.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `add-s n/Henry Tan p/91234567 e/henry@example.com a/12 ABCD Ave 3 l/Secondary 3 s/Mathematics` : Adds a student.
 
-   * `clear` : Deletes all contacts.
+   * `add-g n/Ben Tan p/92345678 e/ben.tan@gmail.com a/12 ABCD Ave 3` : Adds a guardian.
+
+   * `edit-s 1 p/98765432` : Updates the phone number of the first student.
+
+   * `edit-g 1 a/25 Happy Road` : Updates the address of the first guardian.
+
+   * `link-g 2 g/1` : Links the second student to the first guardian.
+
+   * `unlink-g 2 g/1` : Unlinks the second student from the first guardian.
+
+   * `view-l d/2026-11-01` : Shows the lessons on 1 November 2026.
+
+   * `filter unpaid/2026-10` : Shows students who have not paid for October 2026.
+
+   * `mark-paid 1 m/2026-10` : After the `filter` above, marks the first displayed (unpaid) student as paid for
+     October 2026.
 
    * `exit` : Exits the app.
 
-1. Refer to the [Features](#features) section below for details of each command.
+1. Refer to the [Features](#features) section below for details of each command, or to the
+   [Command summary](#command-summary) for a quick reference.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+<box type="info" seamless>
 
-**:information_source: Notes about the command format:**<br>
+**Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `add-s n/NAME`, replace `NAME` with a value such as `John Doe`.
 
 * Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+  For example, `filter [l/LEVEL]` can be used as `filter l/JC 1` or as part of a filter with other criteria.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+* Items followed by `...` can appear zero or more times.<br>
+  For example, the additional `[s/SUBJECT]...` parameters in `add-s` can be omitted or repeated, such as
+  `s/Mathematics s/Physics`.
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+* Prefixed parameters can be in any order.<br>
+  For example, `add-g n/NAME p/PHONE e/EMAIL a/ADDRESS` can be entered as
+  `add-g p/PHONE n/NAME a/ADDRESS e/EMAIL`.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+* Command words are case-insensitive. For example, `list-s`, `List-s`, `lIst-S`,
+  and `LIST-S` are equivalent. Parameter prefixes such as `n/` and `d/` remain
+  case-sensitive.
+
+* For `set-remark-s` and `clear-remark-s`, the index must come first. In `set-remark-s`, everything after the index is remark text; no prefix is needed.
+
+* Extraneous parameters for `help`, `exit`, and `clear` are ignored.<br>
+  For example, `help 123` is interpreted as `help`. In contrast, `list-s`, `list-g` and `sort-s` reject any
+  extra parameters.
+
+* `INDEX`, `STUDENT_INDEX` and `GUARDIAN_INDEX` refer to the index number shown in the currently displayed list
+  (which may be a filtered or searched list), and must be a positive integer such as 1, 2, 3, ...
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+</box>
+
+### Accepted parameter values
+
+Parameter | Constraints | Example
+----------|-------------|--------
+`NAME` | 1-100 characters. Letters, digits, spaces, periods, hyphens, apostrophes and slashes, with at least one letter or digit. | `Mary-Jane O'Connor`, `John s/o Raj`
+`PHONE` | 3-15 digits, optionally starting with `+`. | `91234567`, `+6591234567`
+`EMAIL` | `local-part@domain`, with no spaces and a domain such as `example.com`. | `henry@example.com`
+`ADDRESS` | 1-200 characters. Letters, digits, spaces and the punctuation `, . # - / ( ) '`. | `12 ABCD Ave 3, #04-15`
+`LEVEL` | 1-50 characters. Letters, digits, spaces and parentheses. | `Secondary 3 (Express)`
+`SUBJECT` | 1-50 characters. Letters, digits, spaces, hyphens and parentheses. | `A-Level (H2)`
+`REMARK` | Up to 300 characters, not blank, on a single line. | `Practise fractions`
+`YYYY-MM` | A month of a year, with a two-digit month from `01` to `12`. | `2026-10`
+`YYYY-MM-DD` | A valid calendar date. | `2026-11-01`
+`HH:MM` | A valid 24-hour time. | `14:00`
+
+Two students (or two guardians) are treated as the same person if they have the same name, ignoring
+capitalization and extra spaces, and the same phone number.
 
 ### Viewing help: `help`
 
-Shows a message explaining how to access the help page.
+Opens a help window with a link to this user guide. Click `Copy URL` to copy the link. The help window can also be
+opened from the `Help` menu or by pressing `F1`.
 
 ![help message](images/helpMessage.png)
 
 Format: `help`
 
+### Adding a student: `add-s`
 
-### Adding a person: `add`
+Adds a student with contact and academic details to TutorTrack.
 
-Adds a person to the address book.
+Format: `add-s n/NAME p/PHONE e/EMAIL a/ADDRESS l/LEVEL s/SUBJECT [s/SUBJECT]...`
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
-
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
-
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
-
-### Listing all persons: `list`
-
-Shows a list of all persons in the address book.
-
-Format: `list`
-
-### Editing a person: `edit`
-
-Edits an existing person in the address book.
-
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
-
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+* All fields are required, and at least one `s/SUBJECT` must be provided.
+* Additional `s/SUBJECT` parameters may be provided.
+* The parameters can be entered in any order.
+* A student with the same name (ignoring capitalization and extra spaces) and phone number cannot be added again.
+* Adding a student preserves any active student filter or search. The new student is displayed only if it matches it.
+* See [Accepted parameter values](#accepted-parameter-values) for the allowed format of each field.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* `add-s n/Henry Tan p/91234567 e/henry@example.com a/12 ABCD Ave 3 l/Secondary 3 s/Mathematics s/Physics`
+* `add-s n/Mary-Jane O'Connor p/+6591234567 e/mary@example.com a/12 ABCD Ave 3, #04-15 l/JC 1 s/A-Level (H2)`
 
-### Locating persons by name: `find`
+### Adding a guardian: `add-g`
 
-Finds persons whose names contain any of the given keywords.
+Adds a guardian's contact details to TutorTrack.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+Format: `add-g n/NAME p/PHONE e/EMAIL a/ADDRESS`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
-
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
-
-### Deleting a person: `delete`
-
-Deletes the specified person from the address book.
-
-Format: `delete INDEX`
-
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+* All fields are required and must be provided exactly once.
+* The parameters can be entered in any order.
+* Adding a guardian does not link them to a student; use [`link-g`](#linking-a-guardian-to-a-student-link-g) separately.
+* A guardian with the same name (ignoring capitalization and extra spaces) and phone number cannot be added again.
+* Adding a guardian preserves any active guardian search. The new guardian is displayed only if it matches the search.
+* See [Accepted parameter values](#accepted-parameter-values) for the allowed format of each field.
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `add-g n/Ben Tan p/92345678 e/ben.tan@gmail.com a/12 ABCD Ave 3`
+* `add-g n/Billie O'Connor p/+6598765432 e/billie@example.com a/25 Happy Road`
+
+### Listing all students: `list-s`
+
+Shows a list of all students in TutorTrack, clearing any active `filter` or `find-s` search.
+
+Format: `list-s`
+
+### Listing all guardians: `list-g`
+
+Shows a list of all guardians in TutorTrack, clearing any active `find-g` search.
+
+Format: `list-g`
+
+### Editing a student: `edit-s`
+
+Edits selected details of an existing student. The index refers to the displayed student list, including a filtered list.
+
+Format: `edit-s INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [l/LEVEL] [s/SUBJECT]...`
+
+* `INDEX` must be a positive integer within the displayed student list.
+* At least one field must be provided. Fields that are not provided keep their current values.
+* If `s/` is provided, it replaces the student's complete subject list. Retype existing subjects to keep them.
+* A student must always have at least one subject.
+* The edited student must not duplicate another student by name and phone number.
+* The student's remark, payment history, guardian links and lessons are kept, and are shown with the updated details.
+
+Examples:
+* `edit-s 2 p/98765432 l/JC 2`
+* `edit-s 1 s/Mathematics s/Physics`
+
+### Editing a guardian: `edit-g`
+
+Edits selected details of an existing guardian. The index refers to the displayed guardian list, including a filtered list.
+
+Format: `edit-g INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS]`
+
+* `INDEX` must be a positive integer within the displayed guardian list.
+* At least one field must be provided. Fields that are not provided keep their current values.
+* The edited guardian must not duplicate another guardian by name and phone number.
+
+Example:
+* `edit-g 1 a/25 Happy Road e/ben.tan@example.com`
+
+### Removing a student: `remove-s`
+
+Removes a specified student from TutorTrack.
+
+Format: `remove-s INDEX`
+
+* Removes the student at the specified `INDEX`. The index refers to the
+index number shown in the currently displayed student list.
+* The index **must be a positive integer** 1, 2, 3, ..., and must not exceed the number
+of students in the displayed list.
+* Removing a student also removes the student's lessons and all associated student-guardian links, but the
+associated guardian records are not deleted.
+
+Examples:
+* `remove-s 2` removes the 2nd student in the currently displayed student list.
+* `remove-s 1` removes the 1st student in the currently displayed student list, even if it is filtered.
+
+### Removing a guardian: `remove-g`
+
+Removes a specified guardian from TutorTrack.
+
+Format: `remove-g INDEX`
+
+* Removes the guardian at the specified `INDEX`. The index refers to the
+index number shown in the currently displayed guardian list.
+* The index **must be a positive integer** 1, 2, 3, ..., and must not exceed the number
+  of guardians in the displayed list.
+* Removing a guardian also removes all associated student-guardian links, but the associated
+  student record is not deleted.
+
+Examples:
+* `remove-g 2` removes the 2nd guardian in the currently displayed guardian list.
+* `remove-g 1` removes the 1st guardian in the currently displayed guardian list, even if it is filtered
+
+### Linking a guardian to a student: `link-g`
+
+Links an existing guardian to an existing student.
+
+Format: `link-g STUDENT_INDEX g/GUARDIAN_INDEX`
+
+* Both indexes are required and must be positive integers within their respective displayed lists.
+* The student and guardian must already exist.
+* If the student and guardian are already linked, TutorTrack shows an error and no duplicate link is created.
+* After a successful link, the student is highlighted and the guardian appears in the student card's `Guardians:` line.
+* A student can be linked to multiple guardians, and a guardian can be linked to multiple students.
+* Links are saved with TutorTrack and restored when the application is restarted.
+* If a linked student or guardian is edited, the updated details are shown everywhere that record is linked.
+
+Example:
+* `link-g 2 g/1` links Henry Tan to Billie O'Connor in the sample data:
+
+  ![Henry Tan's card after link-g 2 g/1](images/linkGuardianResult.png)
+
+### Unlinking a guardian from a student: `unlink-g`
+
+Unlinks an existing guardian from an existing student without deleting either
+record.
+
+Format: `unlink-g STUDENT_INDEX g/GUARDIAN_INDEX`
+
+* Both indexes are required and must be positive integers within their respective displayed lists.
+* The student and guardian must already exist and currently be linked.
+* Removing a link does not remove either record or any of their other links.
+* If the relationship does not exist, TutorTrack reports the selected student and guardian names.
+
+Example:
+* `unlink-g 2 g/2` unlinks Henry Tan from John Tan in the sample data.
+
+### Locating students by name: `find-s`
+
+Finds students whose names contain any of the given keywords.
+
+Format: `find-s KEYWORD [MORE_KEYWORDS]`
+
+* The search is case-insensitive.
+* Keyword order does not matter.
+* The search considers only student names.
+* A keyword matches a name if any word in the name starts with it, e.g. `ali` matches `Alice Tan`.
+* Students matching at least one keyword are returned (an `OR` search).
+* Matching parts of names are highlighted in the results.
+* The active search is shown above the student list, e.g. `Search: alice lucy`, and remains visible while other
+  commands are executed. It is cleared by `list-s` or replaced by a new `find-s` or `filter` command.
+
+Examples:
+* `find-s alex david` returns matching students named Alex or David.
+* `find-s alice lucy` returns `Alice Tan` and `Lucy Lim` from the sample data:
+
+  ![Students panel after find-s alice lucy](images/findStudentResult.png)
+
+### Locating guardians by name: `find-g`
+
+Finds guardians whose names contain any of the given keywords.
+
+Format: `find-g KEYWORD [MORE_KEYWORDS]`
+
+* The search is case-insensitive.
+* Keyword order does not matter.
+* The search considers only guardian names.
+* A keyword matches a name if any word in the name starts with it, e.g. `ta` matches `John Tan`.
+* Guardians matching at least one keyword are returned (an `OR` search).
+* Matching parts of names are highlighted in the results.
+* The active search is shown above the guardian list, e.g. `Search: tan`, and remains visible while other commands
+  are executed. It is cleared by `list-g` or replaced by a new `find-g` command.
+
+Examples:
+* `find-g alex david` returns matching guardians named Alex or David.
+* `find-g tan` returns `John Tan` from the sample data:
+
+  ![Guardians panel after find-g tan](images/findGuardianResult.png)
+
+### Filtering students: `filter`
+
+Shows only the students who match all of the given criteria. The guardian list is not changed.
+
+Format: `filter [l/LEVEL] [s/SUBJECT]... [paid/YYYY-MM] [unpaid/YYYY-MM]`
+
+* At least one criterion must be provided.
+* `l/LEVEL` shows students at that academic level. The match ignores case and extra spaces, e.g. `jc 1` matches `JC 1`.
+* `s/SUBJECT` shows students who take that subject. If several subjects are given, a student must take **all** of them.
+* `paid/YYYY-MM` shows students who have been marked as paid for that month using `mark-paid`.
+* `unpaid/YYYY-MM` shows students who have **not** been marked as paid for that month.
+* `l/`, `paid/` and `unpaid/` can each be given at most once.
+* Any other parameter, such as `n/` or a misspelt `unpiad/`, is rejected with an `Unknown parameter` error, and the
+  displayed list is not changed.
+* Student indexes in later commands, such as `mark-paid` or `edit-s`, refer to the filtered list.
+* The active filter is shown above the student list, e.g. `Filtered: Unpaid: Oct 2026`, and remains visible while
+  other commands, such as `sort-s`, are executed. It is cleared by `list-s` or replaced by a new `filter` or `find-s`
+  command.
+
+Examples:
+* `filter l/JC 1 s/Mathematics` shows JC 1 students who take Mathematics.
+* `filter unpaid/2026-10` shows students who have not paid for October 2026.
+* `filter l/Secondary 3 paid/2026-09 unpaid/2026-10` shows Secondary 3 students who paid for September 2026 but not for October 2026.
+
+![Students panel after filter unpaid/2026-10](images/filterResult.png)
+
+### Sorting students: `sort-s`
+
+Sorts the displayed student list by name in ascending order. Any active filter or search is kept.
+
+Format: `sort-s`
+
+### Setting a student remark: `set-remark-s`
+
+Adds or updates a remark for a specified student.
+
+Format: `set-remark-s INDEX REMARK`
+
+* `INDEX` must be a positive integer within the currently displayed student list.
+* `REMARK` must be nonblank, on a single line, and cannot exceed 300 characters.
+* Each student has one remark; setting a new remark replaces the previous remark, if any.
+* The remark is shown on the student's card as `Remark: ...`.
+
+Examples:
+
+Using the sample data, where Henry Tan is student 2:
+* `set-remark-s 2 Practise fractions before the next lesson` shows `Remark: Practise fractions before the next lesson`
+  on Henry's card.
+* `set-remark-s 2 Bring the algebra worksheet on Friday` then replaces Henry's previous remark with the new remark.
+
+### Clearing a student remark: `clear-remark-s`
+
+Removes a student's remark.
+
+Format: `clear-remark-s INDEX`
+
+* `INDEX` must be a positive integer within the currently displayed student list.
+* Clearing a remark hides the remark field on the student's information card.
+* If the student has no remark, TutorTrack shows an error.
+
+Example:
+* `clear-remark-s 1` clears the remark of the first displayed student, and hides the remark line on their card.
+
+### Marking a student's payment as paid: `mark-paid`
+
+Records that a student has paid for a given month of a year.
+
+Format: `mark-paid INDEX m/YYYY-MM`
+
+* Marks the student at the specified `INDEX` as paid for the month `YYYY-MM`. The index refers to the
+index number shown in the currently displayed student list.
+* The index **must be a positive integer** 1, 2, 3, ..., and must not exceed the number
+of students in the displayed list.
+* The month must be in the format `YYYY-MM`, with a two-digit month from `01` to `12`, e.g. `2026-10`.
+* A student who is already marked as paid for that month is left unchanged, and an error is shown.
+* Parameters other than `m/` are rejected with an `Unknown parameter` error.
+* Each student's card shows the months they have paid for at the bottom of the card, most recent first, e.g. `Paid: Oct 2026, Sep 2026`. A student with no recorded payments shows `Paid: None`.
+* Only the 3 most recent months are shown. If there are more, click the `+N more` button beside them to show all months, and click `Show less` to hide the older months again.
+
+![A student card with all paid months shown](images/paidMonthsExpanded.png)
+
+Examples:
+* `mark-paid 2 m/2026-10` marks the 2nd student in the displayed student list as paid for October 2026.
+* `mark-paid 1 m/2026-11` marks the 1st student in the displayed student list as paid for November 2026.
+
+### Scheduling lessons: `add-l`
+
+Adds a weekly series of lessons for the student at the specified index in the
+displayed student list. Each lesson has the same start time and duration, and
+the dates are one week apart.
+
+Format: `add-l INDEX d/YYYY-MM-DD t/HH:MM len/LENGTH(MINUTES) w/WEEKS`
+
+The `d/`, `t/`, `len/`, and `w/` prefixes are required and may each be specified
+only once. The `len/` prefix can be shortened to `l/`. `len/LENGTH(MINUTES)` (or
+`l/LENGTH(MINUTES)`) and `w/WEEKS` must be positive integers. `w/WEEKS` must
+not exceed 52. Dates and times must be valid, and a lesson cannot overlap an
+existing lesson (of any student) or another lesson in the new series. If a
+lesson is longer than 4 hours, the lessons are still added, but TutorTrack shows
+a warning in case the length was entered by mistake.
+
+Example:
+
+`add-l 1 d/2026-11-01 t/14:00 len/60 w/4`
+
+This schedules four one-hour lessons for the first displayed student, starting
+at 2:00 PM on 1 November 2026. If a conflict is found, no lessons from the
+series are added and the conflicting lesson is shown in the error message.
+
+The active lesson filter is kept after adding lessons. For example, running
+`view-l stu/4` followed by `add-l 4 d/2026-11-14 t/18:00 len/120 w/3` shows the
+new lessons together with the student's existing lessons. To see new lessons
+that do not match the filter, use [`view-l`](#viewing-lessons-view-l).
+
+### Viewing lessons: `view-l`
+
+Shows lessons for a selected date or student. The lesson list is sorted by date
+and start time. When TutorTrack starts, the lessons panel shows today's lessons.
+
+Formats:
+
+* `view-l` — shows all lessons and clears the active lesson filter.
+* `view-l d/YYYY-MM-DD` — shows lessons that take place on the specified date.
+* `view-l stu/INDEX` — shows lessons for the student at the specified displayed
+  student index.
+
+The date must use the `YYYY-MM-DD` format. `d/` and `stu/` may not be used
+together, and each may be specified only once. `INDEX` must be a positive
+integer within the currently displayed student list. Extra arguments,
+unknown parameters (e.g. `x/`), and invalid dates or indexes are rejected
+without changing the lesson filter.
+
+If lessons are filtered by student and that student is then edited with
+`edit-s`, the filter follows the edited student, so their lessons remain shown.
+
+A lesson is shown for every date it overlaps. For example, a lesson beginning
+late on 1 November and ending after midnight on 2 November appears when either
+date is selected.
+
+The title of the lessons panel shows the active filter, such as `Lessons for 2026-11-01` or
+`Lessons for Lucy Lim`, and changes back to `Lessons` when all lessons are shown.
+
+For example, `view-l stu/3` on the sample data shows Lucy Lim's lessons, including one that ends after midnight:
+
+![Lessons panel after view-l stu/3](images/viewLessonsByStudent.png)
+
+Examples:
+
+* `view-l d/2026-11-01`
+* `view-l stu/1`
+* `view-l`
+
+### Removing a lesson: `remove-l`
+
+Removes one lesson from TutorTrack using its displayed lesson index.
+
+Format: `remove-l INDEX`
+
+* `INDEX` must be a positive integer and must not exceed the number of lessons
+  currently displayed.
+* The index refers to the displayed lesson list, including a filtered list.
+* Only the selected lesson is removed; other lessons in the same weekly series
+  remain unchanged.
+
+Example:
+
+`remove-l 2`
+
+This removes the second lesson in the currently displayed lesson list. If the
+index is invalid, TutorTrack shows an error and no lesson is removed.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Clears all students, guardians, lessons, and student-guardian links from TutorTrack, including the sample data.
 
 Format: `clear`
 
 ### Exiting the program: `exit`
 
-Exits the program.
+Exits the program. You can also use the `File` > `Exit` menu.
 
 Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+TutorTrack automatically saves data after every command. You do not need to save manually.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+TutorTrack data is saved automatically as a JSON file at
+`[JAR file location]/data/addressbook.json`.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+<box type="warning" seamless>
 
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
+**Caution:**
+If the data file is invalid, TutorTrack **deletes it** and starts with an empty data set at the next run. Back up the file before making any manual changes.<br>
+If the data file is missing, TutorTrack starts with the sample data instead.
+</box>
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
+**Q**: How do I remove the sample data?<br>
+**A**: Run [`clear`](#clearing-all-entries-clear). The sample data is not shown again unless the data file is deleted.
+
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install TutorTrack on the other computer and replace its data file with the data file from your previous TutorTrack home folder.
+
+**Q**: Why does a command act on the wrong student?<br>
+**A**: Indexes refer to the currently displayed list. If a [`filter`](#filtering-students-filter) or
+[`find-s`](#locating-students-by-name-find-s) is active, the label above the student list shows it. Run `list-s` to
+show all students again.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -182,17 +542,34 @@ _Details coming soon ..._
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
 2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+3. **On macOS**, using fullscreen mode for secondary dialogs such as the Help dialog may cause unexpected behaviour.
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+Action     | Format, Examples
+-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Help**   | `help`
+**Add student** | `add-s n/NAME p/PHONE e/EMAIL a/ADDRESS l/LEVEL s/SUBJECT [s/SUBJECT]...` <br> e.g., `add-s n/Henry Tan p/91234567 e/henry@example.com a/12 ABCD Ave 3 l/Secondary 3 s/Mathematics s/Physics`
+**Add guardian** | `add-g n/NAME p/PHONE e/EMAIL a/ADDRESS` <br> e.g., `add-g n/Ben Tan p/92345678 e/ben.tan@gmail.com a/12 ABCD Ave 3`
+**List students** | `list-s`
+**List guardians** | `list-g`
+**Edit student** | `edit-s INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [l/LEVEL] [s/SUBJECT]...`<br> e.g., `edit-s 2 p/98765432 l/JC 2`
+**Edit guardian** | `edit-g INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS]`<br> e.g., `edit-g 1 a/25 Happy Road`
+**Remove student** | `remove-s INDEX`<br> e.g., `remove-s 2`
+**Remove guardian** | `remove-g INDEX`<br> e.g., `remove-g 1`
+**Link guardian** | `link-g STUDENT_INDEX g/GUARDIAN_INDEX`<br> e.g., `link-g 2 g/1`
+**Unlink guardian** | `unlink-g STUDENT_INDEX g/GUARDIAN_INDEX`<br> e.g., `unlink-g 2 g/2`
+**Find student** | `find-s KEYWORD [MORE_KEYWORDS]`<br> e.g., `find-s alice lucy`
+**Find guardian** | `find-g KEYWORD [MORE_KEYWORDS]`<br> e.g., `find-g tan`
+**Filter** | `filter [l/LEVEL] [s/SUBJECT]... [paid/YYYY-MM] [unpaid/YYYY-MM]`<br> e.g., `filter l/JC 1 unpaid/2026-10`
+**Sort students** | `sort-s`
+**Set student remark** | `set-remark-s INDEX REMARK`<br> e.g., `set-remark-s 1 Practise fractions before the next lesson`
+**Clear student remark** | `clear-remark-s INDEX`<br> e.g., `clear-remark-s 1`
+**Mark paid** | `mark-paid INDEX m/YYYY-MM`<br> e.g., `mark-paid 1 m/2026-10`
+**Schedule lessons** | `add-l INDEX d/YYYY-MM-DD t/HH:MM len/LENGTH(MINUTES) w/WEEKS` <br> e.g., `add-l 1 d/2026-11-01 t/14:00 len/60 w/4`
+**View lessons** | `view-l [d/YYYY-MM-DD \| stu/INDEX]`<br> e.g., `view-l d/2026-11-01`
+**Remove lesson** | `remove-l INDEX`<br> e.g., `remove-l 2`
+**Clear**  | `clear`
+**Exit** | `exit`

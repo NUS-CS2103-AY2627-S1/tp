@@ -1,0 +1,75 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_PAID;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_UNPAID;
+
+import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.logic.Messages;
+import seedu.address.model.Model;
+import seedu.address.model.student.StudentMatchesFilterPredicate;
+
+/**
+ * Filters the student list to the students who match the given level, subjects and payment status.
+ * The guardian list is not changed.
+ */
+public class FilterCommand extends Command {
+
+    public static final String COMMAND_WORD = "filter";
+
+    public static final String MESSAGE_USAGE = "Usage: " + COMMAND_WORD + " "
+            + "[" + PREFIX_LEVEL + "LEVEL] "
+            + "[" + PREFIX_SUBJECT + "SUBJECT]... "
+            + "[" + PREFIX_PAID + "YYYY-MM] "
+            + "[" + PREFIX_UNPAID + "YYYY-MM]";
+    public static final String MESSAGE_NO_FILTER = "At least one field to filter by must be provided.\n"
+            + MESSAGE_USAGE;
+
+    private final StudentMatchesFilterPredicate predicate;
+
+    /**
+     * Creates a FilterCommand that shows only the students who match {@code predicate}.
+     */
+    public FilterCommand(StudentMatchesFilterPredicate predicate) {
+        requireNonNull(predicate);
+        this.predicate = predicate;
+    }
+
+    @Override
+    public CommandResult execute(Model model) {
+        requireNonNull(model);
+        model.updateFilteredStudentList(predicate);
+
+        int matchCount = model.getFilteredStudentList().size();
+        String filterDescription = "Filtered: " + predicate.getFilterDescription();
+        if (matchCount == 0) {
+            return CommandResult.withStudentFilterDescription(Messages.MESSAGE_NO_STUDENTS_MATCH_FILTER,
+                    filterDescription);
+        }
+        return CommandResult.withStudentFilterDescription(
+                String.format(Messages.MESSAGE_STUDENTS_LISTED_OVERVIEW, matchCount), filterDescription);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof FilterCommand otherFilterCommand)) {
+            return false;
+        }
+
+        return predicate.equals(otherFilterCommand.predicate);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("predicate", predicate)
+                .toString();
+    }
+}
