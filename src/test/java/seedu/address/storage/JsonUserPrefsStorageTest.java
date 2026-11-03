@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -43,6 +44,14 @@ public class JsonUserPrefsStorageTest {
         assertThrows(DataLoadingException.class, () -> readUserPrefs("NotJsonFormatUserPrefs.json"));
     }
 
+    @Test
+    public void readUserPrefs_nullRoot_throwsDataLoadingException() throws Exception {
+        Path file = testFolder.resolve("null-prefs.json");
+        Files.writeString(file, "null");
+        assertThrows(DataLoadingException.class, () -> new JsonUserPrefsStorage(file).readUserPrefs());
+        assertEquals("null", Files.readString(file));
+    }
+
     private Path addToTestDataPathIfNotNull(String userPrefsFileInTestDataFolder) {
         return userPrefsFileInTestDataFolder != null
                 ? TEST_DATA_FOLDER.resolve(userPrefsFileInTestDataFolder)
@@ -60,6 +69,7 @@ public class JsonUserPrefsStorageTest {
     public void readUserPrefs_valuesMissingFromFile_defaultValuesUsed() throws DataLoadingException {
         UserPrefs actual = readUserPrefs("EmptyUserPrefs.json").get();
         assertEquals(new UserPrefs(), actual);
+        assertFalse(actual.isPrivacyModeEnabled());
     }
 
     @Test
@@ -103,6 +113,7 @@ public class JsonUserPrefsStorageTest {
 
         UserPrefs original = new UserPrefs();
         original.setGuiSettings(new GuiSettings(1200, 200, 0, 2));
+        original.setPrivacyModeEnabled(true);
 
         Path pefsFilePath = testFolder.resolve("TempPrefs.json");
         JsonUserPrefsStorage jsonUserPrefsStorage = new JsonUserPrefsStorage(pefsFilePath);
@@ -114,6 +125,7 @@ public class JsonUserPrefsStorageTest {
 
         //Try saving when the file exists
         original.setGuiSettings(new GuiSettings(5, 5, 5, 5));
+        original.setPrivacyModeEnabled(false);
         jsonUserPrefsStorage.saveUserPrefs(original);
         readBack = jsonUserPrefsStorage.readUserPrefs().get();
         assertEquals(original, readBack);

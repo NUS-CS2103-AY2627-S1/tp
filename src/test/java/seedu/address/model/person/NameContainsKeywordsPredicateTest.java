@@ -54,6 +54,15 @@ public class NameContainsKeywordsPredicateTest {
         // Mixed-case keywords
         predicate = new NameContainsKeywordsPredicate(List.of("aLIce", "bOB"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Partial keyword
+        predicate = new NameContainsKeywordsPredicate(List.of("lic"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Blank keywords are ignored
+        predicate = new NameContainsKeywordsPredicate(List.of("", " ", "lic"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+        assertEquals(1, predicate.score(new PersonBuilder().withName("Alice Bob").build()));
     }
 
     @Test
@@ -70,6 +79,15 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
                 .withEmail("alice@email.com").withAddress("Main Street").build()));
+    }
+
+    @Test
+    public void score_repeatedKeywordWithDifferentCase_countsOnce() {
+        NameContainsKeywordsPredicate predicate =
+                new NameContainsKeywordsPredicate(List.of("alice", "ALICE", "bob"));
+        Person alice = new PersonBuilder().withName("Alice").build();
+
+        assertEquals(1, predicate.score(alice));
     }
 
     @Test

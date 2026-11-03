@@ -29,6 +29,10 @@ public class NameTest {
         assertFalse(Name.isValidName(" ")); // spaces only
         assertFalse(Name.isValidName("^")); // only non-alphanumeric characters
         assertFalse(Name.isValidName("peter*")); // contains non-alphanumeric characters
+        assertFalse(Name.isValidName("'Peter")); // starts with punctuation
+        assertFalse(Name.isValidName("Peter-")); // ends with punctuation
+        assertFalse(Name.isValidName("Peter--Parker")); // adjacent punctuation
+        assertFalse(Name.isValidName("Peter- Parker")); // punctuation not between name segments
 
         // valid name
         assertTrue(Name.isValidName("peter jack")); // alphabets only
@@ -36,6 +40,24 @@ public class NameTest {
         assertTrue(Name.isValidName("peter the 2nd")); // alphanumeric characters
         assertTrue(Name.isValidName("Capital Tan")); // with capital letters
         assertTrue(Name.isValidName("David Roger Jackson Ray Jr 2nd")); // long names
+        assertTrue(Name.isValidName("O'Connor")); // apostrophe
+        assertTrue(Name.isValidName("O’Connor")); // typographic apostrophe
+        assertTrue(Name.isValidName("Anne-Marie")); // hyphen
+        assertTrue(Name.isValidName("Mary-Anne O'Connor")); // punctuation and spaces
+        assertTrue(Name.isValidName("A".repeat(Name.MAX_LENGTH - 1)));
+        assertTrue(Name.isValidName("A".repeat(Name.MAX_LENGTH)));
+        assertFalse(Name.isValidName("A".repeat(Name.MAX_LENGTH + 1)));
+    }
+
+    @Test
+    public void hasSameIdentityAs_ignoresCaseAndRepeatedSpacesWithoutChangingEquality() {
+        Name name = new Name("Alpha Nearmatch");
+        Name variant = new Name("alpha  nearmatch");
+        assertTrue(name.hasSameIdentityAs(variant));
+        assertTrue(variant.hasSameIdentityAs(name));
+        assertFalse(name.equals(variant));
+        assertFalse(name.hasSameIdentityAs(new Name("Alpha Near Match")));
+        assertThrows(NullPointerException.class, () -> name.hasSameIdentityAs(null));
     }
 
     @Test

@@ -1,12 +1,15 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -16,10 +19,12 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.tag.Tag;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "65+1234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
@@ -33,9 +38,41 @@ public class JsonAdaptedPersonTest {
             .collect(Collectors.toList());
 
     @Test
+    public void toModelType_pinnedRecordWithoutGuardianFields_preservesPin() throws Exception {
+        JsonAdaptedPerson adapted = new JsonAdaptedPerson("Alice", "91234567", "alice@example.com", "One",
+                java.util.List.of(), null, null, null, null, true);
+        var person = adapted.toModelType();
+        org.junit.jupiter.api.Assertions.assertTrue(person.isPinned());
+        assertEquals(seedu.address.model.person.GuardianContact.EMPTY, person.getGuardianContact());
+    }
+
+    @Test
     public void toModelType_validPersonDetails_returnsPerson() throws Exception {
         JsonAdaptedPerson person = new JsonAdaptedPerson(BENSON);
         assertEquals(BENSON, person.toModelType());
+    }
+
+    @Test
+    public void toModelType_legacyGuardianName_preservesPreviouslyValidValue() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                VALID_TAGS, null, null, null, null, "Mary - Anne", null, null);
+
+        assertEquals("Mary - Anne", person.toModelType().getGuardianContact().name());
+    }
+
+    @Test
+    public void toModelType_missingPinnedState_defaultsToUnpinned() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(
+                VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, VALID_TAGS);
+
+        assertFalse(person.toModelType().isPinned());
+    }
+
+    @Test
+    public void toModelType_pinnedPerson_preservesPinnedState() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(new PersonBuilder(BENSON).withPinned(true).build());
+
+        assertTrue(person.toModelType().isPinned());
     }
 
     @Test
@@ -105,6 +142,85 @@ public class JsonAdaptedPersonTest {
         JsonAdaptedPerson person =
                 new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, invalidTags);
         assertThrows(IllegalValueException.class, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_legacyCamelCaseTag_migratesTag() throws Exception {
+        List<JsonAdaptedTag> legacyTags = List.of(new JsonAdaptedTag("owesMoney"),
+                new JsonAdaptedTag("NeedsFollowUp"), new JsonAdaptedTag("VIP"));
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, legacyTags);
+
+        assertEquals(Set.of(new Tag("owes-money"), new Tag("needs-follow-up"), new Tag("vip")),
+                person.toModelType().getTags());
+    }
+
+    @Test
+    public void toModelType_duplicateTags_throwsIllegalValueException() {
+        List<JsonAdaptedTag> duplicateTags = List.of(new JsonAdaptedTag("friends"),
+                new JsonAdaptedTag("friends"));
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, duplicateTags);
+
+        assertThrows(IllegalValueException.class, Tag.MESSAGE_DUPLICATE_TAGS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_moreThanTenTags_loadsLegacyPerson() throws Exception {
+        List<JsonAdaptedTag> tags = List.of(new JsonAdaptedTag("one"), new JsonAdaptedTag("two"),
+                new JsonAdaptedTag("three"), new JsonAdaptedTag("four"), new JsonAdaptedTag("five"),
+                new JsonAdaptedTag("six"), new JsonAdaptedTag("seven"), new JsonAdaptedTag("eight"),
+                new JsonAdaptedTag("nine"), new JsonAdaptedTag("ten"), new JsonAdaptedTag("eleven"));
+        JsonAdaptedPerson person =
+                new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, tags);
+
+        assertEquals(11, person.toModelType().getTags().size());
+    }
+
+    @Test
+    public void toModelType_partialLegacyStudentFields_doNotInventEnrollment() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_TAGS, null, List.of("Math"), "30", null);
+
+        assertTrue(person.toModelType().getEnrollments().isEmpty());
+    }
+
+    @Test
+    public void toModelType_invalidStudentId_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_TAGS, null, null, null, null, null, null, null, false, "S-1");
+
+        assertThrows(IllegalValueException.class, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_enrollmentForDifferentStudent_throwsIllegalValueException() {
+        String personId = "S-00000000-0000-0000-0000-000000000001";
+        String otherStudentId = "S-00000000-0000-0000-0000-000000000002";
+        JsonAdaptedLesson enrollment = new JsonAdaptedLesson(null, "25", null, "PAID",
+                null, null, null, null, "C001", null, null,
+                "E-00000000-0000-0000-0000-000000000001", otherStudentId);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_TAGS, List.of(enrollment), null, null, null,
+                null, null, null, false, personId);
+
+        assertThrows(IllegalValueException.class, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_duplicateEnrollmentIds_throwsIllegalValueException() {
+        String personId = "S-00000000-0000-0000-0000-000000000001";
+        String enrollmentId = "E-00000000-0000-0000-0000-000000000001";
+        JsonAdaptedLesson first = new JsonAdaptedLesson(null, "25", null, "UNPAID",
+                null, null, null, null, "C001", null, null, enrollmentId, personId);
+        JsonAdaptedLesson exactDuplicate = new JsonAdaptedLesson(null, "25", null, "UNPAID",
+                null, null, null, null, "C001", null, null, enrollmentId, personId);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, VALID_TAGS, List.of(first, exactDuplicate), null, null, null,
+                null, null, null, false, personId);
+
+        assertThrows(IllegalValueException.class, JsonAdaptedPerson.MESSAGE_DUPLICATE_ENROLLMENT_ID,
+                person::toModelType);
     }
 
 }

@@ -1,0 +1,383 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.scene.control.Label;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import seedu.address.model.lesson.ClassDetails;
+import seedu.address.model.lesson.Cost;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonTiming;
+import seedu.address.model.lesson.OneOffLessonSchedule;
+import seedu.address.model.lesson.PaymentStatus;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+
+/**
+ * Tests the actual student card and its optional fields using the JavaFX application thread.
+ */
+public class PersonCardTest {
+
+    @Test
+    public void formatClassBadge_oneOffSchedule_displaysExactDate() {
+        Lesson oneOff = new Lesson(new Subject("Math"), new Cost("30"),
+                new OneOffLessonSchedule("2026-10-20T1800-1930"));
+
+        assertEquals("Math · 20 Oct 2026 18:00–19:30", PersonCard.formatClassBadge(oneOff));
+    }
+
+    @BeforeAll
+    public static void startJavaFx() throws InterruptedException {
+        CountDownLatch ready = new CountDownLatch(1);
+        Runnable initialize = () -> {
+            Platform.setImplicitExit(false);
+            ready.countDown();
+        };
+        try {
+            Platform.startup(initialize);
+        } catch (IllegalStateException alreadyStarted) {
+            Platform.runLater(initialize);
+        }
+        if (!ready.await(10, TimeUnit.SECONDS)) {
+            throw new AssertionError("JavaFX did not start within 10 seconds");
+        }
+    }
+
+    @Test
+    public void constructor_enrolledClasses_displaysSortedGroupedBadgesBelowEmail() throws Exception {
+        runOnFxThread(() -> {
+            Lesson physics = lesson("Physics", "35", "Wednesday1700-1830")
+                    .withPaymentStatus(PaymentStatus.PAID);
+            Lesson math = lesson("Math", "30", "Monday1800-1930");
+            Person person = new PersonBuilder().withTags("zeta", "alpha")
+                    .withLessons(physics, math).build();
+            ClassColorPalette palette = new ClassColorPalette(List.of(person));
+            PersonCard card = new PersonCard(person, 2, palette);
+
+            assertEquals(person, card.person);
+            assertLabel(card, "id", "2. ", true);
+            assertLabel(card, "name", person.getName().fullName, true);
+            assertLabel(card, "balance", "Balance: 30", true);
+            assertLabel(card, "phone", person.getPhone().value, true);
+            assertLabel(card, "email", person.getEmail().value, true);
+            assertLabel(card, "address", person.getAddress().value, true);
+            assertTrue(((Label) card.getRoot().lookup("#phone")).isWrapText());
+            assertTrue(((Label) card.getRoot().lookup("#email")).isWrapText());
+            assertTrue(((Label) card.getRoot().lookup("#address")).isWrapText());
+            assertEquals(List.of("Math · Mon 18:00–19:30", "Physics · Wed 17:00–18:30"),
+                    getClassGroups(card).stream().map(PersonCardTest::getClassDetails).toList());
+            assertEquals(List.of("Unpaid", "Paid"),
+                    getClassGroups(card).stream().map(PersonCardTest::getPaymentStatus).toList());
+            assertEquals(List.of("Offline", "Offline"),
+                    getClassGroups(card).stream().map(PersonCardTest::getClassMode).toList());
+            assertTrue(getClassPane(card).isVisible());
+            assertTrue(getClassPane(card).isManaged());
+            assertTrue(getClassPane(card).getParent() instanceof VBox);
+            VBox details = (VBox) getClassPane(card).getParent();
+            assertEquals(details.getChildren().indexOf(email(card)) + 1,
+                    details.getChildren().indexOf(getClassPane(card)));
+            assertEquals(3.0, getClassPane(card).getSpacing());
+            getClassGroups(card).forEach(group -> {
+                assertTrue(group.getStyleClass().contains("enrolled-class-group"));
+                assertEquals(5, group.getSpacing());
+                assertTrue(getClassBadge(group).getStyleClass().contains("enrolled-class-badge"));
+                assertTrue(getClassBadge(group).isWrapText());
+                assertEquals(0.0, getClassBadge(group).getMinWidth());
+                assertEquals(Double.MAX_VALUE, getClassBadge(group).getMaxWidth());
+                assertEquals(Priority.ALWAYS, HBox.getHgrow(getClassBadge(group)));
+                assertEquals(Region.USE_PREF_SIZE, getModeLabel(group).getMinWidth());
+                assertEquals(Region.USE_PREF_SIZE, getPaymentLabel(group).getMinWidth());
+                assertTrue(getColorStyleClass(group).startsWith(ClassColorPalette.STYLE_CLASS_PREFIX));
+                assertTrue(getModeLabel(group).getStyleClass().contains("class-mode-offline"));
+            });
+            assertTrue(getPaymentLabel(getClassGroups(card).get(0)).getStyleClass()
+                    .contains("payment-status-unpaid"));
+            assertTrue(getPaymentLabel(getClassGroups(card).get(1)).getStyleClass()
+                    .contains("payment-status-paid"));
+            assertLabel(card, "subjects", "Subjects: ", false);
+            assertLabel(card, "cost", "", false);
+            assertLabel(card, "lesson", "", false);
+
+            FlowPane tags = (FlowPane) card.getRoot().lookup("#tags");
+            assertNotNull(tags);
+            assertEquals(List.of("alpha", "zeta"), tags.getChildren().stream()
+                    .map(node -> ((Label) node).getText()).toList());
+        });
+    }
+
+    @Test
+    public void constructor_sameClassAcrossStudents_usesSameBadgeColor() throws Exception {
+        runOnFxThread(() -> {
+            Lesson firstLesson = lesson("Math", "30", "Monday1800-1930");
+            Lesson equivalentLesson = lesson("math", "30.00", "Monday1800-1930");
+            Person firstStudent = new PersonBuilder().withLessons(firstLesson).build();
+            Person secondStudent = new PersonBuilder().withName("Ben Tan").withPhone("91234567")
+                    .withEmail("ben@example.com").withLessons(equivalentLesson).build();
+            ClassColorPalette palette = new ClassColorPalette(List.of(firstStudent, secondStudent));
+
+            PersonCard firstCard = new PersonCard(firstStudent, 1, palette);
+            PersonCard secondCard = new PersonCard(secondStudent, 2, palette);
+
+            assertEquals(getColorStyleClass(getClassGroups(firstCard).get(0)),
+                    getColorStyleClass(getClassGroups(secondCard).get(0)));
+        });
+    }
+
+    @Test
+    public void privacyMode_changes_masksAndRestoresContactDetailsWithoutChangingPerson() throws Exception {
+        runOnFxThread(() -> {
+            Person person = new PersonBuilder().withPhone("91234567")
+                    .withEmail("student@example.com").withAddress("123 Privacy Street").build();
+            SimpleBooleanProperty privacyModeEnabled = new SimpleBooleanProperty(false);
+            PersonCard card = new PersonCard(person, 1, new ClassColorPalette(List.of(person)),
+                    privacyModeEnabled);
+
+            assertLabel(card, "phone", person.getPhone().value, true);
+            assertLabel(card, "email", person.getEmail().value, true);
+            assertLabel(card, "address", person.getAddress().value, true);
+
+            privacyModeEnabled.set(true);
+
+            assertLabel(card, "phone", "Phone: " + PersonCard.PRIVACY_MASK, true);
+            assertLabel(card, "email", "Email: " + PersonCard.PRIVACY_MASK, true);
+            assertLabel(card, "address", "Address: " + PersonCard.PRIVACY_MASK, true);
+            assertEquals("91234567", person.getPhone().value);
+            assertEquals("student@example.com", person.getEmail().value);
+            assertEquals("123 Privacy Street", person.getAddress().value);
+
+            privacyModeEnabled.set(false);
+
+            assertLabel(card, "phone", person.getPhone().value, true);
+            assertLabel(card, "email", person.getEmail().value, true);
+            assertLabel(card, "address", person.getAddress().value, true);
+        });
+    }
+
+    @Test
+    public void constructor_noStudentDetails_hidesOptionalFieldsAndTheirLayoutSpace() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(new PersonBuilder().build(), 1);
+            assertTrue(getClassGroups(card).isEmpty());
+            assertFalse(getClassPane(card).isVisible());
+            assertFalse(getClassPane(card).isManaged());
+            assertLabel(card, "pinned", "PINNED", false);
+            assertLabel(card, "balance", "Balance: 0", true);
+            assertLabel(card, "subjects", "Subjects: ", false);
+            assertLabel(card, "cost", "", false);
+            assertLabel(card, "lesson", "", false);
+        });
+    }
+
+    @Test
+    public void constructor_pinnedPerson_displaysPinnedBadge() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(new PersonBuilder().withPinned(true).build(), 1);
+
+            assertLabel(card, "pinned", "PINNED", true);
+            Label pinned = (Label) card.getRoot().lookup("#pinned");
+            assertTrue(pinned.getStyleClass().contains("pinned-badge"));
+        });
+    }
+
+    @Test
+    public void constructor_completeLegacyDetails_displaysMigratedClassesWithoutDuplicates() throws Exception {
+        runOnFxThread(() -> {
+            Person person = legacyStudent(Set.of(new seedu.address.model.person.Subject("Physics"),
+                            new seedu.address.model.person.Subject("Math")),
+                    Optional.of(new seedu.address.model.person.Cost("30")),
+                    Optional.of(new seedu.address.model.person.Lesson("Monday1800")));
+            PersonCard card = new PersonCard(person, 1);
+
+            assertEquals(List.of("Math · Mon 18:00–19:00", "Physics · Mon 18:00–19:00"),
+                    getClassGroups(card).stream().map(PersonCardTest::getClassDetails).toList());
+            assertEquals(List.of("Unpaid", "Unpaid"),
+                    getClassGroups(card).stream().map(PersonCardTest::getPaymentStatus).toList());
+            assertLabel(card, "subjects", "Subjects: Math, Physics", false);
+            assertLabel(card, "cost", "Cost/hour: 30", false);
+            assertLabel(card, "lesson", "Lesson: Monday1800", false);
+        });
+    }
+
+    @Test
+    public void constructor_legacySubjectsOnly_hidesCostAndLesson() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(legacyStudent(
+                    Set.of(new seedu.address.model.person.Subject("A")), Optional.empty(), Optional.empty()), 1);
+            assertTrue(getClassGroups(card).isEmpty());
+            assertLabel(card, "subjects", "Subjects: A", true);
+            assertLabel(card, "cost", "", false);
+            assertLabel(card, "lesson", "", false);
+        });
+    }
+
+    @Test
+    public void constructor_legacyCostOnly_hidesSubjectsAndLesson() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(legacyStudent(Set.of(),
+                    Optional.of(new seedu.address.model.person.Cost("1")), Optional.empty()), 1);
+            assertTrue(getClassGroups(card).isEmpty());
+            assertLabel(card, "subjects", "Subjects: ", false);
+            assertLabel(card, "cost", "Cost/hour: 1", true);
+            assertLabel(card, "lesson", "", false);
+        });
+    }
+
+    @Test
+    public void constructor_legacyLessonOnly_hidesSubjectsAndCost() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(legacyStudent(Set.of(), Optional.empty(),
+                    Optional.of(new seedu.address.model.person.Lesson("Sunday2359"))), 1);
+            assertTrue(getClassGroups(card).isEmpty());
+            assertLabel(card, "subjects", "Subjects: ", false);
+            assertLabel(card, "cost", "", false);
+            assertLabel(card, "lesson", "Lesson: Sunday2359", true);
+        });
+    }
+
+    @Test
+    public void constructor_guardianAndClassDetails_displaysOptionalAttributes() throws Exception {
+        runOnFxThread(() -> {
+            ClassDetails details = new ClassDetails("https://example.com/math", "Room 2", "Bring calculator");
+            Person person = new PersonBuilder().withGuardianContact("Mary Tan", "98765432", "mary@example.com")
+                    .withLessons(lesson("Math", "30", "Monday1800-1930").withDetails(details)).build();
+            PersonCard card = new PersonCard(person, 1);
+            assertLabel(card, "guardian", "Guardian: Mary Tan | 98765432 | mary@example.com", true);
+            VBox classItem = getClassItems(card).getFirst();
+            assertEquals(2, classItem.getChildren().size());
+            HBox classGroup = (HBox) classItem.getChildren().getFirst();
+            assertEquals("Online", getClassMode(classGroup));
+            assertTrue(getModeLabel(classGroup).getStyleClass().contains("class-mode-online"));
+            Label label = (Label) classItem.getChildren().get(1);
+            assertEquals("Link: https://example.com/math | Location: Room 2 | Notes: Bring calculator",
+                    label.getText());
+            assertTrue(label.isWrapText());
+            assertTrue(label.getStyleClass().contains("enrolled-class-details"));
+            assertFalse(label.getText().contains("Math · Mon 18:00–19:30"));
+            assertFalse(label.getText().contains("Mode:"));
+        });
+    }
+
+    @Test
+    public void privacyChanges_maskGuardianContactsWithoutChangingStoredValues() throws Exception {
+        runOnFxThread(() -> {
+            Person person = new PersonBuilder().withPinned(true)
+                    .withGuardianContact("Mary Tan", "98765432", "mary@example.com").build();
+            javafx.beans.property.SimpleBooleanProperty privacy = new javafx.beans.property.SimpleBooleanProperty(true);
+            PersonCard card = new PersonCard(person, 1, new ClassColorPalette(), privacy);
+            assertLabel(card, "guardian", "Guardian: " + PersonCard.PRIVACY_MASK, true);
+            privacy.set(false);
+            assertLabel(card, "guardian", "Guardian: Mary Tan | 98765432 | mary@example.com", true);
+            privacy.set(true);
+            assertLabel(card, "guardian", "Guardian: " + PersonCard.PRIVACY_MASK, true);
+            assertEquals("98765432", person.getGuardianContact().phone());
+            assertTrue(person.isPinned());
+        });
+    }
+
+    @Test
+    public void constructor_noAttributes_hidesUnusedSpace() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard card = new PersonCard(new PersonBuilder().build(), 1);
+            assertLabel(card, "guardian", "", false);
+            assertTrue(getClassItems(card).isEmpty());
+        });
+    }
+
+    private static Lesson lesson(String subject, String cost, String timing) {
+        return new Lesson(new Subject(subject), new Cost(cost), new LessonTiming(timing));
+    }
+
+    private static Person legacyStudent(Set<seedu.address.model.person.Subject> subjects,
+            Optional<seedu.address.model.person.Cost> cost,
+            Optional<seedu.address.model.person.Lesson> lesson) {
+        Person base = new PersonBuilder().withTags("zeta", "alpha").build();
+        return new Person(base.getName(), base.getPhone(), base.getEmail(), base.getAddress(),
+                base.getTags(), subjects, cost, lesson);
+    }
+
+    private static VBox getClassPane(PersonCard card) {
+        VBox classes = (VBox) card.getRoot().lookup("#classes");
+        assertNotNull(classes);
+        return classes;
+    }
+
+    private static Label email(PersonCard card) {
+        Label email = (Label) card.getRoot().lookup("#email");
+        assertNotNull(email);
+        return email;
+    }
+
+    private static List<VBox> getClassItems(PersonCard card) {
+        return getClassPane(card).getChildren().stream().map(node -> (VBox) node).toList();
+    }
+
+    private static List<HBox> getClassGroups(PersonCard card) {
+        return getClassItems(card).stream()
+                .map(item -> (HBox) item.getChildren().getFirst()).toList();
+    }
+
+    private static String getClassDetails(HBox classGroup) {
+        return getClassBadge(classGroup).getText();
+    }
+
+    private static Label getClassBadge(HBox classGroup) {
+        return (Label) classGroup.getChildren().get(0);
+    }
+
+    private static String getColorStyleClass(HBox classGroup) {
+        return getClassBadge(classGroup).getStyleClass().stream()
+                .filter(styleClass -> styleClass.startsWith(ClassColorPalette.STYLE_CLASS_PREFIX))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static String getPaymentStatus(HBox classGroup) {
+        return getPaymentLabel(classGroup).getText();
+    }
+
+    private static String getClassMode(HBox classGroup) {
+        return getModeLabel(classGroup).getText();
+    }
+
+    private static Label getModeLabel(HBox classGroup) {
+        return (Label) classGroup.getChildren().get(1);
+    }
+
+    private static Label getPaymentLabel(HBox classGroup) {
+        return (Label) classGroup.getChildren().get(2);
+    }
+
+    private static void assertLabel(PersonCard card, String id, String text, boolean shown) {
+        Label label = (Label) card.getRoot().lookup("#" + id);
+        assertNotNull(label, "Missing FXML label: " + id);
+        assertEquals(text, label.getText(), id + " text");
+        assertEquals(shown, label.isVisible(), id + " visibility");
+        assertEquals(shown, label.isManaged(), id + " layout participation");
+    }
+
+    private static void runOnFxThread(Runnable assertions) throws Exception {
+        FutureTask<Void> task = new FutureTask<>(assertions, null);
+        Platform.runLater(task);
+        task.get(10, TimeUnit.SECONDS);
+    }
+}

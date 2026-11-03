@@ -5,19 +5,34 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
 import static seedu.address.testutil.TypicalPersons.CARL;
+import static seedu.address.testutil.TypicalPersons.DANIEL;
 import static seedu.address.testutil.TypicalPersons.ELLE;
 import static seedu.address.testutil.TypicalPersons.FIONA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.parser.AddressBookParser;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
+import seedu.address.model.lesson.Cost;
+import seedu.address.model.lesson.LessonTiming;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.person.Lesson;
+import seedu.address.model.person.LessonContainsKeywordsPredicate;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.TagContainsKeywordsPredicate;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -74,6 +89,215 @@ public class FindCommandTest {
     }
 
     @Test
+    public void execute_tagKeyword_multiplePersonsFound() {
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
+        TagContainsKeywordsPredicate predicate = new TagContainsKeywordsPredicate(List.of("friends"));
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredPersonList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(ALICE, BENSON, DANIEL), model.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_partialTagKeywordsAtHyphenBoundaries_findMatchingTag() throws Exception {
+        Person taggedPerson = new PersonBuilder().withName("Charlotte Oliveiro").withTags("exam-prep").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(taggedPerson);
+        Model taggedModel = new ModelManager(addressBook, new UserPrefs());
+        AddressBookParser parser = new AddressBookParser();
+
+        parser.parseCommand("find t/exam-").execute(taggedModel);
+        assertEquals(List.of(taggedPerson), taggedModel.getFilteredPersonList());
+
+        parser.parseCommand("find t/-prep").execute(taggedModel);
+        assertEquals(List.of(taggedPerson), taggedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_lessonKeyword_matchingPersonsFound() {
+        AddressBook addressBook = new AddressBook();
+        Person mondayStudent = personWithLesson("Monday Student", "Monday1800");
+        Person tuesdayStudent = personWithLesson("Tuesday Student", "Tuesday1900");
+        Person noLessonStudent = new PersonBuilder().withName("No Lesson Student").build();
+        addressBook.addPerson(mondayStudent);
+        addressBook.addPerson(tuesdayStudent);
+        addressBook.addPerson(noLessonStudent);
+
+        Model lessonModel = new ModelManager(addressBook, new UserPrefs());
+        Model expectedLessonModel = new ModelManager(addressBook, new UserPrefs());
+        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1);
+        LessonContainsKeywordsPredicate predicate = new LessonContainsKeywordsPredicate(List.of("1800"));
+        FindCommand command = new FindCommand(predicate);
+
+        expectedLessonModel.updateFilteredPersonList(predicate);
+        assertCommandSuccess(command, lessonModel, expectedMessage, expectedLessonModel);
+        assertEquals(List.of(mondayStudent), lessonModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_lessonKeyword_multipleMatchingClassesKeepsOriginalOrder() throws Exception {
+        Person bob = new PersonBuilder().withName("Bob").withLessons(
+                new seedu.address.model.lesson.Lesson(new Subject("Math"), new Cost("30"),
+                        new LessonTiming("Monday1800-1900"))).build();
+        Person alice = new PersonBuilder().withName("Alice").withLessons(
+                new seedu.address.model.lesson.Lesson(new Subject("Physics"), new Cost("40"),
+                        new LessonTiming("Monday1900-2000")),
+                new seedu.address.model.lesson.Lesson(new Subject("Chemistry"), new Cost("50"),
+                        new LessonTiming("Monday2000-2100"))).build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(bob);
+        addressBook.addPerson(alice);
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+
+        new AddressBookParser().parseCommand("find c/Mon").execute(rankedModel);
+
+        assertEquals(List.of(bob, alice), rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_subjectSearch_findsCompleteLegacyRecordWithUnmigratableStart() throws Exception {
+        Person base = new PersonBuilder().build();
+        Person legacy = new Person(base.getName(), base.getPhone(), base.getEmail(), base.getAddress(),
+                base.getTags(), Set.of(new seedu.address.model.person.Subject("Math")),
+                Optional.of(new seedu.address.model.person.Cost("30")), Optional.of(new Lesson("Monday2359")));
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(legacy);
+        Model legacyModel = new ModelManager(addressBook, new UserPrefs());
+
+        CommandResult result = new AddressBookParser().parseCommand("find sub/mAtH").execute(legacyModel);
+
+        assertEquals(String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1), result.getFeedbackToUser());
+        assertEquals(List.of(legacy), legacyModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_multiplePartialNameKeywords_matchingPersonsRankedByScore() {
+        AddressBook addressBook = new AddressBook();
+        Person oneMatchFirst = new PersonBuilder().withName("Annabelle Tan").build();
+        Person twoMatches = new PersonBuilder().withName("Ann Marie").build();
+        Person oneMatchSecond = new PersonBuilder().withName("Mary Tan").build();
+        addressBook.addPerson(oneMatchFirst);
+        addressBook.addPerson(twoMatches);
+        addressBook.addPerson(oneMatchSecond);
+
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("ann", "mar"));
+        FindCommand command = new FindCommand(predicate);
+
+        command.execute(rankedModel);
+        assertEquals(List.of(twoMatches, oneMatchFirst, oneMatchSecond), rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_repeatedNameAndTagKeywords_preservesTiedOrder() throws Exception {
+        AddressBook addressBook = new AddressBook();
+        Person bob = new PersonBuilder().withName("Bob").withTags("priority").build();
+        Person alice = new PersonBuilder().withName("Alice").withTags("urgent").build();
+        addressBook.addPerson(bob);
+        addressBook.addPerson(alice);
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+        AddressBookParser parser = new AddressBookParser();
+
+        parser.parseCommand("find alice bob").execute(rankedModel);
+        assertEquals(List.of(bob, alice), rankedModel.getFilteredPersonList());
+
+        parser.parseCommand("list").execute(rankedModel);
+        parser.parseCommand("find alice ALICE bob").execute(rankedModel);
+        assertEquals(List.of(bob, alice), rankedModel.getFilteredPersonList());
+
+        parser.parseCommand("list").execute(rankedModel);
+        parser.parseCommand("find t/urgent priority").execute(rankedModel);
+        assertEquals(List.of(bob, alice), rankedModel.getFilteredPersonList());
+
+        parser.parseCommand("list").execute(rankedModel);
+        parser.parseCommand("find t/urgent URGENT priority").execute(rankedModel);
+        assertEquals(List.of(bob, alice), rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_pinnedMatches_placesPinnedFirstAndExcludesNonMatches() {
+        AddressBook addressBook = new AddressBook();
+        Person unpinnedTwoMatches = new PersonBuilder().withName("Ann Marie").build();
+        Person pinnedOneMatch = new PersonBuilder().withName("Annabelle Tan").withPinned(true).build();
+        Person pinnedNonMatch = new PersonBuilder().withName("Zoe Tan").withPinned(true).build();
+        addressBook.addPerson(unpinnedTwoMatches);
+        addressBook.addPerson(pinnedOneMatch);
+        addressBook.addPerson(pinnedNonMatch);
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+        NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("ann", "mar"));
+
+        new FindCommand(predicate).execute(rankedModel);
+
+        assertEquals(List.of(pinnedOneMatch, unpinnedTwoMatches), rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_equalScoreAfterPinning_preservesCurrentOrder() throws Exception {
+        AddressBook addressBook = new AddressBook();
+        Person bernice = new PersonBuilder().withName("Bernice Yu").build();
+        Person irfan = new PersonBuilder().withName("Irfan Ibrahim").build();
+        addressBook.addPerson(bernice);
+        addressBook.addPerson(irfan);
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+        AddressBookParser parser = new AddressBookParser();
+
+        parser.parseCommand("find Irfan Ibrahim Bernice").execute(rankedModel);
+        parser.parseCommand("pin 1").execute(rankedModel);
+        parser.parseCommand("pin 2").execute(rankedModel);
+        parser.parseCommand("find Irfan Bernice").execute(rankedModel);
+
+        assertEquals(List.of(irfan.withPinned(true), bernice.withPinned(true)),
+                rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_equalScoreWithNewMatches_keepsCurrentMatchesBeforeStoredOrder() {
+        AddressBook addressBook = new AddressBook();
+        Person firstNewMatch = new PersonBuilder().withName("Alpha Student").build();
+        Person currentMatch = new PersonBuilder().withName("Current Student").build();
+        Person secondNewMatch = new PersonBuilder().withName("Beta Student").build();
+        addressBook.addPerson(firstNewMatch);
+        addressBook.addPerson(currentMatch);
+        addressBook.addPerson(secondNewMatch);
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+
+        new FindCommand(new NameContainsKeywordsPredicate(List.of("Current"))).execute(rankedModel);
+        new FindCommand(new NameContainsKeywordsPredicate(List.of("Alpha", "Current", "Beta")))
+                .execute(rankedModel);
+
+        assertEquals(List.of(currentMatch, firstNewMatch, secondNewMatch),
+                rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_multiplePartialTagKeywords_matchingPersonsRankedByScore() {
+        AddressBook addressBook = new AddressBook();
+        Person oneMatchFirst = new PersonBuilder().withName("First Student").withTags("priority").build();
+        Person twoMatches = new PersonBuilder().withName("Second Student").withTags("priority", "urgent").build();
+        Person oneMatchSecond = new PersonBuilder().withName("Third Student").withTags("urgent").build();
+        addressBook.addPerson(oneMatchFirst);
+        addressBook.addPerson(twoMatches);
+        addressBook.addPerson(oneMatchSecond);
+
+        Model rankedModel = new ModelManager(addressBook, new UserPrefs());
+        TagContainsKeywordsPredicate predicate = new TagContainsKeywordsPredicate(List.of("pri", "urg"));
+        FindCommand command = new FindCommand(predicate);
+
+        command.execute(rankedModel);
+        assertEquals(List.of(twoMatches, oneMatchFirst, oneMatchSecond), rankedModel.getFilteredPersonList());
+    }
+
+    @Test
+    public void execute_unscoredPredicate_filtersWithoutRanking() {
+        FindCommand command = new FindCommand(person -> person.getName().fullName.contains("Alice"));
+        Model expectedModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredPersonList(person -> person.getName().fullName.contains("Alice"));
+
+        CommandResult expectedResult = new CommandResult(String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 1));
+        assertCommandSuccess(command, model, expectedResult, expectedModel);
+    }
+
+    @Test
     public void toStringMethod() {
         NameContainsKeywordsPredicate predicate = new NameContainsKeywordsPredicate(List.of("keyword"));
         FindCommand findCommand = new FindCommand(predicate);
@@ -86,5 +310,11 @@ public class FindCommandTest {
      */
     private NameContainsKeywordsPredicate preparePredicate(String userInput) {
         return new NameContainsKeywordsPredicate(List.of(userInput.split("\\s+")));
+    }
+
+    private Person personWithLesson(String name, String lesson) {
+        Person person = new PersonBuilder().withName(name).build();
+        return new Person(person.getName(), person.getPhone(), person.getEmail(), person.getAddress(),
+                person.getTags(), Set.of(), Optional.empty(), Optional.of(new Lesson(lesson)));
     }
 }

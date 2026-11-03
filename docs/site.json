@@ -1,0 +1,35 @@
+{
+  "baseUrl": "",
+  "titlePrefix": "TutEasy",
+  "titleSuffix": "",
+  "faviconPath": "images/SeEduLogo.png",
+  "style": {
+    "codeTheme": "light"
+  },
+  "ignore": [
+    "_markbind/layouts/*",
+    "_markbind/logs/*",
+    "_site/*",
+    "site.json",
+    "*.md",
+    "*.njk",
+    "ManualTests-v1.4.md",
+    "TIMETABLE_IMPLEMENTATION_PLAN.md",
+    ".git/*",
+    "node_modules/*"
+  ],
+  "pagesExclude": [
+    "node_modules/*",
+    "ManualTests-v1.4.md",
+    "TIMETABLE_IMPLEMENTATION_PLAN.md"
+  ],
+  "pages": [
+    {
+      "glob": ["**/index.md", "**/*.md"]
+    }
+  ],
+  "deploy": {
+    "message": "Site Update."
+  },
+  "timeZone": "Asia/Singapore"
+}

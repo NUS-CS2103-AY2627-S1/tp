@@ -2,8 +2,14 @@ package seedu.address.logic.parser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
  * Tokenizes arguments string of the form: {@code preamble <prefix>value <prefix>value ...}<br>
@@ -14,6 +20,13 @@ import java.util.stream.Collectors;
  *    in the above example.<br>
  */
 public class ArgumentTokenizer {
+
+    public static final String MESSAGE_INVALID_QUOTED_VALUE =
+            "Use matching double quotes around the whole address, notes, or location value. "
+                    + "Separate any following fields with spaces.";
+    public static final String MESSAGE_UNKNOWN_PREFIX = "Unrecognised parameter-like token: %s";
+    private static final Pattern PREFIX_LIKE_TOKEN =
+            Pattern.compile("(?<!\\S)([A-Za-z][A-Za-z0-9-]*/)");
 
     /**
      * Tokenizes an arguments string and returns an {@code ArgumentMultimap} object that maps prefixes to their
@@ -26,6 +39,101 @@ public class ArgumentTokenizer {
     public static ArgumentMultimap tokenize(String argsString, Prefix... prefixes) {
         List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
         return extractArguments(argsString, positions);
+    }
+
+    /**
+     * Tokenizes free-text fields without hiding subsequent fields. Quoted free-text values preserve every prefix
+     * literally. In unquoted free text, an already supplied prefix from {@code literalRepeats} is treated as text.
+     * All other prefixes remain field boundaries, so fields can appear in any order.
+     */
+    public static ArgumentMultimap tokenizeWithFreeTextFields(String argsString, Set<Prefix> freeTextPrefixes,
+            Set<Prefix> literalRepeats, Prefix... prefixes) throws ParseException {
+        List<PrefixPosition> positions = findAllPrefixPositions(argsString, prefixes);
+        positions.sort((first, second) -> Integer.compare(first.getStartPosition(), second.getStartPosition()));
+        List<PrefixPosition> fields = new ArrayList<>();
+        List<QuotedRange> quotedRanges = new ArrayList<>();
+        Set<Prefix> seen = new HashSet<>();
+        boolean inFreeText = false;
+        int quotedEnd = -1;
+        for (PrefixPosition position : positions) {
+            if (position.getStartPosition() <= quotedEnd) {
+                continue;
+            }
+            Prefix prefix = position.getPrefix();
+            if (inFreeText && literalRepeats.contains(prefix) && seen.contains(prefix)) {
+                continue;
+            }
+            fields.add(position);
+            seen.add(prefix);
+            inFreeText = freeTextPrefixes.contains(prefix);
+            int valueStart = position.getStartPosition() + prefix.getPrefix().length();
+            while (valueStart < argsString.length() && Character.isWhitespace(argsString.charAt(valueStart))) {
+                valueStart++;
+            }
+            if (inFreeText && valueStart < argsString.length() && argsString.charAt(valueStart) == '"') {
+                quotedEnd = findClosingQuote(argsString, valueStart);
+                quotedRanges.add(new QuotedRange(valueStart, quotedEnd));
+                inFreeText = false;
+            }
+        }
+        verifyNoUnknownPrefixes(argsString, quotedRanges, prefixes);
+        ArgumentMultimap rawArguments = extractArguments(argsString, fields);
+        ArgumentMultimap arguments = new ArgumentMultimap();
+        arguments.put(new Prefix(""), rawArguments.getPreamble());
+        for (Prefix prefix : Arrays.stream(prefixes).distinct().toList()) {
+            for (String value : rawArguments.getAllValues(prefix)) {
+                arguments.put(prefix, freeTextPrefixes.contains(prefix) ? unquote(value) : value);
+            }
+        }
+        return arguments;
+    }
+
+    private static void verifyNoUnknownPrefixes(String argsString, List<QuotedRange> quotedRanges,
+            Prefix... prefixes) throws ParseException {
+        Set<String> knownPrefixes = Arrays.stream(prefixes)
+                .map(Prefix::getPrefix)
+                .collect(Collectors.toSet());
+        Matcher matcher = PREFIX_LIKE_TOKEN.matcher(argsString);
+        while (matcher.find()) {
+            String candidate = matcher.group(1);
+            boolean isQuoted = quotedRanges.stream().anyMatch(range -> range.contains(matcher.start(1)));
+            if (!isQuoted && !knownPrefixes.contains(candidate)) {
+                throw new ParseException(String.format(MESSAGE_UNKNOWN_PREFIX, candidate));
+            }
+        }
+    }
+
+    private static int findClosingQuote(String value, int openingQuote) throws ParseException {
+        for (int index = openingQuote + 1; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (current == '\\' && index + 1 < value.length()
+                    && (value.charAt(index + 1) == '\\' || value.charAt(index + 1) == '"')) {
+                index++;
+            } else if (current == '"') {
+                return index;
+            }
+        }
+        throw new ParseException(MESSAGE_INVALID_QUOTED_VALUE);
+    }
+
+    private static String unquote(String value) throws ParseException {
+        if (!value.startsWith("\"")) {
+            return value;
+        }
+        int closingQuote = findClosingQuote(value, 0);
+        if (closingQuote != value.length() - 1) {
+            throw new ParseException(MESSAGE_INVALID_QUOTED_VALUE);
+        }
+        StringBuilder result = new StringBuilder();
+        for (int index = 1; index < closingQuote; index++) {
+            char current = value.charAt(index);
+            if (current == '\\' && index + 1 < closingQuote
+                    && (value.charAt(index + 1) == '\\' || value.charAt(index + 1) == '"')) {
+                current = value.charAt(++index);
+            }
+            result.append(current);
+        }
+        return result.toString();
     }
 
     /**
@@ -70,9 +178,18 @@ public class ArgumentTokenizer {
      * {@code fromIndex} = 0, this method returns 5.
      */
     private static int findPrefixPosition(String argsString, String prefix, int fromIndex) {
-        int prefixIndex = argsString.indexOf(" " + prefix, fromIndex);
-        return prefixIndex == -1 ? -1
-                : prefixIndex + 1; // +1 as offset for whitespace
+        int searchFrom = fromIndex + 1;
+        while (searchFrom < argsString.length()) {
+            int prefixIndex = argsString.indexOf(prefix, searchFrom);
+            if (prefixIndex == -1) {
+                return -1;
+            }
+            if (Character.isWhitespace(argsString.charAt(prefixIndex - 1))) {
+                return prefixIndex;
+            }
+            searchFrom = prefixIndex + 1;
+        }
+        return -1;
     }
 
     /**
@@ -142,6 +259,20 @@ public class ArgumentTokenizer {
 
         Prefix getPrefix() {
             return prefix;
+        }
+    }
+
+    private static class QuotedRange {
+        private final int startPosition;
+        private final int endPosition;
+
+        QuotedRange(int startPosition, int endPosition) {
+            this.startPosition = startPosition;
+            this.endPosition = endPosition;
+        }
+
+        boolean contains(int position) {
+            return startPosition <= position && position <= endPosition;
         }
     }
 

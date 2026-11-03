@@ -1,0 +1,40 @@
+package seedu.address.model.person;
+
+import static seedu.address.commons.util.AppUtil.checkArgument;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/** Optional contact details for one student's parent or guardian. Empty fields mean not provided. */
+public record GuardianContact(String name, String phone, String email) {
+
+    public static final GuardianContact EMPTY = new GuardianContact("", "", "");
+    public static final int MAX_NAME_LENGTH = Name.MAX_LENGTH;
+    public static final String MESSAGE_NAME_CONSTRAINTS = "Guardian names must start with a letter or digit "
+            + "and contain only letters, digits, spaces, hyphens and apostrophes, and must not exceed "
+            + MAX_NAME_LENGTH + " characters.";
+    public static final String MESSAGE_COMMAND_NAME_CONSTRAINTS = "Guardian names must start with a letter or digit, "
+            + "contain only letters, digits, spaces, hyphens and apostrophes, and place each hyphen or apostrophe "
+            + "between alphanumeric name segments. Names must not exceed " + MAX_NAME_LENGTH + " characters.";
+    private static final String LEGACY_NAME_REGEX = "[\\p{Alnum}][\\p{Alnum} '\\u2019-]*";
+
+    /** Creates a contact, retaining the previous name rules so saved contacts remain loadable. */
+    public GuardianContact {
+        requireAllNonNull(name, phone, email);
+        checkArgument(name.isEmpty() || name.length() <= MAX_NAME_LENGTH && name.matches(LEGACY_NAME_REGEX),
+                MESSAGE_NAME_CONSTRAINTS);
+        checkArgument(phone.isEmpty() || Phone.isValidPhone(phone), "Guardian phone: " + Phone.MESSAGE_CONSTRAINTS);
+        checkArgument(email.isEmpty() || Email.isValidEmail(email), "Guardian email: " + Email.MESSAGE_CONSTRAINTS);
+    }
+
+    /** Returns whether no guardian details were supplied. */
+    public boolean isEmpty() {
+        return name.isEmpty() && phone.isEmpty() && email.isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        return Stream.of(name, phone, email).filter(value -> !value.isEmpty()).collect(Collectors.joining(" | "));
+    }
+}

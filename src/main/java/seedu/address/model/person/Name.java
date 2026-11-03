@@ -3,20 +3,26 @@ package seedu.address.model.person;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.AppUtil.checkArgument;
 
+import java.util.Locale;
+
 /**
  * Represents a Person's name in the address book.
  * Guarantees: immutable; is valid as declared in {@link #isValidName(String)}
  */
 public class Name {
 
+    public static final int MAX_LENGTH = 100;
     public static final String MESSAGE_CONSTRAINTS =
-            "Names should only contain alphanumeric characters and spaces, and should not be blank";
+            "Names should only contain alphanumeric characters, spaces, apostrophes and hyphens, "
+                    + "with punctuation between alphanumeric characters. Names should not be blank or exceed "
+                    + MAX_LENGTH + " characters";
 
     /*
-     * The first character of the name must not be a whitespace,
-     * otherwise " " (a blank string) becomes a valid input.
+     * Each apostrophe or hyphen must join alphanumeric name segments. Repeated and trailing spaces remain accepted
+     * for compatibility; ParserUtil trims spaces supplied through commands.
      */
-    public static final String VALIDATION_REGEX = "[\\p{Alnum}][\\p{Alnum} ]*";
+    public static final String VALIDATION_REGEX =
+            "[\\p{Alnum}]+(?:['’\\-][\\p{Alnum}]+)*(?: +[\\p{Alnum}]+(?:['’\\-][\\p{Alnum}]+)*)* *";
 
     public final String fullName;
 
@@ -35,7 +41,17 @@ public class Name {
      * Returns true if a given string is a valid name.
      */
     public static boolean isValidName(String test) {
-        return test.matches(VALIDATION_REGEX);
+        return test.length() <= MAX_LENGTH && test.matches(VALIDATION_REGEX);
+    }
+
+    /** Compares names for new-command duplicate checks without changing their display spelling. */
+    public boolean hasSameIdentityAs(Name other) {
+        requireNonNull(other);
+        return identityKey().equals(other.identityKey());
+    }
+
+    private String identityKey() {
+        return fullName.trim().replaceAll(" +", " ").toLowerCase(Locale.ROOT);
     }
 
 

@@ -1,6 +1,6 @@
 package seedu.address.logic.parser;
 
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_EMPTY_COMMAND;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
 import java.util.logging.Logger;
@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClassCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
@@ -17,6 +18,12 @@ import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PinCommand;
+import seedu.address.logic.commands.PrivacyCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.TimetableCommand;
+import seedu.address.logic.commands.UnpinCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -40,7 +47,7 @@ public class AddressBookParser {
     public Command parseCommand(String userInput) throws ParseException {
         final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
         if (!matcher.matches()) {
-            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
+            throw new ParseException(MESSAGE_EMPTY_COMMAND);
         }
 
         final String commandWord = matcher.group("commandWord");
@@ -49,19 +56,31 @@ public class AddressBookParser {
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
         // log messages such as the one below.
         // Lower level log messages are used sparingly to minimize noise in the code.
-        logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
+        logger.fine("Parsing command input.");
 
         return switch (commandWord) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case ClassCommand.COMMAND_WORD -> new ClassCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
-            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(ClearCommand.MESSAGE_INVALID_ARGUMENTS);
+                }
+                yield new ClearCommand();
+            }
+            case FindCommand.COMMAND_WORD -> new SubjectFindCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
+            case PinCommand.COMMAND_WORD -> new PinCommandParser().parse(arguments);
+            case TimetableCommand.COMMAND_WORD -> new TimetableCommand();
+            case PrivacyCommand.COMMAND_WORD -> new PrivacyCommandParser().parse(arguments);
+            case TagCommand.COMMAND_WORD -> new TagCommandParser().parse(arguments);
+            case UnpinCommand.COMMAND_WORD -> new UnpinCommandParser().parse(arguments);
+            case UntagCommand.COMMAND_WORD -> new UntagCommandParser().parse(arguments);
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
             default -> {
-                logger.finer("This user input caused a ParseException: " + userInput);
+                logger.finer("Input rejected: unknown command.");
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };

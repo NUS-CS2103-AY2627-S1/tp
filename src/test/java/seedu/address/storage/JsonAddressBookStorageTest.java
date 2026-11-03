@@ -2,6 +2,7 @@ package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.HOON;
@@ -9,8 +10,10 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 import seedu.address.commons.exceptions.DataLoadingException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
@@ -43,6 +48,21 @@ public class JsonAddressBookStorageTest {
     @Test
     public void read_missingFile_emptyResult() throws Exception {
         assertFalse(readAddressBook("NonExistentFile.json").isPresent());
+    }
+
+    @Test
+    public void read_nullRootOrCollectionEntries_throwsDataLoadingExceptionWithoutChangingFile() throws Exception {
+        Path file = testFolder.resolve("null-values.json");
+        String student = """
+                {"name":"Alice","phone":"91234567","email":"alice@example.com","address":"One",%s}
+                """;
+        for (String json : List.of("null", "{\"persons\":[null]}", "{\"classes\":[null]}",
+                "{\"persons\":[" + student.formatted("\"tags\":[null]") + "]}",
+                "{\"persons\":[" + student.formatted("\"lessons\":[null]") + "]}")) {
+            Files.writeString(file, json);
+            assertThrows(DataLoadingException.class, () -> new JsonAddressBookStorage(file).readAddressBook());
+            assertEquals(json, Files.readString(file));
+        }
     }
 
     @Test
@@ -84,6 +104,21 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_pinnedPerson_preservesPinnedState() throws Exception {
+        Path filePath = testFolder.resolve("PinnedAddressBook.json");
+        AddressBook original = new AddressBookBuilder()
+                .withPerson(new PersonBuilder().withPinned(true).build())
+                .build();
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(filePath);
+
+        storage.saveAddressBook(original);
+        ReadOnlyAddressBook restored = storage.readAddressBook().orElseThrow();
+
+        assertEquals(original, new AddressBook(restored));
+        assertTrue(restored.getPersonList().get(0).isPinned());
     }
 
     @Test

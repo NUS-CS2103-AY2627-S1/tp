@@ -2,6 +2,7 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.parser.ParserUtil.MESSAGE_DUPLICATE_INDEXES;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
@@ -11,16 +12,20 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.lesson.ClassId;
+import seedu.address.model.lesson.PaymentStatus;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GuardianContact;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
     private static final String INVALID_NAME = "R@chel";
-    private static final String INVALID_PHONE = "+651234";
+    private static final String INVALID_PHONE = "65+1234";
     private static final String INVALID_ADDRESS = " ";
     private static final String INVALID_EMAIL = "example.com";
     private static final String INVALID_TAG = "#friend";
@@ -52,6 +57,22 @@ public class ParserUtilTest {
 
         // Leading and trailing whitespaces
         assertEquals(INDEX_FIRST_PERSON, ParserUtil.parseIndex("  1  "));
+    }
+
+    @Test
+    public void parseIndexes_validInput_returnsIndexesInInputOrder() throws Exception {
+        assertEquals(List.of(Index.fromOneBased(3), Index.fromOneBased(1), Index.fromOneBased(2)),
+                ParserUtil.parseIndexes("  3   1 2  "));
+    }
+
+    @Test
+    public void parseIndexes_duplicateIndex_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_DUPLICATE_INDEXES, () -> ParserUtil.parseIndexes("1 2 1"));
+    }
+
+    @Test
+    public void parseIndexes_invalidIndex_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_INVALID_INDEX, () -> ParserUtil.parseIndexes("1 0 2"));
     }
 
     @Test
@@ -98,6 +119,18 @@ public class ParserUtilTest {
         String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
         Phone expectedPhone = new Phone(VALID_PHONE);
         assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
+    }
+
+    @Test
+    public void parsePhone_formattedValue_preservesInternalFormatting() throws Exception {
+        String formattedPhone = "+65 9123-4567";
+        assertEquals(formattedPhone, ParserUtil.parsePhone(WHITESPACE + formattedPhone + WHITESPACE).value);
+    }
+
+    @Test
+    public void parseGuardianContact_legacyOnlyName_throwsParseException() {
+        assertThrows(ParseException.class, GuardianContact.MESSAGE_COMMAND_NAME_CONSTRAINTS, () ->
+                ParserUtil.parseGuardianContact("Mary - Anne", "", ""));
     }
 
     @Test
@@ -180,6 +213,19 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseTags_collectionWithDuplicateTags_throwsParseException() {
+        assertThrows(ParseException.class, Tag.MESSAGE_DUPLICATE_TAGS, () -> ParserUtil.parseTags(
+                List.of(VALID_TAG_1, VALID_TAG_1)));
+    }
+
+    @Test
+    public void parseTags_collectionExceedingLimit_throwsParseException() {
+        List<String> tags = List.of("one", "two", "three", "four", "five", "six",
+                "seven", "eight", "nine", "ten", "eleven");
+        assertThrows(ParseException.class, Tag.MESSAGE_TAG_LIMIT, () -> ParserUtil.parseTags(tags));
+    }
+
+    @Test
     public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
         assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
     }
@@ -190,5 +236,54 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseRecurringLessonFields_validValues_success() throws Exception {
+        assertEquals(new seedu.address.model.lesson.Subject("Math"),
+                ParserUtil.parseLessonSubject("  Math  "));
+        assertEquals(new seedu.address.model.lesson.Cost("30"),
+                ParserUtil.parseLessonCost("  30  "));
+        assertEquals(new seedu.address.model.lesson.LessonTiming("Monday1800-1930"),
+                ParserUtil.parseLessonTiming("  Monday1800-1930  "));
+        assertEquals(new seedu.address.model.lesson.LessonTiming("Monday1800-1930"),
+                ParserUtil.parseLessonSchedule("  Monday1800-1930  "));
+        assertEquals(new seedu.address.model.lesson.OneOffLessonSchedule("2026-10-20T1800-1930"),
+                ParserUtil.parseLessonSchedule("  2026-10-20T1800-1930  "));
+        assertEquals(new seedu.address.model.lesson.LessonStart("Monday1800"),
+                ParserUtil.parseLessonStart("  Monday1800  "));
+        assertEquals(PaymentStatus.PAID, ParserUtil.parsePaymentStatus("  paid  "));
+        assertEquals(PaymentStatus.UNPAID, ParserUtil.parsePaymentStatus("UNPAID"));
+        assertEquals(new ClassId("C001"), ParserUtil.parseClassId("  c1  "));
+    }
+
+    @Test
+    public void parseRecurringLessonFields_invalidValues_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonSubject("Math!"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonCost("-1"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonTiming("Monday2400-0100"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonSchedule("Monday2400-0100"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonSchedule("2026-02-29T1800-1930"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseLessonStart("Monday2400"));
+        assertThrows(ParseException.class, () -> ParserUtil.parsePaymentStatus("pending"));
+        assertThrows(ParseException.class, () -> ParserUtil.parseClassId("C000"));
+    }
+
+    @Test
+    public void parseLessonSchedule_invalidCalendarValues_reportsSpecificValue() {
+        ParseException invalidDate = org.junit.jupiter.api.Assertions.assertThrows(
+                ParseException.class, () -> ParserUtil.parseLessonSchedule("2031-02-29T0900-1000"));
+        assertEquals("Invalid date '2031-02-29'. Enter a real calendar date in yyyy-MM-dd format.",
+                invalidDate.getMessage());
+
+        ParseException invalidTime = org.junit.jupiter.api.Assertions.assertThrows(
+                ParseException.class, () -> ParserUtil.parseLessonSchedule("Monday2460-2500"));
+        assertEquals("Invalid time '2460'. Times must use 24-hour HHmm from 0000 to 2359.",
+                invalidTime.getMessage());
+    }
+
+    @Test
+    public void parseClassId_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseClassId(null));
     }
 }

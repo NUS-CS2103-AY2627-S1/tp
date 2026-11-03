@@ -3,6 +3,9 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
@@ -23,6 +26,7 @@ import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GuardianContact;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
@@ -35,22 +39,27 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the student identified "
+            + "by the index number used in the displayed student list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_GUARDIAN_NAME + "GUARDIAN_NAME] "
+            + "[" + PREFIX_GUARDIAN_PHONE + "GUARDIAN_PHONE] "
+            + "[" + PREFIX_GUARDIAN_EMAIL + "GUARDIAN_EMAIL]\n"
+            + "Use double quotes around addresses containing prefix-like text.\n"
+            + "Use an empty guardian prefix to clear that field.\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited student: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "A student with this name already exists.";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -79,13 +88,14 @@ public class EditCommand extends Command {
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
-        if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
+        if (!personToEdit.isSamePerson(editedPerson) && model.hasNameConflict(editedPerson)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
         model.setPerson(personToEdit, editedPerson);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS,
+                Messages.format(editedPerson, model.isPrivacyModeEnabled())));
     }
 
     /**
@@ -101,7 +111,16 @@ public class EditCommand extends Command {
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        GuardianContact existingGuardian = personToEdit.getGuardianContact();
+        GuardianContact updatedGuardian = new GuardianContact(
+                editPersonDescriptor.getGuardianName().orElse(existingGuardian.name()),
+                editPersonDescriptor.getGuardianPhone().orElse(existingGuardian.phone()),
+                editPersonDescriptor.getGuardianEmail().orElse(existingGuardian.email()));
+
+        return new Person(personToEdit.getStudentId(), updatedName, updatedPhone, updatedEmail,
+                updatedAddress, updatedTags, personToEdit.getLegacyLessons(), personToEdit.getEnrollments(),
+                personToEdit.getSubjects(), personToEdit.getCost(), personToEdit.getLesson(),
+                updatedGuardian, personToEdit.isPinned());
     }
 
     @Override
@@ -128,8 +147,8 @@ public class EditCommand extends Command {
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores the details to edit the person with. Supplied fields replace existing values.
+     * Null guardian fields are omitted; empty strings explicitly clear the corresponding value.
      */
     public static class EditPersonDescriptor {
         private Name name;
@@ -137,6 +156,9 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private String guardianName;
+        private String guardianPhone;
+        private String guardianEmail;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +172,17 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setGuardianName(toCopy.guardianName);
+            setGuardianPhone(toCopy.guardianPhone);
+            setGuardianEmail(toCopy.guardianEmail);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags,
+                    guardianName, guardianPhone, guardianEmail);
         }
 
         public void setName(Name name) {
@@ -191,6 +217,33 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
+        /** Sets the guardian name; an empty string clears it, while null leaves it unchanged. */
+        public void setGuardianName(String guardianName) {
+            this.guardianName = guardianName;
+        }
+
+        public Optional<String> getGuardianName() {
+            return Optional.ofNullable(guardianName);
+        }
+
+        /** Sets the guardian phone; an empty string clears it, while null leaves it unchanged. */
+        public void setGuardianPhone(String guardianPhone) {
+            this.guardianPhone = guardianPhone;
+        }
+
+        public Optional<String> getGuardianPhone() {
+            return Optional.ofNullable(guardianPhone);
+        }
+
+        /** Sets the guardian email; an empty string clears it, while null leaves it unchanged. */
+        public void setGuardianEmail(String guardianEmail) {
+            this.guardianEmail = guardianEmail;
+        }
+
+        public Optional<String> getGuardianEmail() {
+            return Optional.ofNullable(guardianEmail);
+        }
+
         /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
@@ -223,7 +276,10 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(guardianName, otherEditPersonDescriptor.guardianName)
+                    && Objects.equals(guardianPhone, otherEditPersonDescriptor.guardianPhone)
+                    && Objects.equals(guardianEmail, otherEditPersonDescriptor.guardianEmail);
         }
 
         @Override
@@ -234,6 +290,9 @@ public class EditCommand extends Command {
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
+                    .add("guardianName", guardianName)
+                    .add("guardianPhone", guardianPhone)
+                    .add("guardianEmail", guardianEmail)
                     .toString();
         }
     }

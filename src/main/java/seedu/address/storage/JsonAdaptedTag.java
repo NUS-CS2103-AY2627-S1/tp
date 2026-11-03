@@ -1,5 +1,7 @@
 package seedu.address.storage;
 
+import java.util.Locale;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -10,6 +12,9 @@ import seedu.address.model.tag.Tag;
  * Jackson-friendly version of {@link Tag}.
  */
 class JsonAdaptedTag {
+
+    private static final String LEGACY_VALIDATION_REGEX = "\\p{Alnum}+";
+    private static final String CAMEL_CASE_BOUNDARY_REGEX = "(?<=[a-z0-9])(?=[A-Z])";
 
     private final String tagName;
 
@@ -39,10 +44,23 @@ class JsonAdaptedTag {
      * @throws IllegalValueException if there were any data constraints violated in the adapted tag.
      */
     public Tag toModelType() throws IllegalValueException {
-        if (!Tag.isValidTagName(tagName)) {
+        if (tagName == null) {
             throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
         }
-        return new Tag(tagName);
+
+        String normalizedTagName = normalizeLegacyTagName(tagName);
+        if (!Tag.isValidTagName(normalizedTagName)) {
+            throw new IllegalValueException(Tag.MESSAGE_CONSTRAINTS);
+        }
+        return new Tag(normalizedTagName);
+    }
+
+    /** Converts a valid tag from the previous alphanumeric format to the current lowercase format. */
+    private static String normalizeLegacyTagName(String tagName) {
+        if (Tag.isValidTagName(tagName) || !tagName.matches(LEGACY_VALIDATION_REGEX)) {
+            return tagName;
+        }
+        return tagName.replaceAll(CAMEL_CASE_BOUNDARY_REGEX, "-").toLowerCase(Locale.ROOT);
     }
 
 }

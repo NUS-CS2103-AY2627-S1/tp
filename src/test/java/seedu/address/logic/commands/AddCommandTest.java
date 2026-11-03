@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.timetable.TimetableDay;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
@@ -41,6 +44,19 @@ public class AddCommandTest {
         assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_privacyEnabled_masksContactDetailsInFeedback() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded(true);
+        Person validPerson = new PersonBuilder()
+                .withGuardianContact("Mary Bee", "81234567", "mary@example.com")
+                .build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson, true)),
+                commandResult.getFeedbackToUser());
     }
 
     @Test
@@ -103,6 +119,16 @@ public class AddCommandTest {
         }
 
         @Override
+        public boolean isPrivacyModeEnabled() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setPrivacyModeEnabled(boolean privacyModeEnabled) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void addPerson(Person person) {
             throw new AssertionError("This method should not be called.");
         }
@@ -133,12 +159,32 @@ public class AddCommandTest {
         }
 
         @Override
+        public void setPersons(Map<Person, Person> replacements) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
+        public FilteredPersonListState getFilteredPersonListState() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void restoreFilteredPersonListState(FilteredPersonListState state) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<TimetableDay> getTimetable(LocalDate today) {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -166,6 +212,15 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
+        private final boolean privacyModeEnabled;
+
+        ModelStubAcceptingPersonAdded() {
+            this(false);
+        }
+
+        ModelStubAcceptingPersonAdded(boolean privacyModeEnabled) {
+            this.privacyModeEnabled = privacyModeEnabled;
+        }
 
         @Override
         public boolean hasPerson(Person person) {
@@ -177,6 +232,11 @@ public class AddCommandTest {
         public void addPerson(Person person) {
             requireNonNull(person);
             personsAdded.add(person);
+        }
+
+        @Override
+        public boolean isPrivacyModeEnabled() {
+            return privacyModeEnabled;
         }
 
         @Override

@@ -24,6 +24,9 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -31,6 +34,8 @@ import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSucces
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 import static seedu.address.testutil.TypicalIndexes.INDEX_THIRD_PERSON;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +45,7 @@ import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GuardianContact;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
@@ -48,6 +54,7 @@ import seedu.address.testutil.EditPersonDescriptorBuilder;
 public class EditCommandParserTest {
 
     private static final String TAG_EMPTY = " " + PREFIX_TAG;
+    private static final String MESSAGE_UNKNOWN_PREFIX = "Unrecognised parameter-like token: modee/";
 
     private static final String MESSAGE_INVALID_FORMAT =
             String.format(MESSAGE_INVALID_COMMAND_FORMAT, EditCommand.MESSAGE_USAGE);
@@ -78,7 +85,90 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
         // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1 i/ string", "Unrecognised parameter-like token: i/");
+    }
+
+    @Test
+    public void parse_individualGuardianFields_success() {
+        assertParseSuccess(parser, "1 gn/Mary-Anne O'Connor", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianName("Mary-Anne O'Connor").build()));
+        assertParseSuccess(parser, "1 gp/88888888", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianPhone("88888888").build()));
+        assertParseSuccess(parser, "1 gp/+65 9123-4567", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianPhone("+65 9123-4567").build()));
+        assertParseSuccess(parser, "1 ge/mary@example.com", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianEmail("mary@example.com").build()));
+    }
+
+    @Test
+    public void parse_guardianFieldsWithStudentFields_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress("Two")
+                .withGuardianName("Mary").withGuardianPhone("88888888")
+                .withGuardianEmail("mary@example.com").build();
+        assertParseSuccess(parser, "1 a/Two gn/Mary gp/88888888 ge/mary@example.com",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+        assertParseSuccess(parser, "1 ge/mary@example.com gn/Mary a/Two\tgp/88888888",
+                new EditCommand(INDEX_FIRST_PERSON, descriptor));
+    }
+
+    @Test
+    public void parse_clearGuardianFields_success() {
+        assertParseSuccess(parser, "1 gn/", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianName("").build()));
+        assertParseSuccess(parser, "1 gp/", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianPhone("").build()));
+        assertParseSuccess(parser, "1 ge/", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianEmail("").build()));
+        assertParseSuccess(parser, "1 gn/ gp/ ge/", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withGuardianName("").withGuardianPhone("")
+                        .withGuardianEmail("").build()));
+    }
+
+    @Test
+    public void parse_invalidGuardianFields_failure() {
+        for (String name : List.of("@Mary", "M".repeat(101))) {
+            assertParseFailure(parser, "1 gn/" + name, GuardianContact.MESSAGE_COMMAND_NAME_CONSTRAINTS);
+        }
+        for (String phone : List.of("12", "65+91234567", "abcd", "1".repeat(16))) {
+            assertParseFailure(parser, "1 gp/" + phone, "Guardian phone: " + Phone.MESSAGE_CONSTRAINTS);
+        }
+        for (String email : List.of("invalid", "mary@@example.com")) {
+            assertParseFailure(parser, "1 ge/" + email, "Guardian email: " + Email.MESSAGE_CONSTRAINTS);
+        }
+        assertParseFailure(parser, "1 gn/Mary gp/invalid ge/mary@example.com",
+                "Guardian phone: " + Phone.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_duplicateGuardianPrefixes_failure() {
+        for (Prefix prefix : List.of(PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE, PREFIX_GUARDIAN_EMAIL)) {
+            for (String values : List.of(" bad %svalid", " valid %sbad", " %s")) {
+                String input = "1 " + prefix + String.format(values, prefix);
+                assertParseFailure(parser, input, Messages.getErrorMessageForDuplicatePrefixes(prefix));
+            }
+        }
+        assertParseFailure(parser, "1 gn/Mary gp/88888888 ge/mary@example.com gn/ gp/ ge/",
+                Messages.getErrorMessageForDuplicatePrefixes(
+                        PREFIX_GUARDIAN_NAME, PREFIX_GUARDIAN_PHONE, PREFIX_GUARDIAN_EMAIL));
+    }
+
+    @Test
+    public void parse_unsupportedClassFields_failure() {
+        String expected = "Class fields cannot be changed with edit. "
+                + "Remove them and use a supported edit field.";
+        for (String field : List.of("sub/Math", "cost/30", "c/Monday1800-1900", "mode/online",
+                "link/https://example.com", "location/Room 2", "notes/Review", "id/C001", "status/paid")) {
+            assertParseFailure(parser, "1 a/Two " + field, expected);
+            assertParseFailure(parser, "1 " + field + " a/Two", expected);
+            assertParseFailure(parser, "1 " + field, expected);
+        }
+        assertParseFailure(parser, "1 a/Two sub/Math cost/30 c/Monday1800-1900 mode/online", expected);
+        assertParseFailure(parser, "1 a/Two notes/", expected);
+    }
+
+    @Test
+    public void parse_tabSeparatedUnsupportedFields_failure() {
+        assertParseFailure(parser, "1 a/Two\tsub/Math", EditCommandParser.MESSAGE_UNSUPPORTED_CLASS_EDIT);
     }
 
     @Test
@@ -161,6 +251,18 @@ public class EditCommandParserTest {
         descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
         expectedCommand = new EditCommand(targetIndex, descriptor);
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_unknownPrefixLikeTokenInAddress_failure() {
+        assertParseFailure(parser, "1 a/Home modee/online", MESSAGE_UNKNOWN_PREFIX);
+    }
+
+    @Test
+    public void parse_quotedAddressWithRecognisedPrefix_success() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress("Unit p/333").build();
+
+        assertParseSuccess(parser, "1 a/\"Unit p/333\"", new EditCommand(INDEX_FIRST_PERSON, descriptor));
     }
 
     @Test

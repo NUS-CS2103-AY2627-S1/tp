@@ -1,0 +1,108 @@
+package seedu.address.model.lesson;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+public class LessonTest {
+
+    private static final Lesson MATH = new Lesson(new Subject("Math"), new Cost("30"),
+            new LessonTiming("Monday1800-1930"));
+    private static final LessonTiming DIFFERENT_TIMING = new LessonTiming("Tuesday1800-1930");
+
+    @Test
+    public void isSameClass_lessonWithSameIdentity_returnsTrue() {
+        Lesson differentCost = new Lesson(new Subject("math"), new Cost("40"), MATH.getSchedule());
+        Lesson differentPaymentStatus = MATH.withPaymentStatus(PaymentStatus.PAID);
+
+        assertTrue(MATH.isSameClass(MATH));
+        assertTrue(MATH.isSameClass(differentCost));
+        assertTrue(MATH.isSameClass(differentPaymentStatus));
+    }
+
+    @Test
+    public void isSameClass_lessonWithDifferentIdentity_returnsFalse() {
+        Lesson differentSubject = new Lesson(new Subject("Physics"), new Cost("30"), MATH.getSchedule());
+        Lesson differentTiming = new Lesson(MATH.getSubject(), new Cost("30"), DIFFERENT_TIMING);
+
+        assertFalse(MATH.isSameClass((Lesson) null));
+        assertFalse(MATH.isSameClass(differentSubject));
+        assertFalse(MATH.isSameClass(differentTiming));
+        assertFalse(MATH.isSameClass(new Lesson(MATH.getSubject(), MATH.getCost(),
+                new OneOffLessonSchedule("2026-10-19T1800-1930"))));
+    }
+
+    @Test
+    public void isSameClass_subjectAndTiming_returnsExpectedResult() {
+        assertTrue(MATH.isSameClass(new Subject("math"), MATH.getSchedule()));
+        assertFalse(MATH.isSameClass(new Subject("Physics"), MATH.getSchedule()));
+        assertFalse(MATH.isSameClass(MATH.getSubject(), DIFFERENT_TIMING));
+    }
+
+    @Test
+    public void equals_sameObjectOrProperties_returnsTrue() {
+        Lesson copy = new Lesson(new Subject("Math"), new Cost("30.00"),
+                new LessonTiming("Monday1800-1930"));
+
+        assertTrue(MATH.equals(MATH));
+        assertTrue(MATH.equals(copy));
+        assertEquals(MATH.hashCode(), copy.hashCode());
+    }
+
+    @Test
+    public void equals_differentPropertyOrType_returnsFalse() {
+        Lesson differentSubject = new Lesson(new Subject("Physics"), new Cost("30"), MATH.getSchedule());
+        Lesson differentCost = new Lesson(MATH.getSubject(), new Cost("40"), MATH.getSchedule());
+        Lesson differentTiming = new Lesson(MATH.getSubject(), MATH.getCost(), DIFFERENT_TIMING);
+        Lesson differentPaymentStatus = MATH.withPaymentStatus(PaymentStatus.PAID);
+
+        assertNotEquals(MATH, differentSubject);
+        assertNotEquals(MATH, differentCost);
+        assertNotEquals(MATH, differentTiming);
+        assertNotEquals(MATH, differentPaymentStatus);
+        assertNotEquals(MATH, "Math");
+        assertNotEquals(MATH, null);
+    }
+
+    @Test
+    public void cost_equivalentDecimalValues_areEqual() {
+        assertEquals(new Cost("30"), new Cost("30.00"));
+    }
+
+    @Test
+    public void paymentStatus_newLessonDefaultsUnpaidAndCanBeReplaced() {
+        assertEquals(PaymentStatus.UNPAID, MATH.getPaymentStatus());
+        assertEquals(PaymentStatus.PAID, MATH.withPaymentStatus(PaymentStatus.PAID).getPaymentStatus());
+        assertEquals(PaymentStatus.UNPAID, MATH.getPaymentStatus());
+    }
+
+    @Test
+    public void paymentStatus_parsingAndDisplay_returnsExpectedValues() {
+        assertTrue(PaymentStatus.isValidPaymentStatus("paid"));
+        assertTrue(PaymentStatus.isValidPaymentStatus("UNPAID"));
+        assertFalse(PaymentStatus.isValidPaymentStatus(null));
+        assertEquals(PaymentStatus.PAID, PaymentStatus.fromString("PaId"));
+        assertEquals("Paid", PaymentStatus.PAID.toDisplayString());
+        assertThrows(IllegalArgumentException.class, () -> PaymentStatus.fromString("pending"));
+    }
+
+    @Test
+    public void withTuitionClass_linksClassAndPreservesPaymentStatus() {
+        TuitionClass tuitionClass = new TuitionClass(new ClassId("C001"), new Subject("Physics"),
+                new Cost("40"), DIFFERENT_TIMING);
+        Lesson paidLesson = MATH.withPaymentStatus(PaymentStatus.PAID);
+
+        Lesson linkedLesson = paidLesson.withTuitionClass(tuitionClass);
+
+        assertEquals(tuitionClass.getClassId(), linkedLesson.getClassId());
+        assertEquals(tuitionClass.getSubject(), linkedLesson.getSubject());
+        assertEquals(paidLesson.getCost(), linkedLesson.getCost());
+        assertEquals(tuitionClass.getSchedule(), linkedLesson.getSchedule());
+        assertEquals(PaymentStatus.PAID, linkedLesson.getPaymentStatus());
+        assertThrows(NullPointerException.class, () -> paidLesson.withTuitionClass(null));
+    }
+}

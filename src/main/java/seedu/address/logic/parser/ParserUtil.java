@@ -2,17 +2,31 @@ package seedu.address.logic.parser;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.commands.ClassDetailsUpdate;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.lesson.ClassId;
+import seedu.address.model.lesson.ClassMode;
+import seedu.address.model.lesson.LessonSchedule;
+import seedu.address.model.lesson.LessonStart;
+import seedu.address.model.lesson.LessonTiming;
+import seedu.address.model.lesson.OneOffLessonSchedule;
+import seedu.address.model.lesson.PaymentStatus;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.Cost;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GuardianContact;
+import seedu.address.model.person.Lesson;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +35,7 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_DUPLICATE_INDEXES = "Student indexes must not be repeated.";
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -33,6 +48,25 @@ public class ParserUtil {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
+    }
+
+    /**
+     * Parses one or more whitespace-separated one-based indexes.
+     *
+     * @throws ParseException if an index is invalid or repeated.
+     */
+    public static List<Index> parseIndexes(String oneBasedIndexes) throws ParseException {
+        requireNonNull(oneBasedIndexes);
+        List<Index> indexes = new ArrayList<>();
+        Set<Integer> seenZeroBasedIndexes = new LinkedHashSet<>();
+        for (String indexText : oneBasedIndexes.trim().split("\\s+")) {
+            Index index = parseIndex(indexText);
+            if (!seenZeroBasedIndexes.add(index.getZeroBased())) {
+                throw new ParseException(MESSAGE_DUPLICATE_INDEXES);
+            }
+            indexes.add(index);
+        }
+        return List.copyOf(indexes);
     }
 
     /**
@@ -115,10 +149,154 @@ public class ParserUtil {
      */
     public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
         requireNonNull(tags);
-        final Set<Tag> tagSet = new HashSet<>();
+        final Set<Tag> tagSet = new LinkedHashSet<>();
         for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+            if (!tagSet.add(parseTag(tagName))) {
+                throw new ParseException(Tag.MESSAGE_DUPLICATE_TAGS);
+            }
+        }
+        if (tagSet.size() > Tag.MAX_TAGS_PER_PERSON) {
+            throw new ParseException(Tag.MESSAGE_TAG_LIMIT);
         }
         return tagSet;
+    }
+
+    /** Parses a subject. */
+    public static Subject parseSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        String trimmedSubject = subject.trim();
+        if (!Subject.isValidSubject(trimmedSubject)) {
+            throw new ParseException(Subject.MESSAGE_CONSTRAINTS);
+        }
+        return new Subject(trimmedSubject);
+    }
+
+    /** Parses multiple subjects used by the previous student model. */
+    public static Set<Subject> parseSubjects(Collection<String> subjects) throws ParseException {
+        requireNonNull(subjects);
+        Set<Subject> parsedSubjects = new LinkedHashSet<>();
+        for (String subject : subjects) {
+            parsedSubjects.add(parseSubject(subject));
+        }
+        return parsedSubjects;
+    }
+
+    /** Parses a lesson cost. */
+    public static Cost parseCost(String cost) throws ParseException {
+        requireNonNull(cost);
+        String trimmedCost = cost.trim();
+        if (!Cost.isValidCost(trimmedCost)) {
+            throw new ParseException(Cost.MESSAGE_CONSTRAINTS);
+        }
+        return new Cost(trimmedCost);
+    }
+
+    /** Parses a start-only lesson value used by the previous student model. */
+    public static Lesson parseLesson(String lesson) throws ParseException {
+        requireNonNull(lesson);
+        String trimmedLesson = lesson.trim();
+        if (!Lesson.isValidLesson(trimmedLesson)) {
+            throw new ParseException(Lesson.MESSAGE_CONSTRAINTS);
+        }
+        return new Lesson(trimmedLesson);
+    }
+
+    /** Parses a subject for the recurring lesson model. */
+    public static seedu.address.model.lesson.Subject parseLessonSubject(String subject) throws ParseException {
+        requireNonNull(subject);
+        String trimmedSubject = subject.trim();
+        if (!seedu.address.model.lesson.Subject.isValidSubject(trimmedSubject)) {
+            throw new ParseException(seedu.address.model.lesson.Subject.MESSAGE_CONSTRAINTS);
+        }
+        return new seedu.address.model.lesson.Subject(trimmedSubject);
+    }
+
+    /** Parses a cost for the recurring lesson model. */
+    public static seedu.address.model.lesson.Cost parseLessonCost(String cost) throws ParseException {
+        requireNonNull(cost);
+        String trimmedCost = cost.trim();
+        if (!seedu.address.model.lesson.Cost.isValidCost(trimmedCost)) {
+            throw new ParseException(seedu.address.model.lesson.Cost.MESSAGE_CONSTRAINTS);
+        }
+        return new seedu.address.model.lesson.Cost(trimmedCost);
+    }
+
+    /** Parses a complete weekly lesson timing. */
+    public static LessonTiming parseLessonTiming(String timing) throws ParseException {
+        requireNonNull(timing);
+        String trimmedTiming = timing.trim();
+        java.util.Optional<String> validationError = LessonTiming.getValidationError(trimmedTiming);
+        if (validationError.isPresent()) {
+            throw new ParseException(validationError.get());
+        }
+        return new LessonTiming(trimmedTiming);
+    }
+
+    /** Parses a weekly or one-off lesson schedule. */
+    public static LessonSchedule parseLessonSchedule(String schedule) throws ParseException {
+        requireNonNull(schedule);
+        String trimmedSchedule = schedule.trim();
+        if (!trimmedSchedule.isEmpty() && Character.isDigit(trimmedSchedule.charAt(0))) {
+            java.util.Optional<String> validationError = OneOffLessonSchedule.getValidationError(trimmedSchedule);
+            if (validationError.isPresent()) {
+                throw new ParseException(validationError.get());
+            }
+            return new OneOffLessonSchedule(trimmedSchedule);
+        }
+        return parseLessonTiming(trimmedSchedule);
+    }
+
+    /** Parses optional inline class fields, distinguishing omission from an empty value. */
+    public static ClassDetailsUpdate parseClassDetailsUpdate(ArgumentMultimap arguments) throws ParseException {
+        try {
+            return new ClassDetailsUpdate(arguments.getValue(CliSyntax.PREFIX_MODE).map(ClassMode::fromString),
+                    arguments.getValue(CliSyntax.PREFIX_LINK), arguments.getValue(CliSyntax.PREFIX_LOCATION),
+                    arguments.getValue(CliSyntax.PREFIX_NOTES));
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(e.getMessage(), e);
+        }
+    }
+
+    /** Parses optional guardian details, allowing empty fields to clear them. */
+    public static GuardianContact parseGuardianContact(String name, String phone, String email) throws ParseException {
+        String trimmedName = name.trim();
+        if (!trimmedName.isEmpty() && !Name.isValidName(trimmedName)) {
+            throw new ParseException(GuardianContact.MESSAGE_COMMAND_NAME_CONSTRAINTS);
+        }
+        try {
+            return new GuardianContact(trimmedName, phone.trim(), email.trim());
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(e.getMessage(), e);
+        }
+    }
+
+    /** Parses a payment status. */
+    public static PaymentStatus parsePaymentStatus(String status) throws ParseException {
+        requireNonNull(status);
+        String trimmedStatus = status.trim();
+        if (!PaymentStatus.isValidPaymentStatus(trimmedStatus)) {
+            throw new ParseException(PaymentStatus.MESSAGE_CONSTRAINTS);
+        }
+        return PaymentStatus.fromString(trimmedStatus);
+    }
+
+    /** Parses a stable class ID. */
+    public static ClassId parseClassId(String classId) throws ParseException {
+        requireNonNull(classId);
+        String trimmedId = classId.trim();
+        if (!ClassId.isValidClassId(trimmedId)) {
+            throw new ParseException(ClassId.MESSAGE_CONSTRAINTS);
+        }
+        return new ClassId(trimmedId);
+    }
+
+    /** Parses the day and start time used for class searching. */
+    public static LessonStart parseLessonStart(String start) throws ParseException {
+        requireNonNull(start);
+        String trimmedStart = start.trim();
+        if (!LessonStart.isValidLessonStart(trimmedStart)) {
+            throw new ParseException(LessonStart.MESSAGE_CONSTRAINTS);
+        }
+        return new LessonStart(trimmedStart);
     }
 }

@@ -1,0 +1,116 @@
+package seedu.address.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_CLASS_ID;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_STATUS;
+
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.Model;
+import seedu.address.model.lesson.ClassId;
+import seedu.address.model.lesson.Enrollment;
+import seedu.address.model.lesson.LessonSchedule;
+import seedu.address.model.lesson.PaymentStatus;
+import seedu.address.model.lesson.Subject;
+import seedu.address.model.person.Person;
+
+/** Updates the payment status of one student's lesson enrolment. */
+public class ClassPaymentCommand extends ClassCommand {
+
+    public static final String SUBCOMMAND_WORD = "payment";
+    public static final String MESSAGE_USAGE = COMMAND_WORD + " " + SUBCOMMAND_WORD
+            + ": Updates the payment status of the indexed student's class enrolment.\n"
+            + "Parameters: STUDENT_INDEX " + PREFIX_CLASS_ID + "CLASS_ID "
+            + PREFIX_STATUS + "paid|unpaid\n"
+            + "Example: " + COMMAND_WORD + " " + SUBCOMMAND_WORD
+            + " 1 id/C001 status/paid";
+    public static final String MESSAGE_SUCCESS =
+            "Payment for %1$s in %2$s (%3$s) marked as %4$s.";
+    public static final String MESSAGE_ALREADY_MARKED =
+            "Payment for %1$s in %2$s (%3$s) is already marked as %4$s.";
+    public static final String MESSAGE_NOT_ENROLLED =
+            "This student is not enrolled in %1$s (%2$s). No payment status was changed.";
+    public static final String MESSAGE_SUCCESS_BY_ID =
+            "Payment for %1$s in %2$s marked as %3$s.";
+    public static final String MESSAGE_ALREADY_MARKED_BY_ID =
+            "Payment for %1$s in %2$s is already marked as %3$s.";
+    public static final String MESSAGE_NOT_ENROLLED_BY_ID =
+            "This student is not enrolled in %1$s. No payment status was changed.";
+
+    private final Index personIndex;
+    private final ClassId classId;
+    private final Subject subject;
+    private final LessonSchedule schedule;
+    private final PaymentStatus paymentStatus;
+
+    /** Creates an ID-based payment command. */
+    public ClassPaymentCommand(Index personIndex, ClassId classId, PaymentStatus paymentStatus) {
+        this.personIndex = requireNonNull(personIndex);
+        this.classId = requireNonNull(classId);
+        this.subject = null;
+        this.schedule = null;
+        this.paymentStatus = requireNonNull(paymentStatus);
+    }
+
+    /** Creates a command that updates the selected enrolment's payment status. */
+    public ClassPaymentCommand(Index personIndex, Subject subject, LessonSchedule schedule,
+            PaymentStatus paymentStatus) {
+        this.personIndex = requireNonNull(personIndex);
+        this.classId = null;
+        this.subject = requireNonNull(subject);
+        this.schedule = requireNonNull(schedule);
+        this.paymentStatus = requireNonNull(paymentStatus);
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+        List<Person> persons = model.getFilteredPersonList();
+        if (personIndex.getZeroBased() >= persons.size()) {
+            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        }
+
+        Person person = persons.get(personIndex.getZeroBased());
+        Enrollment matchingEnrollment = person.getEnrollments().stream()
+                .filter(enrollment -> classId != null
+                        ? classId.equals(enrollment.getClassId())
+                        : enrollment.getTuitionClass().getSubject().equals(subject)
+                                && enrollment.getTuitionClass().getSchedule().equals(schedule))
+                .findFirst()
+                .orElseThrow(() -> new CommandException(classId != null
+                        ? String.format(MESSAGE_NOT_ENROLLED_BY_ID, classId)
+                        : String.format(MESSAGE_NOT_ENROLLED, subject, schedule)));
+
+        String displayStatus = paymentStatus.toString();
+        if (matchingEnrollment.getPaymentStatus() == paymentStatus) {
+            String message = classId != null
+                    ? String.format(MESSAGE_ALREADY_MARKED_BY_ID, person.getName(), classId, displayStatus)
+                    : String.format(MESSAGE_ALREADY_MARKED, person.getName(), subject, schedule, displayStatus);
+            return new CommandResult(message);
+        }
+
+        Set<Enrollment> updatedEnrollments = new LinkedHashSet<>(person.getEnrollments());
+        updatedEnrollments.remove(matchingEnrollment);
+        updatedEnrollments.add(matchingEnrollment.withPaymentStatus(paymentStatus));
+        model.setPerson(person, person.withEnrollments(updatedEnrollments));
+        String message = classId != null
+                ? String.format(MESSAGE_SUCCESS_BY_ID, person.getName(), classId, displayStatus)
+                : String.format(MESSAGE_SUCCESS, person.getName(), subject, schedule, displayStatus);
+        return new CommandResult(message);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other == this || other instanceof ClassPaymentCommand otherCommand
+                && personIndex.equals(otherCommand.personIndex)
+                && java.util.Objects.equals(classId, otherCommand.classId)
+                && java.util.Objects.equals(subject, otherCommand.subject)
+                && java.util.Objects.equals(schedule, otherCommand.schedule)
+                && paymentStatus == otherCommand.paymentStatus;
+    }
+}

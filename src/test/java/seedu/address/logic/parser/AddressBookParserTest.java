@@ -2,17 +2,24 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.address.logic.Messages.MESSAGE_EMPTY_COMMAND;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.commons.core.index.Index;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ClassDeleteCommand;
+import seedu.address.logic.commands.ClassEnrolCommand;
+import seedu.address.logic.commands.ClassPaymentCommand;
+import seedu.address.logic.commands.ClassUnenrolCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
@@ -21,9 +28,21 @@ import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PinCommand;
+import seedu.address.logic.commands.PrivacyCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.TimetableCommand;
+import seedu.address.logic.commands.UnpinCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.lesson.Cost;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonTiming;
+import seedu.address.model.lesson.PaymentStatus;
+import seedu.address.model.lesson.Subject;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
 import seedu.address.model.person.Person;
+import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -41,8 +60,55 @@ public class AddressBookParserTest {
 
     @Test
     public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        for (String input : List.of("clear", "clear   ", "clear\t")) {
+            assertTrue(parser.parseCommand(input) instanceof ClearCommand);
+        }
+
+        String expectedMessage = ClearCommand.MESSAGE_INVALID_ARGUMENTS;
+        for (String input : List.of("clear 1", "clear unexpected", "clear n/Alice")) {
+            assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand(input));
+        }
+    }
+
+    @Test
+    public void parseCommand_classEnrol() throws Exception {
+        Lesson lesson = new Lesson(new Subject("Math"), new Cost("30"),
+                new LessonTiming("Monday1800-1930"));
+        assertEquals(new ClassEnrolCommand(INDEX_FIRST_PERSON, lesson), parser.parseCommand(
+                "class enrol 1 sub/Math cost/30 c/Monday1800-1930"));
+    }
+
+    @Test
+    public void parseCommand_classEnrolMultipleStudentsInExistingClass() throws Exception {
+        Subject subject = new Subject("Math");
+        LessonTiming timing = new LessonTiming("Monday1800-1930");
+        assertEquals(new ClassEnrolCommand(
+                List.of(INDEX_FIRST_PERSON, Index.fromOneBased(2)), subject, timing),
+                parser.parseCommand("class enrol 1 2 sub/Math c/Monday1800-1930"));
+    }
+
+    @Test
+    public void parseCommand_classUnenrol() throws Exception {
+        Subject subject = new Subject("Math");
+        LessonTiming timing = new LessonTiming("Monday1800-1930");
+        assertEquals(new ClassUnenrolCommand(INDEX_FIRST_PERSON, subject, timing), parser.parseCommand(
+                "class unenrol 1 sub/Math c/Monday1800-1930"));
+    }
+
+    @Test
+    public void parseCommand_classDelete() throws Exception {
+        Subject subject = new Subject("Math");
+        LessonTiming timing = new LessonTiming("Monday1800-1930");
+        assertEquals(new ClassDeleteCommand(subject, timing), parser.parseCommand(
+                "class delete sub/Math c/Monday1800-1930"));
+    }
+
+    @Test
+    public void parseCommand_classPayment() throws Exception {
+        Subject subject = new Subject("Math");
+        LessonTiming timing = new LessonTiming("Monday1800-1930");
+        assertEquals(new ClassPaymentCommand(INDEX_FIRST_PERSON, subject, timing, PaymentStatus.PAID),
+                parser.parseCommand("class payment 1 sub/Math c/Monday1800-1930 status/paid"));
     }
 
     @Test
@@ -76,6 +142,15 @@ public class AddressBookParserTest {
     }
 
     @Test
+    public void parseCommand_emptyFind_listsAllSearchModes() {
+        String expectedMessage = "Find requires a search value. Use: find KEYWORD, find t/TAG, "
+                + "find sub/SUBJECT, or find c/LESSON.";
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("find"));
+        assertThrows(ParseException.class, expectedMessage, () -> parser.parseCommand("find   \t"));
+        assertTrue(FindCommand.MESSAGE_USAGE.contains("find sub/SUBJECT_KEYWORD [MORE_SUBJECT_KEYWORDS]..."));
+    }
+
+    @Test
     public void parseCommand_help() throws Exception {
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD) instanceof HelpCommand);
         assertTrue(parser.parseCommand(HelpCommand.COMMAND_WORD + " 3") instanceof HelpCommand);
@@ -88,13 +163,58 @@ public class AddressBookParserTest {
     }
 
     @Test
-    public void parseCommand_unrecognisedInput_throwsParseException() {
-        assertThrows(ParseException.class, String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE), ()
-            -> parser.parseCommand(""));
+    public void parseCommand_privacy() throws Exception {
+        assertEquals(new PrivacyCommand(true), parser.parseCommand("privacy on"));
+        assertEquals(new PrivacyCommand(false), parser.parseCommand("privacy off"));
+    }
+
+    @Test
+    public void parseCommand_pin() throws Exception {
+        PinCommand command = (PinCommand) parser.parseCommand("pin 1");
+        assertEquals(new PinCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_tag() throws Exception {
+        TagCommand command = (TagCommand) parser.parseCommand("tag 1 exam-prep");
+        assertEquals(new TagCommand(INDEX_FIRST_PERSON, Set.of(new Tag("exam-prep"))), command);
+    }
+
+    @Test
+    public void parseCommand_tagMultipleStudents() throws Exception {
+        TagCommand command = (TagCommand) parser.parseCommand("tag 1 2 t/math-2026");
+        assertEquals(new TagCommand(List.of(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), new Tag("math-2026")), command);
+    }
+
+    @Test
+    public void parseCommand_untag() throws Exception {
+        UntagCommand command = (UntagCommand) parser.parseCommand("untag 1 -all");
+        assertEquals(new UntagCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_unpin() throws Exception {
+        UnpinCommand command = (UnpinCommand) parser.parseCommand("unpin 1");
+        assertEquals(new UnpinCommand(INDEX_FIRST_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_timetable() throws Exception {
+        assertTrue(parser.parseCommand(TimetableCommand.COMMAND_WORD) instanceof TimetableCommand);
+        assertTrue(parser.parseCommand(TimetableCommand.COMMAND_WORD + " ignored") instanceof TimetableCommand);
+    }
+
+    @Test
+    public void parseCommand_emptyInput_throwsParseException() {
+        for (String input : List.of("", " ", "   ", "\t", "  \t  ")) {
+            assertThrows(ParseException.class, MESSAGE_EMPTY_COMMAND, () -> parser.parseCommand(input));
+        }
     }
 
     @Test
     public void parseCommand_unknownCommand_throwsParseException() {
         assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand("unknownCommand"));
+        String retiredAddClassCommand = "addclass 1 sub/Math cost/30 c/Monday1800-1930";
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () -> parser.parseCommand(retiredAddClassCommand));
     }
 }

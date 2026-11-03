@@ -37,6 +37,11 @@ import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.model.lesson.Cost;
+import seedu.address.model.lesson.Lesson;
+import seedu.address.model.lesson.LessonTiming;
+import seedu.address.model.lesson.OneOffLessonSchedule;
+import seedu.address.model.lesson.Subject;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
@@ -46,6 +51,8 @@ import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
+    private static final String MESSAGE_UNKNOWN_PREFIX = "Unrecognised parameter-like token: modee/";
+
     private AddCommandParser parser = new AddCommandParser();
 
     @Test
@@ -135,6 +142,62 @@ public class AddCommandParserTest {
         Person expectedPerson = new PersonBuilder(AMY).withTags().build();
         assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
                 new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_unknownPrefixLikeTokenInAddress_failure() {
+        assertParseFailure(parser, " n/Alice p/91234567 e/alice@example.com a/Home modee/online",
+                MESSAGE_UNKNOWN_PREFIX);
+    }
+
+    @Test
+    public void parse_quotedAddressWithRecognisedPrefix_success() {
+        Person expectedPerson = new PersonBuilder()
+                .withName("Alice")
+                .withPhone("91234567")
+                .withEmail("alice@example.com")
+                .withAddress("Unit p/333")
+                .build();
+
+        assertParseSuccess(parser, " n/Alice p/91234567 e/alice@example.com a/\"Unit p/333\"",
+                new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_withClass_success() {
+        Lesson lesson = new Lesson(new Subject("Math"), new Cost("30"),
+                new LessonTiming("Monday1800-1930"));
+        Person expectedPerson = new PersonBuilder(AMY).withTags().withLessons(lesson).build();
+        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY
+                + " sub/Math cost/30 c/Monday1800-1930", new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_withOneOffClass_success() {
+        Lesson lesson = new Lesson(new Subject("Math"), new Cost("30"),
+                new OneOffLessonSchedule("2026-10-20T1800-1930"));
+        Person expectedPerson = new PersonBuilder(AMY).withTags().withLessons(lesson).build();
+
+        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY
+                + " sub/Math cost/30 c/2026-10-20T1800-1930", new AddCommand(expectedPerson));
+    }
+
+    @Test
+    public void parse_incompleteClass_failure() {
+        String base = NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        for (String fields : java.util.List.of(" sub/Math", " cost/20", " c/Monday1800-1930",
+                " sub/Math cost/20", " sub/Math c/Monday1800-1930", " cost/20 c/Monday1800-1930")) {
+            assertParseFailure(parser, base + fields, AddCommandParser.MESSAGE_INCOMPLETE_CLASS);
+        }
+    }
+
+    @Test
+    public void parse_emptyClassFieldOrStartOnlySchedule_failure() {
+        String base = NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
+        assertParseFailure(parser, base + " sub/ cost/20 c/Monday1800-1930", Subject.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " sub/Math cost/ c/Monday1800-1930", Cost.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " sub/Math cost/20 c/", LessonTiming.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " sub/Math cost/20 c/Monday1800", LessonTiming.MESSAGE_CONSTRAINTS);
     }
 
     @Test

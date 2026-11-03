@@ -25,6 +25,7 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.testutil.AddressBookBuilder;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 
@@ -68,6 +69,42 @@ public class EditCommandTest {
         expectedModel.setPerson(lastPerson, editedPerson);
 
         assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_privacyEnabled_masksContactDetailsInFeedback() throws Exception {
+        Person person = new PersonBuilder()
+                .withGuardianContact("Mary Bee", "81234567", "mary@example.com")
+                .build();
+        UserPrefs userPrefs = new UserPrefs();
+        userPrefs.setPrivacyModeEnabled(true);
+        model = new ModelManager(new AddressBookBuilder().withPerson(person).build(), userPrefs);
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withTags(VALID_TAG_HUSBAND)
+                .withGuardianEmail("updated@example.com").build();
+        Person editedPerson = new PersonBuilder(person).withTags(VALID_TAG_HUSBAND)
+                .withGuardianContact("Mary Bee", "81234567", "updated@example.com").build();
+
+        CommandResult commandResult = new EditCommand(INDEX_FIRST_PERSON, descriptor).execute(model);
+
+        assertEquals(String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson, true)),
+                commandResult.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_pinnedPerson_preservesPinnedState() {
+        Person pinnedPerson = new PersonBuilder().withPinned(true).build();
+        model = new ModelManager(new AddressBookBuilder().withPerson(pinnedPerson).build(), new UserPrefs());
+        EditCommand editCommand = new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withPhone(VALID_PHONE_BOB).build());
+
+        Person editedPerson = new PersonBuilder(pinnedPerson).withPhone(VALID_PHONE_BOB).build();
+        Model expectedModel = new ModelManager(new AddressBook(model.getAddressBook()), new UserPrefs());
+        expectedModel.setPerson(pinnedPerson, editedPerson);
+        String expectedMessage = String.format(EditCommand.MESSAGE_EDIT_PERSON_SUCCESS,
+                Messages.format(editedPerson));
+
+        assertCommandSuccess(editCommand, model, expectedMessage, expectedModel);
+        assertTrue(model.getFilteredPersonList().get(0).isPinned());
     }
 
     @Test

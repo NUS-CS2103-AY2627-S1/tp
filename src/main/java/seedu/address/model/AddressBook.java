@@ -3,9 +3,13 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Objects;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.lesson.ClassId;
+import seedu.address.model.lesson.TuitionClass;
+import seedu.address.model.lesson.UniqueTuitionClassList;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.UniquePersonList;
 
@@ -16,6 +20,8 @@ import seedu.address.model.person.UniquePersonList;
 public class AddressBook implements ReadOnlyAddressBook {
 
     private final UniquePersonList persons = new UniquePersonList();
+    private final UniqueTuitionClassList tuitionClasses = new UniqueTuitionClassList();
+    private int nextClassSequence = 1;
 
     public AddressBook() {}
 
@@ -37,6 +43,17 @@ public class AddressBook implements ReadOnlyAddressBook {
         this.persons.setPersons(persons);
     }
 
+    public void setTuitionClasses(List<TuitionClass> classes) {
+        tuitionClasses.setClasses(classes);
+    }
+
+    public void setNextClassSequence(int nextClassSequence) {
+        if (nextClassSequence < 1) {
+            throw new IllegalArgumentException("Next class sequence must be positive.");
+        }
+        this.nextClassSequence = nextClassSequence;
+    }
+
     /**
      * Resets the existing data of this {@code AddressBook} with {@code newData}.
      */
@@ -44,6 +61,8 @@ public class AddressBook implements ReadOnlyAddressBook {
         requireNonNull(newData);
 
         setPersons(newData.getPersonList());
+        setTuitionClasses(newData.getTuitionClassList());
+        setNextClassSequence(newData.getNextClassSequence());
     }
 
     //// person-level operations
@@ -83,18 +102,62 @@ public class AddressBook implements ReadOnlyAddressBook {
         persons.remove(key);
     }
 
+    //// class-level operations
+
+    /** Allocates the next stable class ID and advances the persisted sequence. */
+    public ClassId allocateClassId() {
+        ClassId allocated = ClassId.fromSequence(nextClassSequence);
+        nextClassSequence++;
+        return allocated;
+    }
+
+    public boolean hasTuitionClass(ClassId classId) {
+        return tuitionClasses.containsId(classId);
+    }
+
+    public boolean hasTuitionClassWithDetails(TuitionClass tuitionClass) {
+        return tuitionClasses.containsDetails(tuitionClass);
+    }
+
+    public TuitionClass getTuitionClass(ClassId classId) {
+        return tuitionClasses.get(classId);
+    }
+
+    /** Adds an independently stored tuition class. */
+    public void addTuitionClass(TuitionClass tuitionClass) {
+        tuitionClasses.add(tuitionClass);
+        nextClassSequence = Math.max(nextClassSequence, tuitionClass.getClassId().getSequence() + 1);
+    }
+
+    public void setTuitionClass(TuitionClass target, TuitionClass edited) {
+        tuitionClasses.set(target, edited);
+    }
+
+    public void removeTuitionClass(TuitionClass tuitionClass) {
+        tuitionClasses.remove(tuitionClass);
+    }
+
     //// util methods
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
-                .add("persons", persons)
-                .toString();
+        ToStringBuilder builder = new ToStringBuilder(this).add("persons", persons);
+        return builder.toString();
     }
 
     @Override
     public ObservableList<Person> getPersonList() {
         return persons.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<TuitionClass> getTuitionClassList() {
+        return tuitionClasses.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public int getNextClassSequence() {
+        return nextClassSequence;
     }
 
     @Override
@@ -108,11 +171,13 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons)
+                && tuitionClasses.equals(otherAddressBook.tuitionClasses)
+                && nextClassSequence == otherAddressBook.nextClassSequence;
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(persons, tuitionClasses, nextClassSequence);
     }
 }

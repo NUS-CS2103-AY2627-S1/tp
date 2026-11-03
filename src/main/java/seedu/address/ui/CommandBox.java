@@ -5,6 +5,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Region;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
 
@@ -15,11 +16,29 @@ public class CommandBox extends UiPart<Region> {
 
     public static final String ERROR_STYLE_CLASS = "error";
     private static final String FXML = "CommandBox.fxml";
+    private static final String FIND_FORMAT_HINT =
+            "find KEYWORD | find t/TAG | find sub/SUBJECT | find c/DAY, DATE, or TIME";
+    private static final String FIND_TAG_HINT = "find t/TAG (e.g. priority)";
+    private static final String FIND_SUBJECT_HINT = "find sub/SUBJECT (e.g. Math Physics)";
+    private static final String FIND_LESSON_HINT =
+            "find c/DAY, DATE, or TIME (e.g. Monday 1800; 2026-10-20; time uses HHmm)";
+    private static final String FIND_HOME_HINT = "Type 'list' to return to the home page.";
+    private static final String PRIVACY_COMMAND = "privacy";
+    private static final String PRIVACY_FORMAT_HINT = "privacy on | privacy off";
+    private static final String PIN_FORMAT_HINT = "pin INDEX";
+    private static final String UNPIN_FORMAT_HINT = "unpin INDEX";
+    private static final String TAG_COMMAND = "tag";
+    private static final String TAG_FORMAT_HINT = "tag INDEX TAG... | tag INDEX... t/TAG";
+    private static final String UNTAG_COMMAND = "untag";
+    private static final String UNTAG_FORMAT_HINT = "untag INDEX TAG... | untag INDEX -all";
 
     private final CommandExecutor commandExecutor;
 
     @FXML
     private TextField commandTextField;
+
+    @FXML
+    private TextField commandSuggestionTextField;
 
     /**
      * Creates a {@code CommandBox} with the given {@code CommandExecutor}.
@@ -28,7 +47,11 @@ public class CommandBox extends UiPart<Region> {
         super(FXML);
         this.commandExecutor = commandExecutor;
         // calls #setStyleToDefault() whenever there is a change to the text of the command box.
-        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> setStyleToDefault());
+        commandTextField.textProperty().addListener((unused1, unused2, unused3) -> {
+            setStyleToDefault();
+            updateCommandSuggestion();
+        });
+        updateCommandSuggestion();
     }
 
     /**
@@ -44,6 +67,7 @@ public class CommandBox extends UiPart<Region> {
         try {
             commandExecutor.execute(commandText);
             commandTextField.setText("");
+            commandSuggestionTextField.setText(isFindCommand(commandText) ? FIND_HOME_HINT : "");
         } catch (CommandException | ParseException e) {
             setStyleToIndicateCommandFailure();
         }
@@ -67,6 +91,95 @@ public class CommandBox extends UiPart<Region> {
         }
 
         styleClass.add(ERROR_STYLE_CLASS);
+    }
+
+    private void updateCommandSuggestion() {
+        commandSuggestionTextField.setText(getCommandSuggestion(commandTextField.getText()));
+    }
+
+    static String getCommandSuggestion(String commandText) {
+        if (commandText == null || commandText.isEmpty()) {
+            return "";
+        }
+
+        if ("find".startsWith(commandText) && commandText.length() < "find".length()) {
+            return "find";
+        }
+
+        if (PRIVACY_COMMAND.startsWith(commandText) && commandText.length() < PRIVACY_COMMAND.length()) {
+            return PRIVACY_COMMAND;
+        }
+
+        if (commandText.equals("find") || commandText.equals("find ")) {
+            return FIND_FORMAT_HINT;
+        }
+
+        if (commandText.equals(PRIVACY_COMMAND) || commandText.equals(PRIVACY_COMMAND + " ")
+                || commandText.equals(PRIVACY_COMMAND + " o")) {
+            return PRIVACY_FORMAT_HINT;
+        }
+
+        if (commandText.equals("find t/")) {
+            return FIND_TAG_HINT;
+        }
+
+        if (commandText.equals("find sub/")) {
+            return FIND_SUBJECT_HINT;
+        }
+
+        if (commandText.equals("find c/")) {
+            return FIND_LESSON_HINT;
+        }
+
+        if (commandText.equals("t/")) {
+            return "t/TAG (e.g. priority)";
+        }
+
+        if (commandText.equals("c/")) {
+            return "c/DAY, DATE, or TIME (e.g. Monday 1800; 2026-10-20; time uses HHmm)";
+        }
+
+        if ("pin".startsWith(commandText) && commandText.length() < "pin".length()) {
+            return "pin";
+        }
+
+        if (commandText.equals("pin") || commandText.equals("pin ")) {
+            return PIN_FORMAT_HINT;
+        }
+
+        if ("unpin".startsWith(commandText) && commandText.length() < "unpin".length()) {
+            return "unpin";
+        }
+
+        if (commandText.equals("unpin") || commandText.equals("unpin ")) {
+            return UNPIN_FORMAT_HINT;
+        }
+
+        if (TAG_COMMAND.startsWith(commandText) && commandText.length() >= 2
+                && commandText.length() < TAG_COMMAND.length()) {
+            return TAG_COMMAND;
+        }
+
+        if (commandText.equals(TAG_COMMAND) || commandText.equals(TAG_COMMAND + " ")) {
+            return TAG_FORMAT_HINT;
+        }
+
+        if (UNTAG_COMMAND.startsWith(commandText) && commandText.length() >= 3
+                && commandText.length() < UNTAG_COMMAND.length()) {
+            return UNTAG_COMMAND;
+        }
+
+        if (commandText.equals(UNTAG_COMMAND) || commandText.equals(UNTAG_COMMAND + " ")) {
+            return UNTAG_FORMAT_HINT;
+        }
+
+        return "";
+    }
+
+    static boolean isFindCommand(String commandText) {
+        String trimmedCommandText = commandText.trim();
+        return trimmedCommandText.equals(FindCommand.COMMAND_WORD)
+                || trimmedCommandText.startsWith(FindCommand.COMMAND_WORD + " ");
     }
 
     /**
