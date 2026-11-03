@@ -1,36 +1,79 @@
 @startuml
 !include style.puml
+skinparam linetype ortho
+skinparam nodesep 45
+skinparam ranksep 60
 skinparam arrowThickness 1.1
 skinparam arrowColor STORAGE_COLOR
 skinparam classBackgroundColor STORAGE_COLOR
 
 package Storage as StoragePackage {
+    interface Storage
+    class StorageManager
 
-Class "<<interface>>\nStorage" as Storage
-Class StorageManager
+    package "JSON file access" #F4F6F6 {
+        class JsonHobbyHubStorage
+        class JsonUserPrefsStorage
+    }
 
-package "UserPrefs Storage" #F4F6F6{
-Class JsonUserPrefsStorage
+    package "Single-instance guard" #F4F6F6 {
+        class InstanceLock
+    }
+
+    package "HobbyHub JSON adapters" #F4F6F6 {
+        class JsonSerializableHobbyHub
+        class JsonAdaptedMember
+        class JsonAdaptedSession
+        class JsonAdaptedHobby
+        class JsonAdaptedGroup
+    }
 }
 
-package "AddressBook Storage" #F4F6F6{
-Class JsonAddressBookStorage
-Class JsonSerializableAddressBook
-Class JsonAdaptedPerson
-Class JsonAdaptedTag
+package Application {
+    class MainApp
 }
 
+package Model {
+    interface ReadOnlyHobbyHub
+    interface ReadOnlyUserPrefs
+    class HobbyHub
+    class UserPrefs
+    class Member
+    class Session
+    class Hobby
+    class Group
 }
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Storage
 
 StorageManager .up.|> Storage
+StorageManager -down-> "1" JsonHobbyHubStorage
 StorageManager -down-> "1" JsonUserPrefsStorage
-StorageManager -down-> "1" JsonAddressBookStorage
 
-JsonAddressBookStorage ..> JsonSerializableAddressBook
-JsonSerializableAddressBook --> "*" JsonAdaptedPerson
-JsonAdaptedPerson --> "*" JsonAdaptedTag
+JsonHobbyHubStorage ..> JsonSerializableHobbyHub : reads / writes
+JsonSerializableHobbyHub -down-> "*" JsonAdaptedMember
+JsonSerializableHobbyHub -down-> "*" JsonAdaptedSession
+JsonAdaptedMember -down-> "*" JsonAdaptedHobby
+JsonAdaptedMember -down-> "*" JsonAdaptedGroup
+
+MainApp ..> Storage : obtains data-file path
+MainApp ..> InstanceLock : acquires and owns
+
+note bottom of InstanceLock
+    Best-effort exclusive lock associated
+    with the configured HobbyHub data file.
+    Held for the application's lifetime and
+    released during shutdown.
+end note
+
+JsonSerializableHobbyHub ..> ReadOnlyHobbyHub
+JsonSerializableHobbyHub ..> HobbyHub
+JsonAdaptedMember ..> Member
+JsonAdaptedSession ..> Session
+JsonAdaptedHobby ..> Hobby
+JsonAdaptedGroup ..> Group
+JsonUserPrefsStorage ..> ReadOnlyUserPrefs
+JsonUserPrefsStorage ..> UserPrefs
+
+' Preserve a visible gap between these otherwise independent model types.
+HobbyHub -[hidden]down- Session
 
 @enduml

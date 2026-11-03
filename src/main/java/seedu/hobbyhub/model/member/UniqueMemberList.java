@@ -1,0 +1,159 @@
+package seedu.hobbyhub.model.member;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.hobbyhub.commons.util.CollectionUtil.requireAllNonNull;
+
+import java.util.Iterator;
+import java.util.List;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import seedu.hobbyhub.model.member.exceptions.DuplicateMemberException;
+import seedu.hobbyhub.model.member.exceptions.MemberNotFoundException;
+
+/**
+ * A list of members that enforces uniqueness between its elements and does not allow nulls.
+ * Members are considered identical by {@code Member#isSameMember(Member)}. Adding, updating, and removing members use
+ * this identity comparison, even when their stored session assignments have changed.
+ *
+ * Supports a minimal set of list operations.
+ *
+ * @see Member#isSameMember(Member)
+ */
+public class UniqueMemberList implements Iterable<Member> {
+
+    private final ObservableList<Member> internalList = FXCollections.observableArrayList();
+    private final ObservableList<Member> internalUnmodifiableList =
+            FXCollections.unmodifiableObservableList(internalList);
+
+    /**
+     * Returns true if the list contains an equivalent member as the given argument.
+     */
+    public boolean contains(Member toCheck) {
+        requireNonNull(toCheck);
+        return internalList.stream().anyMatch(toCheck::isSameMember);
+    }
+
+    /**
+     * Adds a member to the list.
+     * The member must not already exist in the list.
+     */
+    public void add(Member toAdd) {
+        requireNonNull(toAdd);
+        if (contains(toAdd)) {
+            throw new DuplicateMemberException();
+        }
+        internalList.add(toAdd);
+    }
+
+    /**
+     * Replaces the member {@code target} in the list with {@code editedMember}.
+     * {@code target} must exist in the list.
+     * The member identity of {@code editedMember} must not be the same as another existing member in the list.
+     */
+    public void setMember(Member target, Member editedMember) {
+        requireAllNonNull(target, editedMember);
+
+        int index = getIndexOf(target);
+        if (index == -1) {
+            throw new MemberNotFoundException();
+        }
+
+        if (!target.isSameMember(editedMember) && contains(editedMember)) {
+            throw new DuplicateMemberException();
+        }
+
+        internalList.set(index, editedMember);
+    }
+
+    /**
+     * Removes the equivalent member from the list.
+     * The member must exist in the list.
+     */
+    public void remove(Member toRemove) {
+        requireNonNull(toRemove);
+        int index = getIndexOf(toRemove);
+        if (index == -1) {
+            throw new MemberNotFoundException();
+        }
+        internalList.remove(index);
+    }
+
+    public void setMembers(UniqueMemberList replacement) {
+        requireNonNull(replacement);
+        internalList.setAll(replacement.internalList);
+    }
+
+    /**
+     * Replaces the contents of this list with {@code members}.
+     * {@code members} must not contain duplicate members.
+     */
+    public void setMembers(List<Member> members) {
+        requireAllNonNull(members);
+        if (!membersAreUnique(members)) {
+            throw new DuplicateMemberException();
+        }
+
+        internalList.setAll(members);
+    }
+
+    /**
+     * Returns the backing list as an unmodifiable {@code ObservableList}.
+     */
+    public ObservableList<Member> asUnmodifiableObservableList() {
+        return internalUnmodifiableList;
+    }
+
+    @Override
+    public Iterator<Member> iterator() {
+        return internalList.iterator();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof UniqueMemberList otherUniqueMemberList)) {
+            return false;
+        }
+
+        return internalList.equals(otherUniqueMemberList.internalList);
+    }
+
+    @Override
+    public int hashCode() {
+        return internalList.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return internalList.toString();
+    }
+
+    /**
+     * Returns true if {@code members} contains only unique members.
+     */
+    private boolean membersAreUnique(List<Member> members) {
+        for (int i = 0; i < members.size() - 1; i++) {
+            for (int j = i + 1; j < members.size(); j++) {
+                if (members.get(i).isSameMember(members.get(j))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Returns the index of the member with the same identity, or {@code -1} if none exists. */
+    private int getIndexOf(Member member) {
+        for (int i = 0; i < internalList.size(); i++) {
+            if (internalList.get(i).isSameMember(member)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+}

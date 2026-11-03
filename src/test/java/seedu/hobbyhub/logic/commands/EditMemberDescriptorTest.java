@@ -1,0 +1,92 @@
+package seedu.hobbyhub.logic.commands;
+
+import static java.time.DayOfWeek.MONDAY;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.DESC_AMY;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.DESC_BOB;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_GROUP_HUSBAND;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_HOBBY_BOB;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.hobbyhub.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.hobbyhub.logic.commands.EditCommand.EditMemberDescriptor;
+import seedu.hobbyhub.model.member.Hobby;
+import seedu.hobbyhub.testutil.EditMemberDescriptorBuilder;
+
+public class EditMemberDescriptorTest {
+
+    @Test
+    public void equals() {
+        // same values -> returns true
+        EditMemberDescriptor descriptorWithSameValues = new EditMemberDescriptor(DESC_AMY);
+        assertTrue(DESC_AMY.equals(descriptorWithSameValues));
+
+        // same object -> returns true
+        assertTrue(DESC_AMY.equals(DESC_AMY));
+
+        // null -> returns false
+        assertFalse(DESC_AMY.equals(null));
+
+        // different types -> returns false
+        assertFalse(DESC_AMY.equals(5));
+
+        // different values -> returns false
+        assertFalse(DESC_AMY.equals(DESC_BOB));
+
+        // different name -> returns false
+        EditMemberDescriptor editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withName(VALID_NAME_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different phone -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different email -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different address -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different groups -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withGroups(VALID_GROUP_HUSBAND).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different hobby -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withHobby(VALID_HOBBY_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different availability -> returns false
+        editedAmy = new EditMemberDescriptorBuilder(DESC_AMY).withAvailability(MONDAY).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+    }
+
+    @Test
+    public void hobbyAccessors_presentAndNullValues_returnExpectedOptionals() {
+        EditMemberDescriptor descriptor = new EditMemberDescriptor().setHobby(new Hobby(VALID_HOBBY_BOB));
+
+        assertEquals(new Hobby(VALID_HOBBY_BOB), descriptor.getHobby().orElseThrow());
+        assertTrue(descriptor.setHobby(null).getHobby().isEmpty());
+    }
+
+    @Test
+    public void toStringMethod() {
+        EditMemberDescriptor editMemberDescriptor = new EditMemberDescriptor();
+        String expected = EditMemberDescriptor.class.getCanonicalName() + "{name="
+                + editMemberDescriptor.getName().orElse(null) + ", phone="
+                + editMemberDescriptor.getPhone().orElse(null) + ", email="
+                + editMemberDescriptor.getEmail().orElse(null) + ", address="
+                + editMemberDescriptor.getAddress().orElse(null) + ", groups="
+                + editMemberDescriptor.getGroups().orElse(null) + ", hobbies="
+                + editMemberDescriptor.getHobbies().orElse(null) + ", availability="
+                + editMemberDescriptor.getAvailability().orElse(null) + "}";
+        assertEquals(expected, editMemberDescriptor.toString());
+    }
+}
