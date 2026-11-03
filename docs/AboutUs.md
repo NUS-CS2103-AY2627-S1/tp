@@ -1,59 +1,61 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
 
 ## Project team
 
-### John Doe
+### Dillion Lim
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/dillionlim.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[homepage](https://dillionlim.github.io/)]
+[[github](https://github.com/dillionlim)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Deliverables and Deadlines, Scheduling and Tracking
+* Component in-charge: Logic
 
-### Johnny Doe
+### Jiang Xinnan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jxinnan.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/jxinnan)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Documentation
+* Component in-charge: UI
 
-### James Doe
+### Nguyen Phuc Thang
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/nguyen-phuc-thang.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Nguyen-Phuc-Thang)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Integration, Git expert
+* Component in-charge: Storage
+
+### Ng See Jay
+
+<img src="images/cjbuzz.png" width="200px">
+
+[[github]](https://github.com/cjbuzz)
+
+* Role: Developer
+* Responsibilities: Testing
+* Component in-charge: Parser
+
+### Rui Hong
+
+<img src="images/ruihongc.png" width="200px">
+
+[[github](https://github.com/ruihongc)]
+
+* Role: Developer
+* Responsibilities: Code Quality
+* Component in-charge: Model

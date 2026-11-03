@@ -1,0 +1,221 @@
+package seedu.tab.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NUS_STUDENT_ID;
+import static seedu.tab.testutil.Assert.assertThrows;
+import static seedu.tab.testutil.TypicalStudents.ALICE;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.collections.ObservableList;
+import seedu.tab.commons.core.GuiSettings;
+import seedu.tab.logic.Messages;
+import seedu.tab.logic.commands.exceptions.CommandException;
+import seedu.tab.model.Model;
+import seedu.tab.model.ReadOnlyStudentBook;
+import seedu.tab.model.ReadOnlyUserPrefs;
+import seedu.tab.model.StudentBook;
+import seedu.tab.model.student.Student;
+import seedu.tab.testutil.StudentBuilder;
+
+public class AddCommandTest {
+
+    @Test
+    public void messageUsage_includesNusStudentIdAlias() {
+        assertTrue(AddCommand.MESSAGE_USAGE.contains(FLAG_NUS_STUDENT_ID.getMarkerSummary()));
+    }
+
+    @Test
+    public void constructor_nullStudent_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AddCommand(null));
+    }
+
+    @Test
+    public void execute_studentAcceptedByModel_addSuccessful() throws Exception {
+        ModelStubAcceptingStudentAdded modelStub = new ModelStubAcceptingStudentAdded();
+        Student validStudent = new StudentBuilder().build();
+
+        CommandResult commandResult = new AddCommand(validStudent).execute(modelStub);
+
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validStudent)),
+                commandResult.getFeedbackToUser());
+        assertEquals(validStudent, commandResult.getStudentToReveal().orElseThrow());
+        assertEquals(List.of(validStudent), modelStub.studentsAdded);
+    }
+
+    @Test
+    public void execute_flaggedStudent_addSuccessfulWithFollowUpFeedback() throws Exception {
+        ModelStubAcceptingStudentAdded modelStub = new ModelStubAcceptingStudentAdded();
+        Student flaggedStudent = new StudentBuilder().withFlag(true).build();
+
+        CommandResult commandResult = new AddCommand(flaggedStudent).execute(modelStub);
+
+        assertEquals("New student added: Amy Bee; Phone: 85355255; Email: amy@gmail.com; "
+                + "Needs follow-up", commandResult.getFeedbackToUser());
+        assertEquals(List.of(flaggedStudent), modelStub.studentsAdded);
+    }
+
+    @Test
+    public void execute_duplicateStudent_throwsCommandException() {
+        Student validStudent = new StudentBuilder().withNusStudentId("A01234567X").build();
+        AddCommand addCommand = new AddCommand(validStudent);
+        ModelStub modelStub = new ModelStubWithStudent(validStudent);
+
+        String expectedMessage = String.format(Messages.MESSAGE_DUPLICATE_STUDENT,
+                validStudent.getNusStudentId().orElseThrow(), validStudent.getName());
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
+    }
+
+    @Test
+    public void equals() {
+        Student alice = new StudentBuilder().withName("Alice").build();
+        Student bob = new StudentBuilder().withName("Bob").build();
+        AddCommand addAliceCommand = new AddCommand(alice);
+        AddCommand addBobCommand = new AddCommand(bob);
+
+        // same object -> returns true
+        assertTrue(addAliceCommand.equals(addAliceCommand));
+
+        // same values -> returns true
+        AddCommand addAliceCommandCopy = new AddCommand(alice);
+        assertTrue(addAliceCommand.equals(addAliceCommandCopy));
+        assertEquals(addAliceCommand.hashCode(), addAliceCommandCopy.hashCode());
+
+        // different types -> returns false
+        assertFalse(addAliceCommand.equals(1));
+
+        // null -> returns false
+        assertFalse(addAliceCommand.equals(null));
+
+        // different student -> returns false
+        assertFalse(addAliceCommand.equals(addBobCommand));
+    }
+
+    @Test
+    public void toStringMethod() {
+        AddCommand addCommand = new AddCommand(ALICE);
+        String expected = AddCommand.class.getCanonicalName() + "{toAdd=" + ALICE + "}";
+        assertEquals(expected, addCommand.toString());
+    }
+
+    /**
+     * A default model stub that has all of the methods failing.
+     */
+    private class ModelStub implements Model {
+        @Override
+        public ReadOnlyUserPrefs getUserPrefs() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public GuiSettings getGuiSettings() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setGuiSettings(GuiSettings guiSettings) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void addStudent(Student student) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setStudentBook(ReadOnlyStudentBook newData) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ReadOnlyStudentBook getStudentBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<Student> findSameStudent(Student student) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void deleteStudent(Student target) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setStudent(Student target, Student editedStudent) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public ObservableList<Student> getFilteredStudentList() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Predicate<? super Student> getFilteredStudentPredicate() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateFilteredStudentList(Predicate<? super Student> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+    }
+
+    /**
+     * A Model stub that contains a single student.
+     */
+    private class ModelStubWithStudent extends ModelStub {
+        private final Student student;
+
+        ModelStubWithStudent(Student student) {
+            requireNonNull(student);
+            this.student = student;
+        }
+
+        @Override
+        public Optional<Student> findSameStudent(Student student) {
+            requireNonNull(student);
+            return this.student.isSameStudent(student) ? Optional.of(this.student) : Optional.empty();
+        }
+    }
+
+    /**
+     * A Model stub that always accepts the student being added.
+     */
+    private class ModelStubAcceptingStudentAdded extends ModelStub {
+        final ArrayList<Student> studentsAdded = new ArrayList<>();
+
+        @Override
+        public Predicate<? super Student> getFilteredStudentPredicate() {
+            return PREDICATE_SHOW_ALL_STUDENTS;
+        }
+
+        @Override
+        public Optional<Student> findSameStudent(Student student) {
+            requireNonNull(student);
+            return studentsAdded.stream().filter(student::isSameStudent).findFirst();
+        }
+
+        @Override
+        public void addStudent(Student student) {
+            requireNonNull(student);
+            studentsAdded.add(student);
+        }
+
+        @Override
+        public ReadOnlyStudentBook getStudentBook() {
+            return new StudentBook();
+        }
+    }
+
+}

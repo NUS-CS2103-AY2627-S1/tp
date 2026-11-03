@@ -1,0 +1,102 @@
+package seedu.tab.commons.core;
+
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
+import seedu.tab.commons.util.AppUtil;
+
+/**
+ * Configures and manages loggers and handlers, including their logging level.
+ * Named {@link Logger}s can be obtained from this class.<br>
+ * These loggers output messages to the console and, when writable, a {@code .log} file by default,
+ *   at the {@code INFO} level. A new {@code .log} file with a new numbering will be created after the log
+ *   file reaches 5MB in size, up to a maximum of 5 files.<br>
+ */
+public class LogsCenter {
+    // Change this to a lower level (e.g., Level.FINE) to enable more detailed log messages
+    private static final String BASE_LOGGER_NAME = "tab";
+    private static final Level LOG_LEVEL = Level.INFO;
+
+    private static final int MAX_FILE_COUNT = 5;
+    private static final int MAX_FILE_SIZE_IN_BYTES = (int) (Math.pow(2, 20) * 5); // 5MB
+    private static final String LOG_FILE = AppUtil.getApplicationDirectory().resolve("tab.log").toString();
+    private static Logger baseLogger; // to be used as the parent of all other loggers created by this class.
+
+    // This static block ensures essential loggers are created early
+    static {
+        setBaseLogger();
+    }
+
+    private LogsCenter() {} // this class only holds helpers
+
+    /**
+     * Creates a logger with the given name prefixed by the {@code baseLogger}'s name so that the created logger
+     * becomes a descendant of the {@code baseLogger}. Furthermore, the returned logger will have the same log handlers
+     * as the {@code baseLogger}.
+     */
+    public static Logger getLogger(String name) {
+        // Java organizes loggers into a hierarchy based on their names (using '.' as a separator, similar to how Java
+        // packages form a hierarchy). Furthermore, loggers without a level inherit the level of their parent logger.
+        // By prefixing names of all loggers with baseLogger's name + ".", we make the baseLogger the parent of all
+        // loggers. This allows us to change the level of all loggers simply by changing the baseLogger level.
+        Logger logger = Logger.getLogger(baseLogger.getName() + "." + name);
+        removeHandlers(logger);
+        logger.setUseParentHandlers(true);
+        return logger;
+    }
+
+    /**
+     * Creates a Logger for the given class name.
+     */
+    public static <T> Logger getLogger(Class<T> clazz) {
+        requireNonNull(clazz);
+        return getLogger(clazz.getSimpleName());
+    }
+
+    /**
+     * Removes all handlers from the {@code logger}.
+     */
+    private static void removeHandlers(Logger logger) {
+        Arrays.stream(logger.getHandlers())
+                .forEach(logger::removeHandler);
+    }
+
+    /**
+     * Creates a logger named 'tab', containing a {@code ConsoleHandler} and, if writable, a {@code FileHandler}.
+     * Sets it as the {@code baseLogger}, to be used as the parent logger of all other loggers.
+     */
+    private static void setBaseLogger() {
+        baseLogger = Logger.getLogger(BASE_LOGGER_NAME);
+        baseLogger.setUseParentHandlers(false);
+        removeHandlers(baseLogger);
+        // set the level of the baseLogger, which will be inherited by other loggers
+        baseLogger.setLevel(LOG_LEVEL);
+
+        // Level.ALL is used as the level for the handlers because the baseLogger filters the log messages by level
+        // already; there is no need to control log message level of the handlers.
+
+        // add a ConsoleHandler to log to the console
+        ConsoleHandler consoleHandler = new ConsoleHandler();
+        consoleHandler.setLevel(Level.ALL);
+        baseLogger.addHandler(consoleHandler);
+
+        // add a FileHandler to log to a file
+        try {
+            FileHandler fileHandler = new FileHandler(LOG_FILE, MAX_FILE_SIZE_IN_BYTES, MAX_FILE_COUNT, true);
+            fileHandler.setFormatter(new SimpleFormatter());
+            fileHandler.setLevel(Level.ALL);
+            baseLogger.addHandler(fileHandler);
+        } catch (IOException e) {
+            baseLogger.warning("Unable to write log file " + LOG_FILE + ". Continuing with console logging only.");
+        }
+    }
+
+
+}

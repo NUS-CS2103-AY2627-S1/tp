@@ -1,0 +1,30 @@
+@startuml
+!include style.puml
+skinparam defaultFontSize 16
+skinparam ArrowFontStyle plain
+skinparam activityBackgroundColor LOGIC_COLOR_T1
+skinparam activityBorderColor #555555
+skinparam arrowColor #555555
+
+
+start
+:Read the follow-up options;
+if () then ([an option repeated, or
+both -f and -nf given])
+  :Reject the
+  command;
+  stop
+else ([else])
+  ' The side guards hold the same letters, some transparent, and the middle
+  ' action is padded on both sides, so the middle branch sits under the diamond.
+  switch ()
+  case (<U+00A0><U+00A0>[-f given]<color:transparent>neither</color>)
+    :Mark the follow-up;
+  case (<U+00A0><U+00A0>[-nf given])
+    :<U+00A0><U+00A0><U+00A0><U+00A0>Clear the follow-up<U+00A0><U+00A0><U+00A0><U+00A0>;
+  case (<U+00A0><U+00A0>[neither given]<color:transparent>-f</color>)
+    :Keep the follow-up;
+  endswitch
+  stop
+endif
+@enduml

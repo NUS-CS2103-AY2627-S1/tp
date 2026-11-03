@@ -1,0 +1,26 @@
+@startuml
+!include style.puml
+skinparam defaultFontSize 16
+skinparam ArrowFontStyle plain
+skinparam activityBackgroundColor LOGIC_COLOR_T1
+skinparam activityBorderColor #555555
+skinparam arrowColor #555555
+
+
+start
+:Ignore letter case;
+:Find commands starting
+with the typed word;
+if () then ([some found])
+else ([none found])
+  :Find the commands closest in spelling;
+endif
+if () then ([more than three])
+  :Suggest nothing;
+  stop
+else ([three or fewer])
+  :Suggest them in
+  command-list order;
+  stop
+endif
+@enduml

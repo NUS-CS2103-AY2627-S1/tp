@@ -1,0 +1,25 @@
+@startuml
+!include style.puml
+skinparam defaultFontSize 16
+skinparam ArrowFontStyle plain
+skinparam activityBackgroundColor LOGIC_COLOR_T1
+skinparam activityBorderColor #555555
+skinparam arrowColor #555555
+
+start
+:Check the new student's optional ID
+against existing students;
+if () then ([present ID already used])
+  :Reject addition with ID conflict message;
+  stop
+else ([ID absent or unused])
+  :Prepare success feedback;
+  :Append advice for matching
+  name, phone or email;
+  :Add student to the model;
+  :Update filter if needed
+  and return feedback;
+  stop
+endif
+@enduml
+

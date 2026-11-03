@@ -1,0 +1,117 @@
+package seedu.tab.logic.commands;
+
+import static java.util.Objects.requireNonNull;
+import static seedu.tab.logic.parser.CliFlags.FLAG_EMAIL;
+import static seedu.tab.logic.parser.CliFlags.FLAG_FOLLOW_UP;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NUS_STUDENT_ID;
+import static seedu.tab.logic.parser.CliFlags.FLAG_PHONE;
+import static seedu.tab.logic.parser.CliFlags.FLAG_TAG;
+import static seedu.tab.model.Model.PREDICATE_SHOW_ALL_STUDENTS;
+
+import java.util.logging.Logger;
+
+import seedu.tab.commons.core.LogsCenter;
+import seedu.tab.commons.util.ToStringBuilder;
+import seedu.tab.logic.Messages;
+import seedu.tab.logic.commands.exceptions.CommandException;
+import seedu.tab.model.Model;
+import seedu.tab.model.student.Student;
+
+/**
+ * Adds a student to the student book.
+ */
+public class AddCommand extends Command {
+
+    public static final String COMMAND_WORD = "add";
+
+    /** The name is given before any option rather than marked by one. */
+    public static final String FIELD_NAME = "NAME";
+
+    public static final String MESSAGE_NAME_GUIDANCE = "In the add command, the name comes first, without an option: "
+            + COMMAND_WORD + " " + FIELD_NAME + " " + FLAG_PHONE.getLabel() + " ...";
+
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Adds a student to the student book. "
+            + "Parameters: " + FIELD_NAME + " "
+            + "[" + FLAG_PHONE.getLabel() + "] "
+            + "[" + FLAG_EMAIL.getLabel() + "] "
+            + "[" + FLAG_NUS_STUDENT_ID.getLabel() + "] "
+            + "[" + FLAG_TAG.getLabel() + "]... "
+            + "[" + FLAG_FOLLOW_UP.getLabel() + "]\n"
+            + "The name comes first and may hold spaces as it is. Any option value holding "
+            + "spaces, and any value opening with a hyphen, goes in double quotes. "
+            + "The value options accept either spelling: " + FLAG_PHONE.getMarkerSummary() + ", "
+            + FLAG_EMAIL.getMarkerSummary() + ", " + FLAG_NUS_STUDENT_ID.getMarkerSummary() + " and "
+            + FLAG_TAG.getMarkerSummary() + ". The phone number, email and NUS Student ID "
+            + "are optional. "
+            + FLAG_FOLLOW_UP.getMarkerSummary()
+            + " takes no value and marks the student as needing follow-up.\n"
+            + "Example: " + COMMAND_WORD + " \"Siti Nur-Aisyah\" "
+            + FLAG_PHONE + " 98765432 "
+            + FLAG_EMAIL + " e1147203@u.nus.edu "
+            + FLAG_NUS_STUDENT_ID + " A11472030K "
+            + FLAG_TAG + " T1 "
+            + FLAG_TAG + " \"Lab 3\"";
+
+    public static final String MESSAGE_SUCCESS = "New student added: %1$s";
+
+    public static final String MESSAGE_SEARCH_CLEARED = "Search cleared to show the new student.";
+
+    private static final Logger logger = LogsCenter.getLogger(AddCommand.class);
+
+    private final Student toAdd;
+
+    /**
+     * Creates an AddCommand to add the specified {@code Student}
+     */
+    public AddCommand(Student student) {
+        requireNonNull(student);
+        toAdd = student;
+    }
+
+    @Override
+    public CommandResult execute(Model model) throws CommandException {
+        requireNonNull(model);
+
+        StudentIdValidation.requireNoDuplicate(model, toAdd, null);
+
+        String feedback = LikelyDuplicateWarning.appendTo(
+                String.format(MESSAGE_SUCCESS, Messages.format(toAdd)),
+                toAdd, model.getStudentBook().getStudentList());
+        feedback = DotlessEmailDomainWarning.appendTo(feedback, toAdd);
+        feedback = FollowUpTagWarning.appendTo(feedback, toAdd.getTags());
+        model.addStudent(toAdd);
+        if (!model.getFilteredStudentPredicate().test(toAdd)) {
+            model.updateFilteredStudentList(PREDICATE_SHOW_ALL_STUDENTS);
+            feedback += "\n" + MESSAGE_SEARCH_CLEARED;
+        }
+        logger.info("Added a student; the book now holds "
+                + model.getStudentBook().getStudentList().size());
+        return new CommandResult(feedback, toAdd);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+
+        // instanceof handles nulls
+        if (!(other instanceof AddCommand otherAddCommand)) {
+            return false;
+        }
+
+        return toAdd.equals(otherAddCommand.toAdd);
+    }
+
+    @Override
+    public int hashCode() {
+        return toAdd.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .add("toAdd", toAdd)
+                .toString();
+    }
+}

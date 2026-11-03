@@ -3,10 +3,12 @@
 /build/
 src/main/resources/docs/
 
-# IDEA files
+# IDE files
 /.idea/
 /out/
 /*.iml
+/.vscode/
+/bin/
 
 # Storage/log files
 /data/
@@ -22,10 +24,12 @@ src/test/data/sandbox/
 docs/_site/
 
 # AI Agents
-AGENTS.md
-CLAUDE.md
+# AGENTS.md and CLAUDE.md are tracked; local tool files are not.
+/.agents/
 /.claude/
 /.codex/
+__pycache__/
 
 # Temp files
 _temp/
+docs/_markbind/logs/

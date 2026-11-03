@@ -7,7 +7,7 @@ plugins {
 }
 
 application {
-    mainClass = 'seedu.address.Main'
+    mainClass = 'seedu.tab.Main'
 }
 
 java {
@@ -24,8 +24,22 @@ checkstyle {
     toolVersion = '14.1.0'
 }
 
+run {
+    // the product states invariants with assert, which the JVM ignores unless it is told
+    // not to, so without this they are checked under test and nowhere else
+    enableAssertions = true
+}
+
 test {
+    inputs.file('docs/UserGuide.md')
     useJUnitPlatform()
+    // Focus tests simulate window activation without depending on the desktop window manager.
+    if (file("${System.getProperty('java.home')}/jmods/javafx.graphics.jmod").exists()) {
+        jvmArgs '--add-exports=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED'
+    }
+    testLogging {
+        exceptionFormat = 'full'
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +86,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'tab.jar'
 }
 
 defaultTasks 'clean', 'test'

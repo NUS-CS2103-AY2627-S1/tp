@@ -1,0 +1,14 @@
+{
+  "students": [ {
+    "name": "Alice Pauline",
+    "phone": "94351253",
+    "email": "alice@example.com",
+    "nusStudentId": "A01234567X",
+    "tags": [ "friends" ]
+  }, {
+    "name": "Bob Lim",
+    "phone": "91234567",
+    "email": "bob@example.com",
+    "nusStudentId": "a01234567x"
+  } ]
+}

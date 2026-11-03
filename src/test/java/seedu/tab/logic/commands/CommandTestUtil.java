@@ -1,0 +1,159 @@
+package seedu.tab.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tab.logic.parser.CliFlags.FLAG_EMAIL;
+import static seedu.tab.logic.parser.CliFlags.FLAG_FOLLOW_UP;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NAME;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NUS_STUDENT_ID;
+import static seedu.tab.logic.parser.CliFlags.FLAG_PHONE;
+import static seedu.tab.logic.parser.CliFlags.FLAG_TAG;
+import static seedu.tab.testutil.Assert.assertThrows;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import seedu.tab.commons.core.index.Index;
+import seedu.tab.commons.util.ValueMessages;
+import seedu.tab.logic.commands.exceptions.CommandException;
+import seedu.tab.model.Model;
+import seedu.tab.model.StudentBook;
+import seedu.tab.model.student.DetailsContainsKeywordsPredicate;
+import seedu.tab.model.student.DetailsContainsKeywordsPredicate.Field;
+import seedu.tab.model.student.Email;
+import seedu.tab.model.student.Student;
+import seedu.tab.model.tag.FollowUpFlag;
+import seedu.tab.testutil.EditStudentDescriptorBuilder;
+
+/**
+ * Contains helper methods for testing commands.
+ */
+public class CommandTestUtil {
+
+    public static final String VALID_NAME_AMY = "Amy Bee";
+    public static final String VALID_NAME_BOB = "Bob Choo";
+    public static final String VALID_PHONE_AMY = "11111111";
+    public static final String VALID_PHONE_BOB = "22222222";
+    public static final String VALID_EMAIL_AMY = "amy@example.com";
+    public static final String VALID_EMAIL_BOB = "bob@example.com";
+    // the length limit on an address is applied where a command enters one rather than by
+    // Email itself, so both sides of the boundary belong to the command tests. The local
+    // part is padded so that length is the only thing at issue.
+    public static final String VALID_EMAIL_AT_MAX_LENGTH =
+            "a".repeat(Email.MAX_LENGTH - "@example.com".length()) + "@example.com";
+    public static final String VALID_NUS_STUDENT_ID_AMY = "A11111111A";
+    public static final String VALID_NUS_STUDENT_ID_BOB = "A22222222B";
+    public static final String VALID_TAG_HUSBAND = "husband";
+    public static final String VALID_TAG_FRIEND = "friend";
+
+    // add takes the name before any option, where edit marks it with one, so the name needs a
+    // fixture in each spelling. Every other field reads the same way in both commands.
+    public static final String NAME_AMY = " \"" + VALID_NAME_AMY + "\"";
+    public static final String NAME_BOB = " \"" + VALID_NAME_BOB + "\"";
+    public static final String FLAG_NAME_AMY = " " + FLAG_NAME + " \"" + VALID_NAME_AMY + "\"";
+    public static final String FLAG_NAME_BOB = " " + FLAG_NAME + " \"" + VALID_NAME_BOB + "\"";
+    public static final String PHONE_AMY = " " + FLAG_PHONE + " " + VALID_PHONE_AMY;
+    public static final String PHONE_BOB = " " + FLAG_PHONE + " " + VALID_PHONE_BOB;
+    public static final String EMAIL_AMY = " " + FLAG_EMAIL + " " + VALID_EMAIL_AMY;
+    public static final String EMAIL_BOB = " " + FLAG_EMAIL + " " + VALID_EMAIL_BOB;
+    public static final String EMAIL_AT_MAX_LENGTH = " " + FLAG_EMAIL + " " + VALID_EMAIL_AT_MAX_LENGTH;
+    public static final String NUS_STUDENT_ID_AMY = " " + FLAG_NUS_STUDENT_ID + " " + VALID_NUS_STUDENT_ID_AMY;
+    public static final String NUS_STUDENT_ID_BOB = " " + FLAG_NUS_STUDENT_ID + " " + VALID_NUS_STUDENT_ID_BOB;
+    public static final String TAG_FRIEND = " " + FLAG_TAG + " " + VALID_TAG_FRIEND;
+    public static final String TAG_HUSBAND = " " + FLAG_TAG + " " + VALID_TAG_HUSBAND;
+    public static final String FOLLOW_UP = " " + FLAG_FOLLOW_UP;
+    public static final String NO_TAGS = " " + FLAG_TAG + " \"\"";
+
+    public static final String INVALID_NAME = " \"---\""; // no letter or number in name
+    public static final String INVALID_FLAG_NAME = " " + FLAG_NAME + " \"---\""; // no letter or number
+    public static final String INVALID_PHONE = " " + FLAG_PHONE + " 12"; // fewer than 3 digits
+    public static final String INVALID_EMAIL = " " + FLAG_EMAIL + " bob!yahoo"; // missing '@' symbol
+    public static final String INVALID_EMAIL_OVER_MAX_LENGTH = "a" + VALID_EMAIL_AT_MAX_LENGTH;
+    public static final String EMAIL_OVER_MAX_LENGTH =
+            " " + FLAG_EMAIL + " " + INVALID_EMAIL_OVER_MAX_LENGTH;
+    /** What a command answers an address one character over the limit with. */
+    public static final String MESSAGE_EMAIL_OVER_MAX_LENGTH =
+            "Email \"" + "a".repeat(ValueMessages.MAX_QUOTED_VALUE_LENGTH) + "…\" is not valid: "
+                    + "an email may hold at most " + Email.MAX_LENGTH
+                    + " characters, and this one holds " + INVALID_EMAIL_OVER_MAX_LENGTH.length();
+    public static final String INVALID_NUS_STUDENT_ID = " " + FLAG_NUS_STUDENT_ID + " A0123-456";
+    public static final String INVALID_TAG = " " + FLAG_TAG + " \"---\""; // no letter or number
+    /** The follow-up marker's label offered as a tag, which names no tag of its own. */
+    public static final String FOLLOW_UP_AS_TAG = " " + FLAG_TAG + " \"" + FollowUpFlag.FOLLOW_UP_NAME + "\"";
+
+    public static final String PREAMBLE_WHITESPACE = "\t  \r  \n";
+    public static final String PREAMBLE_NON_EMPTY = "NonEmptyPreamble";
+
+    public static final EditCommand.EditStudentDescriptor DESC_AMY;
+    public static final EditCommand.EditStudentDescriptor DESC_BOB;
+
+    static {
+        DESC_AMY = new EditStudentDescriptorBuilder().withName(VALID_NAME_AMY)
+                .withPhone(VALID_PHONE_AMY).withEmail(VALID_EMAIL_AMY)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_AMY)
+                .withTags(VALID_TAG_FRIEND).build();
+        DESC_BOB = new EditStudentDescriptorBuilder().withName(VALID_NAME_BOB)
+                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_BOB)
+                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+    }
+
+    /**
+     * Executes the given {@code command}, confirms that <br>
+     * - the returned {@link CommandResult} matches {@code expectedCommandResult} <br>
+     * - the {@code actualModel} matches {@code expectedModel}
+     */
+    public static void assertCommandSuccess(Command command, Model actualModel, CommandResult expectedCommandResult,
+            Model expectedModel) {
+        try {
+            CommandResult result = command.execute(actualModel);
+            assertEquals(expectedCommandResult, result);
+            assertEquals(expectedModel, actualModel);
+        } catch (CommandException ce) {
+            throw new AssertionError("Execution of command should not fail.", ce);
+        }
+    }
+
+    /**
+     * Convenience wrapper to {@link #assertCommandSuccess(Command, Model, CommandResult, Model)}
+     * that takes a string {@code expectedMessage}.
+     */
+    public static void assertCommandSuccess(Command command, Model actualModel, String expectedMessage,
+            Model expectedModel) {
+        CommandResult expectedCommandResult = new CommandResult(expectedMessage);
+        assertCommandSuccess(command, actualModel, expectedCommandResult, expectedModel);
+    }
+
+    /**
+     * Executes the given {@code command}, confirms that <br>
+     * - a {@code CommandException} is thrown <br>
+     * - the CommandException message matches {@code expectedMessage} <br>
+     * - the student book and filtered student list in {@code actualModel} remain unchanged
+     */
+    public static void assertCommandFailure(Command command, Model actualModel, String expectedMessage) {
+        // we are unable to defensively copy the model for comparison later, so we can
+        // only do so by copying its components.
+        StudentBook expectedStudentBook = new StudentBook(actualModel.getStudentBook());
+        List<Student> expectedFilteredList = new ArrayList<>(actualModel.getFilteredStudentList());
+
+        assertThrows(CommandException.class, expectedMessage, () -> command.execute(actualModel));
+        assertEquals(expectedStudentBook, actualModel.getStudentBook());
+        assertEquals(expectedFilteredList, actualModel.getFilteredStudentList());
+    }
+    /**
+     * Updates {@code model}'s filtered list to show only the student at the given {@code targetIndex} in the
+     * {@code model}'s student book.
+     */
+    public static void showStudentAtIndex(Model model, Index targetIndex) {
+        assertTrue(targetIndex.getZeroBased() < model.getFilteredStudentList().size());
+
+        Student student = model.getFilteredStudentList().get(targetIndex.getZeroBased());
+        final String[] splitName = student.getName().getFullName().split("\\s+");
+        model.updateFilteredStudentList(
+                new DetailsContainsKeywordsPredicate(Map.of(Field.NAME, List.of(splitName[0]))));
+
+        assertEquals(1, model.getFilteredStudentList().size());
+    }
+
+}

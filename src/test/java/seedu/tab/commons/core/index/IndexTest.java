@@ -1,0 +1,88 @@
+package seedu.tab.commons.core.index;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tab.testutil.Assert.assertThrows;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+public class IndexTest {
+
+    @Test
+    public void createOneBasedIndex() {
+        // below the one-based range: 0 is the first rejected lower boundary
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromOneBased(0));
+
+        // accepted one-based indices: lower boundary 1 and ordinary representative 5
+        assertEquals(1, Index.fromOneBased(1).getOneBased());
+        assertEquals(5, Index.fromOneBased(5).getOneBased());
+
+        // convert from one-based index to zero-based index
+        assertEquals(0, Index.fromOneBased(1).getZeroBased());
+        assertEquals(4, Index.fromOneBased(5).getZeroBased());
+    }
+
+    @Test
+    public void createZeroBasedIndex() {
+        // below the zero-based range: -1 is the first rejected lower boundary
+        assertThrows(IndexOutOfBoundsException.class, () -> Index.fromZeroBased(-1));
+
+        // accepted zero-based indices: lower boundary 0 and ordinary representative 5
+        assertEquals(0, Index.fromZeroBased(0).getZeroBased());
+        assertEquals(5, Index.fromZeroBased(5).getZeroBased());
+
+        // convert from zero-based index to one-based index
+        assertEquals(1, Index.fromZeroBased(0).getOneBased());
+        assertEquals(6, Index.fromZeroBased(5).getOneBased());
+    }
+
+    @Test
+    public void equals() {
+        final Index fifthStudentIndex = Index.fromOneBased(5);
+
+        // same values -> returns true
+        assertTrue(fifthStudentIndex.equals(Index.fromOneBased(5)));
+        assertEquals(fifthStudentIndex.hashCode(), Index.fromOneBased(5).hashCode());
+        assertTrue(fifthStudentIndex.equals(Index.fromZeroBased(4)));
+        assertEquals(fifthStudentIndex.hashCode(), Index.fromZeroBased(4).hashCode());
+
+        // same object -> returns true
+        assertTrue(fifthStudentIndex.equals(fifthStudentIndex));
+
+        // null -> returns false
+        assertFalse(fifthStudentIndex.equals(null));
+
+        // different types -> returns false
+        assertFalse(fifthStudentIndex.equals(5.0f));
+
+        // different index -> returns false
+        assertFalse(fifthStudentIndex.equals(Index.fromOneBased(1)));
+    }
+
+    @Test
+    public void hashCode_equalIndices_hashCollectionsRecognizeEqualKeys() {
+        Index oneBasedIndex = Index.fromOneBased(5);
+        Index zeroBasedIndex = Index.fromZeroBased(4);
+        Set<Index> indices = new HashSet<>();
+        indices.add(oneBasedIndex);
+        assertFalse(indices.add(zeroBasedIndex));
+        assertEquals(1, indices.size());
+
+        Map<Index, String> valuesByIndex = new HashMap<>();
+        valuesByIndex.put(oneBasedIndex, "fifth student");
+        assertEquals("fifth student", valuesByIndex.get(zeroBasedIndex));
+    }
+
+    @Test
+    public void toStringMethod() {
+        Index index = Index.fromZeroBased(0);
+        String expected = Index.class.getCanonicalName() + "{zeroBasedIndex=" + index.getZeroBased() + "}";
+        assertEquals(expected, index.toString());
+    }
+}

@@ -1,32 +1,61 @@
+/*
+ * TAB's palette. Every colour below is named here and referred to by name
+ * elsewhere in this file, so that a shade is changed in one place rather than
+ * hunted through the rules that use it.
+ */
+* {
+    /* Sampled from docs/images/Ui.png rather than guessed, so the app and the picture it
+       ships agree. The comment after each is where in the mockup it was read. */
+    -tab-bg: #15181c;              /* the window behind everything */
+    -tab-bg-sunken: #101216;       /* the sidebar, and the well the command line sits in */
+    -tab-surface: #232830;         /* a card: lighter than the window, not darker */
+    -tab-surface-raised: #2a303a;  /* a surface lifted above its neighbours */
+    -tab-surface-selected: #262e38;/* the row the user is on */
+    -tab-border: #22262d;          /* a divider, and the edge of a surface */
+    -tab-text: #f2f5f7;            /* a student's name, and ordinary text */
+    -tab-text-muted: #a6b9c8;      /* a secondary detail under a name */
+    -tab-text-dim: #798289;        /* a count beside a sidebar row */
+    -tab-accent: #68c4ee;          /* the prompt, and the command word after it */
+    -tab-highlight: #d4ae40;       /* the follow-up pill */
+    -tab-string: #a8c68d;          /* a quoted value on the command line */
+    -tab-option: #cab4c7;          /* an option on the command line */
+    -tab-value: #c3d0dc;           /* a plain value on the command line */
+    -tab-chip-bg: #2a3945;         /* a tag chip */
+    -tab-chip-text: #8cc7e5;
+    -tab-selected-text: rgba(104, 196, 238, 0.36); /* the run of a command the user has selected */
+    -tab-shadow: #000000;             /* the well a sunken surface sits in */
+    -tab-danger: #ff9090;          /* a refused command */
+}
+
 .background {
-    -fx-background-color: derive(#1d1d1d, 20%);
-    background-color: #383838; /* Used in the default.html file */
+    -fx-background-color: -tab-bg;
+    background-color: -tab-surface; /* Used in the default.html file */
+}
+
+.root {
 }
 
 .label {
     -fx-font-size: 11pt;
-    -fx-font-family: "Segoe UI Semibold";
-    -fx-text-fill: #555555;
+    -fx-text-fill: -tab-text-muted;
     -fx-opacity: 0.9;
 }
 
 .label-bright {
     -fx-font-size: 11pt;
-    -fx-font-family: "Segoe UI Semibold";
-    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-text-fill: -tab-text;
     -fx-opacity: 1;
 }
 
 .label-header {
     -fx-font-size: 32pt;
-    -fx-font-family: "Segoe UI Light";
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
     -fx-opacity: 1;
 }
 
 .text-field {
     -fx-font-size: 12pt;
-    -fx-font-family: "Segoe UI Semibold";
 }
 
 .tab-pane {
@@ -40,9 +69,9 @@
 }
 
 .table-view {
-    -fx-base: #1d1d1d;
-    -fx-control-inner-background: #1d1d1d;
-    -fx-background-color: #1d1d1d;
+    -fx-base: -tab-bg;
+    -fx-control-inner-background: -tab-bg;
+    -fx-background-color: -tab-bg;
     -fx-table-cell-border-color: transparent;
     -fx-table-header-border-color: transparent;
     -fx-padding: 5;
@@ -66,8 +95,7 @@
 
 .table-view .column-header .label {
     -fx-font-size: 20pt;
-    -fx-font-family: "Segoe UI Light";
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
     -fx-alignment: center-left;
     -fx-opacity: 1;
 }
@@ -77,134 +105,173 @@
 }
 
 .split-pane:horizontal .split-pane-divider {
-    -fx-background-color: derive(#1d1d1d, 20%);
-    -fx-border-color: transparent transparent transparent #4d4d4d;
+    -fx-background-color: -tab-bg;
+    -fx-border-color: transparent transparent transparent -tab-border;
 }
 
 .split-pane {
     -fx-border-radius: 1;
     -fx-border-width: 1;
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: -tab-bg;
 }
 
 .list-view {
     -fx-background-insets: 0;
     -fx-padding: 0;
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: -tab-bg;
+    /* Draw outside the list so the focus outline does not change the cards' available space. */
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-border-insets: -1;
+}
+
+.list-view:focused {
+    -fx-border-color: -tab-accent;
 }
 
 .list-cell {
     -fx-label-padding: 0 0 0 0;
     -fx-graphic-text-gap : 0;
-    -fx-padding: 0 0 0 0;
+    -fx-padding: 0 0 6 0;
+    -fx-background-color: transparent;
 }
 
-.list-cell:filled:even {
-    -fx-background-color: #3c3e3f;
-}
-
-.list-cell:filled:odd {
-    -fx-background-color: #515658;
+/* the mockup's rows are uniform, so the card carries the colour, not the cell */
+.list-cell:filled:even, .list-cell:filled:odd {
+    -fx-background-color: transparent;
 }
 
 .list-cell:filled:selected {
-    -fx-background-color: #424d5f;
+    -fx-background-color: transparent;
 }
 
+/* the row the user is on keeps the same rounded shape as every other card, with an accent
+   showing down its left edge. Two layers, because a one-sided border squares the corners. */
 .list-cell:filled:selected #cardPane {
-    -fx-border-color: #3e7b91;
-    -fx-border-width: 1;
-}
-
-.list-cell .label {
-    -fx-text-fill: white;
+    -fx-background-color: -tab-accent, -tab-surface-selected;
+    -fx-background-insets: 0, 0 0 0 3;
+    -fx-background-radius: 6, 6;
+    -fx-border-width: 0;
 }
 
 .cell_big_label {
-    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-weight: bold;
     -fx-font-size: 16px;
-    -fx-text-fill: #010504;
+    -fx-text-fill: -tab-text;
 }
 
 .cell_small_label {
-    -fx-font-family: "Segoe UI";
     -fx-font-size: 13px;
-    -fx-text-fill: #010504;
+    -fx-text-fill: -tab-text-muted;
 }
 
 .stack-pane {
-     -fx-background-color: derive(#1d1d1d, 20%);
+     -fx-background-color: -tab-bg;
 }
 
 .pane-with-border {
-     -fx-background-color: derive(#1d1d1d, 20%);
-     -fx-border-color: derive(#1d1d1d, 10%);
+     -fx-background-color: -tab-bg;
+     -fx-border-color: -tab-border;
      -fx-border-top-width: 1px;
 }
 
 .status-bar {
-    -fx-background-color: derive(#1d1d1d, 30%);
+    -fx-background-color: -tab-bg;
+    -fx-border-color: -tab-border transparent transparent transparent;
+    -fx-border-width: 1;
 }
 
 .result-display {
+    /* a TextArea paints its inside from -fx-control-inner-background, so setting only
+       -fx-background-color leaves the default white slab showing */
+    -fx-control-inner-background: -tab-bg;
     -fx-background-color: transparent;
-    -fx-font-family: "Segoe UI Light";
-    -fx-font-size: 13pt;
-    -fx-text-fill: white;
+    -fx-padding: 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    /* the reply is selectable, so it keeps a selection that can be seen. Hiding one is for
+       the command line, whose field carries the input in front of a copy of its own */
+    -fx-highlight-fill: -tab-selected-text;
+    -fx-text-fill: -tab-text;
+    -fx-font-size: 12px;
 }
 
+/* the line is still selectable and still scrolls, but it should not look like a box */
 .result-display .label {
-    -fx-text-fill: black !important;
+    -fx-text-fill: -tab-text !important;
 }
 
 .status-bar .label {
-    -fx-font-family: "Segoe UI Light";
-    -fx-text-fill: white;
+    /* the path to the data file, which is a footnote rather than something to read */
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-size: 11px;
     -fx-padding: 4px;
     -fx-pref-height: 30px;
 }
 
 .status-bar-with-border {
-    -fx-background-color: derive(#1d1d1d, 30%);
-    -fx-border-color: derive(#1d1d1d, 25%);
+    -fx-background-color: -tab-bg;
+    -fx-border-color: -tab-border;
     -fx-border-width: 1px;
 }
 
 .status-bar-with-border .label {
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
 }
 
 .grid-pane {
-    -fx-background-color: derive(#1d1d1d, 30%);
-    -fx-border-color: derive(#1d1d1d, 30%);
+    -fx-background-color: -tab-bg;
+    -fx-border-color: -tab-bg;
     -fx-border-width: 1px;
 }
 
 .grid-pane .stack-pane {
-    -fx-background-color: derive(#1d1d1d, 30%);
+    -fx-background-color: -tab-bg;
 }
 
 .context-menu {
-    -fx-background-color: derive(#1d1d1d, 50%);
+    -fx-background-color: -tab-surface-raised;
 }
 
 .context-menu .label {
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
 }
 
 .menu-bar {
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: -tab-bg;
+    -fx-padding: 2 6 2 6;
+    -fx-border-color: transparent transparent -tab-border transparent;
+    -fx-border-width: 1;
 }
 
 .menu-bar .label {
-    -fx-font-size: 14pt;
-    -fx-font-family: "Segoe UI Light";
-    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-text-fill: -tab-text;
     -fx-opacity: 0.9;
 }
 
+.menu-bar .menu-button:hover,
+.menu-bar .menu-button:focused,
+.menu-bar .menu-button:showing,
+.context-menu .menu-item:focused {
+    -fx-background-color: -tab-accent;
+}
+
+/*
+ * The dark fill belongs to the menu bar's own label, which sits on the accent
+ * background above. A popup takes its style from the node that owns it, so a
+ * descendant selector here would reach the items of the open menu as well, and
+ * draw them in the window colour on the dropdown's own background.
+ */
+.menu-bar .menu-button:hover > .label,
+.menu-bar .menu-button:focused > .label,
+.menu-bar .menu-button:showing > .label,
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: -tab-bg;
+}
+
 .menu .left-container {
-    -fx-background-color: black;
+    -fx-background-color: -tab-bg;
 }
 
 /*
@@ -214,27 +281,26 @@
  */
 .button {
     -fx-padding: 5 22 5 22;
-    -fx-border-color: #e2e2e2;
+    -fx-border-color: -tab-text;
     -fx-border-width: 2;
     -fx-background-radius: 0;
-    -fx-background-color: #1d1d1d;
-    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-background-color: -tab-bg;
     -fx-font-size: 11pt;
-    -fx-text-fill: #d8d8d8;
+    -fx-text-fill: -tab-text-muted;
     -fx-background-insets: 0 0 0 0, 0, 1, 2;
 }
 
 .button:hover {
-    -fx-background-color: #3a3a3a;
+    -fx-background-color: -tab-border;
 }
 
 .button:pressed, .button:default:hover:pressed {
-  -fx-background-color: white;
-  -fx-text-fill: #1d1d1d;
+  -fx-background-color: -tab-text;
+  -fx-text-fill: -tab-bg;
 }
 
 .button:focused {
-    -fx-border-color: white, white;
+    -fx-border-color: -tab-text, -tab-text;
     -fx-border-width: 1, 1;
     -fx-border-style: solid, segments(1, 1);
     -fx-border-radius: 0, 0;
@@ -243,13 +309,13 @@
 
 .button:disabled, .button:default:disabled {
     -fx-opacity: 0.4;
-    -fx-background-color: #1d1d1d;
-    -fx-text-fill: white;
+    -fx-background-color: -tab-bg;
+    -fx-text-fill: -tab-text;
 }
 
 .button:default {
     -fx-background-color: -fx-focus-color;
-    -fx-text-fill: #ffffff;
+    -fx-text-fill: -tab-text;
 }
 
 .button:default:hover {
@@ -257,36 +323,169 @@
 }
 
 .dialog-pane {
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: -tab-bg;
 }
 
 .dialog-pane > *.button-bar > *.container {
-    -fx-background-color: #1d1d1d;
+    -fx-background-color: -tab-bg;
 }
 
 .dialog-pane > *.label.content {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
 }
 
 .dialog-pane:header *.header-panel {
-    -fx-background-color: derive(#1d1d1d, 25%);
+    -fx-background-color: -tab-border;
 }
 
 .dialog-pane:header *.header-panel *.label {
     -fx-font-size: 18px;
     -fx-font-style: italic;
-    -fx-fill: white;
-    -fx-text-fill: white;
+    -fx-fill: -tab-text;
+    -fx-text-fill: -tab-text;
+}
+
+/* The startup data error has no main window behind it, so it carries the same surfaces,
+   spacing and restrained accents as the rest of TAB rather than looking like a platform
+   alert from another application. */
+.data-loading-error-dialog {
+    -fx-pref-width: 540;
+    -fx-background-color: -tab-bg;
+    -fx-border-color: -tab-border;
+    -fx-border-width: 1;
+}
+
+.data-loading-error-dialog > .header-panel {
+    -fx-background-color: -tab-bg;
+    -fx-padding: 22 24 14 24;
+}
+
+.data-loading-error-dialog:header > .header-panel .label {
+    -fx-font-size: 19px;
+    -fx-font-style: normal;
+    -fx-font-weight: bold;
+    -fx-text-fill: -tab-text;
+}
+
+.data-loading-error-dialog > .header-panel > .graphic-container {
+    -fx-padding: 0 14 0 0;
+}
+
+.data-loading-error-icon {
+    -fx-alignment: center;
+    -fx-background-color: derive(-tab-danger, -70%);
+    -fx-background-radius: 20;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-min-height: 30;
+    -fx-min-width: 30;
+    -fx-pref-height: 30;
+    -fx-pref-width: 30;
+    -fx-text-fill: -tab-danger;
+}
+
+/* the diagnostic scrolls when the screen is too short for it, but it is a message rather than
+   a control, so the container it scrolls in is not drawn */
+.data-loading-error-scroll,
+.data-loading-error-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.data-loading-error-scroll {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+.data-loading-error-content {
+    -fx-padding: 0 24 12 24;
+    -fx-spacing: 10;
+}
+
+.data-loading-error-file-caption,
+.data-loading-error-excerpt-caption {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 2 0 0 0;
+    -fx-text-fill: -tab-text-muted;
+}
+
+/* the path and the quoted part of the file are both read character by character, so they
+   share one box: a monospaced one, in which the quotation's columns line up */
+.data-loading-error-file,
+.data-loading-error-excerpt {
+    -fx-background-color: -tab-bg-sunken;
+    -fx-background-radius: 6;
+    -fx-border-color: -tab-border;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+    /* thirteen plus the one-pixel border above matches the fourteen the message box below
+       insets its text by, so the two read as one column */
+    -fx-padding: 9 13 9 13;
+}
+
+.data-loading-error-file {
+    -fx-text-fill: -tab-accent;
+}
+
+.data-loading-error-excerpt {
+    -fx-text-fill: -tab-text;
+}
+
+.data-loading-error-detail {
+    -fx-background-color: -tab-danger, -tab-surface;
+    -fx-background-insets: 0, 0 0 0 3;
+    -fx-background-radius: 6, 6;
+    -fx-font-size: 13px;
+    /* the accent bar sits in the left inset rather than pushing the text past it */
+    -fx-padding: 12 14 12 14;
+    -fx-text-fill: -tab-text;
+}
+
+.data-loading-error-recovery {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 3 0 0 0;
+    -fx-text-fill: -tab-text;
+}
+
+.data-loading-error-dialog > .button-bar > .container {
+    -fx-background-color: -tab-bg;
+    -fx-border-color: -tab-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 12 24 16 24;
+}
+
+.data-loading-error-dialog .button {
+    -fx-background-color: -tab-surface-raised;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-color: -tab-accent;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-font-size: 12px;
+    -fx-padding: 7 18 7 18;
+    -fx-text-fill: -tab-text;
+}
+
+.data-loading-error-dialog .button:hover {
+    -fx-background-color: -tab-surface-selected;
+}
+
+.data-loading-error-dialog .button:pressed {
+    -fx-background-color: -tab-accent;
+    -fx-text-fill: -tab-bg;
 }
 
 .scroll-bar {
-    -fx-background-color: derive(#1d1d1d, 20%);
+    -fx-background-color: -tab-bg;
 }
 
 .scroll-bar .thumb {
-    -fx-background-color: derive(#1d1d1d, 50%);
+    -fx-background-color: -tab-surface-raised;
     -fx-background-insets: 3;
 }
 
@@ -308,45 +507,328 @@
 }
 
 #cardPane {
-    -fx-background-color: transparent;
+    -fx-background-color: -tab-surface;
+    -fx-background-radius: 6;
     -fx-border-width: 0;
 }
 
 #commandTypeLabel {
     -fx-font-size: 11px;
-    -fx-text-fill: #F70D1A;
+    -fx-text-fill: -tab-danger;
 }
 
 #commandTextField {
-    -fx-background-color: transparent #383838 transparent #383838;
+    -fx-background-color: -tab-bg-sunken;
+    -fx-background-radius: 6;
     -fx-background-insets: 0;
-    -fx-border-color: #383838 #383838 #ffffff #383838;
+    -fx-border-color: -tab-border;
+    -fx-border-radius: 6;
     -fx-border-insets: 0;
     -fx-border-width: 1;
-    -fx-font-family: "Segoe UI Light";
     -fx-font-size: 13pt;
-    -fx-text-fill: white;
+    -fx-text-fill: -tab-text;
+    -fx-prompt-text-fill: -tab-text-muted;
+    -fx-padding: 10 14 10 14;
 }
 
-#filterField, #personListPanel, #personWebpage {
-    -fx-effect: innershadow(gaussian, black, 10, 0, 0, 0);
+#commandTextField:focused {
+    -fx-border-color: -tab-accent;
+}
+
+#filterField, #studentListPanel, #studentWebpage {
+    -fx-effect: innershadow(gaussian, -tab-shadow, 10, 0, 0, 0);
 }
 
 #resultDisplay .content {
-    -fx-background-color: transparent, #383838, transparent, #383838;
+    -fx-background-color: transparent;
     -fx-background-radius: 0;
 }
 
 #tags {
-    -fx-hgap: 7;
-    -fx-vgap: 3;
+    -fx-alignment: center-left;
 }
 
 #tags .label {
-    -fx-text-fill: white;
-    -fx-background-color: #3e7b91;
-    -fx-padding: 1 3 1 3;
-    -fx-border-radius: 2;
-    -fx-background-radius: 2;
+    -fx-text-overrun: ellipsis;
+    -fx-text-fill: -tab-chip-text;
+    -fx-background-color: -tab-chip-bg;
+    -fx-padding: 2 7 2 7;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
     -fx-font-size: 11;
+}
+
+/* the chip that counts the tags the row had no space for, which reads as an aside rather
+   than as another tag */
+#tags .tag-overflow {
+    -fx-text-fill: -tab-text-dim;
+    -fx-background-color: transparent;
+}
+
+/* the three panes of the main window, which carry the window's own colour */
+/* the window itself. Without this the scene's own white shows wherever a pane does not
+   paint a background of its own, which is what a result strip with only a rule on it does. */
+.window {
+    -fx-background-color: -tab-bg;
+}
+
+.command-pane, .student-list-pane {
+    -fx-background-color: -tab-bg;
+}
+
+/* the answer to the command just run: a line of text with a quiet rule beside it, which is
+   all the mockup gives it. A surface here read as a slab rather than as a reply. */
+.result-rule {
+    -fx-border-color: transparent transparent transparent -tab-accent;
+    -fx-border-width: 0 0 0 2;
+}
+
+/* the student card, laid out as docs/images/Ui.png draws it */
+.card-index {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-size: 12px;
+    -fx-alignment: center-right;
+    -fx-padding: 3 0 0 0;
+}
+
+.card-name {
+    -fx-text-fill: -tab-text;
+    -fx-font-weight: bold;
+    -fx-font-size: 15px;
+    /* CardName cuts the name down to the room the row leaves it, from the middle and by
+       whole characters. JavaFX cuts at a character index wherever it elides, which leaves
+       half an emoji behind, so the label is told to clip: a cut a pixel out then shows a
+       glyph against the edge rather than a broken one */
+    -fx-text-overrun: clip;
+}
+
+.card-detail {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-size: 12px;
+}
+
+/* the NUS Student ID, which reads as an identifier rather than as prose */
+.card-detail-strong {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+}
+
+/* the trailing pill: the follow-up marker today, its age once one is recorded */
+.card-pill {
+    /* sits on the name's line, which is the first row of the card beside it */
+    -fx-translate-y: 1;
+    -fx-text-fill: -tab-highlight;
+    -fx-background-color: derive(-tab-highlight, -70%);
+    -fx-padding: 2 8 2 8;
+    -fx-background-radius: 10;
+    -fx-font-size: 11px;
+}
+
+/* the area itself is a control; only its text should show against the window */
+.result-display .viewport,
+.result-display .scroll-pane,
+.result-display .content {
+    -fx-background-color: transparent;
+}
+
+.result-display .text {
+    -fx-fill: -tab-text;
+}
+
+/* the summary of what is on display, beside the list */
+.summary-panel {
+    -fx-background-color: -tab-bg;
+    -fx-border-color: transparent -tab-border transparent transparent;
+    -fx-border-width: 1;
+}
+
+.summary-heading {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-weight: bold;
+    -fx-font-size: 10px;
+}
+
+/* sidebar tag names wrap so that their distinguishing endings remain visible */
+.summary-name {
+    -fx-text-overrun: ellipsis;
+    -fx-text-fill: -tab-text;
+    -fx-font-size: 12px;
+}
+
+.summary-count {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-size: 12px;
+}
+
+.summary-total {
+    -fx-text-fill: -tab-text-muted;
+    -fx-font-size: 11px;
+    -fx-padding: 8 0 0 0;
+}
+
+/* the tag list scrolls inside the sidebar without looking like a control */
+.summary-scroll,
+.summary-scroll .viewport,
+.summary-scroll > .scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.summary-scroll {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+.summary-scroll:focused {
+    -fx-background-color: -tab-accent, -tab-bg-sunken;
+    -fx-background-insets: 0, 1;
+}
+
+/* a value too long for its row is elided rather than widening the card it sits in. The
+   detail line gives way at its end: the start of an ID or an address still says whose it is */
+.card-detail, .card-detail-strong {
+    -fx-text-overrun: ellipsis;
+}
+
+/* the command line, drawn as a shell prompt */
+.command-line {
+    -fx-background-color: -tab-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -tab-border;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+}
+
+.command-prompt {
+    /* the ornament sits low in its own em box, so centring the boxes does not centre what is
+       drawn in them. One point up lines the glyph with the lowercase it introduces. */
+    -fx-translate-y: -1;
+    -fx-text-fill: -tab-accent;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 15px;
+}
+
+/* inside the line the field is bare: the rounded surface belongs to the line around it */
+.command-line #commandTextField {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 15px;
+    -fx-font-weight: normal;
+    /* the copy behind this field carries the text; the field keeps the input, the caret
+       position and the selection, and shows none of them itself. Important, because
+       Extensions.css marks a refused command with an important text fill of its own, and
+       the field would otherwise paint its text in red over the copy, at its own scroll
+       offset rather than the copy's. */
+    -fx-text-fill: transparent !important;
+    -fx-highlight-fill: transparent;
+    -fx-highlight-text-fill: transparent;
+}
+
+/* the same face and size as the field above it: the two are only lined up by matching here,
+   and CommandBoxTest fails if they drift apart */
+.command-token {
+    -fx-font-weight: normal;
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 15px;
+}
+
+.command-command-word {
+    -fx-fill: -tab-accent;
+}
+
+.command-option {
+    -fx-fill: -tab-option;
+}
+
+.command-quoted-value {
+    -fx-fill: -tab-string;
+}
+
+.command-value, .command-space {
+    -fx-fill: -tab-value;
+}
+
+.command-prompt, .command-command-word {
+    -fx-font-weight: bold;
+}
+
+/* the command line's own caret, since the field's is drawn in a text colour that is
+   transparent while the coloured copy is showing */
+.command-caret {
+    -fx-background-color: -tab-accent;
+    -fx-min-width: 2;
+    -fx-pref-width: 2;
+    -fx-max-width: 2;
+    -fx-min-height: 0;
+    -fx-max-height: 100;
+}
+
+/* the selected run of a command, drawn here because the field's own highlight sits at an
+   offset of its own and broke into fragments behind the coloured copy */
+.command-selection {
+    /* the colour the row the user is on is drawn in is a shade off the line behind it, which
+       says nothing about a run of text: selecting the whole command looked no different from
+       not selecting it. This reads as a selection while leaving the command on top of it
+       legible. */
+    -fx-fill: -tab-selected-text;
+}
+
+/* a refused command is marked on the copy, which is what the user is reading */
+.command-error .command-token {
+    -fx-fill: -tab-danger;
+}
+
+/* Help fills the content area; navigation uses pager keys rather than scroll bars. */
+.help-page,
+.help-page .scroll-pane,
+.help-page .viewport {
+    -fx-background-color: -tab-bg;
+}
+
+.help-page .scroll-pane {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+.help-text {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 13px;
+    -fx-text-fill: -tab-text;
+    -fx-opacity: 1;
+}
+
+/* the reference is coloured the way the command box colours the same syntax, so that a
+   marker the user reads about here is the colour they then see themselves typing */
+.help-token {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 13px;
+}
+
+.help-plain {
+    -fx-fill: -tab-text;
+}
+
+.help-heading {
+    -fx-fill: -tab-text-muted;
+    -fx-font-weight: bold;
+}
+
+.help-command-word {
+    -fx-fill: -tab-accent;
+    -fx-font-weight: bold;
+}
+
+.help-option {
+    -fx-fill: -tab-option;
+}
+
+.help-placeholder {
+    -fx-fill: -tab-value;
+}
+
+.help-footer {
+    -fx-border-color: -tab-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
 }

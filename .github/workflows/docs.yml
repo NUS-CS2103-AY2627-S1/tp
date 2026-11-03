@@ -1,0 +1,37 @@
+name: MarkBind Action
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    # The organisation defaults GITHUB_TOKEN to read-only, so the deploy to
+    # gh-pages needs this permission requested explicitly.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+      - name: Read locked MarkBind version
+        id: markbind
+        # Use the same CLI release as npm ci in docs/, without a second version setting.
+        run: >-
+          node -p "'version=' + require('./docs/package-lock.json').packages['node_modules/markbind-cli'].version"
+          >> "$GITHUB_OUTPUT"
+      - name: Install Graphviz
+        run: sudo apt-get install graphviz
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+      - name: Build & Deploy MarkBind site
+        uses: MarkBind/markbind-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          rootDirectory: './docs'
+          baseUrl: '/tp' # assuming your repo name is tp
+          version: ${{ steps.markbind.outputs.version }}

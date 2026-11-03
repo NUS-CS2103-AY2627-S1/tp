@@ -1,0 +1,783 @@
+package seedu.tab.logic.parser;
+
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_AT_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_OVER_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.FLAG_NAME_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.FOLLOW_UP;
+import static seedu.tab.logic.commands.CommandTestUtil.FOLLOW_UP_AS_TAG;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_EMAIL;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_FLAG_NAME;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_NUS_STUDENT_ID;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_PHONE;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_TAG;
+import static seedu.tab.logic.commands.CommandTestUtil.MESSAGE_EMAIL_OVER_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.NO_TAGS;
+import static seedu.tab.logic.commands.CommandTestUtil.NUS_STUDENT_ID_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.PHONE_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.PHONE_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
+import static seedu.tab.logic.commands.CommandTestUtil.TAG_FRIEND;
+import static seedu.tab.logic.commands.CommandTestUtil.TAG_HUSBAND;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_EMAIL_AT_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_NAME_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_NUS_STUDENT_ID_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.tab.logic.parser.CliFlags.FLAG_EMAIL;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NAME;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NUS_STUDENT_ID;
+import static seedu.tab.logic.parser.CliFlags.FLAG_PHONE;
+import static seedu.tab.logic.parser.CliFlags.FLAG_TAG;
+import static seedu.tab.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.tab.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.tab.testutil.TypicalIndexes.INDEX_FIRST_STUDENT;
+import static seedu.tab.testutil.TypicalIndexes.INDEX_SECOND_STUDENT;
+import static seedu.tab.testutil.TypicalIndexes.INDEX_THIRD_STUDENT;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.tab.commons.core.index.Index;
+import seedu.tab.logic.Messages;
+import seedu.tab.logic.commands.EditCommand;
+import seedu.tab.logic.commands.EditCommand.EditStudentDescriptor;
+import seedu.tab.logic.commands.StudentTarget;
+import seedu.tab.model.student.Email;
+import seedu.tab.model.student.Name;
+import seedu.tab.model.student.NusStudentId;
+import seedu.tab.model.student.Phone;
+import seedu.tab.model.tag.Tag;
+import seedu.tab.testutil.EditStudentDescriptorBuilder;
+
+public class EditCommandParserTest {
+
+    /**
+     * Values a reader sees as blank. {@code String.isBlank} counts the first two and not the
+     * last two, so they are what tells one notion of a blank value from the other.
+     */
+    private static final List<String> BLANK_LOOKING_VALUES =
+            List.of(" ", "\u3000", "\u00A0", "\u2007");
+
+    private EditCommandParser parser = new EditCommandParser();
+
+    @Test
+    public void parse_explicitIdTarget_acceptsAnyValidIdAndOptionOrder() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withFlag(false).build();
+        // Explicit IDs accept letters or digits first; zero, leading zeros, and length 32 are valid.
+        for (String id : List.of("a01234567x", "1abc", "001234", "0", "9".repeat(32))) {
+            EditCommand expected = new EditCommand(StudentTarget.byNusStudentId(new NusStudentId(id)), descriptor);
+            assertParseSuccess(parser, "--target-id " + id + " --no-follow-up", expected);
+            assertParseSuccess(parser, "-nf --target-id=\"  " + id + "\"", expected);
+            assertParseSuccess(parser, "\u00a0--target-id \"\u00a0" + id + "\u3000\" -nf", expected);
+        }
+        EditStudentDescriptor changedId = new EditStudentDescriptorBuilder().withNusStudentId("A1234").build();
+        assertParseSuccess(parser, "--target-id 001234 --id A1234",
+                new EditCommand(StudentTarget.byNusStudentId(new NusStudentId("001234")), changedId));
+    }
+
+    @Test
+    public void parse_invalidExplicitIdTarget_reportsValueAndReason() {
+        // Rejected ID values: blank, punctuation, non-ASCII, and first overlong length 33.
+        for (String id : List.of("", " ", "A-1", "王", "a".repeat(33))) {
+            assertParseFailure(parser, "--target-id \"" + id + "\" -nf",
+                    Messages.getErrorMessageForInvalidValue(NusStudentId.FIELD_NAME, id.trim(),
+                            NusStudentId.getFailureReason(id.trim())));
+        }
+        // Missing ID token: no value, empty unquoted attachment, or another option in its position.
+        for (String input : List.of("--target-id", "--target-id=", "--target-id -nf")) {
+            assertParseFailure(parser, input, String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE,
+                    "--target-id NUS_STUDENT_ID"));
+        }
+        assertParseFailure(parser, "--target-id \"1234 -nf", CommandTokenizer.MESSAGE_UNCLOSED_QUOTE);
+        assertParseFailure(parser, "--TARGET-ID 1234 -nf",
+                "There is no --TARGET-ID option. Did you mean --target-id?");
+    }
+
+    @Test
+    public void parse_multipleTargetsOrNoEdit_rejected() {
+        for (String target : List.of("1", "A1234")) {
+            assertParseFailure(parser, target + " --target-id 1234 -nf", EditCommand.MESSAGE_MULTIPLE_TARGETS);
+        }
+        // Repeated explicit target is a duplicate option, even when both values match.
+        assertParseFailure(parser, "--target-id 1234 --target-id=1234 -nf",
+                Messages.getErrorMessageForDuplicateFlags("--target-id"));
+        // Valid target with no changes: rejected as an empty edit.
+        assertParseFailure(parser, "--target-id 1234", EditCommand.MESSAGE_NOT_EDITED);
+    }
+
+    @Test
+    public void parse_caseVariantTags_keepsFirstSpelling() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withTags("lab", "ς", "T1").build();
+        assertParseSuccess(parser, " 1 -t lab --tag Lab -t LAB -t ς -t Σ -t T1",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_allFieldsSpecified_success() {
+        Index targetIndex = INDEX_SECOND_STUDENT;
+        String userInput = targetIndex.getOneBased() + PHONE_BOB + TAG_HUSBAND
+                + EMAIL_AMY + NUS_STUDENT_ID_AMY + FLAG_NAME_AMY + TAG_FRIEND;
+
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withName(VALID_NAME_AMY)
+                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_AMY)
+                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_longAndMixedAliases_success() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withName(VALID_NAME_AMY)
+                .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY)
+                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+
+        assertParseSuccess(parser, "2 --name \"" + VALID_NAME_AMY + "\""
+                + " --phone " + VALID_PHONE_BOB
+                + " --email " + VALID_EMAIL_AMY
+                + " --tag " + VALID_TAG_HUSBAND
+                + " -t " + VALID_TAG_FRIEND,
+                new EditCommand(INDEX_SECOND_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_someFieldsSpecified_success() {
+        Index targetIndex = INDEX_FIRST_STUDENT;
+        String userInput = PREAMBLE_WHITESPACE + targetIndex.getOneBased() + PHONE_BOB + EMAIL_AMY;
+
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_AMY).build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_oneFieldSpecified_success() {
+        Index targetIndex = INDEX_THIRD_STUDENT;
+
+        EditStudentDescriptor name = new EditStudentDescriptorBuilder().withName(VALID_NAME_AMY).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + FLAG_NAME_AMY,
+                new EditCommand(targetIndex, name));
+
+        EditStudentDescriptor phone = new EditStudentDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + PHONE_AMY,
+                new EditCommand(targetIndex, phone));
+
+        EditStudentDescriptor email = new EditStudentDescriptorBuilder().withEmail(VALID_EMAIL_AMY).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + EMAIL_AMY,
+                new EditCommand(targetIndex, email));
+
+        EditStudentDescriptor nusStudentId = new EditStudentDescriptorBuilder()
+                .withNusStudentId(VALID_NUS_STUDENT_ID_AMY).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + NUS_STUDENT_ID_AMY,
+                new EditCommand(targetIndex, nusStudentId));
+
+        EditStudentDescriptor tag = new EditStudentDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, targetIndex.getOneBased() + TAG_FRIEND,
+                new EditCommand(targetIndex, tag));
+    }
+
+    @Test
+    public void parse_nusStudentIdTarget_success() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
+        assertParseSuccess(parser, "A01234567X" + PHONE_AMY,
+                new EditCommand(StudentTarget.byNusStudentId(new NusStudentId("A01234567X")), descriptor));
+    }
+
+    @Test
+    public void parse_lowerCaseNusStudentIdTarget_usesNormalizedId() {
+        // NusStudentId normalizes its value, so a case variant names the same student
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withPhone(VALID_PHONE_AMY).build();
+        assertParseSuccess(parser, "a01234567x" + PHONE_AMY,
+                new EditCommand(StudentTarget.byNusStudentId(new NusStudentId("A01234567X")), descriptor));
+    }
+
+    @Test
+    public void parse_idTargetWithIdOption_changesTheIdOfTheStudentFoundById() {
+        // --id still names the field to change, so the old ID is the target and the new
+        // ID is the value
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setNusStudentId(new NusStudentId("A7654321Y"));
+        assertParseSuccess(parser, "A01234567X --id A7654321Y",
+                new EditCommand(StudentTarget.byNusStudentId(new NusStudentId("A01234567X")), descriptor));
+    }
+
+    @Test
+    public void parse_nusStudentIdUsingLongOptionOrAlias_setsNormalizedId() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.setNusStudentId(new NusStudentId("A01234567X"));
+
+        assertParseSuccess(parser, "1 --id a01234567x",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+        assertParseSuccess(parser, "1 -i A01234567X",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_emptyOrWhitespaceOnlyNusStudentId_clearsIt() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptor();
+        descriptor.clearNusStudentId();
+
+        assertParseSuccess(parser, "1 --id \"\"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+        assertParseSuccess(parser, "1 -i \"\"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+        assertParseSuccess(parser, "1 --id \"   \"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_quotedEmptyValuesJoinedByEquals_clearOptionalFieldsAndTags() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withoutPhone().withoutEmail().withoutNusStudentId().withTags().build();
+
+        assertParseSuccess(parser, "1 --phone=\"\" --email=\"\" -i=\"\" --tag=\"\"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_nameHoldingAPrefix_succeeds() {
+        // the defect this command's options exist to remove: "p/ Smith" used to be read as a
+        // phone number, so a name add accepts could not be typed into edit at all
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withName("Ravi s/o Kumaran").build();
+        assertParseSuccess(parser, "1 " + FLAG_NAME + " \"Ravi s/o Kumaran\"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+
+        EditStudentDescriptor johnSmith = new EditStudentDescriptorBuilder()
+                .withName("John p/ Smith").build();
+        assertParseSuccess(parser, "1 " + FLAG_NAME + " \"John p/ Smith\"",
+                new EditCommand(INDEX_FIRST_STUDENT, johnSmith));
+    }
+
+    @Test
+    public void parse_unquotedNameOfSeveralWords_isRefused() {
+        // a name is marked by an option here rather than given before them, so it takes one
+        // token and needs quotes, exactly as a tag does
+        assertParseFailure(parser, "1 " + FLAG_NAME + " Amy Bee",
+                Messages.getErrorMessageForValueAfterFlags("Bee", true));
+        assertParseSuccess(parser, "1 " + FLAG_NAME + " \"Amy Bee\"",
+                new EditCommand(INDEX_FIRST_STUDENT,
+                        new EditStudentDescriptorBuilder().withName("Amy Bee").build()));
+    }
+
+    @Test
+    public void parse_indexAfterTheOptions_pointsToTheFrontOfTheCommand() {
+        // no target stands before the options yet, so the index belongs at the front
+        assertParseFailure(parser, FLAG_NAME + " Amy 1",
+                Messages.getErrorMessageForValueAfterFlags("1", false));
+        assertParseSuccess(parser, "1 " + FLAG_NAME + " Amy",
+                new EditCommand(INDEX_FIRST_STUDENT,
+                        new EditStudentDescriptorBuilder().withName("Amy").build()));
+    }
+
+    @Test
+    public void parse_valueHoldingSpacesInQuotes_success() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withPhone("+65 9123 4567").withTags("Lab 3").build();
+        assertParseSuccess(parser, "1 " + FLAG_PHONE + " \"+65 9123 4567\" " + FLAG_TAG + " \"Lab 3\"",
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_escapedQuoteOrBackslashInValue_staysInTheValue() {
+        EditStudentDescriptor quoted = new EditStudentDescriptorBuilder()
+                .withName("Dwayne \"The Rock\" Johnson").build();
+        assertParseSuccess(parser, "1 " + FLAG_NAME + " \"Dwayne \\\"The Rock\\\" Johnson\"",
+                new EditCommand(INDEX_FIRST_STUDENT, quoted));
+
+        EditStudentDescriptor backslash = new EditStudentDescriptorBuilder()
+                .withTags("T1\\T2").build();
+        assertParseSuccess(parser, "1 " + FLAG_TAG + " \"T1\\\\T2\"",
+                new EditCommand(INDEX_FIRST_STUDENT, backslash));
+    }
+
+    @Test
+    public void parse_nonBreakingSpace_isReadAsASeparator() {
+        // pasting from a web page or a chat message must not report the phone as missing with
+        // "-p 91234567" plainly there in the command
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withPhone(VALID_PHONE_BOB).build();
+        assertParseSuccess(parser, " 1 -p " + VALID_PHONE_BOB,
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_clearEmailAloneOrWithOtherFields_success() {
+        EditStudentDescriptor cleared = new EditStudentDescriptorBuilder().withoutEmail().build();
+        assertParseSuccess(parser, "1 -e \"\"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        assertParseSuccess(parser, "1 --email \"\"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        assertParseSuccess(parser, "1 -e \"   \"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        assertParseSuccess(parser, "\u00A01\u00A0-e\u00A0\"\"\u00A0",
+                new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        EditStudentDescriptor combined = new EditStudentDescriptorBuilder().withoutEmail()
+                .withPhone(VALID_PHONE_BOB).withTags().withFlag(true).build();
+        assertParseSuccess(parser, "1 -e \"\" -p " + VALID_PHONE_BOB + " -t \"\" -f",
+                new EditCommand(INDEX_FIRST_STUDENT, combined));
+    }
+
+    @Test
+    public void parse_mistypedEmailClear_reportsSpecificProblem() {
+        // Missing value is rejected; clearing accepts an explicit quoted empty or whitespace-only value.
+        for (String input : List.of("1 -e", "1 -e ", "1 -e\u00A0", "1 -e -p 91234567")) {
+            assertParseFailure(parser, input,
+                    String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_EMAIL.getLabel()));
+        }
+        // Clear plus replacement: rejected duplicate option, rather than choosing either value.
+        assertParseFailure(parser, "1 -e \"\" -e a@b.com",
+                Messages.getErrorMessageForDuplicateFlags("-e"));
+        // Valid email clear with an invalid empty name: report only the name failure.
+        assertParseFailure(parser, "1 -n \"\" -e \"\"",
+                Messages.getErrorMessageForInvalidValue("Name", "", Name.getFailureReason("")));
+    }
+
+    @Test
+    public void parse_clearPhoneAloneOrWithOtherFields_success() {
+        EditStudentDescriptor cleared = new EditStudentDescriptorBuilder().withoutPhone().build();
+        assertParseSuccess(parser, "1 -p \"\"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        assertParseSuccess(parser, "1 --phone \"\"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+        assertParseSuccess(parser, "1 -p \"   \"", new EditCommand(INDEX_FIRST_STUDENT, cleared));
+
+        EditStudentDescriptor combined = new EditStudentDescriptorBuilder().withoutPhone()
+                .withEmail(VALID_EMAIL_AMY).withTags().withFlag(true).build();
+        assertParseSuccess(parser, "1 -p \"\" -e " + VALID_EMAIL_AMY + " -t \"\" -f",
+                new EditCommand(INDEX_FIRST_STUDENT, combined));
+    }
+
+    @Test
+    public void parse_mistypedPhoneClear_reportsSpecificProblem() {
+        // Missing value is rejected; clearing accepts an explicit quoted empty or whitespace-only value.
+        for (String input : List.of("1 -p", "1 -p ", "1 -p\u00A0", "1 -p -e a@b.com")) {
+            assertParseFailure(parser, input,
+                    String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_PHONE.getLabel()));
+        }
+        // Clear plus replacement: rejected duplicate option, rather than choosing either value.
+        assertParseFailure(parser, "1 -p \"\" -p 91234567",
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+        // Valid phone clear with an invalid empty name: report only the name failure.
+        assertParseFailure(parser, "1 -n \"\" -p \"\"",
+                Messages.getErrorMessageForInvalidValue("Name", "", Name.getFailureReason("")));
+    }
+
+    @Test
+    public void parse_quotedUnicodeSpaceValue_clearsEveryClearableField() {
+        // a CJK input method types the full-width space and a paste carries the non-breaking
+        // space; the user sees nothing between the quotes, so each asks for the detail to go
+        for (String blank : List.of("\u3000", "\u00a0")) {
+            String quoted = " \"" + blank + "\"";
+            assertParseSuccess(parser, "1 -p" + quoted, new EditCommand(INDEX_FIRST_STUDENT,
+                    new EditStudentDescriptorBuilder().withoutPhone().build()));
+            assertParseSuccess(parser, "1 -e" + quoted, new EditCommand(INDEX_FIRST_STUDENT,
+                    new EditStudentDescriptorBuilder().withoutEmail().build()));
+            assertParseSuccess(parser, "1 --id" + quoted, new EditCommand(INDEX_FIRST_STUDENT,
+                    new EditStudentDescriptorBuilder().withoutNusStudentId().build()));
+            assertParseSuccess(parser, "1 -t" + quoted, new EditCommand(INDEX_FIRST_STUDENT,
+                    new EditStudentDescriptorBuilder().withTags().build()));
+        }
+    }
+
+    @Test
+    public void parse_valuesHoldingMoreThanSpaces_areSetRatherThanCleared() {
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withPhone("+65 9123 4567").withEmail(VALID_EMAIL_AMY)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_AMY).build();
+        // the digits are kept out of the escape so that it reads as one full-width space
+        String spacedPhone = "+65 9123\u3000" + "4567";
+        assertParseSuccess(parser, "1 -p \"" + spacedPhone + "\" -e " + VALID_EMAIL_AMY
+                        + " --id " + VALID_NUS_STUDENT_ID_AMY,
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_invalidValueHoldingNoSpace_keepsItsOwnFailureReason() {
+        assertParseFailure(parser, "1 -p abc",
+                Messages.getErrorMessageForInvalidValue("Phone", "abc", Phone.getFailureReason("abc")));
+    }
+
+    @Test
+    public void parse_resetTags_success() {
+        Index targetIndex = INDEX_THIRD_STUDENT;
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withTags().build();
+
+        // an explicitly empty value asks for the tags to be cleared, where a bare -t is an error
+        assertParseSuccess(parser, targetIndex.getOneBased() + NO_TAGS,
+                new EditCommand(targetIndex, descriptor));
+        assertParseSuccess(parser, targetIndex.getOneBased() + " --tag \"\"",
+                new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_theSameTagGivenTwice_keepsOneTag() {
+        // naming a tag twice asks for one tag rather than for two copies of it
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder().withTags(VALID_TAG_FRIEND).build();
+
+        assertParseSuccess(parser, "1" + TAG_FRIEND + TAG_FRIEND,
+                new EditCommand(INDEX_FIRST_STUDENT, descriptor));
+    }
+
+    @Test
+    public void parse_followUpAloneOrWithAnotherEdit_success() {
+        EditStudentDescriptor flagOnly = new EditStudentDescriptorBuilder()
+                .withFlag(true).build();
+        assertParseSuccess(parser, "1" + FOLLOW_UP,
+                new EditCommand(INDEX_FIRST_STUDENT, flagOnly));
+
+        // the short alias marks the same option
+        assertParseSuccess(parser, "1 -f", new EditCommand(INDEX_FIRST_STUDENT, flagOnly));
+
+        EditStudentDescriptor flagAndPhone = new EditStudentDescriptorBuilder()
+                .withPhone(VALID_PHONE_BOB).withFlag(true).build();
+        assertParseSuccess(parser, "1" + PHONE_BOB + FOLLOW_UP,
+                new EditCommand(INDEX_FIRST_STUDENT, flagAndPhone));
+    }
+
+    @Test
+    public void parse_noFollowUpAloneOrWithOtherEdits_success() {
+        EditStudentDescriptor clearOnly = new EditStudentDescriptorBuilder().withFlag(false).build();
+        assertParseSuccess(parser, "1 --no-follow-up", new EditCommand(INDEX_FIRST_STUDENT, clearOnly));
+        assertParseSuccess(parser, "1 -nf", new EditCommand(INDEX_FIRST_STUDENT, clearOnly));
+        assertParseSuccess(parser, "  1\u00a0-nf  ", new EditCommand(INDEX_FIRST_STUDENT, clearOnly));
+        assertParseSuccess(parser, "  1\u00a0--no-follow-up  ", new EditCommand(INDEX_FIRST_STUDENT, clearOnly));
+        EditStudentDescriptor clearAndPhone = new EditStudentDescriptorBuilder()
+                .withPhone(VALID_PHONE_BOB).withFlag(false).build();
+        assertParseSuccess(parser, "1 --no-follow-up" + PHONE_BOB,
+                new EditCommand(INDEX_FIRST_STUDENT, clearAndPhone));
+        assertParseSuccess(parser, "1 -nf" + PHONE_BOB,
+                new EditCommand(INDEX_FIRST_STUDENT, clearAndPhone));
+    }
+
+    @Test
+    public void parse_multipleErrors_keepsShapeErrorsAheadOfFieldErrors() {
+        assertParseFailure(parser, "0 -p invalid -f -nf", Messages.MESSAGE_CONFLICTING_FOLLOW_UP);
+        assertParseFailure(parser, "0 -p invalid -f --follow-up -nf",
+                Messages.getErrorMessageForDuplicateFlags("-f"));
+        assertParseFailure(parser, "0 -p invalid --phone invalid -f -nf",
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+        assertParseFailure(parser, "0 -p invalid --phone invalid -f --follow-up -nf",
+                Messages.getErrorMessageForDuplicateFlags("-p", "-f"));
+    }
+
+    @Test
+    public void parse_contradictoryFollowUpOptions_failure() {
+        for (String options : new String[] {"--follow-up --no-follow-up", "--no-follow-up --follow-up",
+            "-f --no-follow-up", "--no-follow-up -f -p 81112222", "--follow-up -nf", "-nf --follow-up",
+            "-f -nf", "-nf -f -p 81112222"}) {
+            assertParseFailure(parser, "1 " + options, Messages.MESSAGE_CONFLICTING_FOLLOW_UP);
+        }
+    }
+
+    @Test
+    public void parse_noFollowUpWithValueOrRepeated_failure() {
+        // Marker-only status selectors reject supplied values, even quoted empty or whitespace-only ones.
+        for (String value : new String[] {"false", "true", "\"\"", "\"   \""}) {
+            assertParseFailure(parser, "1 --no-follow-up " + value,
+                    String.format(Messages.MESSAGE_FLAG_TAKES_NO_VALUE, "--no-follow-up"));
+            assertParseFailure(parser, "1 -nf " + value,
+                    String.format(Messages.MESSAGE_FLAG_TAKES_NO_VALUE, "-nf"));
+        }
+        // Repeated status selector: reject duplicates across identical and mixed aliases.
+        assertParseFailure(parser, "1 --no-follow-up --no-follow-up",
+                Messages.getErrorMessageForDuplicateFlags("--no-follow-up"));
+        assertParseFailure(parser, "1 -nf -nf",
+                Messages.getErrorMessageForDuplicateFlags("-nf"));
+        assertParseFailure(parser, "1 --no-follow-up -nf",
+                Messages.getErrorMessageForDuplicateFlags("--no-follow-up"));
+        assertParseFailure(parser, "1 -nf --no-follow-up",
+                Messages.getErrorMessageForDuplicateFlags("-nf"));
+        assertParseFailure(parser, "1 --follow-up -f",
+                Messages.getErrorMessageForDuplicateFlags("--follow-up"));
+        // Case mismatch is an unknown option with a lowercase suggestion.
+        assertParseFailure(parser, "1 --NO-FOLLOW-UP",
+                "There is no --NO-FOLLOW-UP option. Did you mean --no-follow-up?");
+    }
+
+    @Test
+    public void parse_followUpWithValue_saysTheOptionTakesNone() {
+        assertParseFailure(parser, "1" + FOLLOW_UP + " true",
+                String.format(Messages.MESSAGE_FLAG_TAKES_NO_VALUE, "--follow-up"));
+        assertParseSuccess(parser, "1" + FOLLOW_UP,
+                new EditCommand(INDEX_FIRST_STUDENT,
+                        new EditStudentDescriptorBuilder().withFlag(true).build()));
+    }
+
+    @Test
+    public void parse_missingIndex_namesItAsMissing() {
+        assertParseFailure(parser, FLAG_NAME_AMY,
+                Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET));
+    }
+
+    @Test
+    public void parse_missingIndexAndField_reportsBothAtOnce() {
+        assertParseFailure(parser, "",
+                Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET)
+                        + "\n" + EditCommand.MESSAGE_NOT_EDITED);
+    }
+
+    @Test
+    public void parse_missingTargetWithIdField_pointsAtTargetIdOption() {
+        // a user carrying over the habit of delete and tag, where --id selects the student, is
+        // told that edit spells the selector --target-id and keeps --id for the field it sets
+        String expectedMessage = "Missing required field(s): INDEX or NUS_STUDENT_ID. "
+                + "--id (or -i) sets a new NUS Student ID; "
+                + "--target-id NUS_STUDENT_ID selects the student holding one.";
+        assertParseFailure(parser, "--id A01234567X -p 91234567", expectedMessage);
+        assertParseFailure(parser, "-i A01234567X -p 91234567", expectedMessage);
+
+        // an ID opening with a digit is explained the same way. Both of these are valid IDs,
+        // since the field takes 1 to 32 ASCII letters or digits in any order
+        assertParseFailure(parser, "--id 1234 -p 91234567", expectedMessage);
+        assertParseFailure(parser, "--id 1A2B3C -p 81112222", expectedMessage);
+    }
+
+    @Test
+    public void parse_missingTargetWithUnusableIdField_pointsAtTargetIdAndNamesTheValue() {
+        // a value no ID could hold still points at the option the user wanted, and keeps the
+        // field's own reason beside it, so neither problem hides the other
+        assertParseFailure(parser, "--id A1!B -p 91234567",
+                EditCommand.MESSAGE_ID_FIELD_IS_NOT_TARGET + "\n"
+                        + "NUS Student ID \"A1!B\" is not valid: "
+                        + "an NUS Student ID can only contain ASCII letters and digits");
+    }
+
+    @Test
+    public void parse_missingTargetWithoutIdField_namesEveryTargetForm() {
+        assertParseFailure(parser, PHONE_AMY,
+                Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET));
+
+        // a blank ID field asks for the ID to be cleared, so it names no student to be mistaken
+        assertParseFailure(parser, "--id \"\"" + PHONE_AMY,
+                Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET));
+
+        // and a space is a space whichever one it is, so none of them reads as an ID the user
+        // meant to select with. Java calls the first two whitespace and the last two not.
+        for (String space : BLANK_LOOKING_VALUES) {
+            assertParseFailure(parser, "--id \"" + space + "\"" + PHONE_AMY,
+                    Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET));
+        }
+    }
+
+    @Test
+    public void parse_blankLookingTargetWithoutIdField_namesEveryTargetForm() {
+        // the selector holds nothing, so the reply is that no student was named. Reading the
+        // space as a value the user meant answers a question about indices that was never asked
+        for (String space : BLANK_LOOKING_VALUES) {
+            assertParseFailure(parser, " \"" + space + "\"" + PHONE_AMY,
+                    Messages.getErrorMessageForMissingFields(EditCommand.FIELD_TARGET));
+        }
+    }
+
+    @Test
+    public void parse_blankLookingTargetBesideTargetId_selectsByTargetId() {
+        // one target is named, and a selector holding only a space is not a second one
+        for (String space : BLANK_LOOKING_VALUES) {
+            assertParseSuccess(parser, " \"" + space + "\" --target-id " + VALID_NUS_STUDENT_ID_AMY + PHONE_AMY,
+                    new EditCommand(StudentTarget.byNusStudentId(
+                            new NusStudentId(VALID_NUS_STUDENT_ID_AMY)),
+                            new EditStudentDescriptorBuilder().withPhone(VALID_PHONE_AMY).build()));
+        }
+    }
+
+    @Test
+    public void parse_realTargetBesideTargetId_stillRefusesTwoTargets() {
+        assertParseFailure(parser, " 1 --target-id " + VALID_NUS_STUDENT_ID_AMY + PHONE_AMY,
+                EditCommand.MESSAGE_MULTIPLE_TARGETS);
+    }
+
+    @Test
+    public void parse_noFieldSpecified_failure() {
+        assertParseFailure(parser, "1", EditCommand.MESSAGE_NOT_EDITED);
+    }
+
+    @Test
+    public void parse_invalidTarget_failure() {
+        // zero is not an index, and a value that would be a valid ID also names the option
+        // that selects an ID, because a target starting with a digit reads as an index
+        assertParseFailure(parser, "0" + FLAG_NAME_AMY, invalidIndexWithIdHint("0"));
+
+        // a letter-first target that is not a valid NUS Student ID keeps the field-level reason
+        assertParseFailure(parser, "A0123-456" + FLAG_NAME_AMY,
+                Messages.getErrorMessageForInvalidValue(NusStudentId.FIELD_NAME, "A0123-456",
+                        NusStudentId.getFailureReason("A0123-456")));
+
+        // a bare digit-leading ID reads as an index, and --target-id selects the student,
+        // because --id names the field to set rather than the student to edit
+        assertParseFailure(parser, "1A2B3C" + FLAG_NAME_AMY, invalidIndexWithIdHint("1A2B3C"));
+
+        // a token before the options that is not part of the target
+        assertParseFailure(parser, "1 some random string" + FLAG_NAME_AMY,
+                String.format(ParserUtil.MESSAGE_VALUE_AFTER_TARGET, "INDEX", "some random string"));
+
+        // the target a user typing a name gives is read as an NUS Student ID, so the words
+        // after it are reported against that form rather than against the index form
+        assertParseFailure(parser, "Alex Yeoh" + FLAG_NAME_AMY,
+                String.format(ParserUtil.MESSAGE_VALUE_AFTER_TARGET, ParserUtil.FIELD_NUS_STUDENT_ID, "Yeoh"));
+
+        // a lone dash after the options is quoted back as typed, not as the hyphen it resembles
+        assertParseFailure(parser, "1 -n David \u2013 Li",
+                Messages.getErrorMessageForValueAfterFlags("\u2013", true));
+
+        // an unquoted negative number is invalid as both an index and an option
+        assertParseFailure(parser, "-5" + FLAG_NAME_AMY,
+                ParserUtil.MESSAGE_INVALID_INDEX + "\n" + String.format(Messages.MESSAGE_UNKNOWN_FLAG, "-5"));
+    }
+
+    @Test
+    public void parse_invalidTargetAndInvalidField_reportsBothAtOnce() {
+        assertParseFailure(parser, "0" + INVALID_PHONE,
+                invalidIndexWithIdHint("0") + "\n"
+                        + Messages.getErrorMessageForInvalidValue("Phone", "12",
+                                Phone.getFailureReason("12")));
+    }
+
+    @Test
+    public void parse_invalidValue_failure() {
+        assertParseFailure(parser, "1" + INVALID_FLAG_NAME,
+                Messages.getErrorMessageForInvalidValue("Name", "---", Name.getFailureReason("---")));
+        assertParseFailure(parser, "1" + INVALID_PHONE,
+                Messages.getErrorMessageForInvalidValue("Phone", "12", Phone.getFailureReason("12")));
+        assertParseFailure(parser, "1" + INVALID_EMAIL,
+                Messages.getErrorMessageForInvalidValue("Email", "bob!yahoo",
+                        Email.getFailureReason("bob!yahoo")));
+        assertParseFailure(parser, "1" + INVALID_TAG,
+                Messages.getErrorMessageForInvalidValue("Tag", "---", Tag.getFailureReason("---")));
+        assertParseFailure(parser, "1" + FOLLOW_UP_AS_TAG, ParserUtil.MESSAGE_FOLLOW_UP_IS_NOT_A_TAG);
+        assertParseFailure(parser, "1" + INVALID_NUS_STUDENT_ID,
+                Messages.getErrorMessageForInvalidValue(NusStudentId.FIELD_NAME, "A0123-456",
+                        NusStudentId.getFailureReason("A0123-456")));
+    }
+
+    @Test
+    public void parse_emailAtTheLengthLimit_success() {
+        Index targetIndex = INDEX_FIRST_STUDENT;
+        EditStudentDescriptor descriptor = new EditStudentDescriptorBuilder()
+                .withEmail(VALID_EMAIL_AT_MAX_LENGTH).build();
+
+        assertParseSuccess(parser, targetIndex.getOneBased() + EMAIL_AT_MAX_LENGTH,
+                new EditCommand(targetIndex, descriptor));
+    }
+
+    @Test
+    public void parse_emailOneCharacterOverTheLengthLimit_failure() {
+        // edit enters an address the same way add does, so it holds the same limit
+        assertParseFailure(parser, "1" + EMAIL_OVER_MAX_LENGTH, MESSAGE_EMAIL_OVER_MAX_LENGTH);
+    }
+
+    @Test
+    public void parse_severalInvalidValues_reportsThemAllAtOnce() {
+        assertParseFailure(parser, "1" + INVALID_FLAG_NAME + INVALID_EMAIL,
+                Messages.getErrorMessageForInvalidValue("Name", "---", Name.getFailureReason("---"))
+                        + "\n" + Messages.getErrorMessageForInvalidValue("Email", "bob!yahoo",
+                                Email.getFailureReason("bob!yahoo")));
+    }
+
+    @Test
+    public void parse_blankTagValue_clearsTags() {
+        EditCommand expected = new EditCommand(INDEX_FIRST_STUDENT,
+                new EditStudentDescriptorBuilder().withTags().build());
+        for (String blank : List.of("", " ", "   ", "\t", "\u00a0", "\u202f\u3000")) {
+            assertParseSuccess(parser, "1 -t \"" + blank + "\"", expected);
+            assertParseSuccess(parser, "1 --tag=\"" + blank + "\"", expected);
+        }
+    }
+
+    @Test
+    public void parse_blankTagBesideAnotherTag_explainsHowToClearTags() {
+        for (String blank : List.of("", " ", "   ", "\t", "\u00a0", "\u202f\u3000")) {
+            String blankTag = " -t \"" + blank + "\"";
+            String expected = "A blank tag clears all tags only when it is given on its own.";
+            assertParseFailure(parser, "1" + TAG_FRIEND + blankTag, expected);
+            assertParseFailure(parser, "1" + blankTag + TAG_FRIEND, expected);
+            assertParseFailure(parser, "1 --tag=\"" + blank + "\"" + TAG_FRIEND, expected);
+        }
+    }
+
+    @Test
+    public void parse_severalBlankTags_reportsClearRuleOnce() {
+        assertParseFailure(parser, "1 -t \"\" --tag=\"\u00a0\"",
+                "A blank tag clears all tags only when it is given on its own.");
+    }
+
+    @Test
+    public void parse_blankAndInvalidTags_reportsBothProblems() {
+        assertParseFailure(parser, "1 -t \" \" -t \"---\"",
+                "A blank tag clears all tags only when it is given on its own.\n"
+                        + "Tag \"---\" is not valid: it holds no letter or number");
+    }
+
+    @Test
+    public void parse_repeatedSingleValuedField_failure() {
+        assertParseFailure(parser, "1" + PHONE_AMY + PHONE_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+
+        assertParseFailure(parser, "1" + FOLLOW_UP + FOLLOW_UP,
+                Messages.getErrorMessageForDuplicateFlags("--follow-up"));
+
+        // a repeated option is refused before any field is read, since it leaves it unclear
+        // which value belongs to the field
+        assertParseFailure(parser, "1" + INVALID_PHONE + PHONE_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+
+        assertParseFailure(parser, "1" + PHONE_AMY + EMAIL_AMY + PHONE_BOB + EMAIL_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-p", "-e"));
+
+        assertParseFailure(parser, "1 -n \"Amy Bee\" --name \"Bob Choo\"",
+                Messages.getErrorMessageForDuplicateFlags("-n"));
+
+        assertParseFailure(parser, "1" + PHONE_AMY + " --phone " + VALID_PHONE_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+
+        assertParseFailure(parser, "1" + EMAIL_AMY + " --email bob@example.com",
+                Messages.getErrorMessageForDuplicateFlags("-e"));
+
+        assertParseFailure(parser, "1 --name \"Amy Bee\" --name \"Bob Choo\"",
+                Messages.getErrorMessageForDuplicateFlags("--name"));
+
+        assertParseFailure(parser, "1 --id A01234567X -i A76543210Y",
+                Messages.getErrorMessageForDuplicateFlags("--id"));
+    }
+
+    @Test
+    public void parse_unknownFlag_isRefusedOnItsOwn() {
+        assertParseFailure(parser, "1" + PHONE_BOB + " -z something",
+                String.format(Messages.MESSAGE_UNKNOWN_FLAG, "-z"));
+        assertParseFailure(parser, "1" + PHONE_BOB + " --unknown something",
+                String.format(Messages.MESSAGE_UNKNOWN_FLAG, "--unknown"));
+    }
+
+    @Test
+    public void parse_flagWithoutValue_namesTheFieldItNeeds() {
+        assertParseFailure(parser, "1" + PHONE_BOB + " -e",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_EMAIL.getLabel()));
+        assertParseFailure(parser, "1 --id",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_NUS_STUDENT_ID.getLabel()));
+
+        // an option in the value position means the one before it was left empty, rather than
+        // "-e" being stored as a tag
+        assertParseFailure(parser, "1 -t -e a@b.com",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_TAG.getLabel()));
+
+        assertParseFailure(parser, "1 --email",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_EMAIL.getLabel("--email")));
+
+        assertParseFailure(parser, "1 --tag --email a@b.com",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_TAG.getLabel("--tag")));
+    }
+
+    @Test
+    public void parse_unclosedQuote_isReportedAsSuch() {
+        assertParseFailure(parser, "1 " + FLAG_NAME + " \"Amy Bee" + PHONE_BOB,
+                CommandTokenizer.MESSAGE_UNCLOSED_QUOTE);
+    }
+
+    /** The reply {@code edit} gives for a target it cannot use that would be a valid ID. */
+    private static String invalidIndexWithIdHint(String value) {
+        return ParserUtil.MESSAGE_INVALID_INDEX + " "
+                + Messages.getIdTargetHint(EditCommand.ID_TARGET_COMMAND, value);
+    }
+}

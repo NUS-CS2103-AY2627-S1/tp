@@ -1,0 +1,317 @@
+package seedu.tab.commons.util;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.file.FileSystemException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Optional;
+import java.util.Set;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import seedu.tab.commons.exceptions.DataLoadingException;
+import seedu.tab.testutil.SerializableTestClass;
+import seedu.tab.testutil.TestUtil;
+
+/**
+ * Tests JSON Read and Write
+ */
+public class JsonUtilTest {
+
+    private static final Path SERIALIZATION_FILE = TestUtil.getFilePathInSandboxFolder("serialize.json");
+
+    @TempDir
+    public Path testFolder;
+
+    @Test
+    public void readJsonFile_linkToMissingFolder_reportsInsteadOfReadingAsFirstRun() throws Exception {
+        Path link = testFolder.resolve("tab.json");
+        createSymbolicLinkOrSkip(link, Path.of("missing-folder", "tab.json"));
+
+        DataLoadingException exception = assertThrows(DataLoadingException.class, () ->
+                JsonUtil.readJsonFile(link, SerializableTestClass.class));
+
+        assertTrue(exception.getMessage().contains("that folder does not exist"));
+        assertInstanceOf(NoSuchFileException.class, exception.getCause());
+    }
+
+    @Test
+    public void readJsonFile_linkToMissingFileInExistingFolder_readsAsFirstRun() throws Exception {
+        Path link = testFolder.resolve("tab.json");
+        createSymbolicLinkOrSkip(link, Path.of("not-saved-yet.json"));
+
+        assertEquals(Optional.empty(), JsonUtil.readJsonFile(link, SerializableTestClass.class));
+    }
+
+    @Test
+    public void readJsonFile_missingFile_readsAsFirstRun() throws Exception {
+        assertEquals(Optional.empty(),
+                JsonUtil.readJsonFile(testFolder.resolve("absent.json"), SerializableTestClass.class));
+    }
+
+    private void createSymbolicLinkOrSkip(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (UnsupportedOperationException | FileSystemException exception) {
+            Assumptions.assumeTrue(false, "Symbolic links are unavailable: " + exception.getMessage());
+        } catch (IOException exception) {
+            throw new AssertionError("The symbolic link should be created.", exception);
+        }
+    }
+
+    @Test
+    public void fromJsonString_trailingValue_reportsExactReasonAndLocation() {
+        JsonParseException exception = assertThrows(
+                JsonParseException.class, () -> JsonUtil.fromJsonString("{}\n{}", Object.class));
+
+        assertEquals("Expected a single JSON value; remove content after the document.",
+                exception.getOriginalMessage());
+        assertEquals(2, exception.getLocation().getLineNr());
+        assertEquals(1, exception.getLocation().getColumnNr());
+    }
+
+    @Test
+    public void fromJsonString_duplicateKey_reportsExactKey() {
+        JsonParseException exception = assertThrows(
+                JsonParseException.class, () -> JsonUtil.fromJsonString("{\"key\":1,\"key\":2}", Object.class));
+
+        assertEquals("Duplicate field 'key'", exception.getOriginalMessage());
+    }
+
+    @Test
+    public void serializeObjectToJsonFile_noExceptionThrown() throws IOException {
+        SerializableTestClass serializableTestClass = new SerializableTestClass();
+        serializableTestClass.setTestValues();
+
+        JsonUtil.serializeObjectToJsonFile(SERIALIZATION_FILE, serializableTestClass);
+
+        assertEquals(FileUtil.readFromFile(SERIALIZATION_FILE), SerializableTestClass.JSON_STRING_REPRESENTATION);
+    }
+
+    @Test
+    public void readJsonFile_missingFile_isEmpty() throws Exception {
+        assertEquals(Optional.empty(),
+                JsonUtil.readJsonFile(testFolder.resolve("absent.json"), SerializableTestClass.class));
+    }
+
+    @Test
+    public void readJsonFile_unopenableFolder_reportsTheFailureRatherThanAMissingFile() throws Exception {
+        // a folder the account cannot open hides whether the file is there. Answering "not
+        // found" would let the caller treat a loaded book as a first run and write sample
+        // data over records it never read
+        Path directory = Files.createDirectory(testFolder.resolve("data"));
+        Path filePath = directory.resolve("tab.json");
+        Files.writeString(filePath, SerializableTestClass.JSON_STRING_REPRESENTATION);
+        assumePosixPermissions(directory);
+        Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(directory);
+        Files.setPosixFilePermissions(directory, Set.of());
+
+        try {
+            Assumptions.assumeFalse(Files.isReadable(filePath), "The test account can still read the file.");
+            DataLoadingException exception = assertThrows(DataLoadingException.class, () ->
+                    JsonUtil.readJsonFile(filePath, SerializableTestClass.class));
+
+            assertEquals("TAB does not have permission to read this file or the folder holding it.",
+                    exception.getMessage());
+        } finally {
+            Files.setPosixFilePermissions(directory, originalPermissions);
+        }
+        assertEquals(SerializableTestClass.JSON_STRING_REPRESENTATION, Files.readString(filePath));
+    }
+
+    private void assumePosixPermissions(Path file) throws IOException {
+        Assumptions.assumeTrue(Files.getFileStore(file).supportsFileAttributeView("posix"),
+                "POSIX permissions are unavailable.");
+        Assumptions.assumeFalse("root".equals(System.getProperty("user.name")),
+                "root is allowed past file permissions.");
+    }
+
+    @Test
+    public void readJsonFile_nullDocument_reportsMalformedDataAndPreservesFile() throws IOException {
+        Path filePath = testFolder.resolve("null.json");
+        for (String contents : new String[] {"null", "  null  ", "\nnull\n"}) {
+            Files.writeString(filePath, contents);
+
+            DataLoadingException exception = assertThrows(
+                    DataLoadingException.class, () -> JsonUtil.readJsonFile(filePath, SerializableTestClass.class));
+
+            assertEquals("The JSON document must not be null.", exception.getMessage());
+            assertEquals(contents, Files.readString(filePath));
+        }
+    }
+
+    @Test
+    public void readJsonFile_directoryInsteadOfFile_reportsReadError() {
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> JsonUtil.readJsonFile(testFolder, SerializableTestClass.class));
+
+        assertInstanceOf(IOException.class, exception.getCause());
+    }
+
+    @Test
+    public void readJsonFile_processingIoError_reportsReadError() throws IOException {
+        Path filePath = testFolder.resolve("processingIoError.json");
+        Files.writeString(filePath, "{}");
+
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> JsonUtil.readJsonFile(filePath, JsonWithIoFailure.class));
+
+        assertEquals("The file could not be read: simulated processing failure", exception.getMessage());
+        assertInstanceOf(IOException.class, exception.getCause());
+    }
+
+    @Test
+    public void readJsonFile_syntaxErrorInMultiLineJson_reportsNearbyNumberedLines() throws IOException {
+        String jsonSource = """
+                {
+                  "first": {
+                    "name": "Before"
+                  },
+                  "student": {
+                    "name": "Alice"
+                    "phone": "91234567"
+                  },
+                  "last": {
+                    "name": "After"
+                  }
+                }
+                """;
+
+        String errorMessage = readMalformedJsonAndGetMessage("multiLine.json", jsonSource);
+
+        String expectedMessage = "The data is not in the expected JSON format at line 7, column 6: "
+                + "Unexpected character ('\"' (code 34)): was expecting comma to separate OBJECT entries\n"
+                + "Affected source:\n"
+                + "  6 |     \"name\": \"Alice\"\n"
+                + "> 7 |     \"phone\": \"91234567\"\n"
+                + "  8 |   },";
+        assertEquals(expectedMessage, errorMessage);
+        assertFalse(errorMessage.contains("Before"));
+        assertFalse(errorMessage.contains("After"));
+    }
+
+    @Test
+    public void readJsonFile_syntaxErrorsAtFileBoundaries_reportsAvailableLines() throws IOException {
+        String startErrorMessage = readMalformedJsonAndGetMessage("start.json", "}\n\"later\": true");
+        String endErrorMessage = readMalformedJsonAndGetMessage("end.json", """
+                {
+                  "student": {
+                    "name": "Alice"
+                """);
+
+        assertTrue(startErrorMessage.contains("at line 1, column 2"));
+        assertTrue(startErrorMessage.contains("> 1 | }"));
+        assertTrue(startErrorMessage.contains("(for ROOT starting at line 1)"));
+        assertFalse(startErrorMessage.contains("[Source:"));
+        assertFalse(startErrorMessage.contains("| null"));
+        assertTrue(endErrorMessage.contains("Unexpected end-of-input"));
+        assertTrue(endErrorMessage.contains("(from line 2, column 14)"));
+        assertFalse(endErrorMessage.contains("[Source:"));
+        assertTrue(endErrorMessage.contains("at the end of the file"));
+        assertTrue(endErrorMessage.contains(" 3 |     \"name\": \"Alice\""));
+    }
+
+    @Test
+    public void readJsonFile_mismatchedClosingBracket_preservesStartLocation() throws IOException {
+        String jsonSource = "{\n  \"tags\": [\"friends\"\n}\n";
+
+        String errorMessage = readMalformedJsonAndGetMessage("mismatchedBracket.json", jsonSource);
+
+        assertTrue(errorMessage.contains("Unexpected close marker '}': expected ']'"));
+        assertTrue(errorMessage.contains("(for ARRAY starting at line 2, column 11)"));
+        assertFalse(errorMessage.contains("[Source:"));
+    }
+
+    @Test
+    public void readJsonFile_unicodeSeparatorInsideString_marksJacksonLine() throws IOException {
+        String jsonSource = "{\n"
+                + "  \"name\": \"Alice\u2028Pauline\",\n"
+                + "  \"first\": true\n"
+                + "  \"second\": false\n"
+                + "}\n";
+
+        String errorMessage = readMalformedJsonAndGetMessage("unicodeSeparator.json", jsonSource);
+
+        assertTrue(errorMessage.contains("at line 4, column 4"));
+        assertTrue(errorMessage.contains("> 4 |   \"second\": false"));
+    }
+
+    @Test
+    public void readJsonFile_syntaxErrorInLongSingleLineJson_boundsExcerptAroundError() throws IOException {
+        String padding = "a".repeat(500);
+        String jsonSource = "{\"padding\":\"" + padding
+                + "\",\"name\":\"Alice\" \"phone\":\"91234567\"}";
+
+        String errorMessage = readMalformedJsonAndGetMessage("singleLine.json", jsonSource);
+
+        assertTrue(errorMessage.contains("at line 1, column 531"));
+        assertTrue(errorMessage.contains("> 1 | …"));
+        assertTrue(errorMessage.contains("\"name\":\"Alice\" \"phone\":\"91234567\"}"));
+        assertFalse(errorMessage.contains(padding));
+        assertTrue(errorMessage.length() < jsonSource.length());
+    }
+
+    @Test
+    public void readJsonFile_syntaxErrorBesideLongLine_boundsContextLine() throws IOException {
+        String padding = "b".repeat(500);
+        String jsonSource = """
+                {
+                  "padding": "%s"
+                  "name": "Alice"
+                }
+                """.formatted(padding);
+
+        String errorMessage = readMalformedJsonAndGetMessage("longContextLine.json", jsonSource);
+
+        String contextLine = errorMessage.lines()
+                .filter(line -> line.startsWith("  2 | "))
+                .findFirst()
+                .orElseThrow();
+        String displayedSource = contextLine.substring(contextLine.indexOf("| ") + 2);
+        assertTrue(displayedSource.endsWith("…"));
+        assertTrue(displayedSource.length() <= 160);
+        assertFalse(errorMessage.contains(padding));
+        assertTrue(errorMessage.contains("> 3 |   \"name\": \"Alice\""));
+    }
+
+    private String readMalformedJsonAndGetMessage(String fileName, String jsonSource) throws IOException {
+        Path filePath = testFolder.resolve(fileName);
+        FileUtil.writeToFile(filePath, jsonSource);
+
+        DataLoadingException exception = assertThrows(
+                DataLoadingException.class, () -> JsonUtil.readJsonFile(filePath, Object.class));
+        return exception.getMessage();
+    }
+
+    @JsonDeserialize(using = IoExceptionThrowingDeserializer.class)
+    private static class JsonWithIoFailure {
+    }
+
+    private static class IoExceptionThrowingDeserializer extends JsonDeserializer<JsonWithIoFailure> {
+
+        @Override
+        public JsonWithIoFailure deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            throw new IOException("simulated processing failure");
+        }
+    }
+
+    //TODO: @Test jsonUtil_readJsonStringToObjectInstance_correctObject()
+
+    //TODO: @Test jsonUtil_writeThenReadObjectToJson_correctObject()
+}

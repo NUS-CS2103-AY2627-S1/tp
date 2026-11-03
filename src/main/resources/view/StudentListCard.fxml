@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import seedu.tab.ui.CardHeadline?>
+<?import seedu.tab.ui.CardName?>
+<?import seedu.tab.ui.ContactRow?>
+<?import seedu.tab.ui.TagRow?>
+
+<HBox id="cardPane" fx:id="cardPane" alignment="TOP_LEFT" spacing="12"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <padding>
+    <Insets top="12" right="14" bottom="12" left="14" />
+  </padding>
+
+  <!-- The invisible index behind the real one reserves the column, so the text beside it
+       starts at the same place on every card however many digits that card's own index has.
+       It is invisible rather than absent because JavaFX lays it out with the real font, at
+       whatever display scale, where measuring the text here could go stale. -->
+  <StackPane alignment="TOP_RIGHT">
+    <Label fx:id="indexWidth" styleClass="card-index" visible="false">
+      <minWidth>
+        <!-- The reserved width is held under pressure too, or a squeezed card falls back to
+             its own index and the column goes ragged where the window is narrowest -->
+        <Region fx:constant="USE_PREF_SIZE" />
+      </minWidth>
+    </Label>
+    <Label fx:id="id" styleClass="card-index">
+      <minWidth>
+        <!-- Ensures that the label text is never truncated -->
+        <Region fx:constant="USE_PREF_SIZE" />
+      </minWidth>
+    </Label>
+  </StackPane>
+
+  <VBox fx:id="details" spacing="4" HBox.hgrow="ALWAYS" minWidth="0">
+    <HBox alignment="CENTER_LEFT" spacing="12">
+      <CardHeadline HBox.hgrow="ALWAYS" minWidth="0">
+        <!-- the tags sit against the name, so a reader follows one line from the name to
+             what is said about them. The name uses its full text while the line has room for
+             it, and gives way with an ellipsis below that. A row of its own
+             rather than an HBox, which would share a shortfall between the name and the tags
+             and leave neither readable. -->
+        <CardName fx:id="name" text="\$first" styleClass="card-name" />
+        <TagRow fx:id="tags" />
+      </CardHeadline>
+      <Label fx:id="followUp" styleClass="card-pill" minWidth="-Infinity" />
+    </HBox>
+
+    <!-- Keep short details on one line, wrapping whole labels before shortening a value
+         that is wider than the entire line. -->
+    <ContactRow fx:id="contacts" hgap="12" vgap="4" minWidth="0">
+      <Label fx:id="nusStudentId" styleClass="card-detail-strong" minWidth="0" />
+      <Label fx:id="phone" styleClass="card-detail" text="\$phone" minWidth="0" />
+      <Label fx:id="email" styleClass="card-detail" text="\$email" minWidth="0" />
+    </ContactRow>
+  </VBox>
+</HBox>

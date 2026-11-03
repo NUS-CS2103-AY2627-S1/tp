@@ -1,0 +1,57 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam defaultFontSize 16
+skinparam sequenceReferenceBackgroundColor white
+
+participant ":LogicManager" as logic LOGIC_COLOR
+participant "c:Command" as command LOGIC_COLOR
+participant ":Model" as model MODEL_COLOR
+participant ":Storage" as storage STORAGE_COLOR
+
+[-> logic : execute(commandText)
+activate logic
+note over logic : Parsing succeeds; ordinary command
+logic -> model : read book and filter
+activate model
+model --> logic : book / predicate
+deactivate model
+note over logic : Copy book; retain predicate
+logic -> command : execute(model)
+activate command
+command -> model : apply command operation
+activate model
+model --> command
+deactivate model
+command --> logic : result
+deactivate command
+
+alt student book unchanged
+  [<-- logic : result
+else student book changed
+  logic -> storage : saveStudentBook(book)
+  activate storage
+  note right of storage
+    Lock, validate and atomically replace file.
+    Details: StaleWindowSave activity diagram.
+  end note
+  alt save succeeds
+    storage --> logic
+    deactivate storage
+    [<-- logic : result
+  else save throws IOException
+    note over logic, storage : IOException propagates to LogicManager
+    deactivate storage
+    logic -> model : setStudentBook(snapshot)
+    activate model
+    model --> logic
+    deactivate model
+    logic -> model : updateFilteredStudentList(\npredicate)
+    activate model
+    model --> logic
+    deactivate model
+    note over logic : Throw CommandException to caller
+  end
+end
+deactivate logic
+@enduml

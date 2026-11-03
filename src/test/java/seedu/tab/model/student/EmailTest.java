@@ -1,0 +1,297 @@
+package seedu.tab.model.student;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.tab.testutil.Assert.assertThrows;
+
+import java.util.List;
+import java.util.Random;
+
+import org.junit.jupiter.api.Test;
+
+public class EmailTest {
+
+    @Test
+    public void constructor_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new Email(null));
+    }
+
+    @Test
+    public void constructor_invalidEmail_throwsIllegalArgumentException() {
+        String invalidEmail = "";
+        assertThrows(IllegalArgumentException.class, () -> new Email(invalidEmail));
+    }
+
+    @Test
+    public void isValidEmail() {
+        // null email
+        assertThrows(NullPointerException.class, () -> Email.isValidEmail(null));
+
+        // blank email
+        assertFalse(Email.isValidEmail("")); // empty string
+        assertFalse(Email.isValidEmail(" ")); // spaces only
+
+        // missing parts
+        assertFalse(Email.isValidEmail("@example.com")); // missing local part
+        assertFalse(Email.isValidEmail("peterjackexample.com")); // missing '@' symbol
+        assertFalse(Email.isValidEmail("peterjack@")); // missing domain name
+
+        // invalid parts
+        assertFalse(Email.isValidEmail("peterjack@-")); // invalid domain name
+        assertFalse(Email.isValidEmail("peterjack@exam_ple.com")); // underscore in domain name
+        assertFalse(Email.isValidEmail("peter jack@example.com")); // spaces in local part
+        assertFalse(Email.isValidEmail("peterjack@exam ple.com")); // spaces in domain name
+        assertFalse(Email.isValidEmail("peterjack@@example.com")); // double '@' symbol
+        assertFalse(Email.isValidEmail("peter@jack@example.com")); // '@' symbol in local part
+        assertFalse(Email.isValidEmail(".peterjack@example.com")); // local part starts with a period
+        assertFalse(Email.isValidEmail("peterjack.@example.com")); // local part ends with a period
+        assertFalse(Email.isValidEmail("peter..jack@example.com")); // local part has two consecutive periods
+        assertFalse(Email.isValidEmail("peterjack@example@com")); // '@' symbol in domain name
+        assertFalse(Email.isValidEmail("peterjack@.example.com")); // domain name starts with a period
+        assertFalse(Email.isValidEmail("peterjack@example.com.")); // domain name ends with a period
+        assertFalse(Email.isValidEmail("peterjack@-example.com")); // domain name starts with a hyphen
+        assertFalse(Email.isValidEmail("peterjack@example.com-")); // domain name ends with a hyphen
+        assertFalse(Email.isValidEmail("peterjack@example.c")); // one-character final label: rejected boundary
+
+        // valid email
+        assertTrue(Email.isValidEmail("PeterJack_1190@example.com")); // underscore in local part
+        assertTrue(Email.isValidEmail("PeterJack.1190@example.com")); // period in local part
+        assertTrue(Email.isValidEmail("PeterJack+1190@example.com")); // '+' symbol in local part
+        assertTrue(Email.isValidEmail("PeterJack-1190@example.com")); // hyphen in local part
+        assertTrue(Email.isValidEmail("a@bc")); // minimum local and domain lengths
+        assertTrue(Email.isValidEmail("test@localhost")); // alphabets only
+        assertTrue(Email.isValidEmail("123@145")); // numeric local part and domain name
+        assertTrue(Email.isValidEmail("a1+be.d@example1.com")); // mixture of alphanumeric and special characters
+        assertTrue(Email.isValidEmail("peter_jack@very-very-very-long-example.com")); // long domain name
+        assertTrue(Email.isValidEmail("if.you.dream.it_you.can.do.it@example.com")); // long local part
+        assertTrue(Email.isValidEmail("e1234567@u.nus.edu")); // more than one period in domain
+    }
+
+    @Test
+    public void constructor_validLocalPartSymbols_preservesAddress() {
+        for (char symbol : "!#$%&'*+/=?^_`{|}~-".toCharArray()) {
+            for (String localPart : new String[] {symbol + "Mei", "Mei" + symbol,
+                "Mei" + symbol + symbol + "Tan", String.valueOf(symbol)}) {
+                String address = localPart + "@example.com";
+                assertEquals(address, new Email(address).getValue());
+            }
+        }
+        assertEquals("sean.o'brien@example.com", new Email("sean.o'brien@example.com").getValue());
+    }
+
+    @Test
+    public void isValidEmail_surroundingWhitespaceOrInvisibleMarks_isAccepted() {
+        // an address pasted from a web page or a chat app carries marks the reader cannot see,
+        // so the value is normalized before it is judged, as names, phones and tags already are
+        assertTrue(Email.isValidEmail(" peterjack@example.com ")); // leading and trailing space
+        assertTrue(Email.isValidEmail("\u200Epeterjack@example.com")); // leading direction mark
+        assertTrue(Email.isValidEmail("peterjack@\u200Bexample.com")); // zero-width space inside
+        assertEquals("peterjack@example.com", new Email("\u200Epeterjack@example.com").getValue());
+    }
+
+    @Test
+    public void isWithinLengthLimit_atTheLimit_isAccepted() {
+        String atLimit = addressOfLength(Email.MAX_LENGTH);
+
+        assertEquals(Email.MAX_LENGTH, atLimit.length());
+        assertTrue(Email.isWithinLengthLimit(atLimit));
+        assertTrue(Email.isValidEmail(atLimit));
+    }
+
+    @Test
+    public void isWithinLengthLimit_oneCharacterOver_isRejected() {
+        String overLimit = addressOfLength(Email.MAX_LENGTH + 1);
+
+        assertEquals(Email.MAX_LENGTH + 1, overLimit.length());
+        assertFalse(Email.isWithinLengthLimit(overLimit));
+    }
+
+    @Test
+    public void isValidEmail_addressOverTheLengthLimit_isStillStructurallyValid() {
+        // the limit belongs to what a command may enter, not to the field itself. Narrowing
+        // isValidEmail would make a file an earlier version wrote unloadable, and storage
+        // validates with it, so a record the product had already accepted would be discarded.
+        String overLimit = addressOfLength(Email.MAX_LENGTH + 1);
+
+        assertTrue(Email.isValidEmail(overLimit));
+    }
+
+    @Test
+    public void getFailureReason_addressLongEnoughToOverflowTheStack_namesTheLength() {
+        // getFailureReason matches the local part on its own, so it is guarded by the same
+        // length branch and must answer without exhausting the stack
+        String overflowing = "a.".repeat(5000) + "a@example.com";
+
+        String reason = Email.getFailureReason(overflowing);
+
+        assertTrue(reason.contains(String.valueOf(Email.MAX_LENGTH)), reason);
+        assertTrue(reason.contains(String.valueOf(overflowing.length())), reason);
+    }
+
+    /**
+     * Returns a valid-looking address of exactly {@code length} characters, padded in the local
+     * part so that only the length is at fault.
+     */
+    private static String addressOfLength(int length) {
+        String domain = "@example.com";
+        return "a".repeat(length - domain.length()) + domain;
+    }
+
+    @Test
+    public void equals() {
+        Email email = new Email("valid@email");
+
+        // same values -> returns true
+        assertTrue(email.equals(new Email("valid@email")));
+
+        // same object -> returns true
+        assertTrue(email.equals(email));
+
+        // null -> returns false
+        assertFalse(email.equals(null));
+
+        // different types -> returns false
+        assertFalse(email.equals(5.0f));
+
+        // different values -> returns false
+        assertFalse(email.equals(new Email("other.valid@email")));
+    }
+
+    @Test
+    public void getFailureReason_namesThePartAtFault() {
+        assertEquals("an email needs an @ between the local part and the domain",
+                Email.getFailureReason("e1234567"));
+        assertEquals("an email may hold only one @", Email.getFailureReason("a@@b.com"));
+        assertEquals("there is nothing before the @", Email.getFailureReason("@u.nus.edu"));
+        assertEquals("there is nothing after the @", Email.getFailureReason("john@"));
+        assertEquals("the last part of the domain needs at least 2 characters",
+                Email.getFailureReason("john@x"));
+        assertEquals("the part before the @ may hold ASCII letters, digits and !#$%&'*+/=?^_`{|}~-"
+                + ", with dots allowed only between non-empty groups",
+                Email.getFailureReason("john doe@x.com"));
+        assertEquals("the domain may hold ASCII letters and digits in labels separated by dots, "
+                + "with hyphens allowed inside a label", Email.getFailureReason("john@x_y.com"));
+    }
+
+    @Test
+    public void getFailureReason_dotWithAnEmptyLabelBesideIt_namesTheDot() {
+        // a full stop carried over from the end of a sentence is an everyday paste slip, and
+        // the last part the reader sees is "com", so a short-last-label answer misdirects them
+        assertFalse(Email.isValidEmail("eve@example.com."));
+        assertEquals("the domain may not begin or end with a dot, or hold two dots in a row",
+                Email.getFailureReason("eve@example.com."));
+
+        assertFalse(Email.isValidEmail("eve@.example.com"));
+        assertEquals("the domain may not begin or end with a dot, or hold two dots in a row",
+                Email.getFailureReason("eve@.example.com"));
+
+        assertFalse(Email.isValidEmail("eve@example..com"));
+        assertEquals("the domain may not begin or end with a dot, or hold two dots in a row",
+                Email.getFailureReason("eve@example..com"));
+    }
+
+    @Test
+    public void getFailureReason_genuinelyShortLastLabel_keepsTheShortLabelAnswer() {
+        assertEquals("the last part of the domain needs at least 2 characters",
+                Email.getFailureReason("a@example.c"));
+        assertEquals("the last part of the domain needs at least 2 characters",
+                Email.getFailureReason("a@x"));
+        assertTrue(Email.isValidEmail("a@example.co")); // the boundary just above it
+    }
+
+    @Test
+    public void getFailureReason_accentedLetters_saysOnlyAsciiLettersAreAccepted() {
+        assertFalse(Email.isValidEmail("josé@example.com"));
+        assertEquals("the part before the @ may hold ASCII letters, digits and !#$%&'*+/=?^_`{|}~-"
+                + ", with dots allowed only between non-empty groups",
+                Email.getFailureReason("josé@example.com"));
+
+        assertFalse(Email.isValidEmail("hans@bücher.de"));
+        assertEquals("the domain may hold ASCII letters and digits in labels separated by dots, "
+                + "with hyphens allowed inside a label", Email.getFailureReason("hans@bücher.de"));
+    }
+
+    @Test
+    public void isValidEmail_longDirectInput_preservesFormatWithoutStackOverflow() {
+        String local = "a.".repeat(5000) + "a";
+        String address = local + "@example.com";
+        assertTrue(Email.isValidEmail(address));
+        assertEquals(address, new Email(address).getValue());
+        // Final label without adjacent alphanumeric characters is rejected, even when very long.
+        assertFalse(Email.isValidEmail("a@" + "a-".repeat(5000) + "a"));
+        // Long valid single-label and multi-label domains remain accepted.
+        assertTrue(Email.isValidEmail("a@" + "a-".repeat(5000) + "ab"));
+        assertTrue(Email.isValidEmail("a@" + "a.".repeat(5000) + "com"));
+    }
+
+    @Test
+    public void isValidEmail_shortGeneratedAddresses_matchesExistingGrammar() {
+        Random random = new Random(556);
+        String alphabet = "ab19-.";
+        for (int sample = 0; sample < 3000; sample++) {
+            StringBuilder domain = new StringBuilder();
+            for (int index = 0; index < 1 + sample % 12; index++) {
+                domain.append(alphabet.charAt(random.nextInt(alphabet.length())));
+            }
+            for (String local : List.of("a", "a.b", "a..b", "a_+b", ".a", "a.")) {
+                String address = local + "@" + domain;
+                assertEquals(address.matches(Email.VALIDATION_REGEX), Email.isValidEmail(address), address);
+            }
+        }
+    }
+
+    @Test
+    public void isValidEmail_domainCharacterBounds_acceptsOnlyAsciiLettersAndDigits() {
+        // Accepted boundaries of the ASCII lowercase, uppercase and digit ranges.
+        for (String character : List.of("a", "z", "A", "Z", "0", "9")) {
+            assertTrue(Email.isValidEmail("student@" + character + "a"), character);
+        }
+        // Characters adjacent to those ranges, and non-ASCII letters, are rejected.
+        for (String character : List.of("/", ":", "[", "`", "{", "é")) {
+            assertFalse(Email.isValidEmail("student@" + character + "a"), character);
+        }
+    }
+
+    @Test
+    public void isValidEmail_adjacentHyphensInsideADomainLabel_isAccepted() {
+        // xn-- marks an IDNA A-label, so these are plain ASCII domains a student may really hold
+        assertTrue(Email.isValidEmail("student@xn--bcher-kva.de"));
+        assertEquals("student@xn--bcher-kva.de", new Email("student@xn--bcher-kva.de").getValue());
+        assertTrue(Email.isValidEmail("a@foo--bar.com"));
+        assertTrue(Email.isValidEmail("a@xn--80akhbyknj4f"));
+        assertTrue(Email.isValidEmail("a@foo---bar.com"));
+        assertTrue(Email.isValidEmail("a@xn--p1ai.xn--p1ai"));
+    }
+
+    @Test
+    public void isValidEmail_hyphensAtTheEdgeOfADomainLabel_isRejected() {
+        assertFalse(Email.isValidEmail("a@-foo.com")); // leading hyphen
+        assertFalse(Email.isValidEmail("a@foo-.com")); // trailing hyphen
+        assertFalse(Email.isValidEmail("a@foo.-bar")); // leading hyphen in the last label
+        assertFalse(Email.isValidEmail("a@foo..com")); // empty label
+        assertFalse(Email.isValidEmail("a@foo--bar.c_m")); // non-letter-digit-hyphen character
+        assertFalse(Email.isValidEmail("a@foo--bar.cé")); // non-ASCII letter
+        assertTrue(Email.isValidEmail("student@example.com")); // the plain case is untouched
+    }
+
+    @Test
+    public void hasDotlessDomain_singleLabelDomain_returnsTrue() {
+        for (String address : List.of("john@gmail", "e1234567@nus", "a@localhost", "john@my-host")) {
+            assertTrue(new Email(address).hasDotlessDomain(), address);
+        }
+    }
+
+    @Test
+    public void hasDotlessDomain_dottedDomain_returnsFalse() {
+        for (String address : List.of("john@gmail.com", "e1234567@u.nus.edu", "a.b@x.co")) {
+            assertFalse(new Email(address).hasDotlessDomain(), address);
+        }
+    }
+
+    @Test
+    public void hasDotlessDomain_dotInLocalPartOnly_returnsTrue() {
+        assertTrue(new Email("john.tan@gmail").hasDotlessDomain());
+    }
+
+}

@@ -1,0 +1,37 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam defaultFontSize 16
+skinparam sequenceReferenceBackgroundColor white
+
+participant ":LogicManager" as logic LOGIC_COLOR
+participant "c:DeleteCommand" as command LOGIC_COLOR
+participant "target:StudentTarget" as target LOGIC_COLOR
+participant ":Model" as model MODEL_COLOR
+
+[-> logic : execute(\n"delete 1")
+activate logic
+ref over logic, command
+  Parse delete command
+end ref
+logic -> command : execute(model)
+activate command
+command -> target : resolve(model,\nID_TARGET_COMMAND)
+activate target
+target -> model : getFilteredStudentList()
+activate model
+model --> target : displayed students
+deactivate model
+note over target : Pick index 1
+target --> command : student
+deactivate target
+command -> model : deleteStudent(student)
+activate model
+model --> command
+deactivate model
+command --> logic : result
+deactivate command
+
+[<-- logic : result
+deactivate logic
+@enduml

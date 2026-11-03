@@ -1,47 +1,46 @@
 @startuml
 !include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor LOGIC_COLOR_T4
-skinparam classBackgroundColor LOGIC_COLOR
+!pragma layout smetana
+skinparam classBackgroundColor LOGIC_COLOR_T1
+skinparam classFontColor #222222
+skinparam classStereotypeFontColor #222222
+skinparam classBorderColor #555555
+skinparam arrowColor #555555
+skinparam ArrowFontStyle plain
+skinparam genericDisplay old
+skinparam nodesep 45
+skinparam ranksep 45
 
-package Logic as LogicPackage {
+package "Logic" as LogicComponent {
+class Logic <<interface>>
+class LogicManager
+class StudentBookParser
+class "{abstract}\nCommand" as Command
+class DeleteCommand
+class CommandResult
 
-package "Parser Classes" as ParserClasses{
+LogicManager .up.|> Logic
+LogicManager --> "1" StudentBookParser
+LogicManager ..> Command : executes
+StudentBookParser ..> Command : returns
+DeleteCommand -up-|> Command
+Command .down.> CommandResult : returns
+DeleteCommand -[hidden]right-> CommandResult
+
+note bottom of StudentBookParser
+  Parser helpers are
+  expanded separately.
+end note
 }
-Class XYZCommand
-Class CommandResult
-Class "{abstract}\nCommand" as Command
 
-
-Class "<<interface>>\nLogic" as Logic
-Class LogicManager
+class " " as Outside #transparent;line:transparent
+Outside ..> Logic
+package "Model" as ModelComponent MODEL_COLOR_T1 {
 }
-
-package Model {
-Class HiddenModel #FFFFFF
+package "Storage" as StorageComponent STORAGE_COLOR_T1 {
 }
-
-package Storage {
-}
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Logic
-
-LogicManager .right.|> Logic
-LogicManager -right->"1" ParserClasses
-ParserClasses ..> XYZCommand : <<create>>
-
-XYZCommand -up-|> Command
-LogicManager .left.> Command : <<call>>
-
-LogicManager --> Model
-LogicManager --> Storage
-Storage --[hidden] Model
-Command .[hidden]up.> Storage
-Command .right.> Model
-note right of XYZCommand: XYZCommand = AddCommand, \nFindCommand, etc
-
-Logic ..> CommandResult
-LogicManager .down.> CommandResult
-Command .up.> CommandResult : <<create>>
+LogicManager --> ModelComponent
+LogicManager -right-> StorageComponent
+Command ..right.> ModelComponent : executes against
 @enduml
+

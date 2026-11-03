@@ -1,0 +1,499 @@
+package seedu.tab.logic.parser;
+
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_AT_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.EMAIL_OVER_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.FOLLOW_UP;
+import static seedu.tab.logic.commands.CommandTestUtil.FOLLOW_UP_AS_TAG;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_EMAIL;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_NAME;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_NUS_STUDENT_ID;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_PHONE;
+import static seedu.tab.logic.commands.CommandTestUtil.INVALID_TAG;
+import static seedu.tab.logic.commands.CommandTestUtil.MESSAGE_EMAIL_OVER_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.NAME_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.NAME_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.NUS_STUDENT_ID_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.PHONE_AMY;
+import static seedu.tab.logic.commands.CommandTestUtil.PHONE_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
+import static seedu.tab.logic.commands.CommandTestUtil.TAG_FRIEND;
+import static seedu.tab.logic.commands.CommandTestUtil.TAG_HUSBAND;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_EMAIL_AT_MAX_LENGTH;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_NUS_STUDENT_ID_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
+import static seedu.tab.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.tab.logic.parser.CliFlags.FLAG_EMAIL;
+import static seedu.tab.logic.parser.CliFlags.FLAG_NUS_STUDENT_ID;
+import static seedu.tab.logic.parser.CommandParserTestUtil.assertParseFailure;
+import static seedu.tab.logic.parser.CommandParserTestUtil.assertParseSuccess;
+import static seedu.tab.testutil.TypicalStudents.AMY;
+import static seedu.tab.testutil.TypicalStudents.BOB;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.tab.logic.Messages;
+import seedu.tab.logic.commands.AddCommand;
+import seedu.tab.model.student.Email;
+import seedu.tab.model.student.Name;
+import seedu.tab.model.student.NusStudentId;
+import seedu.tab.model.student.Phone;
+import seedu.tab.model.student.Student;
+import seedu.tab.model.tag.Tag;
+import seedu.tab.testutil.StudentBuilder;
+
+public class AddCommandParserTest {
+    private AddCommandParser parser = new AddCommandParser();
+
+    @Test
+    public void parse_autocorrectedDashes_readFieldsRatherThanTheName() {
+        Student expected = new StudentBuilder().withName("Casey Low").withPhone("91234567")
+                .withEmail("casey@example.com").withoutNusStudentId().withTags().build();
+        for (String dash : java.util.List.of("\u2013", "\u2014", "\u2212")) {
+            assertParseSuccess(parser, " Casey Low " + dash + "p 91234567 "
+                    + dash + "e casey@example.com", new AddCommand(expected));
+        }
+    }
+
+    @Test
+    public void parse_dashWithinAName_staysPartOfTheName() {
+        Student expected = new StudentBuilder().withName("Jean\u2013Luc Picard").withPhone("91234567")
+                .withoutEmail().withoutNusStudentId().withTags().build();
+        assertParseSuccess(parser, " Jean\u2013Luc Picard -p 91234567", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_standaloneDashInName_keepsItsForm() {
+        for (String dash : java.util.List.of("\u2013", "\u2014", "\u2212")) {
+            Student expected = new StudentBuilder().withName("Ann " + dash + " Lee").withPhone("91234567")
+                    .withoutEmail().withoutNusStudentId().withTags().build();
+            assertParseSuccess(parser, " Ann " + dash + " Lee -p 91234567", new AddCommand(expected));
+        }
+    }
+
+    @Test
+    public void parse_caseVariantTags_keepsFirstSpelling() {
+        Student expected = new StudentBuilder().withName("Casey Low").withPhone("91234567")
+                .withoutEmail().withTags("Lab 3", "Σ", "T1").build();
+        assertParseSuccess(parser, " Casey Low -p 91234567 -t \"Lab  3\" --tag \"lab 3\" -t \"LAB 3\""
+                + " -t Σ -t ς -t σ -t T1", new AddCommand(expected));
+        expected = new StudentBuilder(expected).withTags("lab 3", "ς", "T1").build();
+        assertParseSuccess(parser, " Casey Low -p 91234567 -t \"lab 3\" -t \"Lab 3\""
+                + " -t ς -t Σ -t T1", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_allFieldsPresent_success() {
+        Student expectedStudent = new StudentBuilder(BOB).withTags(VALID_TAG_FRIEND)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_BOB).build();
+
+        // leading whitespace
+        assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_BOB + PHONE_BOB + EMAIL_BOB
+                + NUS_STUDENT_ID_BOB + TAG_FRIEND, new AddCommand(expectedStudent));
+
+        // multiple tags - all accepted
+        Student expectedStudentMultipleTags = new StudentBuilder(BOB)
+                .withNusStudentId(VALID_NUS_STUDENT_ID_BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND).build();
+        assertParseSuccess(parser,
+                NAME_BOB + PHONE_BOB + EMAIL_BOB + NUS_STUDENT_ID_BOB + TAG_HUSBAND + TAG_FRIEND,
+                new AddCommand(expectedStudentMultipleTags));
+    }
+
+    @Test
+    public void parse_longAndMixedAliases_success() {
+        Student expected = new StudentBuilder(BOB).withTags(VALID_TAG_FRIEND, "Lab 3").build();
+
+        assertParseSuccess(parser, " " + BOB.getName().getFullName()
+                + " --phone " + VALID_PHONE_BOB
+                + " --email " + VALID_EMAIL_BOB
+                + " -t " + VALID_TAG_FRIEND
+                + " --tag \"Lab 3\"", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_valuesJoinedToOptionsByEquals_success() {
+        Student expected = new StudentBuilder(BOB).withNusStudentId(VALID_NUS_STUDENT_ID_BOB)
+                .withTags("Lab = 3").build();
+
+        assertParseSuccess(parser, " " + BOB.getName().getFullName()
+                + " --phone=" + VALID_PHONE_BOB
+                + " -e=" + VALID_EMAIL_BOB
+                + " -i=" + VALID_NUS_STUDENT_ID_BOB
+                + " --tag=\"Lab = 3\"", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_unquotedNameOfSeveralWords_success() {
+        // quoting is only needed for a value that would otherwise be read as something else
+        Student expected = new StudentBuilder(BOB).withTags().build();
+        assertParseSuccess(parser, " " + BOB.getName().getFullName() + PHONE_BOB + EMAIL_BOB,
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_optionalFieldsMissing_success() {
+        // zero tags
+        Student expectedStudent = new StudentBuilder(AMY).withTags().build();
+        assertParseSuccess(parser, NAME_AMY + PHONE_AMY + EMAIL_AMY,
+                new AddCommand(expectedStudent));
+
+        // no email, which is the student the optional email exists to let a tutor record
+        Student withoutEmail = new StudentBuilder(AMY).withTags().withoutEmail().build();
+        assertParseSuccess(parser, NAME_AMY + PHONE_AMY, new AddCommand(withoutEmail));
+
+        // no email and tags together
+        Student tagged = new StudentBuilder(AMY).withTags(VALID_TAG_FRIEND).withoutEmail().build();
+        assertParseSuccess(parser, NAME_AMY + PHONE_AMY + TAG_FRIEND,
+                new AddCommand(tagged));
+
+        // no phone, which is the student the optional phone exists to let a tutor record
+        Student withoutPhone = new StudentBuilder(AMY).withTags().withoutPhone().build();
+        assertParseSuccess(parser, NAME_AMY + EMAIL_AMY, new AddCommand(withoutPhone));
+
+        // only the name, the one field an addition cannot do without
+        Student nameOnly = new StudentBuilder(AMY).withTags().withoutPhone().withoutEmail().build();
+        assertParseSuccess(parser, NAME_AMY, new AddCommand(nameOnly));
+    }
+
+    @Test
+    public void parse_rosterDetailsWithoutPhone_success() {
+        // the roster entry from the issue: a name, a university email and an NUS Student ID
+        Student expected = new StudentBuilder().withName("Email Only").withoutPhone()
+                .withEmail("e1234567@u.nus.edu").withNusStudentId("E1234567").build();
+
+        assertParseSuccess(parser, " Email Only --email=e1234567@u.nus.edu --id=E1234567",
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_nusStudentIdUsingLongOptionOrAlias_buildsStudentWithNormalizedId() {
+        Student expected = new StudentBuilder(BOB).withTags().withoutEmail().withNusStudentId("A01234567X").build();
+
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + " --id a01234567x",
+                new AddCommand(expected));
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + " -i A01234567X",
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_followUpOptionPresent_buildsFlaggedStudent() {
+        Student expected = new StudentBuilder(BOB).withTags(VALID_TAG_FRIEND).withFlag(true).build();
+
+        assertParseSuccess(parser, NAME_BOB + FOLLOW_UP + PHONE_BOB
+                + EMAIL_BOB + TAG_FRIEND, new AddCommand(expected));
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB
+                + TAG_FRIEND + FOLLOW_UP, new AddCommand(expected));
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB
+                + TAG_FRIEND + " -f", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_compulsoryFieldMissing_failure() {
+        String expected = Messages.getErrorMessageForMissingFields(AddCommand.FIELD_NAME)
+                + "\n" + AddCommand.MESSAGE_NAME_GUIDANCE;
+
+        // the name is the one field an addition cannot do without
+        assertParseFailure(parser, PHONE_BOB + EMAIL_BOB, expected);
+
+        // only an optional field
+        assertParseFailure(parser, TAG_FRIEND, expected);
+
+        // nothing at all
+        assertParseFailure(parser, " ", expected);
+    }
+
+    @Test
+    public void parse_invalidValue_failure() {
+        // Nonblank name without a letter or number: rejected.
+        assertParseFailure(parser, INVALID_NAME + PHONE_BOB + EMAIL_BOB + TAG_HUSBAND,
+                Messages.getErrorMessageForInvalidValue(Name.FIELD_NAME, "---", Name.getFailureReason("---")));
+
+        // Two-digit phone: first rejected boundary below the three-digit minimum.
+        assertParseFailure(parser, NAME_BOB + INVALID_PHONE + EMAIL_BOB + TAG_HUSBAND,
+                Messages.getErrorMessageForInvalidValue(Phone.FIELD_NAME, "12", Phone.getFailureReason("12")));
+
+        // Email without an @ separator: rejected.
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + INVALID_EMAIL + TAG_HUSBAND,
+                Messages.getErrorMessageForInvalidValue(Email.FIELD_NAME, "bob!yahoo",
+                        Email.getFailureReason("bob!yahoo")));
+
+        // Nonblank tag without a letter or number: rejected.
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB + INVALID_TAG + TAG_FRIEND,
+                Messages.getErrorMessageForInvalidValue(Tag.FIELD_NAME, "---", Tag.getFailureReason("---")));
+
+        // the follow-up marker's label, which names no tag
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB + FOLLOW_UP_AS_TAG,
+                ParserUtil.MESSAGE_FOLLOW_UP_IS_NOT_A_TAG);
+
+        // ID containing punctuation: rejected even when the name and phone are valid.
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + INVALID_NUS_STUDENT_ID,
+                Messages.getErrorMessageForInvalidValue(NusStudentId.FIELD_NAME, "A0123-456",
+                        NusStudentId.getFailureReason("A0123-456")));
+    }
+
+    @Test
+    public void parse_emailAtTheLengthLimit_success() {
+        Student expected = new StudentBuilder(BOB).withTags().withEmail(VALID_EMAIL_AT_MAX_LENGTH).build();
+
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + EMAIL_AT_MAX_LENGTH, new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_emailOneCharacterOverTheLengthLimit_failure() {
+        // the longest address RFC 5321 allows is accepted, and the next character is not
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_OVER_MAX_LENGTH,
+                MESSAGE_EMAIL_OVER_MAX_LENGTH);
+    }
+
+    @Test
+    public void parse_emailLongEnoughToOverflowTheStack_isRejectedWithTheOtherFieldsStillChecked() {
+        // a pasted address used to crash the command with StackOverflowError, which no parser
+        // catches, so the user saw no message at all
+        String overflowing = "a.".repeat(5000) + "a@example.com";
+        // the fields are reported in the order the format lists them, not the order they were given
+        String expected = Messages.getErrorMessageForInvalidValue(Phone.FIELD_NAME, "12",
+                        Phone.getFailureReason("12"))
+                + "\n"
+                + Messages.getErrorMessageForInvalidValue(Email.FIELD_NAME, overflowing,
+                        Email.getFailureReason(overflowing));
+
+        assertParseFailure(parser, NAME_BOB + " -p 12 -e " + overflowing, expected);
+    }
+
+    @Test
+    public void parse_severalInvalidValues_reportsEveryOne() {
+        // a user who mistyped four fields learns all four at once, rather than one per attempt
+        String expected = String.join("\n",
+                Messages.getErrorMessageForInvalidValue(Name.FIELD_NAME, "---", Name.getFailureReason("---")),
+                Messages.getErrorMessageForInvalidValue(Phone.FIELD_NAME, "12", Phone.getFailureReason("12")),
+                Messages.getErrorMessageForInvalidValue(Email.FIELD_NAME, "john@x",
+                        Email.getFailureReason("john@x")),
+                Messages.getErrorMessageForInvalidValue(Tag.FIELD_NAME, "---", Tag.getFailureReason("---")));
+
+        assertParseFailure(parser, " \"---\" -p 12 -e john@x -t \"---\"", expected);
+    }
+
+    @Test
+    public void parse_missingFieldAndInvalidValue_reportsBoth() {
+        // a missing field and a bad value are different complaints and arrive together
+        String expected = Messages.getErrorMessageForMissingFields(AddCommand.FIELD_NAME)
+                + "\n" + AddCommand.MESSAGE_NAME_GUIDANCE
+                + "\n"
+                + Messages.getErrorMessageForInvalidValue(Email.FIELD_NAME, "nope",
+                        Email.getFailureReason("nope"));
+
+        assertParseFailure(parser, PHONE_BOB + " -e nope", expected);
+    }
+
+    @Test
+    public void parse_severalInvalidTags_reportsEveryOne() {
+        String expected = Messages.getErrorMessageForInvalidValue(Tag.FIELD_NAME, "---",
+                        Tag.getFailureReason("---"))
+                + "\n"
+                + Messages.getErrorMessageForInvalidValue(Tag.FIELD_NAME, "***", Tag.getFailureReason("***"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB + " -t \"---\" -t ***", expected);
+    }
+
+    @Test
+    public void parse_missingFieldIsNotAlsoReportedAsUnparseable() {
+        // a field that is absent is reported once, as missing, and not a second time as a value
+        assertParseFailure(parser, PHONE_BOB + EMAIL_BOB,
+                Messages.getErrorMessageForMissingFields(AddCommand.FIELD_NAME)
+                        + "\n" + AddCommand.MESSAGE_NAME_GUIDANCE);
+    }
+
+    @Test
+    public void parse_repeatedSingleValuedFlag_isRefusedOnItsOwn() {
+        // the shape of the command is settled before any field is read, so the bad email
+        // alongside the repeated phone is not collected with it
+        assertParseFailure(parser, NAME_BOB + PHONE_AMY + PHONE_BOB + " -e nope",
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_AMY + EMAIL_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-e"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + FOLLOW_UP + FOLLOW_UP,
+                Messages.getErrorMessageForDuplicateFlags("--follow-up"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_AMY + " --phone " + VALID_PHONE_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-p"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + EMAIL_AMY
+                        + " --email " + VALID_EMAIL_BOB,
+                Messages.getErrorMessageForDuplicateFlags("-e"));
+
+        assertParseFailure(parser, NAME_BOB + " --phone 11111111 --phone 22222222",
+                Messages.getErrorMessageForDuplicateFlags("--phone"));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB
+                + " --id A01234567X -i A76543210Y",
+                Messages.getErrorMessageForDuplicateFlags("--id"));
+    }
+
+    @Test
+    public void parse_nameOption_explainsNamePlacement() {
+        for (String marker : new String[] {"-n", "--name", "-N", "--NAME", "--Name"}) {
+            String expected = String.format(Messages.MESSAGE_UNKNOWN_FLAG, marker)
+                    + "\n" + AddCommand.MESSAGE_NAME_GUIDANCE;
+            for (String value : new String[] {" \"Betsy Crowe\"", "=\"Betsy Crowe\"", "", "=", "=\"\""}) {
+                assertParseFailure(parser, " " + marker + value + PHONE_BOB, expected);
+                assertParseFailure(parser, PHONE_BOB + " " + marker + value, expected);
+            }
+            assertParseFailure(parser, NAME_BOB + PHONE_BOB + " " + marker + " Betsy", expected);
+        }
+    }
+
+    @Test
+    public void parse_quotedNameOptionText_success() {
+        Student expected = new StudentBuilder(BOB).withName("--name").withTags().build();
+        assertParseSuccess(parser, " \"--name\"" + PHONE_BOB + EMAIL_BOB, new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_optionGluedToQuotedValue_rejectsRatherThanSavingInName() {
+        assertParseFailure(parser, " Amy Lim -t\"Lab 3\"", "There is no -tLab 3 option.");
+        assertParseFailure(parser, " Ben Ong --phone\"+65 9123 4567\"",
+                "There is no --phone+65 9123 4567 option.");
+    }
+
+    @Test
+    public void parse_unknownFlag_isRefusedOnItsOwn() {
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " -z something",
+                String.format(Messages.MESSAGE_UNKNOWN_FLAG, "-z"));
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " --unknown something",
+                String.format(Messages.MESSAGE_UNKNOWN_FLAG, "--unknown"));
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " --phon=1",
+                String.format(Messages.MESSAGE_UNKNOWN_FLAG, "--phon"));
+        for (String option : new String[] {"--no-follow-up", "-nf"}) {
+            assertParseFailure(parser, NAME_BOB + PHONE_BOB + " " + option,
+                    String.format(Messages.MESSAGE_UNKNOWN_FLAG, option));
+        }
+    }
+
+    @Test
+    public void parse_flagWithoutValue_namesTheFieldItNeeds() {
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " -e",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_EMAIL.getLabel()));
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " --email",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_EMAIL.getLabel("--email")));
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + " --id",
+                String.format(Messages.MESSAGE_FLAG_WITHOUT_VALUE, FLAG_NUS_STUDENT_ID.getLabel()));
+    }
+
+    @Test
+    public void parse_unclosedQuote_isReportedAsSuch() {
+        assertParseFailure(parser, " \"Bob Choo" + PHONE_BOB,
+                CommandTokenizer.MESSAGE_UNCLOSED_QUOTE);
+    }
+
+    @Test
+    public void parse_valueAfterTheFlagsBegan_saysItBelongsToNoOption() {
+        // a name already stands before the options, so moving the second word there is no fix
+        assertParseFailure(parser, " Ravi" + PHONE_BOB + " Kumaran",
+                Messages.getErrorMessageForValueAfterFlags("Kumaran", true));
+        assertParseSuccess(parser, " \"Ravi Kumaran\"" + PHONE_BOB,
+                new AddCommand(new StudentBuilder().withName("Ravi Kumaran")
+                        .withPhone(VALID_PHONE_BOB).withoutEmail().build()));
+
+        assertParseFailure(parser, NAME_BOB + PHONE_BOB + FOLLOW_UP + " true",
+                String.format(Messages.MESSAGE_FLAG_TAKES_NO_VALUE, "--follow-up"));
+    }
+
+    @Test
+    public void parse_nameAfterTheFlagsBegan_pointsToTheFrontOfTheCommand() {
+        // nothing stands before the options yet, so the name belongs at the front
+        assertParseFailure(parser, PHONE_BOB + " Ravi",
+                Messages.getErrorMessageForValueAfterFlags("Ravi", false));
+        assertParseSuccess(parser, " Ravi" + PHONE_BOB,
+                new AddCommand(new StudentBuilder().withName("Ravi")
+                        .withPhone(VALID_PHONE_BOB).withoutEmail().build()));
+    }
+
+    @Test
+    public void parse_nonBreakingSpace_isReadAsASeparator() {
+        // pasting from a web page or a chat message used to report the phone as missing, with
+        // "-p 91234567" plainly there in the command
+        Student expected = new StudentBuilder().withName("John Doe").withPhone(VALID_PHONE_BOB)
+                .withoutEmail().withTags().build();
+        assertParseSuccess(parser, " John\u00A0Doe\u00A0-p\u00A0" + VALID_PHONE_BOB,
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_namePastedWithInvisibleMarks_isStoredAsItLooks() {
+        // a chat app wraps a copied name in direction marks, which draw nothing on screen but
+        // would otherwise store a second, lookalike student
+        Student expected = new StudentBuilder().withName("John Doe").withPhone(VALID_PHONE_BOB)
+                .withoutEmail().withTags().build();
+        assertParseSuccess(parser, " \u200EJohn Doe -p " + VALID_PHONE_BOB, new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_emailAndIdPastedWithInvisibleMarks_areStoredWithoutThem() {
+        // the marks draw nothing, so an error quoting the value would leave the user unable to
+        // see what to fix; both fields are normalized as names, phones and tags already are
+        Student expected = new StudentBuilder().withName("John Doe").withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_BOB).withNusStudentId(VALID_NUS_STUDENT_ID_BOB).withTags().build();
+        assertParseSuccess(parser, " John Doe -p " + VALID_PHONE_BOB
+                + " -e \u200E" + VALID_EMAIL_BOB + " -i \u200E" + VALID_NUS_STUDENT_ID_BOB,
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_theSameTagGivenTwiceWithAnInvisibleMark_storesOneTag() {
+        // the two spellings are one tag to a reader, so the set must not hold both
+        Student expected = new StudentBuilder().withName("John Doe").withPhone(VALID_PHONE_BOB)
+                .withoutEmail().withTags(VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, " John Doe -p " + VALID_PHONE_BOB + " -t friend -t \u200Efriend",
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_nameWithSlash_succeeds() {
+        // no field is marked by a slash any more, so a slash needs nothing done to it
+        Student son = new StudentBuilder().withName("Ravi s/o Kumaran").withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_BOB).withTags().build();
+        assertParseSuccess(parser, " \"Ravi s/o Kumaran\"" + PHONE_BOB + EMAIL_BOB,
+                new AddCommand(son));
+
+        Student daughter = new StudentBuilder().withName("Anita d/o Rajan").withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_BOB).withTags().build();
+        assertParseSuccess(parser, " \"Anita d/o Rajan\"" + PHONE_BOB + EMAIL_BOB,
+                new AddCommand(daughter));
+    }
+
+    @Test
+    public void parse_malaysianNameWithSlash_succeeds() {
+        // a/l and a/p are ordinary components of a Malaysian name
+        Student son = new StudentBuilder().withName("Abdul a/l Rahman").withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_BOB).withTags().build();
+        assertParseSuccess(parser, " \"Abdul a/l Rahman\"" + PHONE_BOB + EMAIL_BOB,
+                new AddCommand(son));
+
+        Student daughter = new StudentBuilder().withName("Siti a/p Ahmad").withPhone(VALID_PHONE_BOB)
+                .withEmail(VALID_EMAIL_BOB).withTags().build();
+        assertParseSuccess(parser, " \"Siti a/p Ahmad\"" + PHONE_BOB + EMAIL_BOB,
+                new AddCommand(daughter));
+    }
+
+    @Test
+    public void parse_nameOpeningWithAHyphen_succeedsWhenQuoted() {
+        // quoting is the whole reason the name can come first and still hold a leading hyphen
+        Student expected = new StudentBuilder().withName("-Ahmad").withPhone(VALID_PHONE_BOB)
+                .withoutEmail().withTags(VALID_TAG_FRIEND).build();
+        assertParseSuccess(parser, " \"-Ahmad\"" + PHONE_BOB + TAG_FRIEND,
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_tagHoldingSpaces_succeedsWhenQuoted() {
+        Student expected = new StudentBuilder(BOB).withTags("Lab 3").build();
+        assertParseSuccess(parser, NAME_BOB + PHONE_BOB + EMAIL_BOB + " -t \"Lab 3\"",
+                new AddCommand(expected));
+    }
+
+}

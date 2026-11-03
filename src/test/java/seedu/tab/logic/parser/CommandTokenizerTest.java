@@ -1,0 +1,200 @@
+package seedu.tab.logic.parser;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.tab.logic.parser.CommandTokenizer.tokenize;
+import static seedu.tab.testutil.Assert.assertThrows;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.tab.logic.parser.CommandTokenizer.Token;
+import seedu.tab.logic.parser.exceptions.ParseException;
+
+public class CommandTokenizerTest {
+
+    /** Returns the text of each token, which is what most of these tests are about. */
+    private static List<String> valuesOf(String arguments) throws ParseException {
+        return tokenize(arguments).stream().map(Token::value).toList();
+    }
+
+    @Test
+    public void tokenize_supportedQuotePairs_groupValuesAndPreserveTokenMetadata() throws Exception {
+        for (String opening : List.of("\"", "“", "”", "＂")) {
+            for (String closing : List.of("\"", "“", "”", "＂")) {
+                // Whole quoted token: leading hyphen remains a value; following plain option is separate.
+                assertEquals(List.of(new Token("-组 1", true, true), new Token("-a", false, false)),
+                        tokenize(opening + "-组 1" + closing + " -a"));
+                // Quote after equals: one token, quoted but not beginning with a quote.
+                assertEquals(List.of(new Token("--tag=Lab 3", true, false)),
+                        tokenize("--tag=" + opening + "Lab 3" + closing));
+                // Empty and whitespace-only quoted values remain tokens, unlike blank unquoted input.
+                assertEquals(List.of(new Token("", true, true)), tokenize(opening + closing));
+                assertEquals(List.of("  "), valuesOf(opening + "  " + closing));
+            }
+        }
+    }
+
+    @Test
+    public void tokenize_autocorrectedDashes_openAnOptionLikeAHyphen() throws Exception {
+        for (String dash : List.of("\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015", "\u2212")) {
+            assertEquals(List.of("-p", "91234567"), valuesOf(dash + "p 91234567"));
+            assertEquals(List.of("--follow-up"), valuesOf(dash + dash + "follow-up"));
+            assertEquals(List.of("-t=Lab 3"), valuesOf(dash + "t=\"Lab 3\""));
+        }
+    }
+
+    @Test
+    public void tokenize_dashInsideOrQuoted_staysInTheValue() throws Exception {
+        assertEquals(List.of("Jean\u2013Luc"), valuesOf("Jean\u2013Luc"));
+        assertEquals(List.of("9123\u20134567"), valuesOf("9123\u20134567"));
+        assertEquals(List.of(new Token("\u2013Mystery", true, true)), tokenize("\"\u2013Mystery\""));
+        // A lone dash names no option, so it keeps the form it was typed in.
+        assertEquals(List.of("Ann", "\u2013", "Lee"), valuesOf("Ann \u2013 Lee"));
+        assertEquals(List.of("Ann", "-", "Lee"), valuesOf("Ann - Lee"));
+    }
+
+    @Test
+    public void tokenize_supportedQuotes_canBeEscapedOrLeftUnclosed() throws Exception {
+        for (String quote : List.of("\"", "“", "”", "＂")) {
+            assertEquals(List.of("a" + quote + "b", "-t"), valuesOf("a\\" + quote + "b -t"));
+            assertEquals(List.of("a" + quote + " b"), valuesOf("“a\\" + quote + " b”"));
+            // Opening quote without a closing quote is rejected, even after equals.
+            assertThrows(ParseException.class, CommandTokenizer.MESSAGE_UNCLOSED_QUOTE, () ->
+                    tokenize("--tag=" + quote + "组 1"));
+        }
+        // Apostrophes and single curly quotes are ordinary characters, so spaces still split tokens.
+        assertEquals(List.of("O'Connor", "‘组", "1’"), valuesOf("O'Connor ‘组 1’"));
+    }
+
+    @Test
+    public void tokenize_nothingToSplit_returnsNoTokens() throws Exception {
+        assertEquals(List.of(), valuesOf(""));
+        assertEquals(List.of(), valuesOf("   "));
+        assertEquals(List.of(), valuesOf("\t\n "));
+    }
+
+    @Test
+    public void tokenize_plainWords_splitsOnWhitespace() throws Exception {
+        assertEquals(List.of("John", "-t", "T1"), valuesOf("John -t T1"));
+    }
+
+    @Test
+    public void tokenize_surroundingAndRepeatedSpaces_areIgnored() throws Exception {
+        assertEquals(List.of("John", "-t", "T1"), valuesOf("   John    -t\t\tT1  "));
+    }
+
+    @Test
+    public void tokenize_nonBreakingSpace_splitsLikeAnOrdinarySpace() throws Exception {
+        // a command pasted from a web page or a chat message carries these instead of spaces
+        assertEquals(List.of("John", "-p", "91234567"), valuesOf("John\u00A0-p\u00A091234567"));
+    }
+
+    @Test
+    public void tokenize_otherUnicodeSpaces_splitToo() throws Exception {
+        // the ideographic space is what a Chinese keyboard produces
+        assertEquals(List.of("陈伟明", "-t", "T1"), valuesOf("陈伟明\u3000-t\u202FT1"));
+    }
+
+    @Test
+    public void tokenize_nonBreakingSpaceInsideQuotes_isKept() throws Exception {
+        assertEquals(List.of("John\u00A0Doe"), valuesOf("\"John\u00A0Doe\""));
+    }
+
+    @Test
+    public void tokenize_quotedValue_isOneToken() throws Exception {
+        assertEquals(List.of("Siti Nur-Aisyah", "-t", "Lab 3"),
+                valuesOf("\"Siti Nur-Aisyah\" -t \"Lab 3\""));
+    }
+
+    @Test
+    public void tokenize_quotedValue_keepsCharactersThatWouldOtherwiseBeRead() throws Exception {
+        // a name holding a slash, and one opening with the hyphen that marks a flag
+        assertEquals(List.of("Ravi s/o Kumaran"), valuesOf("\"Ravi s/o Kumaran\""));
+        assertEquals(List.of("-Ahmad", "-t", "T2"), valuesOf("\"-Ahmad\" -t T2"));
+    }
+
+    @Test
+    public void tokenize_quotesInsideAToken_joinWithWhatSurroundsThem() throws Exception {
+        // the quote groups, it does not delimit, so a token may be part quoted
+        assertEquals(List.of("Lab 3x"), valuesOf("\"Lab 3\"x"));
+        assertEquals(List.of("ab cd"), valuesOf("a\"b c\"d"));
+    }
+
+    @Test
+    public void tokenize_emptyQuotes_areATokenOfTheirOwn() throws Exception {
+        // "" is how a caller spells a value that is deliberately empty
+        assertEquals(List.of(""), valuesOf("\"\""));
+        assertEquals(List.of("-e", ""), valuesOf("-e \"\""));
+    }
+
+    @Test
+    public void tokenize_whitespaceInsideQuotes_isKept() throws Exception {
+        assertEquals(List.of("Tan  Wei   Ming"), valuesOf("\"Tan  Wei   Ming\""));
+    }
+
+    @Test
+    public void tokenize_quotedToken_isMarkedAsQuoted() throws Exception {
+        // a value that opens with the flag marker is only telling apart from a flag by this
+        List<Token> tokens = tokenize("\"-Ahmad\" -t T2");
+        assertEquals(new Token("-Ahmad", true, true), tokens.get(0));
+        assertEquals(new Token("-t", false, false), tokens.get(1));
+        assertEquals(new Token("T2", false, false), tokens.get(2));
+    }
+
+    @Test
+    public void tokenize_partlyQuotedToken_countsAsQuoted() throws Exception {
+        // a quote anywhere in the token means the user spelled a value, not an option
+        assertEquals(new Token("-tx", true, true), tokenize("\"-t\"x").get(0));
+    }
+
+    @Test
+    public void tokenize_quoteAfterEquals_doesNotMarkTokenAsBeginningQuoted() throws Exception {
+        assertEquals(new Token("--tag=Lab 3", true, false), tokenize("--tag=\"Lab 3\"").get(0));
+    }
+
+    @Test
+    public void tokenize_escapes_yieldTheCharacterAfterThem() throws Exception {
+        assertEquals(List.of("say \"hi\""), valuesOf("\"say \\\"hi\\\"\""));
+        assertEquals(List.of("a\\b"), valuesOf("a\\\\b"));
+    }
+
+    @Test
+    public void tokenize_backslashBeforeAnythingElse_staysInTheValue() throws Exception {
+        // only a quote and a backslash are escapable, so nothing else quietly disappears
+        assertEquals(List.of("a\\nb"), valuesOf("a\\nb"));
+    }
+
+    @Test
+    public void tokenize_trailingBackslash_staysInTheValue() throws Exception {
+        // there is nothing after it to escape, so it is an ordinary character
+        assertEquals(List.of("a\\"), valuesOf("a\\"));
+    }
+
+    @Test
+    public void tokenize_escapedQuote_doesNotOpenAQuotedRun() throws Exception {
+        // were the escape missed, the rest of the line would be swallowed as one quoted value
+        assertEquals(List.of("a\"b", "-t", "T1"), valuesOf("a\\\"b -t T1"));
+    }
+
+    @Test
+    public void tokenize_unclosedQuote_throwsParseException() {
+        assertThrows(ParseException.class, CommandTokenizer.MESSAGE_UNCLOSED_QUOTE, () ->
+                valuesOf("\"John -t T1"));
+        assertThrows(ParseException.class, CommandTokenizer.MESSAGE_UNCLOSED_QUOTE, () ->
+                valuesOf("John -t \"Lab 3"));
+    }
+
+    @Test
+    public void tokenize_nonAsciiValues_areLeftIntact() throws Exception {
+        assertEquals(List.of("陈伟明", "-t", "ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ"),
+                valuesOf("陈伟明 -t \"ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ\""));
+    }
+
+    @Test
+    public void tokenize_supplementaryCharacters_surviveAsAPair() throws Exception {
+        // a surrogate pair must not be split, or the name comes back as two broken halves
+        String withEmoji = "Ann😀Lee";
+        assertEquals(List.of(withEmoji), valuesOf(withEmoji));
+    }
+}

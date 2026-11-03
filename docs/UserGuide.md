@@ -1,198 +1,384 @@
 ---
-layout: page
-title: User Guide
+  layout: default.md
+  title: "User Guide"
+  pageNav: 3
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+# TAB User Guide
 
-* Table of Contents
-{:toc}
+TAB (Teaching Assistant's Address Book) is a **desktop application for teaching assistants to manage student records through typed commands**. You can keep contact details, group students with tags and track who needs follow-up in one graphical window.
 
---------------------------------------------------------------------------------------------------------------------
+<!-- Adapted from the inherited AddressBook-Level3 User Guide by SE-EDU. -->
+<!-- https://github.com/NUS-CS2103-AY2627-S1/tp/blob/master/docs/UserGuide.md -->
+<page-nav-print />
 
 ## Quick start
 
-1. Ensure that Java `25` or later is installed on your computer.<br>
-   **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+1. Install Java `25`, using an x64 JDK without bundled JavaFX on Windows or Linux.
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+   On a Mac, use the JDK+FX version in the
+   [course setup guide](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+   If you choose a plain JDK on Apple Silicon, use an x64 JDK under Rosetta because TAB's bundled JavaFX targets Intel Macs.
+   The course's native JDK+FX setup does not need Rosetta.
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Download `tab.jar` from the [releases page](https://github.com/AY2627S1-CS2103T-T16-1/tp/releases)
+   and place it in a writable folder, which will be TAB's home folder.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal in that folder and run `java -jar tab.jar`.
+   Double-clicking `tab.jar` may not work on some systems.
+   TAB opens with six sample students when no saved data exists.
 
-1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
-   Some example commands you can try:
+   ![TAB showing student records and the student summary](images/Ui.png)
 
-   * `list` : Lists all contacts.
+1. Type a command in the command box and press `Enter`.
+   Try `list` to show every student, then `help` to read the built-in command reference.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+1. Try `add John Doe -p 98765432 -e johnd@example.com --id A05678901K` to add a student.
+   You can then use `find -n John` to locate the record.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+1. Refer to [Features](#features) for command details or the [Command summary](#command-summary) for a quick reference.
 
-   * `clear` : Deletes all contacts.
+## General reference
 
-   * `exit` : Exits the app.
+### Command format
 
-1. Refer to the [Features](#features) section below for details of each command.
+TAB follows common CLI conventions for options and quoted values, using short options such as `-p` and long options such as `--phone`.
 
---------------------------------------------------------------------------------------------------------------------
+* Replace `UPPER_CASE` words with your own values.<br>
+  For example, `add NAME` allows `add John Doe`.
+
+* Square brackets mark optional parts.<br>
+  For example, `add John Doe [-p PHONE]` allows `add John Doe`.
+
+* `...` allows repetition.<br>
+  For example, `[-t TAG]...` allows `-t T1 -t "Lab 3"`.
+
+* `|` separates alternatives.<br>
+  For example, `[--follow-up | --no-follow-up]` allows either option or neither.
+
+* Options can appear in any order after a leading name or target.<br>
+  For example, both `add John Doe -e john@example.com -p 91234567` and `add John Doe -p 91234567 -e john@example.com` work.
+
+* Put an option's value in double quotes if it contains spaces or begins with a hyphen. In `add`, a name with spaces does not need quotes.<br>
+  For example, `tag 1 -a "Lab 3"` adds one tag containing a space, while `add John Doe` names a student `John Doe`.
+
+* Curly (`“”`) and full-width (`＂`) double quotes work like straight double quotes.
+
+* Use a backslash (`\`) to escape a double quote (`\"`) or another backslash (`\\`).<br>
+  For example, `add "Baz \"Q\" Lee"` stores the name `Baz "Q" Lee`.
+
+* Separate an option from its quoted value with a space or `=`.<br>
+  For example, `-t "Lab 3"` and `-t="Lab 3"` work; `-t"Lab 3"` is rejected as an unknown option.
+
+* Command words ignore case, but option names are case-sensitive.<br>
+  For example, `LIST` works, but `-P` does not replace `-p`.
+
+* Typographic dashes (`–`, `—`) count as one `-` each.<br>
+  For example, `add Amy Lim –p 91234567` records the phone number, but one em dash before `phone` reads as `-phone`, which is refused with `Did you mean --phone?`
+
+* A word that starts with a dash, like `-p` or `–p`, is read as an option. A dash stays in your value when it is:
+  * inside a word, as in `add Jean–Luc Picard`
+  * on its own, as in `add Ann – Lee`
+  * inside quotes, as in `add "–Mystery"`. Without the quotes, `–Mystery` would be read as an option and refused.
+
+* Give each option once unless the format shows `...`. Short and long spellings count as the same option.
+
+Options also accept `OPTION=VALUE`, such as `--phone=91234567`. TAB suggests corrections when you mistype a command, or give an option with the wrong case or the wrong number of dashes. It never applies the suggestion itself, so you must correct the command and resubmit it.
+
+### Student fields
+
+The field options below are used by `add`, `edit` and `find`.
+
+| Field | Options | Accepted values |
+| --- | --- | --- |
+| Name | `add`: first argument, no flag needed<br> `edit`, `find`: `-n` or `--name` | At least one letter or number in any script, with punctuation allowed |
+| Phone | `-p`, `--phone` | At least three digits (formatting, extensions and notes allowed) |
+| Email | `-e`, `--email` | Up to 254 characters |
+| NUS Student ID | `--id`, `-i` | 1 to 32 ASCII letters or digits, stored in uppercase |
+| Tag | `-t`, `--tag` | At least one letter or number in any script |
+| Follow-up | `add`: `--follow-up` or `-f`<br> `edit`, `find`: also `--no-follow-up` or `-nf` | Accepts no value |
+
+#### Additional field rules
+
+##### General
+
+Spaces at the ends of values are removed, and repeated spaces become one space.
+
+##### Email
+
+TAB accepts the following subset of standard email formats:
+
+* Before `@`, use ASCII letters, digits and <code>!#$%&amp;'*+/=?^_&#96;{|}~-</code>. Dots are allowed between these characters, but not at either end or consecutively; for example, `sean.o'brien@example.com`.
+* After `@`, use ASCII letters and digits, with hyphens inside each dot-separated part. The last part needs at least two adjacent letters or digits.
+* An address without a dot after `@`, such as `john@gmail`, is saved because [RFC 5322's address syntax](https://www.rfc-editor.org/rfc/rfc5322.html#section-3.4.1) allows single-part domains. TAB warns in case an ending such as `.com` is missing.
+
+##### Tags
+
+* Spaces, punctuation and symbols are allowed, such as `Lab 3 (Mon)` or `#urgent`.
+* Tags ignore case and extra spaces, so <code class="preserve-whitespace">lab  3</code> and `Lab 3` are the same tag.
+* The tag `Needs follow-up` is reserved for the follow-up flag, as are its spacing, hyphen and trailing-punctuation variants such as `Needs follow up`. A tag differing by other punctuation, such as `Needs_follow_up`, is saved with a warning instead and does not set the flag.
+
+##### NUS Student IDs
+
+IDs must be unique across all students, ignoring case.
+
+##### Duplicate warnings
+
+After `add` or `edit`, TAB may warn about another student with a matching name, phone or email, but the record is still saved. Ignore the warning if you know the records describe different students. TAB will not catch duplicates whose details differ, such as `Alex Yeoh` and `Alexander Yeoh`.
+
+### Choosing a student
+
+`edit`, `tag` and `delete` accept one student target. This can be specified by the displayed index or NUS Student ID.
+
+| Target | Meaning | Example |
+| --- | --- | --- |
+| Displayed index | Position in the **currently displayed list**, starting at 1 | `edit 1 -p 91234567` |
+| NUS Student ID | ID beginning with a letter, matched across all students regardless of case | `edit A01234567X -p 91234567` |
+| Explicit ID option for `edit` | `--target-id` selects any ID, including one beginning with a digit | `edit --target-id 1234 -p 91234567` |
+| Explicit ID option for `tag` and `delete` | `--id` or `-i` selects any ID, including one beginning with a digit | `tag --id 1234 -a T2` or `delete --id 1234` |
+
+* For example: after `find -n Charlotte`, Charlotte is displayed as student `1`, so `delete 1` would delete Charlotte. Subsequently, running `list` will then show all students, where index `1` may refer to someone else.
+
+* Selecting a student by ID requires the complete ID. <br>
+  For example `A0123` cannot target the student with ID `A01234567X`.
+
+* A target that does not begin with a letter is always read as an index. To target an ID beginning with a digit, use the explicit option above. <br>
+  For example, `delete 1234` deletes the student at index 1234, not the one whose ID is `1234`.
+
+* For `edit`, as `--id` is used to edit the student's ID, `--target-id` is used for explicitly selecting the student by NUS Student ID (including one beginning with a digit) instead.
+
+For example:
+
+1. Run `add Numeric Example --id 1234` to add a student with ID `1234`.
+1. Run `edit --target-id 1234 -p 91234567` to update the student.
+1. Run `tag --id 1234 -a T2` to add a tag to the same student.
+1. Run `edit --target-id 1234 --id E7654321` to change their ID.
+1. Run `delete --id E7654321` to remove this example student.
+
+**TIP**: `delete`, `edit` and `tag` keep the currently active search and filter, so students may disappear when they no longer match. To avoid acting on the wrong student, you may want to check the displayed indices after each change, or use NUS Student ID as the target.
 
 ## Features
 
-<div markdown="block" class="alert alert-info">
+### Viewing help with `help`
 
-**:information_source: Notes about the command format:**<br>
+Opens a reference for the commands inside TAB. Shows syntax, option aliases and quoting rules.
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+**Format** `help`
 
-* Items in square brackets are optional.<br>
-  For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
+You can also open it with `F1` or by clicking the Help menu.
 
-* Items followed by `…`​ can appear zero or more times.<br>
-  For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
+![TAB help showing current command syntax and navigation keys](images/helpMessage.png)
 
-* Parameters can be in any order.<br>
-  For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+The footer shows your reading progress and navigation keys, including `q` or `Esc` to return to commands.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+| Key | Action in help |
+| --- | --- |
+| `Space`, `f`, `Page Down` | Move forward one screen |
+| `b`, `Page Up` | Move backward one screen |
+| `Enter`, `j`, `Down` | Move down one line |
+| `k`, `Up` | Move up one line |
+| `d`, `u` | Move forward or backward half a screen |
+| `g`, `Home` / `G`, `End` | Go to the beginning or end |
+| `c` | Copy the User Guide link |
+| `q`, `Esc` | Return to commands |
 
-* If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
-</div>
+### Adding a student with `add`
 
-### Viewing help: `help`
+Adds a student.
 
-Shows a message explaining how to access the help page.
+**Format** `add NAME [-p PHONE] [-e EMAIL] [--id NUS_STUDENT_ID] [-t TAG]... [--follow-up]`
 
-![help message](images/helpMessage.png)
+* Only the name is required.
+* Students start without a follow-up flag unless you supply `--follow-up`.
+* If the new student matches the current search, the filter applied by the search remains. Otherwise, TAB clears it to show all students and mentions it in the reply.
 
-Format: `help`
+**Examples**
 
+* `add Ravi s/o Kumaran --id E1234567 -t "Lab 3" --follow-up` adds a student needing follow-up.
+* `add Mei Tan -p "+65 9123 4567" -e mei__tan@hotmail.com` adds a student with contact details.
 
-### Adding a person: `add`
+### Listing all students with `list`
 
-Adds a person to the address book.
+Shows a list of all students and reports their count.
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+**Format** `list`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
-</div>
+### Editing a student with `edit`
 
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+Edits an existing student selected by [displayed index or NUS Student ID](#choosing-a-student).
 
-### Listing all persons: `list`
+**Format** `edit TARGET [-n NAME] [-p PHONE] [-e EMAIL] [--id NUS_STUDENT_ID] [-t TAG]... [--follow-up | --no-follow-up]`
 
-Shows a list of all persons in the address book.
+* Supply at least one change, using the [student field rules](#student-fields).
+* Omitted fields stay unchanged.
+* Use `-p ""`, `-e ""` or `--id ""` to clear an optional detail. A value holding only spaces, of any kind, clears it too.
+* Supplied tags **replace all existing tags**. Using `-t ""` alone will also clear every tag. To change one tag while keeping the others, consider using the `tag` command instead.
+* Use `--follow-up` or `-f` to set the flag, or `--no-follow-up` or `-nf` to clear it.
 
-Format: `list`
+**Examples**
 
-### Editing a person: `edit`
+* `edit 1 -p 91234567 -e johnd@example.com` changes two contact details.
+* `edit 2 -n "Betsy Crower" -t ""` changes a name and clears all tags.
+* `edit A01234567X --follow-up` flags Alex Yeoh in the sample data.
 
-Edits an existing person in the address book.
+### Adding or removing a tag with `tag`
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Adds or removes **one** tag for an existing student selected by [displayed index or NUS Student ID](#choosing-a-student).
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+**Format** `tag TARGET -a TAG` or `tag TARGET -r TAG`
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* You may use `--add` in place of `-a`, or `--remove` in place of `-r`.
+* Other tags and details remain unchanged.
 
-### Locating persons by name: `find`
+**Examples**
 
-Finds persons whose names contain any of the given keywords.
+* `tag 1 -a "Lab 3"` adds one tag.
+* `tag 1 -r "lab 3"` removes that tag regardless of case.
+* `tag --id A02345678G --add T2` adds a tag to Charlotte Oliveiro in the sample data.
 
-Format: `find KEYWORD [MORE_KEYWORDS]`
+### Locating students with `find`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+Searches all students using the [student field options](#student-fields).
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+**Format** `find [FIELD_OPTION TERM]... [--follow-up | --no-follow-up]`
 
-### Deleting a person: `delete`
+* Supply at least one field term or follow-up option.
+* Each term needs a field option, such as `-n` for names or `-e` for emails.
+* The matching ignores case and accepts partial values. <br>
+  For example, `john` matches `Johnathan`. <br>
+  For tags, `find -t T1` also lists students tagged `T10`, `T11`, or `T12`, so this search cannot list only students tagged `T1`. Whole-tag matching is [coming soon](DeveloperGuide.md#appendix-planned-enhancements).
+* A student must match **every** term (an `AND` search), even when the same option is repeated. <br>
+  For example, `find -n Jason -t transfer` lists only students named Jason who are tagged `transfer`, and `find -n Jason -n Tan` lists only names containing both.
+* Put a term with spaces in double quotes. <br>
+  For example, `find -n "Jason Tan"` matches `Jason Tan` but not `Jason Lee Tan`, while `find -n Jason -n Tan` matches both.
+* Name searches ignore Latin accents, strokes and apostrophe styles (but tags and other fields do not). <br>
+  For example, `dang` matches `Đặng` in a name search.
+* Name searches treat hyphens and the longer dashes as spaces, because the same name may be punctuated differently from one roster to the next. Other fields, such as tags, do not. <br>
+  For example, `find -n "Mary Jane"` matches the names `Mary-Jane` and `Mary–Jane`, but `find -t "Mary Jane"` does not match the tag `Mary-Jane`.
+* Phone searches match digits across formatting. <br>
+  For example, `91234567` matches `+65 9123 4567`.
+* Use `--follow-up` for students with the follow-up flag, or `--no-follow-up` for students without it. The two cannot be used together. <br>
+  `Needs follow-up` on a card shows the follow-up flag, not a tag. For example, `find --follow-up` lists flagged students, but `find -t "Needs follow-up"` lists nobody, and TAB reminds you to use `--follow-up` instead.
 
-Deletes the specified person from the address book.
+**Examples**
 
-Format: `delete INDEX`
+* `find -n Jason -n Tan` requires both name fragments, regardless of their order.
+* `find -t "Lab 3"` requires that phrase within one tag.
+* `find -n Alice -t "Lab 3" -f` requires the name, tag and follow-up status.
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+### Deleting a student with `delete`
 
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+Deletes one student immediately with no undo command. The student to delete is selected by [displayed index or NUS Student ID](#choosing-a-student).
 
-### Clearing all entries: `clear`
+**Format** `delete TARGET`
 
-Clears all entries from the address book.
+**Examples**
 
-Format: `clear`
+* `find -n Charlotte` followed by `delete 1` removes the first displayed match.
+* `delete --id A02345678G` removes Charlotte Oliveiro in the sample data, even when hidden by a search.
 
-### Exiting the program: `exit`
+### Clearing all entries with `clear`
 
-Exits the program.
+Deletes every student record, including those not currently displayed.
 
-Format: `exit`
+**Format** `clear`
 
-### Saving the data
+`clear` asks for confirmation because deletion cannot be undone.
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+* Reply `y` or `yes` and press `Enter` to confirm.
+* Reply `n`, `no` or an empty line to cancel.
+* Replies ignore case.
+* An unrecognized reply keeps confirmation pending, so cancel before entering another command.
 
-### Editing the data file
+### Exiting with `exit`
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+Closes TAB.
 
-<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
-</div>
+**Format** `exit`
 
-### Archiving data files `[coming in v2.0]`
+### Reading and navigating the window
 
-_Details coming soon ..._
+![TAB after a search, with the reply between the command box and the student list](images/windowParts.png)
 
---------------------------------------------------------------------------------------------------------------------
+| Part | What it holds |
+| --- | --- |
+| Menu bar | `File` and `Help`. |
+| Command box | Where you type. Clears when a command succeeds. |
+| Reply | Output or error of last command. It is hidden until a command is run. |
+| Student summary | Counts for the students shown. |
+| Student list | One card per student shown, numbered by displayed index. |
+| Status bar | The data file's path. |
+
+![Student summary beside cards showing a follow-up flag and hidden tags](images/cardSummary.png)
+
+In this example, the student summary counts three students and one follow-up flag. The first card shows the follow-up marker at the right of its top line, while `2 more…` indicates hidden tags.
+
+* The **student summary** on the left shows the displayed students' total, follow-up count and tag counts.
+* Tags differing only in case share a summary row.
+* A flagged student has a `Needs follow-up` marker on their card.
+* Hover over shortened details or a hidden-tag count to read the full text.
+
+| Key | Action outside help |
+| --- | --- |
+| `Up`, `Down` in the command box | Access previously submitted commands |
+| `Tab`, `Shift`+`Tab` | Move forward or backward through the command box, student list, tag list in the student summary and visible reply |
+| Arrow keys, `Page Up`, `Page Down`, `Home`, `End` | Navigate the focused list or reply |
+
+Command history keeps the 100 most recent commands and lasts until TAB closes.
+
+### Saving and editing data
+
+TAB automatically saves student changes in `data/tab.json` under its home folder. The data file's path is shown in the status bar.
+
+If a save fails, the records from before the command are restored.
+
+Avoid editing the same data file in two TAB windows. Once one window saves, the other refuses to save so it cannot overwrite those changes. Restart that window to load the latest data, then redo the change.
+
+Advanced users can edit the JSON file after closing every TAB window and making a backup. Change only the values and keep the field names exactly as they are. Save the file with UTF-8 encoding.
+
+The file contains a `students` array. Each student uses these fields:
+
+| JSON fields | Value type |
+| --- | --- |
+| `name`, `phone`, `email`, `nusStudentId` | Text strings following the [student field rules](#student-fields); only `name` is required |
+| `tags` | Array of strings, such as `["Lab 3", "T1"]` |
+| `flag` | Boolean `true` or `false`; use this for follow-up instead of a `Needs follow-up` tag |
+
+You may add one description using the JSON field `_comment` at the top level, outside `students` (for example, `"_comment": "Tutorial T16"`). TAB keeps this field when saving. Its value must be text, and no other extra field is allowed.
+
+If a file is invalid or unreadable, TAB reports the problem and leaves it unchanged without opening the main window. Repair the file before restarting.
 
 ## FAQ
 
-**Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**How do I transfer my records to another computer?**
 
---------------------------------------------------------------------------------------------------------------------
+Install TAB there, then copy `data/tab.json` into the new home folder's `data` folder while TAB is closed. Create that folder if needed, and back up any existing records before replacing them.
+
+**What if TAB cannot save?**
+
+Check that TAB's home folder is writable and has free disk space, then retry the command.
+
+TAB keeps a lock file, `data/.tab.json.lock`, so that two open windows do not save over each other. If an error mentions it, close every TAB window and make the file writable again, then restart. Do not delete it. If it has become a folder, remove the folder.
 
 ## Known issues
 
-1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
-2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+**With around 1,000 students, a command can take a few seconds while the list is scrolled near its end.** Scroll back to the top of the list before running the command to avoid the delay.
 
---------------------------------------------------------------------------------------------------------------------
+**On Windows Subsystem for Linux (WSL), the window can be made smaller than TAB's minimum size.** Under WSL, Windows does not stop the window from shrinking below its minimum, so parts of TAB may be cut off. Enlarge the window to show them again, or run TAB on Windows directly.
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+For `TARGET`, see [Choosing a student](#choosing-a-student).
+
+| Action | Format or example |
+| --- | --- |
+| Add | `add NAME [-p PHONE] [-e EMAIL] [--id NUS_STUDENT_ID] [-t TAG]... [--follow-up]` |
+| List | `list` |
+| Edit | `edit TARGET [-n NAME] [-p PHONE] [-e EMAIL] [--id NUS_STUDENT_ID] [-t TAG]... [--follow-up \| --no-follow-up]` |
+| Add a tag | `tag TARGET -a TAG` |
+| Remove a tag | `tag TARGET -r TAG` |
+| Find | `find [FIELD_OPTION TERM]... [--follow-up \| --no-follow-up]`, such as `find -n Alex -t T1` |
+| Delete | `delete TARGET` |
+| Clear | `clear`, then confirm or cancel |
+| Help | `help`, then `q` or `Esc` to return |
+| Exit | `exit` |

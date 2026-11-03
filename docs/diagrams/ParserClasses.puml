@@ -1,38 +1,36 @@
 @startuml
 !include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor LOGIC_COLOR_T4
-skinparam classBackgroundColor LOGIC_COLOR
+!pragma layout smetana
+skinparam classBackgroundColor LOGIC_COLOR_T1
+skinparam classFontColor #222222
+skinparam classStereotypeFontColor #222222
+skinparam classBorderColor #555555
+skinparam arrowColor #555555
+skinparam ArrowFontStyle plain
+skinparam nodesep 40
+skinparam ranksep 40
 
-Class "{abstract}\nCommand" as Command
-Class XYZCommand
+package "Logic" as LogicComponent {
+    package "Parsers" {
+        class StudentBookParser
+        class Parser<T> <<interface>>
+        class AddCommandParser
+        class FlagTokenizer
+        class CommandTokenizer
+        class FlagArgumentMap
+        class ParserUtil
+        class ParseProblems
 
-package "Parser classes"{
-Class "<<interface>>\nParser" as Parser
-Class AddressBookParser
-Class XYZCommandParser
-Class CliSyntax
-Class ParserUtil
-Class ArgumentMultimap
-Class ArgumentTokenizer
-Class Prefix
+        StudentBookParser ..> AddCommandParser : <<create>>
+        AddCommandParser .up.|> Parser
+        AddCommandParser ..> FlagTokenizer
+        FlagTokenizer ..> CommandTokenizer
+        FlagTokenizer ..> FlagArgumentMap : <<create>>
+        AddCommandParser ..> FlagArgumentMap : reads
+        AddCommandParser ..> ParserUtil : validates values
+        AddCommandParser ..> ParseProblems : collects errors
+    }
+    class AddCommand
+    AddCommandParser ..> AddCommand : <<create>>
 }
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> AddressBookParser
-
-AddressBookParser .down.> XYZCommandParser: <<create>>
-
-XYZCommandParser ..> XYZCommand : <<create>>
-AddressBookParser ..> Command : <<use>>
-XYZCommandParser .up.|> Parser
-XYZCommandParser ..> ArgumentMultimap
-XYZCommandParser ..> ArgumentTokenizer
-ArgumentTokenizer .left.> ArgumentMultimap
-XYZCommandParser ..> CliSyntax
-CliSyntax ..> Prefix
-XYZCommandParser ..> ParserUtil
-ParserUtil .down.> Prefix
-ArgumentTokenizer .down.> Prefix
-XYZCommand -up-|> Command
 @enduml

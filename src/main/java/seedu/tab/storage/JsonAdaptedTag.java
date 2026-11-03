@@ -1,0 +1,62 @@
+package seedu.tab.storage;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
+import seedu.tab.commons.exceptions.IllegalValueException;
+import seedu.tab.commons.util.ValueMessages;
+import seedu.tab.model.tag.FollowUpFlag;
+import seedu.tab.model.tag.Tag;
+
+/**
+ * Jackson-friendly version of {@link Tag}.
+ */
+class JsonAdaptedTag {
+
+    public static final String MESSAGE_RESERVED_TAG =
+            FollowUpFlag.MESSAGE_RESERVED + " Remove it from \"tags\" and set \"flag\" to true instead.";
+
+    static final String MESSAGE_MISSING_TAG = "Tag field is missing.";
+
+    private final String tagName;
+
+    /**
+     * Constructs a {@code JsonAdaptedTag} with the given {@code tagName}.
+     */
+    @JsonCreator
+    public JsonAdaptedTag(String tagName) {
+        this.tagName = tagName;
+    }
+
+    /**
+     * Converts a given {@code Tag} into this class for Jackson use.
+     */
+    public JsonAdaptedTag(Tag source) {
+        tagName = source.getTagName();
+    }
+
+    @JsonValue
+    public String getTagName() {
+        return tagName;
+    }
+
+    /**
+     * Converts this Jackson-friendly adapted tag object into the model's {@code Tag} object.
+     *
+     * @throws IllegalValueException if there were any data constraints violated in the adapted tag.
+     */
+    public Tag toModelType() throws IllegalValueException {
+        if (tagName == null) {
+            throw new IllegalValueException(MESSAGE_MISSING_TAG);
+        }
+        if (!Tag.isValidTagName(tagName)) {
+            throw new IllegalValueException(ValueMessages.getErrorMessageForInvalidValue(
+                    Tag.FIELD_NAME, tagName, Tag.getFailureReason(tagName)));
+        }
+        if (FollowUpFlag.isFollowUpName(tagName)) {
+            throw new IllegalValueException(MESSAGE_RESERVED_TAG);
+        }
+        return new Tag(tagName);
+    }
+
+}

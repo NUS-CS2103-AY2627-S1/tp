@@ -1,0 +1,26 @@
+@startuml
+!include style.puml
+skinparam defaultFontSize 16
+skinparam ArrowFontStyle plain
+skinparam activityBackgroundColor LOGIC_COLOR_T1
+skinparam activityBorderColor #555555
+skinparam arrowColor #555555
+
+
+start
+if () then ([index])
+  :Look up the position
+  in the displayed list;
+else ([NUS Student ID])
+  :Look up the ID in
+  the whole student book;
+endif
+if () then ([student found])
+  :Select that student;
+  stop
+else ([else])
+  :Reject the command
+  without changing records;
+  stop
+endif
+@enduml

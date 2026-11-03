@@ -1,0 +1,35 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam defaultFontSize 16
+skinparam maxMessageSize 260
+skinparam sequenceReferenceBackgroundColor #FFFFFF
+
+participant ":AddCommandParser" as parser LOGIC_COLOR
+participant ":Student" as student MODEL_COLOR
+participant "c:AddCommand" as command LOGIC_COLOR
+
+[-> parser : parse(" Alice -p 81234567")
+activate parser
+ref over parser
+  Add argument tokenization
+end ref
+ref over parser
+  Add field validation
+end ref
+create student
+parser -> student
+activate student
+||20||
+student --> parser
+deactivate student
+create command
+parser -> command
+activate command
+||20||
+command --> parser
+deactivate command
+[<-- parser : command c
+deactivate parser
+@enduml
+

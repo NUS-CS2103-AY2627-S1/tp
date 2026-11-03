@@ -4,9 +4,21 @@ on: [push, pull_request]
 
 jobs:
   build:
+    name: build (${{ matrix.platform }}${{ matrix.java-package == 'jdk+fx' && ', JDK+FX 25' || '' }})
     strategy:
+      fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        # macos-15-intel is an Intel runner, so the x64 JDK and the x64 JavaFX
+        # natives this job tests run without Rosetta translating every
+        # instruction, as they did on the Apple Silicon macos-latest image.
+        platform: [ubuntu-latest, macos-15-intel, windows-latest]
+        java-package: [jdk]
+        include:
+          # Also test the course's Mac setup with its bundled JavaFX 25.
+          - platform: macos-latest
+            java-package: jdk+fx
+            java-version: '25.0.3'
+            architecture: aarch64
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -25,10 +37,22 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '25'
-          java-package: jdk+fx
+          java-version: ${{ matrix.java-version || '25' }}
+          # Plain JDK jobs use Gradle's JavaFX 17.0.7 dependencies.
+          java-package: ${{ matrix.java-package }}
+          # JavaFX 17's packaged native libraries target x64.
+          architecture: ${{ matrix.architecture || 'x64' }}
+
+      - name: Start a virtual display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
 
       - name: Build and check with Gradle
+        timeout-minutes: 15
         run: ./gradlew check coverage
 
       - name: Upload coverage reports to Codecov
