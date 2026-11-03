@@ -8,15 +8,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.logic.commands.AddCommand;
-import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.AddGroupCommand;
+import seedu.address.logic.commands.AddGuardianCommand;
+import seedu.address.logic.commands.AddStudentCommand;
+import seedu.address.logic.commands.AssignGroupCommand;
 import seedu.address.logic.commands.Command;
-import seedu.address.logic.commands.DeleteCommand;
-import seedu.address.logic.commands.EditCommand;
+import seedu.address.logic.commands.DeleteGroupCommand;
+import seedu.address.logic.commands.DeleteStudentCommand;
+import seedu.address.logic.commands.EditGuardianCommand;
+import seedu.address.logic.commands.EditStudentCommand;
 import seedu.address.logic.commands.ExitCommand;
-import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.FilterStudentsCommand;
+import seedu.address.logic.commands.FindGuardianCommand;
+import seedu.address.logic.commands.FindStudentCommand;
 import seedu.address.logic.commands.HelpCommand;
-import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.LinkGuardianCommand;
+import seedu.address.logic.commands.ListGroupsCommand;
+import seedu.address.logic.commands.ListGuardiansCommand;
+import seedu.address.logic.commands.ListStudentsCommand;
+import seedu.address.logic.commands.UnassignGroupCommand;
+import seedu.address.logic.commands.UnlinkGuardianCommand;
+import seedu.address.logic.commands.ViewStudentCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -25,9 +37,10 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class AddressBookParser {
 
     /**
-     * Used for initial separation of command word and args.
+     * Separates the command word from all argument text so each command can validate extra input.
      */
-    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
+    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile(
+            "(?<commandWord>\\S+)(?<arguments>.*)", Pattern.DOTALL);
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
 
     /**
@@ -51,15 +64,27 @@ public class AddressBookParser {
         // Lower level log messages are used sparingly to minimize noise in the code.
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
-        return switch (commandWord) {
-            case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
-            case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
-            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
-            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+        return switch (commandWord.toLowerCase(java.util.Locale.ROOT)) {
+            case AddGuardianCommand.COMMAND_WORD -> new AddGuardianCommandParser().parse(arguments);
+            case AddGroupCommand.COMMAND_WORD -> new AddGroupCommandParser().parse(arguments);
+            case AddStudentCommand.COMMAND_WORD -> new AddStudentCommandParser().parse(arguments);
+            case AssignGroupCommand.COMMAND_WORD -> new AssignGroupCommandParser().parse(arguments);
+            case UnassignGroupCommand.COMMAND_WORD -> new UnassignGroupCommandParser().parse(arguments);
+            case ListGroupsCommand.COMMAND_WORD -> new ListGroupsCommandParser().parse(arguments);
+            case ListGuardiansCommand.COMMAND_WORD -> new ListGuardiansCommandParser().parse(arguments);
+            case DeleteStudentCommand.COMMAND_WORD -> new DeleteStudentCommandParser().parse(arguments);
+            case DeleteGroupCommand.COMMAND_WORD -> new DeleteGroupCommandParser().parse(arguments);
+            case EditStudentCommand.COMMAND_WORD -> new EditStudentCommandParser().parse(arguments);
+            case EditGuardianCommand.COMMAND_WORD -> new EditGuardianCommandParser().parse(arguments);
+            case FilterStudentsCommand.COMMAND_WORD -> new FilterStudentsCommandParser().parse(arguments);
+            case FindStudentCommand.COMMAND_WORD -> new FindStudentCommandParser().parse(arguments);
+            case FindGuardianCommand.COMMAND_WORD -> new FindGuardianCommandParser().parse(arguments);
+            case LinkGuardianCommand.COMMAND_WORD -> new LinkGuardianCommandParser().parse(arguments);
+            case ListStudentsCommand.COMMAND_WORD -> new ListStudentsCommandParser().parse(arguments);
+            case ViewStudentCommand.COMMAND_WORD -> new ViewStudentCommandParser().parse(arguments);
+            case UnlinkGuardianCommand.COMMAND_WORD -> new UnlinkGuardianCommandParser().parse(arguments);
+            case ExitCommand.COMMAND_WORD -> new ExitCommandParser().parse(arguments);
+            case HelpCommand.COMMAND_WORD -> new HelpCommandParser().parse(arguments);
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);

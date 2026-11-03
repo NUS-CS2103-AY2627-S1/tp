@@ -3,61 +3,74 @@ package seedu.address.logic.commands;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-public class CommandResultTest {
+class CommandResultTest {
     @Test
-    public void equals() {
-        CommandResult commandResult = new CommandResult("feedback");
-
-        // same values -> returns true
-        assertTrue(commandResult.equals(new CommandResult("feedback")));
-        assertTrue(commandResult.equals(new CommandResult("feedback", false, false)));
-
-        // same object -> returns true
-        assertTrue(commandResult.equals(commandResult));
-
-        // null -> returns false
-        assertFalse(commandResult.equals(null));
-
-        // different types -> returns false
-        assertFalse(commandResult.equals(0.5f));
-
-        // different feedbackToUser value -> returns false
-        assertFalse(commandResult.equals(new CommandResult("different")));
-
-        // different showHelp value -> returns false
-        assertFalse(commandResult.equals(new CommandResult("feedback", true, false)));
-
-        // different exit value -> returns false
-        assertFalse(commandResult.equals(new CommandResult("feedback", false, true)));
+    void helpTopic_preservesDefaultsAndParticipatesInValueContracts() {
+        CommandResult result = CommandResult.forHelp("Help", "add-student");
+        CommandResult copy = CommandResult.forHelp("Help", "add-student");
+        assertEquals(result, copy);
+        assertEquals(result.hashCode(), copy.hashCode());
+        assertNotEquals(result, CommandResult.forHelp("Help", "exit"));
+        assertNotEquals(result, CommandResult.forHelp("Help", null));
+        assertEquals("add-student", result.getHelpCommand());
+        assertTrue(result.isShowHelp());
+        assertFalse(result.isExit());
+        assertNull(result.getSelectedStudentId());
+        assertEquals(CommandResult.Workspace.UNCHANGED, result.getWorkspace());
+        assertTrue(result.toString().contains("helpCommand=add-student"));
     }
 
     @Test
-    public void hashcode() {
-        CommandResult commandResult = new CommandResult("feedback");
+    void workspaceRequest_preservesExistingDefaultsAndParticipatesInEquality() {
+        CommandResult groups = new CommandResult("Listed groups", CommandResult.Workspace.GROUPS);
+        CommandResult copy = new CommandResult("Listed groups", CommandResult.Workspace.GROUPS);
 
-        // same values -> returns same hashcode
-        assertEquals(commandResult.hashCode(), new CommandResult("feedback").hashCode());
-
-        // different feedbackToUser value -> returns different hashcode
-        assertNotEquals(commandResult.hashCode(), new CommandResult("different").hashCode());
-
-        // different showHelp value -> returns different hashcode
-        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", true, false).hashCode());
-
-        // different exit value -> returns different hashcode
-        assertNotEquals(commandResult.hashCode(), new CommandResult("feedback", false, true).hashCode());
+        assertEquals(CommandResult.Workspace.UNCHANGED, new CommandResult("Listed groups").getWorkspace());
+        assertEquals(groups, copy);
+        assertEquals(groups.hashCode(), copy.hashCode());
+        assertNotEquals(groups, new CommandResult("Listed groups"));
+        assertNull(groups.getSelectedStudentId());
     }
 
     @Test
-    public void toStringMethod() {
-        CommandResult commandResult = new CommandResult("feedback");
-        String expected = CommandResult.class.getCanonicalName() + "{feedbackToUser="
-                + commandResult.getFeedbackToUser() + ", showHelp=" + commandResult.isShowHelp()
-                + ", exit=" + commandResult.isExit() + "}";
-        assertEquals(expected, commandResult.toString());
+    void studentSelection_usesStableStudentId() {
+        CommandResult result = new CommandResult("Added student", false, false, "S-0001");
+        assertEquals("Added student", result.getFeedbackToUser());
+        assertEquals("S-0001", result.getSelectedStudentId());
+        assertNull(new CommandResult("No selection").getSelectedStudentId());
+    }
+
+    @Test
+    void equalsAndHashCode_includeStudentSelection() {
+        CommandResult result = new CommandResult("Opened", false, false, "S-0001");
+        CommandResult copy = new CommandResult("Opened", false, false, "S-0001");
+        assertEquals(result, copy);
+        assertEquals(result.hashCode(), copy.hashCode());
+        assertNotEquals(result, new CommandResult("Opened", false, false, "S-0002"));
+    }
+
+    @Test
+    void conditionalClear_preservesWorkspaceDefaultsAndParticipatesInValueContracts() {
+        CommandResult result = new CommandResult("Deleted", false, false, null, true, "S-0001");
+        CommandResult copy = new CommandResult("Deleted", false, false, null, true, "S-0001");
+
+        assertEquals(result, copy);
+        assertEquals(result.hashCode(), copy.hashCode());
+        assertTrue(result.shouldClearStudentSelection());
+        assertEquals("S-0001", result.getStudentIdToClearSelection());
+        assertNull(result.getSelectedStudentId());
+        assertEquals(CommandResult.Workspace.UNCHANGED, result.getWorkspace());
+        assertNotEquals(result, new CommandResult("Deleted", false, false, null, true, "S-0002"));
+        assertNotEquals(result, new CommandResult("Deleted", false, false, null, false, "S-0001"));
+        assertNotEquals(result, new CommandResult("Deleted", false, false, null, true));
+        assertTrue(result.toString().contains("studentIdToClearSelection=S-0001"));
+        CommandResult groups = new CommandResult("Groups", CommandResult.Workspace.GROUPS);
+        assertFalse(groups.shouldClearStudentSelection());
+        assertNull(groups.getStudentIdToClearSelection());
     }
 }

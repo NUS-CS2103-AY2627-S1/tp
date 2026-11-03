@@ -1,0 +1,20 @@
+@startuml
+!include mentora-style.puml
+class AddressBook {
+    -guardianLinks: Map<StudentId, GuardianId>
+}
+class Student
+class Guardian
+class GroupAssignment {
+    -studentId: StudentId
+    -groupCode: GroupCode
+}
+class GroupCatalogue
+class Group
+
+AddressBook -left-> "0..*" Student : students
+AddressBook -down-> "0..*" Guardian : guardians
+AddressBook -down-> "0..*" GroupAssignment : groupAssignments
+AddressBook -right-> "1" GroupCatalogue : groupCatalogue
+GroupCatalogue -down-> "0..*" Group : groups {ordered}
+@enduml

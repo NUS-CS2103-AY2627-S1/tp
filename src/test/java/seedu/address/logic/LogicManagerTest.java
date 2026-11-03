@@ -1,174 +1,307 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
-import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
-import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.CommandResult;
-import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.Model;
+import seedu.address.model.AddressBook;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
-import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.guardian.GuardianId;
+import seedu.address.model.guardian.GuardianName;
+import seedu.address.model.guardian.GuardianPhone;
+import seedu.address.model.student.AcademicLevel;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentId;
+import seedu.address.model.student.StudentName;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
 
-public class LogicManagerTest {
-    private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
-    private static final IOException DUMMY_AD_EXCEPTION = new AccessDeniedException("dummy access denied exception");
-
+class LogicManagerTest {
     @TempDir
-    public Path temporaryFolder;
+    Path temporaryFolder;
 
-    private Model model = new ModelManager();
+    private ModelManager model;
     private Logic logic;
 
     @BeforeEach
-    public void setUp() {
-        JsonAddressBookStorage addressBookStorage =
-                new JsonAddressBookStorage(temporaryFolder.resolve("addressBook.json"));
-        JsonUserPrefsStorage userPrefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("userPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
-        logic = new LogicManager(model, storage);
+    void setUp() {
+        model = new ModelManager();
+        logic = createLogic(new JsonAddressBookStorage(temporaryFolder.resolve("students.json")));
     }
 
     @Test
-    public void execute_invalidCommandFormat_throwsParseException() {
-        String invalidCommand = "uicfhmowqewca";
-        assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
+    void execute_unknownCommand_throwsParseException() {
+        assertThrows(ParseException.class, () -> logic.execute("add n/Hidden Person"));
     }
 
     @Test
-    public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
-    }
-
-    @Test
-    public void execute_validCommand_success() throws Exception {
-        String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
-    }
-
-    @Test
-    public void execute_storageThrowsIoException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
-    }
-
-    @Test
-    public void execute_storageThrowsAdException_throwsCommandException() {
-        assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
-                LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
-    }
-
-    @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
-    }
-
-    /**
-     * Executes the command and confirms that
-     * - no exceptions are thrown <br>
-     * - the feedback message is equal to {@code expectedMessage} <br>
-     * - the internal model manager state is the same as that in {@code expectedModel} <br>
-     * @see #assertCommandFailure(String, Class, String, Model)
-     */
-    private void assertCommandSuccess(String inputCommand, String expectedMessage,
-            Model expectedModel) throws CommandException, ParseException {
-        CommandResult result = logic.execute(inputCommand);
-        assertEquals(expectedMessage, result.getFeedbackToUser());
-        assertEquals(expectedModel, model);
-    }
-
-    /**
-     * Executes the command, confirms that a ParseException is thrown and that the result message is correct.
-     * @see #assertCommandFailure(String, Class, String, Model)
-     */
-    private void assertParseException(String inputCommand, String expectedMessage) {
-        assertCommandFailure(inputCommand, ParseException.class, expectedMessage);
-    }
-
-    /**
-     * Executes the command, confirms that a CommandException is thrown and that the result message is correct.
-     * @see #assertCommandFailure(String, Class, String, Model)
-     */
-    private void assertCommandException(String inputCommand, String expectedMessage) {
-        assertCommandFailure(inputCommand, CommandException.class, expectedMessage);
-    }
-
-    /**
-     * Executes the command, confirms that the exception is thrown and that the result message is correct.
-     * @see #assertCommandFailure(String, Class, String, Model)
-     */
-    private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
-            String expectedMessage) {
-        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
-        assertCommandFailure(inputCommand, expectedException, expectedMessage, expectedModel);
-    }
-
-    /**
-     * Executes the command and confirms that
-     * - the {@code expectedException} is thrown <br>
-     * - the resulting error message is equal to {@code expectedMessage} <br>
-     * - the internal model manager state is the same as that in {@code expectedModel} <br>
-     * @see #assertCommandSuccess(String, String, Model)
-     */
-    private void assertCommandFailure(String inputCommand, Class<? extends Throwable> expectedException,
-            String expectedMessage, Model expectedModel) {
-        assertThrows(expectedException, expectedMessage, () -> logic.execute(inputCommand));
-        assertEquals(expectedModel, model);
-    }
-
-    /**
-     * Tests the Logic component's handling of an {@code IOException} thrown by the Storage component.
-     *
-     * @param e the exception to be thrown by the Storage component
-     * @param expectedMessage the message expected inside exception thrown by the Logic component
-     */
-    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
-        Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
-
-        // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
-        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(prefPath) {
+    void execute_invalidStudentQuery_reportsQueryErrorAndPreservesSearchResults() throws Exception {
+        Student ann = new Student(new StudentId("S-0001"), new StudentName("Ann Tan"),
+                new AcademicLevel("Sec 2"));
+        model.addStudent(ann);
+        model.addStudent(new Student(new StudentId("S-0002"), new StudentName("Mei Lin"),
+                new AcademicLevel("Sec 2")));
+        AddressBook before = new AddressBook(model.getAddressBook());
+        JsonAddressBookStorage readOnlyStorage = new JsonAddressBookStorage(temporaryFolder.resolve("unused.json")) {
             @Override
-            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
-                throw e;
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                throw new AssertionError("Student searches must not save data");
             }
         };
+        logic = createLogic(readOnlyStorage);
+        logic.execute("find-student n/ann");
+        assertEquals(List.of(ann), logic.getStudentList());
 
-        JsonUserPrefsStorage userPrefsStorage =
-                new JsonUserPrefsStorage(temporaryFolder.resolve("ExceptionUserPrefs.json"));
-        StorageManager storage = new StorageManager(addressBookStorage, userPrefsStorage);
+        for (String query : List.of("S-0001", "a".repeat(81))) {
+            ParseException error = assertThrows(ParseException.class, () ->
+                    logic.execute("find-student n/" + query));
+            assertEquals("Search query must be 1-80 characters and contain name characters only.",
+                    error.getMessage());
+            assertEquals(List.of(ann), logic.getStudentList());
+            assertEquals(before, model.getAddressBook());
+        }
+    }
 
-        logic = new LogicManager(model, storage);
+    @Test
+    void execute_addStudent_savesAndSelectsStudentById() throws Exception {
+        CommandResult result = logic.execute("add-student n/Mei Lin al/Sec 2");
+        assertEquals(1, logic.getStudentList().size());
+        assertEquals("Mei Lin", logic.getStudentList().get(0).getName().toString());
+        assertEquals(logic.getStudentList().get(0).getId().value, result.getSelectedStudentId());
+        JsonAddressBookStorage savedStorage = new JsonAddressBookStorage(temporaryFolder.resolve("students.json"));
+        assertEquals(model.getAddressBook(), savedStorage.readAddressBook().orElseThrow());
+    }
 
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+    @Test
+    void execute_listGroups_doesNotSaveOrModifyStudents() throws Exception {
+        Student student = new Student(new StudentName("Mei Lin"), new AcademicLevel("Sec 2"));
+        model.addStudent(student);
+        JsonAddressBookStorage forbiddenStorage = new JsonAddressBookStorage(temporaryFolder.resolve("unused.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                throw new AssertionError("list-groups must not save student data.");
+            }
+        };
+        logic = createLogic(forbiddenStorage);
+
+        CommandResult result = logic.execute("list-groups");
+
+        assertEquals("Listed 5 configured group(s).", result.getFeedbackToUser());
+        assertEquals(List.of(student), model.getStudentList());
+        assertSame(model.getGroupCatalogue(), logic.getGroupCatalogue());
+        assertFalse(Files.exists(temporaryFolder.resolve("unused.json")));
+    }
+
+    @Test
+    void execute_listGroups_preservesExistingInvalidFile() throws Exception {
+        Path path = temporaryFolder.resolve("invalid.json");
+        String original = "invalid student data that must remain untouched";
+        Files.writeString(path, original);
+        logic = createLogic(new JsonAddressBookStorage(path));
+
+        logic.execute("LIST-GROUPS");
+
+        assertEquals(original, Files.readString(path));
+        assertEquals(0, model.getStudentList().size());
+    }
+
+    @Test
+    void execute_readOnlyCommands_doesNotAttemptToSave() throws Exception {
+        model.addStudent(new Student(new StudentId("S-0007"), new StudentName("Mei Lin"),
+                new AcademicLevel("Sec 2")));
+        AddressBook beforeCommand = new AddressBook(model.getAddressBook());
+        Path dataPath = temporaryFolder.resolve("read-only.json");
+        JsonAddressBookStorage unwritableStorage = new JsonAddressBookStorage(dataPath) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) {
+                throw new AssertionError("Read-only commands must not save data");
+            }
+        };
+        logic = createLogic(unwritableStorage);
+
+        CommandResult result = logic.execute("view-student sid/S-0007");
+        assertEquals("S-0007", result.getSelectedStudentId());
+        assertEquals("Opened profile for S-0007.", result.getFeedbackToUser());
+        logic.execute("help");
+        logic.execute("exit");
+
+        assertThrows(ParseException.class, () -> logic.execute("view-student sid/"));
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("view-student sid/S-999999999999999999999999999999"));
+        assertEquals("Student S-999999999999999999999999999999 does not exist.", error.getMessage());
+        assertEquals(beforeCommand, model.getAddressBook());
+    }
+
+    @Test
+    void execute_addGuardianCanonicalizesRejectsDuplicateAndPersists() throws Exception {
+        Path file = temporaryFolder.resolve("guardians.json");
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(file);
+        logic = createLogic(addressBookStorage);
+
+        CommandResult result = logic.execute("add-guardian p/+65 61234567 n/Raj   Kumar");
+        String guardianId = model.getGuardianList().getFirst().getId().toString();
+
+        assertEquals("Added guardian " + guardianId + ": Raj Kumar (+65 61234567).",
+                result.getFeedbackToUser());
+        assertNull(result.getSelectedStudentId());
+        assertEquals(model.getAddressBook(), addressBookStorage.readAddressBook().orElseThrow());
+
+        String duplicateCommand = "add-guardian n/Another Name p/61234567";
+        CommandException duplicate = assertThrows(CommandException.class, () -> logic.execute(duplicateCommand));
+        assertEquals("A guardian with phone +65 61234567 already exists (" + guardianId
+                + "). Link that guardian instead.", duplicate.getMessage());
+        assertEquals(1, model.getGuardianList().size());
+    }
+
+    @Test
+    void execute_editGuardianPhone_persistsSharedNumberForLinkedProfiles() throws Exception {
+        Path file = temporaryFolder.resolve("edit-guardian.json");
+        JsonAddressBookStorage addressBookStorage = new JsonAddressBookStorage(file);
+        Guardian guardian = new Guardian(new GuardianId("G-0003"), new GuardianName("Anita Lim"),
+                new GuardianPhone("91234567"));
+        model.addGuardian(guardian);
+        model.addStudent(new Student(new StudentId("S-0001"), new StudentName("Mei Lin"),
+                new AcademicLevel("Sec 2")));
+        model.linkGuardian("S-0001", "G-0003");
+        logic = createLogic(addressBookStorage);
+
+        CommandResult result = logic.execute("edit-guardian gid/G-0003 p/+65 98765432");
+
+        assertEquals("Updated guardian G-0003 phone to +65 98765432. Updated contact will appear in 1 linked "
+                + "student profile(s).", result.getFeedbackToUser());
+        assertEquals(new GuardianPhone("98765432"), model.getLinkedGuardian("S-0001").orElseThrow().getPhone());
+        assertEquals(model.getAddressBook(), addressBookStorage.readAddressBook().orElseThrow());
+        ModelManager reloaded = new ModelManager(addressBookStorage.readAddressBook().orElseThrow(),
+                model.getUserPrefs());
+        assertEquals(new GuardianPhone("98765432"), reloaded.getLinkedGuardian("S-0001").orElseThrow().getPhone());
+    }
+
+    @Test
+    void execute_editGuardianSaveFailure_restoresOldPhone() {
+        Guardian guardian = new Guardian(new GuardianId("G-0003"), new GuardianName("Anita Lim"),
+                new GuardianPhone("91234567"));
+        model.addGuardian(guardian);
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("failure.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("edit-guardian gid/G-0003 p/98765432"));
+
+        assertEquals("Could not save changes. Guardian G-0003 was not updated.", error.getMessage());
+        assertEquals(new GuardianPhone("91234567"), model.findGuardian("G-0003").orElseThrow().getPhone());
+    }
+
+    @Test
+    void execute_saveFailure_rollsBackStudent() {
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("failure.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("add-student n/Mei Lin al/Sec 2"));
+
+        assertEquals("Could not save changes. No student was added.", error.getMessage());
+        assertEquals(0, model.getStudentList().size());
+    }
+
+    @Test
+    void execute_deleteStudent_savesAndRemovesStudent() throws Exception {
+        logic.execute("add-student n/Mei Lin al/Sec 2");
+        String id = logic.getStudentList().get(0).getId().value;
+
+        CommandResult result = logic.execute("delete-student sid/" + id);
+
+        assertEquals("Deleted student " + id + ": Mei Lin.", result.getFeedbackToUser());
+        assertEquals(0, logic.getStudentList().size());
+    }
+
+    @Test
+    void execute_deleteSaveFailure_rollsBackStudent() throws Exception {
+        logic.execute("add-student n/Mei Lin al/Sec 2");
+        String id = logic.getStudentList().get(0).getId().value;
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("failure.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("delete-student sid/" + id));
+
+        assertEquals("Could not save changes. Student " + id + " was not deleted.", error.getMessage());
+        assertEquals(1, model.getStudentList().size());
+        assertEquals(id, model.getStudentList().get(0).getId().value);
+    }
+
+    @Test
+    void execute_editSaveFailure_rollsBackAcademicLevel() throws Exception {
+        model.addStudent(new seedu.address.model.student.Student(
+                new seedu.address.model.student.StudentId("S-0007"),
+                new seedu.address.model.student.StudentName("Mei Lin"),
+                new seedu.address.model.student.AcademicLevel("Sec 2")));
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(
+                temporaryFolder.resolve("edit-failure.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("edit-student sid/S-0007 al/Sec 3"));
+
+        assertEquals("Could not save changes. Student S-0007 was not updated.", error.getMessage());
+        assertEquals("Sec 2", model.getStudentList().get(0).getAcademicLevel().toString());
+    }
+
+    @Test
+    void execute_saveFailure_rollsBackGuardian() {
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("failure.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw new IOException("disk unavailable");
+            }
+        };
+        logic = createLogic(failingStorage);
+
+        CommandException error = assertThrows(CommandException.class, () ->
+                logic.execute("add-guardian n/Anita Lim p/91234567"));
+
+        assertEquals("Could not save changes. No guardian was added.", error.getMessage());
+        assertEquals(0, model.getGuardianList().size());
+    }
+
+    private Logic createLogic(JsonAddressBookStorage addressBookStorage) {
+        JsonUserPrefsStorage prefsStorage = new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"));
+        return new LogicManager(model, new StorageManager(addressBookStorage, prefsStorage));
     }
 }

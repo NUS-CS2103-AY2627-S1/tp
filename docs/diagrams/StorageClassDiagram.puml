@@ -1,36 +1,25 @@
 @startuml
-!include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor STORAGE_COLOR
-skinparam classBackgroundColor STORAGE_COLOR
-
-package Storage as StoragePackage {
-
-Class "<<interface>>\nStorage" as Storage
-Class StorageManager
-
-package "UserPrefs Storage" #F4F6F6{
-Class JsonUserPrefsStorage
+!include mentora-style.puml
+interface Storage <<interface>>
+class StorageManager
+class JsonUserPrefsStorage
+class JsonAddressBookStorage
+class JsonSerializableAddressBook {
+    +toModelType(): AddressBook
 }
-
-package "AddressBook Storage" #F4F6F6{
-Class JsonAddressBookStorage
-Class JsonSerializableAddressBook
-Class JsonAdaptedPerson
-Class JsonAdaptedTag
-}
-
-}
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Storage
+class JsonAdaptedStudent
+class JsonAdaptedGuardian
+class JsonAdaptedGroup
+class JsonAdaptedGuardianLink
+class JsonAdaptedGroupAssignment
 
 StorageManager .up.|> Storage
-StorageManager -down-> "1" JsonUserPrefsStorage
-StorageManager -down-> "1" JsonAddressBookStorage
-
-JsonAddressBookStorage ..> JsonSerializableAddressBook
-JsonSerializableAddressBook --> "*" JsonAdaptedPerson
-JsonAdaptedPerson --> "*" JsonAdaptedTag
-
+StorageManager --> "1" JsonUserPrefsStorage : userPrefsStorage
+StorageManager --> "1" JsonAddressBookStorage : addressBookStorage
+JsonAddressBookStorage ..> JsonSerializableAddressBook : reads / creates for saving
+JsonSerializableAddressBook "1" *-- "0..*" JsonAdaptedStudent : students
+JsonSerializableAddressBook "1" *-- "0..*" JsonAdaptedGuardian : guardians
+JsonSerializableAddressBook "1" *-- "0..*" JsonAdaptedGroup : groups
+JsonSerializableAddressBook "1" *-- "0..*" JsonAdaptedGuardianLink : guardianLinks
+JsonSerializableAddressBook "1" *-- "0..*" JsonAdaptedGroupAssignment : groupAssignments
 @enduml

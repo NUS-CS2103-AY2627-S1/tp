@@ -1,60 +1,20 @@
 @startuml
-!include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor UI_COLOR_T4
-skinparam classBackgroundColor UI_COLOR
+!include mentora-style.puml
+interface Ui <<interface>>
+class UiManager
+class MainWindow
+abstract class UiPart<T> <<abstract>>
+class StudentListPanel
+class StudentDetailsPanel
+interface Logic <<interface>>
 
-package UI <<Rectangle>>{
-Class "<<interface>>\nUi" as Ui
-Class "{abstract}\nUiPart" as UiPart
-Class UiManager
-Class MainWindow
-Class HelpWindow
-Class ResultDisplay
-Class PersonListPanel
-Class PersonCard
-Class StatusBarFooter
-Class CommandBox
-}
-
-package Model <<Rectangle>> {
-Class HiddenModel #FFFFFF
-}
-
-package Logic <<Rectangle>> {
-Class HiddenLogic #FFFFFF
-}
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Ui
-
-UiManager .left.|> Ui
-UiManager -down-> "1" MainWindow
-MainWindow *-down->  "1" CommandBox
-MainWindow *-down-> "1" ResultDisplay
-MainWindow *-down-> "1" PersonListPanel
-MainWindow *-down-> "1" StatusBarFooter
-MainWindow --> "0..1" HelpWindow
-
-PersonListPanel -down-> "*" PersonCard
-
-MainWindow -left-|> UiPart
-
-ResultDisplay --|> UiPart
-CommandBox --|> UiPart
-PersonListPanel --|> UiPart
-PersonCard --|> UiPart
-StatusBarFooter --|> UiPart
-HelpWindow --|> UiPart
-
-PersonCard ..> Model
-UiManager -right-> Logic
-MainWindow -left-> Logic
-
-PersonListPanel -[hidden]left- HelpWindow
-HelpWindow -[hidden]left- CommandBox
-CommandBox -[hidden]left- ResultDisplay
-ResultDisplay -[hidden]left- StatusBarFooter
-
-MainWindow -[hidden]-|> UiPart
+UiManager .up.|> Ui
+UiManager --> "0..1" MainWindow : mainWindow
+UiManager --> "1" Logic : logic
+MainWindow --> "1" Logic : logic
+MainWindow --|> UiPart
+MainWindow --> "0..1" StudentListPanel : studentListPanel
+MainWindow --> "0..1" StudentDetailsPanel : studentDetailsPanel
+StudentListPanel --|> UiPart
+StudentDetailsPanel --|> UiPart
 @enduml

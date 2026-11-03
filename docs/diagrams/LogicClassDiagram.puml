@@ -1,47 +1,24 @@
 @startuml
-!include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor LOGIC_COLOR_T4
-skinparam classBackgroundColor LOGIC_COLOR
-
-package Logic as LogicPackage {
-
-package "Parser Classes" as ParserClasses{
+!include mentora-style.puml
+interface Logic <<interface>> {
+    +execute(commandText: String): CommandResult
 }
-Class XYZCommand
-Class CommandResult
-Class "{abstract}\nCommand" as Command
-
-
-Class "<<interface>>\nLogic" as Logic
-Class LogicManager
+class LogicManager
+class AddressBookParser {
+    +parseCommand(userInput: String): Command
 }
-
-package Model {
-Class HiddenModel #FFFFFF
+abstract class Command <<abstract>> {
+    {abstract} +execute(model: Model): CommandResult
+    +isReadOnly(): boolean
 }
+interface Model <<interface>>
+interface Storage <<interface>>
 
-package Storage {
-}
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Logic
-
-LogicManager .right.|> Logic
-LogicManager -right->"1" ParserClasses
-ParserClasses ..> XYZCommand : <<create>>
-
-XYZCommand -up-|> Command
-LogicManager .left.> Command : <<call>>
-
-LogicManager --> Model
-LogicManager --> Storage
-Storage --[hidden] Model
-Command .[hidden]up.> Storage
-Command .right.> Model
-note right of XYZCommand: XYZCommand = AddCommand, \nFindCommand, etc
-
-Logic ..> CommandResult
-LogicManager .down.> CommandResult
-Command .up.> CommandResult : <<create>>
+LogicManager .up.|> Logic
+LogicManager --> "1" AddressBookParser : parser
+LogicManager --> "1" Model : model
+LogicManager --> "1" Storage : storage
+LogicManager ..> Command : executes
+AddressBookParser ..> Command : returns
+Command ..> Model : parameter
 @enduml

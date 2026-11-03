@@ -3,43 +3,55 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.group.Group;
+import seedu.address.model.group.GroupAssignment;
+import seedu.address.model.group.GroupCatalogue;
+import seedu.address.model.group.GroupCode;
+import seedu.address.model.guardian.Guardian;
+import seedu.address.model.guardian.GuardianId;
+import seedu.address.model.guardian.GuardianPhone;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentId;
 
-/**
- * Represents the in-memory model of the address book data.
- */
+/** In-memory model of the complete register, filtered Student view and user preferences. */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
-
+    private static final Comparator<Student> STUDENT_DISPLAY_ORDER =
+            Comparator.comparing((Student student) -> student.getName().normalized())
+                    .thenComparing(Student::getId);
     private final AddressBook addressBook;
+    private final FilteredList<Student> filteredStudents;
+    private final FilteredList<Guardian> filteredGuardians;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private String studentFilterSummary = "";
 
-    /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
-     */
+    /** Creates a model manager with the supplied student data and user preferences. */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
         requireAllNonNull(addressBook, userPrefs);
-
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
-
+        logger.fine("Initializing with student register: " + addressBook + " and user prefs " + userPrefs);
         this.addressBook = new AddressBook(addressBook);
+        filteredStudents = new FilteredList<>(this.addressBook.getStudentList());
+        filteredGuardians = new FilteredList<>(this.addressBook.getGuardianList());
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
     }
 
+    /** Creates a model manager with empty student data and default preferences. */
     public ModelManager() {
         this(new AddressBook(), new UserPrefs());
     }
-
-    //=========== UserPrefs ==================================================================================
 
     @Override
     public ReadOnlyUserPrefs getUserPrefs() {
@@ -53,15 +65,18 @@ public class ModelManager implements Model {
 
     @Override
     public void setGuiSettings(GuiSettings guiSettings) {
-        requireNonNull(guiSettings);
-        userPrefs.setGuiSettings(guiSettings);
+        userPrefs.setGuiSettings(requireNonNull(guiSettings));
     }
 
-    //=========== AddressBook ================================================================================
-
     @Override
-    public void setAddressBook(ReadOnlyAddressBook addressBook) {
-        this.addressBook.resetData(addressBook);
+    public void setAddressBook(ReadOnlyAddressBook data) {
+        requireNonNull(data);
+        boolean assignmentsChanged = !addressBook.getGroupAssignments().equals(data.getGroupAssignments());
+        addressBook.resetData(data);
+        // Assignment-only resets do not emit student-list changes, including during save rollback.
+        if (assignmentsChanged) {
+            refreshFilteredStudents();
+        }
     }
 
     @Override
@@ -70,60 +85,162 @@ public class ModelManager implements Model {
     }
 
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public ObservableList<Student> getStudentList() {
+        return filteredStudents;
     }
 
     @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
+    public void updateFilteredStudentList(Predicate<Student> predicate) {
+        filteredStudents.setPredicate(requireNonNull(predicate));
+        studentFilterSummary = "";
     }
 
     @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+    public void updateFilteredStudentList(Predicate<Student> predicate, String filterSummary) {
+        String checkedSummary = requireNonNull(filterSummary);
+        filteredStudents.setPredicate(requireNonNull(predicate));
+        studentFilterSummary = checkedSummary;
     }
 
     @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
-    }
-
-    //=========== Filtered Person List Accessors =============================================================
-
-    /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
-     * {@code addressBook}
-     */
-    @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public String getStudentFilterSummary() {
+        return studentFilterSummary;
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
-        requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+    public GroupCatalogue getGroupCatalogue() {
+        return addressBook.getGroupCatalogue();
+    }
+
+    @Override
+    public void addGroup(Group group) {
+        addressBook.addGroup(group);
+    }
+
+    @Override
+    public void deleteGroup(GroupCode code) {
+        addressBook.deleteGroup(code);
+    }
+
+    @Override
+    public Optional<Student> findStudent(String studentId) {
+        return addressBook.findStudent(studentId);
+    }
+
+    @Override
+    public Optional<Student> findStudent(StudentId id) {
+        return addressBook.findStudent(id);
+    }
+
+    @Override
+    public void addGroupAssignment(GroupAssignment assignment) {
+        addressBook.addGroupAssignment(assignment);
+        refreshFilteredStudents();
+    }
+
+    @Override
+    public void removeGroupAssignment(GroupAssignment assignment) {
+        addressBook.removeGroupAssignment(assignment);
+        refreshFilteredStudents();
+    }
+
+    @Override
+    public List<Group> getAssignedGroups(String studentId) {
+        requireNonNull(studentId);
+        Set<GroupCode> codes = addressBook.getGroupAssignments().stream()
+                .filter(assignment -> assignment.getStudentId().value.equals(studentId))
+                .map(GroupAssignment::getGroupCode)
+                .collect(Collectors.toSet());
+        return getGroupCatalogue().getGroups().stream().filter(group -> codes.contains(group.getCode())).toList();
+    }
+
+    @Override
+    public boolean hasStudent(Student student) {
+        return addressBook.hasStudent(student);
+    }
+
+    @Override
+    public void updateStudent(Student student) {
+        addressBook.updateStudent(student);
+    }
+
+    @Override
+    public void addStudent(Student student) {
+        addressBook.addStudent(student);
+    }
+
+    @Override
+    public void deleteStudent(StudentId id) {
+        addressBook.deleteStudent(id);
+    }
+
+    @Override
+    public ObservableList<Guardian> getGuardianList() {
+        return filteredGuardians;
+    }
+
+    @Override
+    public void updateFilteredGuardianList(Predicate<Guardian> predicate) {
+        filteredGuardians.setPredicate(requireNonNull(predicate));
+    }
+
+    @Override
+    public boolean hasGuardian(Guardian guardian) {
+        return addressBook.hasGuardian(guardian);
+    }
+
+    @Override
+    public Optional<Guardian> findGuardianByPhone(GuardianPhone phone) {
+        return addressBook.findGuardianByPhone(phone);
+    }
+
+    @Override
+    public void addGuardian(Guardian guardian) {
+        addressBook.addGuardian(guardian);
+    }
+
+    @Override
+    public void updateGuardian(Guardian guardian) {
+        addressBook.updateGuardian(guardian);
+    }
+
+    @Override
+    public GuardianId unlinkGuardian(String studentId) {
+        GuardianId guardianId = addressBook.unlinkGuardian(studentId);
+        logger.fine(() -> "Removed in-memory guardian link for student " + studentId);
+        return guardianId;
+    }
+
+    @Override
+    public void linkGuardian(String studentId, String guardianId) {
+        addressBook.linkGuardian(studentId, guardianId);
+    }
+
+    @Override
+    public List<Student> getLinkedStudents(String guardianId) {
+        requireNonNull(guardianId);
+        return addressBook.getGuardianLinks().entrySet().stream()
+                .filter(entry -> entry.getValue().toString().equals(guardianId))
+                .map(entry -> addressBook.findStudent(entry.getKey()).orElseThrow())
+                .sorted(STUDENT_DISPLAY_ORDER)
+                .toList();
+    }
+
+    private void refreshFilteredStudents() {
+        Predicate<? super Student> predicate = filteredStudents.getPredicate();
+        if (predicate != null) {
+            filteredStudents.setPredicate(predicate::test);
+        }
     }
 
     @Override
     public boolean equals(Object other) {
-        if (other == this) {
-            return true;
-        }
-
-        // instanceof handles nulls
-        if (!(other instanceof ModelManager otherModelManager)) {
-            return false;
-        }
-
-        return addressBook.equals(otherModelManager.addressBook)
-                && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+        return other == this || other instanceof ModelManager manager
+                && addressBook.equals(manager.addressBook) && userPrefs.equals(manager.userPrefs);
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(addressBook, userPrefs);
+    }
 }
