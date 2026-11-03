@@ -1,0 +1,101 @@
+package seedu.hirebase.logic.parser;
+
+import static seedu.hirebase.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
+import static seedu.hirebase.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import seedu.hirebase.commons.core.LogsCenter;
+import seedu.hirebase.logic.commands.AcceptCommand;
+import seedu.hirebase.logic.commands.AddCommand;
+import seedu.hirebase.logic.commands.ClearCommand;
+import seedu.hirebase.logic.commands.Command;
+import seedu.hirebase.logic.commands.DeleteCommand;
+import seedu.hirebase.logic.commands.EditCommand;
+import seedu.hirebase.logic.commands.ExitCommand;
+import seedu.hirebase.logic.commands.FindCommand;
+import seedu.hirebase.logic.commands.HelpCommand;
+import seedu.hirebase.logic.commands.ListCommand;
+import seedu.hirebase.logic.commands.NoteCommand;
+import seedu.hirebase.logic.commands.RejectCommand;
+import seedu.hirebase.logic.commands.StageCommand;
+import seedu.hirebase.logic.commands.ViewCommand;
+import seedu.hirebase.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses user input.
+ */
+public class HireBaseParser {
+
+    /**
+     * Used for initial separation of command word and args.
+     */
+    private static final Pattern BASIC_COMMAND_FORMAT =
+            Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)", Pattern.DOTALL);
+    private static final Logger logger = LogsCenter.getLogger(HireBaseParser.class);
+
+    /**
+     * Parses user input into command for execution.
+     *
+     * @param userInput full user input string
+     * @return the command based on the user input
+     * @throws ParseException if the user input does not conform to the expected format
+     */
+    public Command parseCommand(String userInput) throws ParseException {
+        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.stripLeading());
+        if (!matcher.matches()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
+        }
+
+        final String commandWord = matcher.group("commandWord");
+        final String arguments = matcher.group("arguments");
+
+        // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
+        // log messages such as the one below.
+        // Lower level log messages are used sparingly to minimize noise in the code.
+        logger.fine("Command word: " + commandWord);
+
+        return switch (commandWord) {
+            case AddCommand.COMMAND_WORD -> {
+                Matcher jobArguments = Pattern.compile("(?s)^\\s+job(?=\\s|$)(.*)$").matcher(arguments);
+                if (jobArguments.matches()) {
+                    yield new AddJobCommandParser().parse(jobArguments.group(1));
+                }
+                Matcher eventArguments = Pattern.compile("(?s)^\\s+event(?=\\s|$)(.*)$").matcher(arguments);
+                if (eventArguments.matches()) {
+                    yield new AddEventCommandParser().parse(eventArguments.group(1));
+                }
+                yield new AddCommandParser().parse(arguments);
+            }
+            case EditCommand.COMMAND_WORD -> {
+                Matcher jobArguments = Pattern.compile("(?s)^\\s+job(?=\\s|$)(.*)$").matcher(arguments);
+                if (jobArguments.matches()) {
+                    yield new EditJobCommandParser().parse(jobArguments.group(1));
+                }
+                Matcher eventArguments = Pattern.compile("(?s)^\\s+event(?=\\s|$)(.*)$").matcher(arguments);
+                if (eventArguments.matches()) {
+                    yield new EditEventCommandParser().parse(arguments);
+                }
+                yield new EditCommandParser().parse(arguments);
+            }
+            case NoteCommand.COMMAND_WORD -> new NoteCommandParser().parse(arguments);
+            case StageCommand.COMMAND_WORD -> new StageCommandParser().parse(arguments);
+            case AcceptCommand.COMMAND_WORD -> new AcceptCommandParser().parse(arguments);
+            case RejectCommand.COMMAND_WORD -> new RejectCommandParser().parse(arguments);
+            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> new ListCommandParser().parse(arguments);
+            case ViewCommand.COMMAND_WORD -> new ViewCommandParser().parse(arguments);
+            case ExitCommand.COMMAND_WORD -> new ExitCommand();
+            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            default -> {
+                logger.finer("Unknown command: " + commandWord);
+                throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
+            }
+        };
+    }
+
+}

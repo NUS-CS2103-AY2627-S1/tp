@@ -2,58 +2,51 @@
 layout: page
 title: About Us
 ---
-
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
-
-You can reach us at the email `seer[at]comp.nus.edu.sg`
 
 ## Project team
 
-### John Doe
+### Raphael Yeo
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/littlelittlelittler.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/LittleLittleLittleR)]
 
-* Role: Project Advisor
+* Role: Scheduling and Tracking + Testing
+* Responsibilities: Model
 
-### Jane Doe
+### Rayyan Wong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/rayyanwong.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/rayyanwong)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Deliverables and deadlines
+* Responsibilities: Ui and Data
 
-### Johnny Doe
+### Jolene Tan
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/jolneetanky.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](https://github.com/jolneetanky)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Integration
+* Responsibilities: Ensure the software as a whole works
 
-### Jean Doe
+### Srivathsan Ram
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/srivathsanram.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/SrivathsanRam)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Data and Model
 
-### James Doe
+### Ye Xintai
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/yexintai.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/YeXintai)]
 
 * Role: Developer
 * Responsibilities: UI

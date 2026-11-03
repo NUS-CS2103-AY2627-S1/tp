@@ -1,0 +1,343 @@
+package seedu.hirebase.storage;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.hirebase.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
+import static seedu.hirebase.testutil.Assert.assertThrows;
+import static seedu.hirebase.testutil.TypicalPersons.BENSON;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import seedu.hirebase.commons.exceptions.IllegalValueException;
+import seedu.hirebase.commons.util.JsonUtil;
+import seedu.hirebase.model.candidate.Address;
+import seedu.hirebase.model.candidate.CandidateId;
+import seedu.hirebase.model.candidate.Email;
+import seedu.hirebase.model.candidate.InterviewStage;
+import seedu.hirebase.model.candidate.Name;
+import seedu.hirebase.model.candidate.Person;
+import seedu.hirebase.model.candidate.Phone;
+import seedu.hirebase.model.candidate.PriorityScore;
+import seedu.hirebase.testutil.PersonBuilder;
+
+public class JsonAdaptedPersonTest {
+    private static final String INVALID_NAME = "R@chel";
+    private static final String INVALID_PHONE = "+12";
+    private static final String INVALID_ADDRESS = " ";
+    private static final String INVALID_EMAIL = "example.com";
+    private static final String INVALID_TAG = "#friend";
+
+    private static final String VALID_NAME = BENSON.getName().toString();
+    private static final String VALID_PHONE = BENSON.getPhone().toString();
+    private static final String VALID_EMAIL = BENSON.getEmail().toString();
+    private static final String VALID_ADDRESS = BENSON.getAddress().toString();
+    private static final List<JsonAdaptedTag> VALID_TAGS = BENSON.getTags().stream()
+            .map(JsonAdaptedTag::new)
+            .collect(Collectors.toList());
+
+    @Test
+    public void fromJson_nullRecruitmentDetails_returnsPersonWithoutSkillsOrRole() throws Exception {
+        String json = """
+                {
+                  "name": "Benson Meier",
+                  "phone": "98765432",
+                  "email": "benson@example.com",
+                  "address": "311, Clementi Ave 2, #02-25",
+                  "tags": [],
+                  "skills": null,
+                  "role": null
+                }
+                """;
+        Person person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+        assertEquals("Benson Meier", person.getName().fullName);
+        assertEquals(java.util.Collections.emptySet(), person.getSkills());
+        assertEquals(java.util.Optional.empty(), person.getRole());
+    }
+
+    @Test
+    public void toModelType_storedCandidateId_isRestored() throws Exception {
+        Person benson = new PersonBuilder(BENSON).build().withCandidateId(new CandidateId(4));
+
+        Person restored = new JsonAdaptedPerson(benson).toModelType();
+
+        assertEquals(new CandidateId(4), restored.getCandidateId().get());
+    }
+
+    @Test
+    public void fromJson_missingCandidateId_returnsPersonWithoutId() throws Exception {
+        String json = """
+                {
+                  "name": "Benson Meier",
+                  "phone": "98765432",
+                  "email": "benson@example.com",
+                  "address": "311, Clementi Ave 2, #02-25",
+                  "tags": []
+                }
+                """;
+        Person person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+        assertEquals(java.util.Optional.empty(), person.getCandidateId());
+    }
+
+    @Test
+    public void fromJson_nonPositiveCandidateId_throwsIllegalValueException() {
+        for (int invalidId : new int[] {0, -3}) {
+            String json = """
+                    {
+                      "name": "Benson Meier",
+                      "phone": "98765432",
+                      "email": "benson@example.com",
+                      "address": "311, Clementi Ave 2, #02-25",
+                      "tags": [],
+                      "candidateId": %d
+                    }
+                    """.formatted(invalidId);
+            assertThrows(IllegalValueException.class, CandidateId.MESSAGE_CONSTRAINTS, () ->
+                    JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+        }
+    }
+
+    @Test
+    public void toModelType_validPersonDetails_returnsPerson() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(BENSON);
+        assertEquals(BENSON, person.toModelType());
+    }
+
+    @Test
+    public void toModelType_missingNote_returnsPersonWithEmptyNote() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                VALID_ADDRESS, null, VALID_TAGS);
+        assertEquals(BENSON, person.toModelType());
+
+        String legacyJson = JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON))
+                .replaceAll("(?m)^.*\"note\".*\\R", "");
+        assertEquals(BENSON, JsonUtil.fromJsonString(legacyJson, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void toModelType_nonEmptyNote_returnsPersonWithNote() throws Exception {
+        var expected = new PersonBuilder(BENSON).withNote("Likes baseball").build();
+        String json = JsonUtil.toJsonString(new JsonAdaptedPerson(expected));
+        assertEquals(expected, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void fromJson_allInterviewStages_preservesStageAndCandidateDetails() throws Exception {
+        for (InterviewStage stage : InterviewStage.values()) {
+            Person expected = new PersonBuilder(BENSON).withInterviewStage(stage)
+                    .withSkills("Java", "SQL").withRole("Backend Engineer").withNote("Follow up").build();
+            String json = JsonUtil.toJsonString(new JsonAdaptedPerson(expected));
+            ObjectNode stored = JsonUtil.fromJsonString(json, ObjectNode.class);
+            assertEquals(stage.name(), stored.get("interviewStage").asText());
+
+            Person loaded = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+            assertEquals(stage, loaded.getInterviewStage());
+            assertEquals(expected, loaded);
+        }
+    }
+
+    @Test
+    public void fromJson_missingInterviewStage_defaultsToScreening() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        json.remove("interviewStage");
+
+        Person loaded = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class).toModelType();
+        assertEquals(InterviewStage.SCREENING, loaded.getInterviewStage());
+        assertEquals(BENSON, loaded);
+    }
+
+    @Test
+    public void fromJson_nullInterviewStage_defaultsToScreening() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        json.putNull("interviewStage");
+
+        Person loaded = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class).toModelType();
+        assertEquals(InterviewStage.SCREENING, loaded.getInterviewStage());
+        assertEquals(BENSON, loaded);
+    }
+
+    @Test
+    public void fromJson_invalidInterviewStage_throwsIllegalValueException() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        for (String stage : List.of("UNKNOWN", "", " ", "accepted", " SCREENING ")) {
+            json.put("interviewStage", stage);
+            JsonAdaptedPerson person = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class);
+            assertThrows(IllegalValueException.class, person::toModelType);
+        }
+    }
+
+    @Test
+    public void fromJson_allPriorityScores_preservesScoreAndCandidateDetails() throws Exception {
+        for (String score : List.of("1", "2", "3")) {
+            Person expected = new PersonBuilder(BENSON).withPriorityScore(score)
+                    .withInterviewStage(InterviewStage.ACCEPTED).withSkills("Java", "SQL")
+                    .withRole("Engineer").withNote("Follow up").build().withCandidateId(new CandidateId(4));
+            String json = JsonUtil.toJsonString(new JsonAdaptedPerson(expected));
+            ObjectNode stored = JsonUtil.fromJsonString(json, ObjectNode.class);
+            assertTrue(stored.get("priorityScore").isTextual());
+            assertEquals(score, stored.get("priorityScore").asText());
+
+            Person loaded = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType();
+            assertEquals(expected, loaded);
+            assertEquals(expected.getCandidateId(), loaded.getCandidateId());
+        }
+    }
+
+    @Test
+    public void fromJson_missingPriorityScore_defaultsToLow() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        json.remove("priorityScore");
+
+        Person loaded = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class).toModelType();
+        assertEquals(PriorityScore.DEFAULT, loaded.getPriorityScore());
+        assertEquals(BENSON, loaded);
+    }
+
+    @Test
+    public void fromJson_nullPriorityScore_defaultsToLow() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        json.putNull("priorityScore");
+
+        Person loaded = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class).toModelType();
+        assertEquals(PriorityScore.DEFAULT, loaded.getPriorityScore());
+        assertEquals(BENSON, loaded);
+    }
+
+    @Test
+    public void fromJson_invalidPriorityScore_throwsIllegalValueException() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        for (String score : List.of("0", "4", "-1", "1.5", "1.0", "", " ", "01", " 2 ", "High")) {
+            json.put("priorityScore", score);
+            JsonAdaptedPerson person = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class);
+            assertThrows(IllegalValueException.class, PriorityScore.MESSAGE_CONSTRAINTS, person::toModelType);
+        }
+    }
+
+    @Test
+    public void fromJson_nonIntegralPriorityScore_throwsIllegalValueException() throws Exception {
+        ObjectNode json = JsonUtil.fromJsonString(
+                JsonUtil.toJsonString(new JsonAdaptedPerson(BENSON)), ObjectNode.class);
+        json.put("priorityScore", 1.5);
+
+        JsonAdaptedPerson person = JsonUtil.fromJsonString(json.toString(), JsonAdaptedPerson.class);
+        assertThrows(IllegalValueException.class, PriorityScore.MESSAGE_CONSTRAINTS, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidName_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(INVALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                "", VALID_TAGS);
+        String expectedMessage = Name.MESSAGE_CONSTRAINTS;
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullName_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(null, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS, "", VALID_TAGS);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Name.class.getSimpleName());
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidPhone_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, INVALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                "", VALID_TAGS);
+        String expectedMessage = Phone.MESSAGE_CONSTRAINTS;
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullPhone_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, null, VALID_EMAIL, VALID_ADDRESS, "", VALID_TAGS);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Phone.class.getSimpleName());
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidEmail_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, INVALID_EMAIL, VALID_ADDRESS,
+                "", VALID_TAGS);
+        String expectedMessage = Email.MESSAGE_CONSTRAINTS;
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullEmail_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, null, VALID_ADDRESS, "", VALID_TAGS);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Email.class.getSimpleName());
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidAddress_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, INVALID_ADDRESS,
+                "", VALID_TAGS);
+        String expectedMessage = Address.MESSAGE_CONSTRAINTS;
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullAddress_throwsIllegalValueException() {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, null, "", VALID_TAGS);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, Address.class.getSimpleName());
+        assertThrows(IllegalValueException.class, expectedMessage, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidSkills_rejectsCorruptStoredData() {
+        for (String skill : Arrays.asList(null, "", " ", "Java!", "a".repeat(31))) {
+            JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                    VALID_ADDRESS, "", VALID_TAGS, Arrays.asList(skill), "Engineer");
+            assertThrows(IllegalValueException.class, person::toModelType);
+        }
+    }
+
+    @Test
+    public void toModelType_invalidRole_rejectsCorruptStoredData() {
+        for (String role : List.of("", " ", "Engineer!", "a".repeat(101))) {
+            JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL,
+                    VALID_ADDRESS, "", VALID_TAGS, List.of("Java"), role);
+            assertThrows(IllegalValueException.class, person::toModelType);
+        }
+    }
+
+    @Test
+    public void toModelType_invalidTags_throwsIllegalValueException() {
+        List<JsonAdaptedTag> invalidTags = new ArrayList<>(VALID_TAGS);
+        invalidTags.add(new JsonAdaptedTag(INVALID_TAG));
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                "", invalidTags);
+        assertThrows(IllegalValueException.class, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullTag_throwsIllegalValueException() {
+        List<JsonAdaptedTag> invalidTags = new ArrayList<>(VALID_TAGS);
+        invalidTags.add(null);
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                "", invalidTags);
+
+        assertThrows(IllegalValueException.class, JsonAdaptedPerson.MESSAGE_NULL_TAG, person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullTagsCollection_returnsPersonWithoutTags() throws Exception {
+        JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                "", null);
+
+        assertEquals(new PersonBuilder(BENSON).withTags().build(), person.toModelType());
+    }
+
+}

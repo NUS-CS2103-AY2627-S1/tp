@@ -1,0 +1,195 @@
+package seedu.hirebase.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import javafx.application.Platform;
+import javafx.geometry.Bounds;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+import seedu.hirebase.model.candidate.InterviewStage;
+import seedu.hirebase.testutil.PersonBuilder;
+
+public class PersonDetailWindowTest {
+
+    @BeforeAll
+    public static void startToolkit() throws Exception {
+        CompletableFuture<Void> ready = new CompletableFuture<>();
+        Runnable initialize = () -> {
+            Platform.setImplicitExit(false);
+            ready.complete(null);
+        };
+        try {
+            Platform.startup(initialize);
+        } catch (IllegalStateException alreadyStarted) {
+            Platform.runLater(initialize);
+        }
+        ready.get(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void setPerson_null_showsPlaceholderAndHidesContent() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow(new Stage());
+            window.setPerson(null);
+            Node placeholder = lookup(window, "#placeholder");
+            Node content = lookup(window, "#content");
+            assertTrue(placeholder.isVisible());
+            assertFalse(content.isVisible());
+            assertFalse(content.isManaged());
+        });
+    }
+
+    @Test
+    public void setPerson_candidate_showsFullProfile() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow(new Stage());
+            window.setPerson(new PersonBuilder().withName("Jolene Tan").withPhone("91234567")
+                    .withEmail("jolene@example.com").withAddress("Blk 30")
+                    .withNote("Strong referral").withSkills("SQL", "Java")
+                    .withRole("Backend Engineer").withInterviewStage(InterviewStage.ACCEPTED).build());
+
+            assertTrue(lookup(window, "#content").isVisible());
+            assertFalse(lookup(window, "#placeholder").isVisible());
+
+            assertEquals("Jolene Tan", text(window, "#name"));
+            assertEquals("Accepted", text(window, "#stage"));
+            assertEquals("91234567", text(window, "#phone"));
+            assertEquals("jolene@example.com", text(window, "#email"));
+            assertEquals("Blk 30", text(window, "#address"));
+            assertEquals("Backend Engineer", text(window, "#role"));
+            assertEquals("Strong referral", text(window, "#note"));
+
+            FlowPane skills = (FlowPane) lookup(window, "#skills");
+            assertEquals(2, skills.getChildren().size());
+            assertEquals("Java", ((Label) skills.getChildren().get(0)).getText());
+
+            assertTrue(lookup(window, "#stage").getStyleClass().contains("stage-accepted"));
+        });
+    }
+
+    @Test
+    public void setPerson_priorityChanges_updatesScoreAndLabel() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow(new Stage());
+            window.setPerson(new PersonBuilder().build());
+            assertEquals("Priority: 1 (Low)", text(window, "#priorityScore"));
+            window.setPerson(new PersonBuilder().withPriorityScore("3").build());
+            assertEquals("Priority: 3 (High)", text(window, "#priorityScore"));
+            window.setPerson(new PersonBuilder().withPriorityScore("2").build());
+            assertEquals("Priority: 2 (Medium)", text(window, "#priorityScore"));
+            assertTrue(lookup(window, "#priorityScore").getStyleClass().contains("cell_small_label"));
+            assertTrue(lookup(window, "#priorityScore").getStyleClass().contains("detail-value"));
+        });
+    }
+
+    @Test
+    public void setPerson_missingOptionalFields_showsEmPlaceholders() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow(new Stage());
+            window.setPerson(new PersonBuilder().withNote("").build());
+            assertEquals("—", text(window, "#role"));
+            assertEquals("—", text(window, "#note"));
+        });
+    }
+
+    @Test
+    public void setPerson_eachStage_setsMatchingBadge() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow(new Stage());
+
+            window.setPerson(new PersonBuilder().withInterviewStage(InterviewStage.SCREENING).build());
+            assertEquals("Screening", text(window, "#stage"));
+            assertTrue(lookup(window, "#stage").getStyleClass().contains("stage-screening"));
+
+            // Re-selecting a different stage must swap the style class, not stack it.
+            window.setPerson(new PersonBuilder().withInterviewStage(InterviewStage.REJECTED).build());
+            assertEquals("Rejected", text(window, "#stage"));
+            assertTrue(lookup(window, "#stage").getStyleClass().contains("stage-rejected"));
+            assertFalse(lookup(window, "#stage").getStyleClass().contains("stage-screening"));
+        });
+    }
+
+    @Test
+    public void noArgConstructor_createsHiddenWindowWithPlaceholder() throws Exception {
+        runOnFxThread(() -> {
+            PersonDetailWindow window = new PersonDetailWindow();
+            assertFalse(window.isShowing());
+            assertTrue(lookup(window, "#placeholder").isVisible());
+            // Hiding an already-hidden window is a safe no-op.
+            window.hide();
+            assertFalse(window.isShowing());
+        });
+    }
+
+    @Test
+    public void showPerson_longName_wrapsWithoutTruncatingStage() throws Exception {
+        runOnFxThread(() -> {
+            for (String longName : new String[] {"W".repeat(100), "Anne Marie ".repeat(9) + "A"}) {
+                for (InterviewStage interviewStage : InterviewStage.values()) {
+                    PersonDetailWindow window = new PersonDetailWindow();
+                    try {
+                        window.showPerson(new PersonBuilder().withName(longName)
+                                .withInterviewStage(interviewStage).build());
+                        window.getRoot().getScene().getRoot().layout();
+                        Label name = (Label) lookup(window, "#name");
+                        Label stage = (Label) lookup(window, "#stage");
+                        Label priorityScore = (Label) lookup(window, "#priorityScore");
+                        ScrollPane scroll = (ScrollPane) lookup(window, "#detailsScrollPane");
+                        Text renderedName = (Text) name.lookup(".text");
+                        Text renderedStage = (Text) stage.lookup(".text");
+                        Text singleLineName = new Text(longName);
+                        singleLineName.setFont(name.getFont());
+                        Node viewport = scroll.lookup(".viewport");
+                        Bounds viewportBounds = viewport.localToScene(viewport.getBoundsInLocal());
+                        Bounds stageBounds = stage.localToScene(stage.getBoundsInLocal());
+
+                        assertEquals(longName, renderedName.getText());
+                        assertTrue(name.getHeight() > singleLineName.getLayoutBounds().getHeight());
+                        assertEquals(stage.getText(), renderedStage.getText());
+                        assertTrue(stage.getWidth() >= stage.prefWidth(-1));
+                        assertTrue(stageBounds.getMinX() >= viewportBounds.getMinX());
+                        assertTrue(stageBounds.getMaxX() <= viewportBounds.getMaxX());
+                        assertTrue(name.localToScene(name.getBoundsInLocal()).getMaxY()
+                                <= priorityScore.localToScene(priorityScore.getBoundsInLocal()).getMinY());
+                    } finally {
+                        window.hide();
+                    }
+                }
+            }
+        });
+    }
+
+    private static Node lookup(PersonDetailWindow window, String id) {
+        window.getRoot().getScene().getRoot().applyCss();
+        return window.getRoot().getScene().lookup(id);
+    }
+
+    private static String text(PersonDetailWindow window, String id) {
+        return ((Label) lookup(window, id)).getText();
+    }
+
+    private static void runOnFxThread(Runnable assertions) throws Exception {
+        CompletableFuture<Void> finished = new CompletableFuture<>();
+        Platform.runLater(() -> {
+            try {
+                assertions.run();
+                finished.complete(null);
+            } catch (Throwable failure) {
+                finished.completeExceptionally(failure);
+            }
+        });
+        finished.get(10, TimeUnit.SECONDS);
+    }
+}

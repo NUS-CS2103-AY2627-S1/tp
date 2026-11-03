@@ -3,42 +3,51 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+HireBase is a **keyboard-driven CLI application** that helps you manage candidates, their recruitment details,
+local job openings and a calendar of saved events. It is designed to be simple, fast, and efficient, by streamlining
+the management of high-volume candidate tracking for tech recruiters through an optimized, keyboard-first interface.
 
-* Table of Contents
-{:toc}
+- Table of Contents
+  {:toc}
 
---------------------------------------------------------------------------------------------------------------------
+---
 
 ## Quick start
 
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-T12-1/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for your HireBase.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar hirebase.jar`.<br>
    A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
    ![Ui](images/Ui.png)
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
+   - `list candidates` : Lists all candidates.
 
-   * `list` : Lists all contacts.
+   - `add job t/Software Engineer d/Engineering desc/Build backend services using Java.` : Records a local job opening.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   - `list jobs` : Shows all job openings and their permanent IDs.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   - `add candidate n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01 s/Java s/SQL r/Backend Engineer` : Adds a contact named `John Doe` to HireBase.
 
-   * `clear` : Deletes all contacts.
+   - `delete candidate 3` : Deletes the candidate with permanent ID `3`, regardless of their position in the list.
 
-   * `exit` : Exits the app.
+   - `add event n/Team meeting from/05/11/2026 14:00 to/05/11/2026 15:00` : Adds an event to the calendar.
+
+   - `view calendar period/month` : Opens the Calendar tab and shows the current month.
+
+   - `clear` : Deletes all candidates, job openings and events.
+
+   - `exit` : Exits the app.
 
 1. Refer to the [Features](#features) section below for details of each command.
 
---------------------------------------------------------------------------------------------------------------------
+---
 
 ## Features
 
@@ -46,22 +55,53 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 
 **:information_source: Notes about the command format:**<br>
 
-* Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
+- Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
   For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
 
-* Items in square brackets are optional.<br>
+- Items in square brackets are optional.<br>
   For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
 
-* Items followed by `…`​ can appear zero or more times.<br>
+- Items followed by `…`​ can appear zero or more times.<br>
   For example, `[t/TAG]…​` may be omitted, or written as `t/friend` or `t/friend t/family`.
 
-* Parameters can be in any order.<br>
+- Prefixed parameters can be in any order.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
+  Positional arguments, such as `CANDIDATE_ID [MORE_CANDIDATE_IDS]... STAGE` in
+  `stage candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]... STAGE`, must follow the order shown.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
-  For example, `help 123` is interpreted as `help`.
+- In `add candidate`, `edit candidate`, `list candidates`, `add job` and `edit job`, a word ending in `/` after a
+  space is read as a parameter. One the command does not accept is rejected as `Unknown parameter: X/.`, for example
+  `edit candidate 1 r/Backend Engineer stage/ACCEPTED` reports `Unknown parameter: stage/.` and changes nothing.
+  A slash without a space before it is part of the value, so `s/CI/CD` is accepted but `s/Build CI/CD` is not.
 
-* If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
+- `CANDIDATE_ID` is a candidate's permanent ID, shown as `#N` (e.g. `#1`) before their name on each card. See [About candidate IDs](#about-candidate-ids).
+
+- `CANDIDATE_ID [MORE_CANDIDATE_IDS]...` means one or more permanent candidate IDs separated by spaces.
+  For example, `accept candidate 1` and `accept candidate 1 3 5` are both valid formats.
+
+- `help`, `exit`, and `clear` ignore extra arguments. For example, `help 123` is interpreted as `help`.<br>
+  `list jobs` and `list candidates` reject unexpected arguments; `list jobs 2` is not valid.
+
+- If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
+</div>
+
+### About candidate IDs
+
+Every candidate gets a permanent **candidate ID** when they are added. It is shown as `#N` before the candidate's name
+on their card, for example `#3 Alex Yeoh`. Commands that act on an existing candidate (`edit candidate`,
+`delete candidate`, `view candidate`, `note`, `stage candidate`, `accept candidate` and `reject candidate`) use this
+ID, not the candidate's position in the list.
+
+- IDs start at 1 and go up by one for each new candidate.
+- A candidate keeps the same ID after `find`, after other candidates are deleted, and after you restart HireBase.
+- Deleted IDs are never given to another candidate, even after `clear`. For example, if you delete candidate `#5`,
+  the next candidate you add gets `#6` or higher, and `delete candidate 5` will report that ID `5` does not exist.
+- An ID must be a positive integer (1, 2, 3, …). An ID that no candidate has is rejected with
+  `Candidate ID "<ID>" does not exist. Use list candidates to view available candidate IDs.`
+- Candidate IDs and job IDs are counted separately, so candidate `#1` and job opening `1` can both exist.
+
+<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
+Not sure of a candidate's ID? Use `find` with their name or email, then read the `#N` on their card.
 </div>
 
 ### Viewing help: `help`
@@ -72,79 +112,794 @@ Shows a message explaining how to access the help page.
 
 Format: `help`
 
+### Adding a candidate: `add candidate`
 
-### Adding a person: `add`
+Adds a candidate to HireBase.
 
-Adds a person to the address book.
+Format: `add candidate n/NAME p/PHONE e/EMAIL a/ADDRESS s/SKILL [s/MORE_SKILLS]... r/ROLE [priority/SCORE]`
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+* A candidate must have at least one skill (`s/`) and exactly one target role (`r/`).
+* A name is 1–100 characters long, starts with a letter, and contains only letters, spaces, hyphens and apostrophes.
+* A skill is 1 to 30 characters long and may contain letters, digits, spaces and `+ # . /`. Repeating `s/` adds more skills; duplicates that differ only in letter case are merged.
+* A role is 1 to 100 characters long and may contain letters, digits, spaces, hyphens and slashes.
+* `priority/` is optional. Use `1` for Low, `2` for Medium, or `3` for High. Omitting it gives the candidate
+  priority `1 (Low)`. Supply exactly one digit; empty, repeated, or invalid priority fields are rejected.
+* Candidates are identified by email. A candidate whose email matches an existing one (ignoring case) cannot be added.
+* The new candidate is given the next unused [candidate ID](#about-candidate-ids), shown as `#N` on their card. Use this ID in later commands such as `edit candidate` or `delete candidate`.
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+<div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+Tags (`t/`) are not accepted by `add candidate`. Including one shows the usage message.
 </div>
 
 Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
 
-### Listing all persons: `list`
+* `add candidate n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01 s/Java s/SQL r/Backend Engineer`
+* `add candidate n/Betsy Crowe e/betsycrowe@example.com a/Newgate Prison p/1234567 s/C++ s/Python r/Full-Stack Developer`
+* `add candidate n/Amy Tan p/91234567 e/amy.tan@example.com a/Singapore s/Java r/Backend Engineer priority/3`
 
-Shows a list of all persons in the address book.
+### Listing candidates: `list candidates`
 
-Format: `list`
+Selects the Candidates tab and lists all candidates, or filters by technical skill, target role, interview stage,
+and priority score.
 
-### Editing a person: `edit`
+Format: `list candidates [s/SKILL] [r/ROLE] [stage/STAGE] [priority/SCORE]`
 
-Edits an existing person in the address book.
+* `list candidates s/Java` lists candidates with the `Java` skill. Likewise, use `s/Spring` or `s/SQL`
+  to match those skills. The skill can be any valid saved skill; it is not limited to these examples.
+* Matching uses the complete skill name without regard to case: `s/java` matches `Java`, but not `JavaScript`.
+  It checks the skill chips, rather than the candidate's target role or name.
+* Multi-word skills are supported, for example, `list candidates s/Machine Learning`.
+  Leading, trailing, and repeated whitespace is ignored. Skills use the same validation as `add candidate`.
+* `list candidates r/Backend Engineer` matches the complete saved target role, ignoring case.
+  `r/Backend` does not match `Backend Engineer`. Candidates without a target role do not match.
+  Role values follow the same length and character rules as `add candidate`; whitespace is normalized.
+* `list candidates stage/SCREENING` lists candidates at the screening stage. The other accepted stage values
+  are `ACCEPTED` and `REJECTED`. Stage names are case-insensitive: `stage/accepted` is valid.
+* `list candidates priority/3` lists candidates with High priority. Use `priority/1` for Low or `priority/2`
+  for Medium. The filter matches the exact score; it does not include lower or higher scores.
+* Supply at most one of each field (`s/`, `r/`, `stage/`, `priority/`), in any order.
+  Empty, invalid, or repeated fields are rejected.
+* Combining filters requires every supplied filter to match. For example, `list candidates s/Java r/Backend Engineer`
+  lists candidates who have the `Java` skill and target the `Backend Engineer` role.
+  Add `stage/SCREENING` to further restrict those results to candidates at the screening stage.
+  `list candidates s/Java r/Backend Engineer stage/SCREENING priority/3` requires all four fields to match.
+* Each command filters the full candidate list, replacing any previous search or filter. Candidates retain their
+  order and permanent IDs. Candidate and job records are unchanged.
+* `list candidates` without filters clears the filter and shows everyone again. No matches shows `No candidates found.`
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+Use `list jobs` to view openings instead. The bare command `list` is not accepted.
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+### Candidate priority scores
 
-Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+Priority scores help you mark which candidates need attention: `1 (Low)`, `2 (Medium)`, or `3 (High)`.
+The candidate card and the full-details popup show the score, for example `Priority: 3 (High)`.
+`view candidate CANDIDATE_ID` also includes the priority score in its feedback.
 
-### Locating persons by name: `find`
+Set a score using the optional `priority/SCORE` field when adding a candidate, or change it with
+`edit candidate CANDIDATE_ID priority/SCORE`. For example, `edit candidate 2 priority/2` sets candidate `#2`
+to Medium. Use the single digit `1`, `2`, or `3`; labels such as `High`, padded values such as `03`, signed
+values such as `+3`, decimals, and empty values are invalid. Surrounding whitespace is trimmed.
+Each command accepts at most one `priority/` field, and invalid input leaves records unchanged.
 
-Finds persons whose names contain any of the given keywords.
+New candidates default to Low when `priority/` is omitted. Older saved records without a priority also load
+as Low. A candidate's score is saved across restarts. Editing other fields, updating or clearing a note,
+and changing an interview stage preserve the score.
+
+Use `list candidates priority/3` to filter High-priority candidates. Filtering preserves their original order
+and permanent IDs; scores do not sort or reorder candidates. `list candidates` shows everyone again.
+
+### Managing job openings
+
+Use job openings to keep a local record of roles you are recruiting for. Each opening has a title, department,
+description, and optional required skills. The supported commands are [`add job`](#adding-a-job-opening-add-job),
+[`list jobs`](#listing-job-openings-list-jobs), [`edit job`](#editing-a-job-opening-edit-job), and [`delete job`](#deleting-a-job-opening-delete-job).
+They do not publish vacancies or accept applications.
+
+Job openings and candidate profiles are separate records. Adding, editing or deleting an opening does not assign candidates
+to it or change their target roles. When you add an opening with required skills, HireBase can surface previously rejected
+candidates with at least one matching skill as an initial shortlist. Use `list candidates` to clear that filter. Use
+`edit job` to correct an opening while keeping its ID and position in the job list.
+
+### Switching between candidates, job openings and the calendar
+
+Click **Candidates**, **Job openings** or **Calendar** to switch views. Switching tabs does not change records,
+reset a candidate search or reset the calendar controls. You can also use `list jobs` or `list candidates` from
+the command box; `list candidates` resets the candidate filter to show all candidates.
+
+Each job card displays its permanent positive-integer ID, title, department, full description, and required skills.
+Long details wrap
+across lines; scroll the list to read additional content. An empty jobs tab shows `No job openings found.`
+Cards update after adding, editing, deleting or clearing records. After a deletion, all remaining openings keep their IDs.
+
+Successful job commands select the Job openings tab. Successful candidate commands, including `find`, select
+the Candidates tab. Adding an event successfully selects Calendar and keeps its current period and filters. `view calendar` also
+selects Calendar, and sets the period and filters that you give it.
+Failed commands keep the current tab and displayed data unchanged. `clear` keeps the active tab and removes
+all candidates, job openings and events. On launch, the Candidates tab is selected.
+
+### Viewing the calendar
+
+Open **Calendar** to browse saved events. Choose **Today**, **Week** or **Month** from the dropdown. You can also set
+the same period and filters from the command box with
+[`view calendar`](#viewing-the-calendar-from-the-command-box-view-calendar):
+
+![Calendar showing a Sunday-to-Saturday week](images/calendar-week.png)
+
+| View | Dates shown |
+| --- | --- |
+| **Today** | The current local date. |
+| **Week** | The current week, from Sunday through Saturday, including across month or year boundaries. |
+| **Month** | The current calendar month, from its first day to its last day. |
+
+In v1.5, these are **current-period views only**. There are no controls to navigate to another week or month.
+For example, on **31 October 2026**, an event on **2 November 2026** can be saved but cannot be seen in any of
+the three views: it is outside that day, the week of 25–31 October and the month of October. The available
+dates change automatically as your computer's local date advances. The checkboxes do not extend the date range.
+
+The calendar starts in **Week** with both checkboxes clear each time you launch HireBase.
+Dates and times follow your computer's local clock, and the displayed period updates automatically as the date changes.
+
+- With **Cancelled only** clear, cancelled events are hidden. Select it to show only cancelled events instead.
+  Cancel an event with [`edit event`](#editing-or-cancelling-an-event-edit-event), for example `edit event 1 cancel/true`.
+- With **Upcoming only** clear, past events remain visible. Select it to hide events whose end time has been reached.
+  An event in progress is still upcoming until it ends.
+- Selecting both checkboxes shows only cancelled events that have not ended, within the selected period.
+
+Events appear under their date in start-time order. Overlapping events are shown separately; scroll to see every entry.
+The heading shows the selected date range. Days without matching events are still shown; an empty view reports
+`No matching events in this period.` The count at the bottom of the window is the number of events visible in
+that period after both filters are applied. With **Upcoming only** selected, the entries and count update
+automatically as events end. Saved record changes also update the view.
+
+Adding an event keeps the selected period and filters, so it appears only if its date and status match the current view.
+If a newly added event is hidden, the success message and any overlap warning are followed by:
+
+`Saved successfully, but not shown in the current calendar view. Check the selected period and filters.`
+
+The event has been saved even when it is outside the available current-period views. A visible new event does
+not show this extra hint. Switching tabs and changing calendar controls only change what you see; they do not
+edit events or save data. The selected period and checkboxes are remembered while the app remains open and
+reset on the next launch.
+
+You can use the calendar without a mouse: use **Tab** and **Shift+Tab** to move focus, arrow keys on the tab
+headers or dropdown to change the selection, and **Space** to toggle a focused checkbox.
+
+### Adding a job opening: `add job`
+
+Records an opening locally; it does not publish a vacancy externally or accept applications.
+
+Format: `add job t/TITLE d/DEPARTMENT desc/DESCRIPTION [s/SKILL]...`
+
+Example: `add job t/Software Engineer d/Engineering desc/Build backend services using Java.`
+
+The `t/`, `d/` and `desc/` prefixes are required exactly once and may appear in any order. Optional `s/` fields
+may be repeated, once per required skill. Command words and prefixes are
+case-sensitive. Multiple spaces between command words are accepted. Missing or empty required fields, repeated non-skill fields, unknown
+parameters, and unexpected text before the first parameter, are rejected without changing records.
+A prefix token such as `d/` following whitespace starts a new parameter and cannot be included literally in a value.
+This also applies to unknown prefixes: `desc/Build CI/CD pipelines` is rejected as `Unknown parameter: CI/.`.
+Use `desc/Build continuous integration and delivery pipelines` instead, or start the value with `desc/CI/CD pipelines`.
+Slashes within a value without a preceding space, such as `t/Data/ML Engineer`, are accepted.
+
+Titles and departments accept 1–100 Unicode characters: letters, digits, spaces and `& / ( ) + # . , ' ’ -`.
+Each must contain at least one letter or digit. Surrounding whitespace is trimmed and repeated internal whitespace
+is collapsed. Descriptions accept 1–2000 printable Unicode characters on one line, with at least one non-whitespace
+character. Tabs, line breaks and control characters are rejected. Surrounding spaces are trimmed, internal spaces
+are preserved, and length limits apply after normalization. Capitalization is preserved for display.
+
+Add required skills with repeated `s/` fields, for example:
+`add job t/Software Engineer d/Engineering desc/Build services s/Java s/SQL`.
+Omitting `s/` creates an opening with no required skills. An empty `s/` is rejected when adding.
+Skills follow the same rules as candidate skills: 1–30 characters after trimming and collapsing whitespace,
+using letters, digits, spaces and `+ # . /`. Skills are compared without regard to case, so `s/Java s/java`
+stores one tag. Use `s/Machine Learning` for a multi-word skill and `s/C++ s/C#` for separate skills.
+As with other job values, a prefix-like token following whitespace starts a new parameter; `s/CI/CD` is accepted,
+while `s/Build CI/CD` is rejected because `CI/` is read as a parameter.
+
+When an opening has required skills, adding it selects the Candidates tab and filters the list to candidates whose
+interview stage is `REJECTED` and who have at least one skill matching any of the opening's required skills,
+ignoring letter case. For example, a candidate with `Java` is shortlisted for a job requiring `java` and `SQL`.
+The command reports how many candidates matched, or that none matched. This shortlist is only a display filter:
+it does not change candidate records or assign them to the opening. Use `list candidates` to clear the filter and
+show all candidates. Adding an opening without required skills continues to select the Job openings tab.
+
+An opening is a duplicate if both its title and department match an existing opening after normalization,
+ignoring case. Descriptions and required skills do not determine uniqueness. The same title in a different department is allowed.
+For example, after adding `Software Engineer` in `Engineering`, adding `software engineer` in `ENGINEERING`
+is rejected even with a different description. Adding `Software Engineer` in `Research` is accepted.
+Multiple vacancies with the same title and department share one opening under this rule.
+
+Success shows `Added job opening ID: TITLE — DEPARTMENT.` IDs start at 1 and increase for each new
+opening. They remain unchanged after deletion of other openings, and across restarts. Deleted IDs are never reused,
+even after `clear`. Job IDs and candidate IDs are separate; the same number can identify one record of each type.
+A duplicate reports the existing opening's ID, title and department and is not added. The opening is saved before success is reported. If saving fails,
+HireBase reports `Could not save changes. Job opening was not added. Check storage permissions and available disk space, then try again.`
+and leaves existing records and the candidate display unchanged.
+
+Use `list jobs` to view saved openings. The opening is retained in the local data file across launches.
+Successful job commands select the Job openings tab automatically, except that `add job` with required skills selects
+the Candidates tab to show the matching rejected-candidate shortlist. If all IDs through 2147483647 have been
+allocated, further additions are rejected with `No more job IDs are available.`; existing openings remain usable.
+
+Command feedback examples (errors leave the opening list unchanged):
+
+| Command | Feedback |
+| --- | --- |
+| `add job t/Engineer d/Engineering` | `Missing required parameter: desc/. Usage: add job t/TITLE d/DEPARTMENT desc/DESCRIPTION [s/SKILL]...` |
+| `add job t/ d/Engineering desc/Build services` | `Parameter t/ cannot be empty.` |
+| `add job t/Engineer d/Engineering d/Research desc/Build services` | `Parameter d/ must be specified only once.` |
+| `add job t/Engineer d/Engineering desc/Build services salary/5000` | `Unknown parameter: salary/.` |
+| `add job Engineer t/Engineer d/Engineering desc/Build services` | `Unexpected text: Engineer. Usage: add job t/TITLE d/DEPARTMENT desc/DESCRIPTION [s/SKILL]...` |
+| `add job t/Software Engineer d/Engineering desc/Build services` | `Added job opening 1: Software Engineer — Engineering.` (if ID 1 is next) |
+| `add job t/software engineer d/ENGINEERING desc/Other services` | `Job opening already exists (1): Software Engineer — Engineering. Job opening was not added.` (if that opening exists as ID 1) |
+
+Invalid title, department or description values produce a field-specific validation message. Correct the input
+and submit the command again. For a duplicate at ID 1, feedback is
+`Job opening already exists (1): Software Engineer — Engineering. Job opening was not added.`
+
+### Listing job openings: `list jobs`
+
+Format: `list jobs`
+
+Selects the Job openings tab and displays all stored openings as cards in creation order (earliest first).
+The command result area also includes their full details. Required skills are displayed alphabetically,
+ignoring case, or as `Required skills: None` when no tags are set.
+Each entry shows its permanent positive-integer ID, title, department, full description, and required skills. Openings with the same title
+in different departments are displayed separately. The number identifies the opening, even if it is no longer
+at that list position. Gaps are expected after deletions.
+
+Command feedback examples:
+
+| Command | Feedback |
+| --- | --- |
+| `list jobs` (no openings saved) | `No job openings found.` |
+| `list jobs` (one Software Engineer opening saved) | `Listed 1 job opening.<br><br>1. Software Engineer — Engineering<br>Description: Build backend services using Java.<br>Required skills: None` |
+| `list jobs 2` | `The list jobs command does not accept parameters. Usage: list jobs` |
+
+The result starts with `Listed N job openings.` (or `Listed 1 job opening.` for a single opening).
+
+The command is case-sensitive and accepts no parameters. Surrounding whitespace and multiple spaces between
+`list` and `jobs` are accepted. Extra arguments, such as `list jobs 2`, are rejected with
+`The list jobs command does not accept parameters. Usage: list jobs`. Use the plural `jobs`; `list job` is not valid.
+
+Listing jobs does not change records, their order, the candidate list or its active filter, and does not rewrite
+the data file.
+
+### Editing a job opening: `edit job`
+
+Format: `edit job ID [t/TITLE] [d/DEPARTMENT] [desc/DESCRIPTION] [s/SKILL]...`
+
+Example: `edit job 1 t/Senior Software Engineer desc/Lead backend development.`
+
+Use `list jobs` to check the permanent ID. The ID must be a positive integer referring to an existing
+opening; candidate filters do not affect job IDs. The ID is independent of list position: after deleting job 1,
+`edit job 2 d/Research` still edits job 2 even if it is now the first card. Deleted IDs are rejected.
+The keywords `edit` and `job` are case-sensitive.
+Provide at least one field, in any order. Omitted fields retain their values. Supplied titles, departments and descriptions must be non-empty
+and follow the same validation rules as [`add job`](#adding-a-job-opening-add-job). Repeated non-skill prefixes and unknown prefixes
+are rejected. An edit that would duplicate another opening's title and department (ignoring case) is rejected.
+Changing only capitalisation or supplying the existing values is allowed.
+
+To tag an existing opening, use `edit job 2 s/Java s/SQL`. Supplied skills **replace the entire required-skill set**;
+include every skill you want to keep. Omitting `s/` preserves existing skills, including when editing the title,
+department or description. A single empty `s/`, as in `edit job 2 s/`, clears all skills. Combining an empty `s/`
+with other `s/` fields is rejected with `An empty s/ clears all skills and cannot be combined with other s/ values.`
+Skills use the same validation and duplicate rules as `add job`.
+Tagging skills preserves the opening's ID and does not change candidate skills or filter candidates automatically.
+
+Success shows `Edited job opening ID: TITLE — DEPARTMENT.` and selects the Job openings tab. The opening
+keeps its ID and list position; other openings, candidate records and candidate filters remain unchanged.
+Changes persist across launches. If saving fails, the live opening remains unchanged and HireBase reports
+`Could not save changes. Job opening was not edited. Check storage permissions and available disk space, then try again.`
+
+Command feedback examples (assuming job ID 1 exists as Software Engineer — Engineering):
+
+| Command | Feedback |
+| --- | --- |
+| `edit job 1 d/Research` | `Edited job opening 1: Software Engineer — Research.` |
+| `edit job 1` | `Specify at least one field to edit. Usage: edit job ID [t/TITLE] [d/DEPARTMENT] [desc/DESCRIPTION] [s/SKILL]...` |
+| `edit job 1 desc/` | `Parameter desc/ cannot be empty.` |
+| `edit job 99 d/Research` | `Job ID "99" does not exist. Use list jobs to view available job IDs.` |
+| `edit job 1 t/Data Analyst d/Analytics` (if another opening already has that title and department) | `Job opening already exists. Job opening was not edited.` |
+
+### Deleting a job opening: `delete job`
+
+Format: `delete job ID`
+
+Example: `delete job 2` deletes the opening with ID 2, regardless of its position in `list jobs`.
+The ID must be a positive integer referring to an existing opening in the current job list.
+Use `list jobs` before deleting to check the ID. After deletion, remaining openings retain their IDs.
+Candidate filters do not affect job IDs. A deleted ID is rejected even if another opening occupies its old position.
+
+The command accepts exactly one ID. `job` is a required, case-sensitive keyword.
+Surrounding whitespace and multiple spaces between command words are accepted. Missing, invalid or multiple
+IDs are rejected with usage guidance. A nonexistent ID reports
+`Job ID "ID" does not exist. Use list jobs to view available job IDs.`
+
+Success shows `Deleted job opening ID: TITLE — DEPARTMENT.` Only that opening is removed; other openings,
+candidate records, target roles and the active candidate filter remain unchanged. An opening with the same title
+and department can then be added again with a new ID and is appended to the end of the list.
+
+The deletion is saved before being applied to the live job list. If saving fails, the opening is retained and
+HireBase reports `Could not save changes. Job opening was not deleted. Check storage permissions and available disk space, then try again.`
+Successful deletion selects the Job openings tab and refreshes its cards.
+
+Common deletion errors:
+
+| Command | Feedback |
+| --- | --- |
+| `delete job` | `Missing job ID. Usage: delete job ID` |
+| `delete job 1 2` | `Expected exactly one job ID. Usage: delete job ID` |
+| `delete job 0` | `Job ID must be a positive integer. Usage: delete job ID` |
+| `delete job 1.5` | `Job ID must be a positive integer. Usage: delete job ID` |
+| `delete job 1` | `Deleted job opening 1: Software Engineer — Engineering.` (if ID 1 is that opening) |
+
+Negative IDs, non-numeric values and integers above 2147483647 are also rejected. A syntactically valid ID
+must still refer to an existing opening; use `list jobs` to check the current list after an error.
+
+### Example: create, review and close an opening
+
+The following example assumes no jobs have ever been added to this data file. Otherwise, use the IDs
+reported by your own `list jobs` result instead of the example IDs, even if the list is currently empty.
+Do not use `clear` to prepare this example: it deletes candidate records as well as openings.
+
+Run `add job t/Software Engineer d/Engineering desc/Build backend services using Java.`. HireBase reports
+`Added job opening 1: Software Engineer — Engineering.` and selects the Job openings tab.
+Then run `add job t/Data Analyst d/Analytics desc/Analyse business data using SQL.`. This opening receives ID 2.
+`list jobs` now shows both cards and reports `Listed 2 job openings.`
+
+When the Software Engineer opening closes, run `delete job 1`. HireBase reports
+`Deleted job opening 1: Software Engineer — Engineering.`. Run `list jobs` again: Data Analyst still has ID 2.
+Adding another opening gives it ID 3. Candidate records and their target roles are unchanged.
+Restarting HireBase retains the remaining opening; click Job openings or run `list jobs` to see it again.
+
+### Editing a candidate: `edit candidate`
+
+Updates the candidate with the given `CANDIDATE_ID`, the candidate's permanent ID shown on each card as `#N` (for example, `#1`) before their name.
+After a successful edit, the full list is displayed again.
+
+Format: `edit candidate CANDIDATE_ID [n/NAME] [e/EMAIL] [p/PHONE] [s/SKILL]… [r/ROLE] [a/ADDRESS] [t/TAG]… [priority/SCORE]`
+
+`candidate` is a required, case-sensitive keyword. The old keyword-less `edit ...` syntax is rejected.
+Multiple spaces between command words are accepted.
+
+Supply at least one field. Omitted fields retain their existing values. Supplying `s/` replaces the entire skill set;
+repeat it to supply multiple skills. Skills are optional: use `edit candidate CANDIDATE_ID s/` to clear them.
+When supplying multiple skills, each value must be non-blank.
+Repeated skills are combined without regard to case. A repeated single-value prefix such as `r/` is rejected.
+`priority/SCORE` sets `1 (Low)`, `2 (Medium)`, or `3 (High)` and must be supplied at most once.
+For example, `edit candidate 1 priority/3` changes only the candidate's priority to High.
+Omitting `priority/` preserves the existing score; an empty `priority/` is invalid and cannot clear it.
+
+For example, `edit candidate 1 s/` removes all skills from the candidate with ID 1. Mixing an empty skill with a
+non-empty skill, as in `edit candidate 1 s/ s/new skill`, is rejected with the same message and leaves the candidate's
+entire record unchanged.
+To replace all existing skills with just "new skill", use `edit candidate 1 s/new skill`.
+Omitting `s/` entirely preserves the candidate's existing skills.
+
+Names accept 1–100 characters consisting of letters, spaces, hyphens and apostrophes. Phone numbers accept 3–15 digits,
+with an optional leading `+`. Emails must have a valid email format and must not match another candidate's email,
+ignoring case. Candidates may share the same name. Changing only the case of a candidate's own email is allowed.
+
+Skills accept 1–30 characters consisting of letters, digits, spaces and `+`, `#`, `.`, `/`.
+Target roles accept 1–100 characters consisting of letters, digits, spaces, hyphens and slashes, and cannot be blank.
+Leading and trailing whitespace is trimmed, and consecutive whitespace in names, skills and roles is collapsed.
+Invalid input leaves the records unchanged.
+
+For example, `edit candidate 1 p/+6591234567 e/johndoe@example.com` updates only the contact details of the candidate with ID 1.
+`edit candidate 2 s/Java s/SQL r/Backend Engineer` replaces the skills and target role of the candidate with ID 2,
+preserving their contact details and note. Editing a note also preserves skills and target role.
+Edited recruitment details appear on the candidate card and are saved locally.
+Older records without skills or a target role can still be loaded and edited.
+
+The existing address and tag fields remain supported. Supplying tags replaces the entire tag set;
+`t/` with no value clears tags.
+
+### Searching candidates by name or email: `find`
+
+Finds candidates whose names or email addresses match any of the given keywords.
 
 Format: `find KEYWORD [MORE_KEYWORDS]`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+- Matching is case-insensitive for both names and email addresses.
+- Names match whole words: `Hans` matches `Hans Gruber`, but `Han` does not match his name.
+  Parts of hyphenated or apostrophe names count as words: `Mary`, `Jane`, `Neil` and `Mary-Jane` all match
+  `Mary-Jane O'Neil`.
+- Email addresses match any substring: `hans`, `hans@example.com`, and `@example.com` all match `hans@example.com`.
+  A partial name keyword can still find a candidate if it matches their email address.
+- Keywords are separated by whitespace. Supply at least one keyword; an empty search is rejected.
+- A candidate is returned if any keyword matches their name or email address (an `OR` search).
+  Keyword order does not matter, and a candidate matching several keywords appears only once.
+- Results retain the candidate list's order. Subsequent `edit`, `delete`, `view`, and `note` commands identify a
+  candidate by their permanent `CANDIDATE_ID` (shown as `#N` on each card), not by their position in the results.
+- Each search considers all candidates, including those hidden by a previous search.
+  Use `list candidates` to display all candidates again.
+- The search considers only names and email addresses; it does not search skills, roles, notes, or other fields.
 
 Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
 
-### Deleting a person: `delete`
+- `find John` finds candidates with the whole name word `John` or `john` anywhere in their email address.
+- `find JOHND@EXAMPLE.COM` finds candidates whose email address contains `johnd@example.com`, ignoring case.
+- `find @example.com` finds candidates with `@example.com` anywhere in their email address.
+- `find Alex johnd@example.com` finds candidates matching either the name word `Alex` or the email substring
+  `johnd@example.com`.
 
-Deletes the specified person from the address book.
+### Deleting a candidate: `delete candidate`
 
-Format: `delete INDEX`
+Deletes the specified candidate from HireBase.
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+Format: `delete candidate CANDIDATE_ID`
+
+- The `candidate` record-type keyword is required and case-sensitive.
+- Deletes the candidate with the specified `CANDIDATE_ID`.
+- The `CANDIDATE_ID` is the candidate's permanent ID, shown as `#N` on each card, not their position in the list.
+- The `CANDIDATE_ID` **must be a positive integer** 1, 2, 3, …​
 
 Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+
+- `delete candidate 2` deletes the candidate whose ID is `2`, regardless of their position in the list.
+- `find Betsy` followed by `delete candidate 1` deletes the candidate with ID `1`, even while the search filter is
+  active — the filter does not affect which candidate is removed.
+
+### Viewing a candidate's full details: `view candidate`
+
+Shows the full details of one candidate in the result display and collapses the candidate list to only that candidate.
+
+Click a candidate card to open **Candidate Details**. Scroll vertically to read long notes and other details.
+Long names wrap onto multiple lines while the interview-stage badge remains fully visible.
+Deleting the displayed candidate or running `clear` closes the details window.
+
+Format: `view candidate CANDIDATE_ID`
+
+- The `candidate` record-type keyword is required and case-sensitive.
+- `CANDIDATE_ID` is the candidate's **permanent ID**, shown on each card as `#N` (for example, `#1`) before their name. It never changes when the list is
+  filtered, reordered, or when other candidates are deleted.
+- Because the ID is permanent, you can view any candidate by their ID even while a `find` filter is hiding them.
+- `CANDIDATE_ID` **must be a positive integer** 1, 2, 3, …​ Surrounding and repeated whitespace is accepted.
+- The result display lists the candidate's name, interview stage, priority score, phone, email, address,
+  target role, skills, and note.
+  Empty optional fields (role, skills, note) are shown as `—`.
+- A `CANDIDATE_ID` that no candidate has is rejected with
+  `Candidate ID "<ID>" does not exist. Use list candidates to view available candidate IDs.`, leaving the list unchanged.
+
+Examples:
+
+- `view candidate 1` shows the full details of the candidate whose ID is `1` and collapses the list to that candidate.
+- `find Betsy` followed by `view candidate 3` still shows candidate `3` even if the search filtered them out.
+
+Sample feedback:
+
+| Command | Feedback |
+| --- | --- |
+| `view candidate 1` | Candidate `1`'s full details (name, stage, priority score, phone, email, address, role, skills, note); the list collapses to that candidate. |
+| `view candidate 999` | `Candidate ID "999" does not exist. Use list candidates to view available candidate IDs.` |
+| `view candidate 0`, `view candidate abc` | `Invalid command format!` followed by the `view candidate` usage (the ID must be a positive integer). |
+| `view 1`, `view person 1` | `Invalid command format!` followed by the `view` usage, which lists `view candidate`, `view event` and `view calendar` (a record-type keyword is required). |
+
+### Viewing the calendar from the command box: `view calendar`
+
+Selects the Calendar tab and applies the selected period and filters, just like changing the calendar controls.
+The command is read-only; it does not change or save events.
+
+Format: `view calendar [period/PERIOD] [cancelled/BOOLEAN] [upcoming/BOOLEAN]`
+
+- `period/` accepts `today`, `week` or `month` (case-insensitive). If omitted, the period is `week`.
+- `cancelled/` controls **Cancelled only**, and `upcoming/` controls **Upcoming only**. Each accepts `true` or
+  `false` (case-insensitive); omitted filters default to `false`.
+- Each parameter can appear at most once. Write each prefix directly before its value, as in `period/month`;
+  surrounding spaces and extra spaces after `/` are also accepted.
+
+Examples:
+
+- `view calendar period/month upcoming/true` shows the current month and only events that have not ended.
+- `view calendar period/today cancelled/true` shows today's cancelled events.
+- `view calendar` selects the current week with both filters cleared.
+
+The calendar still displays only the current day, week or month; this command does not navigate to another date range.
+
+Sample feedback:
+
+| Command | Feedback |
+| --- | --- |
+| `view calendar`, `view calendar period/TODAY cancelled/FALSE` | `Showing calendar.` The Calendar tab is selected with the requested period and filters. |
+| `view calendar period/year`, `view calendar cancelled/maybe`, `view calendar upcoming/yes` | `Invalid command format!` followed by the `view calendar` usage (the period must be `today`, `week` or `month`, and the filters must be `true` or `false`). |
+| `view calendar x`, `view calendar period/today period/week` | `Invalid command format!` followed by the `view calendar` usage (text before the first prefix, or a repeated prefix, is not accepted). |
+
+An invalid command leaves the Calendar tab, its period and its filters unchanged.
+
+### Adding or updating a candidate's note: `note`
+
+Adds, updates, or clears the free-text screening note of an existing candidate. Any existing note is overwritten.
+
+Format: `note CANDIDATE_ID [NOTE]`
+
+- `CANDIDATE_ID` is the candidate's **permanent ID** (shown on the card as `#N`, e.g. `#1`), the same ID used by `view candidate`.
+  It **must be a positive integer**.
+- The note replaces any existing note. **Omit `NOTE` to clear** the candidate's note.
+- Leading and trailing whitespace is trimmed; spacing and punctuation inside the note are preserved. The note is plain
+  text — there is no prefix to type.
+- After a successful note, HireBase shows the full candidate list again. The command works even while a `find` filter
+  is active, because the candidate is located by ID.
+- Only the note changes; the candidate's name, contact details, skills, role, and interview stage are preserved.
+- A `CANDIDATE_ID` that no candidate has is rejected with
+  `Candidate ID "<ID>" does not exist. Use list candidates to view available candidate IDs.`
+
+Examples:
+
+- `note 1 Strong system-design round; follow up re: availability` sets the note on candidate `1`; HireBase replies
+  `Added note to candidate: …`.
+- `note 1` clears candidate `1`'s note; HireBase replies `Removed note from candidate: …`.
+
+Sample feedback:
+
+| Command | Feedback |
+| --- | --- |
+| `note 1 Strong SQL round` | `Added note to candidate: ` followed by candidate `1`'s updated details. |
+| `note 1` | `Removed note from candidate: ` followed by candidate `1`'s updated details. |
+| `note 999 Strong SQL round` | `Candidate ID "999" does not exist. Use list candidates to view available candidate IDs.` |
+| `note 0 x`, `note abc x`, `note` | `Invalid command format!` followed by the `note` usage (the ID must be a positive integer). |
+
+### Changing candidates' interview stages: `stage candidate`
+
+Changes the interview stage of one or more specified candidates. New candidates start at `SCREENING`.
+The candidate card shows the current stage as **Screening**, **Accepted**, or **Rejected**.
+
+Format: `stage candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]... STAGE`
+
+- `stage` and the required `candidate` keyword are case-sensitive.
+- Each ID must be a positive integer matching a candidate's permanent `CANDIDATE_ID` shown on their card.
+  IDs stay the same after filtering or deleting other candidates. Candidates hidden by `find` can also be updated.
+- `STAGE` must be `SCREENING`, `ACCEPTED`, or `REJECTED`. Stage names are case-insensitive;
+  for example, `accepted` and `ACCEPTED` have the same effect.
+- Supply one or more IDs followed by one stage, which is applied to every selected candidate.
+  There is no fixed limit on the number of IDs. Repeated IDs update the candidate only once,
+  in the order the IDs first appear.
+- All IDs are checked against all candidates before any updates. If any ID is invalid or does not exist,
+  no candidates are changed. Missing arguments and unknown stages are also rejected without changing records.
+- Surrounding whitespace and multiple spaces between arguments are accepted.
+- You can move a candidate from any stage to any other stage, including back to `SCREENING`.
+  Setting the current stage again is also allowed.
+
+Successful `stage`, `accept`, and `reject` commands change only the interview stage, preserving all other candidate
+information, including notes and permanent candidate IDs. They select the Candidates tab, show the full candidate
+list again, and update the stage on each selected candidate's card.
+The search filter is cleared after success; permanent candidate IDs remain unchanged.
+The stage is saved automatically and restored when you reopen HireBase. Editing a candidate or their notes
+preserves the stage.
+
+Success shows `Updated interview stage for candidate CANDIDATE_ID: NAME (EMAIL) to STAGE` for each selected candidate,
+on a separate line. Single-candidate commands show one line.
+A nonexistent or deleted ID reports `Candidate ID "CANDIDATE_ID" does not exist. Use list candidates to view available candidate IDs.`
+An unknown stage reports `Interview stage must be one of [SCREENING, ACCEPTED, REJECTED] (case-insensitive).`
+
+Examples:
+
+- `stage candidate 1 ACCEPTED` sets the stage of the candidate with ID 1 to `ACCEPTED`.
+- `stage candidate 2 screening` returns the candidate with ID 2 to `SCREENING`.
+- `stage candidate 1 3 5 ACCEPTED` accepts candidates with IDs 1, 3, and 5.
+- `stage candidate 2 1 2 REJECTED` rejects candidates with IDs 2 and 1, updating each only once.
+- After `find Betsy`, `stage candidate 1 rejected` still rejects the candidate with ID 1,
+  even if they are hidden by the search, then shows the full candidate list.
+
+If ID 4 does not exist, `stage candidate 1 4 ACCEPTED` reports the missing ID and changes no records, including ID 1.
+
+### Accepting candidates: `accept candidate`
+
+Marks one or more specified candidates as accepted by setting their stage to `ACCEPTED`.
+This is a shortcut for `stage candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]... ACCEPTED`.
+
+Format: `accept candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]...`
+
+`accept` and the required `candidate` keyword are case-sensitive. Supply one or more positive permanent candidate IDs,
+including IDs of candidates hidden by a search. Do not add a stage argument: `accept candidate 1 ACCEPTED`
+is invalid. Surrounding whitespace and multiple spaces between arguments are accepted.
+Every ID is checked against all candidates before any updates. Repeated IDs update each candidate once.
+Missing IDs, non-ID arguments, invalid IDs, and nonexistent or deleted IDs leave all records unchanged.
+
+Examples: `accept candidate 1` accepts the candidate with ID 1; `accept candidate 1 3 5` accepts candidates with
+IDs 1, 3, and 5. The command shows the full candidate list again and uses the same success
+message as `stage candidate` for each selected candidate, ending in `to ACCEPTED`.
+Candidates stay in HireBase; accepting already accepted candidates is allowed, and their stages can be changed later.
+
+### Rejecting candidates: `reject candidate`
+
+Marks one or more specified candidates as rejected by setting their stage to `REJECTED`.
+This is a shortcut for `stage candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]... REJECTED`.
+
+Format: `reject candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]...`
+
+`reject` and the required `candidate` keyword are case-sensitive. Supply one or more positive permanent candidate IDs,
+including IDs of candidates hidden by a search. Do not add a stage argument: `reject candidate 1 REJECTED`
+is invalid. Surrounding whitespace and multiple spaces between arguments are accepted.
+Every ID is checked against all candidates before any updates. Repeated IDs update each candidate once.
+Missing IDs, non-ID arguments, invalid IDs, and nonexistent or deleted IDs leave all records unchanged.
+
+Examples: `reject candidate 1` rejects the candidate with ID 1; `reject candidate 1 3 5` rejects candidates with
+IDs 1, 3, and 5. The command shows the full candidate list again and uses the same success
+message as `stage candidate` for each selected candidate, ending in `to REJECTED`.
+Candidates stay in HireBase; rejecting already rejected candidates is allowed, and their stages can be changed later.
+
+### Adding an event: `add event`
+
+Adds an event, such as an interview or a meeting, to your calendar.
+
+Format: `add event n/NAME from/DD/MM/YYYY HH:MM to/DD/MM/YYYY HH:MM [desc/DESCRIPTION] [c/CANDIDATE_ID]...`
+
+* `n/`, `from/` and `to/` are required exactly once. `desc/` is optional and may appear at most once. Fields may appear in any order.
+* The event name is 1 to 100 characters long. Surrounding spaces are not counted.
+* Dates and times use a 24-hour clock with two-digit day, month, hour and minute, e.g. `05/11/2026 14:00`. Dates that do not exist, such as `31/04/2026`, are rejected.
+* The event must start before it ends, and both must be on the same day. Split an event that runs past midnight into two events.
+* Add the candidates involved with one `c/` per [candidate ID](#about-candidate-ids). Every ID must belong to an existing candidate; repeating an ID adds the candidate once.
+* The new event is given the next unused event ID, shown as `#N` in the result. Event IDs are separate from candidate and job IDs, and are never reused, even after `clear`.
+
+**Overlapping events:** if the new event overlaps any existing event, HireBase still adds it and lists the events it
+overlaps, with their IDs, so you can reschedule one of theso you can move or cancel one of them with [`edit event`](#editing-or-cancelling-an-event-edit-event), or remove it with [`delete event`](#deleting-an-event-delete-event).m or remove it with [`delete event`](#deleting-an-event-delete-event). 
+Cancelled events do not count, and an event that starts exactly when another ends does not overlap it. Past events still count.
+
+**Caution:** `d/` is not a parameter of `add event` (it is a job's department). Use `desc/` for the description.
+Like other commands, a value cannot contain a parameter prefix after a space: in `n/Talk to/Bob`, ` to/` starts a
+new field.
+
+Examples:
+
+* `add event n/Interview with Alex from/05/11/2026 14:00 to/05/11/2026 15:00 desc/Round 2 c/1`
+* `add event n/Hiring sync from/06/11/2026 09:30 to/06/11/2026 10:00`
+
+Adding an overlapping event, when event `#1` is the interview above, shows this success and overlap feedback
+(a calendar-view hint may follow):
+
+```
+add event n/Team sync from/05/11/2026 14:30 to/05/11/2026 15:30
+Added event: #2 Team sync (05/11/2026 14:30 to 05/11/2026 15:30)
+Warning: this event overlaps with 1 existing event(s). It was still added:
+#1 Interview with Alex (05/11/2026 14:00 to 05/11/2026 15:00)
+```
+
+After a successful addition, HireBase selects **Calendar** while keeping its period and filters. If they hide
+the new event, an extra hint confirms that it was saved; see [Viewing the calendar](#viewing-the-calendar).
+The v1.5 calendar cannot navigate to dates outside its current day, week or month.
+
+The event is saved before it is shown. If saving fails, HireBase reports `Could not save changes. The event was not
+added. Check storage permissions and available disk space, then try again.` and nothing changes; the event ID is not
+used up.
+
+### Viewing an event's full details: `view event`
+
+Shows the full details of one event in the result display.
+
+Format: `view event EVENT_ID`
+
+* The `event` record-type keyword is required and case-sensitive.
+* `EVENT_ID` is the event's **permanent ID**, shown as `#N` in the result of `add event` and on each event in the
+  Calendar tab. It never changes, even when other events are deleted.
+* `EVENT_ID` **must be a positive integer** 1, 2, 3, …​ Surrounding and repeated whitespace is accepted.
+* The result shows the event's name, description, start, end and candidates. An empty description, or an event
+  with no candidates, is shown as `—`.
+* A `Status: Cancelled` line appears only if the event is cancelled. Events that are not cancelled show no status.
+* Candidates are listed by ID and name, in the order they were added. If a candidate was deleted after being added
+  to the event, the event keeps their ID, and it is shown as `#ID (deleted)`.
+* Viewing an event does not change any records, the selected tab or the candidate list, and does not save the data
+  file.
+
+Examples:
+
+* `view event 1` shows the full details of the event whose ID is `1`.
+
+Sample output of `view event 1`, for an event with candidates `#1` and `#4`, after candidate `#4` was deleted:
+
+```
+Event:       #1 Interview with Alex
+Description: Round 2
+Start:       05/11/2026 14:00
+End:         05/11/2026 15:00
+Candidates:  #1 Alex Yeoh, #4 (deleted)
+```
+
+Sample feedback:
+
+| Command | Feedback |
+| --- | --- |
+| `view event 999` | `Event ID "999" does not exist.` |
+| `view event 0`, `view event abc`, `view event` | `Invalid command format!` followed by the `view event` usage (the ID must be a positive integer). |
+| `view events 1`, `view Event 1` | `Invalid command format!` followed by the `view` usage, which lists `view candidate`, `view event` and `view calendar`. |
+
+### Editing or cancelling an event: `edit event`
+
+Edits one event using its permanent event ID. Cancellation keeps the event and its linked candidates for reference.
+
+Format: `edit event EVENT_ID [n/NAME] [desc/DESCRIPTION] [from/DD/MM/YYYY HH:MM] [to/DD/MM/YYYY HH:MM] [c/CANDIDATE_ID]... [cancel/true|false]`
+
+- `edit`, `event`, and the prefixes are case-sensitive. Supply exactly one positive event ID and at least one field.
+  Use the number from the event's `#N` identifier, without the `#`. This is an event ID, not a candidate ID or list position.
+- Omitted fields retain their existing values. Supplied fields can appear in any order.
+  Each prefix may appear once, except `c/`, which can appear multiple times.
+- `n/NAME` replaces the event name. The name must be nonblank and at most 100 characters long.
+- `desc/DESCRIPTION` replaces the description; `desc/` with no text clears it.
+- Unlike `add event`, this command rejects unknown prefixes. In names and descriptions, a prefix-like token
+  following whitespace is treated as a parameter: `desc/Discuss CI/CD pipelines` is rejected with
+  `Unknown parameter: CI/.`. To include slash-containing text, put it immediately after the field prefix
+  (`desc/CI/CD pipelines discussion`) or wrap that text in parentheses (`desc/Discuss (CI/CD) pipelines`).
+  The parentheses are preserved in the saved value.
+- `from/` and `to/` replace the start and end times using `DD/MM/YYYY HH:MM` in 24-hour time.
+  The resulting start must be strictly before the end, and both must be on the same day.
+  When changing dates, supply both fields so that the resulting event stays on one day.
+- `c/CANDIDATE_ID` replaces the entire list of linked candidates. All supplied candidate IDs must exist;
+  repeated IDs are kept only once. Use a single empty `c/` to remove all candidate links.
+  Omitting `c/` preserves historical links, including IDs of candidates who have since been deleted.
+- `cancel/true` marks the event cancelled; `cancel/false` restores it to active status.
+  The values `true` and `false` are case-insensitive. Repeating a cancellation or restoration is allowed.
+  Other values, including an empty `cancel/`, are rejected.
+- Cancelled events keep their name, description, times, permanent ID, and linked candidates unless you also update
+  those fields. They do not contribute to overlap warnings.
+- If an updated active event overlaps another active event, a warning is shown and the update still succeeds.
+  The event is not counted as overlapping with itself. Restoring a cancelled event checks overlaps too.
+- The permanent event ID and event order are preserved, as are candidate records, job openings, the current tab,
+  and candidate search filters. Updates are saved automatically and retained after restarting HireBase.
+  The calendar refreshes using its current period and filters: cancellation hides an event from the default view
+  and makes it eligible for the cancelled-only view, while restoration reverses that behaviour.
+- Invalid fields, unknown prefixes, duplicate single-value prefixes, nonexistent event or candidate IDs, and invalid
+  resulting times leave the event unchanged. A failed save also leaves the original event in the application.
+
+Success shows `Edited event: ` followed by the event's ID, name, and times, ending with `Status: Cancelled.`
+or `Status: Active.`. Overlapping active events are listed after a warning.
+A nonexistent event reports `Event ID "EVENT_ID" does not exist.`
+An invalid cancellation value reports `cancel/ must be true or false.`
+
+Examples:
+
+- `edit event 1 cancel/true` cancels event `#1` while keeping its details and linked candidates.
+- `edit event 1 desc/Applicant requested postponement cancel/true` records a reason and cancels the event.
+- `edit event 1 desc/Discuss (CI/CD) pipelines` updates the description while keeping the slash-containing text
+  in parentheses so that it is not treated as a parameter.
+- `edit event 1 cancel/false` restores event `#1` to active status.
+- `edit event 1 from/06/11/2026 14:00 to/06/11/2026 15:00` moves the event to that date and time.
+- `edit event 1 n/Final interview c/2 c/3` renames the event and replaces its candidate links with IDs 2 and 3.
+- `edit event 1 desc/ c/` clears the description and candidate links, preserving its other fields.
+
+### Deleting an event: `delete event`
+
+Permanently deletes one event using its event ID.
+
+Format: `delete event EVENT_ID`
+
+- `delete` and the required `event` keyword are case-sensitive. Supply exactly one positive integer ID.
+  Surrounding whitespace and multiple spaces between arguments are accepted.
+- Use the permanent event ID shown as `#N` in the feedback when the event was added. Type only the number:
+  for example, use `delete event 3` for event `#3`. This is an event ID, not a candidate ID or a list position.
+- Deleting another event does not change the remaining events' IDs. Deleted IDs are never reused, including
+  after restarting HireBase.
+- Both active and cancelled events can be deleted. Deletion removes the event rather than marking it cancelled.
+- Candidate records, linked candidates, job openings, the current tab, and candidate search filters are preserved.
+- The deletion is saved automatically. If saving fails, the event remains in the application.
+- Missing, malformed, multiple, or nonexistent event IDs leave all records unchanged.
+
+Success shows `Deleted event: ` followed by the event's ID, name, and start and end times.
+For example: `Deleted event: #1 Interview (05/11/2026 14:00 to 05/11/2026 15:00)`.
+
+A nonexistent ID, such as `delete event 999`, reports `Event ID "999" does not exist.`
+Omitting the ID reports `Missing event ID. Usage: delete event EVENT_ID`.
+An invalid ID, such as `delete event 0` or `delete event abc`, reports
+`Event ID must be a positive integer. Usage: delete event EVENT_ID`.
+Supplying multiple IDs, such as `delete event 1 2`, reports
+`Expected exactly one event ID. Usage: delete event EVENT_ID`.
+
+Examples:
+
+- `delete event 1` deletes event `#1`.
+- If events `#1` and `#2` exist, `delete event 1` followed by `delete event 2` deletes both;
+  event `#2` keeps its ID after event `#1` is removed.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Clears all candidates, job openings and events from HireBase.
+
+The deletion is saved before records disappear. If saving fails, all records, searches and ID counters
+remain unchanged. A later command will not save a clear that was reported as failed.
 
 Format: `clear`
+
+Candidate IDs, job IDs and event IDs used before `clear` are not reused. New candidates, job openings and events
+continue from the next unused ID.
 
 ### Exiting the program: `exit`
 
@@ -154,45 +909,128 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+HireBase automatically saves data after commands, except the read-only `list jobs`, `view event` and `view calendar` commands. You do not need to save manually.
+Candidate records, job openings and events are saved together in the same data file and loaded on the next launch.
+If another HireBase window or an external editor changes that file, this window cannot overwrite those newer
+changes. Close this application window using its close button, then reopen HireBase to load the latest data
+before retrying. Use one window for changes; the `exit` command may also report the save error in a stale window.
+Changing calendar controls does not save the data file; the selected calendar period and filters are temporary.
+Older data files without a `jobs` field still load normally, with an empty job-opening list.
+Events are saved in the same file. Older data files without an `events` field load normally, with no events.
+If HireBase cannot read the data file when it starts, it copies the file to `hirebase-invalid-<yyyyMMdd-HHmmss>.json`
+in the same folder before it starts with an empty HireBase. See [Editing the data file](#editing-the-data-file).
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+HireBase data is saved automatically as a JSON file `[JAR file location]/data/hirebase.json`. Advanced users are welcome to update data directly by editing that data file.
+
+The `persons` array must not contain null entries, and a candidate's `tags` array must not contain null entries.
+These invalidate the file and trigger the backup and startup warning described below.
+
+Each candidate's `candidateId` must be a positive integer, and no two candidates may share the same `candidateId`.
+The top-level `nextCandidateId` counter keeps track of the next unused candidate ID, including after deletion or
+`clear`; do not lower it or change assigned IDs manually. Older candidates with no `candidateId` (or a `null` one)
+are given new IDs in file order, starting after every stored ID. An invalid or duplicate `candidateId`, or an invalid
+`nextCandidateId`, makes the data file invalid.
+
+Each candidate's `interviewStage` must be `SCREENING`, `ACCEPTED`, or `REJECTED` in the JSON file (case-sensitive).
+Older records without this field, or with a `null` value, load as `SCREENING`.
+Blank strings, unknown stage names, or incorrect capitalization make the data file invalid.
+
+Each candidate's `priorityScore` is saved as a digit string: `"1"` (Low), `"2"` (Medium), or `"3"` (High).
+For example, `"priorityScore": "3"` stores High priority. Older records with this field missing or set to `null`
+load as Low. An empty string, a label such as `"High"`, or any other invalid score makes the data file invalid.
+
+The `jobs` array stores each opening's `id`, `title`, `department`, `description`, and `skills`, preserving job order.
+`skills` is an array of strings, for example `["Java", "SQL"]`. Older openings with no `skills` field, or a null
+field, load with no required skills. Invalid skill values, non-string entries, or a non-array field make the file
+invalid; duplicate skill strings are combined ignoring case. Skills are saved across restarts.
+Job IDs must be unique positive integers from 1 to 2147483647. The top-level `nextJobId` counter preserves the
+next unused ID, including after deletion or `clear`; do not lower it or change assigned IDs manually.
+Older openings with no ID (or a null ID) receive IDs in file order, starting above all stored IDs and at least as high as the saved
+counter. If no IDs or counter exist, numbering starts at 1. These assigned IDs are saved on the next successful
+command that writes data; `list jobs` alone does not rewrite the file. A missing counter is reconstructed from
+stored IDs. A counter below an existing ID is advanced automatically. Invalid or duplicate IDs make the file
+invalid. The counter accepts 1 through 2147483648; the final value indicates that no new IDs are available.
+Each opening must have all three fields and satisfy the job model's validation rules: titles and departments are
+1–100 characters using letters, digits, spaces, or `& / ( ) + # . , ' ’ -`, with at least one letter or digit;
+descriptions are 1–2000 printable characters on one line. Title and department whitespace is collapsed,
+while internal spaces in descriptions are preserved. Length limits apply after trimming and normalization.
+Openings with the same title and department, ignoring case and normalized whitespace, are duplicates even if their
+descriptions differ. Invalid or duplicate openings cause the data file to fail loading; they are not silently skipped.
+Use `add job` to create openings and `list jobs` to view their cards and full details.
+
+The `events` array stores each event's `id`, `name`, `description`, `start`, `end`, `cancelled` and `candidateIds`,
+for example:
+
+```json
+{ "id": 1, "name": "Interview with Alex", "description": "Round 2", "start": "2026-11-05T14:00",
+  "end": "2026-11-05T15:00", "cancelled": false, "candidateIds": [1] }
+```
+
+* `start` and `end` use the format `YYYY-MM-DDTHH:MM` (note: this is different from the `DD/MM/YYYY HH:MM` format
+  used in commands). The date must exist, the event must start before it ends, and both must be on the same day.
+* `name` is required and follows the same rule as in `add event`. A missing `description` loads as empty, a
+  missing `cancelled` loads as `false`, and a missing `candidateIds` loads as no candidates.
+* `cancelled` must be `true` or `false`, and `candidateIds` must be an array of positive whole numbers. An ID in
+  `candidateIds` that no candidate has is kept, so an event still remembers a candidate who was deleted.
+* Event IDs must be unique positive integers from 1 to 2147483647. The top-level `nextEventId` counter works like
+  `nextJobId`: do not lower it or change assigned IDs manually. Events with no `id` are given new IDs in file order,
+  starting after every stored ID. A missing `events` array loads as no events.
+
+The file must contain exactly one JSON object. Duplicate field names, including inside a record, and any
+non-whitespace content after the object make the file invalid and trigger the backup/recovery described below.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If your changes make the data file invalid, HireBase starts with no candidates, job openings or events at the next run. Before that happens, it copies the invalid file to `[JAR file location]/data/hirebase-invalid-<yyyyMMdd-HHmmss>.json` so that you can fix it and restore your data, and the result box shows a message naming that copy. The original file stays in place until you run a command that saves data (`list jobs` does not save). Still, we recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause the HireBase to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
 
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
-
---------------------------------------------------------------------------------------------------------------------
+---
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous HireBase home folder.
 
---------------------------------------------------------------------------------------------------------------------
+---
 
 ## Known issues
 
+Invalid window preferences are reset to defaults on launch. This includes a null `guiSettings` value in
+`preferences.json`; resetting window settings does not change candidates, job openings or events.
+
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
 2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+3. **The calendar only shows the current day, week or month.** An event on another date is saved but cannot be seen
+   in the Calendar tab, and neither `view calendar` nor the checkboxes widen the range. Use `view event EVENT_ID` to read
+   such an event. Navigation to other periods is planned.
 
---------------------------------------------------------------------------------------------------------------------
+---
 
 ## Command summary
 
-Action | Format, Examples
---------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
-**List** | `list`
-**Help** | `help`
+| Action | Format, Examples |
+|--------|------------------|
+| **Add candidate** | `add candidate n/NAME p/PHONE e/EMAIL a/ADDRESS s/SKILL [s/MORE_SKILLS]... r/ROLE [priority/SCORE]`<br> e.g., `add candidate n/Amy p/91234567 e/amy@example.com a/Blk 1 s/Java s/SQL r/Backend Engineer priority/3` |
+| **List candidates** | `list candidates [s/SKILL] [r/ROLE] [stage/STAGE] [priority/SCORE]`<br> e.g., `list candidates s/Java priority/3` |
+| **Find candidates** | `find KEYWORD [MORE_KEYWORDS]` (searches names or emails)<br> e.g., `find James james@example.com` |
+| **Edit candidate** | `edit candidate CANDIDATE_ID [n/NAME] [e/EMAIL] [p/PHONE] [s/SKILL]… [r/ROLE] [a/ADDRESS] [t/TAG]… [priority/SCORE]`<br> e.g., `edit candidate 2 priority/2` |
+| **Change interview stage** | `stage candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]... STAGE`<br> e.g., `stage candidate 1 3 ACCEPTED` |
+| **Accept candidates** | `accept candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]...`<br> e.g., `accept candidate 1 3` |
+| **Reject candidates** | `reject candidate CANDIDATE_ID [MORE_CANDIDATE_IDS]...`<br> e.g., `reject candidate 2 4` |
+| **Delete candidate** | `delete candidate CANDIDATE_ID`<br> e.g., `delete candidate 3` |
+| **View candidate** | `view candidate CANDIDATE_ID`<br> e.g., `view candidate 1` |
+| **View calendar** | `view calendar [period/PERIOD] [cancelled/BOOLEAN] [upcoming/BOOLEAN]`<br> e.g., `view calendar period/month upcoming/true` |
+| **Note candidate** | `note CANDIDATE_ID [NOTE]`<br> e.g., `note 1 Strong system-design round` |
+| **Add job** | `add job t/TITLE d/DEPARTMENT desc/DESCRIPTION [s/SKILL]...`<br> e.g., `add job t/Software Engineer d/Engineering desc/Build Java services.` |
+| **List jobs** | `list jobs` |
+| **Edit job** | `edit job ID [t/TITLE] [d/DEPARTMENT] [desc/DESCRIPTION] [s/SKILL]...`<br> e.g., `edit job 1 d/Research` |
+| **Delete job** | `delete job ID`<br> e.g., `delete job 2` |
+| **Add event** | `add event n/NAME from/DD/MM/YYYY HH:MM to/DD/MM/YYYY HH:MM [desc/DESCRIPTION] [c/CANDIDATE_ID]...`<br> e.g., `add event n/Interview with Alex from/05/11/2026 14:00 to/05/11/2026 15:00 c/1` |
+| **View event** | `view event EVENT_ID`<br> e.g., `view event 1` |
+| **Edit or cancel event** | `edit event EVENT_ID [n/NAME] [desc/DESCRIPTION] [from/DD/MM/YYYY HH:MM] [to/DD/MM/YYYY HH:MM] [c/CANDIDATE_ID]... [cancel/true\|false]`<br> e.g., `edit event 1 cancel/true` |
+| **Delete event** | `delete event EVENT_ID`<br> e.g., `delete event 1` |
+| **Clear** | `clear` |
+| **Help** | `help` |
+| **Exit** | `exit` |
