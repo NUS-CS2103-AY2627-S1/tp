@@ -1,10 +1,13 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.FileNotFoundException;
+import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
@@ -128,6 +131,107 @@ public class StringUtilTest {
     /*
      * Equivalence Partitions: null, valid throwable object
      */
+
+    @Test
+    public void getSearchWords_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.getSearchWords(null));
+    }
+
+    @Test
+    public void getSearchWords_splitsOnSpacesAndPunctuation() {
+        assertEquals(List.of("software", "engineer"), StringUtil.getSearchWords("Software Engineer"));
+        assertEquals(List.of("software", "engineer"), StringUtil.getSearchWords("  Software    Engineer "));
+        assertEquals(List.of("engineer", "backend"), StringUtil.getSearchWords("Engineer (Backend)"));
+        assertEquals(List.of("r&d", "asia"), StringUtil.getSearchWords("R&D, Asia"));
+        assertEquals(List.of("co", "op"), StringUtil.getSearchWords("Co-op"));
+        assertEquals(List.of("sr", "manager"), StringUtil.getSearchWords("Sr. Manager"));
+    }
+
+    @Test
+    public void getSearchWords_keepsAmpersandsApostrophesAccentsAndDigits() {
+        assertEquals(List.of("o", "&", "g"), StringUtil.getSearchWords("O & G"));
+        assertEquals(List.of("o'neil"), StringUtil.getSearchWords("O'Neil"));
+        assertEquals(List.of("emile", "roux"), StringUtil.getSearchWords("Émile Roux"));
+        assertEquals(List.of("level", "2"), StringUtil.getSearchWords("Level 2"));
+    }
+
+    @Test
+    public void getSearchWords_surnameBeforeComma_commaIsNotPartOfTheWord() {
+        assertEquals(List.of("tan", "ah", "kow"), StringUtil.getSearchWords("Tan, Ah Kow"));
+        assertEquals(List.of("dr", "john", "tan", "jr"), StringUtil.getSearchWords("Dr. John Tan Jr."));
+        assertEquals(List.of("mary", "ann", "o'brien"), StringUtil.getSearchWords("Mary-Ann O'Brien"));
+        assertEquals(List.of("ravi", "s", "o", "kumar"), StringUtil.getSearchWords("Ravi s/o Kumar"));
+    }
+
+    @Test
+    public void getSearchWords_ignoresAccents() {
+        assertEquals(List.of("emile"), StringUtil.getSearchWords("\u00C9mile"));
+        assertEquals(List.of("jose", "nunez"), StringUtil.getSearchWords("Jos\u00E9 N\u00FA\u00F1ez"));
+        assertEquals(List.of("zoe"), StringUtil.getSearchWords("Zo\u00EB"));
+    }
+
+    @Test
+    public void getSearchWords_dottedAndDotlessI_normalizesCaseVariants() {
+        for (String name : List.of("Y\u0131lmaz", "YILMAZ", "yilmaz", "Y\u0130LMAZ")) {
+            assertEquals(List.of("yilmaz"), StringUtil.getSearchWords(name), name);
+        }
+    }
+
+    @Test
+    public void getSearchWords_unicodeCaseVariants_normalizesWithoutExpandingLetters() {
+        assertEquals(List.of("emile"), StringUtil.getSearchWords("\u00C9mile"));
+        // Both lowercase forms of Greek sigma match their uppercase form.
+        assertEquals(List.of("\u03C3", "\u03C3", "\u03C3"), StringUtil.getSearchWords("\u03A3 \u03C3 \u03C2"));
+        // Sharp s matches its capital form, but is not expanded into two letters.
+        assertEquals(List.of("gro\u00DF", "gro\u00DF", "gross"),
+                StringUtil.getSearchWords("Gro\u00DF GRO\u1E9E GROSS"));
+    }
+
+    @Test
+    public void getSearchWords_accentAsSeparateMark_sameAsAccentOnTheLetter() {
+        // E followed by a combining acute accent, as some keyboards and web pages produce it
+        assertEquals(StringUtil.getSearchWords("\u00C9mile"), StringUtil.getSearchWords("E\u0301mile"));
+        assertEquals(List.of("emile"), StringUtil.getSearchWords("E\u0301MILE"));
+    }
+
+    @Test
+    public void getSearchWords_marksThatAreNotAccents_areKept() {
+        // a Devanagari letter with a vowel sign is a different word from the letter alone
+        String withVowelSign = "\u0915\u093F";
+        assertEquals(List.of(withVowelSign), StringUtil.getSearchWords(withVowelSign));
+        assertEquals(List.of("\u0915"), StringUtil.getSearchWords("\u0915"));
+    }
+
+    @Test
+    public void getSearchWords_noLetterOrDigit_returnsEmptyList() {
+        assertEquals(List.of(), StringUtil.getSearchWords(""));
+        assertEquals(List.of(), StringUtil.getSearchWords("   "));
+        assertEquals(List.of(), StringUtil.getSearchWords("@@@ ,.- ()"));
+    }
+
+    @Test
+    public void getSearchWords_isNotAffectedByDefaultLocale() {
+        Locale defaultLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr"));
+            assertEquals(List.of("id"), StringUtil.getSearchWords("ID"));
+            assertEquals(List.of("yilmaz"), StringUtil.getSearchWords("Y\u0131lmaz"));
+        } finally {
+            Locale.setDefault(defaultLocale);
+        }
+    }
+
+    @Test
+    public void collapseWhitespace_nullGiven_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.collapseWhitespace(null));
+    }
+
+    @Test
+    public void collapseWhitespace_repeatedAndOuterWhitespace_collapsedToOneSpace() {
+        assertEquals("Human Resources", StringUtil.collapseWhitespace("  Human   Resources "));
+        assertEquals("HR Executive", StringUtil.collapseWhitespace("HR\tExecutive"));
+        assertEquals("", StringUtil.collapseWhitespace("   "));
+    }
 
     @Test
     public void getDetails_exceptionGiven() {

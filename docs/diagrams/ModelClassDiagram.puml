@@ -1,54 +1,73 @@
 @startuml
 !include style.puml
-skinparam arrowThickness 1.1
-skinparam arrowColor MODEL_COLOR
 skinparam classBackgroundColor MODEL_COLOR
-
-Package Model as ModelPackage <<Rectangle>>{
-Class "<<interface>>\nReadOnlyAddressBook" as ReadOnlyAddressBook
-Class "<<interface>>\nReadOnlyUserPrefs" as ReadOnlyUserPrefs
-Class "<<interface>>\nModel" as Model
-Class AddressBook
-Class ModelManager
-Class UserPrefs
-
-Class UniquePersonList
-Class Person
-Class Address
-Class Email
-Class Name
-Class Phone
-Class Tag
-
-Class I #FFFFFF
+skinparam classAttributeFontColor #FFFFFF
+skinparam classAttributeIconSize 0
+interface Model
+interface ReadOnlyAddressBook
+interface ReadOnlyUserPrefs
+class ModelManager
+class AddressBook
+class VersionedAddressBook {
+  - addressBookStateList : List<List<Employee>>
+  - currentStatePointer : int
+  - maxUndoHistory : int
+  - historyShared : boolean
+  + commit()
+  + canUndo()
+  + canRedo()
+  + undo()
+  + redo()
 }
-
-Class HiddenOutside #FFFFFF
-HiddenOutside ..> Model
-
-AddressBook .up.|> ReadOnlyAddressBook
-
-ModelManager .up.|> Model
-Model .right.> ReadOnlyUserPrefs
-Model .left.> ReadOnlyAddressBook
-ModelManager -left-> "1" AddressBook
-ModelManager -right-> "1" UserPrefs
-UserPrefs .up.|> ReadOnlyUserPrefs
-
-AddressBook *--> "1" UniquePersonList
-UniquePersonList --> "~* all" Person
-Person *--> Name
-Person *--> Phone
-Person *--> Email
-Person *--> Address
-Person *--> "*" Tag
-
-Person -[hidden]up--> I
-UniquePersonList -[hidden]right-> I
-
-Name -[hidden]right-> Phone
-Phone -[hidden]right-> Address
-Address -[hidden]right-> Email
-
-ModelManager --> "~* filtered" Person
+class ModelCheckpoint {
+  - workingEmployees : List<Employee>
+  - history : List<List<Employee>>
+  - currentStatePointer : int
+  - predicate : Predicate
+}
+class UniqueEmployeeList
+class "Employee (immutable)" as Employee {
+  + getManagerId() : Optional<EmployeeId>
+  + withManager(managerId : EmployeeId) : Employee
+}
+class EmployeeId
+class ReportingStructure {
+  {static} + withCanonicalManager(roster, employee) : Employee
+  {static} + validate(employees)
+}
+show Employee methods
+show ReportingStructure methods
+class "FilteredList<Employee>" as FilteredList
+class "SortedList<Employee>" as SortedList
+class UserPrefs
+ModelManager ..|> Model
+AddressBook ..|> ReadOnlyAddressBook
+VersionedAddressBook --|> AddressBook
+UserPrefs ..|> ReadOnlyUserPrefs
+ModelManager *-- VersionedAddressBook
+ModelManager *-- FilteredList
+ModelManager *-- SortedList
+ModelManager *-- UserPrefs
+ModelManager ..> ModelCheckpoint : capture / restore
+AddressBook *-- UniqueEmployeeList
+UniqueEmployeeList --> "*" Employee
+Employee --> "1" EmployeeId : id
+Employee --> "0..1" EmployeeId : managerId
+AddressBook ..> ReportingStructure : validates candidate roster
+ReportingStructure ..> Employee : queries manager links
+note bottom of EmployeeId
+IDs compare case-insensitively.
+managerId refers to an employee in the full roster,
+including archived employees.
+end note
+FilteredList --> UniqueEmployeeList : observes existing list
+SortedList --> FilteredList : orders by the current sort
+VersionedAddressBook --> "*" Employee : immutable snapshots
+ModelCheckpoint --> "*" Employee : copied working container
+note bottom of ModelCheckpoint
+Working-list container is copied.
+Frozen history index and immutable snapshots are shared.
+Changed commits copy a shared index before mutation.
+Effective predicate is retained by reference.
+end note
 @enduml

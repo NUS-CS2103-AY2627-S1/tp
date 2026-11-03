@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,29 @@ public class JsonUserPrefsStorageTest {
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void readUserPrefs_trailingContent_preservesStartupCompatibility() throws Exception {
+        Path filePath = testFolder.resolve("TrailingContentPrefs.json");
+        UserPrefs expected = getTypicalUserPrefs();
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(filePath);
+        storage.saveUserPrefs(expected);
+        String json = Files.readString(filePath);
+        for (String suffix : List.of("{}", "trailing")) {
+            Files.writeString(filePath, json + suffix);
+            assertEquals(expected, storage.readUserPrefs().orElseThrow());
+        }
+    }
+
+    @Test
+    public void readUserPrefs_nullJsonRoot_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("NullPrefs.json");
+        Files.writeString(filePath, "null");
+
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(filePath);
+        assertThrows(DataLoadingException.class, storage::readUserPrefs);
+        assertEquals("null", Files.readString(filePath));
+    }
 
     @Test
     public void readUserPrefs_nullFilePath_throwsNullPointerException() {
@@ -96,6 +121,16 @@ public class JsonUserPrefsStorageTest {
         } catch (IOException ioe) {
             throw new AssertionError("There should not be an error writing to the file", ioe);
         }
+    }
+
+    @Test
+    public void readUserPrefs_nullGuiSettings_throwsDataLoadingException() throws IOException {
+        Path filePath = testFolder.resolve("NullGuiSettingsPrefs.json");
+        Files.writeString(filePath, "{\"guiSettings\":null}");
+
+        JsonUserPrefsStorage storage = new JsonUserPrefsStorage(filePath);
+        assertThrows(DataLoadingException.class, storage::readUserPrefs);
+        assertEquals("{\"guiSettings\":null}", Files.readString(filePath));
     }
 
     @Test

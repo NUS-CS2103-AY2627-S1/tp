@@ -5,12 +5,65 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.text.Normalizer;
 import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Helper functions for handling strings.
  */
 public class StringUtil {
+
+    /** Anything that is not a letter, a mark that belongs to a letter, a digit, {@code &} or {@code '}. */
+    private static final Pattern NOT_PART_OF_SEARCH_WORD = Pattern.compile("[^\\p{L}\\p{M}\\p{N}&']+");
+
+    /** The accents (combining diacritical marks) that are put on a letter, such as the acute accent of É. */
+    private static final Pattern ACCENT = Pattern.compile("[\\u0300-\\u036F]");
+
+    private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
+
+    /**
+     * Returns {@code text} trimmed, with each run of whitespace inside it replaced by one space,
+     * so that a value typed with an accidental double space is stored the same as the intended value.
+     *   <br>examples:<pre>
+     *       collapseWhitespace("  Human   Resources ") == "Human Resources"
+     *       collapseWhitespace("HR\tExecutive") == "HR Executive"
+     *       </pre>
+     * @param text cannot be null
+     */
+    public static String collapseWhitespace(String text) {
+        requireNonNull(text);
+        return WHITESPACE_RUN.matcher(text.trim()).replaceAll(" ");
+    }
+
+    /**
+     * Returns the words of {@code text}, normalized for case-insensitive whole-word matching.
+     * Words are separated by spaces and punctuation, except for {@code &} and {@code '} which stay in a word.
+     * Accents on letters are left out, so {@code É} and {@code E} are the same, whether the accent is a part
+     * of the letter or a separate mark after it.
+     * Character case is normalized as in {@link String#equalsIgnoreCase(String)}, so dotless {@code ı}
+     * matches {@code I}.
+     *   <br>examples:<pre>
+     *       getSearchWords("R&amp;D, Asia") == ["r&amp;d", "asia"]
+     *       getSearchWords("Engineer (Backend)") == ["engineer", "backend"]
+     *       getSearchWords("Tan, Ah Kow") == ["tan", "ah", "kow"]
+     *       getSearchWords("Émile") == ["emile"]
+     *       getSearchWords("@@@") == []
+     *       </pre>
+     * @param text cannot be null
+     */
+    public static List<String> getSearchWords(String text) {
+        requireNonNull(text);
+        String withoutAccents = ACCENT.matcher(Normalizer.normalize(text, Normalizer.Form.NFD)).replaceAll("");
+        String normalized = withoutAccents.codePoints()
+                .map(codePoint -> Character.toLowerCase(Character.toUpperCase(codePoint)))
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
+        return NOT_PART_OF_SEARCH_WORD.splitAsStream(normalized)
+                .filter(word -> !word.isEmpty())
+                .toList();
+    }
 
     /**
      * Returns true if the {@code sentence} contains the {@code word}.

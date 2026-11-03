@@ -3,21 +3,26 @@ package seedu.address.logic.commands;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.Messages.MESSAGE_PERSONS_LISTED_OVERVIEW;
+import static seedu.address.logic.Messages.getEmployeesListedOverview;
 import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
-import static seedu.address.testutil.TypicalPersons.CARL;
-import static seedu.address.testutil.TypicalPersons.ELLE;
-import static seedu.address.testutil.TypicalPersons.FIONA;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalEmployees.CARL;
+import static seedu.address.testutil.TypicalEmployees.ELLE;
+import static seedu.address.testutil.TypicalEmployees.FIONA;
+import static seedu.address.testutil.TypicalEmployees.getTypicalAddressBook;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import seedu.address.logic.parser.FilterCommandParser;
+import seedu.address.logic.parser.FindCommandParser;
 import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.employee.Employee;
+import seedu.address.model.employee.NameContainsKeywordsPredicate;
+import seedu.address.testutil.AddressBookBuilder;
+import seedu.address.testutil.EmployeeBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -49,28 +54,38 @@ public class FindCommandTest {
         // null -> returns false
         assertFalse(findFirstCommand.equals(null));
 
-        // different person -> returns false
+        // different employee -> returns false
         assertFalse(findFirstCommand.equals(findSecondCommand));
     }
 
     @Test
-    public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+    public void execute_zeroKeywords_noEmployeeFound() {
+        String expectedMessage = getEmployeesListedOverview(0);
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredEmployeeList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(), model.getFilteredPersonList());
+        assertEquals(List.of(), model.getFilteredEmployeeList());
     }
 
     @Test
-    public void execute_multipleKeywords_multiplePersonsFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 3);
+    public void execute_oneKeyword_oneEmployeeFound() {
+        String expectedMessage = "1 employee listed!";
+        NameContainsKeywordsPredicate predicate = preparePredicate("Fiona");
+        FindCommand command = new FindCommand(predicate);
+        expectedModel.updateFilteredEmployeeList(predicate);
+        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertEquals(List.of(FIONA), model.getFilteredEmployeeList());
+    }
+
+    @Test
+    public void execute_multipleKeywords_multipleEmployeesFound() {
+        String expectedMessage = getEmployeesListedOverview(3);
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
-        expectedModel.updateFilteredPersonList(predicate);
+        expectedModel.updateFilteredEmployeeList(predicate);
         assertCommandSuccess(command, model, expectedMessage, expectedModel);
-        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
+        assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredEmployeeList());
     }
 
     @Test
@@ -86,5 +101,61 @@ public class FindCommandTest {
      */
     private NameContainsKeywordsPredicate preparePredicate(String userInput) {
         return new NameContainsKeywordsPredicate(List.of(userInput.split("\\s+")));
+    }
+
+    /** Runs {@code find} with {@code arguments} on a roster of names with punctuation and accents. */
+    private List<Employee> findIn(Model roster, String arguments) throws Exception {
+        new FindCommandParser().parse(arguments).execute(roster);
+        return roster.getFilteredEmployeeList();
+    }
+
+    @Test
+    public void execute_namesWithPunctuationAndAccents_foundByTheirWords() throws Exception {
+        Employee tan = new EmployeeBuilder().withId("T1").withName("Tan, Ah Kow").build();
+        Employee mary = new EmployeeBuilder().withId("T2").withName("Mary-Ann O'Brien").build();
+        Employee emile = new EmployeeBuilder().withId("T3").withName("\u00C9mile Roux").build();
+        Model roster = new ModelManager(
+                new AddressBookBuilder().withEmployee(tan).withEmployee(mary).withEmployee(emile).build(),
+                new UserPrefs());
+
+        assertEquals(List.of(tan), findIn(roster, "Tan"));
+        assertEquals(List.of(mary), findIn(roster, "Mary"));
+        assertEquals(List.of(mary), findIn(roster, "Ann"));
+        assertEquals(List.of(emile), findIn(roster, "emile"));
+        assertEquals(List.of(emile), findIn(roster, "E\u0301mile"));
+        // keywords separated by commas are two keywords, so both names are found
+        assertEquals(List.of(tan, mary), findIn(roster, "Ah, Mary-Ann"));
+        // only part of a word does not match
+        assertEquals(List.of(), findIn(roster, "Ta"));
+    }
+
+    @Test
+    public void execute_nameWithDotlessI_caseVariantsReturnOneEmployee() throws Exception {
+        Employee yilmaz = new EmployeeBuilder().withId("T1").withName("Y\u0131lmaz").build();
+        Model roster = new ModelManager(new AddressBookBuilder().withEmployee(yilmaz).build(), new UserPrefs());
+
+        for (String keyword : List.of("Y\u0131lmaz", "YILMAZ", "yilmaz", "Y\u0130LMAZ")) {
+            CommandResult result = new FindCommandParser().parse(keyword).execute(roster);
+            assertEquals(getEmployeesListedOverview(1), result.getFeedbackToUser(), keyword);
+            assertEquals(List.of(yilmaz), roster.getFilteredEmployeeList(), keyword);
+        }
+    }
+
+    @Test
+    public void execute_findAndFilterByName_findTheSameEmployees() throws Exception {
+        Employee tan = new EmployeeBuilder().withId("T1").withName("Tan, Ah Kow").build();
+        Employee mary = new EmployeeBuilder().withId("T2").withName("Mary-Ann O'Brien").build();
+        Employee emile = new EmployeeBuilder().withId("T3").withName("\u00C9mile Roux").build();
+        Employee yilmaz = new EmployeeBuilder().withId("T4").withName("Y\u0131lmaz").build();
+        Model roster = new ModelManager(
+                new AddressBookBuilder().withEmployee(tan).withEmployee(mary).withEmployee(emile)
+                        .withEmployee(yilmaz).build(),
+                new UserPrefs());
+
+        for (String name : List.of("Tan", "Mary", "Ann", "emile", "Y\u0131lmaz", "YILMAZ")) {
+            List<Employee> found = List.copyOf(findIn(roster, name));
+            new FilterCommandParser().parse(" n/" + name).execute(roster);
+            assertEquals(found, roster.getFilteredEmployeeList(), name);
+        }
     }
 }

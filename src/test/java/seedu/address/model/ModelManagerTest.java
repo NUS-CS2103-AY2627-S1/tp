@@ -3,17 +3,20 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
+import static seedu.address.model.Model.PREDICATE_SHOW_ALL_EMPLOYEES;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalEmployees.ALICE;
+import static seedu.address.testutil.TypicalEmployees.BENSON;
+import static seedu.address.testutil.TypicalEmployees.CARL;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.employee.Employee;
+import seedu.address.model.employee.NameContainsKeywordsPredicate;
 import seedu.address.testutil.AddressBookBuilder;
 
 public class ModelManagerTest {
@@ -53,29 +56,84 @@ public class ModelManagerTest {
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> modelManager.hasPerson(null));
+    public void hasEmployee_nullEmployee_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.hasEmployee(null));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(modelManager.hasPerson(ALICE));
+    public void hasEmployee_employeeNotInAddressBook_returnsFalse() {
+        assertFalse(modelManager.hasEmployee(ALICE));
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        modelManager.addPerson(ALICE);
-        assertTrue(modelManager.hasPerson(ALICE));
+    public void hasEmployee_employeeInAddressBook_returnsTrue() {
+        modelManager.addEmployee(ALICE);
+        assertTrue(modelManager.hasEmployee(ALICE));
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredPersonList().remove(0));
+    public void hasEmployee_employeeArchived_returnsTrue() {
+        modelManager.addEmployee(ALICE);
+        modelManager.archiveEmployee(ALICE);
+        assertTrue(modelManager.hasEmployee(ALICE));
+        assertTrue(modelManager.getFilteredEmployeeList().isEmpty());
+    }
+
+    @Test
+    public void hasArchivedEmployee_activeAndArchivedEmployees_returnsCorrectResult() {
+        modelManager.addEmployee(ALICE);
+        modelManager.addEmployee(BENSON.withArchived(true));
+
+        assertFalse(modelManager.hasArchivedEmployee(ALICE));
+        assertTrue(modelManager.hasArchivedEmployee(BENSON));
+    }
+
+    @Test
+    public void getArchivedEmployeeCount_activeAndArchivedEmployees_returnsArchivedCount() {
+        modelManager.addEmployee(ALICE);
+        modelManager.addEmployee(BENSON.withArchived(true));
+
+        assertEquals(1, modelManager.getArchivedEmployeeCount());
+    }
+
+    @Test
+    public void getFilteredEmployeeList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> modelManager.getFilteredEmployeeList().remove(0));
+    }
+
+    @Test
+    public void updateEmployeeSortOrder_nullComparator_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> modelManager.updateEmployeeSortOrder(null));
+    }
+
+    @Test
+    public void updateEmployeeSortOrder_sortsDisplayedListButNotStoredList() {
+        // stored order: Benson, Carl, Alice
+        AddressBook addressBook = new AddressBookBuilder().withEmployee(BENSON).withEmployee(CARL)
+                .withEmployee(ALICE).build();
+        modelManager = new ModelManager(addressBook, new UserPrefs());
+
+        modelManager.updateEmployeeSortOrder(Comparator.comparing(employee -> employee.getName().fullName));
+        assertEquals(List.of(ALICE, BENSON, CARL), modelManager.getFilteredEmployeeList());
+        assertEquals(List.of(BENSON, CARL, ALICE), modelManager.getAddressBook().getEmployeeList());
+
+        modelManager.resetEmployeeSortOrder();
+        assertEquals(List.of(BENSON, CARL, ALICE), modelManager.getFilteredEmployeeList());
+    }
+
+    @Test
+    public void updateEmployeeSortOrder_newEmployeeIsShownInSortedPosition() {
+        modelManager = new ModelManager(new AddressBookBuilder().withEmployee(BENSON).withEmployee(CARL).build(),
+                new UserPrefs());
+        modelManager.updateEmployeeSortOrder(Comparator.comparing(employee -> employee.getName().fullName));
+
+        modelManager.addEmployee(ALICE);
+        assertEquals(List.of(ALICE, BENSON, CARL), modelManager.getFilteredEmployeeList());
     }
 
     @Test
     public void equals() {
-        AddressBook addressBook = new AddressBookBuilder().withPerson(ALICE).withPerson(BENSON).build();
+        AddressBook addressBook = new AddressBookBuilder().withEmployee(ALICE).withEmployee(BENSON).build();
         AddressBook differentAddressBook = new AddressBook();
         UserPrefs userPrefs = new UserPrefs();
 
@@ -96,13 +154,19 @@ public class ModelManagerTest {
         // different addressBook -> returns false
         assertFalse(modelManager.equals(new ModelManager(differentAddressBook, userPrefs)));
 
+        // different sort order -> returns false
+        ModelManager sortedModelManager = new ModelManager(addressBook, userPrefs);
+        sortedModelManager.updateEmployeeSortOrder(
+                Comparator.comparing((Employee employee) -> employee.getName().fullName).reversed());
+        assertFalse(modelManager.equals(sortedModelManager));
+
         // different filteredList -> returns false
         String[] keywords = ALICE.getName().fullName.split("\\s+");
-        modelManager.updateFilteredPersonList(new NameContainsKeywordsPredicate(List.of(keywords)));
+        modelManager.updateFilteredEmployeeList(new NameContainsKeywordsPredicate(List.of(keywords)));
         assertFalse(modelManager.equals(new ModelManager(addressBook, userPrefs)));
 
         // resets modelManager to initial state for upcoming tests
-        modelManager.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+        modelManager.updateFilteredEmployeeList(PREDICATE_SHOW_ALL_EMPLOYEES);
 
         // different userPrefs -> returns false
         UserPrefs differentUserPrefs = new UserPrefs();

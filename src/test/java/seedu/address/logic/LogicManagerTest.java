@@ -1,24 +1,34 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.DEPARTMENT_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.DEPARTMENT_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.ID_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.ID_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.ROLE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.ROLE_DESC_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
+import static seedu.address.testutil.TypicalEmployees.AMY;
+import static seedu.address.testutil.TypicalEmployees.BOB;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ArchiveCommand;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -27,11 +37,10 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
+import seedu.address.model.employee.Employee;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -55,19 +64,19 @@ public class LogicManagerTest {
     @Test
     public void execute_invalidCommandFormat_throwsParseException() {
         String invalidCommand = "uicfhmowqewca";
-        assertParseException(invalidCommand, MESSAGE_UNKNOWN_COMMAND);
+        assertParseException(invalidCommand, String.format(MESSAGE_UNKNOWN_COMMAND, invalidCommand));
     }
 
     @Test
     public void execute_commandExecutionError_throwsCommandException() {
-        String deleteCommand = "delete 9";
-        assertCommandException(deleteCommand, MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+        String deleteCommand = "delete id/EMP-0042";
+        assertCommandException(deleteCommand, "No employee with ID EMP-0042 was found.");
     }
 
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_EMPTY_LIST, model);
     }
 
     @Test
@@ -83,8 +92,68 @@ public class LogicManagerTest {
     }
 
     @Test
-    public void getFilteredPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredPersonList().remove(0));
+    public void getFilteredEmployeeList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> logic.getFilteredEmployeeList().remove(0));
+    }
+
+    @Test
+    public void execute_findThenArchive_preservesEmptySearch() throws Exception {
+        logic.execute("add" + ID_DESC_AMY + NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                + DEPARTMENT_DESC_AMY + ROLE_DESC_AMY);
+        logic.execute("add" + ID_DESC_BOB + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                + DEPARTMENT_DESC_BOB + ROLE_DESC_BOB);
+
+        logic.execute("find Amy");
+        assertEquals(List.of(AMY), logic.getFilteredEmployeeList());
+
+        CommandResult archiveResult = logic.execute("archive id/E1001");
+        assertEquals(String.format(ArchiveCommand.MESSAGE_SUCCESS, Messages.format(AMY)),
+                archiveResult.getFeedbackToUser());
+        assertEquals(AMY.withArchived(true), model.getAddressBook().getEmployeeList().getFirst());
+        assertEquals(List.of(), logic.getFilteredEmployeeList());
+
+        List<Employee> storedEmployees = List.copyOf(model.getAddressBook().getEmployeeList());
+        assertThrows(CommandException.class,
+                String.format(AddCommand.MESSAGE_DUPLICATE_ARCHIVED_EMPLOYEE, AMY.getId()), () ->
+                logic.execute("add" + ID_DESC_AMY + NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                        + DEPARTMENT_DESC_AMY + ROLE_DESC_AMY));
+        assertEquals(storedEmployees, model.getAddressBook().getEmployeeList());
+        assertEquals(List.of(), logic.getFilteredEmployeeList());
+        CommandResult findResult = logic.execute("find Amy");
+        assertEquals("0 employees listed!", findResult.getFeedbackToUser());
+    }
+
+    @Test
+    public void execute_listArchivedThenUnarchive_preservesEmptyArchiveView() throws Exception {
+        logic.execute("add" + ID_DESC_AMY + NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                + DEPARTMENT_DESC_AMY + ROLE_DESC_AMY);
+        logic.execute("add" + ID_DESC_BOB + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                + DEPARTMENT_DESC_BOB + ROLE_DESC_BOB);
+        logic.execute("archive id/E1001");
+
+        CommandResult archivesResult = logic.execute("list archived");
+        assertEquals(ListCommand.MESSAGE_ARCHIVED_SUCCESS, archivesResult.getFeedbackToUser());
+        assertEquals(List.of(AMY.withArchived(true)), logic.getFilteredEmployeeList());
+
+        logic.execute("unarchive id/e1001");
+        assertEquals(AMY, model.getAddressBook().getEmployeeList().getFirst());
+        assertEquals(List.of(), logic.getFilteredEmployeeList());
+
+        logic.execute("list");
+        assertEquals(List.of(AMY, BOB), logic.getFilteredEmployeeList());
+    }
+
+    @Test
+    public void execute_clear_persistedArchiveIsPreserved() throws Exception {
+        logic.execute("add" + ID_DESC_AMY + NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY
+                + DEPARTMENT_DESC_AMY + ROLE_DESC_AMY);
+        logic.execute("archive id/E1001");
+        logic.execute("clear");
+
+        ReadOnlyAddressBook savedAddressBook = new JsonAddressBookStorage(
+                temporaryFolder.resolve("addressBook.json")).readAddressBook().orElseThrow();
+        assertEquals(1, savedAddressBook.getEmployeeList().size());
+        assertEquals(AMY.withArchived(true), savedAddressBook.getEmployeeList().getFirst());
     }
 
     /**
@@ -164,11 +233,9 @@ public class LogicManagerTest {
         logic = new LogicManager(model, storage);
 
         // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+        String addCommand = AddCommand.COMMAND_WORD + ID_DESC_AMY + NAME_DESC_AMY + PHONE_DESC_AMY
+                + EMAIL_DESC_AMY + DEPARTMENT_DESC_AMY + ROLE_DESC_AMY;
         ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
         assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
     }
 }

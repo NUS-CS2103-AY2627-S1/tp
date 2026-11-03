@@ -1,22 +1,42 @@
 package seedu.address.logic.parser;
 
+import static seedu.address.logic.Messages.MESSAGE_COMMAND_WORDS_ARE_LOWERCASE;
+import static seedu.address.logic.Messages.MESSAGE_DID_YOU_MEAN;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.ArchiveCommand;
+import seedu.address.logic.commands.BackupCommand;
+import seedu.address.logic.commands.ChainCommand;
+import seedu.address.logic.commands.CheckCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.ExportCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.ImportCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ManagerCommand;
+import seedu.address.logic.commands.OrgCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.RestoreCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.StatsCommand;
+import seedu.address.logic.commands.TeamCommand;
+import seedu.address.logic.commands.UnarchiveCommand;
+import seedu.address.logic.commands.UnassignManagerCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -52,19 +72,102 @@ public class AddressBookParser {
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
         return switch (commandWord) {
+            case ManagerCommand.COMMAND_WORD -> new ManagerCommandParser().parse(arguments);
+            case UnassignManagerCommand.COMMAND_WORD -> new UnassignManagerCommandParser().parse(arguments);
+            case TeamCommand.COMMAND_WORD -> new TeamCommandParser().parse(arguments);
+            case OrgCommand.COMMAND_WORD -> new OrgCommandParser().parse(arguments);
+            case ChainCommand.COMMAND_WORD -> new ChainCommandParser().parse(arguments);
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ArchiveCommand.COMMAND_WORD -> new ArchiveCommandParser().parse(arguments);
+            case UnarchiveCommand.COMMAND_WORD -> new UnarchiveCommandParser().parse(arguments);
+            case ClearCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, ClearCommand.MESSAGE_USAGE));
+                }
+                yield new ClearCommand();
+            }
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
+            case StatsCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, StatsCommand.MESSAGE_USAGE));
+                }
+                yield new StatsCommand();
+            }
+            case CheckCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, CheckCommand.MESSAGE_USAGE));
+                }
+                yield new CheckCommand();
+            }
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
+            case ImportCommand.COMMAND_WORD -> new ImportCommandParser().parse(arguments);
+            case RestoreCommand.COMMAND_WORD -> new RestoreCommandParser().parse(arguments);
+            case ExportCommand.COMMAND_WORD -> new ExportCommandParser().parse(arguments);
+            case ListCommand.COMMAND_WORD -> {
+                String trimmedArguments = arguments.trim();
+                if (!trimmedArguments.isEmpty() && !trimmedArguments.equals("archived")) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, ListCommand.MESSAGE_USAGE));
+                }
+                yield new ListCommand(trimmedArguments.equals("archived"));
+            }
+            case ExitCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, ExitCommand.MESSAGE_USAGE));
+                }
+                yield new ExitCommand();
+            }
+            case BackupCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, BackupCommand.MESSAGE_USAGE));
+                }
+                yield new BackupCommand();
+            }
+            case UndoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, UndoCommand.MESSAGE_USAGE));
+                }
+                yield new UndoCommand();
+            }
+            case RedoCommand.COMMAND_WORD -> {
+                if (!arguments.isBlank()) {
+                    throw new ParseException(
+                            String.format(MESSAGE_INVALID_COMMAND_FORMAT, RedoCommand.MESSAGE_USAGE));
+                }
+                yield new RedoCommand();
+            }
             case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
-                throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
+                throw new ParseException(getUnknownCommandMessage(commandWord));
             }
         };
+    }
+
+    /**
+     * Returns the message for an unknown {@code commandWord}. If a command is close to the word, the message says
+     * which one, and if the word only differs in letter case, it says that command words are in lowercase.
+     */
+    private static String getUnknownCommandMessage(String commandWord) {
+        String message = String.format(MESSAGE_UNKNOWN_COMMAND, commandWord);
+        Optional<String> suggestion = CommandWords.closestTo(commandWord);
+        if (suggestion.isEmpty()) {
+            return message;
+        }
+        String hint = String.format(MESSAGE_DID_YOU_MEAN, suggestion.get());
+        if (suggestion.get().equalsIgnoreCase(commandWord)) {
+            hint += MESSAGE_COMMAND_WORDS_ARE_LOWERCASE;
+        }
+        return message + "\n" + hint;
     }
 
 }

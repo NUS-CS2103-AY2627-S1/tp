@@ -2,69 +2,44 @@
 !include style.puml
 skinparam ArrowFontStyle plain
 
-box Logic LOGIC_COLOR_T1
-participant ":LogicManager" as LogicManager LOGIC_COLOR
-participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
-participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
-participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
-participant "r:CommandResult" as CommandResult LOGIC_COLOR
-end box
+participant ":LogicManager" as Logic LOGIC_COLOR
+participant ":DeleteCommand" as Command LOGIC_COLOR
+participant "EmployeeCommandSupport" as Support LOGIC_COLOR
+participant ":ModelManager" as Model MODEL_COLOR
+participant ":VersionedAddressBook" as Book MODEL_COLOR
 
-box Model MODEL_COLOR_T1
-participant "m:Model" as Model MODEL_COLOR
-end box
-
-[-> LogicManager : execute("delete 1")
-activate LogicManager
-
-LogicManager -> AddressBookParser : parseCommand("delete 1")
-activate AddressBookParser
-
-create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
-activate DeleteCommandParser
-
-DeleteCommandParser --> AddressBookParser
-deactivate DeleteCommandParser
-
-AddressBookParser -> DeleteCommandParser : parse("1")
-activate DeleteCommandParser
-
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
-activate DeleteCommand
-
-DeleteCommand --> DeleteCommandParser :
-deactivate DeleteCommand
-
-DeleteCommandParser --> AddressBookParser : d
-deactivate DeleteCommandParser
-'Hidden arrow to position the destroy marker below the end of the activation bar.
-DeleteCommandParser -[hidden]-> AddressBookParser
-destroy DeleteCommandParser
-
-AddressBookParser --> LogicManager : d
-deactivate AddressBookParser
-
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
-
-DeleteCommand -> Model : deletePerson(1)
-activate Model
-
-Model --> DeleteCommand
-deactivate Model
-
-create CommandResult
-DeleteCommand -> CommandResult
-activate CommandResult
-
-CommandResult --> DeleteCommand
-deactivate CommandResult
-
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
-
-[<--LogicManager
-deactivate LogicManager
+Logic -> Command : execute(model)
+activate Command
+Command -> Support : find(model, targetId)
+Support -> Model : getAddressBook()
+Model --> Support : addressBook
+Support -> Book : getEmployeeList()
+Book --> Support : complete roster
+Support --> Command : employeeToDelete
+note over Support, Book
+Lookup includes active, archived and hidden employees.
+An unknown ID throws CommandException before mutation.
+end note
+Command -> Command : count direct reports of the target\n(including archived reports)
+Command -> Model : deleteEmployee(employeeToDelete)
+Model -> Book : removeEmployee(employeeToDelete)
+activate Book
+note right of Book
+Remove the target.
+Clear every direct report's manager assignment,
+including archived reports.
+Keep the remaining employees' order and other fields.
+end note
+Book --> Model
+deactivate Book
+Model --> Command
+note over Command, Model
+The existing view predicate and sort comparator remain installed.
+end note
+Command --> Logic : CommandResult(details and affected-report count)
+deactivate Command
+note over Logic, Book
+LogicManager handles checkpoint, history commit and saving.
+See CommandTransaction for success and rollback paths.
+end note
 @enduml
