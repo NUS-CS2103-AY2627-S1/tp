@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.ListView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
-  <ListView fx:id="personListView" VBox.vgrow="ALWAYS" />
+<VBox styleClass="card,client-list-card" xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1">
+  <HBox alignment="CENTER_LEFT" spacing="10" styleClass="client-list-header">
+    <Label text="Clients" styleClass="section-title" />
+    <Label fx:id="shownCount" styleClass="count-badge,mono" />
+  </HBox>
+  <VBox fx:id="personRows" spacing="4" minWidth="0" />
 </VBox>

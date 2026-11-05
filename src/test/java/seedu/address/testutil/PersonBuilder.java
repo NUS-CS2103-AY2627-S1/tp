@@ -1,13 +1,26 @@
 package seedu.address.testutil;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import seedu.address.model.membership.MembershipAssignment;
 import seedu.address.model.person.Address;
+import seedu.address.model.person.BodyProgress;
+import seedu.address.model.person.DietPlan;
+import seedu.address.model.person.DietaryRestrictions;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Goal;
+import seedu.address.model.person.HealthProfile;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.PaymentRecord;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.TrainingSession;
+import seedu.address.model.person.WorkoutPlan;
+import seedu.address.model.person.WorkoutSession;
 import seedu.address.model.tag.Tag;
 import seedu.address.model.util.SampleDataUtil;
 
@@ -20,33 +33,67 @@ public class PersonBuilder {
     public static final String DEFAULT_PHONE = "85355255";
     public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_REMARK = "";
 
+    private BodyProgress bodyProgress;
     private Name name;
     private Phone phone;
     private Email email;
     private Address address;
+    private Remark remark;
     private Set<Tag> tags;
+    private WorkoutPlan workoutPlan;
+    private Optional<DietPlan> dietPlan;
+    private List<TrainingSession> trainingSessions;
+    private Goal goal;
+    private DietaryRestrictions dietaryRestrictions;
+    private HealthProfile healthProfile;
+    private List<WorkoutSession> workoutSessions;
+    private Optional<MembershipAssignment> membershipAssignment;
+    private List<PaymentRecord> paymentRecords;
 
     /**
      * Creates a {@code PersonBuilder} with the default details.
      */
     public PersonBuilder() {
+        bodyProgress = new BodyProgress();
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
         email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
+        remark = new Remark(DEFAULT_REMARK);
         tags = new HashSet<>();
+        workoutPlan = new WorkoutPlan();
+        dietPlan = Optional.empty();
+        trainingSessions = List.of();
+        goal = null;
+        dietaryRestrictions = new DietaryRestrictions();
+        healthProfile = null;
+        workoutSessions = List.of();
+        membershipAssignment = Optional.empty();
+        paymentRecords = List.of();
     }
 
     /**
      * Initializes the PersonBuilder with the data of {@code personToCopy}.
      */
     public PersonBuilder(Person personToCopy) {
+        bodyProgress = personToCopy.getBodyProgress();
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
         email = personToCopy.getEmail();
         address = personToCopy.getAddress();
+        remark = personToCopy.getRemark();
         tags = new HashSet<>(personToCopy.getTags());
+        workoutPlan = personToCopy.getWorkoutPlan();
+        dietPlan = personToCopy.getDietPlan();
+        trainingSessions = personToCopy.getTrainingSessions();
+        goal = personToCopy.getGoal().orElse(null);
+        dietaryRestrictions = personToCopy.getDietaryRestrictions();
+        healthProfile = personToCopy.getHealthProfile().orElse(null);
+        workoutSessions = personToCopy.getWorkoutSessions();
+        membershipAssignment = personToCopy.getMembershipAssignment();
+        paymentRecords = personToCopy.getPaymentRecords();
     }
 
     /**
@@ -89,8 +136,86 @@ public class PersonBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@code Remark} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withRemark(String remark) {
+        this.remark = new Remark(remark);
+        return this;
+    }
+
+    /**
+     * Sets the {@code WorkoutPlan} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withWorkoutPlan(WorkoutPlan workoutPlan) {
+        this.workoutPlan = workoutPlan;
+        return this;
+    }
+
+    /**
+     * Sets the current diet plan of the person being built.
+     */
+    public PersonBuilder withDietPlan(DietPlan dietPlan) {
+        this.dietPlan = Optional.of(dietPlan);
+        return this;
+    }
+
+    /** Sets the fitness goal of the {@code Person} that we are building. */
+    public PersonBuilder withGoal(String goal) {
+        this.goal = new Goal(goal);
+        return this;
+    }
+
+    /** Sets the current dietary restrictions of the person being built. */
+    public PersonBuilder withDietaryRestrictions(String ... restrictions) {
+        this.dietaryRestrictions = restrictions.length == 0
+                ? new DietaryRestrictions() : new DietaryRestrictions(List.of(restrictions));
+        return this;
+    }
+
+    /** Sets the current health considerations of the person being built. */
+    public PersonBuilder withHealthProfile(String healthProfile) {
+        this.healthProfile = new HealthProfile(healthProfile);
+        return this;
+    }
+
+    /**
+     * Sets the recorded workout sessions of the person being built.
+     */
+    public PersonBuilder withWorkoutSessions(List<WorkoutSession> workoutSessions) {
+        this.workoutSessions = List.copyOf(workoutSessions);
+        return this;
+    }
+
+    /**
+     * Sets the membership assignment of the {@code Person} that we are building.
+     */
+    public PersonBuilder withMembershipAssignment(Optional<MembershipAssignment> membershipAssignment) {
+        this.membershipAssignment = membershipAssignment;
+        return this;
+    }
+
+    /**
+     * Builds a {@code Person} with the details set in this builder.
+     */
+    public PersonBuilder withBodyProgress(BodyProgress progress) {
+        bodyProgress = progress;
+        return this;
+    }
+
+    /**
+     * Sets the payment history of the {@code Person} that we are building.
+     */
+    public PersonBuilder withPaymentRecords(List<PaymentRecord> paymentRecords) {
+        this.paymentRecords = List.copyOf(paymentRecords);
+        return this;
+    }
+
+    /** Builds a person retaining every configured field. */
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, email, address, remark, tags,
+                workoutPlan, dietPlan, goal, trainingSessions, workoutSessions,
+                dietaryRestrictions, healthProfile, membershipAssignment, bodyProgress, paymentRecords);
     }
 
 }

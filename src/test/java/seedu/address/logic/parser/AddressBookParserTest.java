@@ -4,26 +4,40 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_REMARK_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddExerciseCommand;
 import seedu.address.logic.commands.ClearCommand;
+import seedu.address.logic.commands.ClearPlanCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteExerciseCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.PayCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.RemarkCommand;
+import seedu.address.logic.commands.UndoCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.person.ClientMatchesAnyPredicate;
+import seedu.address.model.person.Exercise;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.PaymentRecord;
 import seedu.address.model.person.Person;
+import seedu.address.model.person.Remark;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 import seedu.address.testutil.PersonBuilder;
 import seedu.address.testutil.PersonUtil;
@@ -72,7 +86,8 @@ public class AddressBookParserTest {
         List<String> keywords = List.of("foo", "bar", "baz");
         FindCommand command = (FindCommand) parser.parseCommand(
                 FindCommand.COMMAND_WORD + " " + keywords.stream().collect(Collectors.joining(" ")));
-        assertEquals(new FindCommand(new NameContainsKeywordsPredicate(keywords)), command);
+        assertEquals(new FindCommand(new ClientMatchesAnyPredicate(
+                List.of(new NameContainsKeywordsPredicate(keywords)))), command);
     }
 
     @Test
@@ -85,6 +100,72 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_remark() throws Exception {
+        assertEquals(new RemarkCommand(INDEX_FIRST_PERSON, new Remark(VALID_REMARK_AMY)), parser.parseCommand(
+                RemarkCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " r/" + VALID_REMARK_AMY));
+    }
+
+    @Test
+    public void parseCommand_pay() throws Exception {
+        PaymentRecord payment = PaymentRecord.fromText("150", "2026-10-20", Optional.empty());
+        assertEquals(new PayCommand(INDEX_FIRST_PERSON, payment), parser.parseCommand(
+                PayCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased() + " a/150 d/2026-10-20"));
+    }
+
+    @Test
+    public void parseCommand_undo() throws Exception {
+        assertEquals(new UndoCommand(), parser.parseCommand(UndoCommand.COMMAND_WORD));
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, UndoCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(UndoCommand.COMMAND_WORD + " now"));
+    }
+
+    @Test
+    public void parseCommand_redo() throws Exception {
+        assertEquals(new RedoCommand(), parser.parseCommand(RedoCommand.COMMAND_WORD));
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, RedoCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(RedoCommand.COMMAND_WORD + " now"));
+    }
+
+    @Test
+    public void parseCommand_uppercasePay_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, ()
+                -> parser.parseCommand("PAY 1 a/150 d/2026-10-20"));
+    }
+
+    @Test
+    public void parseCommand_payWithLineBreak_throwsParseException() {
+        assertThrows(ParseException.class,
+                String.format(MESSAGE_INVALID_COMMAND_FORMAT, PayCommand.MESSAGE_USAGE), ()
+                -> parser.parseCommand(PayCommand.COMMAND_WORD + " 1 a/150 d/2026-10-20\n"));
+    }
+
+    @Test
+    public void parseCommand_addExercise() throws Exception {
+        Exercise exercise = new Exercise("Bench Press", 3, 10, 60.0);
+        AddExerciseCommand command = (AddExerciseCommand) parser.parseCommand(
+                AddExerciseCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                        + " n/Bench Press s/3 r/10 w/60");
+        assertEquals(new AddExerciseCommand(INDEX_FIRST_PERSON, exercise), command);
+    }
+
+    @Test
+    public void parseCommand_deleteExercise() throws Exception {
+        DeleteExerciseCommand command = (DeleteExerciseCommand) parser.parseCommand(
+                DeleteExerciseCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased()
+                        + " " + INDEX_SECOND_PERSON.getOneBased());
+        assertEquals(new DeleteExerciseCommand(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), command);
+    }
+
+    @Test
+    public void parseCommand_clearPlan() throws Exception {
+        ClearPlanCommand command = (ClearPlanCommand) parser.parseCommand(
+                ClearPlanCommand.COMMAND_WORD + " " + INDEX_FIRST_PERSON.getOneBased());
+        assertEquals(new ClearPlanCommand(INDEX_FIRST_PERSON), command);
     }
 
     @Test

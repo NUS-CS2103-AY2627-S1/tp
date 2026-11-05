@@ -1,14 +1,42 @@
-[![CI Status](https://github.com/se-edu/addressbook-level3/workflows/Java%20CI/badge.svg)](https://github.com/se-edu/addressbook-level3/actions)
+# Fittix
 
-![Ui](docs/images/Ui.png)
+[![Java CI](https://github.com/AY2627S1-CS2103T-T14-1/tp/actions/workflows/gradle.yml/badge.svg)](https://github.com/AY2627S1-CS2103T-T14-1/tp/actions/workflows/gradle.yml)
 
-* This is **a sample project for Software Engineering (SE) students**.<br>
-  Example usages:
-  * as a starting point of a course project (as opposed to writing everything from scratch)
-  * as a case study
-* The project simulates an ongoing software project for a desktop application (called _AddressBook_) used for managing contact details.
-  * It is **written in an object-oriented programming (OOP) style** and provides a **reasonably well-written** codebase of about 6 KLoC. It is **larger** than what students typically write in beginner-level software-engineering modules, without being overwhelming.
-  * It comes with a **reasonable level of user and developer documentation**.
-* It is named `AddressBook Level 3` (`AB3` for short) because it was initially created as a part of a series of `AddressBook` projects (`Level 1`, `Level 2`, `Level 3` ...).
-* For the detailed documentation of this project, see the **[Address Book Product Website](https://se-education.org/addressbook-level3)**.
-* This project is a **part of the se-education.org** initiative. If you would like to contribute code to this project, see [se-education.org](https://se-education.org/#contributing-to-se-edu) for more info.
+Fittix is a desktop application for gym trainers to manage their clients and training work in one place. It is designed for trainers who need quick access to client information between sessions and prefer a command-driven workflow.
+
+Fittix brings together:
+
+* Client contact details, fitness goals, health information, and dietary restrictions
+* Weekly workout plans and logs of completed sessions, including exercises, weights, sets, and repetitions
+* Training appointments and meetings, scheduling conflict checks, and inactive-client monitoring
+* Diet targets, notes, and body progress records
+* Membership plans, remaining sessions, and payment records
+* Undo and redo for changes to saved client and membership data
+
+![Fittix workspace with demonstration client records](docs/images/Ui.png)
+
+The screenshot shows the current development workspace using demonstration client records.
+
+## Getting started
+
+1. Install Java **25**. Mac users should follow the [course's Java installation instructions](https://se-education.org/guides/tutorials/javaInstallationMac.html).
+2. Download the JAR from the **Assets** section of the [latest release](https://github.com/AY2627S1-CS2103T-T14-1/tp/releases/latest).
+3. Place it in a folder where you have write permission and rename it to `fittix.jar`.
+4. Open a terminal in that folder and run:
+
+   ```text
+   java -jar fittix.jar
+   ```
+
+Fittix stores its `data` folder and `preferences.json` in the terminal's current folder. Start it from the same folder each time to use the same client records. Follow the [User Guide's quick start](https://ay2627s1-cs2103t-t14-1.github.io/tp/UserGuide.html#quick-start) for the interface and example commands.
+
+## Documentation
+
+* [Product website](https://ay2627s1-cs2103t-t14-1.github.io/tp/)
+* [User Guide](https://ay2627s1-cs2103t-t14-1.github.io/tp/UserGuide.html): installation, commands, examples, and troubleshooting
+* [Developer Guide](https://ay2627s1-cs2103t-t14-1.github.io/tp/DeveloperGuide.html): setup, architecture, implementation, and testing
+* [About Us](https://ay2627s1-cs2103t-t14-1.github.io/tp/AboutUs.html): the Fittix team
+
+## Acknowledgements
+
+This project is based on the AddressBook Level 3 project created by the [SE-EDU initiative](https://se-education.org).

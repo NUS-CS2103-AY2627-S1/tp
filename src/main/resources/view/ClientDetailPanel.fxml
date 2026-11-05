@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <VBox fx:id="selectedContent" spacing="16" minWidth="0">
+    <VBox spacing="16" styleClass="card,profile-card">
+      <FlowPane hgap="14" vgap="8" minWidth="0" styleClass="profile-heading">
+        <Label fx:id="profileIndex" alignment="CENTER" minWidth="40" minHeight="40"
+               styleClass="profile-index,mono" />
+        <Label fx:id="clientName" wrapText="true" minWidth="0" styleClass="profile-name" />
+        <FlowPane fx:id="profileTags" hgap="6" vgap="4" minWidth="0" />
+      </FlowPane>
+      <GridPane hgap="24" vgap="16" styleClass="profile-grid">
+        <columnConstraints>
+          <ColumnConstraints percentWidth="50" />
+          <ColumnConstraints percentWidth="50" />
+        </columnConstraints>
+        <VBox spacing="5" minWidth="0" styleClass="profile-field">
+          <Label text="PHONE" styleClass="caps-label" />
+          <Label fx:id="phone" wrapText="true" maxWidth="Infinity" styleClass="profile-value,mono" />
+        </VBox>
+        <VBox spacing="5" minWidth="0" styleClass="profile-field" GridPane.columnIndex="1">
+          <Label text="EMAIL" styleClass="caps-label" />
+          <Label fx:id="email" wrapText="true" maxWidth="Infinity" styleClass="profile-value" />
+        </VBox>
+        <VBox spacing="5" minWidth="0" styleClass="profile-field" GridPane.rowIndex="1">
+          <Label text="ADDRESS" styleClass="caps-label" />
+          <Label fx:id="address" wrapText="true" maxWidth="Infinity" styleClass="profile-value" />
+        </VBox>
+        <VBox spacing="5" minWidth="0" styleClass="profile-field" GridPane.columnIndex="1" GridPane.rowIndex="1">
+          <Label text="GOAL" styleClass="caps-label,goal-label" />
+          <Label fx:id="goal" wrapText="true" maxWidth="Infinity" styleClass="profile-value,goal-value" />
+        </VBox>
+      </GridPane>
+      <VBox fx:id="healthProfileBox" spacing="5" styleClass="remark-box">
+        <Label text="HEALTH CONSIDERATIONS" styleClass="caps-label" />
+        <Label fx:id="healthProfile" wrapText="true" styleClass="profile-value" />
+      </VBox>
+      <VBox fx:id="remarkBox" spacing="5" styleClass="remark-box">
+        <Label text="REMARK" styleClass="caps-label" />
+        <Label fx:id="remark" wrapText="true" styleClass="profile-value" />
+      </VBox>
+    </VBox>
+
+    <VBox spacing="8" styleClass="card,workout-card" VBox.vgrow="ALWAYS">
+      <HBox alignment="CENTER_LEFT" spacing="8" styleClass="workout-header">
+        <Label text="Workout plan" styleClass="section-title" />
+        <Label fx:id="planSummary" wrapText="true" styleClass="muted" />
+      </HBox>
+      <VBox fx:id="workoutRows" />
+    </VBox>
+  </VBox>
+  <VBox fx:id="emptyContent" minHeight="320" styleClass="card,detail-empty" />
+</StackPane>

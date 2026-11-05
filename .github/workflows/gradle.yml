@@ -6,7 +6,8 @@ jobs:
   build:
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        # Use the Intel macOS pool to avoid recurring hosted ARM runner capacity failures.
+        platform: [ubuntu-latest, macos-15-intel, windows-latest]
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -26,10 +27,15 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '25'
-          java-package: jdk+fx
+          java-package: jdk
+
+      - name: Build and check with Gradle (Linux virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a ./gradlew check coverage universalJarSmokeTest
 
       - name: Build and check with Gradle
-        run: ./gradlew check coverage
+        if: runner.os != 'Linux'
+        run: ./gradlew check coverage universalJarSmokeTest
 
       - name: Upload coverage reports to Codecov
         if: runner.os == 'Linux'

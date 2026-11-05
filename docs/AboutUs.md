@@ -1,59 +1,54 @@
 ---
-layout: page
+layout: default
 title: About Us
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+<div class="fittix-about">
+  <header class="about-intro">
+    <p class="fittix-eyebrow">THE PEOPLE BEHIND FITTIX</p>
+    <h1>About Us</h1>
+    <p>We are a team based in the <a href="https://www.comp.nus.edu.sg">School of Computing, National University of Singapore</a>, building Fittix for gym trainers.</p>
+    <p>For bug reports and suggestions, visit the <a href="https://github.com/AY2627S1-CS2103T-T14-1/tp/issues">Fittix issue tracker</a>.</p>
+  </header>
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
-## Project team
-
-### John Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Team Lead
-* Responsibilities: UI
-
-### Johnny Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Data
-
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
-
-### James Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
-
-* Role: Developer
-* Responsibilities: UI
+  <section aria-labelledby="project-team">
+    <h2 id="project-team">Project team</h2>
+    <div class="about-team">
+      <article class="about-card">
+        <img src="images/winhks25.png" alt="Portrait of Win Htut Khaung Soe">
+        <h3>Win Htut Khaung Soe</h3>
+        <p class="about-role">Developer</p>
+        <p>Workout plans, membership plans, and payment records.</p>
+        <p class="about-links"><a href="https://winhks25.github.io/winhtutkhaungsoe/">Win's homepage</a><a href="https://github.com/winhks25">Win's GitHub</a></p>
+      </article>
+      <article class="about-card">
+        <img src="images/itzkhoadao.png" alt="Portrait of Dao Anh Khoa">
+        <h3>Dao Anh Khoa</h3>
+        <p class="about-role">Developer</p>
+        <p>Diet plans and body progress tracking.</p>
+        <p class="about-links"><a href="https://www.linkedin.com/in/anhkhoadao/">Khoa's LinkedIn</a><a href="https://github.com/itzkhoadao">Khoa's GitHub</a></p>
+      </article>
+      <article class="about-card">
+        <img src="images/hienpahm.png" alt="Portrait of Pham Doan Gia Hien">
+        <h3>Pham Doan Gia Hien</h3>
+        <p class="about-role">Developer</p>
+        <p>Training schedules, advanced scheduling, and client monitoring.</p>
+        <p class="about-links"><a href="https://github.com/HienPahm">Hien's GitHub</a></p>
+      </article>
+      <article class="about-card">
+        <img src="images/fikoww.png" alt="Portrait of Frederico Samuel Halim">
+        <h3>Frederico Samuel Halim</h3>
+        <p class="about-role">Developer</p>
+        <p>Workout logging, workout history, and undo/redo.</p>
+        <p class="about-links"><a href="https://github.com/fikoww">Frederico's GitHub</a></p>
+      </article>
+      <article class="about-card">
+        <img src="images/zkw2004.png" alt="Portrait of Zhang Kaiwen">
+        <h3>Zhang Kaiwen</h3>
+        <p class="about-role">Developer</p>
+        <p>Client details and search, fitness goals, health considerations, dietary restrictions, and desktop UI.</p>
+        <p class="about-links"><a href="https://www.linkedin.com/in/zhang-kaiwen2004/">Kaiwen's LinkedIn</a><a href="https://github.com/zkw2004">Kaiwen's GitHub</a></p>
+      </article>
+    </div>
+  </section>
+</div>

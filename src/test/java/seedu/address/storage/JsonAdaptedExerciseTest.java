@@ -1,0 +1,150 @@
+package seedu.address.storage;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static seedu.address.storage.JsonAdaptedExercise.MISSING_FIELD_MESSAGE_FORMAT;
+import static seedu.address.testutil.Assert.assertThrows;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.JsonUtil;
+import seedu.address.logic.Messages;
+import seedu.address.model.person.Exercise;
+import seedu.address.model.person.WorkoutPlan;
+
+public class JsonAdaptedExerciseTest {
+    private static final String VALID_NAME = "Bench Press";
+    private static final int VALID_SETS = 3;
+    private static final int VALID_REPS = 10;
+    private static final double VALID_WEIGHT = 60.5;
+
+    private static final String INVALID_NAME = " ";
+    private static final int INVALID_SETS = 0;
+    private static final int INVALID_REPS = -1;
+    private static final double INVALID_WEIGHT = -5.0;
+
+    @Test
+    public void toModelType_validExerciseDetails_returnsExercise() throws Exception {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS, VALID_WEIGHT);
+        assertEquals(new Exercise(VALID_NAME, VALID_SETS, VALID_REPS, VALID_WEIGHT), exercise.toModelType());
+    }
+
+    @Test
+    public void jsonRoundTrip_taggedExercise_preservesDay() throws Exception {
+        Exercise tagged = new Exercise(VALID_NAME, VALID_SETS, VALID_REPS, VALID_WEIGHT, "Saturday");
+        String json = JsonUtil.toJsonString(new JsonAdaptedExercise(tagged));
+        assertEquals(tagged, JsonUtil.fromJsonString(json, JsonAdaptedExercise.class).toModelType());
+    }
+
+    @Test
+    public void jsonWithoutDay_loadsAsUnspecified() throws Exception {
+        String json = "{\"name\":\"Bench Press\",\"sets\":3,\"reps\":10,\"weightKg\":60.5}";
+        assertEquals(new Exercise(VALID_NAME, VALID_SETS, VALID_REPS, VALID_WEIGHT),
+                JsonUtil.fromJsonString(json, JsonAdaptedExercise.class).toModelType());
+    }
+
+    @Test
+    public void toModelType_invalidSavedDay_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise = new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS,
+                VALID_WEIGHT, "Funday");
+        assertThrows(IllegalValueException.class, "Invalid exercise day: Funday", exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_weekdayPrefix_loadsCanonicalDay() throws Exception {
+        JsonAdaptedExercise exercise = new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS,
+                VALID_WEIGHT, "wEd");
+        assertEquals("Wednesday", exercise.toModelType().getDay());
+    }
+
+    @Test
+    public void jsonLegacyUnspecifiedDays_loadUnderOneHeading() throws Exception {
+        String json = "{\"name\":\"Shoulder Press\",\"sets\":1,\"reps\":1,\"weightKg\":0,\"day\":\"%s\"}";
+        for (String day : List.of("day not specified", "Day not specified", " DAY NOT SPECIFIED ")) {
+            Exercise loaded = JsonUtil.fromJsonString(String.format(json, day),
+                    JsonAdaptedExercise.class).toModelType();
+            assertEquals("", loaded.getDay());
+            WorkoutPlan plan = new WorkoutPlan(List.of(
+                    new Exercise("Sit Up", 3, 20, 0), loaded,
+                    new Exercise("Jumping Jacks", 3, 30, 0)));
+            assertEquals("(3):\n**Day not specified**\n1. Sit Up 3x20 @0kg\n"
+                    + "2. Shoulder Press 1x1 @0kg\n3. Jumping Jacks 3x30 @0kg",
+                    Messages.formatWorkoutPlan(plan));
+            assertEquals(List.of("Day not specified"), Messages.getExercisesInDisplayOrder(plan).stream()
+                    .map(item -> Messages.getExerciseDayHeading(item.exercise())).distinct().toList());
+            assertEquals(loaded, JsonUtil.fromJsonString(
+                    JsonUtil.toJsonString(new JsonAdaptedExercise(loaded)), JsonAdaptedExercise.class).toModelType());
+        }
+    }
+
+    @Test
+    public void toModelType_nullName_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(null, VALID_SETS, VALID_REPS, VALID_WEIGHT);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, "name");
+        assertThrows(IllegalValueException.class, expectedMessage, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidName_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(INVALID_NAME, VALID_SETS, VALID_REPS, VALID_WEIGHT);
+        assertThrows(IllegalValueException.class, Exercise.MESSAGE_CONSTRAINTS_NAME, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullSets_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, null, VALID_REPS, VALID_WEIGHT);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, "sets");
+        assertThrows(IllegalValueException.class, expectedMessage, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidSets_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, INVALID_SETS, VALID_REPS, VALID_WEIGHT);
+        assertThrows(IllegalValueException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullReps_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, VALID_SETS, null, VALID_WEIGHT);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, "reps");
+        assertThrows(IllegalValueException.class, expectedMessage, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_invalidReps_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, VALID_SETS, INVALID_REPS, VALID_WEIGHT);
+        assertThrows(IllegalValueException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullWeight_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS, null);
+        String expectedMessage = String.format(MISSING_FIELD_MESSAGE_FORMAT, "weightKg");
+        assertThrows(IllegalValueException.class, expectedMessage, exercise::toModelType);
+    }
+
+    @Test
+    public void toModelType_nonFiniteWeight_throwsIllegalValueException() {
+        for (double weight : new double[] {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN}) {
+            JsonAdaptedExercise exercise = new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS, weight);
+            assertThrows(IllegalValueException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, exercise::toModelType);
+        }
+    }
+
+    @Test
+    public void toModelType_invalidWeight_throwsIllegalValueException() {
+        JsonAdaptedExercise exercise =
+                new JsonAdaptedExercise(VALID_NAME, VALID_SETS, VALID_REPS, INVALID_WEIGHT);
+        assertThrows(IllegalValueException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, exercise::toModelType);
+    }
+}

@@ -3,10 +3,10 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GOAL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -18,14 +18,16 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Goal;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.Remark;
+import seedu.address.model.person.WorkoutPlan;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -43,14 +45,28 @@ public class EditCommand extends Command {
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_GOAL + "GOAL] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited client: %1$s; Phone: %2$s.";
+    public static final String MESSAGE_INDEX_REQUIRED = "Client index is required. Use: edit INDEX "
+            + "[n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [g/GOAL] [t/TAG]...";
+    public static final String MESSAGE_INVALID_INDEX =
+            "The client index must be a positive whole number shown in the client list.";
+    public static final String MESSAGE_OUT_OF_RANGE = "No client exists at index %d.";
+    public static final String MESSAGE_REPEATED_PREFIX =
+            "The n/, p/, e/, a/ and g/ prefixes may each be used only once. Repeat t/ for multiple tags.";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
     public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_NO_CHANGES =
+            "No changes made: the new values are the same as the current details.";
+    public static final String MESSAGE_UNRECOGNIZED_PREFIX =
+            "Parameter '%1$s' is not a valid parameter prefix. Recognized parameter prefixes are: "
+            + "n/ (name), p/ (phone), e/ (email), a/ (address), g/ (goal) and t/ (tag).";
+    public static final String MESSAGE_DID_YOU_MEAN = "Did you mean '%1$s'?";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -73,19 +89,24 @@ public class EditCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            throw new CommandException(String.format(MESSAGE_OUT_OF_RANGE, index.getOneBased()));
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+
+        // TODO: compare normalised values once add-client validation is merged.
+        if (personToEdit.equals(editedPerson)) {
+            throw new CommandException(MESSAGE_NO_CHANGES);
+        }
 
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
         model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS,
+                editedPerson.getName(), editedPerson.getPhone()));
     }
 
     /**
@@ -99,9 +120,18 @@ public class EditCommand extends Command {
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Remark updatedRemark = personToEdit.getRemark();
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        WorkoutPlan updatedWorkoutPlan = personToEdit.getWorkoutPlan();
+        Goal updatedGoal = editPersonDescriptor.isGoalCleared() ? null
+                : editPersonDescriptor.getGoal().orElse(personToEdit.getGoal().orElse(null));
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedRemark, updatedTags,
+                updatedWorkoutPlan, personToEdit.getDietPlan(), updatedGoal,
+                personToEdit.getTrainingSessions(), personToEdit.getWorkoutSessions(),
+                personToEdit.getDietaryRestrictions(), personToEdit.getHealthProfile().orElse(null),
+                personToEdit.getMembershipAssignment(), personToEdit.getBodyProgress(),
+                personToEdit.getPaymentRecords());
     }
 
     @Override
@@ -137,6 +167,8 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Goal goal;
+        private boolean isGoalCleared;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +182,15 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            goal = toCopy.goal;
+            isGoalCleared = toCopy.isGoalCleared;
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags, goal) || isGoalCleared;
         }
 
         public void setName(Name name) {
@@ -191,6 +225,25 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
+        public void setGoal(Goal goal) {
+            this.goal = goal;
+            isGoalCleared = false;
+        }
+
+        /** Clears the fitness goal. */
+        public void clearGoal() {
+            goal = null;
+            isGoalCleared = true;
+        }
+
+        public Optional<Goal> getGoal() {
+            return Optional.ofNullable(goal);
+        }
+
+        public boolean isGoalCleared() {
+            return isGoalCleared;
+        }
+
         /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
@@ -223,7 +276,9 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(goal, otherEditPersonDescriptor.goal)
+                    && isGoalCleared == otherEditPersonDescriptor.isGoalCleared;
         }
 
         @Override
@@ -234,6 +289,8 @@ public class EditCommand extends Command {
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
+                    .add("goal", goal)
+                    .add("isGoalCleared", isGoalCleared)
                     .toString();
         }
     }

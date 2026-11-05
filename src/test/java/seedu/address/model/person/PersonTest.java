@@ -2,15 +2,24 @@ package seedu.address.model.person;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 import static seedu.address.testutil.TypicalPersons.BOB;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +34,27 @@ public class PersonTest {
     }
 
     @Test
+    public void dietPlan_defaultsToAbsentAndRejectsNullOptional() {
+        assertTrue(ALICE.getDietPlan().isEmpty());
+        assertThrows(NullPointerException.class, () -> new Person(ALICE.getName(), ALICE.getPhone(),
+                ALICE.getEmail(), ALICE.getAddress(), ALICE.getRemark(), ALICE.getTags(),
+                ALICE.getWorkoutPlan(), null));
+    }
+
+    @Test
+    public void dietPlan_affectsValueEqualityButNotIdentity() {
+        DietPlan plan = new DietPlan("1800 kcal", "Lean protein");
+        Person plannedAlice = new PersonBuilder(ALICE).withDietPlan(plan).build();
+        Person copy = new PersonBuilder(plannedAlice).build();
+        assertEquals(plan, plannedAlice.getDietPlan().orElseThrow());
+        assertEquals(plannedAlice, copy);
+        assertEquals(plannedAlice.hashCode(), copy.hashCode());
+        assertTrue(ALICE.isSamePerson(plannedAlice));
+        assertFalse(ALICE.equals(plannedAlice));
+        assertFalse(plannedAlice.equals(new PersonBuilder(ALICE).withDietPlan(new DietPlan("2000 kcal")).build()));
+    }
+
+    @Test
     public void isSamePerson() {
         // same object -> returns true
         assertTrue(ALICE.isSamePerson(ALICE));
@@ -32,23 +62,39 @@ public class PersonTest {
         // null -> returns false
         assertFalse(ALICE.isSamePerson(null));
 
-        // same name, all other attributes different -> returns true
-        Person editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_BOB)
+        // same name and phone, all other attributes different -> returns true
+        Person editedAlice = new PersonBuilder(ALICE).withEmail(VALID_EMAIL_BOB)
                 .withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND).build();
         assertTrue(ALICE.isSamePerson(editedAlice));
 
-        // different name, all other attributes same -> returns false
+        // same name, different phone -> returns false
+        editedAlice = new PersonBuilder(ALICE).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // same phone, different name -> returns false
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // different name and phone -> returns false
+        editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(ALICE.isSamePerson(editedAlice));
+
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
+        assertTrue(BOB.isSamePerson(editedBob));
+        assertTrue(editedBob.isSamePerson(BOB));
+
+        // name differs in case, different phone -> returns false
+        editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).withPhone(VALID_PHONE_AMY).build();
         assertFalse(BOB.isSamePerson(editedBob));
 
-        // name has trailing spaces, all other attributes same -> returns false
+        // name has extra whitespace, all other attributes same -> returns true
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
         editedBob = new PersonBuilder(BOB).withName(nameWithTrailingSpaces).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+
+        editedBob = new PersonBuilder(BOB).withName("Bob  Choo").build();
+        assertTrue(BOB.isSamePerson(editedBob));
     }
 
     @Test
@@ -85,15 +131,152 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // different remark -> returns false
+        editedAlice = new PersonBuilder(ALICE).withRemark("Likes to swim.").build();
+        assertFalse(ALICE.equals(editedAlice));
+
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(ALICE.equals(editedAlice));
+
+        // different workoutPlan -> returns false
+        editedAlice = new PersonBuilder(ALICE)
+                .withWorkoutPlan(ALICE.getWorkoutPlan().addExercise(
+                        new Exercise("Bench Press", 3, 10, 60.0)))
+                .build();
         assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
+    public void constructor_sevenArgsAndGetter() {
+        Person person = new PersonBuilder().build();
+        assertEquals(new WorkoutPlan(), person.getWorkoutPlan());
+    }
+
+    @Test
     public void toStringMethod() {
-        String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+        String expected = Person.class.getCanonicalName()
+                + "{name=" + ALICE.getName()
+                + ", phone=" + ALICE.getPhone()
+                + ", email=" + ALICE.getEmail()
+                + ", address=" + ALICE.getAddress()
+                + ", remark=" + ALICE.getRemark()
+                + ", tags=" + ALICE.getTags()
+                + ", workoutPlan=" + ALICE.getWorkoutPlan()
+                + ", dietPlan=" + ALICE.getDietPlan()
+                + ", dietaryRestrictions=" + ALICE.getDietaryRestrictions()
+                + ", goal=" + ALICE.getGoal().orElse(null)
+                + ", healthProfile=" + ALICE.getHealthProfile().orElse(null)
+                + ", trainingSessions=" + ALICE.getTrainingSessions()
+                + ", workoutSessions=" + ALICE.getWorkoutSessions()
+                + ", membershipAssignment=" + ALICE.getMembershipAssignment()
+                + ", bodyProgress=" + ALICE.getBodyProgress()
+                + ", paymentRecords=" + ALICE.getPaymentRecords()
+                + "}";
         assertEquals(expected, ALICE.toString());
+    }
+
+    @Test
+    public void goal_affectsValueEqualityButNotIdentity() {
+        Person goalAlice = new PersonBuilder(ALICE).withGoal("Build strength").build();
+        assertEquals(new Goal("Build strength"), goalAlice.getGoal().orElseThrow());
+        assertFalse(ALICE.equals(goalAlice));
+        assertTrue(ALICE.isSamePerson(goalAlice));
+    }
+
+    @Test
+    public void workoutSessions_copyPreservesGoalAndValueEquality() {
+        WorkoutSession session = new WorkoutSession(LocalDate.of(2020, 1, 15), Optional.empty(),
+                List.of(new WorkoutLogEntry("Back squat", new BigDecimal("60"), 3, 10)));
+        Person goalAlice = new PersonBuilder(ALICE).withGoal("Build strength").build();
+        Person loggedAlice = new PersonBuilder(goalAlice).withWorkoutSessions(List.of(session)).build();
+        Person copy = new PersonBuilder(loggedAlice).build();
+
+        assertEquals(loggedAlice, copy);
+        assertEquals(loggedAlice.hashCode(), copy.hashCode());
+        assertEquals(goalAlice.getGoal(), copy.getGoal());
+        assertEquals(List.of(session), copy.getWorkoutSessions());
+        assertFalse(goalAlice.equals(loggedAlice));
+        assertTrue(goalAlice.isSamePerson(loggedAlice));
+    }
+
+    @Test
+    public void healthAndDietaryRestrictions_surviveIndependentUpdates() {
+        Person person = new PersonBuilder().withDietaryRestrictions("Peanut allergy")
+                .withHealthProfile("Avoid jumping").build();
+        Person clearedHealth = person.withHealthProfile(null);
+        assertEquals(person.getDietaryRestrictions(), clearedHealth.getDietaryRestrictions());
+        assertTrue(clearedHealth.getHealthProfile().isEmpty());
+
+        Person clearedRestrictions = person.withDietaryRestrictions(new DietaryRestrictions());
+        assertEquals(person.getHealthProfile(), clearedRestrictions.getHealthProfile());
+        assertEquals(person, new PersonBuilder(person).build());
+    }
+
+    @Test
+    public void constructor_workoutSessions_defensivelyCopiesList() {
+        WorkoutSession session = new WorkoutSession(LocalDate.of(2020, 1, 15), Optional.empty(),
+                List.of(new WorkoutLogEntry("Back squat", new BigDecimal("60"), 3, 10)));
+        List<WorkoutSession> sessions = new ArrayList<>(List.of(session));
+        Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getRemark(), ALICE.getTags(), ALICE.getWorkoutPlan(), ALICE.getDietPlan(), null,
+                List.of(), sessions);
+
+        sessions.clear();
+
+        assertEquals(List.of(session), person.getWorkoutSessions());
+        assertThrows(UnsupportedOperationException.class, () -> person.getWorkoutSessions().clear());
+    }
+
+    @Test
+    public void paymentRecords_areImmutableAndAppendWithoutMutatingSource() {
+        Person person = new PersonBuilder().build();
+        PaymentRecord payment = PaymentRecord.fromText("150", "2026-01-15", Optional.of("Initial fee"));
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                person.getPaymentRecords().clear());
+
+        Person oncePaid = person.withAddedPayment(payment);
+        Person twicePaid = oncePaid.withAddedPayment(payment);
+
+        assertTrue(person.getPaymentRecords().isEmpty());
+        assertEquals(List.of(payment), oncePaid.getPaymentRecords());
+        assertEquals(List.of(payment, payment), twicePaid.getPaymentRecords());
+        assertEquals(new PersonBuilder(person).build(), person);
+    }
+
+    @Test
+    public void paymentRecords_affectValueEqualityButNotIdentity() {
+        PaymentRecord first = PaymentRecord.fromText("150", "2026-01-15", Optional.of("Initial fee"));
+        PaymentRecord second = PaymentRecord.fromText("75", "2026-02-01", Optional.empty());
+        Person firstPaid = new PersonBuilder(ALICE).withPaymentRecords(List.of(first)).build();
+        Person secondPaid = new PersonBuilder(ALICE).withPaymentRecords(List.of(second)).build();
+        Person duplicatePaid = new PersonBuilder(ALICE)
+                .withPaymentRecords(List.of(first, first)).build();
+
+        assertNotEquals(firstPaid, secondPaid);
+        assertNotEquals(firstPaid.hashCode(), secondPaid.hashCode());
+        assertNotEquals(firstPaid, duplicatePaid);
+        assertTrue(firstPaid.isSamePerson(secondPaid));
+        assertTrue(ALICE.isSamePerson(firstPaid));
+        assertTrue(firstPaid.toString().contains("paymentRecords=" + List.of(first)));
+    }
+
+    @Test
+    public void withCopyMethods_preservesPaymentRecords() {
+        PaymentRecord payment = PaymentRecord.fromText("150", "2026-01-15", Optional.of("Initial fee"));
+        Person person = new PersonBuilder().withPaymentRecords(List.of(payment, payment)).build();
+        List<PaymentRecord> expected = List.of(payment, payment);
+        assertEquals(expected, person.getPaymentRecords());
+
+        BodyProgress progress = new BodyProgress(Optional.of(new BodyBaseline(LocalDate.of(2026, 1, 1),
+                new BigDecimal("70"), new BigDecimal("175"))), List.of());
+        assertEquals(expected, person.withBodyProgress(progress).getPaymentRecords());
+        assertEquals(expected, person.withMembershipAssignment(Optional.empty()).getPaymentRecords());
+        assertEquals(expected, person.withTrainingSession(
+                new TrainingSession(LocalDateTime.of(2026, 2, 1, 9, 0), "Gym")).getPaymentRecords());
+        assertEquals(expected, person.withDietaryRestrictions(
+                new DietaryRestrictions(List.of("Peanuts"))).getPaymentRecords());
+        assertEquals(expected, person.withHealthProfile(new HealthProfile("Asthma")).getPaymentRecords());
     }
 }

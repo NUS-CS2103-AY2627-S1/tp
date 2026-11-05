@@ -10,6 +10,10 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -48,19 +52,23 @@ task coverage(type: JacocoReport) {
 dependencies {
     String jUnitVersion = '5.14.4'
     String javaFxVersion = '17.0.7'
+    String osName = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+    String osArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+    String javaFxPlatform
+    if (osName.contains('mac')) {
+        javaFxPlatform = osArch == 'aarch64' || osArch == 'arm64' ? 'mac-aarch64' : 'mac'
+    } else if (osName.contains('win')) {
+        javaFxPlatform = 'win'
+    } else if (osName.contains('linux')) {
+        javaFxPlatform = osArch == 'aarch64' || osArch == 'arm64' ? 'linux-aarch64' : 'linux'
+    } else {
+        throw new GradleException("Unsupported operating system for JavaFX: ${osName} (${osArch})")
+    }
 
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-base:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-controls:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:linux"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:win"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:mac"
-    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:linux"
+    implementation "org.openjfx:javafx-base:${javaFxVersion}:${javaFxPlatform}"
+    implementation "org.openjfx:javafx-controls:${javaFxVersion}:${javaFxPlatform}"
+    implementation "org.openjfx:javafx-fxml:${javaFxVersion}:${javaFxPlatform}"
+    implementation "org.openjfx:javafx-graphics:${javaFxVersion}:${javaFxPlatform}"
 
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.7.0'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.7.4'
@@ -69,6 +77,7 @@ dependencies {
 
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${jUnitVersion}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.14.4'
+    testRuntimeOnly 'org.testfx:openjfx-monocle:17.0.10@jar'
 }
 
 shadowJar {
@@ -76,3 +85,5 @@ shadowJar {
 }
 
 defaultTasks 'clean', 'test'
+
+apply from: 'gradle/universal-jar.gradle'

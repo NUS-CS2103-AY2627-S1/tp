@@ -1,5 +1,6 @@
 package seedu.address.logic.parser;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
@@ -26,6 +27,7 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GOAL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -39,6 +41,7 @@ import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Goal;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
@@ -46,7 +49,34 @@ import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
+    private static final String GOAL_DESC = " g/Build strength";
+    private static final String INVALID_GOAL_DESC = " g/!!!";
+
     private AddCommandParser parser = new AddCommandParser();
+
+    @Test
+    public void parse_issue244HyphenatedName_success() {
+        Person expected = new PersonBuilder().withName("Anne-Marie Tan").withPhone("92345678")
+                .withEmail("annemarie@example.com").withAddress("123 Test Road").withTags().build();
+        assertParseSuccess(parser, " n/Anne-Marie Tan p/92345678 e/annemarie@example.com a/123 Test Road",
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_addressAtLengthLimit_success() {
+        String address = "A".repeat(200);
+        Person expected = new PersonBuilder(BOB).withAddress(address).withTags().build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " a/  " + address + "  ",
+                new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_issue262OversizedAddress_failure() {
+        String address = "123 Test Road ".repeat(14) + "Block";
+        assertEquals(201, address.length());
+        assertParseFailure(parser, " n/Long Address Test p/92345673 e/longaddress@example.com a/" + address,
+                "Address must contain 1 to 200 printable characters without line breaks.");
+    }
 
     @Test
     public void parse_allFieldsPresent_success() {
@@ -63,6 +93,13 @@ public class AddCommandParserTest {
         assertParseSuccess(parser,
                 NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 new AddCommand(expectedPersonMultipleTags));
+    }
+
+    @Test
+    public void parse_goalSpecified_success() {
+        Person expectedPerson = new PersonBuilder(BOB).withTags().withGoal("Build strength").build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + GOAL_DESC,
+                new AddCommand(expectedPerson));
     }
 
     @Test
@@ -127,6 +164,9 @@ public class AddCommandParserTest {
         // invalid address
         assertParseFailure(parser, validExpectedPersonString + INVALID_ADDRESS_DESC,
                 Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
+
+        assertParseFailure(parser, validExpectedPersonString + GOAL_DESC + " g/Run 5 km",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_GOAL));
     }
 
     @Test
@@ -172,6 +212,10 @@ public class AddCommandParserTest {
         assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
                 + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Phone.MESSAGE_CONSTRAINTS);
 
+        // phone longer than 15 digits
+        assertParseFailure(parser, NAME_DESC_BOB + " p/1234567890123456" + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
+                Phone.MESSAGE_CONSTRAINTS);
+
         // invalid email
         assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + ADDRESS_DESC_BOB
                 + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Email.MESSAGE_CONSTRAINTS);
@@ -184,9 +228,20 @@ public class AddCommandParserTest {
         assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
                 + INVALID_TAG_DESC + VALID_TAG_FRIEND, Tag.MESSAGE_CONSTRAINTS);
 
+        // more than 10 distinct tags
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " t/one t/two t/three t/four t/five t/six t/seven t/eight t/nine t/ten t/eleven",
+                Tag.MESSAGE_TOO_MANY_TAGS);
+
         // two invalid values, only first invalid value reported
         assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC,
                 Name.MESSAGE_CONSTRAINTS);
+
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + INVALID_GOAL_DESC, Goal.MESSAGE_CONSTRAINTS);
+
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + " g/\fRun",
+                Goal.MESSAGE_CONSTRAINTS);
 
         // non-empty preamble
         assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB

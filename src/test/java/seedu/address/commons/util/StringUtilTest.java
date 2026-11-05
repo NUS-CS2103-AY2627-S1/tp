@@ -1,5 +1,6 @@
 package seedu.address.commons.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -123,6 +124,32 @@ public class StringUtilTest {
         assertTrue(StringUtil.containsWordIgnoreCase("AAA bBb ccc  bbb", "bbB"));
     }
 
+    //---------------- Tests for containsIgnoreCase --------------------------------------
+
+    @Test
+    public void containsIgnoreCase_nullSentence_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.containsIgnoreCase(null, "keyword"));
+    }
+
+    @Test
+    public void containsIgnoreCase_nullKeyword_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> StringUtil.containsIgnoreCase("sentence", null));
+    }
+
+    @Test
+    public void containsIgnoreCase_blankKeyword_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, "Word parameter cannot be empty", ()
+            -> StringUtil.containsIgnoreCase("sentence", "  "));
+    }
+
+    @Test
+    public void containsIgnoreCase_validInputs_correctResult() {
+        assertTrue(StringUtil.containsIgnoreCase("Alice Pauline", "Ali"));
+        assertTrue(StringUtil.containsIgnoreCase("Alice Pauline", "lic"));
+        assertTrue(StringUtil.containsIgnoreCase("Alice Pauline", "PAUL"));
+        assertFalse(StringUtil.containsIgnoreCase("Alice Pauline", "xyz"));
+    }
+
     //---------------- Tests for getDetails --------------------------------------
 
     /*
@@ -140,4 +167,14 @@ public class StringUtilTest {
         assertThrows(NullPointerException.class, () -> StringUtil.getDetails(null));
     }
 
+    //---------------- Tests for foldCaseForSearch --------------------------------------
+
+    @Test
+    public void foldCaseForSearch() {
+        assertEquals("build strength", StringUtil.foldCaseForSearch("Build STRENGTH"));
+        assertEquals("μαραθωνιοσ", StringUtil.foldCaseForSearch("ΜΑΡΑΘΩΝΙΟΣ"));
+        assertEquals("σ", StringUtil.foldCaseForSearch("Σ"));
+        assertEquals("σ", StringUtil.foldCaseForSearch("ς"));
+        assertThrows(NullPointerException.class, () -> StringUtil.foldCaseForSearch(null));
+    }
 }

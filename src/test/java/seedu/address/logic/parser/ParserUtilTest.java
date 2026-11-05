@@ -1,6 +1,7 @@
 package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.Exercise;
+import seedu.address.model.person.Goal;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
@@ -32,7 +35,30 @@ public class ParserUtilTest {
     private static final String VALID_TAG_1 = "friend";
     private static final String VALID_TAG_2 = "neighbour";
 
+    private static final String INVALID_EXERCISE_NAME = " ";
+    private static final String VALID_EXERCISE_NAME = "Bench Press";
+
+    private static final String VALID_EXERCISE_SETS = "3";
+    private static final String VALID_EXERCISE_REPS = "10";
+    private static final String VALID_EXERCISE_WEIGHT = "60";
+
     private static final String WHITESPACE = " \t\r\n";
+
+    @Test
+    public void containsUnknownPrefixToken() {
+        assertTrue(ParserUtil.containsUnknownPrefixToken("No dairy x/unknown"));
+        assertTrue(ParserUtil.containsUnknownPrefixToken("xy/"));
+        assertTrue(ParserUtil.containsUnknownPrefixToken("abc/100"));
+        assertTrue(ParserUtil.containsUnknownPrefixToken("paid abc/100.50"));
+        assertTrue(ParserUtil.containsUnknownPrefixToken("xyz/"));
+        assertTrue(ParserUtil.containsUnknownPrefixToken("a\tR/b"));
+
+        assertFalse(ParserUtil.containsUnknownPrefixToken(""));
+        assertFalse(ParserUtil.containsUnknownPrefixToken("Peanut allergy"));
+        assertFalse(ParserUtil.containsUnknownPrefixToken("Dairy/eggs and/or nuts"));
+        assertFalse(ParserUtil.containsUnknownPrefixToken("1/2 portion"));
+        assertFalse(ParserUtil.containsUnknownPrefixToken("ends with x /"));
+    }
 
     @Test
     public void parseIndex_invalidInput_throwsParseException() {
@@ -124,6 +150,53 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAddressForAdd_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseAddressForAdd(null));
+    }
+
+    @Test
+    public void parseAddressForAdd_blankAddress_retainsExistingValidation() {
+        for (String address : List.of("", " ", WHITESPACE)) {
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () ->
+                    ParserUtil.parseAddressForAdd(address));
+        }
+    }
+
+    @Test
+    public void parseAddressForAdd_lengthBoundaries_returnsAddressOrRejectsOverflow() throws Exception {
+        for (int length : List.of(1, 199, 200)) {
+            String address = "A".repeat(length);
+            assertEquals(new Address(address), ParserUtil.parseAddressForAdd(address));
+        }
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_ADD_ADDRESS_CONSTRAINTS, () ->
+                ParserUtil.parseAddressForAdd("A".repeat(201)));
+    }
+
+    @Test
+    public void parseAddressForAdd_outerWhitespaceExcluded_preservesInternalSpacingAndCase() throws Exception {
+        String address = "Mixed  Case " + "A".repeat(188);
+        assertEquals(200, address.length());
+        assertEquals(new Address(address), ParserUtil.parseAddressForAdd(WHITESPACE + address + WHITESPACE));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_ADD_ADDRESS_CONSTRAINTS, () ->
+                ParserUtil.parseAddressForAdd("  " + address + "A  "));
+    }
+
+    @Test
+    public void parseAddressForAdd_supplementaryCharacters_countsUnicodeCodePoints() throws Exception {
+        String character = "\uD83C\uDFE0";
+        String address = character.repeat(200);
+        assertEquals(new Address(address), ParserUtil.parseAddressForAdd(address));
+        assertThrows(ParseException.class, ParserUtil.MESSAGE_ADD_ADDRESS_CONSTRAINTS, () ->
+                ParserUtil.parseAddressForAdd(address + character));
+    }
+
+    @Test
+    public void parseAddress_legacyOversizedAddress_remainsAccepted() throws Exception {
+        String address = "A".repeat(201);
+        assertEquals(new Address(address), ParserUtil.parseAddress(address));
+    }
+
+    @Test
     public void parseEmail_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseEmail((String) null));
     }
@@ -144,6 +217,13 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseGoal_validAndInvalidValues() throws Exception {
+        assertEquals(new Goal("Build strength"), ParserUtil.parseGoal(" Build strength "));
+        assertThrows(ParseException.class, Goal.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseGoal("!!!"));
+        assertThrows(ParseException.class, Goal.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseGoal("\fabc"));
     }
 
     @Test
@@ -180,6 +260,26 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseTags_maxDistinctTags_returnsTagSet() throws Exception {
+        List<String> tags = List.of("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten");
+        assertEquals(Tag.MAX_TAGS, ParserUtil.parseTags(tags).size());
+    }
+
+    @Test
+    public void parseTags_moreThanMaxDistinctTags_throwsParseException() {
+        List<String> tags = List.of("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven");
+        assertThrows(ParseException.class, Tag.MESSAGE_TOO_MANY_TAGS, () -> ParserUtil.parseTags(tags));
+    }
+
+    @Test
+    public void parseTags_duplicatesCollapseToMax_returnsTagSet() throws Exception {
+        List<String> tags = List.of("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "ten", "one");
+        assertEquals(Tag.MAX_TAGS, ParserUtil.parseTags(tags).size());
+    }
+
+    @Test
     public void parseTags_emptyCollection_returnsEmptySet() throws Exception {
         assertTrue(ParserUtil.parseTags(List.of()).isEmpty());
     }
@@ -190,5 +290,132 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseExerciseName_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseExerciseName((String) null));
+    }
+
+    @Test
+    public void parseExerciseName_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_NAME, ()
+            -> ParserUtil.parseExerciseName(INVALID_EXERCISE_NAME));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_NAME, ()
+            -> ParserUtil.parseExerciseName(""));
+    }
+
+    @Test
+    public void parseExerciseName_validValueWithoutWhitespace_returnsTrimmedName() throws Exception {
+        assertEquals(VALID_EXERCISE_NAME, ParserUtil.parseExerciseName(VALID_EXERCISE_NAME));
+    }
+
+    @Test
+    public void parseExerciseName_validValueWithWhitespace_returnsTrimmedName() throws Exception {
+        String nameWithWhitespace = WHITESPACE + VALID_EXERCISE_NAME + WHITESPACE;
+        assertEquals(VALID_EXERCISE_NAME, ParserUtil.parseExerciseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseExerciseSets_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseExerciseSets((String) null));
+    }
+
+    @Test
+    public void parseExerciseSets_invalidValue_throwsParseException() {
+        // zero and negative values violate Exercise#isValidSets
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, ()
+            -> ParserUtil.parseExerciseSets("0"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, ()
+            -> ParserUtil.parseExerciseSets("-1"));
+        // non-numeric values cannot be parsed
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, ()
+            -> ParserUtil.parseExerciseSets("abc"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, ()
+            -> ParserUtil.parseExerciseSets("1.5"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_SETS, ()
+            -> ParserUtil.parseExerciseSets(""));
+    }
+
+    @Test
+    public void parseExerciseSets_validValueWithoutWhitespace_returnsSets() throws Exception {
+        assertEquals(3, ParserUtil.parseExerciseSets(VALID_EXERCISE_SETS));
+    }
+
+    @Test
+    public void parseExerciseSets_validValueWithWhitespace_returnsTrimmedSets() throws Exception {
+        String setsWithWhitespace = WHITESPACE + VALID_EXERCISE_SETS + WHITESPACE;
+        assertEquals(3, ParserUtil.parseExerciseSets(setsWithWhitespace));
+    }
+
+    @Test
+    public void parseExerciseReps_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseExerciseReps((String) null));
+    }
+
+    @Test
+    public void parseExerciseReps_invalidValue_throwsParseException() {
+        // zero and negative values violate Exercise#isValidReps
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, ()
+            -> ParserUtil.parseExerciseReps("0"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, ()
+            -> ParserUtil.parseExerciseReps("-5"));
+        // non-numeric values cannot be parsed
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, ()
+            -> ParserUtil.parseExerciseReps("abc"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, ()
+            -> ParserUtil.parseExerciseReps("1.5"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_REPS, ()
+            -> ParserUtil.parseExerciseReps(""));
+    }
+
+    @Test
+    public void parseExerciseReps_validValueWithoutWhitespace_returnsReps() throws Exception {
+        assertEquals(10, ParserUtil.parseExerciseReps(VALID_EXERCISE_REPS));
+    }
+
+    @Test
+    public void parseExerciseReps_validValueWithWhitespace_returnsTrimmedReps() throws Exception {
+        String repsWithWhitespace = WHITESPACE + VALID_EXERCISE_REPS + WHITESPACE;
+        assertEquals(10, ParserUtil.parseExerciseReps(repsWithWhitespace));
+    }
+
+    @Test
+    public void parseExerciseWeight_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseExerciseWeight((String) null));
+    }
+
+    @Test
+    public void parseExerciseWeight_invalidValue_throwsParseException() {
+        // negative values violate Exercise#isValidWeight
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight("-1"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight("-0.1"));
+        // non-numeric values cannot be parsed
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight("abc"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight(""));
+        // non-finite values violate Exercise#isValidWeight
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight("Infinity"));
+        assertThrows(ParseException.class, Exercise.MESSAGE_CONSTRAINTS_WEIGHT, ()
+            -> ParserUtil.parseExerciseWeight("NaN"));
+    }
+
+    @Test
+    public void parseExerciseWeight_validValueWithoutWhitespace_returnsWeight() throws Exception {
+        assertEquals(60.0, ParserUtil.parseExerciseWeight(VALID_EXERCISE_WEIGHT));
+        // zero is valid for bodyweight exercises
+        assertEquals(0.0, ParserUtil.parseExerciseWeight("0"));
+        // decimal weights are valid
+        assertEquals(20.5, ParserUtil.parseExerciseWeight("20.5"));
+    }
+
+    @Test
+    public void parseExerciseWeight_validValueWithWhitespace_returnsTrimmedWeight() throws Exception {
+        String weightWithWhitespace = WHITESPACE + VALID_EXERCISE_WEIGHT + WHITESPACE;
+        assertEquals(60.0, ParserUtil.parseExerciseWeight(weightWithWhitespace));
     }
 }

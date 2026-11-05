@@ -19,8 +19,17 @@ The following commands perform common Gradle tasks.
 * **`clean`**: Deletes the files created during the previous build tasks (e.g. files in the `build` folder).<br>
   For example: `./gradlew clean`
 
-* **`shadowJar`**: Uses the Shadow plugin to create the fat JAR file `build/libs/addressbook.jar`.<br>
+* **`shadowJar`**: Uses the Shadow plugin to create a platform-specific development fat JAR under `build/libs`. Use `universalJar` for the multi-platform release package.<br>
   For example: `./gradlew shadowJar`
+
+* **`universalJar`**: Creates the release JAR `build/libs/fittix-v1.jar` for Windows x64, macOS Intel/Apple silicon, and Linux x64/ARM64.<br>
+  Run `./gradlew universalJar` (`gradlew.bat universalJar` on Windows), then `java -jar build/libs/fittix-v1.jar`.
+  The launcher source is in `src/main/java/seedu/address/launcher/UniversalLauncher.java`; packaging is defined in `gradle/universal-jar.gradle`.
+  The release bundles JavaFX **25** for each supported platform, selecting only the host platform at startup. Development tasks retain JavaFX **17.0.7** and their existing test setup. Both require Java 25 or later.
+
+* **`universalJarSmokeTest`**: Builds the universal JAR, opens its actual application window using only the bundled runtime, then closes it.<br>
+  Run `./gradlew universalJarSmokeTest` (`gradlew.bat universalJarSmokeTest` on Windows). Linux without a desktop requires `xvfb-run -a ./gradlew universalJarSmokeTest`.
+  Test client data is isolated in `build/universal-smoke/`.
 
 * **`run`**: Builds and runs the application.<br>
   **`runShadow`**: Builds the application as a fat JAR, then runs it.
@@ -71,9 +80,11 @@ Any warnings or errors will be printed out to the console.
 
 ## Making a release
 
-Here are the steps to create a new release.
-
-1. Update the version number in [`MainApp.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/MainApp.java).
-1. Generate a fat JAR file using Gradle (i.e., `./gradlew shadowJar`).
-1. Tag the repo with the version number. e.g. `v0.1`
-1. [Create a new release using GitHub](https://help.github.com/articles/creating-releases/). Upload the JAR file you created.
+1. Update the version in [`MainApp.java`](https://github.com/AY2627S1-CS2103T-T14-1/tp/blob/master/src/main/java/seedu/address/MainApp.java), the guides and screenshots. Remove unfinished template text and check that feature descriptions match the app. Commit and merge these changes before selecting the release commit.
+1. Use a clean checkout of that final commit. Run `java -version` and confirm Java 25. Run `./gradlew clean check coverage shadowJar universalJarSmokeTest` (`gradlew.bat clean check coverage shadowJar universalJarSmokeTest` on Windows). On headless Linux, prefix the Gradle command with `xvfb-run -a`.
+1. Confirm CI passes on Windows, macOS and Linux. `shadowJar` performs the generic fat-JAR build described by the course guide; Fittix's `universalJarSmokeTest` also builds and tests the **multi-platform release file `build/libs/fittix-v1.jar`**. Use that universal JAR for the release.
+1. Copy `build/libs/fittix-v1.jar` to a separate writable folder as `fittix-v1.6.jar`, matching the User Guide, and launch it using `java -jar "fittix-v1.6.jar"`. Try sample commands, check saved data, exit, and relaunch from the same folder. Record the final commit and JAR checksum.
+1. Tag the exact tested commit with the release version, for example `v1.6`, and push that tag. The tag, uploaded JAR and online guides must describe the same product version.
+1. [Create the GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository). Upload the tested **`fittix-v1.6.jar`** copy from that commit and include release notes and the current screenshot. Keep the uploaded filename consistent with the User Guide launch command. Publish the release as the latest non-draft release so the website's download link selects it.
+1. Download the uploaded asset into another fresh folder. Compare its checksum with the tested JAR and repeat a launch check. Confirm the website, UG and DG are deployed, then close or reschedule remaining milestone work and close the milestone.
+1. If correcting an already published release, preserve the relationship between tag, source and asset. Changing only release text or uploading a different JAR does not update the tagged source.
