@@ -3,6 +3,10 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -10,33 +14,61 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.model.courseclass.ClassGroup;
+import seedu.address.model.courseclass.CourseClass;
+import seedu.address.model.courseclass.CourseCode;
 import seedu.address.model.person.Person;
 
 /**
- * Represents the in-memory model of the address book data.
+ * Represents the in-memory model of student and course class data.
  */
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
     private final AddressBook addressBook;
+    private final CourseClassBook courseClassBook;
     private final UserPrefs userPrefs;
+    private final Deque<CourseClassBook> undoHistory = new ArrayDeque<>();
     private final FilteredList<Person> filteredPersons;
+    private final FilteredList<CourseClass> filteredCourseClasses;
 
-    /**
-     * Initializes a ModelManager with the given addressBook and userPrefs.
-     */
+    /** Initializes the model with student data and an empty course class book. */
     public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyUserPrefs userPrefs) {
-        requireAllNonNull(addressBook, userPrefs);
+        this(addressBook, new CourseClassBook(), userPrefs, List.of());
+    }
 
-        logger.fine("Initializing with address book: " + addressBook + " and user prefs " + userPrefs);
+    /** Initializes the model with course class data and an empty student address book. */
+    public ModelManager(ReadOnlyCourseClassBook courseClassBook, ReadOnlyUserPrefs userPrefs) {
+        this(courseClassBook, userPrefs, List.of());
+    }
 
+    /** Initializes the model with course class data and persisted undo history. */
+    public ModelManager(ReadOnlyCourseClassBook courseClassBook, ReadOnlyUserPrefs userPrefs,
+            List<? extends ReadOnlyCourseClassBook> undoHistory) {
+        this(new AddressBook(), courseClassBook, userPrefs, undoHistory);
+    }
+
+    /** Initializes the model with both books and shared user preferences. */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyCourseClassBook courseClassBook,
+            ReadOnlyUserPrefs userPrefs) {
+        this(addressBook, courseClassBook, userPrefs, List.of());
+    }
+
+    /** Initializes the model with both books, user preferences, and persisted undo history. */
+    public ModelManager(ReadOnlyAddressBook addressBook, ReadOnlyCourseClassBook courseClassBook,
+            ReadOnlyUserPrefs userPrefs, List<? extends ReadOnlyCourseClassBook> undoHistory) {
+        requireAllNonNull(addressBook, courseClassBook, userPrefs, undoHistory);
+        logger.fine("Initializing with address book: " + addressBook + " and course class book: " + courseClassBook);
         this.addressBook = new AddressBook(addressBook);
+        this.courseClassBook = new CourseClassBook(courseClassBook);
         this.userPrefs = new UserPrefs(userPrefs);
+        setUndoHistory(undoHistory);
         filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredCourseClasses = new FilteredList<>(this.courseClassBook.getCourseClassList());
     }
 
     public ModelManager() {
-        this(new AddressBook(), new UserPrefs());
+        this(new AddressBook(), new CourseClassBook(), new UserPrefs());
     }
 
     //=========== UserPrefs ==================================================================================
@@ -110,6 +142,101 @@ public class ModelManager implements Model {
         filteredPersons.setPredicate(predicate);
     }
 
+    //=========== CourseClassBook ================================================================================
+
+    @Override
+    public void setCourseClassBook(ReadOnlyCourseClassBook courseClassBook) {
+        this.courseClassBook.resetData(new CourseClassBook(courseClassBook));
+    }
+
+    @Override
+    public List<? extends ReadOnlyCourseClassBook> getUndoHistory() {
+        return undoHistory.stream().map(CourseClassBook::new).toList();
+    }
+
+    @Override
+    public void addUndoSnapshot(ReadOnlyCourseClassBook courseClassBook) {
+        undoHistory.addLast(new CourseClassBook(courseClassBook));
+        logger.fine("Added undo snapshot; history size is now " + undoHistory.size());
+    }
+
+    @Override
+    public void setUndoHistory(List<? extends ReadOnlyCourseClassBook> undoHistory) {
+        requireNonNull(undoHistory);
+        this.undoHistory.clear();
+        undoHistory.forEach(this::addUndoSnapshot);
+    }
+
+    @Override
+    public Optional<ReadOnlyCourseClassBook> undoCourseClassBook() {
+        if (undoHistory.isEmpty()) {
+            logger.fine("Undo requested with no available history.");
+            return Optional.empty();
+        }
+        CourseClassBook restored = undoHistory.removeLast();
+        setCourseClassBook(restored);
+        logger.info("Undid most recent course-class book change; remaining undo snapshots: " + undoHistory.size());
+        return Optional.of(new CourseClassBook(restored));
+    }
+
+    @Override
+    public ReadOnlyCourseClassBook getCourseClassBook() {
+        return courseClassBook;
+    }
+
+    @Override
+    public boolean hasCourseClass(CourseClass courseClass) {
+        requireNonNull(courseClass);
+        return courseClassBook.hasCourseClass(courseClass);
+    }
+
+    @Override
+    public Optional<CourseClass> findCourseClassByGroup(ClassGroup classGroup) {
+        requireNonNull(classGroup);
+        return courseClassBook.findCourseClassByGroup(classGroup);
+    }
+
+    @Override
+    public Optional<CourseClass> findCourseClassByGroup(ClassGroup classGroup, CourseCode moduleName) {
+        requireAllNonNull(classGroup, moduleName);
+        return courseClassBook.findCourseClassByGroup(classGroup, moduleName);
+    }
+
+    @Override
+    public void deleteCourseClass(CourseClass target) {
+        courseClassBook.removeCourseClass(target);
+    }
+
+    @Override
+    public void addCourseClass(CourseClass courseClass) {
+        courseClassBook.addCourseClass(courseClass);
+        updateFilteredCourseClassList(PREDICATE_SHOW_ALL_COURSE_CLASSES);
+    }
+
+    @Override
+    public void setCourseClass(CourseClass target, CourseClass editedCourseClass) {
+        requireAllNonNull(target, editedCourseClass);
+
+        courseClassBook.setCourseClass(target, editedCourseClass);
+    }
+
+    //=========== Filtered CourseClass List Accessors =============================================================
+
+    /**
+     * Returns an unmodifiable view of the list of {@code CourseClass} backed by the internal list of
+     * {@code courseClassBook}
+     */
+    @Override
+    public ObservableList<CourseClass> getFilteredCourseClassList() {
+        return filteredCourseClasses;
+    }
+
+    @Override
+    public void updateFilteredCourseClassList(Predicate<CourseClass> predicate) {
+        requireNonNull(predicate);
+        filteredCourseClasses.setPredicate(predicate);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (other == this) {
@@ -122,8 +249,10 @@ public class ModelManager implements Model {
         }
 
         return addressBook.equals(otherModelManager.addressBook)
+                && courseClassBook.equals(otherModelManager.courseClassBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredPersons.equals(otherModelManager.filteredPersons)
+                && filteredCourseClasses.equals(otherModelManager.filteredCourseClasses);
     }
 
 }

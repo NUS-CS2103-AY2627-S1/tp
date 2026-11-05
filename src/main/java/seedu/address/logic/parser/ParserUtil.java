@@ -4,15 +4,19 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.courseclass.ClassGroup;
+import seedu.address.model.courseclass.CourseCode;
+import seedu.address.model.courseclass.HomeworkStatus;
+import seedu.address.model.student.Note;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Telehandle;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +25,118 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_COURSE_CLASS_NAME_CONSTRAINTS =
+            seedu.address.model.courseclass.Name.MESSAGE_CONSTRAINTS
+                    + " New class names must not contain n/, t/, c/, m/, i/ or o/ after a space.";
+    public static final String MESSAGE_NEW_COURSE_CODE_CONSTRAINTS =
+            CourseCode.MESSAGE_CONSTRAINTS + ", must not be blank and must be at most 50 characters.";
+    private static final Pattern RESERVED_COMMAND_PREFIX_PATTERN = Pattern.compile(" (?:n|t|c|m|i|o)/");
+
+    private ParserUtil() {}
+
+    /**
+     * Parses a course class name, trimming leading and trailing whitespace.
+     * @throws ParseException if the name is invalid.
+     */
+    public static seedu.address.model.courseclass.Name parseCourseClassName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!seedu.address.model.courseclass.Name.isValidName(trimmedName)
+                || RESERVED_COMMAND_PREFIX_PATTERN.matcher(trimmedName).find()) {
+            throw new ParseException(MESSAGE_COURSE_CLASS_NAME_CONSTRAINTS);
+        }
+        return new seedu.address.model.courseclass.Name(trimmedName);
+    }
+
+    /**
+     * Parses a course code, trimming leading and trailing whitespace.
+     * @throws ParseException if the code is invalid.
+     */
+    public static CourseCode parseCourseCode(String code) throws ParseException {
+        requireNonNull(code);
+        String trimmedCode = code.trim();
+        if (!CourseCode.isValidCourseCode(trimmedCode)) {
+            throw new ParseException(CourseCode.MESSAGE_CONSTRAINTS);
+        }
+        return new CourseCode(trimmedCode);
+    }
+
+    /** Parses a code for class creation or editing, while allowing legacy codes in references and storage. */
+    public static CourseCode parseNewCourseCode(String code) throws ParseException {
+        requireNonNull(code);
+        String trimmedCode = code.trim();
+        if (trimmedCode.length() > 50 || !CourseCode.isValidCourseCode(trimmedCode)) {
+            throw new ParseException(MESSAGE_NEW_COURSE_CODE_CONSTRAINTS);
+        }
+        return new CourseCode(trimmedCode);
+    }
+
+    /**
+     * Parses a student name, trimming leading and trailing whitespace.
+     *
+     * @throws ParseException if the name is invalid
+     */
+    public static StudentName parseStudentName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!StudentName.isValidName(trimmedName)) {
+            throw new ParseException(StudentName.MESSAGE_CONSTRAINTS);
+        }
+        return new StudentName(trimmedName);
+    }
+
+    /**
+     * Parses a telehandle, trimming leading and trailing whitespace.
+     *
+     * @throws ParseException if the telehandle is invalid
+     */
+    public static Telehandle parseTelehandle(String telehandle) throws ParseException {
+        requireNonNull(telehandle);
+        String trimmedTelehandle = telehandle.trim();
+        if (!Telehandle.isValidTelehandle(trimmedTelehandle)) {
+            throw new ParseException(Telehandle.MESSAGE_CONSTRAINTS);
+        }
+        return new Telehandle(trimmedTelehandle);
+    }
+
+    /**
+     * Parses a class group, trimming leading and trailing whitespace.
+     *
+     * @throws ParseException if the class group is invalid
+     */
+    public static ClassGroup parseClassGroup(String classGroup) throws ParseException {
+        requireNonNull(classGroup);
+        String trimmedClassGroup = classGroup.trim();
+        if (!ClassGroup.isValidClassGroup(trimmedClassGroup)) {
+            throw new ParseException(ClassGroup.MESSAGE_CONSTRAINTS);
+        }
+        return new ClassGroup(trimmedClassGroup);
+    }
+
+    /**
+     * Parses note text, trimming leading and trailing whitespace.
+     *
+     * @throws ParseException if the note text is invalid
+     */
+    public static String parseNoteText(String noteText) throws ParseException {
+        requireNonNull(noteText);
+        String trimmedNoteText = noteText.trim();
+        if (!Note.isValidText(trimmedNoteText)) {
+            throw new ParseException(Note.MESSAGE_CONSTRAINTS);
+        }
+        return trimmedNoteText;
+    }
+
+    /**
+     * Parses a homework status, trimming leading and trailing whitespace.
+     *
+     * @throws ParseException if the status is not supported
+     */
+    public static HomeworkStatus parseHomeworkStatus(String homeworkStatus) throws ParseException {
+        requireNonNull(homeworkStatus);
+        return HomeworkStatus.fromSerializedValue(homeworkStatus)
+                .orElseThrow(() -> new ParseException(HomeworkStatus.MESSAGE_CONSTRAINTS));
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -33,66 +149,6 @@ public class ParserUtil {
             throw new ParseException(MESSAGE_INVALID_INDEX);
         }
         return Index.fromOneBased(Integer.parseInt(trimmedIndex));
-    }
-
-    /**
-     * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code name} is invalid.
-     */
-    public static Name parseName(String name) throws ParseException {
-        requireNonNull(name);
-        String trimmedName = name.trim();
-        if (!Name.isValidName(trimmedName)) {
-            throw new ParseException(Name.MESSAGE_CONSTRAINTS);
-        }
-        return new Name(trimmedName);
-    }
-
-    /**
-     * Parses a {@code String phone} into a {@code Phone}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code phone} is invalid.
-     */
-    public static Phone parsePhone(String phone) throws ParseException {
-        requireNonNull(phone);
-        String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
-            throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
-        }
-        return new Phone(trimmedPhone);
-    }
-
-    /**
-     * Parses a {@code String address} into an {@code Address}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code address} is invalid.
-     */
-    public static Address parseAddress(String address) throws ParseException {
-        requireNonNull(address);
-        String trimmedAddress = address.trim();
-        if (!Address.isValidAddress(trimmedAddress)) {
-            throw new ParseException(Address.MESSAGE_CONSTRAINTS);
-        }
-        return new Address(trimmedAddress);
-    }
-
-    /**
-     * Parses a {@code String email} into an {@code Email}.
-     * Leading and trailing whitespaces will be trimmed.
-     *
-     * @throws ParseException if the given {@code email} is invalid.
-     */
-    public static Email parseEmail(String email) throws ParseException {
-        requireNonNull(email);
-        String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
-            throw new ParseException(Email.MESSAGE_CONSTRAINTS);
-        }
-        return new Email(trimmedEmail);
     }
 
     /**
@@ -120,5 +176,20 @@ public class ParserUtil {
             tagSet.add(parseTag(tagName));
         }
         return tagSet;
+    }
+
+    /**
+     * Parses tags for an edit command.
+     * An empty collection leaves the existing tags unchanged, while a collection containing only an empty string
+     * clears the existing tags.
+     */
+    public static Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
+        requireNonNull(tags);
+
+        if (tags.isEmpty()) {
+            return Optional.empty();
+        }
+        Collection<String> tagSet = tags.size() == 1 && tags.contains("") ? Set.of() : tags;
+        return Optional.of(parseTags(tagSet));
     }
 }

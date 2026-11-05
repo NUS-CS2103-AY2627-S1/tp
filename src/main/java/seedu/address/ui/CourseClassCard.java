@@ -1,0 +1,119 @@
+package seedu.address.ui;
+
+import java.util.Comparator;
+
+import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
+import seedu.address.model.courseclass.CourseClass;
+import seedu.address.model.courseclass.HomeworkStatus;
+import seedu.address.model.student.Student;
+import seedu.address.model.student.Telehandle;
+
+/**
+ * A UI component that displays information of a {@code CourseClass}.
+ */
+public class CourseClassCard extends UiPart<Region> {
+
+    private static final String FXML = "CourseClassListCard.fxml";
+
+    /**
+     * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
+     * As a consequence, UI elements' variable names cannot be set to such keywords
+     * or an exception will be thrown by JavaFX during runtime.
+     *
+     * @see <a href="https://github.com/se-edu/addressbook-level4/issues/336">The issue on AddressBook level 4</a>
+     */
+
+    public final CourseClass courseClass;
+
+    @FXML
+    private HBox cardPane;
+    @FXML
+    private Label name;
+    @FXML
+    private Label id;
+    @FXML
+    private Label courseCode;
+    @FXML
+    private Label studentCount;
+    @FXML
+    private FlowPane tags;
+    @FXML
+    private Label homeworkStatus;
+    @FXML
+    private VBox studentsBox;
+
+    /**
+     * Creates a {@code CourseClassCard} with the given {@code CourseClass} and index to display.
+     */
+    public CourseClassCard(CourseClass courseClass, int displayedIndex) {
+        super(FXML);
+        this.courseClass = courseClass;
+        id.setText(displayedIndex + ". ");
+        name.setText(courseClass.getName().fullName);
+        courseCode.setText(courseClass.getCourseCode().value);
+        refreshHomeworkStatus();
+        Rectangle studentListClip = new Rectangle();
+        studentListClip.setArcWidth(8);
+        studentListClip.setArcHeight(8);
+        studentListClip.widthProperty().bind(studentsBox.widthProperty());
+        studentListClip.heightProperty().bind(studentsBox.heightProperty());
+        studentsBox.setClip(studentListClip);
+        refreshStudents();
+
+        courseClass.getStudentList().addListener(
+                (ListChangeListener<Student>) change -> refreshStudents());
+        courseClass.homeworkStatusProperty().addListener((observable, oldStatus, newStatus)
+                -> {
+                    refreshHomeworkStatus();
+                    refreshStudents();
+                });
+        courseClass.studentHomeworkStatusesProperty().addListener(
+                (MapChangeListener<Telehandle, HomeworkStatus>) change -> refreshStudents());
+
+        courseClass.getTags().stream()
+                .sorted(Comparator.comparing(tag -> tag.tagName))
+                .forEach(tag -> tags.getChildren().add(new Label(tag.tagName)));
+    }
+
+    /** Refreshes the class-wide homework status badge. */
+    private void refreshHomeworkStatus() {
+        HomeworkStatus status = courseClass.getHomeworkStatus();
+        homeworkStatus.setText("Homework: " + status.getSerializedValue());
+        homeworkStatus.getStyleClass().removeIf(styleClass -> styleClass.startsWith("homework-status-"));
+        homeworkStatus.getStyleClass().add("homework-status-" + status.getSerializedValue());
+    }
+
+    /**
+     * Refreshes the student count and the student cards shown inside this class card.
+     *
+     * <p>The class's student list is the single source of truth for the count and displayed cards.</p>
+     */
+    private void refreshStudents() {
+        ObservableList<Student> enrolledStudents = courseClass.getStudentList();
+        studentCount.setText("Students: " + enrolledStudents.size());
+
+        studentsBox.getChildren().clear();
+        for (int i = 0; i < enrolledStudents.size(); i++) {
+            studentsBox.getChildren().add(
+                    new StudentCard(enrolledStudents.get(i),
+                            courseClass.getHomeworkStatus(enrolledStudents.get(i)), i + 1).getRoot());
+        }
+        if (studentsBox.getChildren().isEmpty()) {
+            Label placeholder = new Label("No students added yet");
+            placeholder.getStyleClass().addAll("cell_small_label", "empty-student-list");
+            studentsBox.getChildren().add(placeholder);
+        } else {
+            studentsBox.getChildren().get(studentsBox.getChildren().size() - 1)
+                    .getStyleClass().add("student-row-last");
+        }
+    }
+}

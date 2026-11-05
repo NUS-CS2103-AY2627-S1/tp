@@ -1,0 +1,144 @@
+package seedu.address.model.courseclass;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.model.student.Student;
+import seedu.address.model.student.StudentName;
+import seedu.address.model.student.Telehandle;
+import seedu.address.model.student.exceptions.DuplicateStudentException;
+import seedu.address.model.student.exceptions.StudentNotFoundException;
+import seedu.address.model.tag.Tag;
+
+public class CourseClassTest {
+    private final Name name = new Name("F10-2");
+    private final CourseCode code = new CourseCode("CS2103T");
+
+    @Test
+    public void constructor_nullFields_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new CourseClass(null, code, Set.of()));
+        assertThrows(NullPointerException.class, () -> new CourseClass(name, null, Set.of()));
+        assertThrows(NullPointerException.class, () -> new CourseClass(name, code, null));
+        assertThrows(NullPointerException.class, () -> new CourseClass(name, code, Set.of(), null));
+        assertThrows(NullPointerException.class, () -> new CourseClass(name, code, Set.of(), List.of(), null));
+    }
+
+    @Test
+    public void constructorWithStudentList_defaultsHomeworkStatusToNotSet() {
+        CourseClass withStudentList = new CourseClass(name, code, Set.of(), List.of());
+
+        assertEquals(HomeworkStatus.NOT_SET, withStudentList.getHomeworkStatus());
+    }
+
+    @Test
+    public void getTags_defensiveCopyAndUnmodifiableView() {
+        Set<Tag> tags = new HashSet<>(Set.of(new Tag("tutorial")));
+        CourseClass courseClass = new CourseClass(name, code, tags);
+        tags.clear();
+        assertEquals(Set.of(new Tag("tutorial")), courseClass.getTags());
+        assertThrows(UnsupportedOperationException.class, () -> courseClass.getTags().clear());
+        assertTrue(courseClass.getStudentList().isEmpty());
+    }
+
+    @Test
+    public void isSameCourseClass_comparesNameAndCodeRegardlessOfTags() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        assertTrue(courseClass.isSameCourseClass(courseClass));
+        assertFalse(courseClass.isSameCourseClass(new CourseClass(name, new CourseCode("CS2101"),
+                Set.of(new Tag("tutorial")))));
+        assertTrue(courseClass.isSameCourseClass(new CourseClass(name, code,
+                Set.of(new Tag("tutorial")))));
+        assertFalse(courseClass.isSameCourseClass(null));
+        assertFalse(courseClass.isSameCourseClass(new CourseClass(new Name("F10-3"), code, Set.of())));
+    }
+
+    @Test
+    public void studentOperations_enforceTelehandleIdentity() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        Student student = new Student(new StudentName("John Doe"), new Telehandle("john_doe"));
+        Student sameStudent = new Student(new StudentName("Different Name"), new Telehandle("john_doe"));
+
+        assertFalse(courseClass.hasStudent(student));
+        courseClass.addStudent(student);
+        assertTrue(courseClass.hasStudent(sameStudent));
+        assertThrows(DuplicateStudentException.class, () -> courseClass.addStudent(sameStudent));
+        assertEquals(Set.of(student), Set.copyOf(courseClass.getStudentList()));
+        assertThrows(UnsupportedOperationException.class, () -> courseClass.getStudentList().clear());
+    }
+
+    @Test
+    public void removeStudent_removesByTelehandle() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        Student student = new Student(new StudentName("John Doe"), new Telehandle("john_doe"));
+        courseClass.addStudent(student);
+
+        courseClass.removeStudent(new Telehandle("john_doe"));
+
+        assertTrue(courseClass.getStudentList().isEmpty());
+        assertFalse(courseClass.hasStudent(new Telehandle("john_doe")));
+        assertThrows(StudentNotFoundException.class, () -> courseClass.removeStudent(new Telehandle("john_doe")));
+    }
+
+    @Test
+    public void equals_comparesNameCodeAndTags() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        CourseClass copy = new CourseClass(name, code, Set.of(), List.of());
+        assertEquals(courseClass, copy);
+        assertEquals(courseClass.hashCode(), copy.hashCode());
+        assertNotEquals(courseClass, null);
+        assertNotEquals(courseClass, "F10-2");
+        assertNotEquals(courseClass, new CourseClass(new Name("F10-3"), code, Set.of()));
+        assertNotEquals(courseClass, new CourseClass(name, new CourseCode("CS2101"), Set.of()));
+        assertNotEquals(courseClass, new CourseClass(name, code, Set.of(new Tag("tutorial"))));
+    }
+
+    @Test
+    public void homeworkStatus_isSharedByTheWholeClass() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        assertEquals(HomeworkStatus.NOT_SET, courseClass.getHomeworkStatus());
+
+        courseClass.setHomeworkStatus(HomeworkStatus.COMPLETED);
+
+        assertEquals(HomeworkStatus.COMPLETED, courseClass.getHomeworkStatus());
+        assertThrows(NullPointerException.class, () -> courseClass.setHomeworkStatus(null));
+        assertNotEquals(courseClass, new CourseClass(name, code, Set.of()));
+    }
+
+    @Test
+    public void studentHomeworkStatus_overridesAndInheritsClassStatus() {
+        Student alice = new Student(new StudentName("Alice Tan"), new Telehandle("alice_tan"));
+        Student benson = new Student(new StudentName("Benson Meier"), new Telehandle("benson"));
+        CourseClass courseClass = new CourseClass(name, code, Set.of(), List.of(alice, benson));
+
+        courseClass.setHomeworkStatus(HomeworkStatus.PENDING);
+        assertEquals(HomeworkStatus.PENDING, courseClass.getHomeworkStatus(alice));
+        assertEquals(HomeworkStatus.PENDING, courseClass.getHomeworkStatus(benson));
+
+        courseClass.setStudentHomeworkStatus(alice.getTelehandle(), HomeworkStatus.COMPLETED);
+        assertEquals(HomeworkStatus.COMPLETED, courseClass.getHomeworkStatus(alice));
+        assertEquals(HomeworkStatus.PENDING, courseClass.getHomeworkStatus(benson));
+
+        courseClass.clearStudentHomeworkStatus(alice.getTelehandle());
+        assertEquals(HomeworkStatus.PENDING, courseClass.getHomeworkStatus(alice));
+        assertTrue(courseClass.getStudentHomeworkStatuses().isEmpty());
+    }
+
+    @Test
+    public void equals_ignoresStudentEnrollment() {
+        CourseClass courseClass = new CourseClass(name, code, Set.of());
+        CourseClass copy = new CourseClass(name, code, Set.of());
+        copy.addStudent(new Student(new StudentName("John Doe"), new Telehandle("john_doe")));
+
+        assertEquals(courseClass, copy);
+        assertEquals(courseClass.hashCode(), copy.hashCode());
+    }
+}

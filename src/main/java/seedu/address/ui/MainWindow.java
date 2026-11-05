@@ -5,12 +5,17 @@ import java.util.logging.Logger;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
@@ -31,11 +36,21 @@ public class MainWindow extends UiPart<Stage> {
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private WindowFrame windowFrame;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private CourseClassListPanel courseClassListPanel;
     private ResultDisplay resultDisplay;
     private HelpWindow helpWindow;
+
+    @FXML
+    private HBox titleDragArea;
+
+    @FXML
+    private Label windowTitle;
+
+    @FXML
+    private Button maximizeButton;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +59,7 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane courseClassListPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -65,6 +80,10 @@ public class MainWindow extends UiPart<Stage> {
         this.dataFilePath = dataFilePath;
 
         // Configure the UI
+        primaryStage.initStyle(StageStyle.UNDECORATED);
+        windowTitle.textProperty().bind(primaryStage.titleProperty());
+        windowFrame = new WindowFrame(primaryStage, titleDragArea, this::updateMaximizeButton);
+        updateMaximizeButton(false);
         setWindowDefaultSize(logic.getGuiSettings());
 
         setAccelerators();
@@ -74,6 +93,21 @@ public class MainWindow extends UiPart<Stage> {
 
     public Stage getPrimaryStage() {
         return primaryStage;
+    }
+
+    @FXML
+    private void handleMinimize() {
+        primaryStage.setIconified(true);
+    }
+
+    @FXML
+    private void handleMaximize() {
+        windowFrame.toggleMaximize();
+    }
+
+    private void updateMaximizeButton(boolean maximized) {
+        maximizeButton.setText(maximized ? "\u2750" : "\u25a1");
+        maximizeButton.setAccessibleText(maximized ? "Restore window" : "Maximize window");
     }
 
     private void setAccelerators() {
@@ -114,8 +148,8 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        courseClassListPanel = new CourseClassListPanel(logic.getFilteredCourseClassList());
+        courseClassListPanelPlaceholder.getChildren().add(courseClassListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
@@ -160,15 +194,16 @@ public class MainWindow extends UiPart<Stage> {
      */
     @FXML
     private void handleExit() {
-        GuiSettings guiSettings = new GuiSettings(primaryStage.getWidth(), primaryStage.getHeight(),
-                (int) primaryStage.getX(), (int) primaryStage.getY());
+        Rectangle2D windowBounds = windowFrame.getWindowBounds();
+        GuiSettings guiSettings = new GuiSettings(windowBounds.getWidth(), windowBounds.getHeight(),
+                (int) windowBounds.getMinX(), (int) windowBounds.getMinY());
         logic.setGuiSettings(guiSettings);
         helpWindow.hide();
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public CourseClassListPanel getCourseClassListPanel() {
+        return courseClassListPanel;
     }
 
     /**

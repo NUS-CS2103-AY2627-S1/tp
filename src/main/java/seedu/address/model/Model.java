@@ -1,9 +1,14 @@
 package seedu.address.model;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
+import seedu.address.model.courseclass.ClassGroup;
+import seedu.address.model.courseclass.CourseClass;
+import seedu.address.model.courseclass.CourseCode;
 import seedu.address.model.person.Person;
 
 /**
@@ -12,6 +17,9 @@ import seedu.address.model.person.Person;
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
     Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+
+    /** {@code Predicate} that always evaluates to true for course classes. */
+    Predicate<CourseClass> PREDICATE_SHOW_ALL_COURSE_CLASSES = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -68,4 +76,74 @@ public interface Model {
      * @throws NullPointerException if {@code predicate} is null.
      */
     void updateFilteredPersonList(Predicate<Person> predicate);
+
+    /**
+     * Replaces course class book data with the data in {@code courseClassBook}.
+     */
+    void setCourseClassBook(ReadOnlyCourseClassBook courseClassBook);
+
+    /** Returns defensive copies of the course-class states available for undo. */
+    List<? extends ReadOnlyCourseClassBook> getUndoHistory();
+
+    /** Adds a defensive copy of a course-class state to the undo stack. */
+    void addUndoSnapshot(ReadOnlyCourseClassBook courseClassBook);
+
+    /** Replaces the undo stack with defensive copies of the given states. */
+    void setUndoHistory(List<? extends ReadOnlyCourseClassBook> undoHistory);
+
+    /** Restores the most recent course-class state, if one is available. */
+    Optional<ReadOnlyCourseClassBook> undoCourseClassBook();
+
+    /** Returns the CourseClassBook */
+    ReadOnlyCourseClassBook getCourseClassBook();
+
+    /**
+     * Returns true if a course class with the same identity as {@code courseClass} exists in the course class book.
+     */
+    boolean hasCourseClass(CourseClass courseClass);
+
+    /**
+     * Finds a course class by its class group.
+     *
+     * @param classGroup class group to find
+     * @return matching course class, or empty if none exists
+     */
+    Optional<CourseClass> findCourseClassByGroup(ClassGroup classGroup);
+
+    /**
+     * Finds a course class by its class group and module.
+     *
+     * @param classGroup class group to find
+     * @param moduleName module containing the class group
+     * @return matching course class, or empty if none exists
+     */
+    Optional<CourseClass> findCourseClassByGroup(ClassGroup classGroup, CourseCode moduleName);
+
+    /**
+     * Deletes the given course class.
+     * The course class must exist in the course class book.
+     */
+    void deleteCourseClass(CourseClass target);
+
+    /**
+     * Adds the given course class.
+     * {@code courseClass} must not already exist in the course class book.
+     */
+    void addCourseClass(CourseClass courseClass);
+
+    /**
+     * Replaces the given course class {@code target} with {@code editedCourseClass}.
+     * {@code target} must exist in the course class book.
+     * The identity of {@code editedCourseClass} must not match another existing course class in the book.
+     */
+    void setCourseClass(CourseClass target, CourseClass editedCourseClass);
+
+    /** Returns an unmodifiable view of the filtered course class list */
+    ObservableList<CourseClass> getFilteredCourseClassList();
+
+    /**
+     * Updates the filter of the filtered course class list to filter by the given {@code predicate}.
+     * @throws NullPointerException if {@code predicate} is null.
+     */
+    void updateFilteredCourseClassList(Predicate<CourseClass> predicate);
 }

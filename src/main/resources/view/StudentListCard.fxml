@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox id="cardPane" fx:id="cardPane" styleClass="student-card"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <GridPane HBox.hgrow="ALWAYS" minWidth="0">
+    <padding>
+      <Insets top="6" right="10" bottom="6" left="15" />
+    </padding>
+    <columnConstraints>
+      <ColumnConstraints minWidth="32" prefWidth="32" maxWidth="32" />
+      <ColumnConstraints minWidth="0" prefWidth="150" maxWidth="150" />
+      <ColumnConstraints minWidth="0" hgrow="ALWAYS" />
+    </columnConstraints>
+    <Label fx:id="id" styleClass="cell_big_label"
+           GridPane.columnIndex="0" GridPane.valignment="TOP" />
+    <Label fx:id="name" styleClass="cell_big_label" minWidth="0" wrapText="true"
+           GridPane.columnIndex="1" GridPane.valignment="TOP">
+      <GridPane.margin>
+        <Insets right="10" />
+      </GridPane.margin>
+    </Label>
+    <Label fx:id="telehandle" styleClass="cell_small_label" minWidth="0" wrapText="true"
+           GridPane.columnIndex="2" GridPane.valignment="TOP">
+      <GridPane.margin>
+        <Insets right="10" />
+      </GridPane.margin>
+    </Label>
+    <Label fx:id="homeworkStatus" styleClass="homework-status" minWidth="0" wrapText="true"
+           GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="TOP" />
+    <VBox fx:id="notesBox" fillWidth="true" maxWidth="Infinity" spacing="3"
+          minWidth="0" GridPane.columnIndex="0" GridPane.rowIndex="2"
+          GridPane.columnSpan="3" GridPane.valignment="TOP">
+      <GridPane.margin>
+        <Insets top="4" />
+      </GridPane.margin>
+    </VBox>
+  </GridPane>
+</HBox>

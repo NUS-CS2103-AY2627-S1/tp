@@ -9,9 +9,19 @@ import seedu.address.model.Model;
 public abstract class Command {
 
     /**
+     * Returns whether this command changes the course-class data.
+     *
+     * <p>Commands that change data override this method so that the logic component can save a snapshot
+     * before executing them.</p>
+     */
+    public boolean isMutating() {
+        return false;
+    }
+
+    /**
      * Executes the command and returns the result message.
      *
-     * @param model {@code Model} which the command should operate on.
+     * @param model the model which the command should operate on.
      * @return feedback message of the operation result for display
      * @throws CommandException If an error occurs during command execution.
      */
