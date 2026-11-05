@@ -1,0 +1,38 @@
+@startuml
+!include style.puml
+show members
+skinparam classAttributeIconSize 0
+skinparam classAttributeFontColor #FFFFFF
+skinparam genericDisplay old
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR_T4
+skinparam classBackgroundColor MODEL_COLOR
+skinparam ArrowFontStyle plain
+top to bottom direction
+
+class EditCommand LOGIC_COLOR
+class Person {
+  -lastUpdated: LocalDate
+  +needsUpdate(today: LocalDate): boolean
+}
+enum SystemTag <<enumeration>> {
+  UPDATE
+  {static} +forPerson(person: Person, today: LocalDate): List<SystemTag>
+}
+class PersonCard UI_COLOR {
+  +refreshTags(): void
+}
+
+EditCommand ..> Person
+SystemTag ..> Person
+PersonCard --> "1\nperson" Person : displays >
+PersonCard ..> SystemTag
+
+note bottom of Person
+  UPDATE: known date over one year old.
+  Tag, note and favourite changes keep the date.
+end note
+note bottom of SystemTag
+  Only UPDATE shown; derived, not stored.
+end note
+@enduml

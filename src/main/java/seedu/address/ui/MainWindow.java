@@ -114,7 +114,7 @@ public class MainWindow extends UiPart<Stage> {
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
+        personListPanel = new PersonListPanel(logic.getFilteredPersonList(), logic.viewStatusProperty());
         personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
@@ -125,6 +125,15 @@ public class MainWindow extends UiPart<Stage> {
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+        new ContactListNavigation(primaryStage.getScene().getRoot(), commandBox.getTextField(),
+                personListPanel.getPersonListView(), resultDisplay.getTextArea());
+    }
+
+    /**
+     * Shows a contact-loading warning before the user submits any command.
+     */
+    void showStartupWarning(String warning) {
+        resultDisplay.setFeedbackToUser(warning, true);
     }
 
     /**
@@ -179,8 +188,9 @@ public class MainWindow extends UiPart<Stage> {
     private CommandResult executeCommand(String commandText) throws CommandException, ParseException {
         try {
             CommandResult commandResult = logic.execute(commandText);
-            logger.info("Result: " + commandResult.getFeedbackToUser());
-            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser());
+            personListPanel.refresh();
+            logger.info("Result: " + commandResult.getLogSummary());
+            resultDisplay.setFeedbackToUser(commandResult.getFeedbackToUser(), commandResult.isWarning());
 
             if (commandResult.isShowHelp()) {
                 handleHelp();
@@ -192,7 +202,7 @@ public class MainWindow extends UiPart<Stage> {
 
             return commandResult;
         } catch (CommandException | ParseException e) {
-            logger.info("An error occurred while executing command: " + commandText);
+            logger.info("Command execution failed.");
             resultDisplay.setFeedbackToUser(e.getMessage());
             throw e;
         }

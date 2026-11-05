@@ -4,20 +4,22 @@ skinparam ClassFontColor #000000
 skinparam ClassBorderColor #000000
 skinparam ClassBackgroundColor #FFFFAA
 
-title After command "delete 5"
+title After undo
 
-package States <<rectangle>> {
-    class State1 as "<u>ab0:AddressBook</u>"
-    class State2 as "<u>ab1:AddressBook</u>"
-    class State3 as "<u>ab2:AddressBook</u>"
+package "undoStates (stack)" <<rectangle>> {
+    class U0 as "<u>ab0:AddressBook</u>"
 }
 
-State1 -[hidden]right-> State2
-State2 -[hidden]right-> State3
+package "currentState" <<rectangle>> {
+    class C as "<u>ab1:AddressBook</u>\nAlex"
+}
 
-hide State3
+package "redoStates (stack)" <<rectangle>> {
+    class R0 as "<u>ab2:AddressBook</u>\nAlex: phone edited (undone)"
+}
 
-class Pointer as "Current State" #FFFFFF
+U0 -[hidden]right-> C
+C -[hidden]right-> R0
 
-Pointer -up-> State2
-@end
+caption Undo pushes ab2 onto redoStates and pops ab1 from undoStates.
+@enduml

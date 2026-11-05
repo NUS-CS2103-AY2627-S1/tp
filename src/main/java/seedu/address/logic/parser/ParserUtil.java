@@ -11,8 +11,11 @@ import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GraduationYear;
+import seedu.address.model.person.Major;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.tag.DefaultTags;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +24,30 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+    public static final String MESSAGE_INVALID_DEFAULT_TAG_INDEX =
+            "Default tag index must be an integer from 1 to " + DefaultTags.TAGS.size() + ". Use tags to view them.";
+
+    /**
+     * Parses default tag indices into a set of tags.
+     * @throws ParseException if any index is invalid or outside the default tag list.
+     */
+    public static Set<Tag> parseDefaultTags(Collection<String> indices) throws ParseException {
+        requireNonNull(indices);
+        Set<Tag> tags = new HashSet<>();
+        for (String value : indices) {
+            Index index;
+            try {
+                index = parseIndex(value);
+            } catch (ParseException e) {
+                throw new ParseException(MESSAGE_INVALID_DEFAULT_TAG_INDEX, e);
+            }
+            if (index.getZeroBased() >= DefaultTags.TAGS.size()) {
+                throw new ParseException(MESSAGE_INVALID_DEFAULT_TAG_INDEX);
+            }
+            tags.add(DefaultTags.TAGS.get(index.getZeroBased()));
+        }
+        return tags;
+    }
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -59,7 +86,7 @@ public class ParserUtil {
     public static Phone parsePhone(String phone) throws ParseException {
         requireNonNull(phone);
         String trimmedPhone = phone.trim();
-        if (!Phone.isValidPhone(trimmedPhone)) {
+        if (trimmedPhone.isEmpty() || !Phone.isValidPhone(trimmedPhone)) {
             throw new ParseException(Phone.MESSAGE_CONSTRAINTS);
         }
         return new Phone(trimmedPhone);
@@ -89,10 +116,40 @@ public class ParserUtil {
     public static Email parseEmail(String email) throws ParseException {
         requireNonNull(email);
         String trimmedEmail = email.trim();
-        if (!Email.isValidEmail(trimmedEmail)) {
+        if (trimmedEmail.isEmpty() || !Email.isValidEmail(trimmedEmail)) {
             throw new ParseException(Email.MESSAGE_CONSTRAINTS);
         }
         return new Email(trimmedEmail);
+    }
+
+    /**
+     * Parses a {@code String major} into a {@code Major}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code major} is blank or invalid.
+     */
+    public static Major parseMajor(String major) throws ParseException {
+        requireNonNull(major);
+        String trimmedMajor = major.trim();
+        if (trimmedMajor.isEmpty() || !Major.isValidMajor(trimmedMajor)) {
+            throw new ParseException(Major.MESSAGE_CONSTRAINTS);
+        }
+        return new Major(trimmedMajor);
+    }
+
+    /**
+     * Parses a {@code String graduationYear} into a {@code GraduationYear}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code graduationYear} is blank or invalid.
+     */
+    public static GraduationYear parseGraduationYear(String graduationYear) throws ParseException {
+        requireNonNull(graduationYear);
+        String trimmedYear = graduationYear.trim();
+        if (trimmedYear.isEmpty() || !GraduationYear.isValidGraduationYear(trimmedYear)) {
+            throw new ParseException(GraduationYear.MESSAGE_CONSTRAINTS);
+        }
+        return new GraduationYear(trimmedYear);
     }
 
     /**

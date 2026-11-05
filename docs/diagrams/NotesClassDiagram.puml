@@ -1,0 +1,35 @@
+@startuml
+' @@author RayWHJ
+!include style.puml
+show members
+skinparam classAttributeIconSize 0
+skinparam classAttributeFontColor #FFFFFF
+skinparam arrowColor MODEL_COLOR_T4
+skinparam classBackgroundColor MODEL_COLOR
+
+class NoteCommand LOGIC_COLOR {
+  + execute(model: Model): CommandResult
+}
+class Person {
+  + getNotes(): Notes
+  + withNotes(updatedNotes: Notes): Person
+}
+class Notes {
+  {static} + EMPTY: Notes
+  {static} + MAX_LENGTH: int = 500
+  + value: String
+  + isEmpty(): boolean
+}
+
+NoteCommand ..> Person
+NoteCommand "0..*" --> "1\nnotes" Notes
+Person "0..*" --> "1\nnotes" Notes
+
+note as NotesInfo
+  Immutable; an empty value means no note.
+  The same Notes value can be shared by contacts.
+end note
+Notes .. NotesInfo
+' Keep the connector dashed instead of merging it into a callout pointer.
+Notes .[hidden]. NotesInfo
+@enduml

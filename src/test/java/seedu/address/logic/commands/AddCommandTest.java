@@ -8,23 +8,43 @@ import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
+import seedu.address.model.UserPrefs;
 import seedu.address.model.person.Person;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
+
+    @Test
+    public void execute_caseOnlyDuplicateName_rejectedWithoutChangingData() {
+        Person original = new PersonBuilder().withName("John Doe").build();
+        AddressBook addressBook = new AddressBook();
+        addressBook.addPerson(original);
+        Model model = new ModelManager(addressBook, new UserPrefs());
+        Person duplicate = new PersonBuilder(original).withName("john doe").withPhone("98765432").build();
+        String expectedMessage = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON_DISPLAYED,
+                1, Messages.format(original));
+        assertThrows(CommandException.class, expectedMessage, () ->
+                new AddCommand(duplicate).execute(model));
+        assertEquals(List.of(original), model.getAddressBook().getPersonList());
+        assertFalse(model.canUndoAddressBook());
+    }
 
     @Test
     public void constructor_nullPerson_throwsNullPointerException() {
@@ -44,12 +64,105 @@ public class AddCommandTest {
     }
 
     @Test
+    public void execute_personAcceptedByModel_commitsStateBeforeAdd() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person firstPerson = new PersonBuilder().withName("Alice").build();
+        Person secondPerson = new PersonBuilder().withName("Bob").withPhone("99998888")
+                .withEmail("bob@example.com").build();
+
+        String firstMessage = new AddCommand(firstPerson).execute(modelStub).getFeedbackToUser();
+        String secondMessage = new AddCommand(secondPerson).execute(modelStub).getFeedbackToUser();
+
+        AddressBook stateBeforeSecondAdd = new AddressBook();
+        stateBeforeSecondAdd.addPerson(firstPerson);
+        assertEquals(List.of(new AddressBook(), stateBeforeSecondAdd), modelStub.committedPreviousStates);
+        assertEquals(List.of(firstMessage, secondMessage), modelStub.committedDescriptions);
+    }
+
+    @Test
+    public void execute_personWithAcademicFields_addSuccessfulMessageShowsAcademicFields() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person validPerson = new PersonBuilder()
+                .withName("Alex Tan")
+                .withPhone("91234567")
+                .withEmail("alex@example.com")
+                .withAddress("10 Kent Ridge Road")
+                .withMajor("Computer Science")
+                .withGraduationYear("2027")
+                .withTags("classmate")
+                .build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        String expectedPerson = "Alex Tan"
+                + "; Phone: 91234567"
+                + "; Email: alex@example.com"
+                + "; Address: 10 Kent Ridge Road"
+                + "; Major: Computer Science"
+                + "; Class year: 2027"
+                + "; Tags: [classmate]";
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, expectedPerson), commandResult.getFeedbackToUser());
+        assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_personWithOneAcademicField_addSuccessfulMessageShowsOnlySpecifiedAcademicField()
+            throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person validPerson = new PersonBuilder()
+                .withName("Alex Tan")
+                .withPhone("91234567")
+                .withEmail("alex@example.com")
+                .withAddress("10 Kent Ridge Road")
+                .withMajor("Computer Science")
+                .withTags("classmate")
+                .build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        String expectedPerson = "Alex Tan"
+                + "; Phone: 91234567"
+                + "; Email: alex@example.com"
+                + "; Address: 10 Kent Ridge Road"
+                + "; Major: Computer Science"
+                + "; Tags: [classmate]";
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, expectedPerson), commandResult.getFeedbackToUser());
+        assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
+    public void execute_personWithClassYearOnly_addSuccessfulMessageShowsOnlyClassYear() throws Exception {
+        ModelStubAcceptingPersonAdded modelStub = new ModelStubAcceptingPersonAdded();
+        Person validPerson = new PersonBuilder()
+                .withName("Alex Tan")
+                .withPhone("91234567")
+                .withEmail("alex@example.com")
+                .withAddress("10 Kent Ridge Road")
+                .withGraduationYear("2027")
+                .withTags("classmate")
+                .build();
+
+        CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
+
+        String expectedPerson = "Alex Tan"
+                + "; Phone: 91234567"
+                + "; Email: alex@example.com"
+                + "; Address: 10 Kent Ridge Road"
+                + "; Class year: 2027"
+                + "; Tags: [classmate]";
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, expectedPerson), commandResult.getFeedbackToUser());
+        assertEquals(List.of(validPerson), modelStub.personsAdded);
+    }
+
+    @Test
     public void execute_duplicatePerson_throwsCommandException() {
         Person validPerson = new PersonBuilder().build();
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        String expectedMessage = String.format(AddCommand.MESSAGE_DUPLICATE_PERSON_DISPLAYED,
+                1, Messages.format(validPerson));
+        assertThrows(CommandException.class, expectedMessage, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -133,12 +246,62 @@ public class AddCommandTest {
         }
 
         @Override
+        public void commitAddressBook(ReadOnlyAddressBook previousState, String description) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canUndoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean canRedoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<String> getUndoDescription() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Optional<String> getRedoDescription() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean undoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public boolean redoAddressBook() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ObservableList<Person> getFilteredPersonList() {
             throw new AssertionError("This method should not be called.");
         }
 
         @Override
+        public ReadOnlyStringProperty viewStatusProperty() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void updateSortedPersonList(Comparator<Person> comparator) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void resetSortedPersonList() {
             throw new AssertionError("This method should not be called.");
         }
     }
@@ -155,9 +318,15 @@ public class AddCommandTest {
         }
 
         @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return this.person.isSamePerson(person);
+        public ReadOnlyAddressBook getAddressBook() {
+            AddressBook addressBook = new AddressBook();
+            addressBook.addPerson(person);
+            return addressBook;
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return getAddressBook().getPersonList();
         }
     }
 
@@ -166,12 +335,8 @@ public class AddCommandTest {
      */
     private class ModelStubAcceptingPersonAdded extends ModelStub {
         final ArrayList<Person> personsAdded = new ArrayList<>();
-
-        @Override
-        public boolean hasPerson(Person person) {
-            requireNonNull(person);
-            return personsAdded.stream().anyMatch(person::isSamePerson);
-        }
+        final ArrayList<ReadOnlyAddressBook> committedPreviousStates = new ArrayList<>();
+        final ArrayList<String> committedDescriptions = new ArrayList<>();
 
         @Override
         public void addPerson(Person person) {
@@ -181,7 +346,22 @@ public class AddCommandTest {
 
         @Override
         public ReadOnlyAddressBook getAddressBook() {
-            return new AddressBook();
+            AddressBook addressBook = new AddressBook();
+            personsAdded.forEach(addressBook::addPerson);
+            return addressBook;
+        }
+
+        @Override
+        public ObservableList<Person> getFilteredPersonList() {
+            return getAddressBook().getPersonList();
+        }
+
+        @Override
+        public void commitAddressBook(ReadOnlyAddressBook previousState, String description) {
+            requireNonNull(previousState);
+            requireNonNull(description);
+            committedPreviousStates.add(previousState);
+            committedDescriptions.add(description);
         }
     }
 

@@ -14,11 +14,16 @@ import org.junit.jupiter.api.Test;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GraduationYear;
+import seedu.address.model.person.Major;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
+    /** Values with nothing visible: marks, format characters and Unicode spaces, alone or combined. */
+    private static final String[] INVISIBLE_ONLY_VALUES =
+        {"\ufe0f", "\u0301", "\u200b", "\ufeff", "\u2060\u200b", "\u00a0", " \u200b "};
     private static final String INVALID_NAME = "R@chel";
     private static final String INVALID_PHONE = "+651234";
     private static final String INVALID_ADDRESS = " ";
@@ -111,6 +116,13 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseAddress_invisibleCharactersOnly_throwsParseException() {
+        for (String address : INVISIBLE_ONLY_VALUES) {
+            assertThrows(ParseException.class, Address.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseAddress(address));
+        }
+    }
+
+    @Test
     public void parseAddress_validValueWithoutWhitespace_returnsAddress() throws Exception {
         Address expectedAddress = new Address(VALID_ADDRESS);
         assertEquals(expectedAddress, ParserUtil.parseAddress(VALID_ADDRESS));
@@ -190,5 +202,38 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void parseMajor_nullOrBlank_throwsException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseMajor(null));
+        assertThrows(ParseException.class, Major.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseMajor(""));
+        assertThrows(ParseException.class, Major.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseMajor(WHITESPACE));
+    }
+
+    @Test
+    public void parseMajor_invisibleCharactersOnly_throwsParseException() {
+        for (String major : INVISIBLE_ONLY_VALUES) {
+            assertThrows(ParseException.class, Major.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseMajor(major));
+        }
+    }
+
+    @Test
+    public void parseMajor_validValue_returnsTrimmedMajor() throws Exception {
+        assertEquals(new Major("Computer Science"), ParserUtil.parseMajor("  Computer Science  "));
+    }
+
+    @Test
+    public void parseGraduationYear_nullOrBlank_throwsException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseGraduationYear(null));
+        assertThrows(ParseException.class, GraduationYear.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseGraduationYear(""));
+        assertThrows(ParseException.class, GraduationYear.MESSAGE_CONSTRAINTS, ()
+            -> ParserUtil.parseGraduationYear(WHITESPACE));
+    }
+
+    @Test
+    public void parseGraduationYear_validValue_returnsTrimmedYear() throws Exception {
+        assertEquals(new GraduationYear("2027"), ParserUtil.parseGraduationYear("  2027  "));
     }
 }

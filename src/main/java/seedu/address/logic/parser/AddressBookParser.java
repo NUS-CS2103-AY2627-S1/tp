@@ -3,20 +3,35 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
+import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteNoteCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
+import seedu.address.logic.commands.FavCommand;
+import seedu.address.logic.commands.FilterCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.ListFavCommand;
+import seedu.address.logic.commands.NoteCommand;
+import seedu.address.logic.commands.RedoCommand;
+import seedu.address.logic.commands.ShowNoteCommand;
+import seedu.address.logic.commands.SortCommand;
+import seedu.address.logic.commands.TagCommand;
+import seedu.address.logic.commands.TagsCommand;
+import seedu.address.logic.commands.UndoCommand;
+import seedu.address.logic.commands.UnfavCommand;
+import seedu.address.logic.commands.UntagCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 
 /**
@@ -25,9 +40,11 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class AddressBookParser {
 
     /**
-     * Used for initial separation of command word and args.
+     * Used for initial separation of command word and args. Any kind of whitespace ends the command word.
      */
-    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile("(?<commandWord>\\S+)(?<arguments>.*)");
+    private static final Pattern BASIC_COMMAND_FORMAT = Pattern.compile(
+            "(?<commandWord>(?:(?!" + StringUtil.WHITESPACE_REGEX + ").)+)(?<arguments>.*)", Pattern.DOTALL);
+
     private static final Logger logger = LogsCenter.getLogger(AddressBookParser.class);
 
     /**
@@ -38,33 +55,90 @@ public class AddressBookParser {
      * @throws ParseException if the user input does not conform to the expected format
      */
     public Command parseCommand(String userInput) throws ParseException {
-        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(userInput.trim());
+        final String trimmedInput = StringUtil.stripWhitespaceAndControls(userInput);
+        final Matcher matcher = BASIC_COMMAND_FORMAT.matcher(trimmedInput);
         if (!matcher.matches()) {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
         final String commandWord = matcher.group("commandWord");
-        final String arguments = matcher.group("arguments");
+        final String rawArguments = matcher.group("arguments");
+        // Unicode spaces become ASCII spaces so that downstream tokenizing and splitting treat them as separators.
+        // Note text is free-form, so it is passed through unchanged and validated by NoteCommandParser instead.
+        // The check ignores case to match the case-insensitive command words from #130.
+        final String arguments = commandWord.equalsIgnoreCase(NoteCommand.COMMAND_WORD)
+                ? rawArguments
+                : StringUtil.normalizeWhitespace(rawArguments);
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
         // log messages such as the one below.
         // Lower level log messages are used sparingly to minimize noise in the code.
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
-        return switch (commandWord) {
+        return switch (commandWord.toLowerCase(Locale.ROOT)) {
             case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case FavCommand.COMMAND_WORD -> new FavCommandParser().parse(arguments);
+            case UnfavCommand.COMMAND_WORD -> new UnfavCommandParser().parse(arguments);
+            case NoteCommand.COMMAND_WORD -> new NoteCommandParser().parse(arguments);
+            case ShowNoteCommand.COMMAND_WORD -> new ShowNoteCommandParser().parse(arguments);
+            case DeleteNoteCommand.COMMAND_WORD -> new DeleteNoteCommandParser().parse(arguments);
+            case TagCommand.COMMAND_WORD -> new TagCommandParser().parse(arguments);
+            case UntagCommand.COMMAND_WORD -> new UntagCommandParser().parse(arguments);
+            case TagsCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, TagsCommand.MESSAGE_USAGE);
+                yield new TagsCommand();
+            }
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
             case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case ClearCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, ClearCommand.MESSAGE_USAGE);
+                yield new ClearCommand();
+            }
+            case SortCommand.COMMAND_WORD -> new SortCommandParser().parse(arguments);
+            case FilterCommand.COMMAND_WORD -> new FilterCommandParser().parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
-            case ListCommand.COMMAND_WORD -> new ListCommand();
-            case ExitCommand.COMMAND_WORD -> new ExitCommand();
-            case HelpCommand.COMMAND_WORD -> new HelpCommand();
+            case ListCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, ListCommand.MESSAGE_USAGE);
+                yield new ListCommand();
+            }
+            case ListFavCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, ListFavCommand.MESSAGE_USAGE);
+                yield new ListFavCommand();
+            }
+            case UndoCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, UndoCommand.MESSAGE_USAGE);
+                yield new UndoCommand();
+            }
+            case RedoCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, RedoCommand.MESSAGE_USAGE);
+                yield new RedoCommand();
+            }
+            case ExitCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, ExitCommand.MESSAGE_USAGE);
+                yield new ExitCommand();
+            }
+            case HelpCommand.COMMAND_WORD -> {
+                validateNoArguments(arguments, HelpCommand.MESSAGE_USAGE);
+                yield new HelpCommand();
+            }
             default -> {
                 logger.finer("This user input caused a ParseException: " + userInput);
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };
+    }
+
+    /**
+     * Validates that a parameterless command has no non-whitespace arguments.
+     *
+     * @param arguments the arguments supplied after the command word
+     * @param usageMessage the command-specific usage message to show on failure
+     * @throws ParseException if non-whitespace arguments are supplied
+     */
+    private static void validateNoArguments(String arguments, String usageMessage) throws ParseException {
+        if (!arguments.isBlank()) {
+            throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, usageMessage));
+        }
     }
 
 }

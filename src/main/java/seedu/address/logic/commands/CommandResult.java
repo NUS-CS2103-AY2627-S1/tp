@@ -19,13 +19,21 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
+    /** The result contains a non-blocking advisory warning. */
+    private final boolean warning;
+
     /**
      * Constructs a {@code CommandResult} with the specified fields.
      */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+        this(feedbackToUser, showHelp, exit, false);
+    }
+
+    private CommandResult(String feedbackToUser, boolean showHelp, boolean exit, boolean warning) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.warning = warning;
     }
 
     /**
@@ -36,8 +44,22 @@ public class CommandResult {
         this(feedbackToUser, false, false);
     }
 
+    /**
+     * Creates a successful result containing a non-blocking advisory warning.
+     */
+    public static CommandResult warning(String feedbackToUser) {
+        return new CommandResult(feedbackToUser, false, false, true);
+    }
+
     public String getFeedbackToUser() {
         return feedbackToUser;
+    }
+
+    /**
+     * Returns the first line for logging, omitting multiline details such as saved and previous notes.
+     */
+    public String getLogSummary() {
+        return feedbackToUser.lines().findFirst().orElse("");
     }
 
     public boolean isShowHelp() {
@@ -46,6 +68,10 @@ public class CommandResult {
 
     public boolean isExit() {
         return exit;
+    }
+
+    public boolean isWarning() {
+        return warning;
     }
 
     @Override
@@ -61,12 +87,13 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && warning == otherCommandResult.warning;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, warning);
     }
 
     @Override
@@ -75,6 +102,7 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("warning", warning)
                 .toString();
     }
 

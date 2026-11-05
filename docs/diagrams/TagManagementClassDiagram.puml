@@ -1,0 +1,30 @@
+@startuml
+!include style.puml
+show members
+skinparam classAttributeIconSize 0
+skinparam classAttributeFontColor #FFFFFF
+skinparam arrowThickness 1.1
+skinparam arrowColor LOGIC_COLOR_T4
+skinparam classBackgroundColor LOGIC_COLOR
+skinparam ArrowFontStyle plain
+top to bottom direction
+
+class TagCommand
+class UntagCommand
+class Person MODEL_COLOR {
+  +getTags(): Set<Tag>
+}
+class Tag MODEL_COLOR {
+  +tagName: String
+}
+
+TagCommand ..> Person
+UntagCommand ..> Person
+Person --> "0..*\ntags {unique}" Tag : has >
+
+note bottom of Person
+  Commands copy the tag set and preserve other fields.
+  Default and custom tags use the same Tag type.
+  System reminders are not stored in this set.
+end note
+@enduml

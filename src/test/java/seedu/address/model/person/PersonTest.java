@@ -41,9 +41,11 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withName(VALID_NAME_BOB).build();
         assertFalse(ALICE.isSamePerson(editedAlice));
 
-        // name differs in case, all other attributes same -> returns false
+        // name differs in case, all other attributes same -> returns true
         Person editedBob = new PersonBuilder(BOB).withName(VALID_NAME_BOB.toLowerCase()).build();
-        assertFalse(BOB.isSamePerson(editedBob));
+        assertTrue(BOB.isSamePerson(editedBob));
+        assertTrue(editedBob.isSamePerson(BOB));
+        assertFalse(BOB.equals(editedBob));
 
         // name has trailing spaces, all other attributes same -> returns false
         String nameWithTrailingSpaces = VALID_NAME_BOB + " ";
@@ -85,15 +87,47 @@ public class PersonTest {
         editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).build();
         assertFalse(ALICE.equals(editedAlice));
 
+        // new fields affect equality but do not change identity
+        editedAlice = new PersonBuilder(ALICE).withMajor("Computer Science").build();
+        assertFalse(ALICE.equals(editedAlice));
+        assertTrue(ALICE.isSamePerson(editedAlice));
+        editedAlice = new PersonBuilder(ALICE).withGraduationYear("2027").build();
+        assertFalse(ALICE.equals(editedAlice));
+        assertTrue(ALICE.isSamePerson(editedAlice));
+
         // different tags -> returns false
         editedAlice = new PersonBuilder(ALICE).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(ALICE.equals(editedAlice));
     }
 
     @Test
+    public void constructor_withoutNotes_defaultsToEmpty() {
+        Person person = new Person(ALICE.getName(), ALICE.getPhone(), ALICE.getEmail(), ALICE.getAddress(),
+                ALICE.getMajor(), ALICE.getGraduationYear(), ALICE.getTags());
+        assertEquals(Notes.EMPTY, person.getNotes());
+    }
+
+    @Test
+    public void withNotes_preservesDetailsAndOriginalPerson() {
+        Person original = new PersonBuilder(ALICE).withMajor("Computer Science").withGraduationYear("2027")
+                .withNotes("Met in class").build();
+        Person updated = original.withNotes(new Notes("Project teammate"));
+        assertEquals(new PersonBuilder(original).withNotes("Project teammate").build(), updated);
+        assertEquals(new Notes("Met in class"), original.getNotes());
+        assertTrue(original.isSamePerson(updated));
+        assertFalse(original.equals(updated));
+        assertEquals(updated.hashCode(), new PersonBuilder(updated).build().hashCode());
+        assertEquals(new PersonBuilder(original).withNotes("").build(), updated.withNotes(Notes.EMPTY));
+        assertThrows(NullPointerException.class, () -> original.withNotes(null));
+    }
+
+    @Test
     public void toStringMethod() {
         String expected = Person.class.getCanonicalName() + "{name=" + ALICE.getName() + ", phone=" + ALICE.getPhone()
-                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress() + ", tags=" + ALICE.getTags() + "}";
+                + ", email=" + ALICE.getEmail() + ", address=" + ALICE.getAddress()
+                + ", major=" + ALICE.getMajor() + ", graduationYear=" + ALICE.getGraduationYear()
+                + ", tags=" + ALICE.getTags() + ", notes=" + ALICE.getNotes()
+                + ", favourite=" + ALICE.isFavourite() + ", lastUpdated=" + ALICE.getLastUpdated() + "}";
         assertEquals(expected, ALICE.toString());
     }
 }

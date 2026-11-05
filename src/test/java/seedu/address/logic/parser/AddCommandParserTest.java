@@ -26,6 +26,9 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_FAVOURITE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GRADUATION_YEAR;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MAJOR;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
@@ -33,12 +36,16 @@ import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSucces
 import static seedu.address.testutil.TypicalPersons.AMY;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GraduationYear;
+import seedu.address.model.person.Major;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
@@ -64,6 +71,79 @@ public class AddCommandParserTest {
                 NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 new AddCommand(expectedPersonMultipleTags));
     }
+
+    @Test
+    public void parse_favouriteFlagInAnyPosition_success() {
+        String existingFields = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        Person expected = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).withFavourite(true).build();
+        for (String input : List.of(" f/" + existingFields + TAG_DESC_FRIEND,
+                NAME_DESC_BOB + " f/" + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_FRIEND,
+                existingFields + TAG_DESC_FRIEND + " f/  \t ")) {
+            assertParseSuccess(parser, input, new AddCommand(expected));
+        }
+    }
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_favouriteFlagWithOtherOptionalFields_success() {
+        Person expected = new PersonBuilder().withName("Alice").withAddress("NUS").withPhone("").withEmail("")
+                .withMajor("Computer Science").withGraduationYear("2027").withTags("Friend", "classmate")
+                .withFavourite(true).build();
+        assertParseSuccess(parser, " n/Alice a/NUS f/ m/Computer Science c/2027 d/1 t/classmate",
+                new AddCommand(expected));
+        Person minimal = new PersonBuilder().withName("Alice").withAddress("NUS").withPhone("").withEmail("")
+                .withTags().withFavourite(true).build();
+        assertParseSuccess(parser, " n/Alice a/NUS f/", new AddCommand(minimal));
+    }
+    //@@author
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_favouriteFlagWithValue_failure() {
+        String expectedMessage = "The f/ flag does not take a value. "
+                + "Use f/ alone to mark the new contact as a favourite.";
+        for (String value : List.of("true", "false", "yes", "1", "extra text")) {
+            assertParseFailure(parser, NAME_DESC_BOB + ADDRESS_DESC_BOB + " f/" + value, expectedMessage);
+        }
+    }
+    //@@author
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_addressContainingEmbeddedFavouritePrefix_preservesAddressWithoutFavourite() {
+        Person expected = new PersonBuilder().withName("Alice").withAddress("Blockf/3")
+                .withPhone("").withEmail("").build();
+        assertParseSuccess(parser, " n/Alice a/Blockf/3", new AddCommand(expected));
+    }
+    //@@author
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_addressFollowedByFavouritePrefix_recognisesFlag() {
+        Person expected = new PersonBuilder().withName("Alice").withAddress("Block")
+                .withPhone("").withEmail("").withFavourite(true).build();
+        assertParseSuccess(parser, " n/Alice a/Block f/", new AddCommand(expected));
+        assertParseSuccess(parser, " n/Alice a/Block f/ p/91234567",
+                new AddCommand(new PersonBuilder(expected).withPhone("91234567").build()));
+    }
+    //@@author
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_addressContainingSpaceBeforeFavouritePrefixWithValue_failure() {
+        assertParseFailure(parser, " n/Alice a/Block f/3", AddCommandParser.MESSAGE_FAVOURITE_FLAG_VALUE);
+    }
+    //@@author
+
+    //@@author aziz-Almarzooq
+    @Test
+    public void parse_repeatedFavouriteFlag_failure() {
+        String expectedMessage = Messages.getErrorMessageForDuplicatePrefixes(PREFIX_FAVOURITE);
+        for (String flags : List.of(" f/ f/", " f/true f/", " f/ f/true")) {
+            assertParseFailure(parser, NAME_DESC_BOB + ADDRESS_DESC_BOB + flags, expectedMessage);
+        }
+    }
+    //@@author
 
     @Test
     public void parse_repeatedNonTagValue_failure() {
@@ -145,14 +225,6 @@ public class AddCommandParserTest {
         assertParseFailure(parser, VALID_NAME_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
                 expectedMessage);
 
-        // missing phone prefix
-        assertParseFailure(parser, NAME_DESC_BOB + VALID_PHONE_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing email prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
         // missing address prefix
         assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
                 expectedMessage);
@@ -192,5 +264,48 @@ public class AddCommandParserTest {
         assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
                 + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_universityFieldsAndTags_success() {
+        String existingFields = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        Person expected = new PersonBuilder(BOB).withMajor("Computer Science").withGraduationYear("2027")
+                .withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND).build();
+        assertParseSuccess(parser, existingFields + " m/Computer Science c/2027"
+                + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, new AddCommand(expected));
+        assertParseSuccess(parser, " c/ 2027  m/ Computer Science  " + existingFields
+                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_universityFieldsIndependentlyOptional_success() {
+        String existingFields = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        Person majorOnly = new PersonBuilder(BOB).withTags().withMajor("Business").build();
+        Person yearOnly = new PersonBuilder(BOB).withTags().withGraduationYear("2027").build();
+        assertParseSuccess(parser, existingFields + " m/Business", new AddCommand(majorOnly));
+        assertParseSuccess(parser, existingFields + " c/2027", new AddCommand(yearOnly));
+    }
+
+    @Test
+    public void parse_invalidUniversityFields_failure() {
+        String existingFields = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        for (String invalidMajor : List.of(" m/", " m/   ", " m/Computer\nScience")) {
+            assertParseFailure(parser, existingFields + invalidMajor, Major.MESSAGE_CONSTRAINTS);
+        }
+        for (String invalidYear : List.of(" c/", " c/   ", " c/1999", " c/2100", " c/27", " c/20XX",
+                " c/20270", " c/2027.0", " c/２０２７")) {
+            assertParseFailure(parser, existingFields + invalidYear, GraduationYear.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    @Test
+    public void parse_repeatedUniversityFields_failure() {
+        String existingFields = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        assertParseFailure(parser, existingFields + " m/Business m/Computer Science",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_MAJOR));
+        assertParseFailure(parser, existingFields + " m/Business m/Business",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_MAJOR));
+        assertParseFailure(parser, existingFields + " c/20XX c/2027",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_GRADUATION_YEAR));
     }
 }

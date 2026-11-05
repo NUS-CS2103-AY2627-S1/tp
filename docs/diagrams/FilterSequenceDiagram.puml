@@ -1,0 +1,53 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":FilterCommandParser" as Parser LOGIC_COLOR
+participant "<<class>>\nArgumentTokenizer" as Tokenizer LOGIC_COLOR
+participant "<<class>>\nParserUtil" as ParserUtil LOGIC_COLOR
+participant ":FilterCommand" as Command LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant ":ContactFilter\nPredicate" as Predicate MODEL_COLOR
+end box
+
+[-> Parser : parse("m/CS c/2027")
+activate Parser
+
+Parser -> Tokenizer : tokenize m/, c/, t/
+activate Tokenizer
+Tokenizer --> Parser : criteria
+deactivate Tokenizer
+
+Parser -> ParserUtil : parseMajor("CS")
+activate ParserUtil
+ParserUtil --> Parser : major
+deactivate ParserUtil
+
+Parser -> ParserUtil : parseGraduationYear("2027")
+activate ParserUtil
+ParserUtil --> Parser : year
+deactivate ParserUtil
+
+note right of Parser
+  t/ omitted:
+  tag stays empty
+end note
+
+create Predicate
+Parser -> Predicate : create predicate
+activate Predicate
+Predicate --> Parser
+deactivate Predicate
+
+create Command
+Parser -> Command : filter with predicate
+activate Command
+Command --> Parser
+deactivate Command
+
+[<-- Parser
+deactivate Parser
+@enduml

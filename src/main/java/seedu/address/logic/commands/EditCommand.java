@@ -3,26 +3,35 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GRADUATION_YEAR;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_MAJOR;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
 import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
+import seedu.address.model.person.GraduationYear;
+import seedu.address.model.person.Major;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
@@ -43,28 +52,44 @@ public class EditCommand extends Command {
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
+            + "[" + PREFIX_MAJOR + "MAJOR] "
+            + "[" + PREFIX_GRADUATION_YEAR + "CLASS_YEAR] "
             + "[" + PREFIX_TAG + "TAG]...\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
+    public static final String MESSAGE_NO_CHANGES = "No changes made to %1$s. "
+            + "The supplied values match the existing details.";
+    // Keep the existing description for undo/redo; immediate feedback lists actual changes.
     public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
     public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_DUPLICATE_PERSON =
+            "A contact with this name already exists in UniMate. Names are compared ignoring case.";
+    public static final String MESSAGE_SHARED_DETAILS_WARNING = SharedContactDetailsWarning.MESSAGE_WARNING;
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
+    private final Clock clock;
 
     /**
      * @param index of the person in the filtered person list to edit
      * @param editPersonDescriptor details to edit the person with
      */
     public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor) {
+        this(index, editPersonDescriptor, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Creates an edit command using the supplied clock for profile modification dates.
+     */
+    public EditCommand(Index index, EditPersonDescriptor editPersonDescriptor, Clock clock) {
         requireNonNull(index);
         requireNonNull(editPersonDescriptor);
 
         this.index = index;
         this.editPersonDescriptor = new EditPersonDescriptor(editPersonDescriptor);
+        this.clock = requireNonNull(clock);
     }
 
     @Override
@@ -83,25 +108,92 @@ public class EditCommand extends Command {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
+        if (personToEdit.equals(editedPerson)) {
+            model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
+            return new CommandResult(String.format(MESSAGE_NO_CHANGES, personToEdit.getName()));
+        }
+
+        ReadOnlyAddressBook previousState = new AddressBook(model.getAddressBook());
         model.setPerson(personToEdit, editedPerson);
         model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        String message = String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson));
+        // Keep the full-contact history description separate from immediate change feedback.
+        model.commitAddressBook(previousState, message);
+        return getEditResult(model, personToEdit, editedPerson, formatChanges(personToEdit, editedPerson));
+    }
+
+    /** Lists only changed fields, with explicit values for cleared optional fields. */
+    private static String formatChanges(Person original, Person edited) {
+        StringBuilder feedback = new StringBuilder("Edited ").append(edited.getName()).append(":");
+        appendChange(feedback, "Name", original.getName().fullName, edited.getName().fullName);
+        appendChange(feedback, "Phone", original.getPhone().value, edited.getPhone().value);
+        appendChange(feedback, "Email", original.getEmail().value, edited.getEmail().value);
+        appendChange(feedback, "Address", original.getAddress().value, edited.getAddress().value);
+        appendChange(feedback, "Major", original.getMajor().value, edited.getMajor().value);
+        appendChange(feedback, "Class year", original.getGraduationYear().value, edited.getGraduationYear().value);
+        if (!original.getTags().equals(edited.getTags())) {
+            feedback.append("\nTags replaced. Removed: ")
+                    .append(formatTagDifference(original.getTags(), edited.getTags()))
+                    .append(". Added: ").append(formatTagDifference(edited.getTags(), original.getTags())).append(".");
+        }
+        return feedback.toString();
+    }
+
+    /** Appends one changed field, displaying an unspecified value explicitly. */
+    private static void appendChange(StringBuilder feedback, String label, String before, String after) {
+        if (!before.equals(after)) {
+            feedback.append("\n").append(label).append(": ")
+                    .append(Messages.formatOptionalValue(before)).append(" → ")
+                    .append(Messages.formatOptionalValue(after));
+        }
+    }
+
+    /**
+     * Warns only when a changed contact method matches another contact after refreshing the display.
+     * Changing only an email's capitalization does not introduce a new shared value.
+     */
+    private CommandResult getEditResult(Model model, Person originalPerson, Person editedPerson,
+            String successMessage) {
+        boolean phoneChanged = !originalPerson.getPhone().equals(editedPerson.getPhone());
+        boolean emailChanged = !originalPerson.getEmail().value.equalsIgnoreCase(editedPerson.getEmail().value);
+        String matches = SharedContactDetailsWarning.describeMatches(
+                editedPerson, model.getFilteredPersonList(), phoneChanged, emailChanged);
+        return SharedContactDetailsWarning.appendTo(successMessage, matches);
+    }
+
+    /** Returns sorted tag names present only in the first set, or "None". */
+    private static String formatTagDifference(Set<Tag> tags, Set<Tag> otherTags) {
+        String names = tags.stream().filter(tag -> !otherTags.contains(tag))
+                .map(tag -> tag.tagName).sorted().collect(Collectors.joining(", "));
+        return names.isEmpty() ? "None" : names;
     }
 
     /**
      * Creates and returns a {@code Person} with the details of {@code personToEdit}
      * edited with {@code editPersonDescriptor}.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
+    private Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
+        Major updatedMajor = editPersonDescriptor.getMajor().orElse(personToEdit.getMajor());
+        GraduationYear updatedGraduationYear = editPersonDescriptor.getGraduationYear()
+                .orElse(personToEdit.getGraduationYear());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        boolean profileChanged = !updatedName.equals(personToEdit.getName())
+                || !updatedPhone.equals(personToEdit.getPhone())
+                || !updatedEmail.equals(personToEdit.getEmail())
+                || !updatedAddress.equals(personToEdit.getAddress())
+                || !updatedMajor.equals(personToEdit.getMajor())
+                || !updatedGraduationYear.equals(personToEdit.getGraduationYear());
+        LocalDate lastUpdated = profileChanged ? LocalDate.now(clock) : personToEdit.getLastUpdated();
+        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress,
+                updatedMajor, updatedGraduationYear, updatedTags, personToEdit.getNotes(),
+                personToEdit.isFavourite(), lastUpdated);
     }
 
     @Override
@@ -136,6 +228,8 @@ public class EditCommand extends Command {
         private Phone phone;
         private Email email;
         private Address address;
+        private Major major;
+        private GraduationYear graduationYear;
         private Set<Tag> tags;
 
         public EditPersonDescriptor() {}
@@ -149,6 +243,8 @@ public class EditCommand extends Command {
             setPhone(toCopy.phone);
             setEmail(toCopy.email);
             setAddress(toCopy.address);
+            setMajor(toCopy.major);
+            setGraduationYear(toCopy.graduationYear);
             setTags(toCopy.tags);
         }
 
@@ -156,7 +252,7 @@ public class EditCommand extends Command {
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, major, graduationYear, tags);
         }
 
         public void setName(Name name) {
@@ -191,6 +287,22 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
+        public void setMajor(Major major) {
+            this.major = major;
+        }
+
+        public Optional<Major> getMajor() {
+            return Optional.ofNullable(major);
+        }
+
+        public void setGraduationYear(GraduationYear graduationYear) {
+            this.graduationYear = graduationYear;
+        }
+
+        public Optional<GraduationYear> getGraduationYear() {
+            return Optional.ofNullable(graduationYear);
+        }
+
         /**
          * Sets {@code tags} to this object's {@code tags}.
          * A defensive copy of {@code tags} is used internally.
@@ -223,6 +335,8 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
+                    && Objects.equals(major, otherEditPersonDescriptor.major)
+                    && Objects.equals(graduationYear, otherEditPersonDescriptor.graduationYear)
                     && Objects.equals(tags, otherEditPersonDescriptor.tags);
         }
 
@@ -233,6 +347,8 @@ public class EditCommand extends Command {
                     .add("phone", phone)
                     .add("email", email)
                     .add("address", address)
+                    .add("major", major)
+                    .add("graduationYear", graduationYear)
                     .add("tags", tags)
                     .toString();
         }

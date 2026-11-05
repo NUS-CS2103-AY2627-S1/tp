@@ -4,18 +4,24 @@ skinparam ClassFontColor #000000
 skinparam ClassBorderColor #000000
 skinparam ClassBackgroundColor #FFFFAA
 
-title After command "add n/David"
+title After undo, perform a new add
 
-package States <<rectangle>> {
-    class State1 as "<u>ab0:AddressBook</u>"
-    class State2 as "<u>ab1:AddressBook</u>"
-    class State3 as "<u>ab2:AddressBook</u>"
+package "undoStates (stack)" <<rectangle>> {
+    class U0 as "<u>ab1:AddressBook</u>\nAlex"
+    class U1 as "<u>ab0:AddressBook</u>"
 }
 
-State1 -[hidden]right-> State2
-State2 -[hidden]right-> State3
+package "currentState" <<rectangle>> {
+    class C as "<u>ab3:AddressBook</u>\nAlex, Beth"
+}
 
-class Pointer as "Current State" #FFFFFF
+package "redoStates (stack)" <<rectangle>> {
+    class RE as "empty" #FFFFFF
+}
 
-Pointer -up-> State3
-@end
+U0 -[hidden]down-> U1
+U0 -[hidden]right-> C
+C -[hidden]right-> RE
+
+caption The new commit clears redoStates, so ab2 can no longer be redone.
+@enduml

@@ -8,19 +8,15 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
  * Guarantees: immutable; is valid as declared in {@link #isValidEmail(String)}
  */
 public class Email {
+    public static final Email EMPTY = new Email("");
 
+    public static final String MESSAGE_CONSTRAINTS = "Email format: local-part@domain\n"
+            + "Local part: letters, digits and + _ . - only.\n"
+            + "Special characters cannot be consecutive or at either end.\n"
+            + "Domain: labels separated by dots; letters, digits and hyphens only.\n"
+            + "Each label must start and end with a letter or digit.\n"
+            + "The final label must have at least 2 characters.";
     private static final String SPECIAL_CHARACTERS = "+_.-";
-    public static final String MESSAGE_CONSTRAINTS = "Emails should be of the format local-part@domain "
-            + "and adhere to the following constraints:\n"
-            + "1. The local-part should only contain alphanumeric characters and these special characters, excluding "
-            + "the parentheses, (" + SPECIAL_CHARACTERS + "). The local-part may not start or end with any special "
-            + "characters.\n"
-            + "2. The local-part is followed by an '@' and then a domain name. The domain name is made up of domain "
-            + "labels separated by periods.\n"
-            + "The domain name must:\n"
-            + "    - end with a domain label at least 2 characters long\n"
-            + "    - have each domain label start and end with alphanumeric characters\n"
-            + "    - have each domain label consist of alphanumeric characters, separated only by hyphens, if any.";
     // alphanumeric and special characters
     private static final String ALPHANUMERIC_NO_UNDERSCORE = "[^\\W_]+"; // alphanumeric characters except underscore
     private static final String LOCAL_PART_REGEX = "^" + ALPHANUMERIC_NO_UNDERSCORE + "([" + SPECIAL_CHARACTERS + "]"
@@ -45,10 +41,61 @@ public class Email {
     }
 
     /**
-     * Returns true if a given string is a valid email.
+     * Returns true if a string is empty (unspecified) or a valid email.
      */
     public static boolean isValidEmail(String test) {
-        return test.matches(VALIDATION_REGEX);
+        if (test.isEmpty()) {
+            return true;
+        }
+        int at = test.indexOf('@');
+        if (at < 0 || at != test.lastIndexOf('@') || !isValidPart(test, 0, at, SPECIAL_CHARACTERS)) {
+            return false;
+        }
+        int labelStart = at + 1;
+        for (int i = labelStart; i < test.length(); i++) {
+            if (test.charAt(i) == '.') {
+                if (!isValidPart(test, labelStart, i, "-")) {
+                    return false;
+                }
+                labelStart = i + 1;
+            }
+        }
+        if (!isValidPart(test, labelStart, test.length(), "-")) {
+            return false;
+        }
+        // Preserve the existing final-label rule: two adjacent alphanumeric characters are required.
+        // This is equivalent to the repeated DOMAIN_PART_REGEX, including its hyphen restrictions.
+        for (int i = labelStart + 1; i < test.length(); i++) {
+            if (isAsciiAlphanumeric(test.charAt(i - 1)) && isAsciiAlphanumeric(test.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks a non-empty part without recursive regex matching or allocating substrings.
+     * Separators must occur singly between ASCII letters or digits, as in the original regex.
+     */
+    private static boolean isValidPart(String text, int start, int end, String separators) {
+        boolean previousAlphanumeric = false;
+        for (int i = start; i < end; i++) {
+            char character = text.charAt(i);
+            if (isAsciiAlphanumeric(character)) {
+                previousAlphanumeric = true;
+            } else if (separators.indexOf(character) >= 0 && previousAlphanumeric) {
+                previousAlphanumeric = false;
+            } else {
+                return false;
+            }
+        }
+        return previousAlphanumeric;
+    }
+
+    private static boolean isAsciiAlphanumeric(char character) {
+        return character >= 'a' && character <= 'z'
+                || character >= 'A' && character <= 'Z'
+                || character >= '0' && character <= '9';
     }
 
     @Override
