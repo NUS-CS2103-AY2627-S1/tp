@@ -1,15 +1,17 @@
 package seedu.address.testutil;
 
-import java.util.Set;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Notes;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.StartDate;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -34,9 +36,14 @@ public class EditPersonDescriptorBuilder {
         descriptor = new EditPersonDescriptor();
         descriptor.setName(person.getName());
         descriptor.setPhone(person.getPhone());
-        descriptor.setEmail(person.getEmail());
         descriptor.setAddress(person.getAddress());
+        descriptor.setStartDate(person.getStartDate());
+        descriptor.setOutstandingAmount(person.getOutstandingAmount());
         descriptor.setTags(person.getTags());
+        descriptor.setNotes(person.getNotes());
+        if (!person.getSubjects().isEmpty()) {
+            descriptor.setSubjects(person.getSubjects());
+        }
     }
 
     /**
@@ -56,14 +63,6 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
-     * Sets the {@code Email} of the {@code EditPersonDescriptor} that we are building.
-     */
-    public EditPersonDescriptorBuilder withEmail(String email) {
-        descriptor.setEmail(new Email(email));
-        return this;
-    }
-
-    /**
      * Sets the {@code Address} of the {@code EditPersonDescriptor} that we are building.
      */
     public EditPersonDescriptorBuilder withAddress(String address) {
@@ -72,12 +71,37 @@ public class EditPersonDescriptorBuilder {
     }
 
     /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code EditPersonDescriptor}
-     * that we are building.
+     * Sets the {@code StartDate} of the {@code EditPersonDescriptor} that we are building.
      */
+    public EditPersonDescriptorBuilder withStartDate(String startDate) {
+        descriptor.setStartDate(new StartDate(startDate));
+        return this;
+    }
+
+    /**
+     * Sets the {@code OutstandingAmount} of the {@code EditPersonDescriptor} that we are building.
+     */
+    public EditPersonDescriptorBuilder withOutstandingAmount(String outstandingAmount) {
+        descriptor.setOutstandingAmount(new OutstandingAmount(outstandingAmount));
+        return this;
+    }
+
+    /** Sets replacement tags, or clears tags when no values are supplied. */
     public EditPersonDescriptorBuilder withTags(String... tags) {
-        Set<Tag> tagSet = Stream.of(tags).map(Tag::new).collect(Collectors.toSet());
-        descriptor.setTags(tagSet);
+        descriptor.setTags(Arrays.stream(tags).map(Tag::new).collect(Collectors.toSet()));
+        return this;
+    }
+
+    /** Sets nonempty replacement subjects in input order. */
+    public EditPersonDescriptorBuilder withSubjects(String... subjects) {
+        descriptor.setSubjects(Arrays.stream(subjects).map(TypicalSubjects::scheduledSubject)
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+        return this;
+    }
+
+    /** Sets replacement notes, including blank text to clear the note. */
+    public EditPersonDescriptorBuilder withNotes(String notes) {
+        descriptor.setNotes(new Notes(notes));
         return this;
     }
 

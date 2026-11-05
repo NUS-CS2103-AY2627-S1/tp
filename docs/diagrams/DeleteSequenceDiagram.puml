@@ -6,7 +6,8 @@ box Logic LOGIC_COLOR_T1
 participant ":LogicManager" as LogicManager LOGIC_COLOR
 participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
 participant ":DeleteCommandParser" as DeleteCommandParser LOGIC_COLOR
-participant "d:DeleteCommand" as DeleteCommand LOGIC_COLOR
+participant "c:DeleteCommand" as Confirmation LOGIC_COLOR
+participant "p:DeleteCommand" as Pending LOGIC_COLOR
 participant "r:CommandResult" as CommandResult LOGIC_COLOR
 end box
 
@@ -14,57 +15,88 @@ box Model MODEL_COLOR_T1
 participant "m:Model" as Model MODEL_COLOR
 end box
 
-[-> LogicManager : execute("delete 1")
+box Storage STORAGE_COLOR_T1
+participant "s:Storage" as Storage STORAGE_COLOR
+end box
+
+note over LogicManager, Pending
+  The previous command was "delete 1". Its preview
+  stored p, bound to the previewed Person, as pendingDelete.
+end note
+
+[-> LogicManager : execute("delete confirm")
 activate LogicManager
 
-LogicManager -> AddressBookParser : parseCommand("delete 1")
+LogicManager -> LogicManager : take and clear pendingDelete (p)
+
+LogicManager -> AddressBookParser : parseCommand("delete confirm")
 activate AddressBookParser
 
 create DeleteCommandParser
-AddressBookParser -> DeleteCommandParser
+AddressBookParser -> DeleteCommandParser : DeleteCommandParser()
 activate DeleteCommandParser
 
 DeleteCommandParser --> AddressBookParser
 deactivate DeleteCommandParser
 
-AddressBookParser -> DeleteCommandParser : parse("1")
+AddressBookParser -> DeleteCommandParser : parse(" confirm")
 activate DeleteCommandParser
 
-create DeleteCommand
-DeleteCommandParser -> DeleteCommand
-activate DeleteCommand
+create Confirmation
+DeleteCommandParser -> Confirmation : DeleteCommand()
+activate Confirmation
 
-DeleteCommand --> DeleteCommandParser :
-deactivate DeleteCommand
+Confirmation --> DeleteCommandParser
+deactivate Confirmation
 
-DeleteCommandParser --> AddressBookParser : d
+DeleteCommandParser --> AddressBookParser : c
 deactivate DeleteCommandParser
 'Hidden arrow to position the destroy marker below the end of the activation bar.
 DeleteCommandParser -[hidden]-> AddressBookParser
 destroy DeleteCommandParser
 
-AddressBookParser --> LogicManager : d
+AddressBookParser --> LogicManager : c
 deactivate AddressBookParser
 
-LogicManager -> DeleteCommand : execute(m)
-activate DeleteCommand
+note right of LogicManager
+  c is a confirmation, so it is
+  replaced by the stored p.
+end note
 
-DeleteCommand -> Model : deletePerson(1)
+LogicManager -> Model : getAddressBook()
+activate Model
+Model --> LogicManager : backup (copied for rollback)
+deactivate Model
+
+LogicManager -> Pending : execute(m)
+activate Pending
+
+Pending -> Model : deletePerson(person)
 activate Model
 
-Model --> DeleteCommand
+Model --> Pending
 deactivate Model
 
 create CommandResult
-DeleteCommand -> CommandResult
+Pending -> CommandResult : CommandResult(feedback)
 activate CommandResult
 
-CommandResult --> DeleteCommand
+CommandResult --> Pending
 deactivate CommandResult
 
-DeleteCommand --> LogicManager : r
-deactivate DeleteCommand
+Pending --> LogicManager : r
+deactivate Pending
 
-[<--LogicManager
+LogicManager -> Model : getAddressBook()
+activate Model
+Model --> LogicManager : updated
+deactivate Model
+
+LogicManager -> Storage : saveAddressBook(updated)
+activate Storage
+Storage --> LogicManager
+deactivate Storage
+
+[<--LogicManager : r
 deactivate LogicManager
 @enduml

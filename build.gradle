@@ -10,6 +10,16 @@ application {
     mainClass = 'seedu.address.Main'
 }
 
+run {
+    enableAssertions = true
+}
+
+processResources {
+    from('docs/UserGuide.md') {
+        into 'docs'
+    }
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
@@ -26,6 +36,9 @@ checkstyle {
 
 test {
     useJUnitPlatform()
+    doFirst {
+        systemProperty 'test.runtimeClasspath', sourceSets.test.runtimeClasspath.asPath
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -72,7 +85,7 @@ dependencies {
 }
 
 shadowJar {
-    archiveFileName = 'addressbook.jar'
+    archiveFileName = 'TuteeDex.jar'
 }
 
 defaultTasks 'clean', 'test'

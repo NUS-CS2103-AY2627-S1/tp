@@ -5,12 +5,27 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.testutil.PersonBuilder;
 
 public class NameContainsKeywordsPredicateTest {
+
+    @Test
+    public void test_internationalNames_keepsWordPrefixSemantics() {
+        for (String name : new String[] {"Anne-Marie", "O'Connor", "O’Connor", "José", "Jose\u0301", "张伟"}) {
+            assertTrue(new NameContainsKeywordsPredicate(List.of(name.toUpperCase(Locale.ROOT)))
+                    .test(new PersonBuilder().withName(name).build()));
+        }
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Marie"))
+                .test(new PersonBuilder().withName("Anne-Marie").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("Jose"))
+                .test(new PersonBuilder().withName("José").build()));
+        assertFalse(new NameContainsKeywordsPredicate(List.of("José"))
+                .test(new PersonBuilder().withName("Jose\u0301").build()));
+    }
 
     @Test
     public void equals() {
@@ -54,6 +69,12 @@ public class NameContainsKeywordsPredicateTest {
         // Mixed-case keywords
         predicate = new NameContainsKeywordsPredicate(List.of("aLIce", "bOB"));
         assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
+        // Start of any word in the name, ignoring case
+        predicate = new NameContainsKeywordsPredicate(List.of("al"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("Bo"));
+        assertTrue(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
     }
 
     @Test
@@ -66,10 +87,14 @@ public class NameContainsKeywordsPredicateTest {
         predicate = new NameContainsKeywordsPredicate(List.of("Carol"));
         assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
 
+        // Keyword in the middle or longer than the word does not match
+        predicate = new NameContainsKeywordsPredicate(List.of("lic", "Alicea"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice Bob").build()));
+
         // Keywords match phone, email and address, but do not match name
-        predicate = new NameContainsKeywordsPredicate(List.of("12345", "alice@email.com", "Main", "Street"));
-        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345")
-                .withEmail("alice@email.com").withAddress("Main Street").build()));
+        predicate = new NameContainsKeywordsPredicate(List.of("12345678", "11-Nov", "Main", "Street"));
+        assertFalse(predicate.test(new PersonBuilder().withName("Alice").withPhone("12345678")
+                .withStartDate("11-Nov").withAddress("Main Street").build()));
     }
 
     @Test

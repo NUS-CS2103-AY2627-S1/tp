@@ -1,59 +1,61 @@
 ---
-layout: page
-title: About Us
+  layout: default.md
+  title: "About Us"
 ---
 
-We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
+# About Us
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
+We are a team based in the [School of Computing, National University of Singapore](http://www.comp.nus.edu.sg).
+
+You can reach us through the [TuteeDex issue tracker](https://github.com/AY2627S1-CS2103T-F13-2/tp/issues).
 
 ## Project team
 
-### John Doe
+### Hein Lin Htet
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/henry336.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Henry336)] [[portfolio](team/henry336.md)]
 
-* Role: Project Advisor
-
-### Jane Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
 * Role: Team Lead
-* Responsibilities: UI
+* Responsibilities: Deliverables and Deadlines, Documentation
 
-### Johnny Doe
+### Nay Min Thar
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/naymin-gif.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
 
-* Role: Developer
-* Responsibilities: Data
+[[github](https://github.com/naymin-gif)] [[portfolio](team/naymin-gif.md)]
 
-### Jean Doe
-
-<img src="images/johndoe.png" width="200px">
-
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
 
 * Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Responsibilities: Scheduling and Tracking, Testing
 
-### James Doe
 
-<img src="images/johndoe.png" width="200px">
+### Alpha
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+<img src="images/alpharion.png" width="200px">
+
+[[github](https://github.com/Alpharion)] [[portfolio](team/alpharion.md)]
 
 * Role: Developer
-* Responsibilities: UI
+* Responsibilities: Code Quality, Integration and Releases
+
+### That Li
+
+<img src="images/thatli.png" width="200px">
+
+[[github](https://github.com/ThatLi)] [[portfolio](team/thatli.md)]
+
+* Role: Developer
+* Responsibilities: Documentation & Testing, backup Scheduling & Tracking
+
+### Jimmy Li
+
+<img src="images/jimmylijy12.png" width="200px">
+
+[[github](https://github.com/jimmylijy12)] [[portfolio](team/jimmylijy12.md)]
+
+* Role: Developer
+* Responsibilities: Integration and Releases, Code Quality

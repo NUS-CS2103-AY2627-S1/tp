@@ -15,16 +15,32 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.ReadOnlyUserPrefs;
 import seedu.address.model.person.Person;
+import seedu.address.model.sort.LessonRow;
+import seedu.address.model.sort.SortOrder;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandTest {
+
+    private static final String EXPECTED_DUPLICATE_MESSAGE = "This contact already exists in TuteeDex";
+
+    @Test
+    public void execute_balanceOnlyDuplicate_rejectedWithoutChangingModel() throws Exception {
+        ModelStubAcceptingPersonAdded model = new ModelStubAcceptingPersonAdded();
+        Person student = new PersonBuilder().withName("Twin Student").withPhone("91234567")
+                .withAddress("Block 1").withStartDate("29-Feb").withSubjects("Maths")
+                .withOutstandingAmount("10").build();
+        new AddCommand(student).execute(model);
+        Person duplicate = new PersonBuilder(student).withOutstandingAmount("20").build();
+        assertThrows(CommandException.class, EXPECTED_DUPLICATE_MESSAGE, () ->
+                new AddCommand(duplicate).execute(model));
+        assertEquals(List.of(student), model.personsAdded);
+    }
 
     @Test
     public void constructor_nullPerson_throwsNullPointerException() {
@@ -38,7 +54,7 @@ public class AddCommandTest {
 
         CommandResult commandResult = new AddCommand(validPerson).execute(modelStub);
 
-        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, Messages.format(validPerson)),
+        assertEquals(String.format(AddCommand.MESSAGE_SUCCESS, validPerson.getName()),
                 commandResult.getFeedbackToUser());
         assertEquals(List.of(validPerson), modelStub.personsAdded);
     }
@@ -49,7 +65,7 @@ public class AddCommandTest {
         AddCommand addCommand = new AddCommand(validPerson);
         ModelStub modelStub = new ModelStubWithPerson(validPerson);
 
-        assertThrows(CommandException.class, AddCommand.MESSAGE_DUPLICATE_PERSON, () -> addCommand.execute(modelStub));
+        assertThrows(CommandException.class, EXPECTED_DUPLICATE_MESSAGE, () -> addCommand.execute(modelStub));
     }
 
     @Test
@@ -88,6 +104,36 @@ public class AddCommandTest {
      */
     private class ModelStub implements Model {
         @Override
+        public void beginCommand() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void endCommand() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public SortOrder getSortOrder() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setSortOrder(SortOrder order) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<LessonRow> getStudentRows() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public List<LessonRow> getLessonRows() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
         public ReadOnlyUserPrefs getUserPrefs() {
             throw new AssertionError("This method should not be called.");
         }
@@ -99,6 +145,26 @@ public class AddCommandTest {
 
         @Override
         public void setGuiSettings(GuiSettings guiSettings) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String getLastViewCommand() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setLastViewCommand(String lastViewCommand) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public String getLastSortCommand() {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public void setLastSortCommand(String lastSortCommand) {
             throw new AssertionError("This method should not be called.");
         }
 
@@ -139,6 +205,11 @@ public class AddCommandTest {
 
         @Override
         public void updateFilteredPersonList(Predicate<Person> predicate) {
+            throw new AssertionError("This method should not be called.");
+        }
+
+        @Override
+        public Predicate<? super Person> getFilteredPersonListPredicate() {
             throw new AssertionError("This method should not be called.");
         }
     }

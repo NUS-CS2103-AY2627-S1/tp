@@ -1,15 +1,21 @@
 package seedu.address.testutil;
 
-import java.util.HashSet;
+import static seedu.address.testutil.TypicalSubjects.scheduledSubject;
+
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Notes;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.StartDate;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
-import seedu.address.model.util.SampleDataUtil;
 
 /**
  * A utility class to help with building Person objects.
@@ -18,13 +24,17 @@ public class PersonBuilder {
 
     public static final String DEFAULT_NAME = "Amy Bee";
     public static final String DEFAULT_PHONE = "85355255";
-    public static final String DEFAULT_EMAIL = "amy@gmail.com";
     public static final String DEFAULT_ADDRESS = "123, Jurong West Ave 6, #08-111";
+    public static final String DEFAULT_START_DATE = "10-Aug";
+    public static final String DEFAULT_OUTSTANDING_AMOUNT = "0";
 
     private Name name;
     private Phone phone;
-    private Email email;
     private Address address;
+    private StartDate startDate;
+    private OutstandingAmount outstandingAmount;
+    private Set<Subject> subjects = Set.of();
+    private Notes notes;
     private Set<Tag> tags;
 
     /**
@@ -33,9 +43,11 @@ public class PersonBuilder {
     public PersonBuilder() {
         name = new Name(DEFAULT_NAME);
         phone = new Phone(DEFAULT_PHONE);
-        email = new Email(DEFAULT_EMAIL);
         address = new Address(DEFAULT_ADDRESS);
-        tags = new HashSet<>();
+        startDate = new StartDate(DEFAULT_START_DATE);
+        outstandingAmount = new OutstandingAmount(DEFAULT_OUTSTANDING_AMOUNT);
+        notes = Notes.EMPTY;
+        tags = Set.of();
     }
 
     /**
@@ -44,9 +56,12 @@ public class PersonBuilder {
     public PersonBuilder(Person personToCopy) {
         name = personToCopy.getName();
         phone = personToCopy.getPhone();
-        email = personToCopy.getEmail();
         address = personToCopy.getAddress();
-        tags = new HashSet<>(personToCopy.getTags());
+        startDate = personToCopy.getStartDate();
+        outstandingAmount = personToCopy.getOutstandingAmount();
+        subjects = personToCopy.getSubjects();
+        notes = personToCopy.getNotes();
+        tags = personToCopy.getTags();
     }
 
     /**
@@ -54,14 +69,6 @@ public class PersonBuilder {
      */
     public PersonBuilder withName(String name) {
         this.name = new Name(name);
-        return this;
-    }
-
-    /**
-     * Parses the {@code tags} into a {@code Set<Tag>} and sets it to the {@code Person} that we are building.
-     */
-    public PersonBuilder withTags(String ... tags) {
-        this.tags = SampleDataUtil.getTagSet(tags);
         return this;
     }
 
@@ -82,15 +89,55 @@ public class PersonBuilder {
     }
 
     /**
-     * Sets the {@code Email} of the {@code Person} that we are building.
+     * Sets the {@code StartDate} of the {@code Person} that we are building.
      */
-    public PersonBuilder withEmail(String email) {
-        this.email = new Email(email);
+    public PersonBuilder withStartDate(String startDate) {
+        this.startDate = new StartDate(startDate);
+        return this;
+    }
+
+    /**
+     * Sets the {@code OutstandingAmount} of the {@code Person} that we are building.
+     */
+    public PersonBuilder withOutstandingAmount(String outstandingAmount) {
+        this.outstandingAmount = new OutstandingAmount(outstandingAmount);
+        return this;
+    }
+
+    /** Sets subjects in insertion order. */
+    public PersonBuilder withSubjects(String... subjects) {
+        Set<Subject> parsed = new LinkedHashSet<>();
+        for (String subject : subjects) {
+            parsed.add(scheduledSubject(subject));
+        }
+        this.subjects = parsed;
+        return this;
+    }
+
+    /** Sets scheduled subjects in insertion order. */
+    public PersonBuilder withScheduledSubjects(Subject... subjects) {
+        this.subjects = new LinkedHashSet<>(Arrays.asList(subjects));
+        return this;
+    }
+
+    /**
+     * Sets the notes of the student being built.
+     */
+    public PersonBuilder withNotes(String notes) {
+        this.notes = new Notes(notes);
+        return this;
+    }
+
+    /**
+     * Sets the optional tags on the profile being built.
+     */
+    public PersonBuilder withTags(String... tags) {
+        this.tags = Arrays.stream(tags).map(Tag::new).collect(Collectors.toSet());
         return this;
     }
 
     public Person build() {
-        return new Person(name, phone, email, address, tags);
+        return new Person(name, phone, address, startDate, outstandingAmount, tags, notes, subjects);
     }
 
 }

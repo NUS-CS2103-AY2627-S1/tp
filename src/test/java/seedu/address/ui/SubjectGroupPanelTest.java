@@ -1,0 +1,114 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.collections.FXCollections;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import seedu.address.model.person.LessonSlot;
+import seedu.address.model.person.Person;
+import seedu.address.model.person.Subject;
+import seedu.address.model.sort.LessonRow;
+import seedu.address.testutil.PersonBuilder;
+
+/** Tests the grouped subject presentation and its empty state. */
+public class SubjectGroupPanelTest extends FxTestSupport {
+    @Test
+    public void constructor_groupsSubjectsAndShowsLessonSlots() throws Exception {
+        Person first = new PersonBuilder(ALICE).withName("Alice Student")
+                .withScheduledSubjects(new Subject("Maths", new LessonSlot(DayOfWeek.MONDAY,
+                        LocalTime.of(9, 0))))
+                .build();
+        Person second = new PersonBuilder(ALICE).withName("Bob Student")
+                .withScheduledSubjects(new Subject("maths", new LessonSlot(DayOfWeek.TUESDAY,
+                        LocalTime.of(15, 30))))
+                .build();
+
+        runOnFxThread(() -> {
+            SubjectGroupPanel panel = new SubjectGroupPanel(FXCollections.observableArrayList(first, second));
+            ScrollPane root = (ScrollPane) panel.getRoot();
+            VBox groups = (VBox) root.getContent();
+            VBox section = (VBox) groups.getChildren().get(0);
+            Label heading = (Label) section.getChildren().get(0);
+            VBox entries = (VBox) section.getChildren().get(1);
+
+            assertEquals("Maths", heading.getText());
+            assertEquals(2, entries.getChildren().size());
+            assertEquals("Mon 09:00", ((Label) ((HBox) entries.getChildren().get(0))
+                    .getChildren().get(1)).getText());
+            assertEquals("Tue 15:30", ((Label) ((HBox) entries.getChildren().get(1))
+                    .getChildren().get(1)).getText());
+            assertTrue(entries.getChildren().stream().allMatch(node -> node.getStyleClass()
+                    .contains("subject-student-row")));
+        });
+    }
+
+    @Test
+    public void lessonSlot_staysAtRightEdgeWhenRowResizes() throws Exception {
+        Person person = new PersonBuilder(ALICE)
+                .withScheduledSubjects(new Subject("Maths", new LessonSlot(DayOfWeek.MONDAY,
+                        LocalTime.of(9, 0))))
+                .build();
+        runOnFxThread(() -> {
+            SubjectGroupPanel panel = new SubjectGroupPanel(FXCollections.observableArrayList(person));
+            VBox groups = (VBox) ((ScrollPane) panel.getRoot()).getContent();
+            VBox section = (VBox) groups.getChildren().getFirst();
+            VBox entries = (VBox) section.getChildren().get(1);
+            HBox row = (HBox) entries.getChildren().getFirst();
+            Label slot = (Label) row.getChildren().get(1);
+            new Scene(groups);
+            groups.applyCss();
+            assertTrue(slot.prefWidth(-1) > 0);
+            for (int width : new int[] {600, 1000}) {
+                row.resize(width, 37);
+                row.layout();
+                assertEquals(width - row.getInsets().getRight(), slot.getBoundsInParent().getMaxX(), 0.01);
+                assertTrue(slot.getWidth() >= slot.prefWidth(-1));
+            }
+        });
+    }
+
+    @Test
+    public void constructor_withoutSubjects_showsEmptyMessage() throws Exception {
+        runOnFxThread(() -> {
+            SubjectGroupPanel panel = new SubjectGroupPanel(
+                    FXCollections.observableArrayList(new PersonBuilder(ALICE).build()));
+            ScrollPane root = (ScrollPane) panel.getRoot();
+
+            VBox groups = (VBox) root.getContent();
+            Label message = (Label) groups.getChildren().get(0);
+            assertEquals("No subjects found for the active contacts.", message.getText());
+        });
+    }
+
+    @Test
+    public void constructor_orderedLessons_keepsStudentIndexAndFocusesEachSubjectsCard() throws Exception {
+        Subject maths = new Subject("Maths", new LessonSlot(DayOfWeek.MONDAY, LocalTime.of(9, 0)));
+        Subject physics = new Subject("Physics", new LessonSlot(DayOfWeek.TUESDAY, LocalTime.of(10, 0)));
+        Person person = new PersonBuilder(ALICE).withScheduledSubjects(maths, physics).build();
+        runOnFxThread(() -> {
+            SubjectGroupPanel panel = new SubjectGroupPanel(List.of(person),
+                    List.of(new LessonRow(person, physics), new LessonRow(person, maths)));
+            VBox sections = (VBox) ((ScrollPane) panel.getRoot()).getContent();
+            for (int index = 0; index < sections.getChildren().size(); index++) {
+                VBox section = (VBox) sections.getChildren().get(index);
+                VBox entries = (VBox) section.getChildren().get(1);
+                HBox row = (HBox) entries.getChildren().getFirst();
+                HBox card = (HBox) row.getChildren().getFirst();
+                assertEquals("001", ((Label) card.getChildren().get(1)).getText());
+                assertEquals(index == 0 ? "Maths" : "Physics", ((Label) card.getChildren().get(3)).getText());
+            }
+        });
+    }
+}

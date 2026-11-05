@@ -1,15 +1,20 @@
 package seedu.address.logic.commands;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.AppUtil.checkArgument;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LESSON_DAY;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LESSON_TIME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTES;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_OUTSTANDING_AMOUNT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_START_DATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,14 +23,16 @@ import java.util.Set;
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.CollectionUtil;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.logic.Messages;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.model.Model;
 import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
+import seedu.address.model.person.Notes;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.StartDate;
+import seedu.address.model.person.Subject;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -35,22 +42,30 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the student identified "
+            + "by the index number used in the displayed student list. "
             + "Existing values will be overwritten by the input values.\n"
             + "Parameters: INDEX (must be a positive integer) "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
-            + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_START_DATE + "START_DATE] "
+            + "[" + PREFIX_OUTSTANDING_AMOUNT + "OUTSTANDING_AMOUNT] "
+            + "[" + PREFIX_SUBJECT + "SUBJECT " + PREFIX_LESSON_DAY + "DAY "
+            + PREFIX_LESSON_TIME + "TIME]... "
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_NOTES + "NOTE]\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
-            + PREFIX_EMAIL + "johndoe@example.com";
+            + PREFIX_START_DATE + "10-Aug";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited contact: %1$s";
+    public static final String MESSAGE_INDEXES_CHANGED =
+            "\nDisplayed indexes have changed; check the list before your next command.";
+    public static final String MESSAGE_NO_CHANGES = "No changes made to contact: %1$s";
+    public static final String MESSAGE_NOT_EDITED = "At least one field must be provided to edit.";
+    public static final String MESSAGE_DUPLICATE_PERSON = "This contact already exists in TuteeDex.";
+    public static final String MESSAGE_CONTACT_NOT_FOUND = "No matching contact found at the specified index.";
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -73,19 +88,30 @@ public class EditCommand extends Command {
         List<Person> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
-            throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
+            throw new CommandException(MESSAGE_CONTACT_NOT_FOUND);
+        }
+
+        if (!editPersonDescriptor.isAnyFieldEdited()) {
+            throw new CommandException(MESSAGE_NOT_EDITED);
         }
 
         Person personToEdit = lastShownList.get(index.getZeroBased());
         Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+
+        if (personToEdit.equals(editedPerson)) {
+            return new CommandResult(String.format(MESSAGE_NO_CHANGES, personToEdit.getName()));
+        }
 
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
             throw new CommandException(MESSAGE_DUPLICATE_PERSON);
         }
 
         model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-        return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
+        String feedback = String.format(MESSAGE_EDIT_PERSON_SUCCESS, editedPerson.getName());
+        if (model.getFilteredPersonList().indexOf(editedPerson) != index.getZeroBased()) {
+            feedback += MESSAGE_INDEXES_CHANGED;
+        }
+        return new CommandResult(feedback);
     }
 
     /**
@@ -97,11 +123,15 @@ public class EditCommand extends Command {
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
         Phone updatedPhone = editPersonDescriptor.getPhone().orElse(personToEdit.getPhone());
-        Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
-        Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        StartDate updatedStartDate = editPersonDescriptor.getStartDate().orElse(personToEdit.getStartDate());
+        OutstandingAmount updatedOutstandingAmount = editPersonDescriptor.getOutstandingAmount()
+                .orElse(personToEdit.getOutstandingAmount());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Person(updatedName, updatedPhone, updatedAddress, updatedStartDate, updatedOutstandingAmount,
+                editPersonDescriptor.getTags().orElse(personToEdit.getTags()),
+                editPersonDescriptor.getNotes().orElse(personToEdit.getNotes()),
+                editPersonDescriptor.getSubjects().orElse(personToEdit.getSubjects()), personToEdit.isArchived());
     }
 
     @Override
@@ -128,35 +158,41 @@ public class EditCommand extends Command {
     }
 
     /**
-     * Stores the details to edit the person with. Each non-empty field value will replace the
-     * corresponding field value of the person.
+     * Stores supplied edits. Absent fields are preserved; empty tags or notes clear those fields.
      */
     public static class EditPersonDescriptor {
         private Name name;
         private Phone phone;
-        private Email email;
         private Address address;
+        private StartDate startDate;
+        private OutstandingAmount outstandingAmount;
         private Set<Tag> tags;
+        private Set<Subject> subjects;
+        private Notes notes;
 
         public EditPersonDescriptor() {}
 
         /**
          * Copy constructor.
-         * A defensive copy of {@code tags} is used internally.
+         * Copies every supplied field.
          */
         public EditPersonDescriptor(EditPersonDescriptor toCopy) {
             setName(toCopy.name);
             setPhone(toCopy.phone);
-            setEmail(toCopy.email);
             setAddress(toCopy.address);
+            setStartDate(toCopy.startDate);
+            setOutstandingAmount(toCopy.outstandingAmount);
             setTags(toCopy.tags);
+            setSubjects(toCopy.subjects);
+            setNotes(toCopy.notes);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, address, startDate, outstandingAmount,
+                    tags, subjects, notes);
         }
 
         public void setName(Name name) {
@@ -175,14 +211,6 @@ public class EditCommand extends Command {
             return Optional.ofNullable(phone);
         }
 
-        public void setEmail(Email email) {
-            this.email = email;
-        }
-
-        public Optional<Email> getEmail() {
-            return Optional.ofNullable(email);
-        }
-
         public void setAddress(Address address) {
             this.address = address;
         }
@@ -191,21 +219,54 @@ public class EditCommand extends Command {
             return Optional.ofNullable(address);
         }
 
-        /**
-         * Sets {@code tags} to this object's {@code tags}.
-         * A defensive copy of {@code tags} is used internally.
-         */
-        public void setTags(Set<Tag> tags) {
-            this.tags = (tags != null) ? new HashSet<>(tags) : null;
+        public void setStartDate(StartDate startDate) {
+            this.startDate = startDate;
         }
 
-        /**
-         * Returns an unmodifiable tag set, which throws {@code UnsupportedOperationException}
-         * if modification is attempted.
-         * Returns {@code Optional#empty()} if {@code tags} is null.
-         */
+        public Optional<StartDate> getStartDate() {
+            return Optional.ofNullable(startDate);
+        }
+
+        public void setOutstandingAmount(OutstandingAmount outstandingAmount) {
+            this.outstandingAmount = outstandingAmount;
+        }
+
+        public Optional<OutstandingAmount> getOutstandingAmount() {
+            return Optional.ofNullable(outstandingAmount);
+        }
+
+        /** Sets a defensive copy of tags; null means tags were not supplied. */
+        public void setTags(Set<Tag> tags) {
+            this.tags = tags == null ? null : Set.copyOf(tags);
+        }
+
+        /** Returns supplied tags, including an empty set when clearing was requested. */
         public Optional<Set<Tag>> getTags() {
-            return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
+            return Optional.ofNullable(tags);
+        }
+
+        /** Copies nonempty replacement subjects in input order; null means they were omitted. */
+        public void setSubjects(Set<Subject> subjects) {
+            if (subjects == null) {
+                this.subjects = null;
+                return;
+            }
+            checkArgument(!subjects.isEmpty(), "At least one subject must be supplied.");
+            subjects.forEach(Objects::requireNonNull);
+            this.subjects = Collections.unmodifiableSet(new LinkedHashSet<>(subjects));
+        }
+
+        public Optional<Set<Subject>> getSubjects() {
+            return Optional.ofNullable(subjects);
+        }
+
+        /** Sets replacement notes; null means omitted and Notes.EMPTY means clearing. */
+        public void setNotes(Notes notes) {
+            this.notes = notes;
+        }
+
+        public Optional<Notes> getNotes() {
+            return Optional.ofNullable(notes);
         }
 
         @Override
@@ -221,9 +282,12 @@ public class EditCommand extends Command {
 
             return Objects.equals(name, otherEditPersonDescriptor.name)
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
-                    && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(startDate, otherEditPersonDescriptor.startDate)
+                    && Objects.equals(outstandingAmount, otherEditPersonDescriptor.outstandingAmount)
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(subjects, otherEditPersonDescriptor.subjects)
+                    && Objects.equals(notes, otherEditPersonDescriptor.notes);
         }
 
         @Override
@@ -231,9 +295,12 @@ public class EditCommand extends Command {
             return new ToStringBuilder(this)
                     .add("name", name)
                     .add("phone", phone)
-                    .add("email", email)
                     .add("address", address)
+                    .add("startDate", startDate)
+                    .add("outstandingAmount", outstandingAmount)
                     .add("tags", tags)
+                    .add("subjects", subjects)
+                    .add("notes", notes)
                     .toString();
         }
     }

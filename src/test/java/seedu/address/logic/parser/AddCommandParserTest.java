@@ -1,196 +1,233 @@
 package seedu.address.logic.parser;
 
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_OUTSTANDING_AMOUNT_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_START_DATE_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.OUTSTANDING_AMOUNT_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_NON_EMPTY;
-import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
-import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.commands.CommandTestUtil.START_DATE_DESC_BOB;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_NOTES;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_OUTSTANDING_AMOUNT;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_START_DATE;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
-import static seedu.address.testutil.TypicalPersons.AMY;
 import static seedu.address.testutil.TypicalPersons.BOB;
 
 import org.junit.jupiter.api.Test;
 
 import seedu.address.logic.Messages;
 import seedu.address.logic.commands.AddCommand;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
+import seedu.address.model.person.OutstandingAmount;
 import seedu.address.model.person.Person;
-import seedu.address.model.person.Phone;
+import seedu.address.model.person.StartDate;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddCommandParserTest {
-    private AddCommandParser parser = new AddCommandParser();
+    private static final String SUBJECT = " s/Maths day/MON time/09:00";
+    private final AddCommandParser parser = new AddCommandParser();
 
     @Test
-    public void parse_allFieldsPresent_success() {
-        Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
-
-        // whitespace only preamble
-        assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
-
-
-        // multiple tags - all accepted
-        Person expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
-                .build();
-        assertParseSuccess(parser,
-                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
-                new AddCommand(expectedPersonMultipleTags));
+    public void parse_internationalNames_success() {
+        for (String name : new String[] {"Anne-Marie", "O'Connor", "O’Connor", "José", "Jose\u0301", "张伟"}) {
+            Person expected = new PersonBuilder().withName(name).withPhone("91234567")
+                    .withAddress("Block 1").withStartDate("29-Feb").withSubjects("Maths").build();
+            assertParseSuccess(parser, " n/" + name
+                    + " p/91234567 a/Block 1 d/29-Feb s/Maths day/MON time/09:00", new AddCommand(expected));
+        }
     }
 
     @Test
-    public void parse_repeatedNonTagValue_failure() {
-        String validExpectedPersonString = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND;
-
-        // multiple names
-        assertParseFailure(parser, NAME_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // multiple phones
-        assertParseFailure(parser, PHONE_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // multiple emails
-        assertParseFailure(parser, EMAIL_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // multiple addresses
-        assertParseFailure(parser, ADDRESS_DESC_AMY + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // multiple fields repeated
-        assertParseFailure(parser,
-                validExpectedPersonString + PHONE_DESC_AMY + EMAIL_DESC_AMY + NAME_DESC_AMY + ADDRESS_DESC_AMY
-                        + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME, PREFIX_ADDRESS, PREFIX_EMAIL, PREFIX_PHONE));
-
-        // invalid value followed by valid value
-
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, INVALID_EMAIL_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, INVALID_PHONE_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, INVALID_ADDRESS_DESC + validExpectedPersonString,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
-
-        // valid value followed by invalid value
-
-        // invalid name
-        assertParseFailure(parser, validExpectedPersonString + INVALID_NAME_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NAME));
-
-        // invalid email
-        assertParseFailure(parser, validExpectedPersonString + INVALID_EMAIL_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_EMAIL));
-
-        // invalid phone
-        assertParseFailure(parser, validExpectedPersonString + INVALID_PHONE_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_PHONE));
-
-        // invalid address
-        assertParseFailure(parser, validExpectedPersonString + INVALID_ADDRESS_DESC,
-                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_ADDRESS));
+    public void parse_notesPresent_preservesFreeText() {
+        String notes = "Needs  revision: fractions, algebra & 中文!";
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + SUBJECT + " notes/  " + notes + "  ",
+                new AddCommand(new PersonBuilder(BOB).withSubjects("Maths").withNotes(notes).build()));
     }
 
     @Test
-    public void parse_optionalFieldsMissing_success() {
-        // zero tags
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
-                new AddCommand(expectedPerson));
+    public void parse_notesOmittedOrBlank_defaultsToEmpty() {
+        String requiredFields = NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB + SUBJECT;
+        for (String optionalNotes : new String[] {"", " notes/", " notes/   "}) {
+            assertParseSuccess(parser, requiredFields + optionalNotes,
+                    new AddCommand(new PersonBuilder(BOB).withSubjects("Maths").withNotes("").build()));
+        }
     }
 
     @Test
-    public void parse_compulsoryFieldMissing_failure() {
-        String expectedMessage = String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE);
-
-        // missing name prefix
-        assertParseFailure(parser, VALID_NAME_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing phone prefix
-        assertParseFailure(parser, NAME_DESC_BOB + VALID_PHONE_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing email prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + VALID_EMAIL_BOB + ADDRESS_DESC_BOB,
-                expectedMessage);
-
-        // missing address prefix
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
-
-        // all prefixes missing
-        assertParseFailure(parser, VALID_NAME_BOB + VALID_PHONE_BOB + VALID_EMAIL_BOB + VALID_ADDRESS_BOB,
-                expectedMessage);
+    public void parse_notesBeforeOtherFields_success() {
+        assertParseSuccess(parser, " notes/Revise fractions" + NAME_DESC_BOB + PHONE_DESC_BOB
+                        + ADDRESS_DESC_BOB + START_DATE_DESC_BOB + OUTSTANDING_AMOUNT_DESC_BOB + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withOutstandingAmount("20")
+                        .withSubjects("Maths").withNotes("Revise fractions").build()));
     }
 
     @Test
-    public void parse_invalidValue_failure() {
-        // invalid name
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Name.MESSAGE_CONSTRAINTS);
+    public void parse_repeatedNotes_failure() {
+        String requiredFields = NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB + SUBJECT;
+        for (String repeatedNotes : new String[] {" notes/One notes/Two", " notes/ notes/",
+            " notes/Same notes/Same"}) {
+            assertParseFailure(parser, requiredFields + repeatedNotes,
+                    Messages.getErrorMessageForDuplicatePrefixes(PREFIX_NOTES));
+        }
+    }
 
-        // invalid phone
-        assertParseFailure(parser, NAME_DESC_BOB + INVALID_PHONE_DESC + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Phone.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_allRequiredFieldsPresent_success() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withSubjects("Maths").build()));
+    }
 
-        // invalid email
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + INVALID_EMAIL_DESC + ADDRESS_DESC_BOB
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Email.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_outstandingAmountPresent_success() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + OUTSTANDING_AMOUNT_DESC_BOB + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withOutstandingAmount("20").withSubjects("Maths").build()));
+    }
 
-        // invalid address
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC
-                + TAG_DESC_HUSBAND + TAG_DESC_FRIEND, Address.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_zeroOutstandingAmountPresent_success() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + " o/0" + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withOutstandingAmount("0").withSubjects("Maths").build()));
+    }
 
-        // invalid tag
-        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
-                + INVALID_TAG_DESC + VALID_TAG_FRIEND, Tag.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_outstandingAmountOmitted_defaultsToZero() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withOutstandingAmount("0").withSubjects("Maths").build()));
+    }
 
-        // two invalid values, only first invalid value reported
-        assertParseFailure(parser, INVALID_NAME_DESC + PHONE_DESC_BOB + EMAIL_DESC_BOB + INVALID_ADDRESS_DESC,
-                Name.MESSAGE_CONSTRAINTS);
+    @Test
+    public void parse_repeatedTags_normalizesAndCombines() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + SUBJECT + " t/ A-Level  t/Needs revision t/a-level",
+                new AddCommand(new PersonBuilder(BOB).withSubjects("Maths")
+                        .withTags("a-level", "needs revision").build()));
+    }
 
-        // non-empty preamble
-        assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
+    @Test
+    public void parse_tagsInterleavedWithOtherFields_success() {
+        assertParseSuccess(parser, " t/A-Level" + NAME_DESC_BOB + " t/Needs revision" + START_DATE_DESC_BOB
+                        + ADDRESS_DESC_BOB + OUTSTANDING_AMOUNT_DESC_BOB + PHONE_DESC_BOB + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withOutstandingAmount("20")
+                        .withSubjects("Maths").withTags("a-level", "needs revision").build()));
+    }
+
+    @Test
+    public void parse_invalidOrBlankTag_failure() {
+        String[] tags = {" t/", " t/   ", " t/ t/A-Level", " t/A-Level t/", " t/invalid!", " t/A_Level"};
+        for (String tagInput : tags) {
+            assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                    + SUBJECT + tagInput, Tag.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    @Test
+    public void parse_missingRequiredField_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB,
                 String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_unknownOrUppercasePrefix_failure() {
+        String student = " n/Amy Bee p/91234567 a/Block 1 d/10-Aug" + SUBJECT;
+        String[] arguments = {student + " x/what", student + " o/0 x/what", student + " P/123",
+            " n/Amy Bee p/91234567 a/Block 1 x/what d/10-Aug" + SUBJECT, student + " notes/hello x/what",
+            student + " notes/Works w/o calculator"};
+        for (String argument : arguments) {
+            assertParseFailure(parser, argument,
+                    String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+        }
+    }
+
+    @Test
+    public void parse_invalidStartDate_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB
+                        + INVALID_START_DATE_DESC + SUBJECT,
+                StartDate.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_impossibleStartDate_failure() {
+        for (String invalid : new String[] {"31-Feb", "31-Apr", "00-Jan", "99-Abc"}) {
+            assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB
+                    + " d/" + invalid + SUBJECT, StartDate.MESSAGE_CONSTRAINTS);
+        }
+    }
+
+    @Test
+    public void parse_leapDay_success() {
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + " d/29-Feb" + SUBJECT,
+                new AddCommand(new PersonBuilder(BOB).withStartDate("29-Feb").withSubjects("Maths").build()));
+    }
+
+    @Test
+    public void parse_invalidLessonTime_failure() {
+        for (String invalid : new String[] {"24:00", "12:60", "-1:00", "9:00"}) {
+            assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                    + " s/Maths day/MON time/" + invalid, ParserUtil.MESSAGE_INVALID_LESSON_TIME);
+        }
+    }
+
+    @Test
+    public void parse_repeatedStartDate_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB
+                        + START_DATE_DESC_BOB + START_DATE_DESC_BOB + SUBJECT,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_START_DATE));
+    }
+
+    @Test
+    public void parse_invalidOutstandingAmount_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + INVALID_OUTSTANDING_AMOUNT_DESC + SUBJECT,
+                OutstandingAmount.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_repeatedOutstandingAmount_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + OUTSTANDING_AMOUNT_DESC_BOB + OUTSTANDING_AMOUNT_DESC_BOB + SUBJECT,
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_OUTSTANDING_AMOUNT));
+    }
+
+    @Test
+    public void parse_missingSubject_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB,
+                "At least one subject must be supplied.");
+    }
+
+    @Test
+    public void parse_repeatedSubjects_caseInsensitiveDuplicatesRejected() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                        + " s/Maths day/MON time/09:00 s/maths day/TUE time/10:00",
+                ParserUtil.MESSAGE_DUPLICATE_SUBJECT);
+    }
+
+    @Test
+    public void parse_blankSubjectAmongValidSubjects_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                + " s/Maths day/MON time/09:00 s/ day/TUE time/10:00", "Subject must not be blank.");
+    }
+
+    @Test
+    public void parse_commaSeparatedSubjects_failure() {
+        assertParseFailure(parser, NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB
+                + " s/Maths, Physics day/MON time/09:00",
+                seedu.address.model.person.Subject.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_missingOrMisorderedLessonFields_failure() {
+        String fields = NAME_DESC_BOB + PHONE_DESC_BOB + ADDRESS_DESC_BOB + START_DATE_DESC_BOB;
+        for (String subjects : new String[] {" s/Maths", " s/Maths day/MON", " day/MON time/09:00 s/Maths",
+            " s/Maths time/09:00 day/MON", " s/Maths day/Monday time/09:00", " s/Maths day/MON time/9:00"}) {
+            assertParseFailure(parser, fields + subjects,
+                    subjects.contains("Monday") ? ParserUtil.MESSAGE_INVALID_LESSON_DAY
+                            : subjects.endsWith("9:00") ? ParserUtil.MESSAGE_INVALID_LESSON_TIME
+                            : ParserUtil.MESSAGE_INVALID_SUBJECT_SCHEDULE);
+        }
     }
 }

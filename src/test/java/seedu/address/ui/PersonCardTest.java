@@ -1,0 +1,132 @@
+package seedu.address.ui;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.testutil.TypicalPersons.ALICE;
+
+import org.junit.jupiter.api.Test;
+
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.Region;
+import javafx.scene.text.Text;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
+
+public class PersonCardTest extends FxTestSupport {
+
+    @Test
+    public void constructor_internationalNames_preservesDisplayAndProfile() throws Exception {
+        runOnFxThread(() -> {
+            for (String name : new String[] {"Anne-Marie", "O'Connor", "O’Connor", "José", "Jose\u0301", "张伟"}) {
+                PersonCard card = new PersonCard(new PersonBuilder().withName(name).build(), 1);
+                Label label = (Label) card.getRoot().lookup("#name");
+                assertEquals(name, label.getText());
+                assertTrue(label.getTooltip().getText().startsWith(name + "; Phone: "));
+            }
+        });
+    }
+
+    @Test
+    public void constructor_displaysSubjectsAndLegacyFallback() throws Exception {
+        runOnFxThread(() -> {
+            assertSubjectsText(ALICE, "Not specified");
+            assertSubjectsText(new PersonBuilder(ALICE).withSubjects("Maths", "H2 Chemistry").build(),
+                    "Maths (Mon 09:00), H2 Chemistry (Mon 09:00)");
+            assertSummaryAndFeedback();
+        });
+    }
+
+    private void assertSubjectsText(Person person, String expectedText) {
+        PersonCard card = new PersonCard(person, 1);
+        Label subjects = (Label) card.getRoot().lookup("#subjects");
+        assertNotNull(subjects);
+        assertEquals(expectedText, subjects.getText());
+    }
+
+    @Test
+    public void constructor_tagsAndLongNotes_preservesDetailsInWrappingTooltip() throws Exception {
+        runOnFxThread(() -> {
+            PersonCard emptyCard = new PersonCard(ALICE, 1);
+            assertProfileDetails(emptyCard, "Not specified", "");
+
+            String longNote = "Revise fractions & 中文! " + "Practise algebra. ".repeat(25);
+            Person student = new PersonBuilder(ALICE).withSubjects("Maths", "H2 Chemistry")
+                    .withTags("Needs revision", "A-Level").withNotes(longNote).build();
+            PersonCard card = new PersonCard(student, 1);
+            assertProfileDetails(card, "a-level, needs revision", longNote.trim());
+            Label subjects = (Label) card.getRoot().lookup("#subjects");
+            assertEquals("Maths (Mon 09:00), H2 Chemistry (Mon 09:00)", subjects.getText());
+            assertEquals("Subjects: Maths (Mon 09:00), H2 Chemistry (Mon 09:00)",
+                    subjects.getTooltip().getText());
+            assertEquals(4, card.getRoot().getChildrenUnmodifiable().size(), "Keep the compact row layout");
+
+            Person edited = new PersonBuilder(student).withTags("Updated").withNotes("Updated note").build();
+            assertProfileDetails(new PersonCard(edited, 1), "updated", "Updated note");
+        });
+    }
+
+    @Test
+    public void fields_resizeInThreeToTwoRatioAndEllipsizeOnlyWhenNeeded() throws Exception {
+        Person person = new PersonBuilder(ALICE)
+                .withName("Alexandria Montgomery With A Very Long Student Name")
+                .withSubjects("Advanced Higher Mathematics", "Advanced Higher Chemistry").build();
+        runOnFxThread(() -> {
+            Region card = new PersonCard(person, 1).getRoot();
+            Scene scene = new Scene(card);
+            scene.getStylesheets().add(PersonCard.class.getResource("/view/TuteeDex.css").toExternalForm());
+            Label name = (Label) card.lookup("#name");
+            Label subjects = (Label) card.lookup("#subjects");
+            double previousNameWidth = 0;
+            for (int width : new int[] {600, 5000}) {
+                card.resize(width, 37);
+                card.applyCss();
+                card.layout();
+                card.layout();
+                assertEquals(1.5, name.getWidth() / subjects.getWidth(), 0.02);
+                assertTrue(name.getWidth() > previousNameWidth);
+                previousNameWidth = name.getWidth();
+                for (Label label : new Label[] {name, subjects}) {
+                    String displayed = ((Text) label.lookup(".text")).getText();
+                    if (width == 600) {
+                        assertTrue(displayed.endsWith("..."), displayed);
+                    } else {
+                        assertEquals(label.getText(), displayed);
+                    }
+                }
+            }
+            assertEquals(person.getName().fullName, name.getText());
+        });
+    }
+
+    private void assertProfileDetails(PersonCard card, String expectedTags, String expectedNotes) {
+        Label name = (Label) card.getRoot().lookup("#name");
+        Tooltip tooltip = name.getTooltip();
+        assertNotNull(tooltip);
+        assertTrue(tooltip.getText().contains("Tags: " + expectedTags + "; Notes: " + expectedNotes));
+        assertTrue(tooltip.isWrapText());
+        assertEquals(420, tooltip.getMaxWidth());
+        assertEquals("1. " + tooltip.getText(), card.getRoot().getAccessibleText());
+    }
+
+    private void assertSummaryAndFeedback() {
+        ResultDisplay display = new ResultDisplay();
+        display.showSummary(7, 6);
+        assertEquals("7", ((Label) display.getRoot().lookup("#totalCount")).getText());
+        assertEquals("6", ((Label) display.getRoot().lookup("#paidCount")).getText());
+        ScrollPane feedback = (ScrollPane) display.getRoot().lookup("#resultDisplay");
+        assertFalse(feedback.isVisible());
+        display.setFeedbackToUser("Name: Alice\nPhone: 94351253");
+        assertTrue(feedback.isVisible());
+        assertEquals(ScrollPane.ScrollBarPolicy.NEVER, feedback.getVbarPolicy());
+        Label feedbackLabel = (Label) feedback.getContent();
+        assertEquals("Name: Alice | Phone: 94351253", feedbackLabel.getText());
+        display.showSummary(0, 0);
+        assertFalse(feedback.isVisible());
+        assertEquals("0", ((Label) display.getRoot().lookup("#totalCount")).getText());
+    }
+}

@@ -2,6 +2,8 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.List;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import javafx.collections.ObservableList;
@@ -9,11 +11,20 @@ import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.CommandResult.ListPresentation;
+import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.FindCommand;
+import seedu.address.logic.commands.ListCommand;
+import seedu.address.logic.commands.SortCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
+import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.person.Person;
+import seedu.address.model.sort.LessonRow;
+import seedu.address.model.sort.SortOrder;
 import seedu.address.storage.Storage;
 
 /**
@@ -25,11 +36,15 @@ public class LogicManager implements Logic {
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
             "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
 
+    public static final String MESSAGE_CHANGES_UNDONE = " Nothing was changed, so you can try the command again.";
+
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
     private final Model model;
     private final Storage storage;
     private final AddressBookParser addressBookParser;
+    private DeleteCommand pendingDelete;
+    private boolean isShowingSubjectGroups = false;
 
     /**
      * Constructs a {@code LogicManager} with the given {@code Model} and {@code Storage}.
@@ -44,24 +59,76 @@ public class LogicManager implements Logic {
     public CommandResult execute(String commandText) throws CommandException, ParseException {
         logger.info("----------------[USER COMMAND][" + commandText + "]");
 
+        DeleteCommand previousPreview = pendingDelete;
+        pendingDelete = null;
         CommandResult commandResult;
         Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        if (command instanceof DeleteCommand deleteCommand && deleteCommand.isConfirmation()) {
+            if (previousPreview == null) {
+                throw new CommandException(DeleteCommand.MESSAGE_NO_PREVIEW);
+            }
+            command = previousPreview;
+        }
+        Predicate<? super Person> filterBeforeCommand = model.getFilteredPersonListPredicate();
+        // Kept so that a change which cannot be saved can be undone
+        ReadOnlyAddressBook addressBookBeforeCommand = command.requiresAddressBookSave()
+                ? new AddressBook(model.getAddressBook())
+                : null;
+        model.beginCommand();
+        try {
+            commandResult = command.execute(model);
+            if (command instanceof DeleteCommand deleteCommand && !deleteCommand.isConfirmation()) {
+                pendingDelete = deleteCommand.confirmed(model);
+            }
+        } finally {
+            model.endCommand();
+        }
+        if (command.requiresAddressBookSave()) {
+            saveAddressBook(addressBookBeforeCommand, filterBeforeCommand);
+        }
+        saveLastView(command, commandText, commandResult, filterBeforeCommand);
+        return commandResult;
+    }
 
+    /**
+     * Saves the address book. If saving fails, restores {@code addressBookBeforeCommand} so that the
+     * students shown match the saved file, and a retried command is not applied twice.
+     */
+    private void saveAddressBook(ReadOnlyAddressBook addressBookBeforeCommand,
+            Predicate<? super Person> filterBeforeCommand) throws CommandException {
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
+            model.setAddressBook(addressBookBeforeCommand);
+            model.updateFilteredPersonList(filterBeforeCommand::test);
+            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage())
+                    + MESSAGE_CHANGES_UNDONE, e);
         } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+            model.setAddressBook(addressBookBeforeCommand);
+            model.updateFilteredPersonList(filterBeforeCommand::test);
+            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage())
+                    + MESSAGE_CHANGES_UNDONE, ioe);
         }
-
-        return commandResult;
     }
 
     @Override
     public ObservableList<Person> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public SortOrder getSortOrder() {
+        return model.getSortOrder();
+    }
+
+    @Override
+    public List<LessonRow> getStudentRows() {
+        return model.getStudentRows();
+    }
+
+    @Override
+    public List<LessonRow> getLessonRows() {
+        return model.getLessonRows();
     }
 
     @Override
@@ -72,5 +139,67 @@ public class LogicManager implements Logic {
     @Override
     public void setGuiSettings(GuiSettings guiSettings) {
         model.setGuiSettings(guiSettings);
+    }
+
+    @Override
+    public String getLastViewCommand() {
+        String lastViewCommand = model.getLastViewCommand();
+        // The preferences file can be edited by hand, so only list and find are run again on startup.
+        if (!lastViewCommand.isEmpty() && !isViewCommand(parseSavedCommand(lastViewCommand))) {
+            logger.warning("Ignoring saved view that is not a list or find command: " + lastViewCommand);
+            return "";
+        }
+        return lastViewCommand;
+    }
+
+    @Override
+    public String getLastSortCommand() {
+        String lastSortCommand = model.getLastSortCommand();
+        if (!lastSortCommand.isEmpty() && !(parseSavedCommand(lastSortCommand) instanceof SortCommand)) {
+            logger.warning("Ignoring saved sort order that is not a sort command: " + lastSortCommand);
+            return "";
+        }
+        return lastSortCommand;
+    }
+
+    /**
+     * Saves the commands that decide which students are listed and in what order, so the same view is shown
+     * the next time the app opens. The saved view is cleared only when another command changes what is on screen,
+     * by replacing the filter or by switching from subject groups back to contacts.
+     */
+    private void saveLastView(Command command, String commandText, CommandResult commandResult,
+            Predicate<? super Person> filterBeforeCommand) {
+        ListPresentation presentation = commandResult.getListPresentation();
+        if (command instanceof SortCommand) {
+            // A bare sort only reports the order (UNCHANGED); sort reset leaves no order to save.
+            if (presentation == ListPresentation.REFRESH) {
+                model.setLastSortCommand(model.getSortOrder().equals(SortOrder.NONE) ? "" : commandText.strip());
+            }
+        } else if (isViewCommand(command)) {
+            model.setLastViewCommand(commandText.strip());
+        } else if (!commandResult.isExit() && presentation != ListPresentation.UNCHANGED
+                && (model.getFilteredPersonListPredicate() != filterBeforeCommand || isShowingSubjectGroups)) {
+            // Commands such as delete keep the filter, so the saved view still matches the screen.
+            model.setLastViewCommand("");
+        }
+
+        if (presentation == ListPresentation.SUBJECT_GROUPS) {
+            isShowingSubjectGroups = true;
+        } else if (presentation == ListPresentation.CONTACTS) {
+            isShowingSubjectGroups = false;
+        }
+    }
+
+    private boolean isViewCommand(Command command) {
+        return command instanceof ListCommand || command instanceof FindCommand;
+    }
+
+    /** Returns the command in {@code commandText}, or null if it cannot be parsed. */
+    private Command parseSavedCommand(String commandText) {
+        try {
+            return addressBookParser.parseCommand(commandText);
+        } catch (ParseException e) {
+            return null;
+        }
     }
 }

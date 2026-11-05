@@ -9,21 +9,95 @@ import static seedu.address.testutil.TypicalPersons.IDA;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import seedu.address.commons.exceptions.DataLoadingException;
+import seedu.address.commons.util.JsonUtil;
+import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.model.AddressBook;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.person.Person;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAddressBookStorageTest {
     private static final Path TEST_DATA_FOLDER = Paths.get("src", "test", "data", "JsonAddressBookStorageTest");
 
     @TempDir
     public Path testFolder;
+
+    @Test
+    public void saveAndRead_internationalNames_preservesSpelling() throws Exception {
+        AddressBook book = new AddressBook();
+        for (String name : new String[] {"Anne-Marie", "O'Connor", "O’Connor", "José", "Jose\u0301", "张伟"}) {
+            book.addPerson(new PersonBuilder().withName(name).build());
+        }
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("names.json"));
+        storage.saveAddressBook(book);
+        assertEquals(book, new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void legacyBalanceDuplicates_recoveredThenPaymentsAndEditsRoundTrip() throws Exception {
+        Person first = new PersonBuilder().withName("Twin Student").withPhone("91234567").withAddress("Block 1")
+                .withStartDate("29-Feb").withSubjects("Maths").withOutstandingAmount("10").build();
+        Person second = new PersonBuilder(first).withOutstandingAmount("20").build();
+        Path file = testFolder.resolve("legacy.json");
+        JsonUtil.saveJsonFile(new JsonSerializableAddressBook(
+                List.of(new JsonAdaptedPerson(first), new JsonAdaptedPerson(second))), file);
+        String originalJson = Files.readString(file);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        Model model = new ModelManager(storage.readAddressBook().orElseThrow(), new UserPrefs());
+        Person recovered = new PersonBuilder(second).withName("Twin Student Recovered").build();
+        assertEquals(List.of(first, recovered), model.getAddressBook().getPersonList());
+        assertEquals(originalJson, Files.readString(file));
+        AddressBookParser parser = new AddressBookParser();
+
+        // Partial payments, charges and edit can converge without changing either student's identity.
+        parser.parseCommand("paid 2 10").execute(model);
+        assertEquals(new PersonBuilder(recovered).withOutstandingAmount("10").build(),
+                model.getAddressBook().getPersonList().get(1));
+        parser.parseCommand("charge 1 10").execute(model);
+        parser.parseCommand("charge 2 10").execute(model);
+        parser.parseCommand("edit 1 o/10").execute(model);
+        parser.parseCommand("edit 2 o/10").execute(model);
+        parser.parseCommand("find Twin").execute(model);
+        parser.parseCommand("paid 1").execute(model);
+        parser.parseCommand("paid 2").execute(model);
+        assertEquals(List.of(new PersonBuilder(first).withOutstandingAmount("0").build(),
+                new PersonBuilder(recovered).withOutstandingAmount("0").build()),
+                model.getAddressBook().getPersonList());
+        storage.saveAddressBook(model.getAddressBook());
+        assertEquals(model.getAddressBook(), storage.readAddressBook().orElseThrow());
+    }
+
+    @Test
+    public void legacyRecovery_avoidsExistingNamesAndPreservesArchivedDetails() throws Exception {
+        Person first = new PersonBuilder(ALICE).withOutstandingAmount("10").build();
+        Person second = new PersonBuilder(first).withOutstandingAmount("20").withTags("review")
+                .withSubjects("Maths").withNotes("Keep both balances").build().withArchived(true);
+        Person existingName = new PersonBuilder(first).withName(first.getName() + " Recovered").build();
+        Person third = new PersonBuilder(first).withOutstandingAmount("30").build();
+        JsonSerializableAddressBook legacy = new JsonSerializableAddressBook(List.of(new JsonAdaptedPerson(first),
+                new JsonAdaptedPerson(second), new JsonAdaptedPerson(existingName), new JsonAdaptedPerson(third)));
+        Person recoveredSecond = new PersonBuilder(second).withName(first.getName() + " Recovered Recovered")
+                .build().withArchived(true);
+        Person recoveredThird = new PersonBuilder(third).withName(first.getName() + " Recovered Recovered Recovered")
+                .build();
+        AddressBook loaded = legacy.toModelType();
+        assertEquals(List.of(first, recoveredSecond, existingName, recoveredThird), loaded.getPersonList());
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("recovered.json"));
+        storage.saveAddressBook(loaded);
+        assertEquals(loaded, storage.readAddressBook().orElseThrow());
+    }
 
     @Test
     public void readAddressBook_nullFilePath_throwsNullPointerException() {
@@ -61,6 +135,37 @@ public class JsonAddressBookStorageTest {
     }
 
     @Test
+    public void readAddressBook_malformedStructures_throwsDataLoadingExceptionAndPreservesFile() throws IOException {
+        String validPerson = JsonUtil.toJsonString(new JsonAdaptedPerson(ALICE));
+        String[] invalidDocuments = {"null", "{\"persons\":[null]}",
+            "{\"persons\":[" + validPerson + ",null]}", "{\"persons\":[null," + validPerson + "]}",
+            "{\"persons\":null}", "{}", "{\"persons\":\"invalid\"}", "{\"persons\":[{}]}",
+            "{\"persons\":[" + validPerson + "," + validPerson + "]}"};
+        Path file = testFolder.resolve("invalid.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+
+        for (String document : invalidDocuments) {
+            Files.writeString(file, document);
+
+            assertThrows(DataLoadingException.class, storage::readAddressBook);
+
+            assertEquals(document, Files.readString(file));
+        }
+    }
+
+    @Test
+    public void readAddressBook_emptyPersons_loadsEmptyBookAndPreservesFile() throws Exception {
+        Path file = testFolder.resolve("empty.json");
+        String document = "{\"persons\":[]}";
+        Files.writeString(file, document);
+
+        ReadOnlyAddressBook loaded = new JsonAddressBookStorage(file).readAddressBook().orElseThrow();
+
+        assertEquals(new AddressBook(), new AddressBook(loaded));
+        assertEquals(document, Files.readString(file));
+    }
+
+    @Test
     public void readAndSaveAddressBook_allInOrder_success() throws Exception {
         Path filePath = testFolder.resolve("TempAddressBook.json");
         AddressBook original = getTypicalAddressBook();
@@ -84,6 +189,52 @@ public class JsonAddressBookStorageTest {
         readBack = jsonAddressBookStorage.readAddressBook().get(); // file path not specified
         assertEquals(original, new AddressBook(readBack));
 
+    }
+
+    @Test
+    public void readAndSaveAddressBook_tags_roundTrip() throws Exception {
+        AddressBook addressBook = new AddressBook();
+        Person person = new PersonBuilder(ALICE).withTags("A-Level", "Needs revision", "a-level").build();
+        addressBook.addPerson(person);
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(testFolder.resolve("tagged.json"));
+        storage.saveAddressBook(addressBook);
+        assertEquals(addressBook, new AddressBook(storage.readAddressBook().orElseThrow()));
+    }
+
+    @Test
+    public void readAndSaveAddressBook_legacySubjectSpaces_normalizesWithoutRewritingOnRead() throws Exception {
+        AddressBook original = new AddressBook();
+        original.addPerson(new PersonBuilder(ALICE).withSubjects("H2 Maths").build());
+        Path file = testFolder.resolve("spaced-subject.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        storage.saveAddressBook(original);
+        String legacyJson = Files.readString(file).replace("H2 Maths", "  H2   Maths  ");
+        Files.writeString(file, legacyJson);
+
+        ReadOnlyAddressBook loaded = storage.readAddressBook().orElseThrow();
+        assertEquals(original, new AddressBook(loaded));
+        assertEquals(legacyJson, Files.readString(file));
+        storage.saveAddressBook(loaded);
+        assertEquals("H2 Maths", storage.readAddressBook().orElseThrow().getPersonList().get(0)
+                .getSubjects().iterator().next().value);
+        assertFalse(Files.readString(file).contains("H2   Maths"));
+    }
+
+    @Test
+    public void readAddressBook_normalizedSubjectCollisions_rejectsWithoutDroppingLessons() throws Exception {
+        Path file = testFolder.resolve("colliding-subjects.json");
+        JsonAddressBookStorage storage = new JsonAddressBookStorage(file);
+        for (String secondDay : List.of("MONDAY", "TUESDAY")) {
+            List<JsonAdaptedSubject> subjects = List.of(new JsonAdaptedSubject("H2 Maths", "MONDAY", "09:00"),
+                    new JsonAdaptedSubject("h2  Maths", secondDay, "09:00"));
+            JsonAdaptedPerson person = new JsonAdaptedPerson("Amy Bee", "11111111", "Block 1", "10-Aug", "0",
+                    List.of(), "Keep note", subjects);
+            String json = JsonUtil.toJsonString(new JsonSerializableAddressBook(List.of(person)));
+            Files.writeString(file, json);
+
+            assertThrows(DataLoadingException.class, () -> storage.readAddressBook());
+            assertEquals(json, Files.readString(file));
+        }
     }
 
     @Test
