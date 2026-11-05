@@ -1,0 +1,34 @@
+@startuml
+' Render with render_sequence_diagrams.py to align constructor heads and activations.
+!include style.puml
+skinparam ArrowFontStyle plain
+skinparam sequenceMessageAlign left
+skinparam ParticipantPadding 12
+
+participant "f:FindCommand" as FindCommand LOGIC_COLOR
+participant "m:Model" as Model MODEL_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+
+[-> FindCommand : execute(m)
+activate FindCommand
+
+FindCommand -> Model : updateFilteredPersonList(s, l)
+activate Model
+Model --> FindCommand
+deactivate Model
+
+FindCommand -> Model : getFilteredPersonList()
+activate Model
+Model --> FindCommand : matching students
+deactivate Model
+
+create CommandResult
+FindCommand -> CommandResult : CommandResult(summary,\nScreen.STUDENTS)
+activate CommandResult
+||12||
+CommandResult --> FindCommand
+deactivate CommandResult
+
+[<-- FindCommand : r
+deactivate FindCommand
+@enduml

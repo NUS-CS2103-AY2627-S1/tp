@@ -1,10 +1,12 @@
 package seedu.address.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.storage.JsonAdaptedPerson.MISSING_FIELD_MESSAGE_FORMAT;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.BENSON;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,10 +14,14 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import seedu.address.commons.exceptions.IllegalValueException;
+import seedu.address.commons.util.JsonUtil;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.Student;
+import seedu.address.testutil.PersonBuilder;
 
 public class JsonAdaptedPersonTest {
     private static final String INVALID_NAME = "R@chel";
@@ -28,6 +34,9 @@ public class JsonAdaptedPersonTest {
     private static final String VALID_PHONE = BENSON.getPhone().toString();
     private static final String VALID_EMAIL = BENSON.getEmail().toString();
     private static final String VALID_ADDRESS = BENSON.getAddress().toString();
+    private static final String VALID_SCHOOL = "Nanyang Primary School";
+    private static final String LEGACY_PERSON = "{\"name\":\"Alex Tan\",\"phone\":\"91234567\","
+            + "\"email\":\"alex@example.com\",\"address\":\"Clementi\",\"tags\":[\"student\"]}";
     private static final List<JsonAdaptedTag> VALID_TAGS = BENSON.getTags().stream()
             .map(JsonAdaptedTag::new)
             .collect(Collectors.toList());
@@ -36,6 +45,77 @@ public class JsonAdaptedPersonTest {
     public void toModelType_validPersonDetails_returnsPerson() throws Exception {
         JsonAdaptedPerson person = new JsonAdaptedPerson(BENSON);
         assertEquals(BENSON, person.toModelType());
+    }
+
+    @Test
+    public void toModelType_nullTagEntry_throwsIllegalValueException() throws Exception {
+        String json = LEGACY_PERSON.replace("[\"student\"]", "[null]");
+        JsonAdaptedPerson person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class);
+
+        assertThrows(IllegalValueException.class, String.format(MISSING_FIELD_MESSAGE_FORMAT, "tag"),
+                person::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullLessonEntry_throwsIllegalValueException() throws Exception {
+        String json = LEGACY_PERSON.substring(0, LEGACY_PERSON.length() - 1) + ",\"lessons\":[null]}";
+        JsonAdaptedPerson person = JsonUtil.fromJsonString(json, JsonAdaptedPerson.class);
+
+        assertThrows(IllegalValueException.class, String.format(MISSING_FIELD_MESSAGE_FORMAT, "lesson"),
+                person::toModelType);
+    }
+
+    @Test
+    public void toModelType_personDetailsWithoutNotes_preservesArchiveStatus() throws Exception {
+        for (boolean isArchived : new boolean[] {false, true}) {
+            JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                    VALID_TAGS, null, null, null, null, isArchived);
+            Student expected = BENSON.withArchived(isArchived);
+
+            assertEquals(expected, person.toModelType());
+            String json = JsonUtil.toJsonString(person);
+            assertEquals(expected, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+        }
+    }
+
+    @Test
+    public void toModelType_validSchool_preservesSchool() throws Exception {
+        Student student = new PersonBuilder(BENSON).withSchool(new School(VALID_SCHOOL)).build();
+        JsonAdaptedPerson person = new JsonAdaptedPerson(student);
+        assertEquals(student, person.toModelType());
+        String json = JsonUtil.toJsonString(person);
+        assertTrue(json.contains("\"school\" : \"" + VALID_SCHOOL + "\""));
+        assertEquals(student, JsonUtil.fromJsonString(json, JsonAdaptedPerson.class).toModelType());
+    }
+
+    @Test
+    public void toModelType_invalidSchool_throwsIllegalValueException() {
+        for (String school : new String[] {"", " ", "A".repeat(61)}) {
+            JsonAdaptedPerson person = new JsonAdaptedPerson(VALID_NAME, VALID_PHONE, VALID_EMAIL, VALID_ADDRESS,
+                    VALID_TAGS, school, null, null, null, false);
+            assertThrows(IllegalValueException.class, School.MESSAGE_CONSTRAINTS, person::toModelType);
+        }
+    }
+
+    @Test
+    public void toModelType_missingOrNullSchool_loadsWithoutSchool() throws Exception {
+        Student legacy = JsonUtil.fromJsonString(LEGACY_PERSON, JsonAdaptedPerson.class).toModelType();
+        Student explicitNull = JsonUtil.fromJsonString(withSchoolJson("null"), JsonAdaptedPerson.class).toModelType();
+        assertTrue(legacy.getSchool().isEmpty());
+        assertEquals(legacy, explicitNull);
+    }
+
+    @Test
+    public void fromJson_nonStringSchool_rejected() {
+        for (String value : new String[] {"true", "1", "[]", "{}"}) {
+            assertThrows(IOException.class, () -> {
+                JsonUtil.fromJsonString(withSchoolJson(value), JsonAdaptedPerson.class);
+            });
+        }
+    }
+
+    private static String withSchoolJson(String value) {
+        return LEGACY_PERSON.substring(0, LEGACY_PERSON.length() - 1) + ",\"school\":" + value + "}";
     }
 
     @Test

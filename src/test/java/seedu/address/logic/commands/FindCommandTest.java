@@ -18,6 +18,10 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.UserPrefs;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
+import seedu.address.model.person.SchoolingLevel;
+import seedu.address.model.person.SchoolingLevelContainsKeywordPredicate;
+import seedu.address.model.person.Student;
+import seedu.address.testutil.PersonBuilder;
 
 /**
  * Contains integration tests (interaction with the Model) for {@code FindCommand}.
@@ -55,11 +59,12 @@ public class FindCommandTest {
 
     @Test
     public void execute_zeroKeywords_noPersonFound() {
-        String expectedMessage = String.format(MESSAGE_PERSONS_LISTED_OVERVIEW, 0);
+        String expectedMessage = FindCommand.MESSAGE_NONE;
         NameContainsKeywordsPredicate predicate = preparePredicate(" ");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertCommandSuccess(command, model,
+                new CommandResult(expectedMessage, CommandResult.Screen.STUDENTS), expectedModel);
         assertEquals(List.of(), model.getFilteredPersonList());
     }
 
@@ -69,7 +74,8 @@ public class FindCommandTest {
         NameContainsKeywordsPredicate predicate = preparePredicate("Kurz Elle Kunz");
         FindCommand command = new FindCommand(predicate);
         expectedModel.updateFilteredPersonList(predicate);
-        assertCommandSuccess(command, model, expectedMessage, expectedModel);
+        assertCommandSuccess(command, model,
+                new CommandResult(expectedMessage, CommandResult.Screen.STUDENTS), expectedModel);
         assertEquals(List.of(CARL, ELLE, FIONA), model.getFilteredPersonList());
     }
 
@@ -86,5 +92,17 @@ public class FindCommandTest {
      */
     private NameContainsKeywordsPredicate preparePredicate(String userInput) {
         return new NameContainsKeywordsPredicate(List.of(userInput.split("\\s+")));
+    }
+
+    @Test
+    public void execute_levelPredicate_filtersByLevel() {
+        Model model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        Student first = model.getFilteredPersonList().get(0);
+        model.setPerson(first, new PersonBuilder(first)
+                .withSchoolingLevel(new SchoolingLevel("Primary 5")).build());
+        FindCommand command = new FindCommand(
+                new SchoolingLevelContainsKeywordPredicate("primary"));
+        command.execute(model);
+        assertEquals(1, model.getFilteredPersonList().size());
     }
 }

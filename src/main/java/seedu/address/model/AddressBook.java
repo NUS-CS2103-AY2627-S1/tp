@@ -1,13 +1,18 @@
 package seedu.address.model;
 
 import static java.util.Objects.requireNonNull;
+import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.person.Person;
+import seedu.address.model.person.Student;
 import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.person.exceptions.PersonNotFoundException;
 
 /**
  * Wraps all data at the address-book level.
@@ -16,6 +21,7 @@ import seedu.address.model.person.UniquePersonList;
 public class AddressBook implements ReadOnlyAddressBook {
 
     private final UniquePersonList persons = new UniquePersonList();
+    private final UniquePersonList archivedPersons = new UniquePersonList();
 
     public AddressBook() {}
 
@@ -30,11 +36,16 @@ public class AddressBook implements ReadOnlyAddressBook {
     //// list overwrite operations
 
     /**
-     * Replaces the contents of the person list with {@code persons}.
+     * Replaces both person lists with {@code persons}, separated by archive status.
      * {@code persons} must not contain duplicate persons.
      */
-    public void setPersons(List<Person> persons) {
-        this.persons.setPersons(persons);
+    public void setPersons(List<Student> persons) {
+        requireNonNull(persons);
+        AddressBook replacement = new AddressBook();
+        persons.forEach(replacement::addPerson);
+
+        this.persons.setPersons(replacement.persons);
+        archivedPersons.setPersons(replacement.archivedPersons);
     }
 
     /**
@@ -43,7 +54,9 @@ public class AddressBook implements ReadOnlyAddressBook {
     public void resetData(ReadOnlyAddressBook newData) {
         requireNonNull(newData);
 
-        setPersons(newData.getPersonList());
+        List<Student> replacement = new ArrayList<>(newData.getPersonList());
+        replacement.addAll(newData.getArchivedPersonList());
+        setPersons(replacement);
     }
 
     //// person-level operations
@@ -51,17 +64,21 @@ public class AddressBook implements ReadOnlyAddressBook {
     /**
      * Returns true if a person with the same identity as {@code person} exists in the address book.
      */
-    public boolean hasPerson(Person person) {
+    public boolean hasPerson(Student person) {
         requireNonNull(person);
-        return persons.contains(person);
+        return persons.contains(person) || archivedPersons.contains(person);
     }
 
     /**
      * Adds a person to the address book.
      * The person must not already exist in the address book.
      */
-    public void addPerson(Person p) {
-        persons.add(p);
+    public void addPerson(Student p) {
+        requireNonNull(p);
+        if (hasPerson(p)) {
+            throw new DuplicatePersonException();
+        }
+        getListFor(p).add(p);
     }
 
     /**
@@ -69,18 +86,56 @@ public class AddressBook implements ReadOnlyAddressBook {
      * {@code target} must exist in the address book.
      * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
      */
-    public void setPerson(Person target, Person editedPerson) {
-        requireNonNull(editedPerson);
+    public void setPerson(Student target, Student editedPerson) {
+        requireAllNonNull(target, editedPerson);
 
-        persons.setPerson(target, editedPerson);
+        UniquePersonList source = getListFor(target);
+        UniquePersonList destination = getListFor(editedPerson);
+        if (!source.asUnmodifiableObservableList().contains(target)) {
+            throw new PersonNotFoundException();
+        }
+        if (!target.isSamePerson(editedPerson) && hasPerson(editedPerson)) {
+            throw new DuplicatePersonException();
+        }
+
+        if (source == destination) {
+            source.setPerson(target, editedPerson);
+        } else {
+            source.remove(target);
+            destination.add(editedPerson);
+        }
     }
 
     /**
      * Removes {@code key} from this {@code AddressBook}.
      * {@code key} must exist in the address book.
      */
-    public void removePerson(Person key) {
-        persons.remove(key);
+    public void removePerson(Student key) {
+        requireNonNull(key);
+        getListFor(key).remove(key);
+    }
+
+    /**
+     * Archives {@code key} from this {@code AddressBook}.
+     * {@code key} must exist in the address book.
+     */
+    public void archivePerson(Student key) {
+        requireNonNull(key);
+        setPerson(key, key.withArchived(true));
+    }
+
+    /**
+     * Unarchives {@code key} from this {@code AddressBook}.
+     * {@code key} must exist in the address book.
+     */
+    public void unarchivePerson(Student key) {
+        requireNonNull(key);
+        setPerson(key, key.withArchived(false));
+    }
+
+    /** Returns the list that stores the given person's archive status. */
+    private UniquePersonList getListFor(Student person) {
+        return person.isArchived() ? archivedPersons : persons;
     }
 
     //// util methods
@@ -89,12 +144,18 @@ public class AddressBook implements ReadOnlyAddressBook {
     public String toString() {
         return new ToStringBuilder(this)
                 .add("persons", persons)
+                .add("archivedPersons", archivedPersons)
                 .toString();
     }
 
     @Override
-    public ObservableList<Person> getPersonList() {
+    public ObservableList<Student> getPersonList() {
         return persons.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Student> getArchivedPersonList() {
+        return archivedPersons.asUnmodifiableObservableList();
     }
 
     @Override
@@ -108,11 +169,12 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return persons.equals(otherAddressBook.persons)
+                && archivedPersons.equals(otherAddressBook.archivedPersons);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(persons, archivedPersons);
     }
 }

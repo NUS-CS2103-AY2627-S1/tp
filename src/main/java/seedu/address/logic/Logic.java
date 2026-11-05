@@ -1,11 +1,17 @@
 package seedu.address.logic;
 
+import java.util.function.Predicate;
+
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Lesson;
+import seedu.address.model.person.RateSortOrder;
+import seedu.address.model.person.Student;
 
 /**
  * API of the Logic component
@@ -20,8 +26,30 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /**
+     * Returns the AddressBook.
+     *
+     * @see seedu.address.model.Model#getAddressBook()
+     */
+    ReadOnlyAddressBook getAddressBook();
+
+    /** Returns an unmodifiable view of the selected active or archived student list. */
+    ObservableList<Student> getFilteredPersonList();
+
+    /** Returns an unmodifiable view of the filtered active student list. */
+    ObservableList<Student> getFilteredActivePersonList();
+
+    /** Returns an unmodifiable view of the filtered archived student list. */
+    ObservableList<Student> getFilteredArchivedPersonList();
+
+    /** Returns whether commands currently use the archived student list. */
+    boolean isArchiveView();
+
+    /** Returns how students are ordered by hourly rate within each school stage. */
+    ObservableValue<RateSortOrder> getRateSortOrder();
+
+    /** Returns the active calendar lesson filter. */
+    ObservableValue<Predicate<Lesson>> getLessonPredicate();
 
     /**
      * Returns the user prefs' GUI settings.

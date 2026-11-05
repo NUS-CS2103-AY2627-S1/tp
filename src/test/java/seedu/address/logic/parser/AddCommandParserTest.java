@@ -9,6 +9,7 @@ import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_SCHOOL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_BOB;
@@ -16,18 +17,26 @@ import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_NON_EMPTY;
 import static seedu.address.logic.commands.CommandTestUtil.PREAMBLE_WHITESPACE;
+import static seedu.address.logic.commands.CommandTestUtil.SCHOOL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.SCHOOL_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SCHOOL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_GUARDIAN;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SCHOOL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
 import static seedu.address.testutil.TypicalPersons.AMY;
@@ -40,8 +49,10 @@ import seedu.address.logic.commands.AddCommand;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.SchoolingLevel;
+import seedu.address.model.person.Student;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.PersonBuilder;
 
@@ -50,18 +61,23 @@ public class AddCommandParserTest {
 
     @Test
     public void parse_allFieldsPresent_success() {
-        Person expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND).build();
+        Student expectedPerson = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND)
+                .withSchool(new School(VALID_SCHOOL_BOB)).withSchoolingLevel(new SchoolingLevel("Secondary 3"))
+                .build();
 
         // whitespace only preamble
         assertParseSuccess(parser, PREAMBLE_WHITESPACE + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
-                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND, new AddCommand(expectedPerson));
+                + ADDRESS_DESC_BOB + TAG_DESC_FRIEND + SCHOOL_DESC_BOB + " level/Secondary 3",
+                new AddCommand(expectedPerson));
 
 
         // multiple tags - all accepted
-        Person expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
+        Student expectedPersonMultipleTags = new PersonBuilder(BOB).withTags(VALID_TAG_FRIEND, VALID_TAG_HUSBAND)
+                .withSchool(new School(VALID_SCHOOL_BOB)).withSchoolingLevel(new SchoolingLevel("Secondary 3"))
                 .build();
         assertParseSuccess(parser,
-                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
+                NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND
+                        + SCHOOL_DESC_BOB + " level/Secondary 3",
                 new AddCommand(expectedPersonMultipleTags));
     }
 
@@ -131,8 +147,8 @@ public class AddCommandParserTest {
 
     @Test
     public void parse_optionalFieldsMissing_success() {
-        // zero tags
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
+        // zero tags and no school
+        Student expectedPerson = new PersonBuilder(AMY).withTags().withSchool(null).build();
         assertParseSuccess(parser, NAME_DESC_AMY + PHONE_DESC_AMY + EMAIL_DESC_AMY + ADDRESS_DESC_AMY,
                 new AddCommand(expectedPerson));
     }
@@ -192,5 +208,101 @@ public class AddCommandParserTest {
         assertParseFailure(parser, PREAMBLE_NON_EMPTY + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
                 + ADDRESS_DESC_BOB + TAG_DESC_HUSBAND + TAG_DESC_FRIEND,
                 String.format(MESSAGE_INVALID_COMMAND_FORMAT, AddCommand.MESSAGE_USAGE));
+    }
+
+    @Test
+    public void parse_school_success() {
+        Student expected = new PersonBuilder(BOB).withTags().withSchool(new School(VALID_SCHOOL_BOB)).build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " sch/  " + VALID_SCHOOL_BOB + "  ", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_careOfAddress_success() {
+        String address = "123 Main Street c/o John Tan";
+        String userInput = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " address/" + address;
+        Student expected = new PersonBuilder(BOB).withAddress(address).withTags().withSchool(null).build();
+
+        assertParseSuccess(parser, userInput, new AddCommand(expected));
+
+        Student expectedWithSchool = new PersonBuilder(expected).withSchool(new School(VALID_SCHOOL_BOB)).build();
+        assertParseSuccess(parser, userInput + SCHOOL_DESC_BOB, new AddCommand(expectedWithSchool));
+    }
+
+    @Test
+    public void parse_slashInAddress_success() {
+        String userInput = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + " address/";
+
+        // Day/ differs in case from day/, so it stays in the address
+        Student expected = new PersonBuilder(BOB).withAddress("Blk 5 Day/Night Road").withTags().withSchool(null)
+                .build();
+        assertParseSuccess(parser, userInput + "Blk 5 Day/Night Road", new AddCommand(expected));
+
+        // rate/ without whitespace before it is not a prefix
+        expected = new PersonBuilder(BOB).withAddress("1 Road xrate/40").withTags().withSchool(null).build();
+        assertParseSuccess(parser, userInput + "1 Road xrate/40", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_otherCommandPrefix_failure() {
+        String validInput = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+
+        // lesson fields after the address are rejected instead of being read into it
+        assertParseFailure(parser, validInput + " subject/Math rate/40",
+                Messages.getErrorMessageForUnsupportedPrefixes(PREFIX_SUBJECT, PREFIX_RATE));
+
+        // a foreign prefix before the student fields is named, but c/o in the address is not
+        assertParseFailure(parser, " guardian/Mary" + NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB
+                + " address/1 Road c/o John", Messages.getErrorMessageForUnsupportedPrefixes(PREFIX_GUARDIAN));
+    }
+
+    @Test
+    public void parse_mistypedStudentPrefix_failure() {
+        String validInput = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+
+        // AddressBook-Level3's t/ and a near miss of sch/ would otherwise be saved inside the address
+        assertParseFailure(parser, validInput + " t/friend school/Clementi Primary",
+                Messages.getErrorMessageForUnsupportedPrefixes(new Prefix("t/"), new Prefix("school/")));
+
+        for (String mistype : new String[] {"n/", "p/", "e/", "a/", "t/", "tags/", "school/", "lvl/"}) {
+            assertParseFailure(parser, validInput + " " + mistype + "x",
+                    Messages.getErrorMessageForUnsupportedPrefixes(new Prefix(mistype)));
+        }
+    }
+
+    @Test
+    public void parse_invalidSchool_failure() {
+        String base = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        assertParseFailure(parser, base + " sch/", School.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " sch/   ", School.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + INVALID_SCHOOL_DESC, School.MESSAGE_CONSTRAINTS);
+    }
+
+    @Test
+    public void parse_duplicateSchool_failure() {
+        String base = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        String expectedMessage = Messages.getErrorMessageForDuplicatePrefixes(PREFIX_SCHOOL);
+        assertParseFailure(parser, base + SCHOOL_DESC_AMY + SCHOOL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, base + SCHOOL_DESC_BOB + SCHOOL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, base + INVALID_SCHOOL_DESC + SCHOOL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, base + SCHOOL_DESC_BOB + INVALID_SCHOOL_DESC, expectedMessage);
+        assertParseFailure(parser, base + " sch/" + SCHOOL_DESC_BOB, expectedMessage);
+    }
+
+    @Test
+    public void parse_schoolingLevel_success() {
+        Student expected = new PersonBuilder(BOB).withTags()
+                .withSchoolingLevel(new SchoolingLevel("Primary 5")).build();
+        assertParseSuccess(parser, NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB
+                + " level/  Primary   5 ", new AddCommand(expected));
+    }
+
+    @Test
+    public void parse_invalidOrDuplicateSchoolingLevel_failure() {
+        String base = NAME_DESC_BOB + PHONE_DESC_BOB + EMAIL_DESC_BOB + ADDRESS_DESC_BOB;
+        assertParseFailure(parser, base + " level/", SchoolingLevel.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " level/***", SchoolingLevel.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, base + " level/P5 level/P6",
+                Messages.getErrorMessageForDuplicatePrefixes(PREFIX_LEVEL));
     }
 }

@@ -1,0 +1,52 @@
+@startuml
+' Render with render_sequence_diagrams.py to align constructor heads and activations.
+!include style.puml
+skinparam ArrowFontStyle plain
+
+participant "c:NoteAddCommand" as Command LOGIC_COLOR
+participant "m:Model" as Model MODEL_COLOR
+participant "student:Student" as Student MODEL_COLOR
+participant "r:CommandResult" as Result LOGIC_COLOR
+
+[-> Command : execute(m)
+activate Command
+
+Command -> Model : getFilteredPersonList()
+activate Model
+Model --> Command : students
+deactivate Model
+
+note over Command
+  Resolve student by studentIndex;
+  copy notes and append new note n
+end note
+
+Command -> Student : withNotes(notes)
+activate Student
+note over Student
+  Returns a new Student;
+  sorts notes oldest first
+end note
+Student --> Command : updated
+deactivate Student
+
+Command -> Model : setPerson(student, updated)
+activate Model
+Model --> Command
+deactivate Model
+
+note over Command
+  Feedback uses n's position
+  in the sorted notes
+end note
+
+create Result
+Command -> Result : CommandResult(feedback,\nstudentIndex)
+activate Result
+||12||
+Result --> Command
+deactivate Result
+
+[<-- Command : r
+deactivate Command
+@enduml

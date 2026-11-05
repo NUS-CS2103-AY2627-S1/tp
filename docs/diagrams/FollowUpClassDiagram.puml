@@ -1,0 +1,29 @@
+@startuml
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+skinparam classAttributeIconSize 0
+Class Student {
+  hasFollowUps() : boolean
+}
+Class FollowUp {
+  text : String
+  isSameFollowUp(FollowUp) : boolean
+}
+Class Guardian
+Class ProgressNote
+show Student methods
+show FollowUp members
+
+Student --> "0..1 guardian" Guardian
+Student --> "~* notes\n{ordered}" ProgressNote
+Student --> "~* followUps\n{ordered}" FollowUp
+
+note right of FollowUp
+  1-200 characters on one line.
+  Belongs to the student, so it
+  stays when the guardian is deleted.
+  Completing an item removes it.
+end note
+@enduml

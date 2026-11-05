@@ -1,8 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Rectangle?>
 
-<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
-  <ListView fx:id="personListView" VBox.vgrow="ALWAYS" />
+<VBox minHeight="0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <!-- Page header with a full-width rule under it -->
+  <HBox styleClass="page-header" alignment="CENTER_LEFT" spacing="10">
+    <Label fx:id="listTitle" text="Students" styleClass="view-title" />
+    <Label fx:id="listSummary" styleClass="view-subtitle" />
+    <Region HBox.hgrow="ALWAYS" />
+    <!-- Fills the add command into the command box; nothing is added until it is completed and entered -->
+    <Button fx:id="addStudentButton" text="+  Add student" styleClass="primary-button" focusTraversable="false"
+            onAction="#handleAddStudent" />
+  </HBox>
+  <StackPane styleClass="list-card" minHeight="0" VBox.vgrow="ALWAYS">
+    <VBox.margin>
+      <Insets top="6" right="24" bottom="16" left="24" />
+    </VBox.margin>
+    <!-- minWidth 0: the headings' widths follow the list's width, so their total would otherwise keep the
+         table from getting narrower than it last was when the window shrinks -->
+    <VBox fx:id="tableContent" minWidth="0" minHeight="0">
+      <!-- Keeps rows, open details and the scroll bar inside the card's rounded corners. The clip is on the
+           content, not the card, so the card's shadow still shows. Arcs are twice the .list-card radius. -->
+      <clip>
+        <Rectangle width="${tableContent.width}" height="${tableContent.height}" arcWidth="28" arcHeight="28" />
+      </clip>
+      <!-- Column headings; their widths are bound to the same columns as each row -->
+      <HBox styleClass="table-header" alignment="CENTER_LEFT">
+        <Label text="#" styleClass="table-heading, heading-index" />
+        <Label fx:id="nameHeading" text="Name" styleClass="table-heading" />
+        <Label fx:id="subjectsHeading" text="Subjects" styleClass="table-heading" />
+        <Label fx:id="lessonHeading" text="Next  lesson" styleClass="table-heading" />
+        <Label fx:id="rateHeading" text="Rate" styleClass="table-heading, heading-right" />
+        <Label fx:id="guardianHeading" text="Guardian" styleClass="table-heading" />
+      </HBox>
+      <!-- Not focusable, so clicking a row leaves the cursor in the command box. -->
+      <ListView fx:id="personListView" minHeight="0" VBox.vgrow="ALWAYS" focusTraversable="false">
+        <!-- Shown when no rows are listed; the text says what to type next -->
+        <placeholder>
+          <VBox styleClass="empty-state">
+            <Label fx:id="emptyTitle" styleClass="empty-title" />
+            <Label fx:id="emptyDetail" styleClass="empty-detail" wrapText="true" />
+            <Label fx:id="emptyCommand" styleClass="empty-command" wrapText="true" />
+          </VBox>
+        </placeholder>
+      </ListView>
+    </VBox>
+  </StackPane>
 </VBox>

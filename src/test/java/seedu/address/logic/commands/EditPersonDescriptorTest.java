@@ -2,6 +2,7 @@ package seedu.address.logic.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
@@ -9,6 +10,8 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SCHOOL_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SCHOOL_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,35 @@ import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
 public class EditPersonDescriptorTest {
+
+    @Test
+    public void isAnyFieldEdited_noFields_returnsFalse() {
+        assertFalse(new EditPersonDescriptor().isAnyFieldEdited());
+    }
+
+    @Test
+    public void isAnyFieldEdited_schoolSet_returnsTrue() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withSchool(VALID_SCHOOL_AMY).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+    }
+
+    @Test
+    public void isAnyFieldEdited_schoolCleared_returnsTrue() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withSchool(null).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+    }
+
+    @Test
+    public void isAnyFieldEdited_schoolingLevelSet_returnsTrue() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withSchoolingLevel("Primary 5").build();
+        assertTrue(descriptor.isAnyFieldEdited());
+    }
+
+    @Test
+    public void isAnyFieldEdited_schoolingLevelCleared_returnsTrue() {
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withSchoolingLevel(null).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+    }
 
     @Test
     public void equals() {
@@ -55,6 +87,68 @@ public class EditPersonDescriptorTest {
         // different tags -> returns false
         editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
         assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different schooling level -> returns false
+        editedAmy = new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel("Primary 5").build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // clearing the level differs from setting it
+        EditPersonDescriptor cleared = new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel(null).build();
+        assertFalse(editedAmy.equals(cleared));
+        assertFalse(DESC_AMY.equals(cleared));
+    }
+
+    @Test
+    public void equals_schoolEdits_comparesValueAndPresence() {
+        EditPersonDescriptor unchanged = new EditPersonDescriptorBuilder(DESC_AMY).build();
+        EditPersonDescriptor set = new EditPersonDescriptorBuilder(DESC_AMY).withSchool(VALID_SCHOOL_AMY).build();
+        EditPersonDescriptor different = new EditPersonDescriptorBuilder(DESC_AMY).withSchool(VALID_SCHOOL_BOB).build();
+        EditPersonDescriptor cleared = new EditPersonDescriptorBuilder(DESC_AMY).withSchool(null).build();
+
+        assertEquals(set, new EditPersonDescriptorBuilder(DESC_AMY).withSchool(VALID_SCHOOL_AMY).build());
+        assertEquals(cleared, new EditPersonDescriptorBuilder(DESC_AMY).withSchool(null).build());
+        assertNotEquals(set, different);
+        assertNotEquals(set, cleared);
+        assertNotEquals(unchanged, set);
+        assertNotEquals(unchanged, cleared);
+    }
+
+    @Test
+    public void copyConstructor_schoolEdits_preservesValueAndPresence() {
+        EditPersonDescriptor unchanged = new EditPersonDescriptor();
+        EditPersonDescriptor set = new EditPersonDescriptorBuilder().withSchool(VALID_SCHOOL_AMY).build();
+        EditPersonDescriptor cleared = new EditPersonDescriptorBuilder().withSchool(null).build();
+
+        assertEquals(unchanged, new EditPersonDescriptor(unchanged));
+        assertEquals(set, new EditPersonDescriptor(set));
+        assertEquals(cleared, new EditPersonDescriptor(cleared));
+    }
+
+    @Test
+    public void equals_schoolingLevelEdits_comparesValueAndPresence() {
+        EditPersonDescriptor unchanged = new EditPersonDescriptorBuilder(DESC_AMY).build();
+        EditPersonDescriptor set = new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel("Primary 5").build();
+        EditPersonDescriptor different = new EditPersonDescriptorBuilder(DESC_AMY)
+                .withSchoolingLevel("Primary 6").build();
+        EditPersonDescriptor cleared = new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel(null).build();
+
+        assertEquals(set, new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel("Primary 5").build());
+        assertEquals(cleared, new EditPersonDescriptorBuilder(DESC_AMY).withSchoolingLevel(null).build());
+        assertNotEquals(set, different);
+        assertNotEquals(set, cleared);
+        assertNotEquals(unchanged, set);
+        assertNotEquals(unchanged, cleared);
+    }
+
+    @Test
+    public void copyConstructor_schoolingLevelEdits_preservesValueAndPresence() {
+        EditPersonDescriptor unchanged = new EditPersonDescriptor();
+        EditPersonDescriptor set = new EditPersonDescriptorBuilder().withSchoolingLevel("Primary 5").build();
+        EditPersonDescriptor cleared = new EditPersonDescriptorBuilder().withSchoolingLevel(null).build();
+
+        assertEquals(unchanged, new EditPersonDescriptor(unchanged));
+        assertEquals(set, new EditPersonDescriptor(set));
+        assertEquals(cleared, new EditPersonDescriptor(cleared));
     }
 
     @Test
@@ -65,7 +159,9 @@ public class EditPersonDescriptorTest {
                 + editPersonDescriptor.getPhone().orElse(null) + ", email="
                 + editPersonDescriptor.getEmail().orElse(null) + ", address="
                 + editPersonDescriptor.getAddress().orElse(null) + ", tags="
-                + editPersonDescriptor.getTags().orElse(null) + "}";
+                + editPersonDescriptor.getTags().orElse(null) + ", school="
+                + editPersonDescriptor.getSchool().orElse(null) + ", schoolingLevel="
+                + editPersonDescriptor.getSchoolingLevel().orElse(null) + "}";
         assertEquals(expected, editPersonDescriptor.toString());
     }
 }

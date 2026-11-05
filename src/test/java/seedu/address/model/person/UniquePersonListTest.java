@@ -40,7 +40,7 @@ public class UniquePersonListTest {
     @Test
     public void contains_personWithSameIdentityFieldsInList_returnsTrue() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Student editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
                 .build();
         assertTrue(uniquePersonList.contains(editedAlice));
     }
@@ -83,7 +83,7 @@ public class UniquePersonListTest {
     @Test
     public void setPerson_editedPersonHasSameIdentity_success() {
         uniquePersonList.add(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+        Student editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
                 .build();
         uniquePersonList.setPerson(ALICE, editedAlice);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
@@ -126,6 +126,49 @@ public class UniquePersonListTest {
     }
 
     @Test
+    public void archive_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.archive(null));
+    }
+
+    @Test
+    public void archive_personDoesNotExist_throwsPersonNotFoundException() {
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.archive(ALICE));
+    }
+
+    @Test
+    public void archive_existingPerson_replacesPersonInPlaceWithoutChangingOriginal() {
+        uniquePersonList.setPersons(List.of(ALICE, BOB));
+
+        uniquePersonList.archive(new PersonBuilder(ALICE).build());
+
+        assertEquals(List.of(ALICE.withArchived(true), BOB), uniquePersonList.asUnmodifiableObservableList());
+        assertFalse(ALICE.isArchived());
+        assertTrue(uniquePersonList.contains(ALICE));
+    }
+
+    @Test
+    public void unarchive_nullPerson_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> uniquePersonList.unarchive(null));
+    }
+
+    @Test
+    public void unarchive_personDoesNotExist_throwsPersonNotFoundException() {
+        assertThrows(PersonNotFoundException.class, () -> uniquePersonList.unarchive(ALICE.withArchived(true)));
+    }
+
+    @Test
+    public void unarchive_existingPerson_replacesPersonInPlaceWithoutChangingOriginal() {
+        Student archivedAlice = ALICE.withArchived(true);
+        uniquePersonList.setPersons(List.of(BOB, archivedAlice));
+
+        uniquePersonList.unarchive(new PersonBuilder(archivedAlice).build());
+
+        assertEquals(List.of(BOB, ALICE), uniquePersonList.asUnmodifiableObservableList());
+        assertTrue(archivedAlice.isArchived());
+        assertTrue(uniquePersonList.contains(ALICE));
+    }
+
+    @Test
     public void setPersons_nullUniquePersonList_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((UniquePersonList) null));
     }
@@ -141,13 +184,13 @@ public class UniquePersonListTest {
 
     @Test
     public void setPersons_nullList_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((List<Person>) null));
+        assertThrows(NullPointerException.class, () -> uniquePersonList.setPersons((List<Student>) null));
     }
 
     @Test
     public void setPersons_list_replacesOwnListWithProvidedList() {
         uniquePersonList.add(ALICE);
-        List<Person> personList = List.of(BOB);
+        List<Student> personList = List.of(BOB);
         uniquePersonList.setPersons(personList);
         UniquePersonList expectedUniquePersonList = new UniquePersonList();
         expectedUniquePersonList.add(BOB);
@@ -156,7 +199,7 @@ public class UniquePersonListTest {
 
     @Test
     public void setPersons_listWithDuplicatePersons_throwsDuplicatePersonException() {
-        List<Person> listWithDuplicatePersons = List.of(ALICE, ALICE);
+        List<Student> listWithDuplicatePersons = List.of(ALICE, ALICE);
         assertThrows(DuplicatePersonException.class, () -> uniquePersonList.setPersons(listWithDuplicatePersons));
     }
 

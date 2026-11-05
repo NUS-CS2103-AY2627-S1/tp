@@ -2,8 +2,11 @@ package seedu.address.logic;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.List;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
@@ -12,18 +15,28 @@ import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.AddressBookParser;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.AddressBook;
 import seedu.address.model.Model;
-import seedu.address.model.person.Person;
+import seedu.address.model.ReadOnlyAddressBook;
+import seedu.address.model.person.Lesson;
+import seedu.address.model.person.RateSortOrder;
+import seedu.address.model.person.Student;
 import seedu.address.storage.Storage;
 
 /**
  * The main LogicManager of the app.
  */
 public class LogicManager implements Logic {
-    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data due to the following error: %s";
+    private static final String SAVE_FAILURE_RECOVERY =
+            "\nThe command was not applied. Your records are unchanged."
+                    + "\nFix the file or folder problem, then try the command again";
+
+    public static final String FILE_OPS_ERROR_FORMAT = "Could not save data to file %s due to a file system error"
+            + SAVE_FAILURE_RECOVERY;
 
     public static final String FILE_OPS_PERMISSION_ERROR_FORMAT =
-            "Could not save data to file %s due to insufficient permissions to write to the file or the folder.";
+            "Could not save data to file %s due to insufficient permissions to write to the file or the folder"
+                    + SAVE_FAILURE_RECOVERY;
 
     private final Logger logger = LogsCenter.getLogger(LogicManager.class);
 
@@ -42,26 +55,102 @@ public class LogicManager implements Logic {
 
     @Override
     public CommandResult execute(String commandText) throws CommandException, ParseException {
-        logger.info("----------------[USER COMMAND][" + commandText + "]");
+        Command command;
+        try {
+            command = addressBookParser.parseCommand(commandText);
+        } catch (ParseException e) {
+            logger.info("Command rejected: invalid input");
+            throw e;
+        }
 
-        CommandResult commandResult;
-        Command command = addressBookParser.parseCommand(commandText);
-        commandResult = command.execute(model);
+        // Use the parsed type, never user input or command.toString(), which can contain contact details.
+        String commandType = command.getClass().getSimpleName();
+        logger.info("Executing command: " + commandType);
+        AddressBook originalRecords = new AddressBook(model.getAddressBook());
+        Runnable restoreModel = model.createRestorePoint();
+        try {
+            CommandResult commandResult = command.execute(model);
+            if (!hasSameStudentInstances(originalRecords.getPersonList(), model.getAddressBook().getPersonList())
+                    || !hasSameStudentInstances(originalRecords.getArchivedPersonList(),
+                            model.getAddressBook().getArchivedPersonList())) {
+                try {
+                    saveAddressBook();
+                } catch (CommandException e) {
+                    restoreModel.run();
+                    throw e;
+                }
+            }
+            logger.info("Command completed: " + commandType
+                    + (commandResult.isWarning() ? " (warning)" : " (success)"));
+            return commandResult;
+        } catch (CommandException e) {
+            logger.info("Command failed: " + commandType);
+            throw e;
+        }
+    }
 
+    /**
+     * Returns whether both lists contain the same immutable student instances in the same order.
+     * Edits replace students, even when case-insensitive field equality hides a change in saved text.
+     */
+    private static boolean hasSameStudentInstances(List<Student> before, List<Student> after) {
+        if (before.size() != after.size()) {
+            return false;
+        }
+        for (int i = 0; i < before.size(); i++) {
+            if (before.get(i) != after.get(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Saves the current book, translating storage failures into user-facing command errors. */
+    private void saveAddressBook() throws CommandException {
         try {
             storage.saveAddressBook(model.getAddressBook());
         } catch (AccessDeniedException e) {
-            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT, e.getMessage()), e);
+            throw new CommandException(String.format(FILE_OPS_PERMISSION_ERROR_FORMAT,
+                    storage.getAddressBookFilePath()), e);
         } catch (IOException ioe) {
-            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT, ioe.getMessage()), ioe);
+            throw new CommandException(String.format(FILE_OPS_ERROR_FORMAT,
+                    storage.getAddressBookFilePath()), ioe);
         }
-
-        return commandResult;
     }
 
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
+    public ReadOnlyAddressBook getAddressBook() {
+        return model.getAddressBook();
+    }
+
+    @Override
+    public ObservableList<Student> getFilteredPersonList() {
         return model.getFilteredPersonList();
+    }
+
+    @Override
+    public ObservableList<Student> getFilteredActivePersonList() {
+        return model.getFilteredActivePersonList();
+    }
+
+    @Override
+    public ObservableList<Student> getFilteredArchivedPersonList() {
+        return model.getFilteredArchivedPersonList();
+    }
+
+    @Override
+    public boolean isArchiveView() {
+        return model.isArchiveView();
+    }
+
+    @Override
+    public ObservableValue<RateSortOrder> getRateSortOrder() {
+        return model.getRateSortOrder();
+    }
+
+    @Override
+    public ObservableValue<Predicate<Lesson>> getLessonPredicate() {
+        return model.getLessonPredicate();
     }
 
     @Override

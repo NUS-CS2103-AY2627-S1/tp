@@ -9,10 +9,13 @@ import static seedu.address.logic.commands.CommandTestUtil.INVALID_ADDRESS_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_EMAIL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_NAME_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_PHONE_DESC;
+import static seedu.address.logic.commands.CommandTestUtil.INVALID_SCHOOL_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.INVALID_TAG_DESC;
 import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.SCHOOL_DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.SCHOOL_DESC_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.TAG_DESC_HUSBAND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_AMY;
@@ -20,12 +23,19 @@ import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_SCHOOL_AMY;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_FRIEND;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_DATE;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_RATE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SCHOOL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SUBJECT;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_TEXT;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseFailure;
 import static seedu.address.logic.parser.CommandParserTestUtil.assertParseSuccess;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
@@ -42,6 +52,8 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.SchoolingLevel;
 import seedu.address.model.tag.Tag;
 import seedu.address.testutil.EditPersonDescriptorBuilder;
 
@@ -78,7 +90,7 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1 some random string", MESSAGE_INVALID_FORMAT);
 
         // invalid prefix being parsed as preamble
-        assertParseFailure(parser, "1 i/ string", MESSAGE_INVALID_FORMAT);
+        assertParseFailure(parser, "1 x/ string", MESSAGE_INVALID_FORMAT);
     }
 
     @Test
@@ -88,11 +100,12 @@ public class EditCommandParserTest {
         assertParseFailure(parser, "1" + INVALID_EMAIL_DESC, Email.MESSAGE_CONSTRAINTS); // invalid email
         assertParseFailure(parser, "1" + INVALID_ADDRESS_DESC, Address.MESSAGE_CONSTRAINTS); // invalid address
         assertParseFailure(parser, "1" + INVALID_TAG_DESC, Tag.MESSAGE_CONSTRAINTS); // invalid tag
+        assertParseFailure(parser, "1" + INVALID_SCHOOL_DESC, School.MESSAGE_CONSTRAINTS); // invalid school
 
         // invalid phone followed by valid email
         assertParseFailure(parser, "1" + INVALID_PHONE_DESC + EMAIL_DESC_AMY, Phone.MESSAGE_CONSTRAINTS);
 
-        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Person} being edited,
+        // while parsing {@code PREFIX_TAG} alone will reset the tags of the {@code Student} being edited,
         // parsing it together with a valid tag results in error
         assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_DESC_HUSBAND + TAG_EMPTY, Tag.MESSAGE_CONSTRAINTS);
         assertParseFailure(parser, "1" + TAG_DESC_FRIEND + TAG_EMPTY + TAG_DESC_HUSBAND, Tag.MESSAGE_CONSTRAINTS);
@@ -107,11 +120,13 @@ public class EditCommandParserTest {
     public void parse_allFieldsSpecified_success() {
         Index targetIndex = INDEX_SECOND_PERSON;
         String userInput = targetIndex.getOneBased() + PHONE_DESC_BOB + TAG_DESC_HUSBAND
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + NAME_DESC_AMY + TAG_DESC_FRIEND;
+                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY + NAME_DESC_AMY + TAG_DESC_FRIEND
+                + SCHOOL_DESC_AMY + " level/Primary 5";
 
         EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withName(VALID_NAME_AMY)
                 .withPhone(VALID_PHONE_BOB).withEmail(VALID_EMAIL_AMY).withAddress(VALID_ADDRESS_AMY)
-                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).build();
+                .withTags(VALID_TAG_HUSBAND, VALID_TAG_FRIEND).withSchool(VALID_SCHOOL_AMY)
+                .withSchoolingLevel("Primary 5").build();
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
@@ -204,5 +219,95 @@ public class EditCommandParserTest {
         EditCommand expectedCommand = new EditCommand(targetIndex, descriptor);
 
         assertParseSuccess(parser, userInput, expectedCommand);
+    }
+
+    @Test
+    public void parse_school_success() {
+        assertParseSuccess(parser, "1 sch/  " + VALID_SCHOOL_AMY + "  ", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withSchool(VALID_SCHOOL_AMY).build()));
+    }
+
+    @Test
+    public void parse_careOfAddress_success() {
+        String address = "123 Main Street c/o John Tan";
+        String userInput = "1 address/" + address;
+        EditPersonDescriptor descriptor = new EditPersonDescriptorBuilder().withAddress(address).build();
+
+        assertParseSuccess(parser, userInput, new EditCommand(INDEX_FIRST_PERSON, descriptor));
+
+        EditPersonDescriptor descriptorWithSchool = new EditPersonDescriptorBuilder(descriptor)
+                .withSchool(VALID_SCHOOL_AMY).build();
+        assertParseSuccess(parser, userInput + SCHOOL_DESC_AMY,
+                new EditCommand(INDEX_FIRST_PERSON, descriptorWithSchool));
+    }
+
+    @Test
+    public void parse_slashInAddress_success() {
+        // Day/ differs in case from day/, so it stays in the address
+        assertParseSuccess(parser, "1 address/Blk 5 Day/Night Road", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withAddress("Blk 5 Day/Night Road").build()));
+
+        // rate/ without whitespace before it is not a prefix
+        assertParseSuccess(parser, "1 address/1 Road xrate/40", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withAddress("1 Road xrate/40").build()));
+    }
+
+    @Test
+    public void parse_otherCommandPrefix_failure() {
+        // lesson fields after the address are rejected instead of being read into it
+        assertParseFailure(parser, "1 address/New Road rate/50",
+                Messages.getErrorMessageForUnsupportedPrefixes(PREFIX_RATE));
+
+        // a foreign prefix right after the index is named, not reported as an invalid format
+        assertParseFailure(parser, "1 subject/Math", Messages.getErrorMessageForUnsupportedPrefixes(PREFIX_SUBJECT));
+
+        // only StudentBook prefixes are named, so c/o in the address is not
+        assertParseFailure(parser, "1 address/Blk 5 c/o John text/hi date/2026-01-01",
+                Messages.getErrorMessageForUnsupportedPrefixes(PREFIX_DATE, PREFIX_TEXT));
+    }
+
+    @Test
+    public void parse_mistypedStudentPrefix_failure() {
+        // AddressBook-Level3's p/ would otherwise be saved inside the address, leaving the phone unchanged
+        assertParseFailure(parser, "1 address/New Road p/91234567",
+                Messages.getErrorMessageForUnsupportedPrefixes(new Prefix("p/")));
+    }
+
+    @Test
+    public void parse_emptySchool_clearsSchool() {
+        EditPersonDescriptor clear = new EditPersonDescriptorBuilder().withSchool(null).build();
+        assertParseSuccess(parser, "1 sch/", new EditCommand(INDEX_FIRST_PERSON, clear));
+        assertParseSuccess(parser, "1 sch/   ", new EditCommand(INDEX_FIRST_PERSON, clear));
+    }
+
+    @Test
+    public void parse_duplicateSchool_failure() {
+        String expectedMessage = Messages.getErrorMessageForDuplicatePrefixes(PREFIX_SCHOOL);
+        assertParseFailure(parser, "1" + SCHOOL_DESC_AMY + SCHOOL_DESC_BOB, expectedMessage);
+        assertParseFailure(parser, "1" + SCHOOL_DESC_AMY + SCHOOL_DESC_AMY, expectedMessage);
+        assertParseFailure(parser, "1" + INVALID_SCHOOL_DESC + SCHOOL_DESC_AMY, expectedMessage);
+        assertParseFailure(parser, "1" + SCHOOL_DESC_AMY + INVALID_SCHOOL_DESC, expectedMessage);
+        assertParseFailure(parser, "1 sch/" + SCHOOL_DESC_AMY, expectedMessage);
+        assertParseFailure(parser, "1" + SCHOOL_DESC_AMY + " sch/", expectedMessage);
+    }
+
+    @Test
+    public void parse_schoolingLevel_success() {
+        assertParseSuccess(parser, "1 level/ Secondary  3 ", new EditCommand(INDEX_FIRST_PERSON,
+                new EditPersonDescriptorBuilder().withSchoolingLevel("Secondary 3").build()));
+    }
+
+    @Test
+    public void parse_emptySchoolingLevel_clearsLevel() {
+        EditPersonDescriptor clear = new EditPersonDescriptorBuilder().withSchoolingLevel(null).build();
+        assertParseSuccess(parser, "1 level/", new EditCommand(INDEX_FIRST_PERSON, clear));
+        assertParseSuccess(parser, "1 level/   ", new EditCommand(INDEX_FIRST_PERSON, clear));
+    }
+
+    @Test
+    public void parse_invalidOrDuplicateSchoolingLevel_failure() {
+        assertParseFailure(parser, "1 level/***", SchoolingLevel.MESSAGE_CONSTRAINTS);
+        assertParseFailure(parser, "1 level/P5 level/P6", Messages
+                .getErrorMessageForDuplicatePrefixes(PREFIX_LEVEL));
     }
 }

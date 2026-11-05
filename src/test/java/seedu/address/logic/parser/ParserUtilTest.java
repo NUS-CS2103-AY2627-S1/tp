@@ -2,9 +2,15 @@ package seedu.address.logic.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.LESSON_DAY;
+import static seedu.address.logic.commands.CommandTestUtil.LESSON_END;
+import static seedu.address.logic.commands.CommandTestUtil.LESSON_START;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_LESSON_SLOT;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_LESSON_SLOT_TEXT;
 import static seedu.address.logic.parser.ParserUtil.MESSAGE_INVALID_INDEX;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_PERSON;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_PERSON;
 
 import java.util.List;
 import java.util.Set;
@@ -16,6 +22,8 @@ import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.WeeklyLessonSlot;
 import seedu.address.model.tag.Tag;
 
 public class ParserUtilTest {
@@ -26,7 +34,7 @@ public class ParserUtilTest {
     private static final String INVALID_TAG = "#friend";
 
     private static final String VALID_NAME = "Rachel Walker";
-    private static final String VALID_PHONE = "123456";
+    private static final String VALID_PHONE = "91234567";
     private static final String VALID_ADDRESS = "123 Main Street #0505";
     private static final String VALID_EMAIL = "rachel@example.com";
     private static final String VALID_TAG_1 = "friend";
@@ -55,6 +63,19 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseIndexes_whitespaceSeparatedIndexes_success() throws Exception {
+        assertEquals(List.of(INDEX_FIRST_PERSON, INDEX_SECOND_PERSON), ParserUtil.parseIndexes(" \t1  \t2\n", 2));
+    }
+
+    @Test
+    public void parseIndexes_incorrectCount_reportsExpectedAndActualCounts() {
+        String tooFewIndexes = "Incorrect number of indexes supplied, expected 2, got 1";
+        String tooManyIndexes = "Incorrect number of indexes supplied, expected 2, got 3";
+        assertThrows(ParseException.class, tooFewIndexes, () -> ParserUtil.parseIndexes("1", 2));
+        assertThrows(ParseException.class, tooManyIndexes, () -> ParserUtil.parseIndexes("1 2 3", 2));
+    }
+
+    @Test
     public void parseName_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
     }
@@ -78,6 +99,12 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void parseName_validValueWithInnerWhitespace_returnsCollapsedName() throws Exception {
+        Name expectedName = new Name(VALID_NAME);
+        assertEquals(expectedName, ParserUtil.parseName("Rachel" + WHITESPACE + "Walker"));
+    }
+
+    @Test
     public void parsePhone_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parsePhone((String) null));
     }
@@ -98,6 +125,11 @@ public class ParserUtilTest {
         String phoneWithWhitespace = WHITESPACE + VALID_PHONE + WHITESPACE;
         Phone expectedPhone = new Phone(VALID_PHONE);
         assertEquals(expectedPhone, ParserUtil.parsePhone(phoneWithWhitespace));
+    }
+
+    @Test
+    public void parsePhone_validValueWithCountryCodeAndSpaces_returnsPhoneWithoutSpaces() throws Exception {
+        assertEquals(new Phone("+6591234567"), ParserUtil.parsePhone("+65 9123 4567"));
     }
 
     @Test
@@ -144,6 +176,69 @@ public class ParserUtilTest {
         String emailWithWhitespace = WHITESPACE + VALID_EMAIL + WHITESPACE;
         Email expectedEmail = new Email(VALID_EMAIL);
         assertEquals(expectedEmail, ParserUtil.parseEmail(emailWithWhitespace));
+    }
+
+    @Test
+    public void parseWeeklyLessonSlot_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseWeeklyLessonSlot(null));
+    }
+
+    @Test
+    public void parseWeeklyLessonSlot_validValue_returnsWeeklyLessonSlot() throws Exception {
+        assertEquals(VALID_LESSON_SLOT, ParserUtil.parseWeeklyLessonSlot(VALID_LESSON_SLOT_TEXT));
+    }
+
+    @Test
+    public void parseWeeklyLessonSlot_withWhitespace_returnsWeeklyLessonSlot() throws Exception {
+        String input = WHITESPACE + LESSON_DAY + "  \t" + LESSON_START + "  " + LESSON_END + WHITESPACE;
+        assertEquals(VALID_LESSON_SLOT, ParserUtil.parseWeeklyLessonSlot(input));
+    }
+
+    @Test
+    public void parseWeeklyLessonSlot_invalidFormat_throwsFormatMessage() {
+        for (String input : List.of("", WHITESPACE, "not a slot", LESSON_DAY + " " + LESSON_START,
+                VALID_LESSON_SLOT_TEXT + " extra", "Wed 1pm 5pm", "Wednesday 1.00pm 5.00pm", "Wed 1.00pm-5.00pm",
+                "Wed 13.00 17.00", "Wed 1:00pm 5:00pm", "Xyz 1.00pm 5.00pm")) {
+            assertThrows(ParseException.class, WeeklyLessonSlot.MESSAGE_INVALID_FORMAT, () ->
+                    ParserUtil.parseWeeklyLessonSlot(input));
+        }
+    }
+
+    @Test
+    public void parseWeeklyLessonSlot_endNotAfterStart_throwsOrderMessage() {
+        for (String input : List.of(LESSON_DAY + " " + LESSON_START + " " + LESSON_START,
+                LESSON_DAY + " " + LESSON_END + " " + LESSON_START)) {
+            assertThrows(ParseException.class, WeeklyLessonSlot.MESSAGE_END_NOT_AFTER_START, () ->
+                    ParserUtil.parseWeeklyLessonSlot(input));
+        }
+    }
+
+    @Test
+    public void parseSchool_null_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> ParserUtil.parseSchool(null));
+    }
+
+    @Test
+    public void parseSchool_invalidValue_throwsParseException() {
+        assertThrows(ParseException.class, School.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSchool(""));
+        assertThrows(ParseException.class, School.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSchool(WHITESPACE));
+        assertThrows(ParseException.class, School.MESSAGE_CONSTRAINTS, () -> ParserUtil.parseSchool("A".repeat(61)));
+    }
+
+    @Test
+    public void parseSchool_validValue_returnsSchool() throws Exception {
+        assertEquals(new School("A"), ParserUtil.parseSchool("A"));
+        assertEquals(new School("A".repeat(60)), ParserUtil.parseSchool("A".repeat(60)));
+        String school = "St. Joseph's Institution (Junior)";
+        assertEquals(new School(school), ParserUtil.parseSchool(school));
+    }
+
+    @Test
+    public void parseSchool_validValueWithWhitespace_returnsTrimmedSchool() throws Exception {
+        String school = "Nanyang  Primary School";
+        assertEquals(new School(school), ParserUtil.parseSchool(WHITESPACE + school + WHITESPACE));
+        String longestSchool = "A".repeat(60);
+        assertEquals(new School(longestSchool), ParserUtil.parseSchool(WHITESPACE + longestSchool + WHITESPACE));
     }
 
     @Test

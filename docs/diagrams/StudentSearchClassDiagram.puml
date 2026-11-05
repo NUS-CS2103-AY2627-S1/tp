@@ -1,0 +1,37 @@
+@startuml
+set namespaceSeparator none
+!include style.puml
+skinparam arrowThickness 1.1
+skinparam arrowColor MODEL_COLOR
+skinparam classBackgroundColor MODEL_COLOR
+skinparam genericDisplay old
+skinparam nodesep 50
+
+package Logic {
+class FindCommand LOGIC_COLOR
+}
+
+' Java library interfaces, shown outside both components.
+class "<<interface>>\nPredicate<Student>" as PS
+class "<<interface>>\nPredicate<Lesson>" as PL
+
+package Model {
+class NameContainsKeywordsPredicate
+class StudentSearchPredicate
+class SchoolingLevelContainsKeywordPredicate
+class LessonMatchesPredicate
+}
+
+FindCommand -[#101086]-> "1" PS
+FindCommand -[#101086]-> "1" PL
+PS -[hidden]right- PL
+
+NameContainsKeywordsPredicate .up.|> PS
+StudentSearchPredicate .up.|> PS
+NameContainsKeywordsPredicate -[hidden]right- StudentSearchPredicate
+
+StudentSearchPredicate --> "0..1 level" SchoolingLevelContainsKeywordPredicate
+StudentSearchPredicate --> "0..1 lesson" LessonMatchesPredicate
+SchoolingLevelContainsKeywordPredicate .up.|> PS
+LessonMatchesPredicate .up.|> PL
+@enduml

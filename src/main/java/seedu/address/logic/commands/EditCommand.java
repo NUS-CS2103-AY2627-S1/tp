@@ -3,10 +3,11 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_ADDRESS;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_EMAIL;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_LEVEL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_NAME;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_PHONE;
+import static seedu.address.logic.parser.CliSyntax.PREFIX_SCHOOL;
 import static seedu.address.logic.parser.CliSyntax.PREFIX_TAG;
-import static seedu.address.model.Model.PREDICATE_SHOW_ALL_PERSONS;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -24,8 +25,10 @@ import seedu.address.model.Model;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
-import seedu.address.model.person.Person;
 import seedu.address.model.person.Phone;
+import seedu.address.model.person.School;
+import seedu.address.model.person.SchoolingLevel;
+import seedu.address.model.person.Student;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -35,22 +38,25 @@ public class EditCommand extends Command {
 
     public static final String COMMAND_WORD = "edit";
 
-    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the person identified "
-            + "by the index number used in the displayed person list. "
-            + "Existing values will be overwritten by the input values.\n"
-            + "Parameters: INDEX (must be a positive integer) "
+    public static final String MESSAGE_USAGE = COMMAND_WORD + ": Edits the details of the student identified "
+            + "by the index number used in the displayed student list. "
+            + "Existing values will be overwritten by the input values\n"
+            + "Parameters: STUDENT_INDEX "
             + "[" + PREFIX_NAME + "NAME] "
             + "[" + PREFIX_PHONE + "PHONE] "
             + "[" + PREFIX_EMAIL + "EMAIL] "
             + "[" + PREFIX_ADDRESS + "ADDRESS] "
-            + "[" + PREFIX_TAG + "TAG]...\n"
+            + "[" + PREFIX_TAG + "TAG]... "
+            + "[" + PREFIX_SCHOOL + "SCHOOL] "
+            + "[" + PREFIX_LEVEL + "SCHOOLING_LEVEL]\n"
+            + "Use an empty " + PREFIX_SCHOOL + " or " + PREFIX_LEVEL + " to clear that field\n"
             + "Example: " + COMMAND_WORD + " 1 "
             + PREFIX_PHONE + "91234567 "
             + PREFIX_EMAIL + "johndoe@example.com";
 
-    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited person: %1$s";
-    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided.";
-    public static final String MESSAGE_DUPLICATE_PERSON = "This person already exists in the address book.";
+    public static final String MESSAGE_EDIT_PERSON_SUCCESS = "Edited student: %1$s";
+    public static final String MESSAGE_NOT_EDITED = "At least one field to edit must be provided";
+    public static final String MESSAGE_DUPLICATE_PERSON = Messages.MESSAGE_DUPLICATE_ACTIVE_STUDENT;
 
     private final Index index;
     private final EditPersonDescriptor editPersonDescriptor;
@@ -70,29 +76,28 @@ public class EditCommand extends Command {
     @Override
     public CommandResult execute(Model model) throws CommandException {
         requireNonNull(model);
-        List<Person> lastShownList = model.getFilteredPersonList();
+        List<Student> lastShownList = model.getFilteredPersonList();
 
         if (index.getZeroBased() >= lastShownList.size()) {
             throw new CommandException(Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX);
         }
 
-        Person personToEdit = lastShownList.get(index.getZeroBased());
-        Person editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
+        Student personToEdit = lastShownList.get(index.getZeroBased());
+        Student editedPerson = createEditedPerson(personToEdit, editPersonDescriptor);
 
         if (!personToEdit.isSamePerson(editedPerson) && model.hasPerson(editedPerson)) {
-            throw new CommandException(MESSAGE_DUPLICATE_PERSON);
+            throw new CommandException(Messages.getDuplicateStudentMessage(model, editedPerson));
         }
 
         model.setPerson(personToEdit, editedPerson);
-        model.updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
         return new CommandResult(String.format(MESSAGE_EDIT_PERSON_SUCCESS, Messages.format(editedPerson)));
     }
 
     /**
-     * Creates and returns a {@code Person} with the details of {@code personToEdit}
+     * Creates and returns a {@code Student} with the details of {@code personToEdit}
      * edited with {@code editPersonDescriptor}.
      */
-    private static Person createEditedPerson(Person personToEdit, EditPersonDescriptor editPersonDescriptor) {
+    private static Student createEditedPerson(Student personToEdit, EditPersonDescriptor editPersonDescriptor) {
         assert personToEdit != null;
 
         Name updatedName = editPersonDescriptor.getName().orElse(personToEdit.getName());
@@ -100,8 +105,13 @@ public class EditCommand extends Command {
         Email updatedEmail = editPersonDescriptor.getEmail().orElse(personToEdit.getEmail());
         Address updatedAddress = editPersonDescriptor.getAddress().orElse(personToEdit.getAddress());
         Set<Tag> updatedTags = editPersonDescriptor.getTags().orElse(personToEdit.getTags());
+        Optional<School> updatedSchool = editPersonDescriptor.getSchool().orElse(personToEdit.getSchool());
+        Optional<SchoolingLevel> updatedSchoolingLevel = editPersonDescriptor.getSchoolingLevel()
+                .orElse(personToEdit.getSchoolingLevel());
 
-        return new Person(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags);
+        return new Student(updatedName, updatedPhone, updatedEmail, updatedAddress, updatedTags,
+                updatedSchool, updatedSchoolingLevel, personToEdit.getGuardian(), personToEdit.getLessons(),
+                personToEdit.isArchived(), personToEdit.getNotes(), personToEdit.getFollowUps());
     }
 
     @Override
@@ -137,6 +147,8 @@ public class EditCommand extends Command {
         private Email email;
         private Address address;
         private Set<Tag> tags;
+        private Optional<School> school;
+        private Optional<SchoolingLevel> schoolingLevel;
 
         public EditPersonDescriptor() {}
 
@@ -150,13 +162,15 @@ public class EditCommand extends Command {
             setEmail(toCopy.email);
             setAddress(toCopy.address);
             setTags(toCopy.tags);
+            setSchool(toCopy.school);
+            setSchoolingLevel(toCopy.schoolingLevel);
         }
 
         /**
          * Returns true if at least one field is edited.
          */
         public boolean isAnyFieldEdited() {
-            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags);
+            return CollectionUtil.isAnyNonNull(name, phone, email, address, tags, school, schoolingLevel);
         }
 
         public void setName(Name name) {
@@ -208,6 +222,36 @@ public class EditCommand extends Command {
             return (tags != null) ? Optional.of(Collections.unmodifiableSet(tags)) : Optional.empty();
         }
 
+        /**
+         * Sets the school edit. {@code Optional.empty()} clears the school; null leaves it unchanged.
+         */
+        public void setSchool(Optional<School> school) {
+            this.school = school;
+        }
+
+        /**
+         * Returns {@code Optional#empty()} if the school is not edited, otherwise the new value, which is
+         * itself empty if the school is to be cleared.
+         */
+        public Optional<Optional<School>> getSchool() {
+            return Optional.ofNullable(school);
+        }
+
+        /**
+         * Sets the schooling level edit. {@code Optional.empty()} clears the level; null leaves it unchanged.
+         */
+        public void setSchoolingLevel(Optional<SchoolingLevel> schoolingLevel) {
+            this.schoolingLevel = schoolingLevel;
+        }
+
+        /**
+         * Returns {@code Optional#empty()} if the schooling level is not edited, otherwise the new value, which is
+         * itself empty if the level is to be cleared.
+         */
+        public Optional<Optional<SchoolingLevel>> getSchoolingLevel() {
+            return Optional.ofNullable(schoolingLevel);
+        }
+
         @Override
         public boolean equals(Object other) {
             if (other == this) {
@@ -223,7 +267,9 @@ public class EditCommand extends Command {
                     && Objects.equals(phone, otherEditPersonDescriptor.phone)
                     && Objects.equals(email, otherEditPersonDescriptor.email)
                     && Objects.equals(address, otherEditPersonDescriptor.address)
-                    && Objects.equals(tags, otherEditPersonDescriptor.tags);
+                    && Objects.equals(tags, otherEditPersonDescriptor.tags)
+                    && Objects.equals(school, otherEditPersonDescriptor.school)
+                    && Objects.equals(schoolingLevel, otherEditPersonDescriptor.schoolingLevel);
         }
 
         @Override
@@ -234,6 +280,8 @@ public class EditCommand extends Command {
                     .add("email", email)
                     .add("address", address)
                     .add("tags", tags)
+                    .add("school", school)
+                    .add("schoolingLevel", schoolingLevel)
                     .toString();
         }
     }
