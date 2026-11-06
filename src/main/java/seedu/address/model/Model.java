@@ -1,17 +1,24 @@
 package seedu.address.model;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
-import seedu.address.model.person.Person;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
 
 /**
  * The API of the Model component.
  */
 public interface Model {
     /** {@code Predicate} that always evaluates to true */
-    Predicate<Person> PREDICATE_SHOW_ALL_PERSONS = unused -> true;
+    Predicate<Applicant> PREDICATE_SHOW_ALL_APPLICANTS = unused -> true;
+
+    /** {@code Predicate} that always evaluates to true */
+    Predicate<Job> PREDICATE_SHOW_ALL_JOBS = unused -> true;
 
     /**
      * Returns the user prefs.
@@ -37,35 +44,141 @@ public interface Model {
     ReadOnlyAddressBook getAddressBook();
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Remembers {@code previousState} so a later undo can restore it.
+     * Newer states are restored first. The given book is stored as-is and must not be changed afterward.
+     *
+     * @param previousState address book from before the latest change. Cannot be null.
      */
-    boolean hasPerson(Person person);
+    void rememberStateForUndo(ReadOnlyAddressBook previousState);
 
     /**
-     * Deletes the given person.
-     * The person must exist in the address book.
+     * Replaces the current address book with the most recently remembered state.
+     *
+     * @return true if a remembered state was restored.
      */
-    void deletePerson(Person target);
+    boolean undoAddressBook();
 
     /**
-     * Adds the given person.
-     * {@code person} must not already exist in the address book.
+     * Returns true if an applicant with the same name or email as {@code applicant} exists in the address book.
      */
-    void addPerson(Person person);
+    boolean hasApplicant(Applicant applicant);
 
     /**
-     * Replaces the given person {@code target} with {@code editedPerson}.
+     * Deletes the given applicant.
+     * The applicant must exist in the address book.
+     */
+    void deleteApplicant(Applicant target);
+
+    /**
+     * Adds the given applicant.
+     * {@code applicant} must not already exist in the address book.
+     */
+    void addApplicant(Applicant applicant);
+
+    /**
+     * Replaces the given applicant {@code target} with {@code editedApplicant}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The applicant identity of {@code editedApplicant} must not be the same as another existing applicant
+     * in the address book.
      */
-    void setPerson(Person target, Person editedPerson);
-
-    /** Returns an unmodifiable view of the filtered person list */
-    ObservableList<Person> getFilteredPersonList();
+    void setApplicant(Applicant target, Applicant editedApplicant);
 
     /**
-     * Updates the filter of the filtered person list to filter by the given {@code predicate}.
+     * Returns true if {@code applicant} already has an application.
+     * @param applicant applicant to check
+     * @return true if {@code applicant} already has an application
+     */
+    boolean hasApplication(Applicant applicant);
+
+    /**
+     * Adds an application for an existing applicant who does not already have one.
+     * @param application application to add
+     */
+    void addApplication(Application application);
+
+    /**
+     * Deletes the application belonging to {@code applicant}, if one exists, keeping the applicant and job.
+     */
+    void deleteApplication(Applicant applicant);
+
+    /**
+     * Replaces {@code target} with {@code editedApplication}.
+     * {@code target} must already be recorded, and both applications must belong to the same applicant.
+     * @param target application currently stored
+     * @param editedApplication application to store instead
+     */
+    void setApplication(Application target, Application editedApplication);
+
+    /**
+     * Returns the application recorded for {@code applicant}, if any.
+     * @param applicant applicant whose application is requested
+     * @return the application recorded for {@code applicant}, if any
+     */
+    Optional<Application> getApplication(Applicant applicant);
+
+    /** Returns an unmodifiable view of the applications */
+    ObservableList<Application> getApplicationList();
+
+    /**
+     * Returns true if a job with the same description as {@code job} exists.
+     * @param job job to check
+     * @return true if {@code job} is already stored
+     */
+    boolean hasJob(Job job);
+
+    /**
+     * Adds a job.
+     * {@code job} must not already exist in the address book.
+     * Shows every job afterwards so the added job is visible.
+     * @param job job to add
+     */
+    void addJob(Job job);
+
+    /**
+     * Replaces {@code target} with {@code editedJob}, preserving its position in the job list.
+     * The target must exist, and the edited role must not match another stored job.
+     * Updates matching applications to reference the edited job, keeping applicants and statuses.
+     */
+    void setJob(Job target, Job editedJob);
+
+    /**
+     * Deletes the given job and all applications for it, keeping the applicants.
+     * The job must exist in the address book.
+     * @param target job to delete
+     */
+    void deleteJob(Job target);
+
+    /**
+     * Returns an unmodifiable view of the full job list.
+     * @return every stored job
+     */
+    ObservableList<Job> getJobList();
+
+    /**
+     * Returns an unmodifiable view of the filtered job list.
+     * @return jobs that match the current filter
+     */
+    FilteredList<Job> getFilteredJobList();
+
+    /**
+     * Updates the filter of the filtered job list to filter by the given {@code predicate}.
+     * @param predicate filter to apply
+     * @throws NullPointerException if {@code predicate} is null
+     */
+    void updateFilteredJobList(Predicate<Job> predicate);
+
+    /**
+     * Returns an unmodifiable view of the full applicant list.
+     * @return every stored applicant
+     */
+    ObservableList<Applicant> getApplicantList();
+
+    /** Returns an unmodifiable view of the filtered applicant list */
+    FilteredList<Applicant> getFilteredApplicantList();
+
+    /**
+     * Updates the filter of the filtered applicant list to filter by the given {@code predicate}.
      * @throws NullPointerException if {@code predicate} is null.
      */
-    void updateFilteredPersonList(Predicate<Person> predicate);
+    void updateFilteredApplicantList(Predicate<Applicant> predicate);
 }

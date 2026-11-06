@@ -1,11 +1,14 @@
 package seedu.address.logic;
 
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Person;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
 
 /**
  * API of the Logic component
@@ -20,8 +23,29 @@ public interface Logic {
      */
     CommandResult execute(String commandText) throws CommandException, ParseException;
 
-    /** Returns an unmodifiable view of the filtered list of persons */
-    ObservableList<Person> getFilteredPersonList();
+    /** Returns an unmodifiable view of the filtered list of applicants */
+    ObservableList<Applicant> getApplicantList();
+
+    /**
+     * Returns an unmodifiable view of the filtered applicant list.
+     * @return applicant that match the current filter
+     */
+    FilteredList<Applicant> getFilteredApplicantList();
+
+    /** Returns an unmodifiable view of the recorded applications */
+    ObservableList<Application> getApplicationList();
+
+    /**
+     * Returns an unmodifiable view of the jobs.
+     * @return every stored job
+     */
+    ObservableList<Job> getJobList();
+
+    /**
+     * Returns an unmodifiable view of the filtered job list.
+     * @return jobs that match the current filter
+     */
+    FilteredList<Job> getFilteredJobList();
 
     /**
      * Returns the user prefs' GUI settings.

@@ -3,8 +3,11 @@ package seedu.address.logic.commands;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import seedu.address.commons.util.ToStringBuilder;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.application.Application;
 
 /**
  * Represents the result of a command execution.
@@ -19,21 +22,40 @@ public class CommandResult {
     /** The application should exit. */
     private final boolean exit;
 
-    /**
-     * Constructs a {@code CommandResult} with the specified fields.
-     */
+    /** The view that should be displayed, together with an optional selection. */
+    private final Optional<ViewRequest> viewRequest;
+
+    /** A snapshot to display after an applicant has been deleted. */
+    private final DeletedApplicant deletedApplicant;
+
+    /** Constructs a {@code CommandResult} with the specified feedback. */
+    public CommandResult(String feedbackToUser) {
+        this(feedbackToUser, false, false, null, null);
+    }
+
+    /** Constructs a {@code CommandResult} with the specified fields. */
     public CommandResult(String feedbackToUser, boolean showHelp, boolean exit) {
+        this(feedbackToUser, showHelp, exit, null, null);
+    }
+
+    /** Constructs a {@code CommandResult} that requests a view change. */
+    public CommandResult(String feedbackToUser, ViewRequest viewRequest) {
+        this(feedbackToUser, false, false, viewRequest, null);
+    }
+
+    private CommandResult(String feedbackToUser, boolean showHelp, boolean exit,
+            ViewRequest viewRequest, DeletedApplicant deletedApplicant) {
         this.feedbackToUser = requireNonNull(feedbackToUser);
         this.showHelp = showHelp;
         this.exit = exit;
+        this.viewRequest = Optional.ofNullable(viewRequest);
+        this.deletedApplicant = deletedApplicant;
     }
 
-    /**
-     * Constructs a {@code CommandResult} with the specified {@code feedbackToUser},
-     * and other fields set to their default value.
-     */
-    public CommandResult(String feedbackToUser) {
-        this(feedbackToUser, false, false);
+    /** Returns a result displaying the deleted applicant and their former application, if any. */
+    public static CommandResult deletedApplicant(String feedback, Applicant applicant, Application application) {
+        return new CommandResult(feedback, false, false, null,
+                new DeletedApplicant(applicant, application));
     }
 
     public String getFeedbackToUser() {
@@ -46,6 +68,14 @@ public class CommandResult {
 
     public boolean isExit() {
         return exit;
+    }
+
+    public Optional<ViewRequest> getViewRequest() {
+        return viewRequest;
+    }
+
+    public Optional<DeletedApplicant> getDeletedApplicant() {
+        return Optional.ofNullable(deletedApplicant);
     }
 
     @Override
@@ -61,12 +91,14 @@ public class CommandResult {
 
         return feedbackToUser.equals(otherCommandResult.feedbackToUser)
                 && showHelp == otherCommandResult.showHelp
-                && exit == otherCommandResult.exit;
+                && exit == otherCommandResult.exit
+                && viewRequest.equals(otherCommandResult.viewRequest)
+                && Objects.equals(deletedApplicant, otherCommandResult.deletedApplicant);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(feedbackToUser, showHelp, exit);
+        return Objects.hash(feedbackToUser, showHelp, exit, viewRequest, deletedApplicant);
     }
 
     @Override
@@ -75,7 +107,16 @@ public class CommandResult {
                 .add("feedbackToUser", feedbackToUser)
                 .add("showHelp", showHelp)
                 .add("exit", exit)
+                .add("viewRequest", viewRequest)
+                .add("deletedApplicant", deletedApplicant)
                 .toString();
     }
 
+    /** Stores immutable details captured before deletion; the application may be null. */
+    public record DeletedApplicant(Applicant applicant, Application application) {
+        /** Creates a snapshot with a non-null applicant. */
+        public DeletedApplicant {
+            requireNonNull(applicant);
+        }
+    }
 }

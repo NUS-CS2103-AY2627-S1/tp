@@ -1,29 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import java.net.URL?>
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.Scene?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SplitPane?>
-<?import javafx.scene.image.Image?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.stage.Stage?>
 
-<fx:root type="javafx.stage.Stage" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-         title="Address App" minWidth="450" minHeight="600" onCloseRequest="#handleExit">
-  <icons>
-    <Image url="@/images/address_book_32.png" />
-  </icons>
+<fx:root minHeight="680" minWidth="900" onCloseRequest="#handleExit" title="LinkedOut" type="javafx.stage.Stage" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
   <scene>
     <Scene>
       <stylesheets>
-        <URL value="@DarkTheme.css" />
-        <URL value="@Extensions.css" />
+        <URL value="@LinkedOut.css" />
       </stylesheets>
-
-      <VBox>
+      <VBox styleClass="workspace">
         <MenuBar fx:id="menuBar" VBox.vgrow="NEVER">
           <Menu mnemonicParsing="false" text="File">
             <MenuItem mnemonicParsing="false" onAction="#handleExit" text="Exit" />
@@ -32,27 +29,45 @@
             <MenuItem fx:id="helpMenuItem" mnemonicParsing="false" onAction="#handleHelp" text="Help" />
           </Menu>
         </MenuBar>
-
-        <StackPane VBox.vgrow="NEVER" fx:id="commandBoxPlaceholder" styleClass="pane-with-border">
-          <padding>
-            <Insets top="5" right="10" bottom="5" left="10" />
-          </padding>
-        </StackPane>
-
-        <StackPane VBox.vgrow="NEVER" fx:id="resultDisplayPlaceholder" styleClass="pane-with-border"
-                   minHeight="100" prefHeight="100" maxHeight="100">
-          <padding>
-            <Insets top="5" right="10" bottom="5" left="10" />
-          </padding>
-        </StackPane>
-
-        <VBox fx:id="personList" styleClass="pane-with-border" minWidth="340" prefWidth="340" VBox.vgrow="ALWAYS">
-          <padding>
-            <Insets top="10" right="10" bottom="10" left="10" />
-          </padding>
-          <StackPane fx:id="personListPanelPlaceholder" VBox.vgrow="ALWAYS"/>
-        </VBox>
-
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="brand-header">
+          <Label styleClass="brand-mark" text="LO" />
+          <VBox spacing="3">
+            <Label styleClass="brand-title" text="LinkedOut" />
+            <Label styleClass="muted-label" text="Your next great hire starts here." />
+          </VBox>
+        </HBox>
+        <SplitPane dividerPositions="0.65" styleClass="workspace-split" VBox.vgrow="ALWAYS">
+          <items>
+            <VBox minWidth="450" spacing="16" styleClass="left-column">
+              <VBox spacing="10" styleClass="panel,console-panel">
+                <Label styleClass="section-title" text="Command console" />
+                <Label fx:id="consoleHint" styleClass="muted-label" text="Find and manage applicants using commands." wrapText="true" />
+                <StackPane fx:id="commandBoxPlaceholder" />
+                <Label styleClass="field-heading" text="Command feedback" />
+                <StackPane fx:id="resultDisplayPlaceholder" maxHeight="80" minHeight="65" prefHeight="80" />
+              </VBox>
+              <StackPane fx:id="applicantDetailPlaceholder" VBox.vgrow="ALWAYS" />
+            </VBox>
+            <VBox minWidth="280" spacing="12" styleClass="panel,applicant-list-panel">
+              <fx:define><ToggleGroup fx:id="viewToggleGroup" /></fx:define>
+              <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label fx:id="listTitle" maxWidth="Infinity" styleClass="section-title" text="Applicants" HBox.hgrow="ALWAYS" />
+                <Label fx:id="applicantCount" styleClass="count-badge" />
+              </HBox>
+              <HBox alignment="CENTER_LEFT" spacing="8">
+                <ToggleButton fx:id="applicantsTab" selected="true" styleClass="view-tab" text="Applicants">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="viewToggleGroup" />
+                           </toggleGroup></ToggleButton>
+                <ToggleButton fx:id="applicationsTab" styleClass="view-tab" text="Applications" toggleGroup="$viewToggleGroup" />
+                <ToggleButton fx:id="jobsTab" styleClass="view-tab" text="Jobs" toggleGroup="$viewToggleGroup" />
+              </HBox>
+              <Label fx:id="listHint" text="Use the up and down arrows to select an applicant."
+                     styleClass="muted-label" wrapText="true" />
+              <StackPane fx:id="viewListPlaceholder" VBox.vgrow="ALWAYS" />
+            </VBox>
+          </items>
+        </SplitPane>
         <StackPane fx:id="statusbarPlaceholder" VBox.vgrow="NEVER" />
       </VBox>
     </Scene>

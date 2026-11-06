@@ -3,24 +3,32 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import javafx.collections.ObservableList;
 import seedu.address.commons.util.ToStringBuilder;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.UniquePersonList;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.applicant.UniqueApplicantList;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
+import seedu.address.model.application.UniqueApplicationList;
+import seedu.address.model.application.UniqueJobList;
 
 /**
  * Wraps all data at the address-book level.
- * Duplicates are not allowed (by .isSamePerson comparison).
+ * Applicant names and emails must each be unique.
  */
 public class AddressBook implements ReadOnlyAddressBook {
 
-    private final UniquePersonList persons = new UniquePersonList();
+    private final UniqueApplicantList applicants = new UniqueApplicantList();
+    private final UniqueApplicationList applications = new UniqueApplicationList();
+    private final UniqueJobList jobs = new UniqueJobList();
 
     public AddressBook() {}
 
     /**
-     * Creates an AddressBook using the Persons in the {@code toBeCopied}
+     * Creates an AddressBook using the Applicants in the {@code toBeCopied}
      */
     public AddressBook(ReadOnlyAddressBook toBeCopied) {
         this();
@@ -30,11 +38,11 @@ public class AddressBook implements ReadOnlyAddressBook {
     //// list overwrite operations
 
     /**
-     * Replaces the contents of the person list with {@code persons}.
-     * {@code persons} must not contain duplicate persons.
+     * Replaces the contents of the applicant list with {@code applicants}.
+     * {@code applicants} must not contain duplicate applicants.
      */
-    public void setPersons(List<Person> persons) {
-        this.persons.setPersons(persons);
+    public void setApplicants(List<Applicant> applicants) {
+        this.applicants.setApplicants(applicants);
     }
 
     /**
@@ -43,44 +51,162 @@ public class AddressBook implements ReadOnlyAddressBook {
     public void resetData(ReadOnlyAddressBook newData) {
         requireNonNull(newData);
 
-        setPersons(newData.getPersonList());
+        setApplicants(newData.getApplicantList());
+        setApplications(newData.getApplicationList());
+        setJobs(newData.getJobList());
     }
 
-    //// person-level operations
+    //// applicant-level operations
 
     /**
-     * Returns true if a person with the same identity as {@code person} exists in the address book.
+     * Returns true if an applicant with the same name or email as {@code applicant} exists in the address book.
      */
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return persons.contains(person);
+    public boolean hasApplicant(Applicant applicant) {
+        requireNonNull(applicant);
+        return applicants.contains(applicant);
     }
 
     /**
-     * Adds a person to the address book.
-     * The person must not already exist in the address book.
+     * Adds an applicant to the address book.
+     * The applicant must not already exist in the address book.
      */
-    public void addPerson(Person p) {
-        persons.add(p);
+    public void addApplicant(Applicant p) {
+        applicants.add(p);
     }
 
     /**
-     * Replaces the given person {@code target} in the list with {@code editedPerson}.
+     * Replaces the given applicant {@code target} in the list with {@code editedApplicant}.
      * {@code target} must exist in the address book.
-     * The person identity of {@code editedPerson} must not be the same as another existing person in the address book.
+     * The name and email of {@code editedApplicant} must not match another existing applicant in the address book.
      */
-    public void setPerson(Person target, Person editedPerson) {
-        requireNonNull(editedPerson);
+    public void setApplicant(Applicant target, Applicant editedApplicant) {
+        requireNonNull(editedApplicant);
 
-        persons.setPerson(target, editedPerson);
+        applicants.setApplicant(target, editedApplicant);
+        applications.setApplicant(target, editedApplicant);
     }
 
     /**
      * Removes {@code key} from this {@code AddressBook}.
      * {@code key} must exist in the address book.
+     * Also removes that applicant's application, if one exists.
+     * @param key applicant to remove
      */
-    public void removePerson(Person key) {
-        persons.remove(key);
+    public void removeApplicant(Applicant key) {
+        applicants.remove(key);
+        applications.remove(key);
+    }
+
+    /**
+     * Returns true if {@code applicant} already has an application.
+     * @param applicant applicant to check
+     * @return true if {@code applicant} already has an application
+     */
+    public boolean hasApplication(Applicant applicant) {
+        requireNonNull(applicant);
+        return applications.contains(applicant);
+    }
+
+    /**
+     * Returns the application for {@code applicant}, if one has been recorded.
+     * @param applicant applicant whose application is requested
+     * @return the application recorded for {@code applicant}, if any
+     */
+    public Optional<Application> getApplication(Applicant applicant) {
+        requireNonNull(applicant);
+        return applications.get(applicant);
+    }
+
+    /**
+     * Adds an application to the address book.
+     * The applicant must already exist and must not already have an application.
+     * @param application application to add
+     */
+    public void addApplication(Application application) {
+        applications.add(application);
+    }
+
+    /**
+     * Replaces {@code target} with {@code editedApplication}.
+     * {@code target} must already be recorded, and both applications must belong to the same applicant.
+     * @param target application currently stored
+     * @param editedApplication application to store instead
+     */
+    public void setApplication(Application target, Application editedApplication) {
+        applications.setApplication(target, editedApplication);
+    }
+
+    /**
+     * Removes the application belonging to {@code applicant}, if one exists, keeping the applicant and job.
+     */
+    public void removeApplication(Applicant applicant) {
+        applications.remove(applicant);
+    }
+
+    /**
+     * Replaces the application list with {@code applications}.
+     * {@code applications} must not contain more than one application per applicant.
+     * @param applications applications to store
+     */
+    public void setApplications(List<Application> applications) {
+        this.applications.setApplications(applications);
+    }
+
+    /**
+     * Returns true if a job with the same description as {@code job} exists.
+     * @param job job to check
+     * @return true if {@code job} is already stored
+     */
+    public boolean hasJob(Job job) {
+        requireNonNull(job);
+        return jobs.contains(job);
+    }
+
+    /**
+     * Adds a job to the address book.
+     * The job must not already exist in the address book.
+     * @param job job to add
+     */
+    public void addJob(Job job) {
+        assert job != null : "job must not be null";
+        jobs.add(job);
+    }
+
+    /**
+     * Replaces an existing job while preserving its position and updating its applications
+     * to reference the edited job.
+     * The edited role must not match another stored job.
+     */
+    public void setJob(Job target, Job editedJob) {
+        requireNonNull(editedJob);
+
+        jobs.setJob(target, editedJob);
+        applications.setJob(target, editedJob);
+    }
+
+    /**
+     * Removes {@code key} and all applications for it, keeping the applicants.
+     * {@code key} must exist in the address book.
+     *
+     * @param key job to remove.
+     */
+    public void removeJob(Job key) {
+        assert key != null : "key must not be null";
+        assert jobs.contains(key) : "job must exist in the address book";
+        jobs.remove(key);
+        applications.removeForJob(key);
+    }
+
+    /**
+     * Replaces the job list with {@code jobs}.
+     * {@code jobs} must not contain duplicate jobs.
+     * @param jobs jobs to store
+     */
+    public void setJobs(List<Job> jobs) {
+        assert jobs != null : "jobs must not be null";
+        assert jobs.stream().allMatch(Objects::nonNull) : "jobs must not contain null";
+        assert jobs.stream().distinct().count() == jobs.size() : "jobs must not contain duplicates";
+        this.jobs.setJobs(jobs);
     }
 
     //// util methods
@@ -88,13 +214,25 @@ public class AddressBook implements ReadOnlyAddressBook {
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .add("persons", persons)
+                .add("applicants", applicants)
+                .add("applications", applications)
+                .add("jobs", jobs)
                 .toString();
     }
 
     @Override
-    public ObservableList<Person> getPersonList() {
-        return persons.asUnmodifiableObservableList();
+    public ObservableList<Applicant> getApplicantList() {
+        return applicants.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Application> getApplicationList() {
+        return applications.asUnmodifiableObservableList();
+    }
+
+    @Override
+    public ObservableList<Job> getJobList() {
+        return jobs.asUnmodifiableObservableList();
     }
 
     @Override
@@ -108,11 +246,13 @@ public class AddressBook implements ReadOnlyAddressBook {
             return false;
         }
 
-        return persons.equals(otherAddressBook.persons);
+        return applicants.equals(otherAddressBook.applicants)
+                && applications.equals(otherAddressBook.applications)
+                && jobs.equals(otherAddressBook.jobs);
     }
 
     @Override
     public int hashCode() {
-        return persons.hashCode();
+        return Objects.hash(applicants, applications, jobs);
     }
 }

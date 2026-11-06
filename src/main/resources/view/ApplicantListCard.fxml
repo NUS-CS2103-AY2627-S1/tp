@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox fx:id="cardPane" spacing="10" alignment="CENTER_LEFT" styleClass="applicant-card"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <Label fx:id="id" styleClass="list-index" minWidth="28" />
+  <VBox spacing="5" minWidth="0" prefWidth="0" HBox.hgrow="ALWAYS">
+    <Label fx:id="name" styleClass="list-name" maxWidth="Infinity" />
+    <Label fx:id="email" styleClass="muted-label" maxWidth="Infinity" />
+    <Label fx:id="phone" styleClass="muted-label" maxWidth="Infinity" />
+  </VBox>
+</HBox>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox fx:id="cardPane" alignment="CENTER_LEFT" spacing="12" styleClass="job-card" stylesheets="@LinkedOut.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+  <Label fx:id="id" minWidth="28" styleClass="list-index" />
+  <VBox fillWidth="false" spacing="6">
+    <HBox alignment="CENTER_LEFT" fillHeight="false" spacing="8">
+      <Label styleClass="role-chip" text="ROLE" />
+      <Label fx:id="role" maxWidth="Infinity" styleClass="list-name" wrapText="true" HBox.hgrow="ALWAYS" />
+    </HBox>
+    <Label fx:id="description" styleClass="muted-label" text="Open role" wrapText="true" />
+  </VBox>
+</HBox>

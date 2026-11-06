@@ -3,6 +3,9 @@ package seedu.address.model;
 import static java.util.Objects.requireNonNull;
 import static seedu.address.commons.util.CollectionUtil.requireAllNonNull;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -10,7 +13,9 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.model.person.Person;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
 
 /**
  * Represents the in-memory model of the address book data.
@@ -18,9 +23,14 @@ import seedu.address.model.person.Person;
 public class ModelManager implements Model {
     private static final Logger logger = LogsCenter.getLogger(ModelManager.class);
 
+    private static final int MAXIMUM_UNDO_STATES = 10;
+
     private final AddressBook addressBook;
     private final UserPrefs userPrefs;
-    private final FilteredList<Person> filteredPersons;
+    private final FilteredList<Applicant> filteredApplicants;
+    private final FilteredList<Job> filteredJobs;
+    /** Earlier address books, newest first. Kept only for this session. */
+    private final Deque<ReadOnlyAddressBook> previousAddressBooks = new ArrayDeque<>();
 
     /**
      * Initializes a ModelManager with the given addressBook and userPrefs.
@@ -32,7 +42,8 @@ public class ModelManager implements Model {
 
         this.addressBook = new AddressBook(addressBook);
         this.userPrefs = new UserPrefs(userPrefs);
-        filteredPersons = new FilteredList<>(this.addressBook.getPersonList());
+        filteredApplicants = new FilteredList<>(this.addressBook.getApplicantList());
+        filteredJobs = new FilteredList<>(this.addressBook.getJobList());
     }
 
     public ModelManager() {
@@ -69,45 +80,155 @@ public class ModelManager implements Model {
         return addressBook;
     }
 
+    /**
+     * Remembers {@code previousState} so a later undo can restore it.
+     * Drops the oldest copy when more than {@code MAXIMUM_UNDO_STATES} states are stored.
+     *
+     * @param previousState Address book from before the latest change. Cannot be null.
+     */
     @Override
-    public boolean hasPerson(Person person) {
-        requireNonNull(person);
-        return addressBook.hasPerson(person);
+    public void rememberStateForUndo(ReadOnlyAddressBook previousState) {
+        requireNonNull(previousState);
+        previousAddressBooks.addFirst(previousState);
+        if (previousAddressBooks.size() > MAXIMUM_UNDO_STATES) {
+            previousAddressBooks.removeLast();
+        }
     }
-
-    @Override
-    public void deletePerson(Person target) {
-        addressBook.removePerson(target);
-    }
-
-    @Override
-    public void addPerson(Person person) {
-        addressBook.addPerson(person);
-        updateFilteredPersonList(PREDICATE_SHOW_ALL_PERSONS);
-    }
-
-    @Override
-    public void setPerson(Person target, Person editedPerson) {
-        requireAllNonNull(target, editedPerson);
-
-        addressBook.setPerson(target, editedPerson);
-    }
-
-    //=========== Filtered Person List Accessors =============================================================
 
     /**
-     * Returns an unmodifiable view of the list of {@code Person} backed by the internal list of
+     * Replaces the current address book with the most recently remembered state.
+     *
+     * @return True if a remembered state was restored.
+     */
+    @Override
+    public boolean undoAddressBook() {
+        if (previousAddressBooks.isEmpty()) {
+            return false;
+        }
+        setAddressBook(previousAddressBooks.removeFirst());
+        return true;
+    }
+
+    @Override
+    public boolean hasApplicant(Applicant applicant) {
+        requireNonNull(applicant);
+        return addressBook.hasApplicant(applicant);
+    }
+
+    @Override
+    public void deleteApplicant(Applicant target) {
+        addressBook.removeApplicant(target);
+    }
+
+    @Override
+    public void addApplicant(Applicant applicant) {
+        addressBook.addApplicant(applicant);
+        updateFilteredApplicantList(PREDICATE_SHOW_ALL_APPLICANTS);
+    }
+
+    @Override
+    public void setApplicant(Applicant target, Applicant editedApplicant) {
+        requireAllNonNull(target, editedApplicant);
+
+        addressBook.setApplicant(target, editedApplicant);
+    }
+
+    @Override
+    public boolean hasApplication(Applicant applicant) {
+        requireNonNull(applicant);
+        return addressBook.hasApplication(applicant);
+    }
+
+    @Override
+    public void addApplication(Application application) {
+        requireNonNull(application);
+        addressBook.addApplication(application);
+    }
+
+    @Override
+    public void deleteApplication(Applicant applicant) {
+        requireNonNull(applicant);
+        addressBook.removeApplication(applicant);
+    }
+
+    @Override
+    public void setApplication(Application target, Application editedApplication) {
+        requireAllNonNull(target, editedApplication);
+        addressBook.setApplication(target, editedApplication);
+    }
+
+    @Override
+    public Optional<Application> getApplication(Applicant applicant) {
+        requireNonNull(applicant);
+        return addressBook.getApplication(applicant);
+    }
+
+    @Override
+    public ObservableList<Application> getApplicationList() {
+        return addressBook.getApplicationList();
+    }
+
+    @Override
+    public boolean hasJob(Job job) {
+        requireNonNull(job);
+        return addressBook.hasJob(job);
+    }
+
+    @Override
+    public void addJob(Job job) {
+        requireNonNull(job);
+        addressBook.addJob(job);
+        updateFilteredJobList(PREDICATE_SHOW_ALL_JOBS);
+    }
+
+    @Override
+    public void setJob(Job target, Job editedJob) {
+        requireAllNonNull(target, editedJob);
+        addressBook.setJob(target, editedJob);
+    }
+
+    @Override
+    public void deleteJob(Job target) {
+        requireNonNull(target);
+        addressBook.removeJob(target);
+    }
+
+    @Override
+    public ObservableList<Job> getJobList() {
+        return addressBook.getJobList();
+    }
+
+    @Override
+    public FilteredList<Job> getFilteredJobList() {
+        return filteredJobs;
+    }
+
+    @Override
+    public void updateFilteredJobList(Predicate<Job> predicate) {
+        requireNonNull(predicate);
+        filteredJobs.setPredicate(predicate);
+    }
+
+    //=========== Filtered Applicant List Accessors =============================================================
+
+    /**
+     * Returns an unmodifiable view of the list of {@code Applicant} backed by the internal list of
      * {@code addressBook}
      */
     @Override
-    public ObservableList<Person> getFilteredPersonList() {
-        return filteredPersons;
+    public ObservableList<Applicant> getApplicantList() {
+        return addressBook.getApplicantList();
     }
 
     @Override
-    public void updateFilteredPersonList(Predicate<Person> predicate) {
+    public FilteredList<Applicant> getFilteredApplicantList() {
+        return filteredApplicants;
+    }
+
+    @Override
+    public void updateFilteredApplicantList(Predicate<Applicant> predicate) {
         requireNonNull(predicate);
-        filteredPersons.setPredicate(predicate);
+        filteredApplicants.setPredicate(predicate);
     }
 
     @Override
@@ -123,7 +244,8 @@ public class ModelManager implements Model {
 
         return addressBook.equals(otherModelManager.addressBook)
                 && userPrefs.equals(otherModelManager.userPrefs)
-                && filteredPersons.equals(otherModelManager.filteredPersons);
+                && filteredApplicants.equals(otherModelManager.filteredApplicants)
+                && filteredJobs.equals(otherModelManager.filteredJobs);
     }
 
 }

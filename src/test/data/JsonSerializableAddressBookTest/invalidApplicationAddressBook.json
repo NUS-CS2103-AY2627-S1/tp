@@ -1,0 +1,15 @@
+{
+  "applicants" : [ {
+    "name" : "Alice Pauline",
+    "phone" : "94351253",
+    "email" : "alice@example.com"
+  } ],
+  "applications" : [ {
+    "name" : "Alice Pauline",
+    "job" : {
+      "role" : "Janitor",
+      "description" : "fake"
+    },
+    "status" : "ACCEPT"
+  } ]
+}

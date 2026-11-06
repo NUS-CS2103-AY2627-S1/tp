@@ -3,22 +3,32 @@ package seedu.address.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
-import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.ALICE;
-import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalApplicants.ALICE;
+import static seedu.address.testutil.TypicalApplicants.BENSON;
+import static seedu.address.testutil.TypicalApplicants.BOB;
+import static seedu.address.testutil.TypicalApplicants.CARL;
+import static seedu.address.testutil.TypicalApplicants.DANIEL;
+import static seedu.address.testutil.TypicalApplicants.getTypicalAddressBook;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import seedu.address.model.person.Person;
-import seedu.address.model.person.exceptions.DuplicatePersonException;
-import seedu.address.testutil.PersonBuilder;
+import seedu.address.model.applicant.Applicant;
+import seedu.address.model.applicant.exceptions.DuplicateApplicantException;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
+import seedu.address.model.application.exceptions.ApplicationNotFoundException;
+import seedu.address.model.application.exceptions.DuplicateApplicationException;
+import seedu.address.model.application.exceptions.DuplicateJobException;
+import seedu.address.testutil.ApplicantBuilder;
 
 public class AddressBookTest {
 
@@ -26,7 +36,9 @@ public class AddressBookTest {
 
     @Test
     public void constructor() {
-        assertEquals(List.of(), addressBook.getPersonList());
+        assertEquals(List.of(), addressBook.getApplicantList());
+        assertEquals(List.of(), addressBook.getApplicationList());
+        assertEquals(List.of(), addressBook.getJobList());
     }
 
     @Test
@@ -42,64 +54,325 @@ public class AddressBookTest {
     }
 
     @Test
-    public void resetData_withDuplicatePersons_throwsDuplicatePersonException() {
-        // Two persons with the same identity fields
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+    public void resetData_withDuplicateApplicants_throwsDuplicateApplicantException() {
+        // Two applicants with the same identity fields
+        Applicant editedAlice = new ApplicantBuilder(ALICE).withEmail(VALID_EMAIL_BOB)
                 .build();
-        List<Person> newPersons = List.of(ALICE, editedAlice);
-        AddressBookStub newData = new AddressBookStub(newPersons);
+        List<Applicant> newApplicants = List.of(ALICE, editedAlice);
+        AddressBookStub newData = new AddressBookStub(newApplicants);
 
-        assertThrows(DuplicatePersonException.class, () -> addressBook.resetData(newData));
+        assertThrows(DuplicateApplicantException.class, () -> addressBook.resetData(newData));
     }
 
     @Test
-    public void hasPerson_nullPerson_throwsNullPointerException() {
-        assertThrows(NullPointerException.class, () -> addressBook.hasPerson(null));
+    public void hasApplicant_nullApplicant_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> addressBook.hasApplicant(null));
     }
 
     @Test
-    public void hasPerson_personNotInAddressBook_returnsFalse() {
-        assertFalse(addressBook.hasPerson(ALICE));
+    public void hasApplicant_applicantNotInAddressBook_returnsFalse() {
+        assertFalse(addressBook.hasApplicant(ALICE));
     }
 
     @Test
-    public void hasPerson_personInAddressBook_returnsTrue() {
-        addressBook.addPerson(ALICE);
-        assertTrue(addressBook.hasPerson(ALICE));
+    public void hasApplicant_applicantInAddressBook_returnsTrue() {
+        addressBook.addApplicant(ALICE);
+        assertTrue(addressBook.hasApplicant(ALICE));
     }
 
     @Test
-    public void hasPerson_personWithSameIdentityFieldsInAddressBook_returnsTrue() {
-        addressBook.addPerson(ALICE);
-        Person editedAlice = new PersonBuilder(ALICE).withAddress(VALID_ADDRESS_BOB).withTags(VALID_TAG_HUSBAND)
+    public void hasApplicant_applicantWithSameIdentityFieldsInAddressBook_returnsTrue() {
+        addressBook.addApplicant(ALICE);
+        Applicant editedAlice = new ApplicantBuilder(ALICE).withEmail(VALID_EMAIL_BOB)
                 .build();
-        assertTrue(addressBook.hasPerson(editedAlice));
+        assertTrue(addressBook.hasApplicant(editedAlice));
     }
 
     @Test
-    public void getPersonList_modifyList_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class, () -> addressBook.getPersonList().remove(0));
+    public void getApplicantList_modifyList_throwsUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> addressBook.getApplicantList().remove(0));
     }
 
     @Test
     public void toStringMethod() {
-        String expected = AddressBook.class.getCanonicalName() + "{persons=" + addressBook.getPersonList() + "}";
+        String expected = AddressBook.class.getCanonicalName() + "{applicants=" + addressBook.getApplicantList()
+                + ", applications=" + addressBook.getApplicationList()
+                + ", jobs=" + addressBook.getJobList() + "}";
         assertEquals(expected, addressBook.toString());
     }
 
+    @Test
+    public void addApplication_newApplicant_success() {
+        addressBook.addApplicant(ALICE);
+        Application application = new Application(ALICE, new Job("Janitor"), Application.Status.PENDING);
+        addressBook.addApplication(application);
+
+        assertTrue(addressBook.hasApplication(ALICE));
+        assertEquals(application, addressBook.getApplication(ALICE).orElseThrow());
+    }
+
+    @Test
+    public void addApplication_duplicateApplicant_throwsDuplicateApplicationException() {
+        addressBook.addApplicant(ALICE);
+        addressBook.addApplication(new Application(ALICE, new Job("Janitor"), Application.Status.PENDING));
+        Application duplicate = new Application(
+                new ApplicantBuilder(ALICE).withPhone("91234567").build(), new Job("Engineer"),
+                Application.Status.ACCEPT);
+
+        assertThrows(DuplicateApplicationException.class, () -> addressBook.addApplication(duplicate));
+    }
+
+    @Test
+    public void setApplication_existingApplication_updatesStatusAndKeepsJob() {
+        addressBook.addApplicant(ALICE);
+        Application original = new Application(ALICE, new Job("Janitor"), Application.Status.PENDING);
+        addressBook.addApplication(original);
+
+        Application updated = new Application(ALICE, new Job("Janitor"), Application.Status.ACCEPT);
+        addressBook.setApplication(original, updated);
+
+        assertEquals(updated, addressBook.getApplication(ALICE).orElseThrow());
+    }
+
+    @Test
+    public void setApplication_missingApplication_throwsApplicationNotFoundException() {
+        Application original = new Application(ALICE, new Job("Janitor"), Application.Status.PENDING);
+        Application updated = new Application(ALICE, new Job("Janitor"), Application.Status.ACCEPT);
+
+        assertThrows(ApplicationNotFoundException.class, () -> addressBook.setApplication(original, updated));
+    }
+
+    @Test
+    public void setApplicant_applicantWithApplication_updatesStoredApplicant() {
+        addressBook.addApplicant(ALICE);
+        addressBook.addApplication(new Application(ALICE, new Job("Janitor"), Application.Status.PENDING));
+        Applicant editedAlice = new ApplicantBuilder(ALICE).withPhone("91234567").build();
+
+        addressBook.setApplicant(ALICE, editedAlice);
+
+        Application updated = addressBook.getApplication(editedAlice).orElseThrow();
+        assertEquals(editedAlice, updated.getApplicant());
+        assertEquals(new Job("Janitor"), updated.getJob());
+        assertEquals(Application.Status.PENDING, updated.getStatus());
+    }
+
+    @Test
+    public void removeApplicant_applicantWithApplication_removesApplication() {
+        addressBook.addApplicant(ALICE);
+        addressBook.addApplicant(BOB);
+        addressBook.addJob(new Job("Janitor"));
+        addressBook.addJob(new Job("Engineer"));
+        addressBook.addApplication(new Application(ALICE, new Job("Janitor"), Application.Status.PENDING));
+        addressBook.addApplication(new Application(BOB, new Job("Engineer"), Application.Status.ACCEPT));
+
+        addressBook.removeApplicant(ALICE);
+
+        assertFalse(addressBook.hasApplication(ALICE));
+        assertTrue(addressBook.hasApplication(BOB));
+        assertEquals(List.of(new Job("Janitor"), new Job("Engineer")), addressBook.getJobList());
+    }
+
+    @Test
+    public void removeApplication_missingApplication_keepsApplicantAndJob() {
+        addressBook.addApplicant(ALICE);
+        Job job = new Job("Janitor");
+        addressBook.addJob(job);
+
+        addressBook.removeApplication(ALICE);
+
+        assertEquals(List.of(ALICE), addressBook.getApplicantList());
+        assertEquals(List.of(job), addressBook.getJobList());
+        assertTrue(addressBook.getApplicationList().isEmpty());
+    }
+
+    @Test
+    public void removeApplication_nullApplicant_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> addressBook.removeApplication(null));
+    }
+
+    @Test
+    public void resetData_withApplications_copiesApplications() {
+        AddressBook original = new AddressBook();
+        original.addApplicant(ALICE);
+        original.addApplication(new Application(ALICE, new Job("Janitor"), Application.Status.ACCEPT));
+
+        addressBook.resetData(original);
+
+        assertEquals(original, addressBook);
+    }
+
+    @Test
+    public void addJob_newJob_success() {
+        Job job = new Job("Software Engineer");
+        addressBook.addJob(job);
+        assertTrue(addressBook.hasJob(job));
+        assertEquals(List.of(job), addressBook.getJobList());
+    }
+
+    @Test
+    public void addJob_duplicate_throwsDuplicateJobException() {
+        addressBook.addJob(new Job("Software Engineer"));
+        assertThrows(DuplicateJobException.class, () -> addressBook.addJob(new Job("Software Engineer")));
+        assertThrows(DuplicateJobException.class, () -> addressBook.addJob(
+                new Job("Software Engineer", "different descriptor")));
+    }
+
+    @Test
+    public void setJob_roleOnlyEdit_updatesOnlyMatchingApplications() {
+        assertJobEditUpdatesOnlyMatchingApplications(new Job("Cleaner", "Old description"));
+    }
+
+    @Test
+    public void setJob_descriptionOnlyEdit_updatesOnlyMatchingApplications() {
+        assertJobEditUpdatesOnlyMatchingApplications(new Job("Janitor", "New description"));
+    }
+
+    @Test
+    public void setJob_roleAndDescriptionEdit_updatesOnlyMatchingApplications() {
+        assertJobEditUpdatesOnlyMatchingApplications(new Job("Cleaner", "New description"));
+    }
+
+    @Test
+    public void setJob_noMatchingApplications_doesNotNotifyApplicationListeners() {
+        Job job = new Job("Engineer");
+        Job unusedJob = new Job("Janitor");
+        addressBook.addApplicant(ALICE);
+        addressBook.setJobs(List.of(job, unusedJob));
+        Application application = new Application(ALICE, job, Application.Status.PENDING);
+        addressBook.addApplication(application);
+        List<List<Application>> notifications = new ArrayList<>();
+        addressBook.getApplicationList().addListener((ListChangeListener<Application>) change ->
+                notifications.add(List.copyOf(change.getList())));
+
+        addressBook.setJob(unusedJob, new Job("Cleaner"));
+
+        assertTrue(notifications.isEmpty());
+        assertEquals(List.of(application), addressBook.getApplicationList());
+    }
+
+    @Test
+    public void setJob_duplicateRole_throwsDuplicateJobExceptionWithoutChangingApplications() {
+        Job job = new Job("Janitor");
+        Job otherJob = new Job("Cleaner");
+        addressBook.addApplicant(ALICE);
+        addressBook.addJob(job);
+        addressBook.addJob(otherJob);
+        Application application = new Application(ALICE, job, Application.Status.ACCEPT);
+        addressBook.addApplication(application);
+
+        assertThrows(DuplicateJobException.class, () -> addressBook.setJob(job, otherJob));
+
+        assertEquals(List.of(job, otherJob), addressBook.getJobList());
+        assertEquals(List.of(application), addressBook.getApplicationList());
+    }
+
+    @Test
+    public void removeJob_existingJob_removesJob() {
+        Job job = new Job("Data Analyst");
+        addressBook.addJob(job);
+        addressBook.removeJob(job);
+        assertFalse(addressBook.hasJob(job));
+    }
+
+    @Test
+    public void removeJob_multipleApplications_removesAllMatchingApplicationsAndKeepsApplicants() {
+        AddressBook original = getTypicalAddressBook();
+        addressBook.resetData(original);
+        Job job = new Job("Engineer");
+        Job otherJob = new Job("engineer");
+        addressBook.addJob(job);
+        addressBook.addJob(otherJob);
+        List<Applicant> applicants = addressBook.getApplicantList();
+        for (int i = 0; i < Application.Status.values().length; i++) {
+            addressBook.addApplication(new Application(applicants.get(i), new Job("Engineer", "Different description"),
+                    Application.Status.values()[i]));
+        }
+        Application otherApplication = new Application(applicants.getLast(), otherJob, Application.Status.PENDING);
+        addressBook.addApplication(otherApplication);
+
+        addressBook.removeJob(new Job("Engineer"));
+
+        assertEquals(original.getApplicantList(), addressBook.getApplicantList());
+        assertEquals(List.of(otherJob), addressBook.getJobList());
+        assertEquals(List.of(otherApplication), addressBook.getApplicationList());
+    }
+
+    @Test
+    public void resetData_withJobs_copiesJobs() {
+        AddressBook original = new AddressBook();
+        original.addJob(new Job("Product Designer"));
+        addressBook.resetData(original);
+        assertEquals(original, addressBook);
+    }
+
     /**
-     * A stub ReadOnlyAddressBook whose persons list can violate interface constraints.
+     * Checks that replacing Janitor with {@code editedJob} updates all three matching applications,
+     * preserving applicants, statuses, an unrelated application, and an applicant without an application.
+     * Checks that listeners receive exactly one notification containing all replacements.
+     */
+    private void assertJobEditUpdatesOnlyMatchingApplications(Job editedJob) {
+        List<Applicant> applicants = List.of(ALICE, BOB, CARL, BENSON, DANIEL);
+        addressBook.setApplicants(applicants);
+        Job job = new Job("Janitor", "Old description");
+        Job otherJob = new Job("janitor", "Other description");
+        addressBook.addJob(job);
+        addressBook.addJob(otherJob);
+        List<Application> applications = List.of(
+                new Application(ALICE, job, Application.Status.PENDING),
+                new Application(BOB, job, Application.Status.ACCEPT),
+                new Application(CARL, job, Application.Status.REJECT),
+                new Application(BENSON, otherJob, Application.Status.PENDING));
+        addressBook.setApplications(applications);
+        List<List<Application>> notifications = new ArrayList<>();
+        addressBook.getApplicationList().addListener((ListChangeListener<Application>) change ->
+                notifications.add(List.copyOf(change.getList())));
+
+        addressBook.setJob(job, editedJob);
+
+        assertEquals(1, notifications.size());
+        assertEquals(addressBook.getApplicationList(), notifications.getFirst());
+        assertEquals(applicants, addressBook.getApplicantList());
+        assertFalse(addressBook.hasApplication(DANIEL));
+        assertEquals(List.of(editedJob, otherJob), addressBook.getJobList());
+        assertEquals(editedJob.getJobDescription(), addressBook.getJobList().getFirst().getJobDescription());
+        assertEquals(applications.size(), addressBook.getApplicationList().size());
+        for (int i = 0; i < 3; i++) {
+            Application updated = addressBook.getApplicationList().get(i);
+            assertEquals(applications.get(i).getApplicant(), updated.getApplicant());
+            assertEquals(applications.get(i).getStatus(), updated.getStatus());
+            assertEquals(editedJob.getJobRole(), updated.getJob().getJobRole());
+            assertEquals(editedJob.getJobDescription(), updated.getJob().getJobDescription());
+            assertEquals(editedJob.getJobDescription(),
+                    notifications.getFirst().get(i).getJob().getJobDescription());
+        }
+        assertEquals(applications.getLast(), addressBook.getApplicationList().getLast());
+        assertEquals("Other description", addressBook.getApplicationList().getLast().getJob().getJobDescription());
+        assertEquals("Other description", addressBook.getJobList().getLast().getJobDescription());
+    }
+
+    /**
+     * A stub ReadOnlyAddressBook whose applicants list can violate interface constraints.
      */
     private static class AddressBookStub implements ReadOnlyAddressBook {
-        private final ObservableList<Person> persons = FXCollections.observableArrayList();
+        private final ObservableList<Applicant> applicants = FXCollections.observableArrayList();
 
-        AddressBookStub(Collection<Person> persons) {
-            this.persons.setAll(persons);
+        AddressBookStub(Collection<Applicant> applicants) {
+            this.applicants.setAll(applicants);
         }
 
         @Override
-        public ObservableList<Person> getPersonList() {
-            return persons;
+        public ObservableList<Applicant> getApplicantList() {
+            return applicants;
+        }
+
+        @Override
+        public ObservableList<Application> getApplicationList() {
+            return FXCollections.observableArrayList();
+        }
+
+        @Override
+        public ObservableList<Job> getJobList() {
+            return FXCollections.observableArrayList();
         }
     }
 

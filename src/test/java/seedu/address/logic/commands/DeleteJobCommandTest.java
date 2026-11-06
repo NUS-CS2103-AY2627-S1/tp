@@ -1,0 +1,128 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.testutil.TypicalApplicants.ALICE;
+import static seedu.address.testutil.TypicalApplicants.BENSON;
+import static seedu.address.testutil.TypicalApplicants.CARL;
+import static seedu.address.testutil.TypicalApplicants.DANIEL;
+import static seedu.address.testutil.TypicalApplicants.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.application.Application;
+import seedu.address.model.application.Job;
+
+public class DeleteJobCommandTest {
+
+    private static final Job ENGINEER = new Job("Software Engineer");
+    private static final Job ANALYST = new Job("Data Analyst");
+
+    private Model model;
+
+    @BeforeEach
+    public void setUp() {
+        model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        model.addJob(ENGINEER);
+        model.addJob(ANALYST);
+    }
+
+    @Test
+    public void execute_validIndex_success() {
+        DeleteJobCommand command = new DeleteJobCommand(INDEX_FIRST);
+        String expectedMessage = String.format(DeleteJobCommand.MESSAGE_DELETE_JOB_SUCCESS, ENGINEER.getJobRole());
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.deleteJob(ENGINEER);
+
+        assertCommandSuccess(command, model,
+                new CommandResult(expectedMessage, ViewRequest.jobs()), expectedModel);
+        assertFalse(model.hasJob(ENGINEER));
+        assertTrue(model.hasJob(ANALYST));
+    }
+
+    @Test
+    public void execute_invalidIndex_throwsCommandException() {
+        Index outOfBoundIndex = Index.fromOneBased(model.getJobList().size() + 1);
+        DeleteJobCommand command = new DeleteJobCommand(outOfBoundIndex);
+
+        assertCommandFailure(command, model,
+                String.format(DeleteJobCommand.MESSAGE_INVALID_INDEX, model.getJobList().size()));
+    }
+
+    @Test
+    public void execute_filteredList_deletesDisplayedJob() {
+        Application engineerApplication = new Application(ALICE, ENGINEER, Application.Status.PENDING);
+        model.addApplication(engineerApplication);
+        model.addApplication(new Application(BENSON, new Job("Data Analyst"), Application.Status.ACCEPT));
+        model.updateFilteredApplicantList(applicant -> applicant.equals(ALICE));
+        model.updateFilteredJobList(job -> job.toString().contains("Data"));
+        DeleteJobCommand command = new DeleteJobCommand(INDEX_FIRST);
+        String expectedMessage = String.format(DeleteJobCommand.MESSAGE_DELETE_JOB_SUCCESS, ANALYST.getJobRole())
+                + "\nWarning: Applications deleted with this job: 1.";
+
+        Model expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+        expectedModel.updateFilteredJobList(job -> job.toString().contains("Data"));
+        expectedModel.updateFilteredApplicantList(applicant -> applicant.equals(ALICE));
+        expectedModel.deleteJob(ANALYST);
+
+        assertCommandSuccess(command, model,
+                new CommandResult(expectedMessage, ViewRequest.jobs()), expectedModel);
+        assertTrue(model.hasJob(ENGINEER));
+        assertFalse(model.hasJob(ANALYST));
+        assertEquals(List.of(engineerApplication), model.getApplicationList());
+        assertTrue(model.hasApplicant(BENSON));
+    }
+
+    @Test
+    public void execute_jobWithApplications_warnsAboutAllDeletedApplications() throws Exception {
+        model.addApplication(new Application(ALICE, ENGINEER, Application.Status.PENDING));
+        model.addApplication(new Application(BENSON,
+                new Job(ENGINEER.getJobRole(), "Different description"), Application.Status.ACCEPT));
+        model.addApplication(new Application(CARL, ENGINEER, Application.Status.REJECT));
+        Application unrelatedApplication = new Application(DANIEL, ANALYST, Application.Status.PENDING);
+        model.addApplication(unrelatedApplication);
+        model.updateFilteredApplicantList(applicant -> applicant.equals(ALICE));
+
+        CommandResult result = new DeleteJobCommand(INDEX_FIRST).execute(model);
+
+        assertEquals(String.format(DeleteJobCommand.MESSAGE_DELETE_JOB_SUCCESS, ENGINEER.getJobRole())
+                + "\nWarning: Applications deleted with this job: 3.", result.getFeedbackToUser());
+        assertEquals(List.of(unrelatedApplication), model.getApplicationList());
+        assertEquals(getTypicalAddressBook().getApplicantList(), model.getAddressBook().getApplicantList());
+        assertFalse(model.hasJob(ENGINEER));
+        assertTrue(model.hasJob(ANALYST));
+    }
+
+    @Test
+    public void execute_emptyList_throwsCommandException() {
+        Model emptyModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        DeleteJobCommand command = new DeleteJobCommand(INDEX_FIRST);
+
+        assertCommandFailure(command, emptyModel, DeleteJobCommand.MESSAGE_EMPTY_LIST);
+    }
+
+    @Test
+    public void equals() {
+        DeleteJobCommand deleteFirst = new DeleteJobCommand(INDEX_FIRST);
+        DeleteJobCommand deleteSecond = new DeleteJobCommand(INDEX_SECOND);
+
+        assertTrue(deleteFirst.equals(deleteFirst));
+        assertTrue(deleteFirst.equals(new DeleteJobCommand(INDEX_FIRST)));
+        assertFalse(deleteFirst.equals(deleteSecond));
+        assertFalse(deleteFirst.equals(null));
+        assertFalse(deleteFirst.equals(1));
+    }
+}
