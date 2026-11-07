@@ -1,0 +1,72 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant "a:AssignCommand" as AssignCommand LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant ":ModelManager" as ModelManager MODEL_COLOR
+participant ":AddressBook" as AddressBook MODEL_COLOR
+participant "target:Contact" as TargetContact MODEL_COLOR
+participant "story:Story" as TargetStory MODEL_COLOR
+participant "assignedContact:Contact" as AssignedContact MODEL_COLOR
+participant "assignedStory:Story" as AssignedStory MODEL_COLOR
+participant ":UniqueContactList" as UniqueContactList MODEL_COLOR
+participant ":UniqueStoryList" as UniqueStoryList MODEL_COLOR
+end box
+
+[-> AssignCommand : execute(model)
+activate AssignCommand
+
+AssignCommand -> ModelManager : assignStory(target, story)
+activate ModelManager
+
+ModelManager -> AddressBook : assignStory(target, story)
+activate AddressBook
+
+AddressBook -> TargetContact : assign(story)
+activate TargetContact
+
+create AssignedContact
+TargetContact -> AssignedContact : new Contact(...)
+activate AssignedContact
+AssignedContact --> TargetContact
+deactivate AssignedContact
+
+TargetContact --> AddressBook : assignedContact
+deactivate TargetContact
+
+AddressBook -> TargetStory : assign(target)
+activate TargetStory
+
+create AssignedStory
+TargetStory -> AssignedStory : new Story(...)
+activate AssignedStory
+AssignedStory --> TargetStory
+deactivate AssignedStory
+
+TargetStory --> AddressBook : assignedStory
+deactivate TargetStory
+
+AddressBook -> UniqueContactList : setContact(target, assignedContact)
+activate UniqueContactList
+UniqueContactList --> AddressBook
+deactivate UniqueContactList
+
+AddressBook -> UniqueStoryList : setStory(story, assignedStory)
+activate UniqueStoryList
+UniqueStoryList --> AddressBook
+deactivate UniqueStoryList
+
+AddressBook --> ModelManager
+deactivate AddressBook
+
+ModelManager --> AssignCommand
+deactivate ModelManager
+
+[<-- AssignCommand : result
+deactivate AssignCommand
+
+@enduml

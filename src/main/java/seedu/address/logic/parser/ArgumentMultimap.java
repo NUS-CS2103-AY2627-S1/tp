@@ -63,6 +63,29 @@ public class ArgumentMultimap {
     }
 
     /**
+     * Returns true if a non-empty preamble is present.
+     */
+    public boolean hasPreamble() {
+        return !getPreamble().isEmpty();
+    }
+
+    /**
+     * Returns the prefixes that are absent from this argument map.
+     */
+    public List<Prefix> getMissingPrefixes(Prefix... prefixes) {
+        return Stream.of(prefixes)
+                .filter(prefix -> getValue(prefix).isEmpty())
+                .toList();
+    }
+
+    /**
+     * Returns true if every prefix has an associated value.
+     */
+    public boolean arePrefixesPresent(Prefix... prefixes) {
+        return getMissingPrefixes(prefixes).isEmpty();
+    }
+
+    /**
      * Throws a {@code ParseException} if any of the prefixes given in {@code prefixes} appeared more than
      * once among the arguments.
      */

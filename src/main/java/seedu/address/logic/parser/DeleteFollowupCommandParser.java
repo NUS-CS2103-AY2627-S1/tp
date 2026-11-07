@@ -1,0 +1,22 @@
+package seedu.address.logic.parser;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.commands.DeleteFollowupCommand;
+import seedu.address.logic.parser.exceptions.ParseException;
+
+/**
+ * Parses input arguments and creates a new DeleteFollowupCommand object
+ */
+public class DeleteFollowupCommandParser implements Parser<DeleteFollowupCommand> {
+
+    /**
+     * Parses the given {@code String} of arguments in the context of the DeleteFollowupCommand
+     * and returns a DeleteFollowupCommand object for execution.
+     * @throws ParseException if the user input does not conform to the expected format
+     */
+    public DeleteFollowupCommand parse(String args) throws ParseException {
+        Index index = ParserUtil.parseIndex(args);
+        return new DeleteFollowupCommand(index);
+    }
+
+}

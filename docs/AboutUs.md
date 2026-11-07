@@ -5,55 +5,49 @@ title: About Us
 
 We are a team based in the [School of Computing, National University of Singapore](https://www.comp.nus.edu.sg).
 
-You can reach us at the email `seer[at]comp.nus.edu.sg`
-
 ## Project team
 
-### John Doe
+### Zheng Yong
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/zys-37.png" width="200px">
 
-[[homepage](http://www.comp.nus.edu.sg/~damithch)]
-[[github](https://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/ZYS-37)]
 
-* Role: Project Advisor
+* Role: Code Quality IC
+* Responsibilities: Ensure code quality standards
 
-### Jane Doe
+### Krithic
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/krit004.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](http://github.com/krit004)]
 
-* Role: Team Lead
-* Responsibilities: UI
+* Role: Integrations IC
+* Responsibilities: Help integration of merges for team members
 
-### Johnny Doe
+### Pu Yu
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/fireinyu.png" width="200px">
 
-[[github](http://github.com/johndoe)] [[portfolio](team/johndoe.md)]
+[[github](http://github.com/fireinyu)]
 
-* Role: Developer
-* Responsibilities: Data
+* Role: Scheduling IC
+* Responsibilities: Planning todos and meetups, and ensuring deadlines are met
 
-### Jean Doe
+### Linus
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/linus-teo.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/linus-teo)]
 
-* Role: Developer
-* Responsibilities: Dev Ops + Threading
+* Role: Testing
+* Responsibilities: Ensures the testing of the project is done properly and on time.
 
-### James Doe
+### Nithesh
 
-<img src="images/johndoe.png" width="200px">
+<img src="images/heshtin.png" width="200px">
 
-[[github](http://github.com/johndoe)]
-[[portfolio](team/johndoe.md)]
+[[github](https://github.com/Heshtin)]
 
-* Role: Developer
-* Responsibilities: UI
+* Role: Documentation IC
+* Responsibilities: Ensures project documentation is accurate, consistent, and up to date.

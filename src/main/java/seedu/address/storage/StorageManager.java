@@ -21,9 +21,10 @@ public class StorageManager implements Storage {
     private JsonUserPrefsStorage userPrefsStorage;
 
     /**
-     * Creates a {@code StorageManager} with the given address book and user prefs storage.
+     * Creates a {@code StorageManager} with the given address book and user preferences storage.
      */
-    public StorageManager(JsonAddressBookStorage addressBookStorage, JsonUserPrefsStorage userPrefsStorage) {
+    public StorageManager(JsonAddressBookStorage addressBookStorage,
+                          JsonUserPrefsStorage userPrefsStorage) {
         this.addressBookStorage = addressBookStorage;
         this.userPrefsStorage = userPrefsStorage;
     }

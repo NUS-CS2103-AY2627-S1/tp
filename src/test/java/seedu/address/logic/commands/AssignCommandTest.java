@@ -1,0 +1,356 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandFailure;
+import static seedu.address.logic.commands.CommandTestUtil.assertCommandSuccess;
+import static seedu.address.logic.commands.CommandTestUtil.showContactAtIndex;
+import static seedu.address.logic.commands.CommandTestUtil.showStoryAtIndex;
+import static seedu.address.testutil.Assert.assertThrows;
+import static seedu.address.testutil.TypicalContacts.BENSON;
+import static seedu.address.testutil.TypicalContacts.CARL;
+import static seedu.address.testutil.TypicalContacts.getTypicalAddressBook;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_CONTACT;
+import static seedu.address.testutil.TypicalIndexes.INDEX_FIRST_STORY;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_CONTACT;
+import static seedu.address.testutil.TypicalIndexes.INDEX_SECOND_STORY;
+import static seedu.address.testutil.TypicalStories.STORY_A;
+import static seedu.address.testutil.TypicalStories.STORY_B;
+import static seedu.address.testutil.TypicalStories.STORY_C;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import seedu.address.commons.core.index.Index;
+import seedu.address.logic.Messages;
+import seedu.address.model.Model;
+import seedu.address.model.ModelManager;
+import seedu.address.model.StateAwarePredicate;
+import seedu.address.model.UserPrefs;
+import seedu.address.model.contact.Contact;
+import seedu.address.model.story.Story;
+
+public class AssignCommandTest {
+
+    private static final Index STORY_INDEX = Index.fromOneBased(1);
+    private static final Index CONTACT_INDEX = Index.fromOneBased(2);
+
+    private Model model;
+    private Model expectedModel;
+
+    @BeforeEach
+    public void setUp() {
+        model = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+        model.addStory(STORY_A);
+        model.addStory(STORY_B);
+        expectedModel = new ModelManager(model.getAddressBook(), new UserPrefs());
+    }
+
+    @Test
+    public void constructor_nullIndex_throwsNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new AssignCommand(null, CONTACT_INDEX));
+        assertThrows(NullPointerException.class, () -> new AssignCommand(STORY_INDEX, null));
+    }
+
+    @Test
+    public void execute_nullModel_throwsNullPointerException() {
+        AssignCommand command = new AssignCommand(STORY_INDEX, CONTACT_INDEX);
+        assertThrows(NullPointerException.class, () -> command.execute(null));
+    }
+
+    @Test
+    public void execute_validIndicesUnfilteredList_success() {
+        Contact contact = model.getFilteredContactList().get(INDEX_FIRST_CONTACT.getZeroBased());
+        Story story = model.getFilteredStoryList().get(INDEX_FIRST_STORY.getZeroBased());
+
+        AssignCommand assignCommand = new AssignCommand(INDEX_FIRST_STORY, INDEX_FIRST_CONTACT);
+        expectedModel.assignStory(contact, story);
+
+        String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+        assertCommandSuccess(assignCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_validIndicesFilteredList_success() {
+        showContactAtIndex(model, INDEX_SECOND_CONTACT);
+        showStoryAtIndex(model, INDEX_SECOND_STORY);
+
+        Contact contact = model.getFilteredContactList().get(0);
+        Story story = model.getFilteredStoryList().get(0);
+
+        AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(1), Index.fromOneBased(1));
+        showContactAtIndex(expectedModel, INDEX_SECOND_CONTACT);
+        showStoryAtIndex(expectedModel, INDEX_SECOND_STORY);
+        expectedModel.assignStory(contact, story);
+
+        String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+        assertCommandSuccess(assignCommand, model, expectedMessage, expectedModel);
+    }
+
+    @Test
+    public void execute_invalidContactIndexUnfilteredList_throwsCommandException() {
+        Index outOfBoundContactIndex = Index.fromOneBased(model.getFilteredContactList().size() + 1);
+        AssignCommand assignCommand = new AssignCommand(INDEX_FIRST_STORY, outOfBoundContactIndex);
+
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX,
+                outOfBoundContactIndex.getOneBased(), model.getFilteredContactList().size());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_invalidContactIndexFilteredList_throwsCommandException() {
+        showContactAtIndex(model, INDEX_FIRST_CONTACT);
+        Index outOfBoundContactIndex = INDEX_SECOND_CONTACT;
+        // ensures outOfBoundContactIndex is in address book, but out of bounds in filtered contact list
+        assertTrue(outOfBoundContactIndex.getZeroBased() < model.getAddressBook().getContactList().size());
+
+        AssignCommand assignCommand = new AssignCommand(INDEX_FIRST_STORY, outOfBoundContactIndex);
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX,
+                outOfBoundContactIndex.getOneBased(), model.getFilteredContactList().size());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_invalidStoryIndexUnfilteredList_throwsCommandException() {
+        Index outOfBoundStoryIndex = Index.fromOneBased(model.getFilteredStoryList().size() + 1);
+        AssignCommand assignCommand = new AssignCommand(outOfBoundStoryIndex, INDEX_FIRST_CONTACT);
+
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_STORY_DISPLAYED_INDEX,
+                outOfBoundStoryIndex.getOneBased(), model.getFilteredStoryList().size());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_invalidStoryIndexFilteredList_throwsCommandException() {
+        showStoryAtIndex(model, INDEX_FIRST_STORY);
+        Index outOfBoundStoryIndex = INDEX_SECOND_STORY;
+        // ensures outOfBoundStoryIndex is in address book, but out of bounds in filtered story list
+        assertTrue(outOfBoundStoryIndex.getZeroBased() < model.getAddressBook().getStoryList().size());
+
+        AssignCommand assignCommand = new AssignCommand(outOfBoundStoryIndex, INDEX_FIRST_CONTACT);
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_STORY_DISPLAYED_INDEX,
+                outOfBoundStoryIndex.getOneBased(), model.getFilteredStoryList().size());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_bothIndicesOutOfRange_throwsCommandException() {
+        Index outOfBoundContactIndex = Index.fromOneBased(model.getFilteredContactList().size() + 1);
+        Index outOfBoundStoryIndex = Index.fromOneBased(model.getFilteredStoryList().size() + 1);
+        AssignCommand assignCommand = new AssignCommand(outOfBoundStoryIndex, outOfBoundContactIndex);
+
+        String expectedMessage = String.format(Messages.MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX,
+                outOfBoundContactIndex.getOneBased(), model.getFilteredContactList().size());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_alreadyAssignedContactAndStory_throwsCommandException() {
+        Contact contact = model.getFilteredContactList().get(INDEX_FIRST_CONTACT.getZeroBased());
+        Story story = model.getFilteredStoryList().get(INDEX_FIRST_STORY.getZeroBased());
+        model.assignStory(contact, story);
+
+        AssignCommand assignCommand = new AssignCommand(INDEX_FIRST_STORY, INDEX_FIRST_CONTACT);
+
+        String expectedMessage = String.format(AssignCommand.MESSAGE_ALREADY_ASSIGNED,
+                contact.getName(), story.getName());
+        assertCommandFailure(assignCommand, model, expectedMessage);
+    }
+
+    @Test
+    public void execute_boundaryMaxIntegerIndices_failure() {
+        Index maxIndex = Index.fromOneBased(Integer.MAX_VALUE);
+
+        // Max contact index
+        AssignCommand maxContactCommand = new AssignCommand(INDEX_FIRST_STORY, maxIndex);
+        String expectedContactMessage = String.format(Messages.MESSAGE_INVALID_CONTACT_DISPLAYED_INDEX,
+                maxIndex.getOneBased(), model.getFilteredContactList().size());
+        assertCommandFailure(maxContactCommand, model, expectedContactMessage);
+
+        // Max story index
+        AssignCommand maxStoryCommand = new AssignCommand(maxIndex, INDEX_FIRST_CONTACT);
+        String expectedStoryMessage = String.format(Messages.MESSAGE_INVALID_STORY_DISPLAYED_INDEX,
+                maxIndex.getOneBased(), model.getFilteredStoryList().size());
+        assertCommandFailure(maxStoryCommand, model, expectedStoryMessage);
+    }
+
+    @Test
+    public void equals() {
+        AssignCommand command = new AssignCommand(STORY_INDEX, CONTACT_INDEX);
+
+        assertTrue(command.equals(command));
+        assertTrue(command.equals(new AssignCommand(STORY_INDEX, CONTACT_INDEX)));
+        assertFalse(command.equals(new AssignCommand(Index.fromOneBased(2), CONTACT_INDEX)));
+        assertFalse(command.equals(new AssignCommand(STORY_INDEX, Index.fromOneBased(1))));
+        assertFalse(command.equals(null));
+        assertFalse(command.equals(new Object()));
+    }
+
+    @Test
+    public void toStringMethod() {
+        AssignCommand command = new AssignCommand(STORY_INDEX, CONTACT_INDEX);
+        String expected = AssignCommand.class.getCanonicalName()
+                + "{storyIndex=" + STORY_INDEX + ", contactIndex=" + CONTACT_INDEX + "}";
+
+        assertEquals(expected, command.toString());
+    }
+
+    private static StateAwarePredicate<Contact, Story> createContactPredicate(Contact... contacts) {
+        List<Contact> targetContacts = Arrays.asList(contacts);
+        return new StateAwarePredicate<>() {
+            @Override
+            public boolean test(Contact contact) {
+                return targetContacts.stream().anyMatch(c -> c.getName().equals(contact.getName()));
+            }
+        };
+    }
+
+    private static StateAwarePredicate<Story, Contact> createStoryPredicate(Story... stories) {
+        List<Story> targetStories = Arrays.asList(stories);
+        return new StateAwarePredicate<>() {
+            @Override
+            public boolean test(Story story) {
+                return targetStories.stream().anyMatch(s -> s.getName().equals(story.getName()));
+            }
+        };
+    }
+
+    @Test
+    public void execute_allPairsCombinations_success() {
+        // Equivalence Partitioning & All-Pairs combinations across:
+        // Factor 1: Contact List State (CF_UNFILTERED, CF_FILTERED)
+        // Factor 2: Story List State (SF_UNFILTERED, SF_FILTERED)
+        // Factor 3: Contact Index (Index 1, Index 2)
+        // Factor 4: Story Index (Index 1, Index 2)
+        // 6 test cases cover 100% of all 24 pairwise combinations.
+
+        // TC 1: (CF_UNFILTERED, SF_UNFILTERED, CI_1, SI_1)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+
+            Contact contact = localModel.getFilteredContactList().get(0);
+            Story story = localModel.getFilteredStoryList().get(0);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(1), Index.fromOneBased(1));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+
+        // TC 2: (CF_UNFILTERED, SF_FILTERED, CI_2, SI_2)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            localModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+            localExpectedModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Contact contact = localModel.getFilteredContactList().get(1);
+            Story story = localModel.getFilteredStoryList().get(1);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(2), Index.fromOneBased(2));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+
+        // TC 3: (CF_FILTERED, SF_UNFILTERED, CI_2, SI_2)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            localModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+            localExpectedModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+
+            Contact contact = localModel.getFilteredContactList().get(1);
+            Story story = localModel.getFilteredStoryList().get(1);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(2), Index.fromOneBased(2));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+
+        // TC 4: (CF_FILTERED, SF_FILTERED, CI_1, SI_1)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            localModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+            localModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+            localExpectedModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+            localExpectedModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Contact contact = localModel.getFilteredContactList().get(0);
+            Story story = localModel.getFilteredStoryList().get(0);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(1), Index.fromOneBased(1));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+
+        // TC 5: (CF_UNFILTERED, SF_FILTERED, CI_1, SI_2)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            localModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+            localExpectedModel.updateFilteredStoryList(createStoryPredicate(STORY_B, STORY_C));
+
+            Contact contact = localModel.getFilteredContactList().get(0);
+            Story story = localModel.getFilteredStoryList().get(1);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(2), Index.fromOneBased(1));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+
+        // TC 6: (CF_FILTERED, SF_UNFILTERED, CI_2, SI_1)
+        {
+            Model localModel = new ModelManager(getTypicalAddressBook(), new UserPrefs());
+            localModel.addStory(STORY_A);
+            localModel.addStory(STORY_B);
+            localModel.addStory(STORY_C);
+            localModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+
+            Model localExpectedModel = new ModelManager(localModel.getAddressBook(), new UserPrefs());
+            localExpectedModel.updateFilteredContactList(createContactPredicate(BENSON, CARL));
+
+            Contact contact = localModel.getFilteredContactList().get(1);
+            Story story = localModel.getFilteredStoryList().get(0);
+
+            AssignCommand assignCommand = new AssignCommand(Index.fromOneBased(1), Index.fromOneBased(2));
+            localExpectedModel.assignStory(contact, story);
+
+            String expectedMessage = String.format(AssignCommand.MESSAGE_SUCCESS, contact.getName(), story.getName());
+            assertCommandSuccess(assignCommand, localModel, expectedMessage, localExpectedModel);
+        }
+    }
+}

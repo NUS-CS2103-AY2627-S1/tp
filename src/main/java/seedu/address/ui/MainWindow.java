@@ -3,20 +3,22 @@ package seedu.address.ui;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
-import javafx.event.ActionEvent;
+import javafx.beans.binding.Bindings;
+import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.TextInputControl;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import seedu.address.commons.core.GuiSettings;
 import seedu.address.commons.core.LogsCenter;
 import seedu.address.logic.Logic;
 import seedu.address.logic.commands.CommandResult;
+import seedu.address.logic.commands.HelpCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.Model;
 
 /**
  * The Main Window. Provides the basic application layout containing
@@ -25,17 +27,22 @@ import seedu.address.logic.parser.exceptions.ParseException;
 public class MainWindow extends UiPart<Stage> {
 
     private static final String FXML = "MainWindow.fxml";
+    private static final double HELP_EXPANSION_THRESHOLD_WIDTH = 1000;
+    private static final double HELP_EXPANDED_WIDTH = 1050;
 
     private final Logger logger = LogsCenter.getLogger(getClass());
 
     private Stage primaryStage;
     private Logic logic;
     private Path dataFilePath;
+    private String initialMessage;
 
     // Independent Ui parts residing in this Ui container
-    private PersonListPanel personListPanel;
+    private ContactListPanel contactListPanel;
+    private StoryListPanel storyListPanel;
+    private FollowupListPanel followupListPanel;
     private ResultDisplay resultDisplay;
-    private HelpWindow helpWindow;
+    private HelpPanel helpPanel;
 
     @FXML
     private StackPane commandBoxPlaceholder;
@@ -44,7 +51,13 @@ public class MainWindow extends UiPart<Stage> {
     private MenuItem helpMenuItem;
 
     @FXML
-    private StackPane personListPanelPlaceholder;
+    private StackPane contactListPanelPlaceholder;
+
+    @FXML
+    private StackPane storyListPanelPlaceholder;
+
+    @FXML
+    private StackPane followupListPanelPlaceholder;
 
     @FXML
     private StackPane resultDisplayPlaceholder;
@@ -52,79 +65,114 @@ public class MainWindow extends UiPart<Stage> {
     @FXML
     private StackPane statusbarPlaceholder;
 
+    @FXML
+    private StackPane helpPanelPlaceholder;
+
+    @FXML
+    private Label contactFilterIndicator;
+
+    @FXML
+    private Label storyFilterIndicator;
+
+    @FXML
+    private Label followupFilterIndicator;
+
     /**
      * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
      * and the data file path to show in the status bar.
      */
     public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath) {
+        this(primaryStage, logic, dataFilePath, null);
+    }
+
+    /**
+     * Creates a {@code MainWindow} with the given {@code Stage}, {@code Logic},
+     * data file path to show in the status bar, and initial message to display.
+     */
+    public MainWindow(Stage primaryStage, Logic logic, Path dataFilePath, String initialMessage) {
         super(FXML, primaryStage);
 
         // Set dependencies
         this.primaryStage = primaryStage;
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.initialMessage = initialMessage;
 
         // Configure the UI
         setWindowDefaultSize(logic.getGuiSettings());
-
-        setAccelerators();
-
-        helpWindow = new HelpWindow();
     }
 
     public Stage getPrimaryStage() {
         return primaryStage;
     }
 
-    private void setAccelerators() {
-        setAccelerator(helpMenuItem, KeyCombination.valueOf("F1"));
-    }
 
-    /**
-     * Sets the accelerator of a MenuItem.
-     * @param keyCombination the KeyCombination value of the accelerator
-     */
-    private void setAccelerator(MenuItem menuItem, KeyCombination keyCombination) {
-        menuItem.setAccelerator(keyCombination);
-
-        /*
-         * TODO: the code below can be removed once the bug reported here
-         * https://bugs.openjdk.java.net/browse/JDK-8131666
-         * is fixed in a later version of the SDK.
-         *
-         * According to the bug report, TextInputControl (TextField, TextArea) will
-         * consume function-key events. Because CommandBox contains a TextField and
-         * ResultDisplay contains a TextArea, some accelerators (e.g., F1) will
-         * not work when the focus is in them because the key event is consumed by
-         * the TextInputControl(s).
-         *
-         * For now, we add the following event filter to capture such key events and open
-         * the help window purposely so as to support accelerators even when focus is
-         * in CommandBox or ResultDisplay.
-         */
-        getRoot().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getTarget() instanceof TextInputControl && keyCombination.match(event)) {
-                menuItem.getOnAction().handle(new ActionEvent());
-                event.consume();
-            }
-        });
-    }
 
     /**
      * Fills up all the placeholders of this window.
      */
     void fillInnerParts() {
-        personListPanel = new PersonListPanel(logic.getFilteredPersonList());
-        personListPanelPlaceholder.getChildren().add(personListPanel.getRoot());
+        contactListPanel = new ContactListPanel(logic.getFilteredContactList());
+        contactListPanelPlaceholder.getChildren().add(contactListPanel.getRoot());
+
+        storyListPanel = new StoryListPanel(logic.getFilteredStoryList());
+        storyListPanelPlaceholder.getChildren().add(storyListPanel.getRoot());
+
+        followupListPanel = new FollowupListPanel(logic.getFilteredFollowupList());
+        followupListPanelPlaceholder.getChildren().add(followupListPanel.getRoot());
 
         resultDisplay = new ResultDisplay();
         resultDisplayPlaceholder.getChildren().add(resultDisplay.getRoot());
+
+        if (initialMessage != null && !initialMessage.isBlank()) {
+            resultDisplay.setFeedbackToUser(initialMessage);
+        }
 
         StatusBarFooter statusBarFooter = new StatusBarFooter(dataFilePath);
         statusbarPlaceholder.getChildren().add(statusBarFooter.getRoot());
 
         CommandBox commandBox = new CommandBox(this::executeCommand);
         commandBoxPlaceholder.getChildren().add(commandBox.getRoot());
+
+        helpPanel = new HelpPanel(() -> {
+            helpPanelPlaceholder.setVisible(false);
+            helpPanelPlaceholder.setManaged(false);
+        });
+        helpPanelPlaceholder.getChildren().add(helpPanel.getRoot());
+
+        setupFilterIndicators();
+    }
+
+    /**
+     * Configures the filter indicator badges for the contact, story, and followup panels.
+     */
+    private void setupFilterIndicators() {
+        setupFilterIndicator(contactFilterIndicator, logic.getContactFilterStatusProperty());
+        setupFilterIndicator(storyFilterIndicator, logic.getStoryFilterStatusProperty());
+        setupFilterIndicator(followupFilterIndicator, logic.getFollowupFilterStatusProperty());
+    }
+
+    /**
+     * Binds the text and style of {@code indicator} to {@code statusProperty}.
+     */
+    private void setupFilterIndicator(Label indicator, ObservableValue<String> statusProperty) {
+        indicator.textProperty().bind(
+                Bindings.createStringBinding(() -> "[" + statusProperty.getValue() + "]", statusProperty));
+        Tooltip tooltip = new Tooltip();
+        tooltip.textProperty().bind(statusProperty);
+        indicator.setTooltip(tooltip);
+
+        statusProperty.addListener((obs, oldVal, newVal) -> updateFilterBadgeStyle(indicator, newVal));
+        updateFilterBadgeStyle(indicator, statusProperty.getValue());
+    }
+
+    /**
+     * Updates the CSS style class of {@code indicator} based on whether {@code status} is "All" or a filter.
+     */
+    private void updateFilterBadgeStyle(Label indicator, String status) {
+        indicator.getStyleClass().removeAll("filter-status-all", "filter-status-filtered");
+        String styleClass = Model.FILTER_STATUS_ALL.equals(status) ? "filter-status-all" : "filter-status-filtered";
+        indicator.getStyleClass().add(styleClass);
     }
 
     /**
@@ -140,15 +188,20 @@ public class MainWindow extends UiPart<Stage> {
     }
 
     /**
-     * Opens the help window or focuses on it if it's already opened.
+     * Toggles the help panel.
      */
     @FXML
     public void handleHelp() {
-        if (!helpWindow.isShowing()) {
-            helpWindow.show();
-        } else {
-            helpWindow.focus();
+        boolean isVisible = helpPanelPlaceholder.isVisible();
+        if (!isVisible) {
+            if (!primaryStage.isMaximized() && !primaryStage.isFullScreen()
+                    && primaryStage.getWidth() < HELP_EXPANSION_THRESHOLD_WIDTH) {
+                primaryStage.setWidth(Math.min(UiUtil.getPrimaryScreenWidth(), HELP_EXPANDED_WIDTH));
+            }
         }
+        resultDisplay.setFeedbackToUser(HelpCommand.SHOWING_HELP_MESSAGE);
+        helpPanelPlaceholder.setVisible(!isVisible);
+        helpPanelPlaceholder.setManaged(!isVisible);
     }
 
     void show() {
@@ -163,12 +216,15 @@ public class MainWindow extends UiPart<Stage> {
         GuiSettings guiSettings = new GuiSettings(primaryStage.getWidth(), primaryStage.getHeight(),
                 (int) primaryStage.getX(), (int) primaryStage.getY());
         logic.setGuiSettings(guiSettings);
-        helpWindow.hide();
         primaryStage.hide();
     }
 
-    public PersonListPanel getPersonListPanel() {
-        return personListPanel;
+    public ContactListPanel getContactListPanel() {
+        return contactListPanel;
+    }
+
+    public ResultDisplay getResultDisplay() {
+        return resultDisplay;
     }
 
     /**

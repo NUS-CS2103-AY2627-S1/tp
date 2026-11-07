@@ -1,0 +1,159 @@
+package seedu.address.logic.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static seedu.address.logic.commands.CommandTestUtil.DESC_AMY;
+import static seedu.address.logic.commands.CommandTestUtil.DESC_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_EMAIL_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_NAME_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_PHONE_BOB;
+import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
+
+import org.junit.jupiter.api.Test;
+
+import seedu.address.logic.commands.EditContactCommand.EditContactDescriptor;
+import seedu.address.model.contact.Contact;
+import seedu.address.testutil.EditContactDescriptorBuilder;
+
+public class EditContactDescriptorTest {
+
+    @Test
+    public void isAnyFieldEdited() {
+        EditContactDescriptor descriptor = new EditContactDescriptor();
+        assertFalse(descriptor.isAnyFieldEdited());
+
+        // Name only
+        descriptor = new EditContactDescriptorBuilder().withName(VALID_NAME_BOB).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        // Phone only
+        descriptor = new EditContactDescriptorBuilder().withPhone(VALID_PHONE_BOB).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        // Email only
+        descriptor = new EditContactDescriptorBuilder().withEmail(VALID_EMAIL_BOB).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        // Address only
+        descriptor = new EditContactDescriptorBuilder().withAddress(VALID_ADDRESS_BOB).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+
+        // Tags only
+        descriptor = new EditContactDescriptorBuilder().withTags(VALID_TAG_HUSBAND).build();
+        assertTrue(descriptor.isAnyFieldEdited());
+    }
+
+    @Test
+    public void equals() {
+        // same values -> returns true
+        EditContactDescriptor descriptorWithSameValues = new EditContactDescriptor(DESC_AMY);
+        assertTrue(DESC_AMY.equals(descriptorWithSameValues));
+
+        // same object -> returns true
+        assertTrue(DESC_AMY.equals(DESC_AMY));
+
+        // null -> returns false
+        assertFalse(DESC_AMY.equals(null));
+
+        // different types -> returns false
+        assertFalse(DESC_AMY.equals(5));
+
+        // different values -> returns false
+        assertFalse(DESC_AMY.equals(DESC_BOB));
+
+        // different name -> returns false
+        EditContactDescriptor editedAmy = new EditContactDescriptorBuilder(DESC_AMY).withName(VALID_NAME_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different phone -> returns false
+        editedAmy = new EditContactDescriptorBuilder(DESC_AMY).withPhone(VALID_PHONE_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different email -> returns false
+        editedAmy = new EditContactDescriptorBuilder(DESC_AMY).withEmail(VALID_EMAIL_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different address -> returns false
+        editedAmy = new EditContactDescriptorBuilder(DESC_AMY).withAddress(VALID_ADDRESS_BOB).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+
+        // different tags -> returns false
+        editedAmy = new EditContactDescriptorBuilder(DESC_AMY).withTags(VALID_TAG_HUSBAND).build();
+        assertFalse(DESC_AMY.equals(editedAmy));
+    }
+
+    @Test
+    public void createEditedContact() {
+        EditContactDescriptor descriptor = new EditContactDescriptorBuilder(DESC_BOB).build();
+        Contact editedContact = descriptor.createEditedContact(seedu.address.testutil.TypicalContacts.ALICE);
+
+        assertEquals(new seedu.address.model.contact.Name(VALID_NAME_BOB), editedContact.getName());
+        assertEquals(new seedu.address.model.contact.Phone(VALID_PHONE_BOB), editedContact.getPhone());
+        assertEquals(new seedu.address.model.contact.Email(VALID_EMAIL_BOB), editedContact.getEmail());
+        assertEquals(new seedu.address.model.contact.Address(VALID_ADDRESS_BOB), editedContact.getAddress());
+        assertEquals(descriptor.getTags().get(), editedContact.getTags());
+        assertEquals(seedu.address.testutil.TypicalContacts.ALICE.getStories(), editedContact.getStories());
+
+        // empty descriptor preserves original contact details
+        EditContactDescriptor emptyDescriptor = new EditContactDescriptor();
+        Contact untouchedContact = emptyDescriptor.createEditedContact(seedu.address.testutil.TypicalContacts.ALICE);
+        assertEquals(seedu.address.testutil.TypicalContacts.ALICE, untouchedContact);
+    }
+
+    @Test
+    public void toStringMethod() {
+        EditContactDescriptor editContactDescriptor = new EditContactDescriptor();
+        String expected = EditContactDescriptor.class.getCanonicalName() + "{name="
+                + editContactDescriptor.getName().orElse(null) + ", phone="
+                + editContactDescriptor.getPhone().orElse(null) + ", email="
+                + editContactDescriptor.getEmail().orElse(null) + ", address="
+                + editContactDescriptor.getAddress().orElse(null) + ", tags="
+                + editContactDescriptor.getTags().orElse(null) + "}";
+        assertEquals(expected, editContactDescriptor.toString());
+    }
+
+    /**
+     * All-pairs combinations of field presence across (Name, Phone, Email, Address, Tags)
+     * verifying the copy constructor, equality, and hash code behavior.
+     */
+    @Test
+    public void copyConstructor_allPairsFieldCombinations_success() {
+        boolean[][] testCases = {
+            {true, true, true, true, true},
+            {true, false, false, false, false},
+            {false, true, false, false, true},
+            {false, false, true, true, false},
+            {true, true, false, true, false},
+            {false, false, true, false, true}
+        };
+
+        for (boolean[] tc : testCases) {
+            EditContactDescriptor descriptor = new EditContactDescriptor();
+            if (tc[0]) {
+                descriptor.setName(new seedu.address.model.contact.Name(VALID_NAME_BOB));
+            }
+            if (tc[1]) {
+                descriptor.setPhone(new seedu.address.model.contact.Phone(VALID_PHONE_BOB));
+            }
+            if (tc[2]) {
+                descriptor.setEmail(new seedu.address.model.contact.Email(VALID_EMAIL_BOB));
+            }
+            if (tc[3]) {
+                descriptor.setAddress(new seedu.address.model.contact.Address(VALID_ADDRESS_BOB));
+            }
+            if (tc[4]) {
+                descriptor.setTags(java.util.Set.of(new seedu.address.model.tag.Tag(VALID_TAG_HUSBAND)));
+            }
+
+            EditContactDescriptor copy = new EditContactDescriptor(descriptor);
+            assertEquals(descriptor, copy);
+            assertEquals(descriptor.getName(), copy.getName());
+            assertEquals(descriptor.getPhone(), copy.getPhone());
+            assertEquals(descriptor.getEmail(), copy.getEmail());
+            assertEquals(descriptor.getAddress(), copy.getAddress());
+            assertEquals(descriptor.getTags(), copy.getTags());
+        }
+    }
+}

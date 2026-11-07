@@ -21,19 +21,29 @@ public class UiManager implements Ui {
     public static final String ALERT_DIALOG_PANE_FIELD_ID = "alertDialogPane";
 
     private static final Logger logger = LogsCenter.getLogger(UiManager.class);
-    private static final String ICON_APPLICATION = "/images/address_book_32.png";
+    private static final String ICON_APPLICATION = "/images/pressmemo_32.png";
 
     private Logic logic;
     private Path dataFilePath;
     private MainWindow mainWindow;
+    private String initialMessage;
 
     /**
      * Creates a {@code UiManager} with the given {@code Logic} and the data file path
      * to show in the status bar.
      */
     public UiManager(Logic logic, Path dataFilePath) {
+        this(logic, dataFilePath, null);
+    }
+
+    /**
+     * Creates a {@code UiManager} with the given {@code Logic}, data file path,
+     * and initial message to display to the user.
+     */
+    public UiManager(Logic logic, Path dataFilePath, String initialMessage) {
         this.logic = logic;
         this.dataFilePath = dataFilePath;
+        this.initialMessage = initialMessage;
     }
 
     @Override
@@ -44,7 +54,7 @@ public class UiManager implements Ui {
         primaryStage.getIcons().add(getImage(ICON_APPLICATION));
 
         try {
-            mainWindow = new MainWindow(primaryStage, logic, dataFilePath);
+            mainWindow = new MainWindow(primaryStage, logic, dataFilePath, initialMessage);
             mainWindow.show(); //This should be called before creating other UI parts
             mainWindow.fillInnerParts();
 

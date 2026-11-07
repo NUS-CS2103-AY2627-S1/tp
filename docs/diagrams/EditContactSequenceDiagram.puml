@@ -1,0 +1,93 @@
+@startuml
+!include style.puml
+skinparam ArrowFontStyle plain
+
+box Logic LOGIC_COLOR_T1
+participant ":LogicManager" as LogicManager LOGIC_COLOR
+participant ":AddressBookParser" as AddressBookParser LOGIC_COLOR
+participant "CommandWords" as CommandWords LOGIC_COLOR
+participant "commandInfo:CommandInfo" as CommandInfo LOGIC_COLOR
+participant ":EditContactCommandParser" as EditContactCommandParser LOGIC_COLOR
+participant "e:EditContactCommand" as EditContactCommand LOGIC_COLOR
+participant "r:CommandResult" as CommandResult LOGIC_COLOR
+end box
+
+box Model MODEL_COLOR_T1
+participant "m:Model" as Model MODEL_COLOR
+participant ":AddressBook" as AddressBook MODEL_COLOR
+end box
+
+[-> LogicManager : execute("editcontact 1 n/Betsy")
+activate LogicManager
+
+LogicManager -> AddressBookParser : parseCommand("editcontact 1 n/Betsy")
+activate AddressBookParser
+
+AddressBookParser -> CommandWords : getCommandInfo("editcontact")
+activate CommandWords
+
+CommandWords --> AddressBookParser : commandInfo
+deactivate CommandWords
+
+AddressBookParser -> CommandInfo : parse("1 n/Betsy")
+activate CommandInfo
+
+CommandInfo -> EditContactCommandParser : parse("1 n/Betsy")
+activate EditContactCommandParser
+
+create EditContactCommand
+EditContactCommandParser -> EditContactCommand
+activate EditContactCommand
+
+EditContactCommand --> EditContactCommandParser : e
+deactivate EditContactCommand
+
+EditContactCommandParser --> CommandInfo : e
+deactivate EditContactCommandParser
+
+CommandInfo --> AddressBookParser : e
+deactivate CommandInfo
+
+AddressBookParser --> LogicManager : e
+deactivate AddressBookParser
+
+LogicManager -> EditContactCommand : execute(m)
+activate EditContactCommand
+
+EditContactCommand -> Model : getFilteredContactList()
+activate Model
+
+Model --> EditContactCommand : lastShownList
+deactivate Model
+
+EditContactCommand -> Model : hasContact(editedContact)
+activate Model
+
+Model --> EditContactCommand : false
+deactivate Model
+
+EditContactCommand -> Model : setContact(contactToEdit, editedContact)
+activate Model
+
+Model -> AddressBook : setContact(contactToEdit, editedContact)
+activate AddressBook
+
+AddressBook --> Model
+deactivate AddressBook
+
+Model --> EditContactCommand
+deactivate Model
+
+create CommandResult
+EditContactCommand -> CommandResult
+activate CommandResult
+
+CommandResult --> EditContactCommand
+deactivate CommandResult
+
+EditContactCommand --> LogicManager : r
+deactivate EditContactCommand
+
+[<--LogicManager
+deactivate LogicManager
+@enduml

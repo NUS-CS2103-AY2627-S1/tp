@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static seedu.address.testutil.Assert.assertThrows;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -103,6 +105,7 @@ public class JsonUserPrefsStorageTest {
 
         UserPrefs original = new UserPrefs();
         original.setGuiSettings(new GuiSettings(1200, 200, 0, 2));
+        original.assignShortcut("ls", "list");
 
         Path pefsFilePath = testFolder.resolve("TempPrefs.json");
         JsonUserPrefsStorage jsonUserPrefsStorage = new JsonUserPrefsStorage(pefsFilePath);
@@ -114,9 +117,46 @@ public class JsonUserPrefsStorageTest {
 
         //Try saving when the file exists
         original.setGuiSettings(new GuiSettings(5, 5, 5, 5));
+        original.assignShortcut("a", "addcontact");
         jsonUserPrefsStorage.saveUserPrefs(original);
         readBack = jsonUserPrefsStorage.readUserPrefs().get();
         assertEquals(original, readBack);
     }
 
+    @Test
+    public void readUserPrefs_shortcutsInFile_readCorrectly() throws Exception {
+        String prefsWithShortcuts = "{\n"
+                + "  \"guiSettings\" : {\n"
+                + "    \"windowWidth\" : 1000.0,\n"
+                + "    \"windowHeight\" : 500.0,\n"
+                + "    \"windowCoordinates\" : {\n"
+                + "      \"x\" : 300,\n"
+                + "      \"y\" : 100\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"addressBookFilePath\" : \"data/addressbook.json\",\n"
+                + "  \"shortcuts\" : {\n"
+                + "    \"shortcutToCommandWord\" : {\n"
+                + "      \"ls\" : \"list\",\n"
+                + "      \"inv space\" : \"findstories\",\n"
+                + "      \"inv/slash\" : \"findcontacts\",\n"
+                + "      \"cl\" : \"clear\"\n"
+                + "    }\n"
+                + "  }\n"
+                + "}";
+
+        Path prefsFilePath = testFolder.resolve("ShortcutsPrefs.json");
+        Files.writeString(prefsFilePath, prefsWithShortcuts);
+
+        JsonUserPrefsStorage jsonUserPrefsStorage = new JsonUserPrefsStorage(prefsFilePath);
+        UserPrefs readBack = jsonUserPrefsStorage.readUserPrefs().get();
+
+        Map<String, String> expectedShortcuts = Map.of(
+                "ls", "list",
+                "inv space", "findstories",
+                "inv/slash", "findcontacts",
+                "cl", "clear"
+        );
+        assertEquals(expectedShortcuts, readBack.getShortcuts());
+    }
 }

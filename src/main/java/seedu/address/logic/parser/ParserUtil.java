@@ -4,15 +4,18 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
 import seedu.address.logic.parser.exceptions.ParseException;
-import seedu.address.model.person.Address;
-import seedu.address.model.person.Email;
-import seedu.address.model.person.Name;
-import seedu.address.model.person.Phone;
+import seedu.address.model.contact.Address;
+import seedu.address.model.contact.Email;
+import seedu.address.model.contact.Name;
+import seedu.address.model.contact.Phone;
+import seedu.address.model.followup.FollowupDescription;
+import seedu.address.model.story.StoryName;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -48,6 +51,21 @@ public class ParserUtil {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }
         return new Name(trimmedName);
+    }
+
+    /**
+     * Parses a {@code String name} into a {@code StoryName}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code name} is invalid.
+     */
+    public static StoryName parseStoryName(String name) throws ParseException {
+        requireNonNull(name);
+        String trimmedName = name.trim();
+        if (!StoryName.isValidName(trimmedName)) {
+            throw new ParseException(StoryName.MESSAGE_CONSTRAINTS);
+        }
+        return new StoryName(trimmedName);
     }
 
     /**
@@ -111,14 +129,45 @@ public class ParserUtil {
     }
 
     /**
-     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}.
+     * Parses {@code Collection<String> tags} into a {@code Set<Tag>}, ignoring empty values.
      */
     public static Set<Tag> parseTags(Collection<String> tags) throws ParseException {
         requireNonNull(tags);
         final Set<Tag> tagSet = new HashSet<>();
         for (String tagName : tags) {
-            tagSet.add(parseTag(tagName));
+            if (!tagName.isEmpty()) {
+                tagSet.add(parseTag(tagName));
+            }
         }
         return tagSet;
+    }
+
+    /**
+     * Parses {@code tags} into a tag set for an edit operation, or returns an empty optional if no tag prefix was
+     * supplied. Empty values are ignored, with only empty values representing clearing all tags.
+     */
+    public static Optional<Set<Tag>> parseTagsForEdit(Collection<String> tags) throws ParseException {
+        requireNonNull(tags);
+
+        if (tags.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(parseTags(tags));
+    }
+
+    /**
+     * Parses a {@code String description} into a {@code FollowupDescription}.
+     * Leading and trailing whitespaces will be trimmed.
+     *
+     * @throws ParseException if the given {@code description} is invalid.
+     */
+    public static FollowupDescription parseFollowupDescription(String followupDescription) throws ParseException {
+        requireNonNull(followupDescription);
+        String trimmedFollowupDescription = followupDescription.trim();
+        if (!FollowupDescription.isValidDescription(trimmedFollowupDescription)) {
+            throw new ParseException(FollowupDescription.MESSAGE_CONSTRAINTS);
+        }
+        return new FollowupDescription(trimmedFollowupDescription);
     }
 }

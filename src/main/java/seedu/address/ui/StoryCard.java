@@ -1,0 +1,74 @@
+package seedu.address.ui;
+
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import seedu.address.model.contact.Name;
+import seedu.address.model.story.Story;
+
+/**
+ * A UI component that displays information of a {@code Story}.
+ */
+public class StoryCard extends UiPart<Region> {
+
+    private static final String FXML = "StoryListCard.fxml";
+
+    /**
+     * Note: Certain keywords such as "location" and "resources" are reserved keywords in JavaFX.
+     * As a consequence, UI elements' variable names cannot be set to such keywords
+     * or an exception will be thrown by JavaFX during runtime.
+     *
+     * @see <a href="https://github.com/se-edu/addressbook-level4/issues/336">The issue on AddressBook level 4</a>
+     */
+
+    public final Story story;
+
+    @FXML
+    private HBox storyCardPane;
+    @FXML
+    private Label name;
+    @FXML
+    private Label id;
+    @FXML
+    private FlowPane tags;
+    @FXML
+    private Label contactCount;
+    @FXML
+    private Label contacts;
+
+    /**
+     * Creates a {@code StoryCard} with the given {@code Story} and index to display.
+     */
+    public StoryCard(Story story, int displayedIndex) {
+        super(FXML);
+        this.story = story;
+        id.setText(displayedIndex + ". ");
+        name.setText(story.getName().toString());
+        story.getTags().stream()
+                .sorted(Comparator.comparing(tag -> tag.getName()))
+                .forEach(tag -> {
+                    Label label = new Label(tag.getName());
+                    label.setWrapText(true);
+                    label.setMinWidth(0);
+                    label.setMinHeight(Region.USE_PREF_SIZE);
+                    label.maxWidthProperty().bind(tags.widthProperty());
+                    tags.getChildren().add(label);
+                });
+        int count = story.getContacts().size();
+        contactCount.setText(count + (count == 1 ? " contact" : " contacts"));
+        if (story.getContacts().isEmpty()) {
+            contacts.setText("Contacts: (none)");
+        } else {
+            String contactsText = story.getContacts().stream()
+                    .map(Name::toString)
+                    .collect(Collectors.joining(", "));
+            contacts.setText("Contacts: " + contactsText);
+        }
+    }
+}
+

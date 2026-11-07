@@ -5,14 +5,14 @@ import static seedu.address.commons.util.AppUtil.checkArgument;
 
 /**
  * Represents a Tag in the address book.
- * Guarantees: immutable; name is valid as declared in {@link #isValidTagName(String)}
  */
 public class Tag {
 
-    public static final String MESSAGE_CONSTRAINTS = "Tag names should be alphanumeric";
-    public static final String VALIDATION_REGEX = "\\p{Alnum}+";
+    public static final String MESSAGE_CONSTRAINTS =
+            "Tag names should not be blank or start with whitespace";
+    public static final String VALIDATION_REGEX = "^\\S.*$";
 
-    public final String tagName;
+    private final String tagName;
 
     /**
      * Constructs a {@code Tag}.
@@ -23,6 +23,13 @@ public class Tag {
         requireNonNull(tagName);
         checkArgument(isValidTagName(tagName), MESSAGE_CONSTRAINTS);
         this.tagName = tagName;
+    }
+
+    /**
+     * Returns the tag name.
+     */
+    public String getName() {
+        return tagName;
     }
 
     /**
