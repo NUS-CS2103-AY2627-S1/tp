@@ -9,7 +9,8 @@ title: Developer Guide
 
 ## **Acknowledgements**
 
-* _{List the sources of reused or adapted ideas, code, documentation, and third-party libraries here, with links to the originals.}_
+* TutorConnect is based on the [AddressBook-Level3 project](https://se-education.org/addressbook-level3/) created by the [SE-EDU initiative](https://se-education.org).
+* Libraries used: [JavaFX](https://openjfx.io/), [Jackson](https://github.com/FasterXML/jackson), [JUnit5](https://github.com/junit-team/junit5)
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -136,7 +137,7 @@ The `Model` component,
 
 ### Storage component
 
-**API** : [`Storage.java`](https://github.com/se-edu/addressbook-level3/tree/master/src/main/java/seedu/address/storage/Storage.java)
+**API** : [`Storage.java`](https://github.com/AY2627S1-CS2103T-F14-1/tp/tree/master/src/main/java/seedu/address/storage/Storage.java)
 
 <img src="images/StorageClassDiagram.png" width="550" />
 
@@ -144,6 +145,56 @@ The `Storage` component,
 * can save both address book data and user preference data in JSON format, and read them back into corresponding objects.
 * is implemented by `StorageManager`, which delegates the actual JSON file access to `JsonAddressBookStorage` and `JsonUserPrefsStorage` (one class per data file).
 * depends on some classes in the `Model` component (because the `Storage` component's job is to save/retrieve objects that belong to the `Model`)
+* provides `DataFileLock`, which `MainApp` uses to hold an OS file lock on `tutorconnect.json.lock` beside the data file while TutorConnect runs. A second TutorConnect on the same data file fails to take the lock, shows an alert and exits, so two windows never save over each other. The lock is released by the OS if the process dies, and if the lock file cannot be created, TutorConnect starts without the protection.
+
+#### What TutorConnect saves
+
+TutorConnect keeps all of its data in a single file, `data/tutorconnect.json`. Besides the contacts themselves, this file holds everything the `Model` needs to restore the full set of student and guardian records:
+
+| JSON field | Stored by | Purpose |
+| --- | --- | --- |
+| `persons` | `JsonAdaptedPerson` | Every contact, including its student ID (`S…`) or guardian ID (`G…`), which is kept as a tag. |
+| `guardianLinks` | `JsonAdaptedGuardianLink` | Each guardian-student link, stored as a `studentId` and `guardianId` pair. |
+| `nextStudentNumber`, `nextGuardianNumber` | `JsonSerializableAddressBook` | The numbers used for the next generated student and guardian IDs. |
+
+The ID counters are saved so that IDs are never reused. For example, if `S3` is deleted, the next student is still given `S4` after a restart.
+
+#### Loading data
+
+`JsonAddressBookStorage#readAddressBook()` reads the file into a `JsonSerializableAddressBook`, and `JsonSerializableAddressBook#toModelType()` converts it back into a `Model` object. During conversion, the saved data is validated before it is accepted. The file is rejected if it contains:
+* duplicate contacts or duplicate contact IDs,
+* a contact with more than one contact ID,
+* a contact whose `student` or `guardian` tag does not match its ID (for example `student` with `G1`),
+* duplicate guardian links,
+* a guardian link that refers to a contact that does not exist, or
+* an ID counter that is not greater than every saved ID of that kind.
+
+Any of these causes a `DataLoadingException`. `MainApp#initModelManager` then starts TutorConnect with an empty workspace instead of loading partial or inconsistent data. The invalid file is left on disk until the next command saves over it, which is why the User Guide advises backing up the file before editing it by hand.
+
+The `guardianLinks`, `nextStudentNumber` and `nextGuardianNumber` fields are optional when reading. A missing `guardianLinks` defaults to no links, and a missing counter defaults to 1. The defaults are validated like any saved value, so not every older file loads:
+* A legacy file whose contacts have no student or guardian IDs still loads, because there is no saved ID for the default counter of 1 to conflict with.
+* A file that contains `S…` or `G…` IDs but lacks the matching counter is rejected, because the default counter of 1 is not greater than the saved IDs. Such a file must have its counters added by hand before it can load.
+
+#### Saving data
+
+`LogicManager` calls `Storage#saveAddressBook(ReadOnlyAddressBook)` after every successfully executed command, so users never need to save manually. The write goes through `FileUtil#writeToFile`, which makes the save atomic:
+
+1. The JSON content is written to a temporary file in the same folder as `tutorconnect.json`.
+2. The temporary file is moved over `tutorconnect.json` with `StandardCopyOption.ATOMIC_MOVE`.
+3. The temporary file is deleted if it still exists, for example because the write failed part-way.
+
+If the application is closed, crashes or runs out of disk space during a save, the previous `tutorconnect.json` remains intact. It is never left half-written.
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The temporary file must be in the same folder as the data file. An atomic move is only possible within one file system.</div>
+
+**Design considerations:**
+
+* **Alternative 1 (current choice):** Write to a temporary file, then atomically move it over the data file.
+  * Pros: A failed or interrupted save can never corrupt the existing data.
+  * Cons: Needs a second file to exist briefly, and requires a file system that supports atomic moves.
+* **Alternative 2:** Write directly to `tutorconnect.json`.
+  * Pros: Simpler to implement.
+  * Cons: A crash during the write can leave a truncated file, which then fails validation on the next start and loses the user's data.
 
 ### Common classes
 
@@ -155,96 +206,58 @@ Classes used by multiple components are in the `seedu.address.commons` package.
 
 This section describes some noteworthy details on how certain features are implemented.
 
-### \[Proposed\] Undo/redo feature
+### Find contacts by name feature
 
-#### Proposed Implementation
+`FindCommand` finds students and guardians whose names contain any of the given keywords, and lists them with their IDs and linked contacts in the same format as `list`.
 
-The proposed undo/redo mechanism is facilitated by `VersionedAddressBook`. It extends `AddressBook` with an undo/redo history, stored internally as an `addressBookStateList` and `currentStatePointer`. Additionally, it implements the following operations:
+The sequence diagram below shows how `find tan` is executed.
 
-* `VersionedAddressBook#commit()` — Saves the current address book state in its history.
-* `VersionedAddressBook#undo()` — Restores the previous address book state from its history.
-* `VersionedAddressBook#redo()` — Restores a previously undone address book state from its history.
+![Interactions for the `find tan` Command](images/FindSequenceDiagram.png)
 
-These operations are exposed in the `Model` interface as `Model#commitAddressBook()`, `Model#undoAddressBook()` and `Model#redoAddressBook()` respectively.
-
-Given below is an example usage scenario and how the undo/redo mechanism behaves at each step.
-
-Step 1. The user launches the application for the first time. The `VersionedAddressBook` will be initialized with the initial address book state, and the `currentStatePointer` pointing to that single address book state.
-
-![UndoRedoState0](images/UndoRedoState0.png)
-
-Step 2. The user executes `delete 5` command to delete the 5th person in the address book. The `delete` command calls `Model#commitAddressBook()`, causing the modified state of the address book after the `delete 5` command executes to be saved in the `addressBookStateList`, and the `currentStatePointer` is shifted to the newly inserted address book state.
-
-![UndoRedoState1](images/UndoRedoState1.png)
-
-Step 3. The user executes `add n/David …​` to add a new person. The `add` command also calls `Model#commitAddressBook()`, causing another modified address book state to be saved into the `addressBookStateList`.
-
-![UndoRedoState2](images/UndoRedoState2.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If a command fails its execution, it will not call `Model#commitAddressBook()`, so the address book state will not be saved into the `addressBookStateList`.
-
+<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `FindCommandParser` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
 </div>
 
-Step 4. The user now decides that adding the person was a mistake, and decides to undo that action by executing the `undo` command. The `undo` command will call `Model#undoAddressBook()`, which will shift the `currentStatePointer` once to the left, pointing it to the previous address book state, and restores the address book to that state.
-
-![UndoRedoState3](images/UndoRedoState3.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index 0, pointing to the initial AddressBook state, then there are no previous AddressBook states to restore. The `undo` command uses `Model#canUndoAddressBook()` to check if this is the case. If so, it will return an error to the user rather
-than attempting to perform the undo.
-
-</div>
-
-The following sequence diagram shows how an undo operation goes through the `Logic` component:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Logic.png)
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** The lifeline for `UndoCommand` should end at the destroy marker (X), but due to a limitation of PlantUML, it continues to the end of the diagram.
-
-</div>
-
-Similarly, how an undo operation goes through the `Model` component is shown below:
-
-![UndoSequenceDiagram](images/UndoSequenceDiagram-Model.png)
-
-The `redo` command does the opposite — it calls `Model#redoAddressBook()`, which shifts the `currentStatePointer` once to the right, pointing to the previously undone state, and restores the address book to that state.
-
-<div markdown="span" class="alert alert-info">:information_source: **Note:** If the `currentStatePointer` is at index `addressBookStateList.size() - 1`, pointing to the latest address book state, then there are no undone AddressBook states to restore. The `redo` command uses `Model#canRedoAddressBook()` to check if this is the case. If so, it will return an error to the user rather than attempting to perform the redo.
-
-</div>
-
-Step 5. The user then decides to execute the command `list`. Commands that do not modify the address book, such as `list`, will usually not call `Model#commitAddressBook()`, `Model#undoAddressBook()` or `Model#redoAddressBook()`. Thus, the `addressBookStateList` remains unchanged.
-
-![UndoRedoState4](images/UndoRedoState4.png)
-
-Step 6. The user executes `clear`, which calls `Model#commitAddressBook()`. Since the `currentStatePointer` is not pointing at the end of the `addressBookStateList`, all address book states after the `currentStatePointer` will be purged. Reason: It no longer makes sense to redo the `add n/David …​` command. This is the behavior that most modern desktop applications follow.
-
-![UndoRedoState5](images/UndoRedoState5.png)
-
-The following activity diagram summarizes what happens when a user executes a new command:
-
-<img src="images/CommitActivityDiagram.png" width="250" />
+1. `FindCommandParser` splits the arguments on whitespace and wraps the keywords in a `NameContainsKeywordsPredicate`. A name matches if it contains any keyword as a whole word, ignoring case.
+1. `FindCommand#execute()` combines that predicate with a check that the person has a student or guardian ID, so legacy AB3 persons without an ID are never shown. It then updates the filtered person list in the `Model`.
+1. `FindCommand` splits the filtered list into students and guardians, gets the guardian links from the `Model`, and passes them to `Messages#formatContacts()`. `ListCommand` uses the same method, so `find` and `list` output stays consistent without either command depending on the other.
+1. If nothing matches, the result is `No students or guardians match your search.` instead.
 
 #### Design considerations:
 
-**Aspect: How undo & redo execute:**
+**Aspect: How keywords match names:**
 
-* **Alternative 1 (current choice):** Saves the entire address book.
-  * Pros: Easy to implement.
-  * Cons: May have performance issues in terms of memory usage.
+* **Alternative 1 (current choice):** Match whole words, ignoring case (`Ale` does not match `Alex`).
+  * Pros: Reuses the tested AB3 predicate, and results are predictable.
+  * Cons: Users must type the full first name or last name.
+* **Alternative 2:** Match the start of any word (`Ale` matches `Alex`).
+  * Pros: Faster to type when a tutor remembers only part of a name.
+  * Cons: Short keywords can match many contacts.
 
-* **Alternative 2:** Individual command knows how to undo/redo by
-  itself.
-  * Pros: Will use less memory (e.g. for `delete`, just save the person being deleted).
-  * Cons: We must ensure that the implementation of each individual command is correct.
+### Delete contacts feature
 
-_{more aspects and alternatives to be added}_
+TutorConnect deletes a contact in two ways: by ID (`delete S1`) and by the index shown in the list (`delete 1`). `AddressBookParser` creates a `DeleteContactCommand` if the argument is a valid student or guardian ID, and a `DeleteCommand` otherwise. Either way, the contact's guardian links are deleted along with it.
 
-### \[Proposed\] Data archiving
+The sequence diagram below shows how the `Model` handles `delete S1` for a student `s` with ID `S1`.
 
-_{Explain here how the data archiving feature will be implemented}_
+![Interactions inside the Model for the `delete S1` Command](images/DeleteContactSequenceDiagram.png)
 
+1. `DeleteContactCommand#execute()` calls `Model#deleteContact("S1")`. If no contact has that ID, the command fails with `No contact exists with ID S1.`
+1. `AddressBook#deleteContact()` finds the contact whose tags include `S1`, then calls `AddressBook#removePerson()` on it.
+1. `removePerson()` removes the contact from the `UniquePersonList`. It then calls `removeLinksInvolving()` with each of the contact's tags. Tags that are student or guardian IDs remove every `GuardianLink` that involves that ID, and other tags such as `student` are ignored.
+1. `ModelManager` clears the find filter, so the list shows all contacts again.
 
---------------------------------------------------------------------------------------------------------------------
+`delete 1` takes a shorter path: `DeleteCommand` gets the contact at index 1 of the displayed list and calls `Model#deletePerson()`, which also calls `AddressBook#removePerson()`. Both commands therefore delete links in the same way.
+
+#### Design considerations:
+
+**Aspect: Where links are deleted:**
+
+* **Alternative 1 (current choice):** `AddressBook#removePerson()` deletes the contact's links, and every delete path calls it.
+  * Pros: A new way of deleting a contact cannot leave dangling links behind, because the only method that removes a contact also removes its links.
+  * Cons: `removePerson()` depends on the contact's ID being stored as a tag.
+* **Alternative 2:** Each command deletes the links itself after deleting the contact.
+  * Pros: The model methods stay simple.
+  * Cons: It is easy to forget in a new command. Before v1.5, `delete 1` did exactly that and left links to a missing contact in the data file. The file then failed to load on the next launch, and TutorConnect started with an empty workspace.
 
 ## **Documentation, logging, testing, dev-ops**
 
@@ -261,71 +274,149 @@ _{Explain here how the data archiving feature will be implemented}_
 
 **Target user profile**:
 
-* has a need to manage a significant number of contacts
-* prefers desktop apps over other types of applications
-* can type fast
-* prefers typing to mouse interactions
-* is reasonably comfortable using CLI apps
+* is an independent private tutor;
+* teaches a small recurring group of secondary-school and junior-college students;
+* needs to manage student and guardian contact details together;
+* prefers a desktop application that stores data locally;
+* can type quickly and prefers commands for routine data entry; and
+* is reasonably comfortable using command-based applications.
 
-**Value proposition**: Manage contacts faster than with a typical mouse-driven GUI application.
+**Value proposition**: TutorConnect helps independent private tutors organize student and guardian contact details
+alongside essential tutoring context, so they can retrieve and update information quickly while managing a small
+recurring group of students.
 
 
 ### User stories
 
 Priorities: High (must have) - `* * *`, Medium (nice to have) - `* *`, Low (unlikely to have) - `*`
 
-| Priority | As a …​                                    | I want to …​                     | So that I can…​                                                        |
-| -------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- |
-| `* * *`  | new user                                   | see usage instructions         | refer to instructions when I forget how to use the App                 |
-| `* * *`  | user                                       | add a new person               |                                                                        |
-| `* * *`  | user                                       | delete a person                | remove entries that I no longer need                                   |
-| `* * *`  | user                                       | find a person by name          | locate details of persons without having to go through the entire list |
-| `* *`    | user                                       | hide private contact details   | minimize chance of someone else seeing them by accident                |
-| `*`      | user with many persons in the address book | sort persons by name           | locate a person easily                                                 |
-
-*{More to be added}*
+| Priority | As a …​ | I want to …​ | So that I can…​ |
+| -------- | ------- | ------------- | ---------------- |
+| `* * *` | new user | view command instructions | start using TutorConnect without external help |
+| `* * *` | tutor | add a student with a name and phone number | keep the student's contact details |
+| `* * *` | tutor | add a guardian with a name and phone number | contact the student's guardian when needed |
+| `* * *` | tutor | link a guardian to a student | see the relationship between their records |
+| `* * *` | tutor | list all student and guardian records | review my tutoring contacts quickly |
+| `* * *` | tutor | delete an obsolete record | keep my contact list current |
+| `* * *` | tutor | have changes saved automatically | retain my records between sessions |
+| `* *` | tutor | edit a student's or guardian's contact details | correct changes without recreating the record |
+| `* *` | tutor | record a student's level and subjects | keep essential tutoring context with the student |
+| `* *` | tutor | search for a student or guardian by name | retrieve a specific record quickly |
+| `*` | tutor | sort records by name or type | scan a larger list more easily |
+| `*` | tutor | export contact information | keep a separate backup or use it in another tool |
 
 ### Use cases
 
-(For all use cases below, the **System** is the `AddressBook` and the **Actor** is the `user`, unless specified otherwise)
+(For all use cases below, the **System** is `TutorConnect` and the **Actor** is the tutor.)
 
-**Use case: Delete a person**
+**Use case UC01: Add a student**
 
 **MSS**
 
-1.  User requests to list persons
-2.  AddressBook shows a list of persons
-3.  User requests to delete a specific person in the list
-4.  AddressBook deletes the person
+1. Tutor requests to add a student with a name and phone number.
+2. TutorConnect validates the supplied details.
+3. TutorConnect creates the student record with a unique ID.
+4. TutorConnect shows the created student and confirms the addition.
 
-    Use case ends.
+   Use case ends.
 
 **Extensions**
 
-* 2a. The list is empty.
+* 2a. A required detail is missing or invalid.
+  * 2a1. TutorConnect shows an error and the expected command format.
+  * 2a2. Use case ends.
+* 3a. A student with the same identifying details already exists.
+  * 3a1. TutorConnect informs the tutor that the student already exists.
+  * 3a2. Use case ends.
 
-  Use case ends.
+**Use case UC02: Link a guardian to a student**
 
-* 3a. The given index is invalid.
+**MSS**
 
-    * 3a1. AddressBook shows an error message.
+1. Tutor requests to list all records.
+2. TutorConnect displays students and guardians with their IDs.
+3. Tutor requests to link a specific guardian ID to a specific student ID.
+4. TutorConnect validates that both records exist.
+5. TutorConnect records the relationship and confirms the link.
 
-      Use case resumes at step 2.
+   Use case ends.
 
-*{More to be added}*
+**Extensions**
+
+* 2a. No records exist.
+  * 2a1. TutorConnect shows an empty list.
+  * 2a2. Use case ends.
+* 4a. The student ID or guardian ID does not exist.
+  * 4a1. TutorConnect identifies the invalid ID.
+  * 4a2. Use case resumes at step 2.
+* 4b. The guardian is already linked to the student.
+  * 4b1. TutorConnect informs the tutor that the link already exists.
+  * 4b2. Use case ends.
+
+**Use case UC03: Delete an obsolete record**
+
+**MSS**
+
+1. Tutor requests to list all records.
+2. TutorConnect displays students and guardians with their IDs.
+3. Tutor requests to delete a specific record by ID.
+4. TutorConnect deletes the record and confirms the deletion.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. No records exist.
+  * 2a1. TutorConnect shows an empty list.
+  * 2a2. Use case ends.
+* 3a. The supplied ID is invalid or does not exist.
+  * 3a1. TutorConnect shows an error identifying the invalid ID.
+  * 3a2. Use case resumes at step 2.
+* 4a. The record is linked to another record.
+  * 4a1. TutorConnect removes the relationship as part of the deletion.
+  * 4a2. Use case continues at step 4.
+
+**Use case UC04: Retrieve a contact**
+
+**MSS**
+
+1. Tutor requests to list all records.
+2. TutorConnect displays the stored students and guardians with their contact details.
+3. Tutor reads the required contact details.
+
+   Use case ends.
+
+**Extensions**
+
+* 2a. No records exist.
+  * 2a1. TutorConnect shows an empty list.
+  * 2a2. Use case ends.
 
 ### Non-Functional Requirements
 
-1.  Should work on any _mainstream OS_ as long as it has Java `25` or above installed.
-2.  Should be able to hold up to 1000 persons without noticeable sluggishness in performance for typical usage.
-3.  A user with above average typing speed for regular English text (i.e. not code, not system admin commands) should be able to accomplish most of the tasks faster using commands than using the mouse.
-
-*{More to be added}*
+1. TutorConnect should work on any _mainstream OS_ with Java `25` or later installed.
+2. TutorConnect should respond to commands within one second for up to 1,000 combined student and guardian records,
+   excluding delays caused by the operating system or storage hardware.
+3. TutorConnect should persist every successful data-changing command to local storage without requiring a separate
+   save command.
+4. TutorConnect should recover gracefully from a missing data file by creating a new empty data set.
+5. TutorConnect should not require an Internet connection for its core contact-management features.
+6. A tutor who types faster than average should be able to perform routine contact-management tasks using the keyboard
+   alone.
+7. A new user familiar with command-line interfaces should be able to learn the core commands using the built-in help
+   information without external documentation.
+8. TutorConnect should store contact data only on the user's computer unless the user explicitly exports it.
 
 ### Glossary
 
-* **Mainstream OS**: Windows, Linux, Unix, or macOS
-* **Private contact detail**: A contact detail that is not meant to be shared with others
+* **Guardian**: A parent or other responsible adult associated with a student and whom the tutor may need to contact.
+* **Guardian ID**: A unique identifier assigned by TutorConnect to a guardian record.
+* **Mainstream OS**: Windows, Linux, Unix, or macOS.
+* **Record**: A stored student or guardian entry.
+* **Student**: A secondary-school or junior-college learner taught by the tutor.
+* **Student ID**: A unique identifier assigned by TutorConnect to a student record.
+* **Tutor**: The independent private tutor who uses TutorConnect.
+* **Tutoring context**: Information needed to support tutoring, such as a student's education level and subjects.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -342,36 +433,42 @@ testers are expected to do more *exploratory* testing.
 
 1. Initial launch
 
-   1. Download the JAR file and copy it into an empty folder.
+   1. Download the JAR file and copy it into an empty, writable folder.
 
-   1. Double-click the JAR file.<br>
-      Expected: The GUI opens with a set of sample contacts. The window size may not be optimal.
+   1. Run `java -jar "TutorConnect-v1.6.jar"` from a terminal using Java 25.<br>
+      Expected: TutorConnect opens with an empty contact list. A `data` folder is created after the first successful command.
 
 1. Saving window preferences
 
    1. Resize the window to an optimal size. Move the window to a different location. Close the window.
 
-   1. Relaunch the app by double-clicking the JAR file.<br>
+   1. Relaunch the JAR from the same folder.<br>
        Expected: The most recent window size and location are retained.
 
-1. _{ more test cases …​ }_
+### Deleting a contact
 
-### Deleting a person
+1. Deleting a linked student
 
-1. Deleting a person while all persons are being shown
+   1. Prerequisites: Add student `S1`, add guardian `G1`, and link them using `link s/S1 g/G1`.
 
-   1. Prerequisites: List all persons using the `list` command, with multiple persons in the list.
+   1. Test case: `delete S1`<br>
+      Expected: Student S1 is deleted and its link to guardian G1 is removed.
+
+   1. Test case: `delete S9`<br>
+      Expected: No contact is deleted. The status message says that no contact exists with ID S9.
+
+   1. Other incorrect delete commands to try: `delete`, `delete s1`, `delete X1`.<br>
+      Expected: The command is rejected with an error message and existing contacts are unchanged.
+
+1. Deleting a linked student by index
+
+   1. Prerequisites: Add student `S1`, add guardian `G1`, link them using `link s/S1 g/G1`, and list all contacts using `list`.
 
    1. Test case: `delete 1`<br>
-      Expected: The first contact is deleted from the list. The status message shows the deleted contact's details.
+      Expected: Student S1 is deleted. `list` shows guardian G1 with no linked students.
 
-   1. Test case: `delete 0`<br>
-      Expected: No person is deleted. The status message shows error details.
-
-   1. Other incorrect delete commands to try: `delete`, `delete x`, `...` (where x is larger than the list size)<br>
-      Expected: Similar to previous.
-
-1. _{ more test cases …​ }_
+   1. Test case: exit and relaunch the app after the previous test case.<br>
+      Expected: TutorConnect loads guardian G1 with no linked students.
 
 ### Saving data
 

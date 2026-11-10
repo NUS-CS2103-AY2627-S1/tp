@@ -12,14 +12,18 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.Messages;
+import seedu.address.logic.commands.AddGuardianCommand;
+import seedu.address.logic.commands.AddStudentCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteContactCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.EditCommand.EditPersonDescriptor;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.LinkCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
 import seedu.address.model.person.NameContainsKeywordsPredicate;
@@ -33,16 +37,31 @@ public class AddressBookParserTest {
     private final AddressBookParser parser = new AddressBookParser();
 
     @Test
-    public void parseCommand_add() throws Exception {
-        Person person = new PersonBuilder().build();
-        AddCommand command = (AddCommand) parser.parseCommand(PersonUtil.getAddCommand(person));
-        assertEquals(new AddCommand(person), command);
+    public void parseCommand_legacyAdd_throwsParseException() {
+        assertThrows(ParseException.class, MESSAGE_UNKNOWN_COMMAND, () ->
+                parser.parseCommand("add n/Alex Tan p/91234567 e/alex@example.com a/Home"));
+    }
+
+    @Test
+    public void parseCommand_tutorConnectCommands() throws Exception {
+        assertTrue(parser.parseCommand("add-student n/Alex Tan p/91234567") instanceof AddStudentCommand);
+        assertTrue(parser.parseCommand("add-guardian n/Amelia Tan p/92345678") instanceof AddGuardianCommand);
+        assertTrue(parser.parseCommand("link s/S1 g/G1") instanceof LinkCommand);
+        assertTrue(parser.parseCommand("delete S1") instanceof DeleteContactCommand);
+    }
+
+    @Test
+    public void parseCommand_invalidTutorConnectCommands_throwsParseException() {
+        assertThrows(ParseException.class, () -> parser.parseCommand("add-student n/Alex Tan"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("add-guardian p/92345678"));
+        assertThrows(ParseException.class, () -> parser.parseCommand("link s/G1 g/S1"));
     }
 
     @Test
     public void parseCommand_clear() throws Exception {
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD) instanceof ClearCommand);
-        assertTrue(parser.parseCommand(ClearCommand.COMMAND_WORD + " 3") instanceof ClearCommand);
+        assertEquals(new ClearCommand(false), parser.parseCommand(ClearCommand.COMMAND_WORD));
+        assertEquals(new ClearCommand(false), parser.parseCommand(ClearCommand.COMMAND_WORD + " 3"));
+        assertEquals(new ClearCommand(true), parser.parseCommand(ClearCommand.COMMAND_WORD + " confirm"));
     }
 
     @Test
@@ -85,6 +104,44 @@ public class AddressBookParserTest {
     public void parseCommand_list() throws Exception {
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD) instanceof ListCommand);
         assertTrue(parser.parseCommand(ListCommand.COMMAND_WORD + " 3") instanceof ListCommand);
+    }
+
+    @Test
+    public void parseCommand_unknownPrefixAfterValue_throwsParseException() {
+        String expected = String.format(Messages.MESSAGE_UNKNOWN_PARAMETER, "x/", AddStudentCommand.MESSAGE_USAGE);
+        assertThrows(ParseException.class, expected, () ->
+                parser.parseCommand("add-student n/Alex Tan p/91234567 x/foo"));
+        assertThrows(ParseException.class, expected, () ->
+                parser.parseCommand("add-student n/Alex Tan x/foo p/91234567"));
+        assertThrows(ParseException.class, String.format(Messages.MESSAGE_UNKNOWN_PARAMETER, "x/",
+                AddGuardianCommand.MESSAGE_USAGE), () ->
+                parser.parseCommand("add-guardian n/Amelia Tan p/92345678 x/foo"));
+        assertThrows(ParseException.class, String.format(Messages.MESSAGE_UNKNOWN_PARAMETER, "x/",
+                EditCommand.MESSAGE_USAGE), () -> parser.parseCommand("edit S1 p/91234567 x/foo"));
+    }
+
+    @Test
+    public void parseCommand_nameWithPunctuationOrSonOf_success() throws Exception {
+        assertTrue(parser.parseCommand("add-student n/Tan Wei Ming s/o Tan Ah Kow p/91234567")
+                instanceof AddStudentCommand);
+        assertTrue(parser.parseCommand("add-guardian n/Siti d/o Rahman p/92345678") instanceof AddGuardianCommand);
+        assertTrue(parser.parseCommand("add-student n/Mary-Jane O'Brien p/91234567") instanceof AddStudentCommand);
+        assertTrue(parser.parseCommand("edit S1 n/Kumar s/o Raju") instanceof EditCommand);
+    }
+
+    @Test
+    public void parseCommand_nameWithAnakConnectors_success() throws Exception {
+        assertTrue(parser.parseCommand("add-student n/Ravi a/l Kumar p/91234567") instanceof AddStudentCommand);
+        assertTrue(parser.parseCommand("add-guardian n/Latha a/p Kumar p/92345678") instanceof AddGuardianCommand);
+        assertTrue(parser.parseCommand("add-guardian n/Mary w/o John p/92345678") instanceof AddGuardianCommand);
+        assertTrue(parser.parseCommand("edit S1 n/Ravi a/l Kumar") instanceof EditCommand);
+    }
+
+    @Test
+    public void parseCommand_commandWordInUpperCase_success() throws Exception {
+        assertTrue(parser.parseCommand("HELP") instanceof HelpCommand);
+        assertTrue(parser.parseCommand("List") instanceof ListCommand);
+        assertTrue(parser.parseCommand("EXIT") instanceof ExitCommand);
     }
 
     @Test

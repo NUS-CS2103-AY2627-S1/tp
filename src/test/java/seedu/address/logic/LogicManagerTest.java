@@ -1,14 +1,10 @@
 package seedu.address.logic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
-import static seedu.address.logic.commands.CommandTestUtil.ADDRESS_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.EMAIL_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.NAME_DESC_AMY;
-import static seedu.address.logic.commands.CommandTestUtil.PHONE_DESC_AMY;
 import static seedu.address.testutil.Assert.assertThrows;
-import static seedu.address.testutil.TypicalPersons.AMY;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -18,7 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddStudentCommand;
 import seedu.address.logic.commands.CommandResult;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.commands.exceptions.CommandException;
@@ -27,11 +23,9 @@ import seedu.address.model.Model;
 import seedu.address.model.ModelManager;
 import seedu.address.model.ReadOnlyAddressBook;
 import seedu.address.model.UserPrefs;
-import seedu.address.model.person.Person;
 import seedu.address.storage.JsonAddressBookStorage;
 import seedu.address.storage.JsonUserPrefsStorage;
 import seedu.address.storage.StorageManager;
-import seedu.address.testutil.PersonBuilder;
 
 public class LogicManagerTest {
     private static final IOException DUMMY_IO_EXCEPTION = new IOException("dummy IO exception");
@@ -67,17 +61,55 @@ public class LogicManagerTest {
     @Test
     public void execute_validCommand_success() throws Exception {
         String listCommand = ListCommand.COMMAND_WORD;
-        assertCommandSuccess(listCommand, ListCommand.MESSAGE_SUCCESS, model);
+        assertCommandSuccess(listCommand, ListCommand.MESSAGE_NO_CONTACTS, model);
     }
 
     @Test
-    public void execute_storageThrowsIoException_throwsCommandException() {
+    public void execute_storageThrowsIoException_throwsCommandException() throws CommandException {
         assertCommandFailureForExceptionFromStorage(DUMMY_IO_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_ERROR_FORMAT, DUMMY_IO_EXCEPTION.getMessage()));
     }
 
     @Test
-    public void execute_storageThrowsAdException_throwsCommandException() {
+    public void execute_commandThatChangesNothing_doesNotSave() throws Exception {
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("never.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw DUMMY_IO_EXCEPTION;
+            }
+        };
+        logic = new LogicManager(model, new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+
+        assertEquals(ListCommand.MESSAGE_NO_CONTACTS, logic.execute(ListCommand.COMMAND_WORD).getFeedbackToUser());
+        assertTrue(logic.execute("exit").isExit());
+        assertEquals(new ModelManager(), model);
+    }
+
+    @Test
+    public void execute_failedSaveAfterDelete_restoresContactsAndLinks() throws Exception {
+        logic.execute("add-student n/Alex Tan p/91234567");
+        logic.execute("add-guardian n/Amelia Tan p/92345678");
+        logic.execute("link s/S1 g/G1");
+        Model before = new ModelManager(model.getAddressBook(), new UserPrefs());
+        JsonAddressBookStorage failingStorage = new JsonAddressBookStorage(temporaryFolder.resolve("never.json")) {
+            @Override
+            public void saveAddressBook(ReadOnlyAddressBook addressBook) throws IOException {
+                throw DUMMY_IO_EXCEPTION;
+            }
+        };
+        logic = new LogicManager(model, new StorageManager(failingStorage,
+                new JsonUserPrefsStorage(temporaryFolder.resolve("prefs.json"))));
+
+        assertThrows(CommandException.class, () -> logic.execute("delete S1"));
+
+        assertEquals(before, model);
+        assertEquals(1, model.getGuardianLinks().size());
+        assertEquals(2, model.getAddressBook().getPersonList().size());
+    }
+
+    @Test
+    public void execute_storageThrowsAdException_throwsCommandException() throws CommandException {
         assertCommandFailureForExceptionFromStorage(DUMMY_AD_EXCEPTION, String.format(
                 LogicManager.FILE_OPS_PERMISSION_ERROR_FORMAT, DUMMY_AD_EXCEPTION.getMessage()));
     }
@@ -146,7 +178,8 @@ public class LogicManagerTest {
      * @param e the exception to be thrown by the Storage component
      * @param expectedMessage the message expected inside exception thrown by the Logic component
      */
-    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage) {
+    private void assertCommandFailureForExceptionFromStorage(IOException e, String expectedMessage)
+            throws CommandException {
         Path prefPath = temporaryFolder.resolve("ExceptionUserPrefs.json");
 
         // Inject LogicManager with a JsonAddressBookStorage that throws the IOException e when saving
@@ -163,12 +196,9 @@ public class LogicManagerTest {
 
         logic = new LogicManager(model, storage);
 
-        // Triggers the saveAddressBook method by executing an add command
-        String addCommand = AddCommand.COMMAND_WORD + NAME_DESC_AMY + PHONE_DESC_AMY
-                + EMAIL_DESC_AMY + ADDRESS_DESC_AMY;
-        Person expectedPerson = new PersonBuilder(AMY).withTags().build();
-        ModelManager expectedModel = new ModelManager();
-        expectedModel.addPerson(expectedPerson);
-        assertCommandFailure(addCommand, CommandException.class, expectedMessage, expectedModel);
+        // Triggers saveAddressBook by executing a current TutorConnect add command.
+        String addCommand = AddStudentCommand.COMMAND_WORD + " n/Amy Bee p/11111111";
+        // The failed save must leave the contacts exactly as they were before the command.
+        assertCommandFailure(addCommand, CommandException.class, expectedMessage, new ModelManager());
     }
 }

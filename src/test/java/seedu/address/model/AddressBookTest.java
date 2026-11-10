@@ -2,11 +2,14 @@ package seedu.address.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_ADDRESS_BOB;
 import static seedu.address.logic.commands.CommandTestUtil.VALID_TAG_HUSBAND;
 import static seedu.address.testutil.Assert.assertThrows;
 import static seedu.address.testutil.TypicalPersons.ALICE;
+import static seedu.address.testutil.TypicalPersons.BENSON;
+import static seedu.address.testutil.TypicalPersons.CARL;
 import static seedu.address.testutil.TypicalPersons.getTypicalAddressBook;
 
 import java.util.Collection;
@@ -16,8 +19,11 @@ import org.junit.jupiter.api.Test;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import seedu.address.model.guardian.GuardianId;
+import seedu.address.model.link.GuardianLink;
 import seedu.address.model.person.Person;
 import seedu.address.model.person.exceptions.DuplicatePersonException;
+import seedu.address.model.student.StudentId;
 import seedu.address.testutil.PersonBuilder;
 
 public class AddressBookTest {
@@ -27,6 +33,23 @@ public class AddressBookTest {
     @Test
     public void constructor() {
         assertEquals(List.of(), addressBook.getPersonList());
+    }
+
+    @Test
+    public void setPersons_contactsOutOfOrder_sortsByContactId() {
+        Person guardian = new PersonBuilder().withName("Amelia Tan").withTags("guardian", "G1").build();
+        Person student10 = new PersonBuilder().withName("Ben Lim").withTags("student", "S10").build();
+        Person student2 = new PersonBuilder().withName("Alex Tan").withTags("student", "S2").build();
+        addressBook.setPersons(List.of(BENSON, guardian, ALICE, student10, student2));
+        assertEquals(List.of(student2, student10, guardian, BENSON, ALICE), addressBook.getPersonList());
+    }
+
+    @Test
+    public void setPerson_contactWithoutId_keepsPosition() {
+        addressBook.setPersons(List.of(ALICE, BENSON, CARL));
+        Person editedBenson = new PersonBuilder(BENSON).withTags(VALID_TAG_HUSBAND).build();
+        addressBook.setPerson(BENSON, editedBenson);
+        assertEquals(List.of(ALICE, editedBenson, CARL), addressBook.getPersonList());
     }
 
     @Test
@@ -77,6 +100,55 @@ public class AddressBookTest {
     }
 
     @Test
+    public void removePerson_linkedStudent_removesOnlyItsLinks() {
+        Person student1 = new PersonBuilder().withName("Alex Tan").withTags("student", "S1").build();
+        Person student2 = new PersonBuilder().withName("Ben Lim").withTags("student", "S2").build();
+        Person guardian = new PersonBuilder().withName("Amelia Tan").withTags("guardian", "G1").build();
+        addressBook.setPersons(List.of(student1, student2, guardian));
+        GuardianLink keptLink = new GuardianLink(new StudentId("S2"), new GuardianId("G1"));
+        addressBook.addGuardianLink(new GuardianLink(new StudentId("S1"), new GuardianId("G1")));
+        addressBook.addGuardianLink(keptLink);
+
+        addressBook.removePerson(student1);
+
+        assertEquals(List.of(keptLink), addressBook.getGuardianLinks());
+    }
+
+    @Test
+    public void removePerson_linkedGuardian_removesItsLinks() {
+        Person student = new PersonBuilder().withName("Alex Tan").withTags("student", "S1").build();
+        Person guardian = new PersonBuilder().withName("Amelia Tan").withTags("guardian", "G1").build();
+        addressBook.setPersons(List.of(student, guardian));
+        addressBook.addGuardianLink(new GuardianLink(new StudentId("S1"), new GuardianId("G1")));
+
+        addressBook.removePerson(guardian);
+
+        assertEquals(List.of(), addressBook.getGuardianLinks());
+    }
+
+    @Test
+    public void equals_differentGuardianLinksOrCounters_returnsFalse() {
+        AddressBook first = new AddressBook();
+        AddressBook second = new AddressBook();
+        assertEquals(first, second);
+        assertEquals(first.hashCode(), second.hashCode());
+
+        // different ID counter
+        second.allocateStudentId();
+        assertNotEquals(first, second);
+
+        // different links
+        Person student = new PersonBuilder().withName("Alex Tan").withTags("student", "S1").build();
+        Person guardian = new PersonBuilder().withName("Amelia Tan").withTags("guardian", "G1").build();
+        AddressBook linked = new AddressBook();
+        linked.setPersons(List.of(student, guardian));
+        AddressBook unlinked = new AddressBook(linked);
+        assertEquals(linked, unlinked);
+        linked.addGuardianLink(new GuardianLink(new StudentId("S1"), new GuardianId("G1")));
+        assertNotEquals(linked, unlinked);
+    }
+
+    @Test
     public void getPersonList_modifyList_throwsUnsupportedOperationException() {
         assertThrows(UnsupportedOperationException.class, () -> addressBook.getPersonList().remove(0));
     }
@@ -100,6 +172,21 @@ public class AddressBookTest {
         @Override
         public ObservableList<Person> getPersonList() {
             return persons;
+        }
+
+        @Override
+        public java.util.List<seedu.address.model.link.GuardianLink> getGuardianLinks() {
+            return java.util.List.of();
+        }
+
+        @Override
+        public int getNextStudentNumber() {
+            return 1;
+        }
+
+        @Override
+        public int getNextGuardianNumber() {
+            return 1;
         }
     }
 

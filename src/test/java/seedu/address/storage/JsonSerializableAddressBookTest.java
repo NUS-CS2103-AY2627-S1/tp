@@ -19,6 +19,10 @@ public class JsonSerializableAddressBookTest {
     private static final Path TYPICAL_PERSONS_FILE = TEST_DATA_FOLDER.resolve("typicalPersonsAddressBook.json");
     private static final Path INVALID_PERSON_FILE = TEST_DATA_FOLDER.resolve("invalidPersonAddressBook.json");
     private static final Path DUPLICATE_PERSON_FILE = TEST_DATA_FOLDER.resolve("duplicatePersonAddressBook.json");
+    private static final String TUTOR_CONNECT_PERSONS = """
+            [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One","tags":["S1"]},
+            {"name":"Amelia Tan","phone":"92345678","email":"b@example.com","address":"Two","tags":["G1"]}]
+            """;
 
     @Test
     public void toModelType_typicalPersonsFile_success() throws Exception {
@@ -42,6 +46,160 @@ public class JsonSerializableAddressBookTest {
                 JsonSerializableAddressBook.class).get();
         assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_PERSON,
                 dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullPerson_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("[null]", "[]", 1, 1);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_NULL_ENTRY,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_nullGuardianLink_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData(TUTOR_CONNECT_PERSONS, "[null]", 2, 2);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_NULL_ENTRY,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_duplicateContactId_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One","tags":["S1"]},
+                {"name":"Bella Lim","phone":"92345678","email":"b@example.com","address":"Two","tags":["S1"]}]
+                """, "[]", 2, 1);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_CONTACT_ID,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_danglingLink_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One","tags":["S1"]}]
+                """, """
+                [{"studentId":"S1","guardianId":"G1"}]
+                """, 2, 1);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DANGLING_LINK,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_duplicateLink_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData(TUTOR_CONNECT_PERSONS,
+                """
+                [{"studentId":"S1","guardianId":"G1"},{"studentId":"S1","guardianId":"G1"}]
+                """, 2, 2);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_DUPLICATE_LINK,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_nextIdReused_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData(TUTOR_CONNECT_PERSONS,
+                """
+                [{"studentId":"S1","guardianId":"G1"}]
+                """, 1, 2);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_INVALID_NEXT_ID,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_multipleIdsOnPerson_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One","tags":["S1","G1"]}]
+                """, "[]", 2, 2);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_INVALID_CONTACT_ID,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_studentTagOnGuardianId_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One",
+                "tags":["student","G1"]}]
+                """, "[]", 1, 2);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_ROLE_MISMATCH,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_guardianTagOnStudentId_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One",
+                "tags":["guardian","S1"]}]
+                """, "[]", 2, 1);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_ROLE_MISMATCH,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_matchingRoleTags_success() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData("""
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One",
+                "tags":["student","S1"]},
+                {"name":"Amelia Tan","phone":"92345678","email":"b@example.com","address":"Two",
+                "tags":["guardian","G1"]}]
+                """, "[]", 2, 2);
+
+        assertEquals(2, dataFromFile.toModelType().getPersonList().size());
+    }
+
+    @Test
+    public void toModelType_invalidNextId_throwsIllegalValueException() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData(TUTOR_CONNECT_PERSONS,
+                """
+                [{"studentId":"S1","guardianId":"G1"}]
+                """, 2, 0);
+
+        assertThrows(IllegalValueException.class, JsonSerializableAddressBook.MESSAGE_INVALID_NEXT_ID,
+                dataFromFile::toModelType);
+    }
+
+    @Test
+    public void toModelType_validTutorConnectData_returnsAddressBook() throws Exception {
+        JsonSerializableAddressBook dataFromFile = readTutorConnectData(TUTOR_CONNECT_PERSONS,
+                """
+                [{"studentId":"S1","guardianId":"G1"}]
+                """, 2, 2);
+
+        AddressBook addressBook = dataFromFile.toModelType();
+
+        assertEquals(2, addressBook.getPersonList().size());
+        assertEquals(1, addressBook.getGuardianLinks().size());
+        assertEquals(2, addressBook.getNextStudentNumber());
+        assertEquals(2, addressBook.getNextGuardianNumber());
+    }
+
+    @Test
+    public void toModelType_namesDifferingOnlyInCaseOrRole_success() throws Exception {
+        // v1.5 accepted these, so they must still load even though new duplicates like them are now rejected
+        String persons = """
+                [{"name":"Alex Tan","phone":"91234567","email":"a@example.com","address":"One",
+                "tags":["student","S1"]},
+                {"name":"alex tan","phone":"91112222","email":"b@example.com","address":"Two",
+                "tags":["student","S2"]},
+                {"name":"Alex Tan","phone":"98887777","email":"c@example.com","address":"Three",
+                "tags":["guardian","G1"]}]
+                """;
+        AddressBook addressBook = readTutorConnectData(persons, "[]", 3, 2).toModelType();
+        assertEquals(3, addressBook.getPersonList().size());
+    }
+
+    private JsonSerializableAddressBook readTutorConnectData(String persons, String links, int nextStudentNumber,
+            int nextGuardianNumber) throws Exception {
+        String json = "{\"persons\":" + persons + ",\"guardianLinks\":" + links
+                + ",\"nextStudentNumber\":" + nextStudentNumber
+                + ",\"nextGuardianNumber\":" + nextGuardianNumber + "}";
+        return JsonUtil.fromJsonString(json, JsonSerializableAddressBook.class);
     }
 
 }

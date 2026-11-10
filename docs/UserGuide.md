@@ -3,7 +3,7 @@ layout: page
 title: User Guide
 ---
 
-AddressBook Level 3 (AB3) is a **desktop application for managing contacts, optimized for use through a Command Line Interface (CLI)** while retaining the benefits of a Graphical User Interface (GUI). If you type quickly, AB3 can help you manage contacts faster than traditional GUI applications.
+TutorConnect is a **desktop application for tutors to manage student and guardian contacts**, optimized for use through a Command Line Interface (CLI) while retaining the benefits of a Graphical User Interface (GUI).
 
 * Table of Contents
 {:toc}
@@ -15,24 +15,27 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 1. Ensure that Java `25` or later is installed on your computer.<br>
    **Mac users:** Ensure you have the precise JDK version prescribed [here](https://se-education.org/guides/tutorials/javaInstallationMac.html).
 
-1. Download the latest `.jar` file from [here](https://github.com/se-edu/addressbook-level3/releases).
+1. Download the latest `.jar` file from [here](https://github.com/AY2627S1-CS2103T-F14-1/tp/releases).
 
-1. Copy the file to the folder you want to use as the _home folder_ for your AddressBook.
+1. Copy the file to the folder you want to use as the _home folder_ for TutorConnect.
 
-1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar addressbook.jar`.<br>
-   A GUI similar to the one below should appear in a few seconds. Note how the app contains some sample data.<br>
-   ![Ui](images/Ui.png)
+1. Open a terminal, `cd` to the folder containing the JAR file, and run `java -jar TutorConnect-v1.6.jar` (use the name of the file you downloaded).<br>
+   A TutorConnect window should appear in a few seconds with an empty contact list.
+
+   <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
+   Launch the app from a terminal as shown above, as double-clicking the JAR file may fail on some systems. Use a folder you can write to: TutorConnect saves its data in a `data` folder inside the folder you launch it from, so it may fail to start or to save from a write-protected folder.
+   </div>
 
 1. Type a command in the command box and press Enter to execute it. For example, type **`help`** and press Enter to open the help window.<br>
    Some example commands you can try:
 
-   * `list` : Lists all contacts.
+   * `add-student n/Alex Tan p/91234567` : Adds student `S1`.
 
-   * `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01` : Adds a contact named `John Doe` to the Address Book.
+   * `add-guardian n/Amelia Tan p/92345678` : Adds guardian `G1`.
 
-   * `delete 3` : Deletes the 3rd contact shown in the current list.
+   * `link s/S1 g/G1` : Records that guardian `G1` is linked to student `S1`.
 
-   * `clear` : Deletes all contacts.
+   * `list` : Lists TutorConnect contacts and their relationships.
 
    * `exit` : Exits the app.
 
@@ -47,7 +50,7 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 **:information_source: Notes about the command format:**<br>
 
 * Words in `UPPER_CASE` are the parameters to be supplied by the user.<br>
-  For example, in `add n/NAME`, replace `NAME` with a value such as `John Doe`.
+  For example, in `add-student n/NAME`, replace `NAME` with a value such as `Alex Tan`.
 
 * Items in square brackets are optional.<br>
   For example, `n/NAME [t/TAG]` can be used as `n/John Doe t/friend` or as `n/John Doe`.
@@ -58,7 +61,10 @@ AddressBook Level 3 (AB3) is a **desktop application for managing contacts, opti
 * Parameters can be in any order.<br>
   For example, if the command specifies `n/NAME p/PHONE_NUMBER`, `p/PHONE_NUMBER n/NAME` is also acceptable.
 
-* Extraneous parameters for commands that take no parameters, such as `help`, `list`, `exit`, and `clear`, are ignored.<br>
+* Student and guardian IDs are not case-sensitive.<br>
+  For example, `delete s1` is interpreted as `delete S1`.
+
+* Extraneous parameters for commands that take no parameters, such as `help`, `list` and `exit`, are ignored.<br>
   For example, `help 123` is interpreted as `help`.
 
 * If you are using a PDF version of this document, be careful when copying and pasting commands that span multiple lines as space characters surrounding line-breaks may be omitted when copied over to the application.
@@ -73,78 +79,122 @@ Shows a message explaining how to access the help page.
 Format: `help`
 
 
-### Adding a person: `add`
+### Adding a student: `add-student`
 
-Adds a person to the address book.
+Adds a student and assigns the next permanent student ID (`S1`, `S2`, …).
 
-Format: `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​`
+Format: `add-student n/NAME p/PHONE_NUMBER`
 
-<div markdown="span" class="alert alert-primary">:bulb: **Tip:**
-A person can have any number of tags, including zero.
+* `NAME` can contain letters (including accented and non-English letters such as `José` or `陈小明`), digits, spaces, apostrophes (`'`), hyphens (`-`), full stops (`.`) and slashes (`/`), up to 100 characters, and must start with a letter or digit. For example, `O'Brien`, `Mary-Jane` and `Tan Wei Ming s/o Tan Ah Kow` are accepted.
+* The name connectors `s/o`, `d/o`, `a/l`, `a/p`, `w/o` and `c/o` (in any letter case) are accepted when they stand alone as a word, as in `Ravi a/l Kumar`. They are read as part of the name, even in `edit`, where `a/` would otherwise start an address. Other slashes after a space, such as in `Tan Ah/Kow`, are read as the start of a parameter and are rejected.
+* `PHONE_NUMBER` can contain digits only, between 3 and 15 digits long.
+
+Example: `add-student n/Alex Tan p/91234567`
+
+<div markdown="span" class="alert alert-info">:information_source: **Note:**
+Two students cannot share a name, and neither can two guardians. Names that differ only in letter case or spacing, such as `Alex Tan` and `alex  tan`, count as the same name. A student and a guardian may share a name. Extra spaces inside a name are removed when it is saved.
 </div>
 
-Examples:
-* `add n/John Doe p/98765432 e/johnd@example.com a/John street, block 123, #01-01`
-* `add n/Betsy Crowe t/friend e/betsycrowe@example.com a/Newgate Prison p/1234567 t/criminal`
+### Adding a guardian: `add-guardian`
 
-### Listing all persons: `list`
+Adds a guardian and assigns the next permanent guardian ID (`G1`, `G2`, …).
 
-Shows a list of all persons in the address book.
+Format: `add-guardian n/NAME p/PHONE_NUMBER`
+
+* `NAME` and `PHONE_NUMBER` follow the same rules as for `add-student`.
+
+Example: `add-guardian n/Amelia Tan p/92345678`
+
+### Linking a guardian to a student: `link`
+
+Links existing contacts using their IDs. A guardian can be linked to more than one student.
+
+* Like `add-student`, `add-guardian`, `edit` and `delete`, a successful `link` clears any filter left by a previous `find`, so the contact list shows everyone again.
+
+Format: `link s/STUDENT_ID g/GUARDIAN_ID`
+
+Example: `link s/S1 g/G1`
+
+### Listing contacts: `list`
+
+Shows all contacts, clearing any filter from a previous `find`. The result box lists every student and guardian with their ID, name, phone number, and linked contacts.
 
 Format: `list`
 
-### Editing a person: `edit`
+* Students are shown first, then guardians, each in ID order (`S2` comes before `S10`).
+* Each student line shows their linked guardians, and each guardian line shows their linked students. `none` means no links have been recorded yet.
+* If there are no students or guardians, TutorConnect shows `No students or guardians yet.`
 
-Edits an existing person in the address book.
+Example: after adding students `S1` and `S2` and guardian `G1`, then running `link s/S1 g/G1` and `link s/S2 g/G1`, `list` shows:
 
-Format: `edit INDEX [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`
+```
+Listed 2 students and 1 guardian.
+Students:
+S1 Alex Tan, 91234567 (guardians: G1)
+S2 Ben Lim, 93456789 (guardians: G1)
+Guardians:
+G1 Amelia Tan, 92345678 (students: S1, S2)
+```
 
-* Edits the person at the specified `INDEX`. The index refers to the index number shown in the displayed person list. The index **must be a positive integer** 1, 2, 3, …​
-* At least one of the optional fields must be provided.
-* Existing values will be updated to the input values.
-* When editing tags, all of the person's existing tags are removed; adding tags is not cumulative.
-* To remove all of a person's tags, enter `t/` without a tag after it.
+### Editing a contact: `edit`
+
+Format: `edit ID [n/NAME] [p/PHONE] [e/EMAIL] [a/ADDRESS]`
+
+* Use the student or guardian ID shown in the contact list, such as `S1` or `G2`.
+* Provide at least one field. Existing values are replaced; the ID and guardian links stay unchanged.
+* Tags cannot be edited for TutorConnect contacts because they contain the contact ID.
+* The legacy `edit INDEX` form targets a position in the current filtered list. Since TutorConnect displays IDs instead of list positions, use the ID form for TutorConnect contacts.
 
 Examples:
-*  `edit 1 p/91234567 e/johndoe@example.com` Edits the phone number and email address of the 1st person to be `91234567` and `johndoe@example.com` respectively.
-*  `edit 2 n/Betsy Crower t/` Edits the name of the 2nd person to be `Betsy Crower` and clears all existing tags.
+* `edit S1 p/91234567` changes student S1's phone number.
+* `edit G2 n/Amelia Tan p/92345678` changes guardian G2's name and phone number.
 
-### Locating persons by name: `find`
+### Finding contacts: `find`
 
-Finds persons whose names contain any of the given keywords.
+Finds students and guardians whose names, IDs or phone numbers match any of the given keywords. The result box lists each match with their ID, name, phone number, and linked contacts, in the same format as `list`.
 
 Format: `find KEYWORD [MORE_KEYWORDS]`
 
-* The search is case-insensitive; for example, `hans` matches `Hans`.
-* Keyword order does not matter; for example, `Hans Bo` matches `Bo Hans`.
-* The search considers only names.
-* Only full words match; for example, `Han` does not match `Hans`.
-* Persons matching at least one keyword are returned (an `OR` search); for example, `Hans Bo` returns `Hans Gruber` and `Bo Yang`.
+* The search is case-insensitive; for example, `tan` matches `Tan`.
+* Keyword order does not matter; for example, `Tan Alex` matches `Alex Tan`.
+* A keyword matches a word in the name, the whole student or guardian ID (for example `S1` or `s1`), or the whole phone number (for example `91234567`).
+* Only full words match; for example, `Ale` does not match `Alex`.
+* Contacts matching at least one keyword are returned (an `OR` search); for example, `Ben Chloe` returns `Ben Lim` and `Chloe Ng`.
+* If nothing matches, TutorConnect shows `No students or guardians match your search.`
+* Use `list` to show all contacts again.
 
-Examples:
-* `find John` returns `john` and `John Doe`
-* `find alex david` returns `Alex Yeoh`, `David Li`<br>
-  ![result for 'find alex david'](images/findAlexDavidResult.png)
+Example: with the contacts from the `list` example above, `find tan` shows:
 
-### Deleting a person: `delete`
+```
+Found 1 student and 1 guardian.
+Students:
+S1 Alex Tan, 91234567 (guardians: G1)
+Guardians:
+G1 Amelia Tan, 92345678 (students: S1, S2)
+```
 
-Deletes the specified person from the address book.
+### Deleting a contact: `delete`
 
-Format: `delete INDEX`
+Deletes the specified student or guardian from TutorConnect.
 
-* Deletes the person at the specified `INDEX`.
-* The index refers to the index number shown in the displayed person list.
-* The index **must be a positive integer** 1, 2, 3, …​
+Format: `delete ID` or `delete INDEX`
 
-Examples:
-* `list` followed by `delete 2` deletes the 2nd person in the address book.
-* `find Betsy` followed by `delete 1` deletes the 1st person in the results of the `find` command.
+* `delete S1` deletes student `S1`; `delete G1` deletes guardian `G1`.
+  Any guardian-student relationships involving that contact are removed automatically.
+* Contact IDs are never reused.
+
+* The legacy `delete INDEX` form targets a position in the current filtered list. Since TutorConnect displays IDs instead of list positions, use the ID form for TutorConnect contacts.
+
+Example: `delete S1` deletes student S1 and its guardian links.
 
 ### Clearing all entries: `clear`
 
-Clears all entries from the address book.
+Clears all students, guardians and links from TutorConnect. This cannot be undone, so TutorConnect asks you to confirm first. Student and guardian IDs are not reused afterwards.
 
-Format: `clear`
+Format: `clear` to see what would be deleted, then `clear confirm` to delete it
+
+* `clear` on its own deletes nothing. It shows how many students and guardians would be lost and reminds you to type `clear confirm`.
+* Any other text after `clear` also deletes nothing.
 
 ### Exiting the program: `exit`
 
@@ -154,27 +204,26 @@ Format: `exit`
 
 ### Saving the data
 
-AddressBook automatically saves data after every command. You do not need to save manually.
+TutorConnect automatically saves your data after every command that changes it. You do not need to save manually. If the data cannot be saved (for example because the folder is write-protected or the disk is full), TutorConnect shows an error and undoes that command, so what you see always matches what is on disk.
+
+Only one TutorConnect can use a data file at a time, because two windows saving to the same file would overwrite each other's changes. If you start TutorConnect again from a folder where it is already open, it shows a message and exits; keep using the window that is already open. TutorConnect keeps a small `tutorconnect.json.lock` file beside the data file for this. It is safe to ignore, and to delete when TutorConnect is closed.
 
 ### Editing the data file
 
-AddressBook data is saved automatically as a JSON file `[JAR file location]/data/addressbook.json`. Advanced users are welcome to update data directly by editing that data file.
+TutorConnect data is saved automatically as a JSON file `data/tutorconnect.json`, inside the folder you launched TutorConnect from (the folder containing the JAR file, if you followed the Quick start).
+Advanced users are welcome to update data directly by editing that data file.
 
 <div markdown="span" class="alert alert-warning">:exclamation: **Caution:**
-If your changes make the data file invalid, AddressBook starts with an empty address book at the next run. The invalid file remains on disk until you run a command (AddressBook saves after every command). Still, we recommend backing up the file before editing it.<br>
-Furthermore, certain edits can cause the AddressBook to behave in unexpected ways (e.g., if a value entered is outside of the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
+If your changes make the data file invalid, TutorConnect starts with an empty workspace at the next run. The invalid file remains on disk until you run a command (TutorConnect saves after every command), but TutorConnect first saves a copy of it beside the original as `tutorconnect.json.bak` (or `.bak1`, `.bak2` and so on if that name is taken) so you can recover your contacts. We still recommend backing up the file before editing it.<br>
+Furthermore, certain edits can cause TutorConnect to behave unexpectedly (for example, if a value is outside the acceptable range). Therefore, edit the data file only if you are confident that you can update it correctly.
 </div>
-
-### Archiving data files `[coming in v2.0]`
-
-_Details coming soon ..._
 
 --------------------------------------------------------------------------------------------------------------------
 
 ## FAQ
 
 **Q**: How do I transfer my data to another computer?<br>
-**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous AddressBook home folder.
+**A**: Install the app on the other computer and overwrite the data file it creates with the data file from your previous TutorConnect home folder.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -182,6 +231,9 @@ _Details coming soon ..._
 
 1. **When using multiple screens**, if you move the application to a secondary screen, and later switch to using only the primary screen, the GUI will open off-screen. The remedy is to delete the `preferences.json` file created by the application before running the application again.
 2. **If you minimize the Help Window** and then run the `help` command (or use the `Help` menu, or the keyboard shortcut `F1`) again, the original Help Window will remain minimized, and no new Help Window will appear. The remedy is to manually restore the minimized Help Window.
+3. **On macOS, if the app is in full-screen mode**, secondary windows such as the Help Window may not appear correctly. Leave full-screen mode before using `help`.
+4. **Phone numbers are checked loosely.** Phone numbers accept only digits (3 to 15 of them). Symbols such as `+` are rejected for now.
+5. **A link cannot be removed on its own yet.** There is no `unlink` command, and `edit` does not change links. If you link the wrong guardian, note the contact's details, `delete` it (which removes its links), then add it again. The re-added contact gets a new ID, because IDs are never reused. An `unlink` command is planned for a future version.
 
 --------------------------------------------------------------------------------------------------------------------
 
@@ -189,10 +241,13 @@ _Details coming soon ..._
 
 Action | Format, Examples
 --------|------------------
-**Add** | `add n/NAME p/PHONE_NUMBER e/EMAIL a/ADDRESS [t/TAG]…​` <br> e.g., `add n/James Ho p/22224444 e/jamesho@example.com a/123, Clementi Rd, 1234665 t/friend t/colleague`
-**Clear** | `clear`
-**Delete** | `delete INDEX`<br> e.g., `delete 3`
-**Edit** | `edit INDEX [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS] [t/TAG]…​`<br> e.g., `edit 2 n/James Lee e/jameslee@example.com`
-**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find James Jake`
+**Add student** | `add-student n/NAME p/PHONE_NUMBER`<br> e.g., `add-student n/Alex Tan p/91234567`
+**Add guardian** | `add-guardian n/NAME p/PHONE_NUMBER`<br> e.g., `add-guardian n/Amelia Tan p/92345678`
+**Clear** | `clear`, then `clear confirm`
+**Delete** | `delete ID`<br> e.g., `delete S1`
+**Edit** | `edit ID [n/NAME] [p/PHONE_NUMBER] [e/EMAIL] [a/ADDRESS]`<br> e.g., `edit S1 n/James Lee`
+**Exit** | `exit`
+**Find** | `find KEYWORD [MORE_KEYWORDS]`<br> e.g., `find alex amelia`, `find S1 91234567`
 **List** | `list`
+**Link** | `link s/STUDENT_ID g/GUARDIAN_ID`<br> e.g., `link s/S1 g/G1`
 **Help** | `help`

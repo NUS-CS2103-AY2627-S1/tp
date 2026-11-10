@@ -55,6 +55,29 @@ public class ParserUtilTest {
     }
 
     @Test
+    public void verifyNoUnknownPrefix_valueWithUnknownPrefix_throwsParseException() {
+        assertThrows(ParseException.class, () -> ParserUtil.verifyNoUnknownPrefix("91234567 x/foo", "usage"));
+        assertThrows(ParseException.class, () -> ParserUtil.verifyNoUnknownPrefix("Alex Tan  zz/bar baz", "usage"));
+        assertThrows(ParseException.class, () -> ParserUtil.verifyNoUnknownPrefix("Alex s/other", "usage"));
+        assertThrows(ParseException.class, () -> ParserUtil.verifyNoUnknownPrefix("Ravi a/lane", "usage"));
+        assertThrows(ParseException.class, () -> ParserUtil.verifyNoUnknownPrefix("Ravi a/x Kumar", "usage"));
+    }
+
+    @Test
+    public void verifyNoUnknownPrefix_plainValue_success() throws Exception {
+        ParserUtil.verifyNoUnknownPrefix("91234567", "usage");
+        ParserUtil.verifyNoUnknownPrefix("Alex Tan", "usage");
+        ParserUtil.verifyNoUnknownPrefix("Blk 1/2 Street", "usage"); // slash not preceded by letters only
+        ParserUtil.verifyNoUnknownPrefix("Tan Wei Ming s/o Tan Ah Kow", "usage"); // son of
+        ParserUtil.verifyNoUnknownPrefix("Siti D/O Rahman", "usage"); // daughter of, any case
+        ParserUtil.verifyNoUnknownPrefix("Ravi a/l Kumar", "usage"); // anak lelaki
+        ParserUtil.verifyNoUnknownPrefix("Latha A/P Kumar", "usage"); // anak perempuan
+        ParserUtil.verifyNoUnknownPrefix("Mary w/o John", "usage"); // wife of
+        ParserUtil.verifyNoUnknownPrefix("Ravi c/o Kumar", "usage"); // care of
+        ParserUtil.verifyNoUnknownPrefix("Ravi a/l", "usage"); // connector at the end of the value
+    }
+
+    @Test
     public void parseName_null_throwsNullPointerException() {
         assertThrows(NullPointerException.class, () -> ParserUtil.parseName((String) null));
     }
@@ -75,6 +98,11 @@ public class ParserUtilTest {
         String nameWithWhitespace = WHITESPACE + VALID_NAME + WHITESPACE;
         Name expectedName = new Name(VALID_NAME);
         assertEquals(expectedName, ParserUtil.parseName(nameWithWhitespace));
+    }
+
+    @Test
+    public void parseName_repeatedInnerSpaces_returnsNameWithSingleSpaces() throws Exception {
+        assertEquals(new Name("Alex Tan Wei"), ParserUtil.parseName(" Alex  Tan \t Wei "));
     }
 
     @Test
@@ -190,5 +218,20 @@ public class ParserUtilTest {
         Set<Tag> expectedTagSet = Set.of(new Tag(VALID_TAG_1), new Tag(VALID_TAG_2));
 
         assertEquals(expectedTagSet, actualTagSet);
+    }
+
+    @Test
+    public void normalizeContactId_lowerCaseId_returnsUpperCaseId() {
+        assertEquals("S1", ParserUtil.normalizeContactId("s1"));
+        assertEquals("G12", ParserUtil.normalizeContactId(" g12 "));
+        assertEquals("S3", ParserUtil.normalizeContactId("S3"));
+    }
+
+    @Test
+    public void normalizeContactId_notAnId_returnsTrimmedValue() {
+        assertEquals("1", ParserUtil.normalizeContactId(" 1 "));
+        assertEquals("s0", ParserUtil.normalizeContactId("s0"));
+        assertEquals("x1", ParserUtil.normalizeContactId("x1"));
+        assertEquals("", ParserUtil.normalizeContactId("  "));
     }
 }

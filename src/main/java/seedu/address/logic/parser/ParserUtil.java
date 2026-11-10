@@ -4,15 +4,21 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import seedu.address.commons.core.index.Index;
 import seedu.address.commons.util.StringUtil;
+import seedu.address.logic.Messages;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.guardian.GuardianId;
 import seedu.address.model.person.Address;
 import seedu.address.model.person.Email;
 import seedu.address.model.person.Name;
 import seedu.address.model.person.Phone;
+import seedu.address.model.student.StudentId;
 import seedu.address.model.tag.Tag;
 
 /**
@@ -21,6 +27,13 @@ import seedu.address.model.tag.Tag;
 public class ParserUtil {
 
     public static final String MESSAGE_INVALID_INDEX = "Index must be a positive integer.";
+
+    /**
+     * Matches a word followed by a slash that comes after a space, such as the {@code x/} in {@code 9123 x/foo}.
+     * The name connectors such as {@code s/o} and {@code a/l} (see {@link NameConnectors}) are not matched.
+     */
+    private static final Pattern UNKNOWN_PREFIX_PATTERN =
+            Pattern.compile("(?<=\\s)(?!" + NameConnectors.REGEX + ")[A-Za-z]+/");
 
     /**
      * Parses {@code oneBasedIndex} into an {@code Index} and returns it. Leading and trailing whitespaces will be
@@ -36,14 +49,44 @@ public class ParserUtil {
     }
 
     /**
+     * Returns {@code contactId} trimmed, with its {@code S} or {@code G} prefix upper-cased if it is otherwise a
+     * valid student or guardian ID, so that {@code s1} is read as {@code S1}. Other values are only trimmed.
+     */
+    public static String normalizeContactId(String contactId) {
+        requireNonNull(contactId);
+        String trimmedId = contactId.trim();
+        String upperCaseId = trimmedId.toUpperCase(Locale.ROOT);
+        if (StudentId.isValidStudentId(upperCaseId) || GuardianId.isValidGuardianId(upperCaseId)) {
+            return upperCaseId;
+        }
+        return trimmedId;
+    }
+
+    /**
+     * Throws a {@code ParseException} naming the first unrecognised parameter, such as {@code x/}, found in
+     * {@code value}, so that it is not mistaken for part of the value it follows.
+     *
+     * @param value the raw value of a recognised parameter
+     * @param usage the usage message of the command, shown after the error
+     */
+    public static void verifyNoUnknownPrefix(String value, String usage) throws ParseException {
+        requireNonNull(value);
+        Matcher matcher = UNKNOWN_PREFIX_PATTERN.matcher(value);
+        if (matcher.find()) {
+            throw new ParseException(String.format(Messages.MESSAGE_UNKNOWN_PARAMETER, matcher.group(), usage));
+        }
+    }
+
+    /**
      * Parses a {@code String name} into a {@code Name}.
-     * Leading and trailing whitespaces will be trimmed.
+     * Leading and trailing whitespaces will be trimmed, and runs of whitespace inside the name will be
+     * replaced by a single space.
      *
      * @throws ParseException if the given {@code name} is invalid.
      */
     public static Name parseName(String name) throws ParseException {
         requireNonNull(name);
-        String trimmedName = name.trim();
+        String trimmedName = name.trim().replaceAll("\\s+", " ");
         if (!Name.isValidName(trimmedName)) {
             throw new ParseException(Name.MESSAGE_CONSTRAINTS);
         }

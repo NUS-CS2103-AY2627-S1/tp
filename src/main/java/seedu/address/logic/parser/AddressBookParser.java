@@ -3,21 +3,27 @@ package seedu.address.logic.parser;
 import static seedu.address.logic.Messages.MESSAGE_INVALID_COMMAND_FORMAT;
 import static seedu.address.logic.Messages.MESSAGE_UNKNOWN_COMMAND;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import seedu.address.commons.core.LogsCenter;
-import seedu.address.logic.commands.AddCommand;
+import seedu.address.logic.commands.AddGuardianCommand;
+import seedu.address.logic.commands.AddStudentCommand;
 import seedu.address.logic.commands.ClearCommand;
 import seedu.address.logic.commands.Command;
 import seedu.address.logic.commands.DeleteCommand;
+import seedu.address.logic.commands.DeleteContactCommand;
 import seedu.address.logic.commands.EditCommand;
 import seedu.address.logic.commands.ExitCommand;
 import seedu.address.logic.commands.FindCommand;
 import seedu.address.logic.commands.HelpCommand;
+import seedu.address.logic.commands.LinkCommand;
 import seedu.address.logic.commands.ListCommand;
 import seedu.address.logic.parser.exceptions.ParseException;
+import seedu.address.model.guardian.GuardianId;
+import seedu.address.model.student.StudentId;
 
 /**
  * Parses user input.
@@ -43,7 +49,7 @@ public class AddressBookParser {
             throw new ParseException(String.format(MESSAGE_INVALID_COMMAND_FORMAT, HelpCommand.MESSAGE_USAGE));
         }
 
-        final String commandWord = matcher.group("commandWord");
+        final String commandWord = matcher.group("commandWord").toLowerCase(Locale.ROOT);
         final String arguments = matcher.group("arguments");
 
         // Note to developers: Change LOG_LEVEL in LogsCenter to enable lower level (i.e., FINE, FINER and lower)
@@ -52,10 +58,12 @@ public class AddressBookParser {
         logger.fine("Command word: " + commandWord + "; Arguments: " + arguments);
 
         return switch (commandWord) {
-            case AddCommand.COMMAND_WORD -> new AddCommandParser().parse(arguments);
+            case AddStudentCommand.COMMAND_WORD -> new AddStudentCommandParser().parse(arguments);
+            case AddGuardianCommand.COMMAND_WORD -> new AddGuardianCommandParser().parse(arguments);
+            case LinkCommand.COMMAND_WORD -> new LinkCommandParser().parse(arguments);
             case EditCommand.COMMAND_WORD -> new EditCommandParser().parse(arguments);
-            case DeleteCommand.COMMAND_WORD -> new DeleteCommandParser().parse(arguments);
-            case ClearCommand.COMMAND_WORD -> new ClearCommand();
+            case DeleteCommand.COMMAND_WORD -> parseDeleteCommand(arguments);
+            case ClearCommand.COMMAND_WORD -> new ClearCommandParser().parse(arguments);
             case FindCommand.COMMAND_WORD -> new FindCommandParser().parse(arguments);
             case ListCommand.COMMAND_WORD -> new ListCommand();
             case ExitCommand.COMMAND_WORD -> new ExitCommand();
@@ -65,6 +73,14 @@ public class AddressBookParser {
                 throw new ParseException(MESSAGE_UNKNOWN_COMMAND);
             }
         };
+    }
+
+    private Command parseDeleteCommand(String arguments) throws ParseException {
+        String contactId = ParserUtil.normalizeContactId(arguments);
+        if (StudentId.isValidStudentId(contactId) || GuardianId.isValidGuardianId(contactId)) {
+            return new DeleteContactCommand(contactId);
+        }
+        return new DeleteCommandParser().parse(arguments);
     }
 
 }
